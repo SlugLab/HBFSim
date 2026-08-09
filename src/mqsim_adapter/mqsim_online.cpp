@@ -10,9 +10,12 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <fstream>
 #include <limits>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -192,7 +195,6 @@ public:
                     .checksum = 0,
                     .reserved = 0,
                 });
-                --pending_requests;
             });
         delete submission;
     }
@@ -274,12 +276,102 @@ std::optional<HbfCompletion> MqsimOnlineEngine::run_next_completion()
 
     auto completion = impl_->completions.front();
     impl_->completions.pop_front();
+    --impl_->pending_requests;
     return completion;
 }
 
 std::size_t MqsimOnlineEngine::pending() const noexcept
 {
     return impl_->pending_requests;
+}
+
+std::vector<HbfCompletion> run_mqsim_trace(
+    const Profile& profile, const std::filesystem::path& trace_path)
+{
+    std::ifstream trace(trace_path);
+    if (!trace) {
+        throw std::runtime_error("failed to open MQSim trace: " +
+                                 trace_path.string());
+    }
+
+    MqsimOnlineEngine engine(profile);
+    std::string line;
+    std::uint64_t request_id = 1;
+    std::uint64_t previous_arrival = 0;
+    std::size_t line_number = 0;
+    while (std::getline(trace, line)) {
+        ++line_number;
+        if (line.empty()) {
+            continue;
+        }
+
+        std::uint64_t arrival_ns = 0;
+        std::uint64_t device = 0;
+        std::uint64_t start_sector = 0;
+        std::uint64_t sector_count = 0;
+        std::uint32_t operation = 0;
+        std::string trailing;
+        std::istringstream fields(line);
+        if (!(fields >> arrival_ns >> device >> start_sector >> sector_count >>
+              operation) ||
+            (fields >> trailing)) {
+            throw std::invalid_argument("invalid MQSim trace line " +
+                                        std::to_string(line_number));
+        }
+        if (device != 0) {
+            throw std::invalid_argument(
+                "MQSim HBF trace device must be zero at line " +
+                std::to_string(line_number));
+        }
+        if (request_id > 1 && arrival_ns < previous_arrival) {
+            throw std::invalid_argument(
+                "MQSim trace arrivals must be monotonic");
+        }
+        if (start_sector >
+                std::numeric_limits<std::uint64_t>::max() / kSectorBytes ||
+            sector_count >
+                std::numeric_limits<std::uint32_t>::max() / kSectorBytes) {
+            throw std::overflow_error(
+                "MQSim trace address or size overflows");
+        }
+        if (operation > 1) {
+            throw std::invalid_argument(
+                "MQSim trace operation must be 0 or 1 at line " +
+                std::to_string(line_number));
+        }
+
+        engine.submit(HbfRequest{
+            .request_id = request_id,
+            .sequence = request_id,
+            .arrival_ns = arrival_ns,
+            .logical_address = start_sector * kSectorBytes,
+            .deadline_ns = 0,
+            .bytes = static_cast<std::uint32_t>(sector_count * kSectorBytes),
+            .range_id = 1,
+            .stream_id = 0,
+            .operation = operation == 0
+                             ? static_cast<std::uint32_t>(
+                                   RequestOperation::Write)
+                             : static_cast<std::uint32_t>(
+                                   RequestOperation::Read),
+            .page_generation = 1,
+            .flags = 0,
+        });
+        previous_arrival = arrival_ns;
+        ++request_id;
+    }
+
+    std::vector<HbfCompletion> completions;
+    completions.reserve(request_id - 1);
+    while (engine.pending() != 0) {
+        auto completion = engine.run_next_completion();
+        if (!completion.has_value()) {
+            throw std::runtime_error(
+                "MQSim trace ended with pending requests");
+        }
+        completions.push_back(*completion);
+    }
+    return completions;
 }
 
 }  // namespace hbfsim

@@ -365,4 +365,32 @@ index 0000000..8ea8c44
 +}
 +
 +#endif
-
+diff --git a/src/utils/Logical_Address_Partitioning_Unit.cpp b/src/utils/Logical_Address_Partitioning_Unit.cpp
+index 2f45a8b..a6d583f 100644
+--- a/src/utils/Logical_Address_Partitioning_Unit.cpp
++++ b/src/utils/Logical_Address_Partitioning_Unit.cpp
+@@ -22,6 +22,10 @@ namespace Utils
+ 
+ 	void Logical_Address_Partitioning_Unit::Reset()
+ 	{
++		if (!initialized) {
++			return;
++		}
++
+ 		initialized = false;
+ 		pdas_per_flow.clear();
+ 		start_lhas_per_flow.clear();
+@@ -41,6 +45,13 @@ namespace Utils
+ 		}
+ 
+ 		delete[] resource_list;
++		resource_list = nullptr;
++		channel_count = 0;
++		chip_no_per_channel = 0;
++		die_no_per_chip = 0;
++		plane_no_per_die = 0;
++		total_pda_no = 0;
++		total_lha_no = 0;
+ 	}
+ 
+ 	void Logical_Address_Partitioning_Unit::Allocate_logical_address_for_flows(HostInterface_Types hostinterface_type, unsigned int concurrent_stream_no,

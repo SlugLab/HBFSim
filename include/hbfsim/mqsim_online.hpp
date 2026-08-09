@@ -4,8 +4,10 @@
 #include <hbfsim/protocol.hpp>
 
 #include <cstddef>
+#include <filesystem>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace hbfsim {
 
@@ -27,5 +29,8 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+std::vector<HbfCompletion> run_mqsim_trace(
+    const Profile& profile, const std::filesystem::path& trace_path);
 
 }  // namespace hbfsim

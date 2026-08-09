@@ -84,4 +84,28 @@ if(HBFSIM_ENABLE_MQSIM)
     set_tests_properties(
         mqsim_online PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+
+    add_executable(
+        hbf_mqsim_bench benchmarks/mqsim/hbf_mqsim_bench.cpp
+    )
+    target_link_libraries(hbf_mqsim_bench PRIVATE hbfsim_core)
+    target_include_directories(
+        hbf_mqsim_bench
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+    )
+
+    if(BUILD_TESTING)
+        find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
+        add_test(
+            NAME mqsim_benchmark
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_mqsim_benchmark.py"
+                "$<TARGET_FILE:hbf_mqsim_bench>"
+        )
+        set_tests_properties(
+            mqsim_benchmark
+            PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    endif()
 endif()

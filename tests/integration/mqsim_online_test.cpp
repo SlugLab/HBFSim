@@ -4,7 +4,10 @@
 
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -50,38 +53,68 @@ int main()
     profile.capacity_bytes = 16ULL * 1024 * 1024 * 1024;
     hbfsim::validate_profile(profile);
 
-    hbfsim::MqsimOnlineEngine engine(profile);
-    engine.submit(read_request(2, 2, 100, 0x4000, 16384));
-    engine.submit(read_request(1, 1, 0, 0x0000, 16384));
-    assert(engine.pending() == 2);
+    std::vector<hbfsim::HbfCompletion> direct_reference;
+    {
+        hbfsim::MqsimOnlineEngine engine(profile);
+        engine.submit(read_request(2, 2, 100, 0x4000, 16384));
+        engine.submit(read_request(1, 1, 0, 0x0000, 16384));
+        assert(engine.pending() == 2);
 
-    const auto first = engine.run_next_completion();
-    const auto second = engine.run_next_completion();
-    assert(first.has_value());
-    assert(second.has_value());
-    assert(first->request_id == 1);
-    assert(second->modeled_completion_ns >= first->modeled_completion_ns);
-    assert(first->modeled_ns >= profile.read_latency_ns);
-    assert(engine.pending() == 0);
-    assert(!engine.run_next_completion().has_value());
+        const auto first = engine.run_next_completion();
+        const auto second = engine.run_next_completion();
+        assert(first.has_value());
+        assert(second.has_value());
+        assert(first->request_id == 1);
+        assert(second->modeled_completion_ns >= first->modeled_completion_ns);
+        assert(first->modeled_ns >= profile.read_latency_ns);
+        assert(engine.pending() == 0);
+        assert(!engine.run_next_completion().has_value());
+        direct_reference = {*first, *second};
 
-    const auto next_arrival = second->modeled_completion_ns + 100;
-    engine.submit(read_request(4, 4, next_arrival, 0x8000, 16384));
-    engine.submit(read_request(3, 3, next_arrival, 0x8000, 16384));
-    const auto third = engine.run_next_completion();
-    const auto fourth = engine.run_next_completion();
-    assert(third.has_value());
-    assert(fourth.has_value());
-    assert(third->request_id == 3);
-    assert(fourth->request_id == 4);
+        const auto next_arrival = second->modeled_completion_ns + 100;
+        engine.submit(read_request(4, 4, next_arrival, 0x8000, 16384));
+        engine.submit(read_request(3, 3, next_arrival, 0x8000, 16384));
+        const auto third = engine.run_next_completion();
+        const auto fourth = engine.run_next_completion();
+        assert(third.has_value());
+        assert(fourth.has_value());
+        assert(third->request_id == 3);
+        assert(fourth->request_id == 4);
 
-    bool rejected = false;
-    try {
-        engine.submit(read_request(3, 3, 200, 1, 511));
-    } catch (const std::invalid_argument&) {
-        rejected = true;
+        bool rejected = false;
+        try {
+            engine.submit(read_request(5, 5, next_arrival + 100, 1, 511));
+        } catch (const std::invalid_argument&) {
+            rejected = true;
+        }
+        assert(rejected);
     }
-    assert(rejected);
+
+    const auto trace_reference = hbfsim::run_mqsim_trace(
+        profile, "tests/fixtures/mqsim/read_only.trace");
+    assert(trace_reference.size() == direct_reference.size());
+    for (std::size_t index = 0; index < direct_reference.size(); ++index) {
+        assert(trace_reference[index].request_id ==
+               direct_reference[index].request_id);
+        assert(trace_reference[index].modeled_completion_ns ==
+               direct_reference[index].modeled_completion_ns);
+        assert(trace_reference[index].modeled_ns ==
+               direct_reference[index].modeled_ns);
+    }
+
+    const auto burst_path =
+        std::filesystem::temp_directory_path() / "hbfsim-mqsim-burst.trace";
+    {
+        std::ofstream burst(burst_path);
+        assert(burst);
+        for (std::uint64_t index = 0; index < 4096; ++index) {
+            burst << "0 0 " << index * 32 << " 32 1\n";
+        }
+    }
+    const auto burst_reference =
+        hbfsim::run_mqsim_trace(profile, burst_path);
+    std::filesystem::remove(burst_path);
+    assert(burst_reference.size() == 4096);
 
     return 0;
 }

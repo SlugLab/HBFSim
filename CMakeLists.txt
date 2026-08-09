@@ -9,7 +9,12 @@ option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF
 include(CTest)
 include(cmake/Dependencies.cmake)
 
-add_library(hbfsim_core STATIC src/api.cpp src/profile/profile.cpp)
+add_library(
+    hbfsim_core STATIC
+    src/api.cpp
+    src/profile/profile.cpp
+    src/protocol/page_directory.cpp
+)
 target_include_directories(
     hbfsim_core
     PUBLIC
@@ -32,3 +37,11 @@ target_link_libraries(hbfsim_profile_tests PRIVATE hbfsim_core)
 
 add_test(NAME profile COMMAND hbfsim_profile_tests)
 set_tests_properties(profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(hbfsim_protocol_tests tests/cpu/protocol_layout_test.cpp)
+target_link_libraries(hbfsim_protocol_tests PRIVATE hbfsim_core)
+add_test(NAME protocol COMMAND hbfsim_protocol_tests)
+
+add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
+target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)
+add_test(NAME page_directory COMMAND hbfsim_page_directory_tests)

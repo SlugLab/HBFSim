@@ -1,0 +1,19 @@
+{
+  "name": "hbf_memory",
+  "description": "Rewrite supported global memory accesses through HBFSim",
+  "attach_points": {
+    "includes": ["^kprobe/.*$"],
+    "excludes": ["^kprobe/__(?:hbfsim|bpftime)_.*$"]
+  },
+  "attach_type": 8,
+  "parameters": {
+    "resolver": "__hbfsim_resolve",
+    "fault_handler": "__hbfsim_fault",
+    "emit_coverage": true
+  },
+  "validation": {
+    "require_entry": true,
+    "require_ret": true,
+    "ptx_version_min": "8.7"
+  }
+}

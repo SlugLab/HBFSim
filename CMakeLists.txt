@@ -45,3 +45,18 @@ add_test(NAME protocol COMMAND hbfsim_protocol_tests)
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)
 add_test(NAME page_directory COMMAND hbfsim_page_directory_tests)
+
+if(HBFSIM_ENABLE_MQSIM)
+    include(cmake/MQSimPatchedBuild.cmake)
+    hbfsim_add_patched_mqsim(mqsim_hbf)
+
+    target_sources(hbfsim_core PRIVATE src/mqsim_adapter/mqsim_online.cpp)
+    target_link_libraries(hbfsim_core PRIVATE mqsim_hbf)
+
+    add_executable(mqsim_online_test tests/integration/mqsim_online_test.cpp)
+    target_link_libraries(mqsim_online_test PRIVATE hbfsim_core)
+    add_test(NAME mqsim_online COMMAND mqsim_online_test)
+    set_tests_properties(
+        mqsim_online PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endif()

@@ -1,0 +1,6 @@
+[submodule "third_party/bpftime"]
+	path = third_party/bpftime
+	url = https://github.com/eunomia-bpf/bpftime.git
+[submodule "third_party/mqsim"]
+	path = third_party/mqsim
+	url = https://github.com/CMU-SAFARI/MQSim.git

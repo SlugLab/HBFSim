@@ -268,6 +268,7 @@ def main() -> int:
     driver_lifecycle = [
         ("cuCtxDestroy", ctypes.c_void_p(0xC000)),
         ("cuCtxDestroy_v2", ctypes.c_void_p(0xC000)),
+        ("cuCtxDetach", ctypes.c_void_p(0xC000)),
         ("cuDevicePrimaryCtxReset", ctypes.c_int(0)),
         ("cuDevicePrimaryCtxReset_v2", ctypes.c_int(0)),
         ("cuDevicePrimaryCtxRelease", ctypes.c_int(0)),

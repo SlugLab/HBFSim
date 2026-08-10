@@ -136,6 +136,11 @@ int cuCtxDestroy_v2(void*)
     return destroy_context();
 }
 
+int cuCtxDetach(void*)
+{
+    return destroy_context();
+}
+
 int cuDevicePrimaryCtxReset(int)
 {
     return destroy_context();

@@ -138,6 +138,7 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_build_patched_bpftime.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build_patched_bpftime.sh"
             "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/PreparePatchedBpftime.cmake"
     )
 
     add_executable(

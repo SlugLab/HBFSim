@@ -221,7 +221,7 @@ when it can receive an HBF pointer. A successful `cuModuleUnload` removes the
 association; a failed unload leaves it intact. Successful context-destruction
 or device-reset operations conservatively clear all module associations because
 the first implementation does not index associations by CUDA context. The
-covered driver calls are `cuCtxDestroy` and `_v2`,
+covered driver calls are `cuCtxDestroy` and `_v2`, `cuCtxDetach`,
 `cuDevicePrimaryCtxReset` and `_v2`, and
 `cuDevicePrimaryCtxRelease` and `_v2`. The covered runtime call is
 `cudaDeviceReset`; CUDA 12 also covers its deprecated equivalent

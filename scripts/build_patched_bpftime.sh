@@ -11,6 +11,15 @@ if [[ $actual_commit != "$BPFTIME_COMMIT" ]]; then
     echo "build_patched_bpftime: expected $BPFTIME_COMMIT, found $actual_commit" >&2
     exit 65
 fi
+if ! source_status=$(git -C "$BPFTIME_SOURCE" status --porcelain=v1 \
+    --untracked-files=all --ignore-submodules=none); then
+    echo "build_patched_bpftime: unable to inspect pinned bpftime source worktree" >&2
+    exit 65
+fi
+if [[ -n $source_status ]]; then
+    echo "build_patched_bpftime: pinned bpftime source worktree is dirty" >&2
+    exit 65
+fi
 if ! git -C "$BPFTIME_SOURCE" apply --check "$BPFTIME_PATCH"; then
     echo "build_patched_bpftime: patch does not apply to pinned source" >&2
     exit 65

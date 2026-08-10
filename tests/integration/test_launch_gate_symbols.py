@@ -53,7 +53,7 @@ def main() -> int:
         "cudaGetDriverEntryPointByVersion_ptsz",
         "cuModuleLoadDataEx", "cuModuleUnload",
         "hbfsim_begin_module_load_from_ptx", "hbfsim_end_module_load",
-        "cuCtxDestroy", "cuCtxDestroy_v2",
+        "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
         "cudaDeviceReset",
@@ -82,7 +82,7 @@ def main() -> int:
             "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
     driver_lifecycle = {
         "cuModuleLoadDataEx", "cuModuleUnload", "cuCtxDestroy",
-        "cuCtxDestroy_v2", "cuDevicePrimaryCtxReset",
+        "cuCtxDestroy_v2", "cuCtxDetach", "cuDevicePrimaryCtxReset",
         "cuDevicePrimaryCtxReset_v2", "cuDevicePrimaryCtxRelease",
         "cuDevicePrimaryCtxRelease_v2",
     }
@@ -116,8 +116,9 @@ def main() -> int:
             "module_identities().erase" in module_unload,
             "module unload does not erase association only after success")
     for symbol in required & {
-        "cuCtxDestroy", "cuCtxDestroy_v2", "cuDevicePrimaryCtxReset",
-        "cuDevicePrimaryCtxReset_v2", "cuDevicePrimaryCtxRelease",
+        "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
+        "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
+        "cuDevicePrimaryCtxRelease",
         "cuDevicePrimaryCtxRelease_v2", "cuGreenCtxDestroy",
         "cudaDeviceReset", "cudaThreadExit",
     }:

@@ -757,6 +757,20 @@ extern "C" CUresult cuCtxDestroy_v2(CUcontext context)
     return result;
 }
 
+extern "C" CUresult cuCtxDetach(CUcontext context)
+{
+    using type = CUresult (*)(CUcontext);
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDetach"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(context);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
 extern "C" CUresult cuDevicePrimaryCtxReset(CUdevice device)
 {
     using type = CUresult (*)(CUdevice);
@@ -909,6 +923,7 @@ void* interposed_wrapper_address(const char* symbol, bool per_thread)
         {"cuModuleUnload", wrapper_address(&cuModuleUnload), nullptr},
         {"cuCtxDestroy", wrapper_address(&cuCtxDestroy), nullptr},
         {"cuCtxDestroy_v2", wrapper_address(&cuCtxDestroy_v2), nullptr},
+        {"cuCtxDetach", wrapper_address(&cuCtxDetach), nullptr},
         {"cuDevicePrimaryCtxReset", wrapper_address(&cuDevicePrimaryCtxReset),
          nullptr},
         {"cuDevicePrimaryCtxReset_v2",

@@ -26,6 +26,25 @@ if(NOT revision STREQUAL "ec26daecc8e787fb80fd95dd596a576404a5e36e")
     message(FATAL_ERROR "unexpected bpftime revision: ${revision}")
 endif()
 
+execute_process(
+    COMMAND
+        git status --porcelain=v1 --untracked-files=all
+        --ignore-submodules=none
+    WORKING_DIRECTORY "${BPFTIME_SOURCE}"
+    RESULT_VARIABLE status_result
+    OUTPUT_VARIABLE source_status
+    ERROR_VARIABLE status_error
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT status_result EQUAL 0)
+    message(FATAL_ERROR
+        "unable to inspect pinned bpftime source worktree: ${status_error}"
+    )
+endif()
+if(NOT source_status STREQUAL "")
+    message(FATAL_ERROR "pinned bpftime source worktree is dirty")
+endif()
+
 file(REMOVE_RECURSE "${OUTPUT_SOURCE}")
 file(MAKE_DIRECTORY "${OUTPUT_SOURCE}")
 file(

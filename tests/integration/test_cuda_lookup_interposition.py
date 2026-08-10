@@ -72,7 +72,7 @@ def main() -> int:
     )
     lifecycle_symbols = [
         "cuModuleLoadDataEx", "cuModuleUnload",
-        "cuCtxDestroy", "cuCtxDestroy_v2",
+        "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
     ]

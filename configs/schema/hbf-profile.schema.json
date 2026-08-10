@@ -27,7 +27,7 @@
   "properties": {
     "name": { "type": "string", "minLength": 1 },
     "capacity_bytes": { "type": "integer", "minimum": 1 },
-    "page_bytes": { "type": "integer", "minimum": 1 },
+    "page_bytes": { "type": "integer", "minimum": 512 },
     "read_latency_ns": { "type": "integer", "minimum": 1 },
     "program_latency_ns": { "type": "integer", "minimum": 1 },
     "channels": { "type": "integer", "minimum": 1 },

@@ -18,6 +18,7 @@ struct TransformRequest {
     std::string to_patch_kernel;
     std::string global_ebpf_map_info_symbol{"map_info"};
     std::string ebpf_communication_data_symbol{"constData"};
+    bool trusted_existing_helper{false};
 };
 
 struct TransformResult {

@@ -63,6 +63,12 @@ int main()
         "page_bytes must be a power of two");
 
     invalid = nominal;
+    invalid.page_bytes = 256;
+    check_profile_error(
+        [&] { hbfsim::validate_profile(invalid); },
+        "page_bytes must be at least 512 for MQSim sector alignment");
+
+    invalid = nominal;
     invalid.capacity_bytes = 0;
     check_profile_error(
         [&] { hbfsim::validate_profile(invalid); },

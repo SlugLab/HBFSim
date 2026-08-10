@@ -653,7 +653,8 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         std::max<std::uint64_t>(options->request_timeout_ns, 50'000'000);
     control.header()->time_scale = profile.time_scale;
     context->ranges = std::unique_ptr<RangeTable>(
-        new (std::nothrow) RangeTable(control, profile.page_bytes));
+        new (std::nothrow) RangeTable(control, profile.page_bytes,
+                                      profile.capacity_bytes));
     if (!context->ranges) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;

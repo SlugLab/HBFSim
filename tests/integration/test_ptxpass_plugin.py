@@ -62,7 +62,7 @@ def main() -> int:
             response["coverage"] == {
                 "rewritten_instructions": 3,
                 "unsupported_instructions": 1,
-                "excluded_functions": 1,
+                "excluded_functions": 0,
                 "unsupported_opcodes": ["ld.param.u64"],
             },
             f"unexpected plugin coverage: {response['coverage']}",

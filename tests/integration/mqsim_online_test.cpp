@@ -2,6 +2,8 @@
 #include <hbfsim/profile.hpp>
 #include <hbfsim/protocol.hpp>
 
+#include "../../src/cuda_runtime/device/hbf_device.cuh"
+
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
@@ -52,6 +54,34 @@ int main()
 
     profile.capacity_bytes = 16ULL * 1024 * 1024 * 1024;
     hbfsim::validate_profile(profile);
+
+    const hbfsim::device::SharedRangeRecord gpu_range{
+        .base = 0x7f00'0000'0000ULL,
+        .length = 3 * 16'384,
+        .file_offset = 2 * 16'384,
+        .range_id = 9,
+        .mode = 1,
+        .permissions = 3,
+        .stream_id = 4,
+        .page_bytes = 16'384,
+    };
+    const auto media = hbfsim::device::media_descriptor(
+        gpu_range, gpu_range.base + 16'385, 8, 0);
+    if (!media.valid || media.logical_address != 3 * 16'384 ||
+        media.bytes != 16'384) {
+        return __LINE__;
+    }
+    {
+        hbfsim::MqsimOnlineEngine engine(profile);
+        engine.submit(read_request(100, 0, 0, media.logical_address,
+                                   media.bytes));
+        const auto completion = engine.run_next_completion();
+        if (!completion.has_value() ||
+            completion->status !=
+                static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready)) {
+            return __LINE__;
+        }
+    }
 
     std::vector<hbfsim::HbfCompletion> direct_reference;
     {

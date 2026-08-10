@@ -734,6 +734,20 @@ synchronization lock, so relevant launches reject promptly.
 The range, binding, fake-driver, and gate tests for this sub-slice are
 CPU/static proof, not live timing injection.
 
+The device-helper sub-slice embeds the compiled helper PTX exactly once in each
+modified module so bpftime never loads an unresolved resolver call. It mirrors
+control ABI v2, performs sorted range lookup and warp/page coalescing, uses
+system-scope ring ordering, and bounds waits with GPU-local time plus heartbeat
+change observation. Timing ranges receive disjoint, page-aligned media offsets
+bounded by profile capacity; device requests carry the modeled page address and
+page size required by MQSim rather than the CUDA virtual address and scalar
+access width. Cross-page scalar/vector accesses fail closed. Existing helper
+symbols are accepted only for a complete module state previously emitted and
+recorded by the plugin, plus an exact embedded-helper match. Its
+million-completion ordering test is a CPU reference stress test, and CUDA 13
+compilation plus CUDA 12.8 `ptxas` assembly is static proof only. No GPU workload
+is executed while the prior Xid/MMU fault boundary remains in force.
+
 - [ ] **Step 1: Write baseline-versus-instrumented CUDA checks**
 
 ```cpp

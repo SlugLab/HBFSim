@@ -73,6 +73,24 @@ add_executable(hbfsim_timing_binding_tests tests/cpu/timing_binding_test.cpp)
 target_link_libraries(hbfsim_timing_binding_tests PRIVATE hbfsim_core)
 add_test(NAME timing_binding COMMAND hbfsim_timing_binding_tests)
 
+add_executable(
+    hbfsim_device_helper_abi_tests tests/cpu/device_helper_abi_test.cpp
+)
+target_link_libraries(hbfsim_device_helper_abi_tests PRIVATE hbfsim_core)
+add_test(NAME device_helper_abi COMMAND hbfsim_device_helper_abi_tests)
+
+add_executable(
+    hbfsim_device_ordering_reference_tests
+    tests/cpu/device_ordering_reference_test.cpp
+)
+target_link_libraries(
+    hbfsim_device_ordering_reference_tests PRIVATE hbfsim_core
+)
+add_test(
+    NAME device_ordering_reference
+    COMMAND hbfsim_device_ordering_reference_tests
+)
+
 add_executable(context_lifecycle_test tests/cpu/context_lifecycle_test.cpp)
 target_link_libraries(context_lifecycle_test PRIVATE hbfsim_core)
 add_library(hbfsim_marker_preload SHARED tests/integration/marker_preload.cpp)
@@ -158,6 +176,9 @@ set_target_properties(
 
 if(BUILD_TESTING)
     find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
+endif()
+
+if(BUILD_TESTING AND HBFSIM_ENABLE_CUDA)
     add_test(
         NAME ptxpass_plugin
         COMMAND
@@ -169,7 +190,9 @@ if(BUILD_TESTING)
     set_tests_properties(
         ptxpass_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+endif()
 
+if(BUILD_TESTING)
     add_test(
         NAME bpftime_patch
         COMMAND
@@ -263,6 +286,57 @@ endif()
 
 find_package(CUDAToolkit 12.8 QUIET)
 if(CUDAToolkit_FOUND)
+    if(HBFSIM_ENABLE_CUDA)
+        if(CMAKE_CUDA_HOST_COMPILER)
+            set(HBFSIM_NVCC_HOST_COMPILER "${CMAKE_CUDA_HOST_COMPILER}")
+        else()
+            unset(HBFSIM_NVCC_HOST_COMPILER CACHE)
+            find_program(
+                HBFSIM_NVCC_HOST_COMPILER NAMES g++-13 g++-12 g++-14 g++
+            )
+        endif()
+        set(HBFSIM_DEVICE_PTX "${CMAKE_BINARY_DIR}/generated/hbf_device.ptx")
+        set(
+            HBFSIM_DEVICE_PTX_HEADER
+            "${CMAKE_BINARY_DIR}/generated/hbf_device_ptx.hpp"
+        )
+        add_custom_command(
+            OUTPUT "${HBFSIM_DEVICE_PTX}" "${HBFSIM_DEVICE_PTX_HEADER}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                    "${CMAKE_BINARY_DIR}/generated"
+            COMMAND
+                "${CUDAToolkit_NVCC_EXECUTABLE}" --ptx --std=c++20
+                --gpu-architecture=compute_120
+                --relocatable-device-code=true --keep-device-functions
+                "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+                "-I${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
+                -o "${HBFSIM_DEVICE_PTX}"
+            COMMAND
+                "${CMAKE_COMMAND}" "-DINPUT=${HBFSIM_DEVICE_PTX}"
+                "-DOUTPUT=${HBFSIM_DEVICE_PTX_HEADER}" -P
+                "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedDevicePtx.cmake"
+            DEPENDS
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cuh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedDevicePtx.cmake"
+            VERBATIM
+        )
+        add_custom_target(
+            hbfsim_device_ptx DEPENDS "${HBFSIM_DEVICE_PTX_HEADER}"
+        )
+        add_dependencies(hbfsim_core hbfsim_device_ptx)
+        target_include_directories(
+            hbfsim_core PRIVATE "${CMAKE_BINARY_DIR}/generated"
+        )
+        target_compile_definitions(
+            hbfsim_core PRIVATE HBFSIM_HAVE_DEVICE_HELPER_PTX=1
+        )
+        target_compile_definitions(
+            ptx_transform_test PRIVATE HBFSIM_TEST_DEVICE_HELPER_PTX=1
+        )
+    endif()
+
     add_library(hbfsim_launch_gate SHARED src/cuda_runtime/launch_gate.cpp)
     target_link_libraries(hbfsim_launch_gate PRIVATE hbfsim_core ${CMAKE_DL_LIBS})
     target_include_directories(
@@ -341,16 +415,18 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:fake_cuda_lookup>"
                     "${CUDAToolkit_VERSION}"
         )
-        add_test(
-            NAME cuda_module_association
-            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_module_association.py"
-                    "$<TARGET_FILE:hbfsim_launch_gate>"
-                    "$<TARGET_FILE:fake_cuda_lookup>"
-                    "$<TARGET_FILE:ptxpass_hbf_plugin>"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
-                    "${CUDAToolkit_VERSION}"
-        )
+        if(HBFSIM_ENABLE_CUDA)
+            add_test(
+                NAME cuda_module_association
+                COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_module_association.py"
+                        "$<TARGET_FILE:hbfsim_launch_gate>"
+                        "$<TARGET_FILE:fake_cuda_lookup>"
+                        "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
+                        "${CUDAToolkit_VERSION}"
+            )
+        endif()
         add_test(
             NAME timing_gate_binding
             COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
@@ -387,6 +463,11 @@ if(HBFSIM_ENABLE_CUDA)
         add_dependencies(unsupported_kernel hbfsim_launch_gate ptxpass_hbf_plugin)
     endif()
     if(BUILD_TESTING)
+        find_program(
+            HBFSIM_PTXAS_EXECUTABLE NAMES ptxas
+            HINTS "/usr/local/cuda-12.8/bin" "${CUDAToolkit_BIN_DIR}"
+            REQUIRED
+        )
         add_test(
             NAME unsupported_kernel_ptx
             COMMAND
@@ -394,6 +475,19 @@ if(HBFSIM_ENABLE_CUDA)
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_ptx.py"
                 "$<TARGET_FILE:unsupported_kernel>"
                 "${CUDAToolkit_BIN_DIR}/cuobjdump"
+        )
+        add_test(
+            NAME device_helper_ptx
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_device_helper_ptx.py"
+                "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                "${HBFSIM_DEVICE_PTX}"
+                "${HBFSIM_PTXAS_EXECUTABLE}"
+        )
+        set_tests_properties(
+            device_helper_ptx PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         )
     endif()
 endif()

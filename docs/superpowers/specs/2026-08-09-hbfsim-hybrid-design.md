@@ -362,7 +362,19 @@ complete(request_id, modeled_completion_ns)
 
 The adapter bypasses the NVMe/SATA host protocol and maps logical HBF pages directly across configured channels, chips, dies, planes, and pages. MQSim's event engine, transaction scheduling, flash timing, and contention remain active. A single deterministic service thread owns MQSim state.
 
-GPU `globaltimer` samples are correlated to host monotonic time at context creation and periodically thereafter. Request arrival order is determined by the shared-ring sequence number; correlated timestamps provide inter-arrival timing.
+Each explicit timing range owns a disjoint page-aligned interval in the
+profile's synthetic media address space. Registration fails before publication
+when the cumulative rounded extent exceeds `capacity_bytes`. The GPU submits
+that media page address and the full profile page size to MQSim, never a raw
+CUDA virtual address or a 1--16 byte instruction width. Until a split-request
+path is implemented, one instruction that spans two modeled pages fails closed.
+
+Request arrival order is determined by the shared-ring sequence number, while
+GPU `globaltimer` deltas provide inter-arrival timing and bound device waits.
+The device never subtracts a host `CLOCK_MONOTONIC` heartbeat timestamp from a
+GPU timer because their epochs are not guaranteed to match. Instead it records
+the last heartbeat value and the local GPU time at which that value changed;
+an unchanged value beyond `heartbeat_timeout_ns` becomes `DaemonLost`.
 
 ### 9.2 GPU-local fast model
 

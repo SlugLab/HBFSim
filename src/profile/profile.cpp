@@ -111,6 +111,10 @@ void validate_profile(const Profile& profile)
     if (!is_power_of_two(profile.page_bytes)) {
         throw ProfileError("page_bytes must be a power of two");
     }
+    if (profile.page_bytes < 512) {
+        throw ProfileError(
+            "page_bytes must be at least 512 for MQSim sector alignment");
+    }
     if (profile.read_latency_ns == 0) {
         throw ProfileError("read_latency_ns must be greater than zero");
     }

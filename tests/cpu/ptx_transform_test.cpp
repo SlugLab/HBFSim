@@ -7,6 +7,13 @@
 #include <sstream>
 #include <string>
 
+#define CHECK(condition)                                                       \
+    do {                                                                       \
+        if (!(condition)) {                                                    \
+            return __LINE__;                                                   \
+        }                                                                      \
+    } while (false)
+
 namespace {
 
 std::string read_fixture(const std::string& name)
@@ -45,6 +52,40 @@ int main()
     assert(!hbfsim::ptx::parse_memory_op("ld.u32 %r1, [%rd2];"));
     assert(!hbfsim::ptx::parse_memory_op("ld.global.u32 %r1, [%r2+%r3];"));
 
+    const std::string spoofed_helper = R"ptx(.version 8.7
+.target sm_120
+.address_size 64
+.visible .const .align 4 .u32 __hbfsim_device_helper_marker = 0x48424632;
+.func (.param .align 8 .b8 result[16]) __hbfsim_resolve(
+    .param .b64 address, .param .b32 bytes, .param .b32 operation)
+{
+    ret;
+}
+.func __hbfsim_fault(.param .b32 status)
+{
+    ret;
+}
+.visible .entry spoofed_kernel(.param .u64 ptr)
+{
+    .reg .b32 %r1;
+    .reg .b64 %rd1;
+    ld.param.u64 %rd1, [ptr];
+    ld.global.u32 %r1, [%rd1];
+    ret;
+}
+)ptx";
+    bool spoof_rejected = false;
+    try {
+        (void)hbfsim::ptx::transform_ptx({
+            .full_ptx = spoofed_helper,
+            .to_patch_kernel = "spoofed_kernel",
+        });
+    } catch (const std::runtime_error&) {
+        spoof_rejected = true;
+    }
+    CHECK(spoof_rejected);
+
+#if defined(HBFSIM_TEST_DEVICE_HELPER_PTX)
     const auto result = hbfsim::ptx::transform_ptx({
         .full_ptx = read_fixture("supported.ptx"),
         .to_patch_kernel = "kernel",
@@ -56,6 +97,85 @@ int main()
     assert(result.output_ptx.find("@!%p1 bra $L__hbfsim_skip_") !=
            std::string::npos);
     assert(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
+
+    const std::string production_ptx = R"ptx(.version 8.7
+.target sm_120
+.address_size 64
+// __hbfsim_device_helper_marker is not a declaration.
+
+.visible .entry production_kernel(
+    .param .u64 production_ptr
+)
+{
+    .reg .b32 %r1;
+    .reg .b64 %rd1;
+    ld.param.u64 %rd1, [production_ptr];
+    ld.global.u32 %r1, [%rd1];
+    ret;
+}
+)ptx";
+    const auto self_contained = hbfsim::ptx::transform_ptx({
+        .full_ptx = production_ptx,
+        .to_patch_kernel = "production_kernel",
+    });
+    CHECK(self_contained.modified);
+    const std::string marker_declaration =
+        ".visible .const .align 4 .u32 __hbfsim_device_helper_marker";
+    CHECK(self_contained.output_ptx.find(
+              marker_declaration) != std::string::npos);
+    CHECK(self_contained.output_ptx.find(
+              ".visible .global .align 8 .u64 __hbfsim_control") !=
+          std::string::npos);
+    CHECK(self_contained.output_ptx.find(
+              ".visible .func") != std::string::npos);
+    CHECK(self_contained.output_ptx.find("__hbfsim_resolve(") !=
+          std::string::npos);
+
+    const auto helper_begin = self_contained.output_ptx.find(
+        "// HBFSim embedded device helper");
+    const auto helper_end = self_contained.output_ptx.find(
+        ".visible .entry production_kernel");
+    CHECK(helper_begin != std::string::npos);
+    CHECK(helper_end != std::string::npos);
+    auto commented_helper_spoof = production_ptx;
+    const auto spoof_kernel = commented_helper_spoof.find(
+        ".visible .entry production_kernel");
+    CHECK(spoof_kernel != std::string::npos);
+    const auto commented_helper =
+        "/*\n" + self_contained.output_ptx.substr(
+                       helper_begin, helper_end - helper_begin) +
+        R"ptx(*/
+.visible .const .align 4 .u32 __hbfsim_device_helper_marker = 0x48424632;
+.func (.param .align 8 .b8 result[16]) __hbfsim_resolve(
+    .param .b64 address, .param .b32 bytes, .param .b32 operation)
+{
+    ret;
+}
+.func __hbfsim_fault(.param .b32 status)
+{
+    ret;
+}
+)ptx";
+    commented_helper_spoof.insert(spoof_kernel, commented_helper);
+    bool commented_spoof_rejected = false;
+    try {
+        (void)hbfsim::ptx::transform_ptx({
+            .full_ptx = commented_helper_spoof,
+            .to_patch_kernel = "production_kernel",
+        });
+    } catch (const std::runtime_error&) {
+        commented_spoof_rejected = true;
+    }
+    CHECK(commented_spoof_rejected);
+
+    const auto twice = hbfsim::ptx::transform_ptx({
+        .full_ptx = self_contained.output_ptx,
+        .to_patch_kernel = "production_kernel",
+        .trusted_existing_helper = true,
+    });
+    CHECK(twice.output_ptx.find(marker_declaration) ==
+          twice.output_ptx.rfind(marker_declaration));
+#endif
 
     const auto rejected = hbfsim::ptx::transform_ptx({
         .full_ptx = read_fixture("unsupported.ptx"),

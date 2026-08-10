@@ -175,19 +175,24 @@ hex_identity(const std::array<unsigned char, SHA256_DIGEST_LENGTH>& identity)
 
 class TrustedModuleRegistry {
   public:
-    std::string identity_for(const std::string& ptx)
+    struct Identity {
+        std::string value;
+        bool previously_emitted;
+    };
+
+    Identity identity_for(const std::string& ptx)
     {
         const auto state = hex_identity(sha256(ptx));
         std::lock_guard lock(mutex_);
         if (ptx.find(module_identity_symbol) == std::string::npos) {
-            return state;
+            return {.value = state, .previously_emitted = false};
         }
         const auto found = emitted_states_.find(state);
         if (found == emitted_states_.end()) {
             throw std::invalid_argument(
                 "untrusted preexisting HBFSim module identity");
         }
-        return found->second;
+        return {.value = found->second, .previously_emitted = true};
     }
 
     void record(const std::string& emitted_ptx, const std::string& identity)
@@ -294,8 +299,12 @@ extern "C" int process_input(const char* input, int length, char* output)
             .ebpf_communication_data_symbol = request_json.value(
                 "ebpf_communication_data_symbol", "constData"),
         };
+        const auto trusted_identity =
+            trusted_modules().identity_for(request.full_ptx);
+        request.trusted_existing_helper =
+            trusted_identity.previously_emitted;
         auto transformed = hbfsim::ptx::transform_ptx(request);
-        const auto identity = trusted_modules().identity_for(request.full_ptx);
+        const auto& identity = trusted_identity.value;
         transformed.output_ptx =
             inject_module_identity(std::move(transformed.output_ptx), identity);
         const auto parameters =

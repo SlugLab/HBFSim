@@ -2,8 +2,13 @@
 
 #include "ptx_memory_op.hpp"
 
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+#include "hbf_device_ptx.hpp"
+#endif
+
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 namespace hbfsim::ptx {
@@ -29,6 +34,61 @@ std::string replace_address(const PtxMemoryOp& op,
         R"(\[\s*%rd[A-Za-z0-9_$]*(?:\s*[+-]\s*(?:0[xX])?[0-9A-Fa-f]+)?\s*\])");
     return std::regex_replace(op.original_line, address, "[" + scratch + "]",
                               std::regex_constants::format_first_only);
+}
+
+bool defines_function(const std::string& ptx, const std::string& name)
+{
+    const std::regex definition(
+        R"(\.(?:visible\s+)?func(?:\s+\([^{};]*\))?\s+)" + name +
+        R"(\s*\()",
+        std::regex::ECMAScript);
+    return std::regex_search(ptx, definition);
+}
+
+bool defines_device_helper_marker(const std::string& ptx)
+{
+    static const std::regex definition(
+        R"(\.(?:visible\s+)?(?:global|const)[^;\n]*\b__hbfsim_device_helper_marker\b[^;\n]*;)");
+    return std::regex_search(ptx, definition);
+}
+
+void append_device_helper(std::string& ptx, bool trusted_existing_helper)
+{
+    const bool marker = defines_device_helper_marker(ptx);
+    const bool resolver = defines_function(ptx, "__hbfsim_resolve");
+    const bool fault = defines_function(ptx, "__hbfsim_fault");
+    if (marker || resolver || fault) {
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+        const bool exact_helper =
+            trusted_existing_helper && marker && resolver && fault &&
+            ptx.find(kEmbeddedDevicePtx) != std::string::npos;
+        if (exact_helper) {
+            return;
+        }
+#endif
+        throw std::runtime_error(
+            "PTX module collides with the reserved HBFSim device ABI");
+    }
+    static const std::regex target(
+        R"(^\s*\.target\s+sm_120(?:\s|,|$))", std::regex::multiline);
+    if (!std::regex_search(ptx, target)) {
+        throw std::runtime_error(
+            "HBFSim device helper requires a .target sm_120 PTX module");
+    }
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+    const auto address_size = ptx.find(".address_size");
+    const auto newline = address_size == std::string::npos
+                             ? std::string::npos
+                             : ptx.find('\n', address_size);
+    const auto insertion = newline == std::string::npos ? 0 : newline + 1;
+    std::string helper{"\n// HBFSim embedded device helper\n"};
+    helper.append(kEmbeddedDevicePtx);
+    helper.push_back('\n');
+    ptx.insert(insertion, helper);
+#else
+    throw std::runtime_error(
+        "HBFSim device helper PTX was unavailable at build time");
+#endif
 }
 
 }  // namespace
@@ -151,6 +211,10 @@ TransformResult transform_ptx(const TransformRequest& request)
         }
     }
     result.output_ptx = output.str();
+    if (result.modified) {
+        append_device_helper(result.output_ptx,
+                             request.trusted_existing_helper);
+    }
     return result;
 }
 

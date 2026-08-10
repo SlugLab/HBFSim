@@ -109,7 +109,8 @@ live GPU, capacity, or LLM proof.
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
 | Live bpftime + GPU interception proof | Blocked on local bpftime/toolchain and GPU recovery |
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
-| PTX resolver helper and live timing-only GPU proof | In progress; no live proof yet |
+| PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
+| Live timing-only GPU proof | Not run; no live proof yet |
 | File-backed capacity mode and hybrid fast model | Planned |
 | CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
 
@@ -257,13 +258,39 @@ generic-space operations, texture/surface operations, malformed addresses, and
 inline SASS remain outside the supported HBF path and must fail closed once the
 runtime coverage gate is connected.
 
+For a modified module, the pass now embeds one PTX-callable resolver directly
+into that module. The helper validates control ABI v2 and the exact control
+generation, searches at most 64 sorted explicit ranges, coalesces matching
+lanes by warp and page, and exchanges timing requests with the host through
+system-scope ordered rings. Each range is assigned a page-aligned synthetic
+media interval within the selected profile's capacity, so MQSim sees bounded
+HBF page addresses rather than process-specific GPU virtual addresses.
+Out-of-range HBM addresses remain unchanged, while an access spanning two HBF
+pages is rejected until split-access support exists.
+
+Only a CUDA-enabled build contains the production helper PTX. A CPU-only pass
+therefore rejects a module that would require instrumentation instead of
+emitting unresolved or user-supplied resolver symbols. Repeated per-kernel
+passes accept an existing helper only when the plugin can authenticate the
+entire module as one it previously emitted. The build checks that the resulting
+module is self-contained and assembles it with CUDA 12.8 `ptxas`; this is still
+static proof, not evidence that delay has been injected on a live GPU.
+
 ## Verification
 
 ```bash
 cmake --build build -j
 ctest --test-dir build --output-on-failure
+
+cmake -S . -B build-gpu-static -G Ninja \
+  -DHBFSIM_ENABLE_CUDA=ON \
+  -DHBFSIM_ENABLE_MQSIM=OFF \
+  -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc \
+  -DCMAKE_CUDA_ARCHITECTURES=120
+cmake --build build-gpu-static -j
+ctest --test-dir build-gpu-static --output-on-failure
 python3 tests/integration/run_ptxpass_json.py \
-  build/src/ptxpass_hbf/ptxpass_hbf
+  build-gpu-static/src/ptxpass_hbf/ptxpass_hbf
 ```
 
 The design contract and implementation plan are in:
@@ -273,12 +300,8 @@ The design contract and implementation plan are in:
 
 ## Roadmap
 
-1. Connect the PTX pass to the pinned bpftime CUDA module path and enforce the
-   coverage gate.
-2. Add the public context API, explicit registered ranges, shared rings, and
-   host-service lifecycle.
-3. Inject live GPU delay and validate modeled time separately from emulator
-   overhead.
-4. Add file-backed capacity mode and the calibrated GPU-local hybrid model.
-5. Run the deterministic CUDA/fault matrix, then TinyLlama through llama.cpp
+1. Complete the safe live-GPU delay proof and validate modeled time separately
+   from emulator overhead.
+2. Add file-backed capacity mode and the calibrated GPU-local hybrid model.
+3. Run the deterministic CUDA/fault matrix, then TinyLlama through llama.cpp
    and vLLM with bit-exact output gates.

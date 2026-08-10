@@ -34,14 +34,16 @@ struct PublishState {
     bool publish_twice{false};
     bool error_after_publish{false};
     std::size_t calls{0};
+    hbfsim::host_service::SharedRangeRecord last_record{};
 };
 
-int publish(const hbfsim::host_service::SharedRangeRecord&,
+int publish(const hbfsim::host_service::SharedRangeRecord& record,
             hbfsim::runtime::PublishRange commit, void* commit_state,
             void* opaque) noexcept
 {
     auto& state = *static_cast<PublishState*>(opaque);
     ++state.calls;
+    state.last_record = record;
     if (!state.accept) {
         return HBFSIM_IO_ERROR;
     }
@@ -94,7 +96,7 @@ int main()
     CHECK(::posix_memalign(&storage, 64, bytes) == 0);
     hbfsim::host_service::ControlView control(storage, bytes);
     CHECK(control.initialize(ring_capacity));
-    hbfsim::runtime::RangeTable ranges(control, 16'384);
+    hbfsim::runtime::RangeTable ranges(control, 16'384, 1ULL << 30);
     PublishState publisher;
 
     const auto second = timing(HBFSIM_RANGE_READ);
@@ -109,6 +111,8 @@ int main()
     CHECK(control.ranges()[0].base == 0x1000);
     CHECK(control.ranges()[1].base == 0x3000);
     CHECK(control.ranges()[0].page_bytes == 16'384);
+    CHECK(control.ranges()[0].file_offset == 16'384);
+    CHECK(control.ranges()[1].file_offset == 0);
     CHECK(control.ranges()[0].range_id != control.ranges()[1].range_id);
 
     const auto at_begin = ranges.lookup(0x1000, 4);
@@ -187,7 +191,7 @@ int main()
     CHECK(::posix_memalign(&storage, 64, bytes) == 0);
     control = hbfsim::host_service::ControlView(storage, bytes);
     CHECK(control.initialize(ring_capacity));
-    hbfsim::runtime::RangeTable concurrent(control, 16'384);
+    hbfsim::runtime::RangeTable concurrent(control, 16'384, 1ULL << 30);
     BlockingPublishState blocked;
     auto first_registration = std::async(std::launch::async, [&] {
         return concurrent.add(0x1000, 0x1000, first, blocking_publish,
@@ -206,6 +210,27 @@ int main()
     CHECK(overlapping_registration.get() == HBFSIM_INVALID_ARGUMENT);
     CHECK(blocked.calls == 1);
     CHECK(concurrent.size() == 1);
+    std::free(storage);
+
+    CHECK(::posix_memalign(&storage, 64, bytes) == 0);
+    control = hbfsim::host_service::ControlView(storage, bytes);
+    CHECK(control.initialize(ring_capacity));
+    hbfsim::runtime::RangeTable bounded(control, 16'384, 32'768);
+    PublishState bounded_publisher;
+    CHECK(bounded.add(0x1000, 1, first, publish, &bounded_publisher) ==
+          HBFSIM_OK);
+    CHECK(bounded_publisher.last_record.file_offset == 0);
+    bounded_publisher.accept = false;
+    CHECK(bounded.add(0x3000, 1, first, publish, &bounded_publisher) ==
+          HBFSIM_IO_ERROR);
+    CHECK(bounded_publisher.last_record.file_offset == 16'384);
+    bounded_publisher.accept = true;
+    CHECK(bounded.add(0x5000, 16'384, first, publish,
+                      &bounded_publisher) == HBFSIM_OK);
+    CHECK(bounded_publisher.last_record.file_offset == 16'384);
+    CHECK(bounded.add(0x9000, 1, first, publish, &bounded_publisher) ==
+          HBFSIM_UNSUPPORTED);
+    CHECK(bounded.size() == 2);
     std::free(storage);
     return 0;
 }

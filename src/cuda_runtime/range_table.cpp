@@ -6,8 +6,10 @@
 namespace hbfsim::runtime {
 
 RangeTable::RangeTable(host_service::ControlView control,
-                       std::uint32_t page_bytes) noexcept
-    : control_(control), page_bytes_(page_bytes)
+                       std::uint32_t page_bytes,
+                       std::uint64_t media_capacity_bytes) noexcept
+    : control_(control), page_bytes_(page_bytes),
+      media_capacity_bytes_(media_capacity_bytes)
 {
 }
 
@@ -35,6 +37,17 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
     if (count_ == records_.size()) {
         return HBFSIM_UNSUPPORTED;
     }
+    const auto length64 = static_cast<std::uint64_t>(length);
+    if (length64 > std::numeric_limits<std::uint64_t>::max() -
+                       (page_bytes_ - 1)) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    const auto media_extent =
+        ((length64 + page_bytes_ - 1) / page_bytes_) * page_bytes_;
+    if (next_file_offset_ > media_capacity_bytes_ ||
+        media_extent > media_capacity_bytes_ - next_file_offset_) {
+        return HBFSIM_UNSUPPORTED;
+    }
 
     const auto end = base + length;
     const auto insertion = std::lower_bound(
@@ -52,7 +65,7 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
     const host_service::SharedRangeRecord record{
         .base = base,
         .length = length,
-        .file_offset = 0,
+        .file_offset = next_file_offset_,
         .range_id = next_range_id_,
         .mode = options.mode,
         .permissions = options.permissions,
@@ -69,8 +82,9 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         RangeTable* table;
         host_service::SharedRangeRecord record;
         std::size_t index;
+        std::uint64_t media_extent;
         bool published;
-    } pending{this, record, index, false};
+    } pending{this, record, index, media_extent, false};
     const auto publish = +[](void* opaque) noexcept {
         auto& item = *static_cast<PendingPublication*>(opaque);
         if (item.published) {
@@ -83,6 +97,7 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         table.records_[item.index] = item.record;
         ++table.count_;
         ++table.next_range_id_;
+        table.next_file_offset_ += item.media_extent;
         std::copy_n(table.records_.begin(), table.count_,
                     table.control_.ranges());
         host_service::atomic_store(

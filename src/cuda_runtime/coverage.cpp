@@ -3,7 +3,9 @@
 #include <json.hpp>
 
 #include <algorithm>
+#include <iomanip>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -42,6 +44,26 @@ GateDecision rejected(const KernelLaunch& launch, const std::string& reason)
 
 }  // namespace
 
+std::string module_id_from_marker(std::uint64_t marker)
+{
+    std::ostringstream output;
+    output << "ptx:" << std::hex << std::setfill('0') << std::setw(16)
+           << marker;
+    return output.str();
+}
+
+GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
+                                           std::string kind)
+{
+    return has_hbf_ranges ? GateDecision{.allowed = false,
+                                         .kernel = kind,
+                                         .reason = "uninspectable_launch_path",
+                                         .operation = std::move(kind)}
+                          : GateDecision{.allowed = true,
+                                         .kernel = std::move(kind),
+                                         .reason = "allowed"};
+}
+
 ModuleManifest module_manifest_from_json(const std::string& text)
 {
     const auto json = nlohmann::json::parse(text);
@@ -52,7 +74,8 @@ ModuleManifest module_manifest_from_json(const std::string& text)
         .instrumented = json.value("instrumented", false),
         .cubin_only = json.value("cubin_only", false),
     };
-    for (const auto& parameter : json.value("parameters", nlohmann::json::array())) {
+    for (const auto& parameter :
+         json.value("parameters", nlohmann::json::array())) {
         manifest.parameters.push_back({
             .index = parameter.at("index").get<std::size_t>(),
             .offset = parameter.at("offset").get<std::size_t>(),
@@ -67,13 +90,26 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             .operation = parameter.at("operation").get<std::string>(),
         });
     }
+    // Reuse add_module's validation contract at the parse boundary.
+    CoverageGate validator;
+    validator.add_module(manifest);
     return manifest;
 }
 
 void CoverageGate::add_module(ModuleManifest manifest)
 {
     if (manifest.module_id.empty() || manifest.kernel.empty()) {
-        throw std::invalid_argument("coverage module and kernel identity are required");
+        throw std::invalid_argument(
+            "coverage module and kernel identity are required");
+    }
+    std::vector<std::size_t> indices;
+    for (const auto& parameter : manifest.parameters) {
+        if (parameter.width == 0 ||
+            std::ranges::find(indices, parameter.index) != indices.end()) {
+            throw std::invalid_argument("coverage parameters require unique "
+                                        "indices and nonzero widths");
+        }
+        indices.push_back(parameter.index);
     }
     std::unique_lock lock(mutex_);
     const auto key = module_key(manifest.module_id, manifest.kernel);
@@ -106,13 +142,15 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
 {
     std::shared_lock lock(mutex_);
     const bool opaque_aggregate = std::ranges::any_of(
-        launch.parameters,
-        [](const LaunchParameter& parameter) { return parameter.opaque_aggregate; });
+        launch.parameters, [](const LaunchParameter& parameter) {
+            return parameter.opaque_aggregate;
+        });
     const bool has_hbf = std::ranges::any_of(
         launch.parameters, [this](const LaunchParameter& parameter) {
-            return std::ranges::any_of(parameter.slots, [this](const ArgumentSlot& slot) {
-                return contains(slot.value);
-            });
+            return std::ranges::any_of(parameter.slots,
+                                       [this](const ArgumentSlot& slot) {
+                                           return contains(slot.value);
+                                       });
         });
     if (!has_hbf && !(opaque_aggregate && !ranges_.empty())) {
         return {.allowed = true,
@@ -125,7 +163,8 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         return rejected(launch, "exact_module_identity_required");
     }
     const ModuleManifest* manifest = nullptr;
-    const auto found = modules_.find(module_key(launch.module_id, launch.kernel));
+    const auto found =
+        modules_.find(module_key(launch.module_id, launch.kernel));
     if (found != modules_.end()) {
         manifest = &found->second;
     }
@@ -141,6 +180,28 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         .cubin_only = manifest->cubin_only,
         .inspected_parameters = launch.parameters.size(),
     };
+    const bool exact_parameter_layout =
+        launch.parameters.size() == manifest->parameters.size() &&
+        std::ranges::all_of(
+            launch.parameters, [&manifest](const LaunchParameter& parameter) {
+                const auto metadata = std::ranges::find_if(
+                    manifest->parameters,
+                    [&parameter](const ParameterMetadata& item) {
+                        return item.index == parameter.index;
+                    });
+                return metadata != manifest->parameters.end() &&
+                       metadata->offset == parameter.offset &&
+                       metadata->width == parameter.width;
+            });
+    // Exact ABI agreement is an authorization precondition for transformed
+    // PTX. Opaque/uninstrumented modules are rejected by their more specific
+    // policy reason below and cannot be authorized by this exception.
+    if (manifest->instrumented && !exact_parameter_layout) {
+        decision.allowed = false;
+        decision.reason = "parameter_layout_mismatch";
+        decision.operation = "unproven_parameter_layout";
+        return decision;
+    }
     for (const auto& parameter : launch.parameters) {
         if (parameter.opaque_aggregate && !ranges_.empty()) {
             decision.allowed = false;
@@ -182,16 +243,18 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 return decision;
             }
             const auto metadata = std::ranges::find_if(
-                manifest->parameters, [&parameter](const ParameterMetadata& item) {
+                manifest->parameters,
+                [&parameter](const ParameterMetadata& item) {
                     return item.index == parameter.index;
                 });
             if (metadata == manifest->parameters.end() ||
                 metadata->kind != ParameterKind::Pointer) {
                 decision.allowed = false;
-                decision.reason = metadata != manifest->parameters.end() &&
-                                          metadata->kind == ParameterKind::OpaqueAggregate
-                                      ? "opaque_aggregate_parameter"
-                                      : "uninstrumented_pointer_parameter";
+                decision.reason =
+                    metadata != manifest->parameters.end() &&
+                            metadata->kind == ParameterKind::OpaqueAggregate
+                        ? "opaque_aggregate_parameter"
+                        : "uninstrumented_pointer_parameter";
                 decision.operation = "unrecognized_pointer_access";
                 return decision;
             }

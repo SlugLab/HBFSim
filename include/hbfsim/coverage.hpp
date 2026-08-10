@@ -11,6 +11,21 @@
 
 namespace hbfsim {
 
+class LaunchRangeSynchronizer {
+  public:
+    [[nodiscard]] std::shared_lock<std::shared_mutex> launch_guard()
+    {
+        return std::shared_lock(mutex_);
+    }
+    [[nodiscard]] std::unique_lock<std::shared_mutex> registration_guard()
+    {
+        return std::unique_lock(mutex_);
+    }
+
+  private:
+    std::shared_mutex mutex_;
+};
+
 enum class ParameterKind { Scalar, Pointer, OpaqueAggregate };
 
 struct ParameterMetadata {
@@ -69,6 +84,9 @@ struct GateDecision {
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);
+[[nodiscard]] std::string module_id_from_marker(std::uint64_t marker);
+[[nodiscard]] GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
+                                                         std::string kind);
 
 class CoverageGate {
   public:
@@ -96,16 +114,14 @@ class CoverageWriter {
     void append(const GateDecision& decision);
 
   private:
-    void flush() const;
-
     std::filesystem::path path_;
     mutable std::mutex mutex_;
-    std::vector<GateDecision> decisions_;
 };
 
-[[nodiscard]] bool try_append_coverage(
-    CoverageWriter& writer, const GateDecision& decision) noexcept;
-[[nodiscard]] bool coverage_decision_permits_launch(
-    CoverageWriter& writer, const GateDecision& decision) noexcept;
+[[nodiscard]] bool try_append_coverage(CoverageWriter& writer,
+                                       const GateDecision& decision) noexcept;
+[[nodiscard]] bool
+coverage_decision_permits_launch(CoverageWriter& writer,
+                                 const GateDecision& decision) noexcept;
 
 }  // namespace hbfsim

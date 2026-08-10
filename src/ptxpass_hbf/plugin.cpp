@@ -23,7 +23,8 @@ nlohmann::json pass_config()
 {
     return {
         {"name", "hbf_memory"},
-        {"description", "Rewrite supported global memory accesses through HBFSim"},
+        {"description",
+         "Rewrite supported global memory accesses through HBFSim"},
         {"attach_points",
          {{"includes", {"^kprobe/.*$"}},
           {"excludes", {"^kprobe/__(?:hbfsim|bpftime)_.*$"}}}},
@@ -32,8 +33,10 @@ nlohmann::json pass_config()
          {{"resolver", "__hbfsim_resolve"},
           {"fault_handler", "__hbfsim_fault"},
           {"emit_coverage", true}}},
-        {"validation", {{"require_entry", true}, {"require_ret", true},
-                         {"ptx_version_min", "8.7"}}},
+        {"validation",
+         {{"require_entry", true},
+          {"require_ret", true},
+          {"ptx_version_min", "8.7"}}},
     };
 }
 
@@ -60,11 +63,12 @@ std::size_t scalar_width(const std::string& type)
 
 std::size_t align_up(std::size_t value, std::size_t alignment)
 {
-    return alignment == 0 ? value : (value + alignment - 1) / alignment * alignment;
+    return alignment == 0 ? value
+                          : (value + alignment - 1) / alignment * alignment;
 }
 
-bool parameter_feeds_memory_address(
-    const std::string& body, const std::string& parameter_name)
+bool parameter_feeds_memory_address(const std::string& body,
+                                    const std::string& parameter_name)
 {
     const std::regex load(
         R"(ld\.param\.(?:u64|b64)\s+(%rd[A-Za-z0-9_$]+)\s*,\s*\[\s*)" +
@@ -80,16 +84,16 @@ bool parameter_feeds_memory_address(
     return std::regex_search(body, memory_address);
 }
 
-std::vector<PassParameter> parameter_metadata(
-    const std::string& ptx, const std::string& kernel)
+std::vector<PassParameter> parameter_metadata(const std::string& ptx,
+                                              const std::string& kernel)
 {
     const auto entry = ptx.find(".entry " + kernel);
     if (entry == std::string::npos) {
         return {};
     }
     const auto begin = ptx.find('(', entry);
-    const auto end = begin == std::string::npos ? std::string::npos
-                                                 : ptx.find(')', begin);
+    const auto end =
+        begin == std::string::npos ? std::string::npos : ptx.find(')', begin);
     if (end == std::string::npos) {
         return {};
     }
@@ -97,8 +101,8 @@ std::vector<PassParameter> parameter_metadata(
     const auto body_begin = ptx.find('{', end);
     auto body_end = std::string::npos;
     int depth = 0;
-    for (auto cursor = body_begin; cursor != std::string::npos && cursor < ptx.size();
-         ++cursor) {
+    for (auto cursor = body_begin;
+         cursor != std::string::npos && cursor < ptx.size(); ++cursor) {
         if (ptx[cursor] == '{') {
             ++depth;
         } else if (ptx[cursor] == '}' && --depth == 0) {
@@ -117,21 +121,22 @@ std::vector<PassParameter> parameter_metadata(
     std::vector<PassParameter> parameters;
     std::size_t index = 0;
     std::size_t offset = 0;
-    for (std::sregex_iterator it(declarations.begin(), declarations.end(), parameter),
+    for (std::sregex_iterator
+             it(declarations.begin(), declarations.end(), parameter),
          last;
          it != last; ++it, ++index) {
         const auto type = (*it)[2].str();
         const auto name = (*it)[3].str();
         const bool aggregate = (*it)[4].matched;
         const std::size_t element_width = scalar_width(type);
-        const std::size_t width = aggregate
-                                      ? element_width * static_cast<std::size_t>(
-                                                            std::stoul((*it)[4].str()))
-                                      : element_width;
-        const std::size_t alignment = (*it)[1].matched
-                                          ? static_cast<std::size_t>(
-                                                std::stoul((*it)[1].str()))
-                                          : std::min<std::size_t>(width, 8);
+        const std::size_t width =
+            aggregate ? element_width *
+                            static_cast<std::size_t>(std::stoul((*it)[4].str()))
+                      : element_width;
+        const std::size_t alignment =
+            (*it)[1].matched
+                ? static_cast<std::size_t>(std::stoul((*it)[1].str()))
+                : std::min<std::size_t>(width, 8);
         offset = align_up(offset, alignment);
         std::string kind = "scalar";
         if (aggregate) {
@@ -146,15 +151,37 @@ std::vector<PassParameter> parameter_metadata(
     return parameters;
 }
 
-std::string module_id(const std::string& ptx)
+std::string module_marker(const std::string& ptx)
 {
+    static const std::regex existing(
+        R"(__hbfsim_module_marker\s*=\s*0x([0-9a-fA-F]{16}))");
+    std::smatch match;
+    if (std::regex_search(ptx, match, existing)) {
+        return match[1].str();
+    }
     std::uint64_t hash = 14695981039346656037ULL;
     for (const unsigned char byte : ptx) {
         hash = (hash ^ byte) * 1099511628211ULL;
     }
     std::ostringstream output;
-    output << "ptx:" << std::hex << std::setfill('0') << std::setw(16) << hash;
+    output << std::hex << std::setfill('0') << std::setw(16) << hash;
     return output.str();
+}
+
+std::string inject_module_marker(std::string ptx, const std::string& marker)
+{
+    if (ptx.find("__hbfsim_module_marker") != std::string::npos) {
+        return ptx;
+    }
+    const auto directives_end = ptx.find(".address_size");
+    const auto newline = directives_end == std::string::npos
+                             ? std::string::npos
+                             : ptx.find('\n', directives_end);
+    const auto insert = newline == std::string::npos ? 0 : newline + 1;
+    ptx.insert(insert,
+               ".visible .global .align 8 .u64 __hbfsim_module_marker = 0x" +
+                   marker + ";\n");
+    return ptx;
 }
 
 std::string ptx_target(const std::string& ptx)
@@ -181,8 +208,9 @@ void append_manifest(const nlohmann::json& manifest)
     const int saved_errno = errno;
     close(fd);
     if (written < 0 || static_cast<std::size_t>(written) != line.size()) {
-        throw std::runtime_error(std::string("unable to append pass manifest: ") +
-                                 std::strerror(saved_errno));
+        throw std::runtime_error(
+            std::string("unable to append pass manifest: ") +
+            std::strerror(saved_errno));
     }
 }
 
@@ -227,10 +255,13 @@ extern "C" int process_input(const char* input, int length, char* output)
             .to_patch_kernel = request_json.value("to_patch_kernel", ""),
             .global_ebpf_map_info_symbol =
                 request_json.value("global_ebpf_map_info_symbol", "map_info"),
-            .ebpf_communication_data_symbol =
-                request_json.value("ebpf_communication_data_symbol", "constData"),
+            .ebpf_communication_data_symbol = request_json.value(
+                "ebpf_communication_data_symbol", "constData"),
         };
-        const auto transformed = hbfsim::ptx::transform_ptx(request);
+        auto transformed = hbfsim::ptx::transform_ptx(request);
+        const auto marker = module_marker(request.full_ptx);
+        transformed.output_ptx =
+            inject_module_marker(std::move(transformed.output_ptx), marker);
         const auto parameters =
             parameter_metadata(request.full_ptx, request.to_patch_kernel);
 
@@ -261,26 +292,39 @@ extern "C" int process_input(const char* input, int length, char* output)
             });
         }
         append_manifest({
-            {"module_id", module_id(request.full_ptx)},
+            {"module_id", "ptx:" + marker},
             {"kernel", request.to_patch_kernel},
             {"ptx_target", ptx_target(request.full_ptx)},
-            {"instrumented", transformed.modified &&
-                                 relevant_unsupported.empty()},
+            {"instrumented",
+             transformed.modified && relevant_unsupported.empty()},
             {"cubin_only", false},
             {"parameters", std::move(parameters_json)},
             {"unsupported_parameters", std::move(unsupported)},
-            {"rewritten_instructions", transformed.coverage.rewritten_instructions},
+            {"rewritten_instructions",
+             transformed.coverage.rewritten_instructions},
             {"unsupported_instructions", relevant_unsupported.size()},
             {"unsupported_opcodes", relevant_unsupported},
         });
 
-        return copy_output(nlohmann::json{
-                               {"output_ptx", transformed.output_ptx},
-                               {"modified", transformed.modified},
-                           }.dump(),
-                           length, output);
+        return copy_output(
+            nlohmann::json{
+                {"output_ptx", transformed.output_ptx},
+                {"modified", transformed.modified},
+                {"coverage",
+                 {{"rewritten_instructions",
+                   transformed.coverage.rewritten_instructions},
+                  {"unsupported_instructions",
+                   transformed.coverage.unsupported_instructions},
+                  {"excluded_functions",
+                   transformed.coverage.excluded_functions},
+                  {"unsupported_opcodes",
+                   transformed.coverage.unsupported_opcodes}}},
+            }
+                .dump(),
+            length, output);
     } catch (const nlohmann::json::exception& error) {
-        std::fprintf(stderr, "ptxpass_hbf configuration error: %s\n", error.what());
+        std::fprintf(stderr, "ptxpass_hbf configuration error: %s\n",
+                     error.what());
         return 64;
     } catch (const std::exception& error) {
         std::fprintf(stderr, "ptxpass_hbf error: %s\n", error.what());

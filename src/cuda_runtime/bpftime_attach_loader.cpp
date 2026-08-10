@@ -1,16 +1,13 @@
 #include <bpf/libbpf.h>
 
+#include <cerrno>
 #include <csignal>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
-
-namespace {
-volatile std::sig_atomic_t stopping = 0;
-void stop(int) { stopping = 1; }
-}  // namespace
 
 int main(int argc, char** argv)
 {
@@ -18,6 +15,15 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "usage: %s probe.bpf.o ready-file\n", argv[0]);
         return 64;
     }
+    sigset_t termination_signals;
+    sigemptyset(&termination_signals);
+    sigaddset(&termination_signals, SIGINT);
+    sigaddset(&termination_signals, SIGTERM);
+    if (pthread_sigmask(SIG_BLOCK, &termination_signals, nullptr) != 0) {
+        std::fprintf(stderr, "hbfsim attach loader: cannot block signals\n");
+        return 70;
+    }
+
     bpf_object* object = bpf_object__open_file(argv[1], nullptr);
     if (libbpf_get_error(object) != 0 || object == nullptr) {
         std::fprintf(stderr, "hbfsim attach loader: cannot open BPF probe\n");
@@ -57,7 +63,8 @@ int main(int argc, char** argv)
           << "entries=" << links.size() << '\n';
     ready.close();
     if (!ready) {
-        std::fprintf(stderr, "hbfsim attach loader: cannot publish readiness\n");
+        std::fprintf(stderr,
+                     "hbfsim attach loader: cannot publish readiness\n");
         for (auto* link : links) {
             bpf_link__destroy(link);
         }
@@ -65,14 +72,19 @@ int main(int argc, char** argv)
         return 69;
     }
 
-    std::signal(SIGINT, stop);
-    std::signal(SIGTERM, stop);
-    while (!stopping) {
-        pause();
-    }
+    int received_signal = 0;
+    int wait_status = 0;
+    do {
+        wait_status = sigwait(&termination_signals, &received_signal);
+    } while (wait_status == EINTR);
     for (auto* link : links) {
         bpf_link__destroy(link);
     }
     bpf_object__close(object);
+    if (wait_status != 0) {
+        std::fprintf(stderr, "hbfsim attach loader: sigwait failed: %s\n",
+                     std::strerror(wait_status));
+        return 71;
+    }
     return 0;
 }

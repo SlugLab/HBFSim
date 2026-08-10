@@ -166,6 +166,15 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
                 "${HBFSIM_LLVM_OBJDUMP_EXECUTABLE}"
         )
     endif()
+    if(BUILD_TESTING)
+        add_test(
+            NAME bpftime_attach_loader_shutdown
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_attach_loader_shutdown.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/bpftime_attach_loader.cpp"
+        )
+    endif()
 endif()
 
 find_package(CUDAToolkit 12.8 QUIET)
@@ -182,6 +191,18 @@ if(CUDAToolkit_FOUND)
         hbfsim_launch_gate PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
+    if(BUILD_TESTING)
+        find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
+        add_test(
+            NAME launch_gate_symbols
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_launch_gate_symbols.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+                    "${HBFSIM_NM_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/launch_gate.cpp"
+                    "${CUDAToolkit_VERSION}"
+        )
+    endif()
 elseif(HBFSIM_ENABLE_CUDA)
     message(FATAL_ERROR "HBFSIM_ENABLE_CUDA requires CUDA Toolkit 12.8 or newer")
 endif()

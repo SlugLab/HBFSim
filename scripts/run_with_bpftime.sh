@@ -81,18 +81,19 @@ LD_PRELOAD="$BPFTIME_SERVER${original_preload:+:$original_preload}" \
     "$HBFSIM_BPFTIME_LOADER" "$HBFSIM_BPFTIME_PROBE" "$ready_file" &
 loader_pid=$!
 
-deadline=$(( $(date +%s%3N) + HBFSIM_ATTACH_TIMEOUT_MS ))
+remaining_ms=$HBFSIM_ATTACH_TIMEOUT_MS
 while ! grep -qx 'HBFSIM_BPFTIME_ATTACH_READY v1' "$ready_file" 2>/dev/null; do
     if ! kill -0 "$loader_pid" 2>/dev/null; then
         wait "$loader_pid" || true
         echo "run_with_bpftime: bpftime loader exited before CUDA attach readiness" >&2
         exit 67
     fi
-    if (( $(date +%s%3N) >= deadline )); then
+    if (( remaining_ms <= 0 )); then
         echo "run_with_bpftime: timed out waiting for bpftime CUDA attach readiness" >&2
         exit 68
     fi
     sleep 0.01
+    remaining_ms=$(( remaining_ms - 10 ))
 done
 if ! grep -qx 'shm=bpftime' "$ready_file" ||
    ! grep -qx 'attach_type=8' "$ready_file" ||
@@ -110,7 +111,7 @@ if (( status != 0 )); then
     exit "$status"
 fi
 
-if ! python3 -c 'import json,sys; lines=[x for x in open(sys.argv[1]) if x.strip()]; assert lines; manifests=[json.loads(x) for x in lines]; assert all(m.get("module_id") and m.get("kernel") for m in manifests); coverage=json.load(open(sys.argv[2])); assert isinstance(coverage.get("decisions"),list) and coverage["decisions"]' "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
+if ! python3 -c 'import json,sys; manifests=[json.loads(x) for x in open(sys.argv[1]) if x.strip()]; decisions=[json.loads(x) for x in open(sys.argv[2]) if x.strip()]; assert manifests and all(m.get("module_id") and m.get("kernel") for m in manifests); assert decisions and all("allowed" in d and d.get("reason") for d in decisions)' "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
     echo "run_with_bpftime: target produced no valid instrumentation activation artifacts" >&2
     exit 70
 fi

@@ -120,16 +120,21 @@ not evidence that a CUDA kernel has used the path on a real GPU.
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
 | Live timing-only GPU proof | Not run; no live proof yet |
 | File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
+| Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
 | Hybrid fast model | Planned |
-| Real-GPU capacity and over-VRAM proof | Pending |
+| Public/PTX real-GPU capacity and over-VRAM proof | Pending |
 | Live delay injection, CUDA fault matrix, llama.cpp, and vLLM proof runs | Pending |
-| GPU/CXL-SSD thermal validation | Pending |
+| GPU and Dell CD8P thermal baseline | Real hardware checkpoint recorded; calibrated HBF thermal validation remains pending |
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
 GPU proof. The repository does not yet claim working live delay injection,
-real-GPU or over-VRAM capacity emulation, llama.cpp/vLLM execution, or thermal
-validation. The complete non-live checkpoint and exact commands are recorded
-in [the 2026-08-10 proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
+public/PTX end-to-end or over-VRAM capacity emulation, llama.cpp/vLLM
+execution, or calibrated HBF thermal validation. The complete non-live
+checkpoint and exact commands are recorded
+in [the 2026-08-10 non-live proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
+A separate [live hardware checkpoint](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)
+records the bounded real-GPU smoke, GPU thermal response, and read-only Dell
+CD8P media baseline without treating them as end-to-end HBF workload proof.
 
 ## Requirements
 
@@ -150,8 +155,9 @@ parent worker. Public `hbfsim_map_file`, `hbfsim_flush`, and
 `hbfsim_unregister` use transactional publication and checked rollback. Dirty
 teardown failures quarantine the owner so a relevant launch fails closed
 instead of bypassing unresolved state. These properties have CPU,
-CUDA-static/PTX, fake-driver, and MQSim coverage; real CUDA copies and kernel
-execution remain a separate pending proof gate.
+CUDA-static/PTX, fake-driver, and MQSim coverage. A direct internal-runtime
+smoke now covers real CUDA copies and one kernel; public API plus automatic PTX
+execution remains a separate pending proof gate.
 
 ## Clone and build
 

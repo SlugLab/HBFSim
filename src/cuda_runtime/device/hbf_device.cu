@@ -100,6 +100,11 @@ struct WaitState {
     std::uint32_t sleep_ns{64};
 };
 
+struct CompletionResult {
+    RequestStatus status{RequestStatus::IoError};
+    std::uint64_t frame_address{0};
+};
+
 __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
                                        WaitState& wait)
 {
@@ -193,7 +198,7 @@ __device__ RequestStatus reserve_request(
     }
 }
 
-__device__ RequestStatus wait_for_completion(
+__device__ CompletionResult wait_for_completion(
     SharedControlHeader* header, SharedCompletionSlot* completions,
     std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns)
 {
@@ -206,7 +211,7 @@ __device__ RequestStatus wait_for_completion(
             // after observing liveness failure so IoError/CopyError/etc. are
             // not collapsed into a synthesized DaemonLost status.
             if (system_acquire(&slot.sequence) != ticket + 1) {
-                return liveness;
+                return {.status = liveness};
             }
             break;
         }
@@ -219,25 +224,26 @@ __device__ RequestStatus wait_for_completion(
                                  RequestStatus::Pending) ||
         completion.status > static_cast<std::uint32_t>(
                                 RequestStatus::DaemonLost)) {
-        return RequestStatus::IoError;
+        return {.status = RequestStatus::IoError};
     }
     const auto status = static_cast<RequestStatus>(completion.status);
     if (status != RequestStatus::Ready) {
-        return status;
+        return {.status = status};
     }
     const auto scaled = hbfsim::device::saturating_multiply(
         completion.modeled_ns, header->time_scale);
     const auto target = hbfsim::device::saturating_add(arrival_ns, scaled);
     while (gpu_time_ns() < target) {
         if (gpu_time_ns() >= wait.deadline_ns) {
-            return RequestStatus::Timeout;
+            return {.status = RequestStatus::Timeout};
         }
         bounded_sleep(wait.sleep_ns);
     }
-    return RequestStatus::Ready;
+    return {.status = RequestStatus::Ready,
+            .frame_address = completion.cache_frame_address};
 }
 
-__device__ RequestStatus resolve_leader(
+__device__ CompletionResult resolve_leader(
     SharedControlHeader* header, const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media,
     std::uint32_t operation)
@@ -248,7 +254,7 @@ __device__ RequestStatus resolve_leader(
         (capacity & (capacity - 1)) != 0 ||
         header->request_timeout_ns == 0 ||
         header->heartbeat_timeout_ns == 0 || header->time_scale == 0) {
-        return RequestStatus::Unsupported;
+        return {.status = RequestStatus::Unsupported};
     }
     const auto arrival = gpu_time_ns();
     WaitState wait{.deadline_ns = hbfsim::device::saturating_add(
@@ -256,7 +262,7 @@ __device__ RequestStatus resolve_leader(
                    .heartbeat_value = system_acquire(&header->heartbeat_ns),
                    .heartbeat_observed_ns = arrival};
     if (wait.heartbeat_value == 0) {
-        return RequestStatus::DaemonLost;
+        return {.status = RequestStatus::DaemonLost};
     }
     auto* base = reinterpret_cast<std::byte*>(header);
     auto* requests = reinterpret_cast<SharedRequestSlot*>(
@@ -282,7 +288,7 @@ __device__ RequestStatus resolve_leader(
     return reserved == RequestStatus::Ready
                ? wait_for_completion(header, completions, ticket, wait,
                                      arrival)
-               : reserved;
+               : CompletionResult{.status = reserved};
 }
 
 }  // namespace
@@ -361,14 +367,24 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         active, static_cast<std::uint32_t>(logical_page >> 32));
     const auto group = same_range & same_page_low & same_page_high;
     const auto leader = __ffs(static_cast<int>(group)) - 1;
-    std::uint32_t status = static_cast<std::uint32_t>(RequestStatus::Ready);
+    CompletionResult resolution{.status = RequestStatus::Ready};
     if (static_cast<int>(lane_id()) == leader) {
-        status = static_cast<std::uint32_t>(
-            resolve_leader(const_cast<SharedControlHeader*>(header), *range,
-                           media, operation));
+        resolution = resolve_leader(
+            const_cast<SharedControlHeader*>(header), *range, media,
+            operation);
     }
-    status = __shfl_sync(group, status, leader);
-    return {.address = address, .status = status, .reserved = 0};
+    auto status = __shfl_sync(
+        group, static_cast<std::uint32_t>(resolution.status), leader);
+    const auto frame = __shfl_sync(group, resolution.frame_address, leader);
+    if (status != static_cast<std::uint32_t>(RequestStatus::Ready)) {
+        return {.address = address, .status = status, .reserved = 0};
+    }
+    const auto translated =
+        hbfsim::device::resolved_address(*range, address, frame);
+    if (translated == 0) {
+        return fail(address, RequestStatus::CopyError);
+    }
+    return {.address = translated, .status = status, .reserved = 0};
 }
 
 extern "C" __device__ void __hbfsim_fault(std::uint32_t)

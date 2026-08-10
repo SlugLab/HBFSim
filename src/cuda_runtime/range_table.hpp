@@ -34,6 +34,9 @@ class RangeTable {
             RangePublishTransaction transaction,
             void* transaction_state) noexcept;
 
+    int remove(std::uintptr_t base, RangePublishTransaction transaction,
+               void* transaction_state) noexcept;
+
     [[nodiscard]] RangeLookup lookup(std::uintptr_t address,
                                      std::uint32_t bytes) const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;

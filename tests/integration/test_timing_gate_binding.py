@@ -42,7 +42,8 @@ class GateApi(ctypes.Structure):
         ("abi_version", ctypes.c_uint32),
         ("struct_bytes", ctypes.c_uint32),
         ("activate", Activate),
-        ("register_timing_range", Register),
+        ("register_range", Register),
+        ("unregister_range", Register),
         ("begin_retire", BeginRetire),
         ("invalidate_retire", FinishRetire),
         ("finish_retire", FinishRetire),
@@ -134,12 +135,12 @@ def main() -> int:
     getter = process.hbfsim_launch_gate_get_api
     getter.argtypes = [ctypes.c_uint32]
     getter.restype = ctypes.POINTER(GateApi)
-    api_pointer = getter(1)
-    require(bool(api_pointer), "launch gate v1 API unavailable")
+    api_pointer = getter(2)
+    require(bool(api_pointer), "launch gate v2 API unavailable")
     api = api_pointer.contents
-    require(api.abi_version == 1 and api.struct_bytes == ctypes.sizeof(GateApi),
-            "launch gate returned malformed v1 API")
-    require(not bool(getter(2)), "launch gate accepted an unknown API version")
+    require(api.abi_version == 2 and api.struct_bytes == ctypes.sizeof(GateApi),
+            "launch gate returned malformed v2 API")
+    require(not bool(getter(1)), "launch gate accepted an obsolete API version")
 
     fake_library.fakeCudaSetModuleIdentity.argtypes = [
         ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
@@ -279,7 +280,7 @@ def main() -> int:
         def publish_unbound(_state: ctypes.c_void_p) -> int:
             return 0
 
-        require(api.register_timing_range(
+        require(api.register_range(
                     0xA000, generation.value, 0x1000, 0x2000,
                     publish_unbound, None) == 0,
                 "unbound pre-context phase range registration failed")
@@ -321,15 +322,15 @@ def main() -> int:
             accepted.value += 1
             return 0
 
-        require(api.register_timing_range(
+        require(api.register_range(
                     0xA000, generation.value, 0x3000, 0x4000,
                     reject_before, None) != 0 and rejected_before.value == 1,
                 "error-before callback was not invoked exactly once")
-        require(api.register_timing_range(
+        require(api.register_range(
                     0xA000, generation.value, 0x4000, 0x5000,
                     reject_after, None) != 0 and rejected_after.value == 1,
                 "error-after callback was not invoked exactly once")
-        require(api.register_timing_range(
+        require(api.register_range(
                     0xA000, generation.value, 0x6000, 0x7000,
                     accept_once, None) == 0 and accepted.value == 1,
                 "successful publication was not invoked exactly once")
@@ -341,6 +342,28 @@ def main() -> int:
         pointer.value = 0x6008
         require(launch_kernel() != 0,
                 "acknowledged publication was absent from the gate")
+        fake_library.fakeCudaSetCurrentDomain(0xCA00, 3)
+        fake_library.fakeCudaSynchronizeCount.restype = ctypes.c_int
+        synchronizes_before_removal = fake_library.fakeCudaSynchronizeCount()
+        require(api.unregister_range(
+                    0xA000, generation.value, 0x6000, 0x7000,
+                    reject_before, None) != 0,
+                "rejected range removal unexpectedly succeeded")
+        fake_library.fakeCudaSetCurrentDomain(0xCB00, 3)
+        pointer.value = 0x6008
+        require(launch_kernel() != 0,
+                "rejected range removal was not rolled back")
+        fake_library.fakeCudaSetCurrentDomain(0xCA00, 3)
+        require(api.unregister_range(
+                    0xA000, generation.value, 0x6000, 0x7000,
+                    accept_once, None) == 0,
+                "range removal transaction failed")
+        require(fake_library.fakeCudaSynchronizeCount() ==
+                synchronizes_before_removal + 2,
+                "range removals did not quiesce prior GPU work")
+        fake_library.fakeCudaSetCurrentDomain(0xCB00, 3)
+        require(launch_kernel() == 0,
+                "removed range remained visible to the coverage gate")
         fake_library.fakeCudaSetCurrentDomain(0xCA00, 3)
         require(unload(module_for_rollback) == 0,
                 "failed to unload rollback module")
@@ -395,7 +418,7 @@ def main() -> int:
         published.value += 1
         return 0
 
-    require(api.register_timing_range(
+    require(api.register_range(
                 0xA000, generation_a.value, 0x1000, 0x2000, publish,
                 None) == 0 and published.value == 1,
             "range transaction did not publish exactly once")
@@ -459,7 +482,7 @@ def main() -> int:
             generation_b.value > generation_a.value,
             "clean sequential owner activation failed")
     published.value = 0
-    require(api.register_timing_range(
+    require(api.register_range(
                 0xB000, generation_b.value, 0x1000, 0x2000, publish,
                 None) == 0 and published.value == 1,
             "sequential owner range transaction failed")

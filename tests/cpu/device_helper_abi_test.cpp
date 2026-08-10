@@ -56,6 +56,9 @@ int main()
         {.base = 0x4000, .length = 0x2000, .file_offset = 0x10'000,
          .range_id = 2,
          .mode = 1, .permissions = 1, .page_bytes = 0x1000},
+        {.base = 0x8000, .length = 0x2000, .file_offset = 0x20'000,
+         .range_id = 3,
+         .mode = 2, .permissions = 3, .page_bytes = 0x1000},
     };
     CHECK(find_range_index(ranges, 2, 0x0fff) == 2);
     CHECK(find_range_index(ranges, 2, 0x1000) == 0);
@@ -65,6 +68,8 @@ int main()
     CHECK(access_supported(ranges[0], 0x1ff8, 8, 1));
     CHECK(!access_supported(ranges[0], 0x1ff8, 16, 0));
     CHECK(!access_supported(ranges[1], 0x4000, 4, 1));
+    CHECK(access_supported(ranges[2], 0x8008, 8, 0));
+    CHECK(access_supported(ranges[2], 0x9008, 8, 1));
     const auto first_page = media_descriptor(ranges[0], 0x1008, 8, 0);
     CHECK(first_page.valid);
     CHECK(first_page.logical_address == 0x8000);
@@ -75,6 +80,14 @@ int main()
     CHECK(second_page.bytes == 0x1000);
     CHECK(media_descriptor(ranges[0], 0x1fff, 1, 0).valid);
     CHECK(!media_descriptor(ranges[0], 0x1fff, 2, 0).valid);
+    const auto capacity_page = media_descriptor(ranges[2], 0x9123, 8, 0);
+    CHECK(capacity_page.valid);
+    CHECK(capacity_page.logical_address == 0x21'000);
+    CHECK(resolved_address(ranges[0], 0x1018, 0) == 0x1018);
+    CHECK(resolved_address(ranges[2], 0x8123, 0x40'000) == 0x40'123);
+    CHECK(resolved_address(ranges[2], 0x8123, 0) == 0);
+    CHECK(resolved_address(ranges[2], 0x8123,
+                           std::numeric_limits<std::uint64_t>::max()) == 0);
     auto malformed = ranges[0];
     malformed.page_bytes = 0;
     CHECK(!media_descriptor(malformed, 0x1000, 1, 0).valid);

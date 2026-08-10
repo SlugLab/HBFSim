@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <thread>
 #include <type_traits>
 
 namespace hbfsim::host_service {
@@ -18,6 +19,37 @@ inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;
 inline constexpr std::uint64_t kAdmissionCountMask = ~kAdmissionClosedBit;
 using RequestAdmissionHook = void (*)(void*) noexcept;
+using CapacityHandoffHook = void (*)(void*) noexcept;
+inline constexpr std::uint64_t kCapacityCompletionClaimed = UINT64_MAX;
+inline constexpr std::uint64_t kMaximumCapacityTicket =
+    (UINT64_MAX >> 8) - 1;
+
+inline constexpr std::uint64_t capacity_pending_token(
+    std::uint64_t ticket) noexcept
+{
+    return ((ticket + 1) << 8) | 0x80U;
+}
+
+enum class CapacityHandoffState : std::uint32_t {
+    Empty = 0,
+    Available = 1,
+    Claiming = 2,
+    Reading = 3,
+    Copied = 4,
+    Reclaiming = 5,
+};
+
+struct CapacityHandoff {
+    std::uint64_t ticket{0};
+    std::uint64_t request_id{0};
+    std::uint64_t logical_page{0};
+    std::uint32_t operation{0};
+};
+
+struct CapacityHandoffResult {
+    RequestStatus status{RequestStatus::Pending};
+    std::uint64_t frame_address{0};
+};
 
 struct alignas(64) SharedControlHeader {
     std::uint64_t magic;
@@ -393,6 +425,248 @@ public:
         atomic_store(slot.sequence, ticket + h->ring_capacity,
                      std::memory_order_release);
         (void)atomic_fetch_add(h->completion_consumer, 1);
+        return true;
+    }
+
+    bool begin_capacity_handoff(const HbfRequest& request) noexcept
+    {
+        auto* h = header();
+        if (!valid() || request.request_id == 0 || request.bytes == 0 ||
+            request.logical_address % request.bytes != 0 ||
+            request.operation >
+                static_cast<std::uint32_t>(RequestOperation::Write) ||
+            request.sequence > kMaximumCapacityTicket) {
+            return false;
+        }
+        auto& page = pages()[request.sequence & (h->page_capacity - 1)];
+        if (atomic_load(page.state, std::memory_order_acquire) !=
+                static_cast<std::uint32_t>(CapacityHandoffState::Empty)) {
+            return false;
+        }
+        page.logical_page = request.logical_address / request.bytes;
+        page.frame_address = 0;
+        atomic_store(page.generation, request.sequence + 1,
+                     std::memory_order_relaxed);
+        page.waiter_count = request.operation;
+        page.checksum = 0;
+        atomic_store(page.reserved0, capacity_pending_token(request.sequence),
+                     std::memory_order_relaxed);
+        page.reserved1 = 0;
+        atomic_store(page.owner_request_id, request.request_id,
+                     std::memory_order_relaxed);
+        atomic_store(
+            page.state,
+            static_cast<std::uint32_t>(CapacityHandoffState::Available),
+            std::memory_order_release);
+        return true;
+    }
+
+    bool try_capacity_handoff(std::uint32_t slot_index,
+                              CapacityHandoff& handoff) const noexcept
+    {
+        return try_capacity_handoff_with_hook_for_test(
+            slot_index, handoff, nullptr, nullptr);
+    }
+
+    bool try_capacity_handoff_with_hook_for_test(
+        std::uint32_t slot_index, CapacityHandoff& handoff,
+        CapacityHandoffHook after_claim, void* hook_state) const noexcept
+    {
+        auto* h = header();
+        if (!valid() || slot_index >= h->page_capacity) {
+            return false;
+        }
+        const auto& page = pages()[slot_index];
+        auto expected_state =
+            static_cast<std::uint32_t>(CapacityHandoffState::Available);
+        auto state = std::atomic_ref<std::uint32_t>(
+            const_cast<std::uint32_t&>(page.state));
+        if (!state.compare_exchange_strong(
+                expected_state,
+                static_cast<std::uint32_t>(CapacityHandoffState::Claiming),
+                std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return false;
+        }
+        if (after_claim != nullptr) {
+            after_claim(hook_state);
+        }
+        expected_state =
+            static_cast<std::uint32_t>(CapacityHandoffState::Claiming);
+        if (!state.compare_exchange_strong(
+                expected_state,
+                static_cast<std::uint32_t>(CapacityHandoffState::Reading),
+                std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return false;
+        }
+        const auto owner =
+            atomic_load(page.owner_request_id, std::memory_order_acquire);
+        const auto generation =
+            atomic_load(page.generation, std::memory_order_acquire);
+        if (owner == 0 || generation == 0 ||
+            atomic_load(page.reserved0, std::memory_order_acquire) !=
+                capacity_pending_token(generation - 1) ||
+            page.waiter_count >
+                static_cast<std::uint32_t>(RequestOperation::Write)) {
+            state.store(
+                static_cast<std::uint32_t>(CapacityHandoffState::Copied),
+                std::memory_order_release);
+            return false;
+        }
+        const CapacityHandoff candidate{
+            .ticket = generation - 1,
+            .request_id = owner,
+            .logical_page = page.logical_page,
+            .operation = page.waiter_count,
+        };
+        handoff = candidate;
+        state.store(
+            static_cast<std::uint32_t>(CapacityHandoffState::Copied),
+            std::memory_order_release);
+        return true;
+    }
+
+    bool complete_capacity_handoff(std::uint64_t ticket,
+                                   std::uint64_t request_id,
+                                   std::uint64_t frame_address,
+                                   RequestStatus status) noexcept
+    {
+        return complete_capacity_handoff_with_hook_for_test(
+            ticket, request_id, frame_address, status, nullptr, nullptr);
+    }
+
+    bool complete_capacity_handoff_with_hook_for_test(
+        std::uint64_t ticket, std::uint64_t request_id,
+        std::uint64_t frame_address, RequestStatus status,
+        CapacityHandoffHook before_claim, void* hook_state) noexcept
+    {
+        auto* h = header();
+        if (!valid() || request_id == 0 ||
+            ticket > kMaximumCapacityTicket ||
+            status == RequestStatus::Pending ||
+            status > RequestStatus::DaemonLost ||
+            (status == RequestStatus::Ready) != (frame_address != 0)) {
+            return false;
+        }
+        auto& page = pages()[ticket & (h->page_capacity - 1)];
+        if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
+                request_id ||
+            atomic_load(page.generation, std::memory_order_acquire) !=
+                ticket + 1) {
+            return false;
+        }
+        if (before_claim != nullptr) {
+            before_claim(hook_state);
+        }
+        auto expected_status = capacity_pending_token(ticket);
+        auto completion = std::atomic_ref<std::uint64_t>(page.reserved0);
+        if (!completion.compare_exchange_strong(
+                expected_status, kCapacityCompletionClaimed,
+                std::memory_order_acq_rel, std::memory_order_acquire)) {
+            return false;
+        }
+        if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
+                request_id ||
+            atomic_load(page.generation, std::memory_order_acquire) !=
+                ticket + 1) {
+            completion.store(
+                capacity_pending_token(ticket),
+                std::memory_order_release);
+            return false;
+        }
+        page.frame_address = frame_address;
+        completion.store(static_cast<std::uint64_t>(status),
+                         std::memory_order_release);
+        return true;
+    }
+
+    bool capacity_handoff_result(const HbfRequest& request,
+                                 CapacityHandoffResult& result) const noexcept
+    {
+        auto* h = header();
+        if (!valid() || request.request_id == 0 ||
+            request.sequence > kMaximumCapacityTicket) {
+            return false;
+        }
+        const auto& page =
+            pages()[request.sequence & (h->page_capacity - 1)];
+        if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
+                request.request_id ||
+            atomic_load(page.generation, std::memory_order_acquire) !=
+                request.sequence + 1) {
+            return false;
+        }
+        const auto raw_status =
+            atomic_load(page.reserved0, std::memory_order_acquire);
+        if (raw_status == capacity_pending_token(request.sequence) ||
+            raw_status == kCapacityCompletionClaimed ||
+            raw_status >
+                static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
+            return false;
+        }
+        const auto status = static_cast<RequestStatus>(raw_status);
+        const auto frame = page.frame_address;
+        if ((status == RequestStatus::Ready) != (frame != 0)) {
+            return false;
+        }
+        result = {.status = status, .frame_address = frame};
+        return true;
+    }
+
+    bool release_capacity_handoff(const HbfRequest& request) noexcept
+    {
+        auto* h = header();
+        if (!valid() || request.request_id == 0 ||
+            request.sequence > kMaximumCapacityTicket) {
+            return false;
+        }
+        auto& page = pages()[request.sequence & (h->page_capacity - 1)];
+        if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
+                request.request_id ||
+            atomic_load(page.generation, std::memory_order_acquire) !=
+                request.sequence + 1) {
+            return false;
+        }
+        const auto status =
+            atomic_load(page.reserved0, std::memory_order_acquire);
+        if (status < static_cast<std::uint64_t>(RequestStatus::Ready) ||
+            status > static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
+            return false;
+        }
+        auto state = std::atomic_ref<std::uint32_t>(page.state);
+        for (;;) {
+            auto expected_state = state.load(std::memory_order_acquire);
+            if (expected_state == static_cast<std::uint32_t>(
+                                      CapacityHandoffState::Reading)) {
+                std::this_thread::yield();
+                continue;
+            }
+            if (expected_state != static_cast<std::uint32_t>(
+                                      CapacityHandoffState::Available) &&
+                expected_state != static_cast<std::uint32_t>(
+                                      CapacityHandoffState::Claiming) &&
+                expected_state != static_cast<std::uint32_t>(
+                                      CapacityHandoffState::Copied)) {
+                return false;
+            }
+            if (state.compare_exchange_weak(
+                    expected_state,
+                    static_cast<std::uint32_t>(
+                        CapacityHandoffState::Reclaiming),
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+                break;
+            }
+        }
+        page.logical_page = 0;
+        page.frame_address = 0;
+        atomic_store(page.generation, 0, std::memory_order_relaxed);
+        page.waiter_count = 0;
+        page.checksum = 0;
+        atomic_store(page.reserved0, 0, std::memory_order_relaxed);
+        page.reserved1 = 0;
+        atomic_store(page.owner_request_id, 0, std::memory_order_relaxed);
+        state.store(
+            static_cast<std::uint32_t>(CapacityHandoffState::Empty),
+            std::memory_order_release);
         return true;
     }
 

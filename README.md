@@ -111,7 +111,7 @@ live GPU, capacity, or LLM proof.
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
 | Live timing-only GPU proof | Not run; no live proof yet |
-| File-backed capacity mode | Backing-store, page-service, clock-cache, and CUDA VMM foundations implemented; public/live path not yet connected |
+| File-backed capacity mode | Backing-store, page-service, clock-cache, CUDA VMM, mode-2 resolver translation, and daemon/parent handoff implemented; public/live path not yet connected |
 | Hybrid fast model | Planned |
 | CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
 
@@ -135,10 +135,13 @@ The current media simulator and its benchmark can be built without a GPU.
 The capacity foundation now includes bounded file-window I/O, serialized page
 resolution with read-for-ownership, deterministic two-phase clock eviction and
 dirty flush, unbacked CUDA virtual-range reservation, and a separate mapped HBM
-frame interval. These components have bit-exact host-frame, CPU/fake-driver,
-and CUDA static-build coverage, but `hbfsim_map_file` intentionally remains
-fail-closed until real CUDA data movement, timing completions, unregister, and
-the coverage-gate lifecycle are connected end to end.
+frame interval. The rewritten device helper now understands capacity ranges and
+translates a successful completion into `cache_frame + page_offset`; the daemon
+uses a generation-stamped shared handoff to wait for the parent CUDA context to
+service that page. These components have bit-exact host-frame,
+CPU/fake-driver, and CUDA static-build coverage, but `hbfsim_map_file`
+intentionally remains fail-closed until the parent worker performs real CUDA
+copies and owns the full map/flush/unregister lifecycle.
 
 ## Clone and build
 

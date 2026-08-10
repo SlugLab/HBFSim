@@ -711,7 +711,8 @@ git commit -m "feat: add HBF host service and shared transport"
 - Produces timing-only registration through `hbfsim_register_device`.
 
 The host-registration sub-slice uses control ABI v2 and a versioned launch-gate
-v1 callback table. One active production context owns the gate at a time.
+v2 callback table. One active production context owns the gate at a time;
+Task 9 generalizes the range callbacks and adds explicit removal.
 Public operations use shared admission records: destroy closes admission and
 waits for active operations, reopens after a wrong-domain retry, and leaves
 permanent quarantine closed. Gate activation, module association changes, and
@@ -728,7 +729,7 @@ process/heartbeat liveness, then always acquires the retirement token and marks
 bindings not-ready before acting on a failed sample. It rechecks liveness
 immediately before synchronization, invalidates bindings, shuts down the
 daemon, unregisters the mapped control region, and only then releases gate
-ownership and clears timing ranges. Any failure after token acquisition keeps
+ownership and clears registered ranges. Any failure after token acquisition keeps
 the owner/generation and ranges permanently retiring but releases the
 synchronization lock, so relevant launches reject promptly.
 The range, binding, fake-driver, and gate tests for this sub-slice are
@@ -802,10 +803,13 @@ The first Task 9 foundation slice provides a bounded `BackingStore`, a
 generation-checked two-phase deterministic clock cache, an unbacked `VmmRange`,
 and a separately mapped `VmmFramePool`. A serialized `CapacityPageService`
 connects host-frame copies, read-for-ownership, dirty eviction, and explicit
-flush with failure rollback. CPU/fake-driver tests and CUDA-enabled static
-compilation cover these primitives. The public capacity API remains fail-closed
-until real CUDA copies, timing completions, unregister, and live coverage proof
-are connected; this slice is not capacity-mode execution proof.
+flush with failure rollback. Mode-2 device resolution now consumes a returned
+HBM frame address, and the daemon/parent boundary has a generation-stamped
+page-service handoff. Range publication/removal uses launch-gate ABI v2.
+CPU/fake-driver tests and CUDA-enabled static compilation cover these
+primitives. The public capacity API remains fail-closed until the parent worker
+performs real CUDA copies and owns map/flush/unregister; this slice is not
+capacity-mode execution proof.
 
 **Files:**
 - Create: `src/cuda_runtime/vmm.hpp`

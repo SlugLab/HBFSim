@@ -33,7 +33,8 @@ class GateApi(ctypes.Structure):
         ("abi_version", ctypes.c_uint32),
         ("struct_bytes", ctypes.c_uint32),
         ("activate", Activate),
-        ("register_timing_range", Register),
+        ("register_range", Register),
+        ("unregister_range", Register),
         ("begin_retire", BeginRetire),
         ("invalidate_retire", FinishRetire),
         ("finish_retire", FinishRetire),
@@ -103,8 +104,8 @@ def main() -> int:
     getter = process.hbfsim_launch_gate_get_api
     getter.argtypes = [ctypes.c_uint32]
     getter.restype = ctypes.POINTER(GateApi)
-    api_pointer = getter(1)
-    require(bool(api_pointer), "launch gate v1 API unavailable")
+    api_pointer = getter(2)
+    require(bool(api_pointer), "launch gate v2 API unavailable")
     api = api_pointer.contents
     fake_library.fakeCudaSetCurrentDomain.argtypes = [ctypes.c_size_t,
                                                        ctypes.c_int]
@@ -118,7 +119,7 @@ def main() -> int:
     def publish(_state: ctypes.c_void_p) -> int:
         return 0
 
-    require(api.register_timing_range(
+    require(api.register_range(
                 0xA000, generation.value, 0x1000, 0x2000, publish, None) == 0,
             "failed to register owned test HBF range")
 

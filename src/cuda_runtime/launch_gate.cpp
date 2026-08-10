@@ -35,6 +35,13 @@ namespace {
 
 hbfsim::TimingBindingRegistry& timing_bindings();
 
+struct CudaDomain {
+    std::uintptr_t context{0};
+    int device{-1};
+};
+
+std::optional<CudaDomain> current_cuda_domain();
+
 const char* environment_or(const char* name, const char* fallback)
 {
     const char* value = std::getenv(name);
@@ -56,10 +63,10 @@ class RuntimeGate {
     {
         return range_launch_sync_.launch_guard();
     }
-    int register_timing_range(std::uintptr_t owner, std::uint64_t generation,
-                              std::uintptr_t begin, std::uintptr_t end,
-                              hbfsim::LaunchGatePublishRange publish,
-                              void* publish_state) noexcept
+    int register_range(std::uintptr_t owner, std::uint64_t generation,
+                       std::uintptr_t begin, std::uintptr_t end,
+                       hbfsim::LaunchGatePublishRange publish,
+                       void* publish_state) noexcept
     {
         if (publish == nullptr) {
             return -1;
@@ -76,7 +83,40 @@ class RuntimeGate {
             }
             return 0;
         } catch (const std::exception& error) {
-            std::cerr << "hbfsim timing range registration: " << error.what()
+            std::cerr << "hbfsim range registration: " << error.what()
+                      << '\n';
+            return -1;
+        }
+    }
+    int unregister_range(std::uintptr_t owner, std::uint64_t generation,
+                         std::uintptr_t begin, std::uintptr_t end,
+                         hbfsim::LaunchGatePublishRange publish,
+                         void* publish_state) noexcept
+    {
+        if (publish == nullptr) {
+            return -1;
+        }
+        try {
+            auto lock = range_launch_sync_.mutation_guard();
+            if (!timing_bindings().owns(owner, generation)) {
+                return -1;
+            }
+            const auto domain = current_cuda_domain();
+            if (!domain.has_value() ||
+                !timing_bindings().active_domain(domain->context,
+                                                 domain->device) ||
+                ::cudaDeviceSynchronize() != cudaSuccess) {
+                return -1;
+            }
+            if (publish(publish_state) != 0) {
+                return -1;
+            }
+            // Publication is the no-fail point. The exclusive mutation lock
+            // keeps launches out until the exact gate range is removed.
+            gate_.remove_range(begin, end);
+            return 0;
+        } catch (const std::exception& error) {
+            std::cerr << "hbfsim range unregistration: " << error.what()
                       << '\n';
             return -1;
         }
@@ -220,11 +260,6 @@ hbfsim::ModuleHandle module_handle(CUmodule module)
 {
     return reinterpret_cast<hbfsim::ModuleHandle>(module);
 }
-
-struct CudaDomain {
-    std::uintptr_t context{0};
-    int device{-1};
-};
 
 std::optional<CudaDomain> current_cuda_domain()
 {
@@ -374,15 +409,27 @@ int activate_timing_owner(std::uintptr_t owner,
     return 0;
 }
 
-int register_timing_range(std::uintptr_t owner, std::uint64_t generation,
-                          std::uintptr_t begin, std::uintptr_t end,
-                          hbfsim::LaunchGatePublishRange publish,
-                          void* publish_state) noexcept
+int register_range(std::uintptr_t owner, std::uint64_t generation,
+                   std::uintptr_t begin, std::uintptr_t end,
+                   hbfsim::LaunchGatePublishRange publish,
+                   void* publish_state) noexcept
 {
     if (owner == 0 || generation == 0 || begin >= end) {
         return -1;
     }
-    return runtime_gate().register_timing_range(
+    return runtime_gate().register_range(
+        owner, generation, begin, end, publish, publish_state);
+}
+
+int unregister_range(std::uintptr_t owner, std::uint64_t generation,
+                     std::uintptr_t begin, std::uintptr_t end,
+                     hbfsim::LaunchGatePublishRange publish,
+                     void* publish_state) noexcept
+{
+    if (owner == 0 || generation == 0 || begin >= end) {
+        return -1;
+    }
+    return runtime_gate().unregister_range(
         owner, generation, begin, end, publish, publish_state);
 }
 
@@ -447,17 +494,18 @@ int quarantine_retire(std::uintptr_t raw_token) noexcept
         return -1;
     }
     // Quiesce already made the binding permanently not-ready. Keep that
-    // state and all timing ranges, but release the exclusive lock so future
+    // state and all registered ranges, but release the exclusive lock so future
     // relevant launches can acquire a shared guard and fail closed.
     delete reinterpret_cast<RetireToken*>(raw_token);
     return 0;
 }
 
-const hbfsim::LaunchGateApiV1 launch_gate_api{
+const hbfsim::LaunchGateApiV2 launch_gate_api{
     .abi_version = hbfsim::kLaunchGateAbiVersion,
-    .struct_bytes = sizeof(hbfsim::LaunchGateApiV1),
+    .struct_bytes = sizeof(hbfsim::LaunchGateApiV2),
     .activate = activate_timing_owner,
-    .register_timing_range = register_timing_range,
+    .register_range = register_range,
+    .unregister_range = unregister_range,
     .begin_retire = begin_retire,
     .invalidate_retire = invalidate_retire,
     .finish_retire = finish_retire,
@@ -753,7 +801,7 @@ extern "C" int hbfsim_test_wait_activation_attempt() noexcept
 }
 #endif
 
-extern "C" const hbfsim::LaunchGateApiV1*
+extern "C" const hbfsim::LaunchGateApiV2*
 hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
 {
     return requested_version == hbfsim::kLaunchGateAbiVersion

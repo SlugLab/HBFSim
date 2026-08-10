@@ -15,6 +15,10 @@ public:
         // nullopt means the engine has no event capable of completing an
         // outstanding request; it is terminal, not a transient not-ready state.
         std::function<std::optional<HbfCompletion>()> run_next_completion;
+        // Runs after the timing engine returns an exact completion and before
+        // the shared completion slot is published. Capacity mode uses this
+        // boundary to wait for the parent-context page service.
+        std::function<void(const HbfRequest&, HbfCompletion&)> finalize;
     };
 
     RequestDispatcher(ControlView control, Engine engine);

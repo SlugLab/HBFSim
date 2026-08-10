@@ -54,7 +54,7 @@ struct hbfsim_context {
     pid_t daemon_pid{-1};
     std::uint64_t request_timeout_ns{0};
     bool cuda_registered{false};
-    const hbfsim::LaunchGateApiV1* launch_gate_api{nullptr};
+    const hbfsim::LaunchGateApiV2* launch_gate_api{nullptr};
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
@@ -693,8 +693,9 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         const auto* api = context->launch_gate_api;
         if (api == nullptr ||
             api->abi_version != hbfsim::kLaunchGateAbiVersion ||
-            api->struct_bytes < sizeof(hbfsim::LaunchGateApiV1) ||
-            api->activate == nullptr || api->register_timing_range == nullptr ||
+            api->struct_bytes < sizeof(hbfsim::LaunchGateApiV2) ||
+            api->activate == nullptr || api->register_range == nullptr ||
+            api->unregister_range == nullptr ||
             api->begin_retire == nullptr ||
             api->invalidate_retire == nullptr ||
             api->finish_retire == nullptr ||
@@ -793,6 +794,11 @@ int register_device_with_gate(
     if (context == nullptr || device_ptr == nullptr || length == 0 ||
         options == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (options->mode != HBFSIM_RANGE_MODE_TIMING) {
+        return options->mode == HBFSIM_RANGE_MODE_CAPACITY
+                   ? HBFSIM_UNSUPPORTED
+                   : HBFSIM_INVALID_ARGUMENT;
     }
     const auto process = process_status(context);
     if (process != HBFSIM_OK) {
@@ -1132,6 +1138,11 @@ extern "C" int hbfsim_register_device(
         options == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
+    if (options->mode != HBFSIM_RANGE_MODE_TIMING) {
+        return options->mode == HBFSIM_RANGE_MODE_CAPACITY
+                   ? HBFSIM_UNSUPPORTED
+                   : HBFSIM_INVALID_ARGUMENT;
+    }
     hbfsim::runtime::ContextOperation operation(context);
     if (!operation) {
         return HBFSIM_IO_ERROR;
@@ -1165,7 +1176,7 @@ extern "C" int hbfsim_register_device(
             return 0;
         };
         const auto gate_status =
-            context.launch_gate_api->register_timing_range(
+            context.launch_gate_api->register_range(
             reinterpret_cast<std::uintptr_t>(owner),
             context.control_generation, begin, end, acknowledge,
             &publication);

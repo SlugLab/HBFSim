@@ -28,10 +28,8 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         options.cache_policy != HBFSIM_CACHE_POLICY_NONE) {
         return HBFSIM_INVALID_ARGUMENT;
     }
-    if (options.mode == HBFSIM_RANGE_MODE_CAPACITY) {
-        return HBFSIM_UNSUPPORTED;
-    }
-    if (options.mode != HBFSIM_RANGE_MODE_TIMING) {
+    if (options.mode != HBFSIM_RANGE_MODE_TIMING &&
+        options.mode != HBFSIM_RANGE_MODE_CAPACITY) {
         return HBFSIM_INVALID_ARGUMENT;
     }
     if (count_ == records_.size()) {
@@ -113,6 +111,59 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         // callback must stage its range before invoking publish and perform no
         // fallible work afterward; normalize a hostile post-publish status so
         // callers cannot observe a committed range as rejected.
+        return HBFSIM_OK;
+    }
+    return status == HBFSIM_OK ? HBFSIM_IO_ERROR : status;
+}
+
+int RangeTable::remove(std::uintptr_t base,
+                       RangePublishTransaction transaction,
+                       void* transaction_state) noexcept
+{
+    std::scoped_lock lock(mutex_);
+    if (!control_.valid() || base == 0) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    const auto found = std::lower_bound(
+        records_.begin(), records_.begin() + count_, base,
+        [](const host_service::SharedRangeRecord& record,
+           std::uintptr_t candidate) { return record.base < candidate; });
+    if (found == records_.begin() + count_ || found->base != base) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (transaction == nullptr) {
+        return HBFSIM_IO_ERROR;
+    }
+    struct PendingRemoval {
+        RangeTable* table;
+        host_service::SharedRangeRecord record;
+        std::size_t index;
+        bool published;
+    } pending{this, *found,
+              static_cast<std::size_t>(found - records_.begin()), false};
+    const auto publish = +[](void* opaque) noexcept {
+        auto& item = *static_cast<PendingRemoval*>(opaque);
+        if (item.published) {
+            return;
+        }
+        auto& table = *item.table;
+        std::move(table.records_.begin() + item.index + 1,
+                  table.records_.begin() + table.count_,
+                  table.records_.begin() + item.index);
+        --table.count_;
+        table.records_[table.count_] = {};
+        std::copy_n(table.records_.begin(), table.count_,
+                    table.control_.ranges());
+        table.control_.ranges()[table.count_] = {};
+        host_service::atomic_store(
+            table.control_.header()->range_count,
+            static_cast<std::uint32_t>(table.count_),
+            std::memory_order_release);
+        item.published = true;
+    };
+    const auto status =
+        transaction(pending.record, publish, &pending, transaction_state);
+    if (pending.published) {
         return HBFSIM_OK;
     }
     return status == HBFSIM_OK ? HBFSIM_IO_ERROR : status;

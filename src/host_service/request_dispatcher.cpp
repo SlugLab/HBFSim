@@ -96,8 +96,19 @@ bool RequestDispatcher::poll_once()
             outstanding_by_ticket_.find(request_ticket->second);
         if (descriptor == outstanding_by_ticket_.end() ||
             completion->page_generation !=
-                descriptor->second.page_generation ||
-            !terminal(completion->status) ||
+                descriptor->second.page_generation) {
+            fail_all();
+            return true;
+        }
+        try {
+            if (engine_.finalize) {
+                engine_.finalize(descriptor->second, *completion);
+            }
+        } catch (...) {
+            fail_all();
+            return true;
+        }
+        if (!terminal(completion->status) ||
             !control_.try_publish_completion(descriptor->first,
                                              *completion)) {
             fail_all();

@@ -33,6 +33,10 @@ class LaunchRangeSynchronizer {
     {
         return std::unique_lock(mutex_);
     }
+    [[nodiscard]] std::unique_lock<std::shared_mutex> mutation_guard()
+    {
+        return std::unique_lock(mutex_);
+    }
     // The caller must hold launch_guard() until the launch has been enqueued.
     void mark_launch_seen() noexcept
     {

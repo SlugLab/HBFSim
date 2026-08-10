@@ -235,6 +235,13 @@ int main(int argc, char** argv)
     CHECK(hbfsim::runtime::range_count_for_test(context) == 1);
     void* logical_pointer = reinterpret_cast<void*>(1);
     range_options.mode = HBFSIM_RANGE_MODE_CAPACITY;
+    timing_gate.accept = true;
+    CHECK(hbfsim::runtime::register_device_with_gate_for_test(
+              context, reinterpret_cast<void*>(0x5000), 0x1000,
+              &range_options, 0xfeed'0000, register_timing_range,
+              &timing_gate) == HBFSIM_UNSUPPORTED);
+    CHECK(timing_gate.calls == 2);
+    CHECK(hbfsim::runtime::range_count_for_test(context) == 1);
     CHECK(hbfsim_map_file(context, "/does/not/need/to/exist", 0, 4096,
                           &range_options,
                           &logical_pointer) == HBFSIM_UNSUPPORTED);

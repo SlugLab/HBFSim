@@ -108,6 +108,12 @@ add_test(
 )
 
 add_executable(
+    hbfsim_capacity_handoff_tests tests/cpu/capacity_handoff_test.cpp
+)
+target_link_libraries(hbfsim_capacity_handoff_tests PRIVATE hbfsim_core)
+add_test(NAME capacity_handoff COMMAND hbfsim_capacity_handoff_tests)
+
+add_executable(
     hbfsim_device_ordering_reference_tests
     tests/cpu/device_ordering_reference_test.cpp
 )

@@ -168,6 +168,16 @@ int main(int argc, char** argv)
     fakeCudaSetCurrentDomain(0xCA00, 3);
     fakeCudaResetLifecycleCounts();
     auto* context = create(configuration);
+    const hbfsim_range_options unsupported_capacity{
+        .mode = HBFSIM_RANGE_MODE_CAPACITY,
+        .permissions = HBFSIM_RANGE_READ,
+        .cache_policy = HBFSIM_CACHE_POLICY_NONE,
+        .stream_id = 0,
+    };
+    CHECK(hbfsim_register_device(
+              context, reinterpret_cast<void*>(0x1000), 0x1000,
+              &unsupported_capacity) == HBFSIM_UNSUPPORTED);
+    CHECK(hbfsim::runtime::range_count_for_test(context) == 0);
 
     if (std::strcmp(argv[1], "register-destroy-race") == 0) {
         fakeCudaPausePointerValidation();

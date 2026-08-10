@@ -179,7 +179,8 @@ or a range extending beyond that allocation, and publishes a validated record
 through a gate-owned transaction. Capacity registration, unregister, and dirty
 flush remain Task 9 work and fail closed until that backend exists.
 
-The launch gate exposes a versioned v1 callback table. Context creation claims
+The launch gate exposes a versioned v2 callback table with mode-neutral range
+registration and explicit range removal. Context creation claims
 one active timing owner and binds the mapped control alias plus a monotonic,
 non-wrapping generation to trusted modules in the same CUDA context/device.
 Trusted modules with missing or malformed control symbols remain identified but
@@ -213,10 +214,10 @@ retiring even when that sample failed, converting the failure into permanent
 quarantine only after launches are quiesced. It rechecks liveness immediately
 before synchronizing the device. It invalidates module bindings, requests
 daemon shutdown and reaps it, and finally unregisters host control memory
-before releasing gate ownership, clearing timing ranges, and unmapping. A
+before releasing gate ownership, clearing registered ranges, and unmapping. A
 liveness, synchronization,
 cleanup, or binding-write failure permanently retains the retiring
-owner/generation, timing ranges, and mapping, but releases the synchronization
+owner/generation, registered ranges, and mapping, but releases the synchronization
 lock. Relevant launches can therefore acquire the shared guard and fail closed
 promptly instead of hanging or bypassing the quarantined binding. These CUDA
 operations have no cancellable deadline.
@@ -234,7 +235,7 @@ requires the live current context/device to exactly match the supplied domain.
 Explicit destruction/reset of the active owner context or device is rejected
 before reaching CUDA; foreign-device primary-context operations may proceed and
 discard only unbound records for that device. The production launch gate has no
-direct range-add export; timing ranges enter only through
+direct range-add export; registered ranges enter only through
 `hbfsim_register_device` and its owner-checked transaction.
 
 ## 7. PTX Transformation Contract

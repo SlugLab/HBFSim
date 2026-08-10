@@ -176,7 +176,8 @@ HBFSIM_HOST_DEVICE constexpr bool access_supported(
     const SharedRangeRecord& range, std::uint64_t address,
     std::uint32_t bytes, std::uint32_t operation) noexcept
 {
-    if (bytes == 0 || operation > 1 || range.mode != 1 ||
+    if (bytes == 0 || operation > 1 ||
+        (range.mode != 1 && range.mode != 2) ||
         range.page_bytes == 0 || range.page_bytes > UINT32_MAX ||
         range.length > UINT64_MAX - range.base || address < range.base ||
         address - range.base >= range.length ||
@@ -188,6 +189,24 @@ HBFSIM_HOST_DEVICE constexpr bool access_supported(
     const auto offset = address - range.base;
     const auto last_offset = offset + bytes - 1;
     return offset / range.page_bytes == last_offset / range.page_bytes;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t resolved_address(
+    const SharedRangeRecord& range, std::uint64_t original_address,
+    std::uint64_t cache_frame_address) noexcept
+{
+    if (range.mode == 1) {
+        return original_address;
+    }
+    if (range.mode != 2 || range.page_bytes == 0 ||
+        original_address < range.base || cache_frame_address == 0) {
+        return 0;
+    }
+    const auto page_offset =
+        (original_address - range.base) % range.page_bytes;
+    return page_offset > UINT64_MAX - cache_frame_address
+               ? 0
+               : cache_frame_address + page_offset;
 }
 
 HBFSIM_HOST_DEVICE constexpr MediaDescriptor media_descriptor(

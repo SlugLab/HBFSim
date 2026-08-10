@@ -63,14 +63,19 @@ int main()
 
     CHECK(!control.complete_capacity_handoff(
         handoff.ticket + capacity, handoff.request_id, 0x80'000,
-        hbfsim::RequestStatus::Ready));
+        hbfsim::RequestStatus::Ready,
+        {.flags = hbfsim::host_service::CapacityMediaRead}));
     CHECK(control.complete_capacity_handoff(
         handoff.ticket, handoff.request_id, 0x80'000,
-        hbfsim::RequestStatus::Ready));
+        hbfsim::RequestStatus::Ready,
+        {.flags = hbfsim::host_service::CapacityMediaRead}));
     hbfsim::host_service::CapacityHandoffResult result{};
     CHECK(control.capacity_handoff_result(request, result));
     CHECK(result.status == hbfsim::RequestStatus::Ready);
     CHECK(result.frame_address == 0x80'000);
+    CHECK(result.media.flags == hbfsim::host_service::CapacityMediaRead);
+    CHECK(result.media.program_page == 0);
+    CHECK(result.media.program_range_id == 0);
     CHECK(control.release_capacity_handoff(request));
 
     request.sequence += capacity;
@@ -157,7 +162,11 @@ int main()
             control.complete_capacity_handoff_with_hook_for_test(
                 old_request.sequence, old_request.request_id, 0xc0'000,
                 hbfsim::RequestStatus::Ready, block_after_claim,
-                &stale_semaphores);
+                &stale_semaphores,
+                {.flags = hbfsim::host_service::CapacityMediaProgram |
+                          hbfsim::host_service::CapacityMediaRead,
+                 .program_page = 0xfeed,
+                 .program_range_id = 99});
     });
     stale_checked.acquire();
     CHECK(control.complete_capacity_handoff(
@@ -180,6 +189,25 @@ int main()
     CHECK(control.capacity_handoff_result(request, result));
     CHECK(result.status == hbfsim::RequestStatus::Ready);
     CHECK(result.frame_address == 0xd0'000);
+    CHECK(result.media.flags == hbfsim::host_service::CapacityMediaNone);
+    CHECK(control.release_capacity_handoff(request));
+
+    request.sequence += capacity;
+    ++request.request_id;
+    CHECK(control.begin_capacity_handoff(request));
+    CHECK(control.complete_capacity_handoff(
+        request.sequence, request.request_id, 0xe0'000,
+        hbfsim::RequestStatus::Ready,
+        {.flags = hbfsim::host_service::CapacityMediaProgram |
+                  hbfsim::host_service::CapacityMediaRead,
+         .program_page = 0x1234,
+         .program_range_id = 7}));
+    CHECK(control.capacity_handoff_result(request, result));
+    CHECK(result.media.flags ==
+          (hbfsim::host_service::CapacityMediaProgram |
+           hbfsim::host_service::CapacityMediaRead));
+    CHECK(result.media.program_page == 0x1234);
+    CHECK(result.media.program_range_id == 7);
     CHECK(control.release_capacity_handoff(request));
 
     request.sequence += capacity;
@@ -195,6 +223,7 @@ int main()
     CHECK(control.capacity_handoff_result(request, result));
     CHECK(result.status == hbfsim::RequestStatus::CopyError);
     CHECK(result.frame_address == 0);
+    CHECK(result.media.flags == hbfsim::host_service::CapacityMediaNone);
     CHECK(control.release_capacity_handoff(request));
 
     request.sequence = 0;

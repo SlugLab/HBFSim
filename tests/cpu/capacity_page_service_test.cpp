@@ -94,8 +94,15 @@ int main()
 
     const auto page_zero = service.resolve(0, 0);
     CHECK(page_zero.status == hbfsim::RequestStatus::Ready);
+    CHECK(page_zero.media.flags ==
+          hbfsim::host_service::CapacityMediaRead);
     CHECK(frames.at(page_zero.frame_address) ==
           backing.read_page(0, page_bytes));
+
+    const auto page_zero_hit = service.resolve(0, 0);
+    CHECK(page_zero_hit.status == hbfsim::RequestStatus::Ready);
+    CHECK(page_zero_hit.media.flags ==
+          hbfsim::host_service::CapacityMediaNone);
 
     const auto page_one = service.resolve(1, 1);
     CHECK(page_one.status == hbfsim::RequestStatus::Ready);
@@ -109,6 +116,11 @@ int main()
 
     const auto page_three = service.resolve(3, 0);
     CHECK(page_three.status == hbfsim::RequestStatus::Ready);
+    CHECK(page_three.media.flags ==
+          (hbfsim::host_service::CapacityMediaProgram |
+           hbfsim::host_service::CapacityMediaRead));
+    CHECK(page_three.media.program_page == 1);
+    CHECK(page_three.media.program_range_id == 1);
     CHECK(!cache.resolve(1).has_value());
     CHECK(backing.read_page(1, page_bytes) ==
           std::vector<std::byte>(page_bytes, std::byte{0x5a}));
@@ -226,11 +238,36 @@ int main()
     CHECK(callback_service.resolve(10, 1).status ==
           hbfsim::RequestStatus::Ready);
     CHECK((callback_reads == std::vector<std::uint64_t>{0, 10}));
-    CHECK(callback_service.flush(0, 2) == hbfsim::RequestStatus::Ready);
+    std::vector<std::pair<std::uint32_t, std::uint64_t>> modeled_programs;
+    CHECK(callback_service.flush(
+              [&](std::uint32_t range_id, std::uint64_t global_page) {
+                  modeled_programs.emplace_back(range_id, global_page);
+                  return hbfsim::RequestStatus::Ready;
+              },
+              1) == hbfsim::RequestStatus::Ready);
     CHECK((callback_writes == std::vector<std::uint64_t>{0}));
+    CHECK((modeled_programs ==
+           std::vector<std::pair<std::uint32_t, std::uint64_t>>{{1, 0}}));
     CHECK(callback_cache.resolve(10).has_value());
     CHECK(callback_cache.dirty_pages() == 1);
     CHECK(callback_flushes == 1);
+
+    CHECK(callback_service.flush(
+              [&](std::uint32_t range_id, std::uint64_t global_page) {
+                  modeled_programs.emplace_back(range_id, global_page);
+                  return hbfsim::RequestStatus::Timeout;
+              },
+              2) == hbfsim::RequestStatus::Timeout);
+    CHECK(callback_cache.resolve(10).has_value());
+    CHECK(callback_cache.dirty_pages() == 1);
+    CHECK(callback_flushes == 1);
+    CHECK(callback_service.flush(
+              [&](std::uint32_t, std::uint64_t) {
+                  return hbfsim::RequestStatus::Ready;
+              },
+              2) == hbfsim::RequestStatus::Ready);
+    CHECK(callback_cache.dirty_pages() == 0);
+    CHECK(callback_flushes == 2);
 
     std::filesystem::remove(path);
     return 0;

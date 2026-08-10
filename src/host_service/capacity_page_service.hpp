@@ -2,6 +2,7 @@
 
 #include "backing_store.hpp"
 #include "capacity_backing_router.hpp"
+#include "control_layout.hpp"
 
 #include "../cuda_runtime/hbm_cache.hpp"
 
@@ -11,7 +12,9 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <span>
+#include <unordered_map>
 #include <vector>
 
 namespace hbfsim::host_service {
@@ -26,6 +29,7 @@ struct CapacityFrameIo {
 struct CapacityResolveResult {
     RequestStatus status{RequestStatus::IoError};
     std::uint64_t frame_address{0};
+    CapacityMediaPlan media;
 };
 
 struct CapacityBackingIo {
@@ -38,6 +42,9 @@ struct CapacityBackingIo {
 
 class CapacityPageService {
   public:
+    using ModelProgram =
+        std::function<RequestStatus(std::uint32_t, std::uint64_t)>;
+
     CapacityPageService(CapacityBackingIo backing, runtime::HbmCache& cache,
                         std::size_t page_bytes, CapacityFrameIo frame_io);
     CapacityPageService(BackingStore& backing, runtime::HbmCache& cache,
@@ -46,6 +53,9 @@ class CapacityPageService {
     CapacityResolveResult resolve(std::uint64_t logical_page,
                                   std::uint32_t operation);
     RequestStatus flush();
+    RequestStatus flush(
+        const ModelProgram& model_program,
+        std::optional<std::uint32_t> range_id = std::nullopt);
     RequestStatus flush(std::uint64_t first_page,
                         std::uint64_t page_count);
 
@@ -58,6 +68,7 @@ class CapacityPageService {
     runtime::HbmCache& cache_;
     std::size_t page_bytes_;
     CapacityFrameIo frame_io_;
+    std::unordered_map<std::uint64_t, std::uint32_t> resident_range_ids_;
     std::mutex mutex_;
 };
 

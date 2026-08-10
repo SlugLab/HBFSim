@@ -125,6 +125,12 @@ target_link_libraries(hbfsim_capacity_handoff_tests PRIVATE hbfsim_core)
 add_test(NAME capacity_handoff COMMAND hbfsim_capacity_handoff_tests)
 
 add_executable(
+    hbfsim_capacity_dispatch_tests tests/cpu/capacity_dispatch_test.cpp
+)
+target_link_libraries(hbfsim_capacity_dispatch_tests PRIVATE hbfsim_core)
+add_test(NAME capacity_dispatch COMMAND hbfsim_capacity_dispatch_tests)
+
+add_executable(
     hbfsim_capacity_worker_tests tests/cpu/capacity_worker_test.cpp
 )
 target_link_libraries(hbfsim_capacity_worker_tests PRIVATE hbfsim_core)

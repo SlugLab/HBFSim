@@ -46,9 +46,35 @@ struct CapacityHandoff {
     std::uint32_t operation{0};
 };
 
+enum CapacityMediaFlags : std::uint64_t {
+    CapacityMediaNone = 0,
+    CapacityMediaRead = 1ULL << 0,
+    CapacityMediaProgram = 1ULL << 1,
+};
+
+struct CapacityMediaPlan {
+    std::uint64_t flags{CapacityMediaNone};
+    std::uint64_t program_page{0};
+    std::uint32_t program_range_id{0};
+};
+
+inline constexpr bool valid_capacity_media_plan(
+    const CapacityMediaPlan& media) noexcept
+{
+    constexpr auto known = CapacityMediaRead | CapacityMediaProgram;
+    if ((media.flags & ~known) != 0) {
+        return false;
+    }
+    const auto programs = (media.flags & CapacityMediaProgram) != 0;
+    return programs ? media.program_range_id != 0
+                    : media.program_page == 0 &&
+                          media.program_range_id == 0;
+}
+
 struct CapacityHandoffResult {
     RequestStatus status{RequestStatus::Pending};
     std::uint64_t frame_address{0};
+    CapacityMediaPlan media;
 };
 
 struct alignas(64) SharedControlHeader {
@@ -534,17 +560,32 @@ public:
             ticket, request_id, frame_address, status, nullptr, nullptr);
     }
 
+    bool complete_capacity_handoff(std::uint64_t ticket,
+                                   std::uint64_t request_id,
+                                   std::uint64_t frame_address,
+                                   RequestStatus status,
+                                   CapacityMediaPlan media) noexcept
+    {
+        return complete_capacity_handoff_with_hook_for_test(
+            ticket, request_id, frame_address, status, nullptr, nullptr,
+            media);
+    }
+
     bool complete_capacity_handoff_with_hook_for_test(
         std::uint64_t ticket, std::uint64_t request_id,
         std::uint64_t frame_address, RequestStatus status,
-        CapacityHandoffHook before_claim, void* hook_state) noexcept
+        CapacityHandoffHook before_claim, void* hook_state,
+        CapacityMediaPlan media = {}) noexcept
     {
         auto* h = header();
         if (!valid() || request_id == 0 ||
             ticket > kMaximumCapacityTicket ||
             status == RequestStatus::Pending ||
             status > RequestStatus::DaemonLost ||
-            (status == RequestStatus::Ready) != (frame_address != 0)) {
+            (status == RequestStatus::Ready) != (frame_address != 0) ||
+            !valid_capacity_media_plan(media) ||
+            (status != RequestStatus::Ready &&
+             media.flags != CapacityMediaNone)) {
             return false;
         }
         auto& page = pages()[ticket & (h->page_capacity - 1)];
@@ -574,6 +615,10 @@ public:
             return false;
         }
         page.frame_address = frame_address;
+        page.checksum = media.program_page;
+        page.reserved1 =
+            (static_cast<std::uint64_t>(media.program_range_id) << 32) |
+            static_cast<std::uint32_t>(media.flags);
         completion.store(static_cast<std::uint64_t>(status),
                          std::memory_order_release);
         return true;
@@ -608,7 +653,18 @@ public:
         if ((status == RequestStatus::Ready) != (frame != 0)) {
             return false;
         }
-        result = {.status = status, .frame_address = frame};
+        const CapacityMediaPlan media{
+            .flags = static_cast<std::uint32_t>(page.reserved1),
+            .program_page = page.checksum,
+            .program_range_id = static_cast<std::uint32_t>(
+                page.reserved1 >> 32),
+        };
+        if (!valid_capacity_media_plan(media) ||
+            (status != RequestStatus::Ready &&
+             media.flags != CapacityMediaNone)) {
+            return false;
+        }
+        result = {.status = status, .frame_address = frame, .media = media};
         return true;
     }
 

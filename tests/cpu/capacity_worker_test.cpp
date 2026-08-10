@@ -134,6 +134,7 @@ int main()
     CHECK(wait_for_result(control, read, result));
     CHECK(result.status == hbfsim::RequestStatus::Ready);
     CHECK(result.frame_address != 0);
+    CHECK(result.media.flags == hbfsim::host_service::CapacityMediaRead);
     CHECK(frames.at(result.frame_address) == original_page_zero);
     CHECK(control.release_capacity_handoff(read));
 
@@ -143,7 +144,15 @@ int main()
     CHECK(result.status == hbfsim::RequestStatus::Ready);
     std::ranges::fill(frames.at(result.frame_address), std::byte{0x5a});
     CHECK(control.release_capacity_handoff(write));
-    CHECK(worker.flush() == hbfsim::RequestStatus::Ready);
+    std::vector<std::pair<std::uint32_t, std::uint64_t>> modeled_programs;
+    CHECK(worker.flush(
+              [&](std::uint32_t range_id, std::uint64_t global_page) {
+                  modeled_programs.emplace_back(range_id, global_page);
+                  return hbfsim::RequestStatus::Ready;
+              },
+              1) == hbfsim::RequestStatus::Ready);
+    CHECK((modeled_programs ==
+           std::vector<std::pair<std::uint32_t, std::uint64_t>>{{1, 1}}));
     CHECK(backing.read_page(1, page_bytes) ==
           std::vector<std::byte>(page_bytes, std::byte{0x5a}));
 
@@ -170,7 +179,7 @@ int main()
     CHECK(control.release_capacity_handoff(reused));
 
     block_next_copy.store(true);
-    const auto during_stop = request(3, 14, 0, 0, page_bytes);
+    const auto during_stop = request(3, 14, 1, 0, page_bytes);
     CHECK(control.begin_capacity_handoff(during_stop));
     copy_entered.acquire();
 
@@ -207,7 +216,8 @@ int main()
     CHECK(control.capacity_handoff_result(during_stop, result));
     CHECK(result.status == hbfsim::RequestStatus::Ready);
     CHECK(result.frame_address != 0);
-    CHECK(frames.at(result.frame_address) == original_page_zero);
+    CHECK(frames.at(result.frame_address) ==
+          std::vector<std::byte>(page_bytes, std::byte{0x5a}));
     CHECK(control.release_capacity_handoff(during_stop));
 
     const auto after_stop = request(4, 15, 1, 0, page_bytes);

@@ -3,9 +3,12 @@
 #include <hbfsim/protocol.hpp>
 
 #include "../../src/cuda_runtime/device/hbf_device.cuh"
+#include "../../src/host_service/control_layout.hpp"
+#include "../../src/host_service/request_dispatcher.hpp"
 
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
@@ -130,6 +133,112 @@ int main()
                direct_reference[index].modeled_completion_ns);
         assert(trace_reference[index].modeled_ns ==
                direct_reference[index].modeled_ns);
+    }
+
+    {
+        constexpr std::uint32_t capacity = 4;
+        const auto control_bytes =
+            hbfsim::host_service::control_region_bytes(capacity);
+        void* storage = nullptr;
+        if (::posix_memalign(&storage, 64, control_bytes) != 0) {
+            return __LINE__;
+        }
+        hbfsim::host_service::ControlView control(storage, control_bytes);
+        if (!control.initialize(capacity)) {
+            return __LINE__;
+        }
+
+        auto dirty = read_request(201, 0, 0, 0x4000, profile.page_bytes);
+        auto unrelated =
+            read_request(202, 0, 0, 0x10000, profile.page_bytes);
+        std::uint64_t dirty_ticket = 0;
+        std::uint64_t unrelated_ticket = 0;
+        if (!control.try_push_request(dirty, dirty_ticket) ||
+            !control.try_push_request(unrelated, unrelated_ticket)) {
+            return __LINE__;
+        }
+
+        auto coordinated_profile = profile;
+        coordinated_profile.capacity_bytes = 64ULL * 1024 * 1024 * 1024;
+        hbfsim::validate_profile(coordinated_profile);
+        hbfsim::MqsimOnlineEngine engine(coordinated_profile);
+        std::vector<hbfsim::HbfRequest> submitted;
+        hbfsim::host_service::RequestDispatcher dispatcher(
+            control,
+            hbfsim::host_service::RequestDispatcher::Engine{
+                .prepare = [&](const hbfsim::HbfRequest& value) {
+                    auto completion = hbfsim::HbfCompletion{
+                        .request_id = value.request_id,
+                        .cache_frame_address =
+                            value.logical_address == dirty.logical_address
+                                ? 0x1000ULL
+                                : 0x2000ULL,
+                        .page_generation = value.page_generation,
+                        .status = static_cast<std::uint32_t>(
+                            hbfsim::RequestStatus::Ready),
+                    };
+                    auto read = value;
+                    read.operation = static_cast<std::uint32_t>(
+                        hbfsim::RequestOperation::Read);
+                    if (value.logical_address == dirty.logical_address) {
+                        auto program = value;
+                        program.logical_address = 0x20000;
+                        program.operation = static_cast<std::uint32_t>(
+                            hbfsim::RequestOperation::Write);
+                        return hbfsim::host_service::PreparedDispatch{
+                            .completion = completion,
+                            .media_actions = {program, read},
+                            .media_action_count = 2,
+                        };
+                    }
+                    return hbfsim::host_service::PreparedDispatch{
+                        .completion = completion,
+                        .media_actions = {read},
+                        .media_action_count = 1,
+                    };
+                },
+                .submit = [&](const hbfsim::HbfRequest& action) {
+                    submitted.push_back(action);
+                    engine.submit(action);
+                },
+                .run_next_completion = [&] {
+                    return engine.run_next_completion();
+                },
+            });
+        if (!dispatcher.poll_once() || submitted.size() != 3 ||
+            submitted[0].operation != static_cast<std::uint32_t>(
+                                          hbfsim::RequestOperation::Write) ||
+            submitted[1].logical_address != unrelated.logical_address ||
+            submitted[2].logical_address != dirty.logical_address ||
+            submitted[2].operation != static_cast<std::uint32_t>(
+                                          hbfsim::RequestOperation::Read)) {
+            return __LINE__;
+        }
+
+        hbfsim::HbfCompletion dirty_completion{};
+        hbfsim::HbfCompletion unrelated_completion{};
+        if (!control.try_consume_completion(dirty_ticket,
+                                            dirty_completion)) {
+            return __LINE__;
+        }
+        if (!control.try_consume_completion(unrelated_ticket,
+                                            unrelated_completion)) {
+            return __LINE__;
+        }
+        if (dirty_completion.status != static_cast<std::uint32_t>(
+                                           hbfsim::RequestStatus::Ready)) {
+            return __LINE__;
+        }
+        if (dirty_completion.modeled_ns <
+            coordinated_profile.program_latency_ns +
+                coordinated_profile.read_latency_ns) {
+            return __LINE__;
+        }
+        if (unrelated_completion.status != static_cast<std::uint32_t>(
+                                               hbfsim::RequestStatus::Ready)) {
+            return __LINE__;
+        }
+        std::free(storage);
     }
 
     const auto burst_path =

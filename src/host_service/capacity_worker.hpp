@@ -33,6 +33,9 @@ class CapacityWorker {
     void stop_with_hook_for_test(CapacityWorkerStopHook after_lock,
                                  void* hook_state);
     RequestStatus flush();
+    RequestStatus flush(
+        const CapacityPageService::ModelProgram& model_program,
+        std::optional<std::uint32_t> range_id = std::nullopt);
 
   private:
     void run(std::stop_token stop);

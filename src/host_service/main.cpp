@@ -88,78 +88,6 @@ hbfsim::HbfCompletion unsupported_completion(
     };
 }
 
-const hbfsim::host_service::SharedRangeRecord* find_range_by_id(
-    hbfsim::host_service::ControlView control, std::uint32_t range_id)
-{
-    const auto count = hbfsim::host_service::atomic_load(
-        control.header()->range_count, std::memory_order_acquire);
-    if (count > hbfsim::host_service::kRangeCapacity) {
-        return nullptr;
-    }
-    for (std::uint32_t index = 0; index < count; ++index) {
-        if (control.ranges()[index].range_id == range_id) {
-            return &control.ranges()[index];
-        }
-    }
-    return nullptr;
-}
-
-void finalize_capacity_completion(
-    hbfsim::host_service::ControlView control,
-    const hbfsim::HbfRequest& request, hbfsim::HbfCompletion& completion)
-{
-    const auto* range = find_range_by_id(control, request.range_id);
-    if (range == nullptr ||
-        range->mode != HBFSIM_RANGE_MODE_CAPACITY ||
-        completion.status !=
-            static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready)) {
-        return;
-    }
-    if (request.bytes != range->page_bytes ||
-        !control.begin_capacity_handoff(request)) {
-        completion.status = static_cast<std::uint32_t>(
-            hbfsim::RequestStatus::IoError);
-        completion.cache_frame_address = 0;
-        return;
-    }
-
-    const auto started = monotonic_ns();
-    hbfsim::host_service::CapacityHandoffResult result{};
-    while (!control.capacity_handoff_result(request, result)) {
-        const auto fault = hbfsim::host_service::atomic_load(
-            control.header()->fault, std::memory_order_acquire);
-        const auto shutdown = hbfsim::host_service::atomic_load(
-            control.header()->shutdown, std::memory_order_acquire);
-        const auto now = monotonic_ns();
-        if (fault != 0 || shutdown != 0 || now < started ||
-            now - started >= control.header()->request_timeout_ns) {
-            const auto failure =
-                fault != 0 || shutdown != 0
-                    ? hbfsim::RequestStatus::DaemonLost
-                    : hbfsim::RequestStatus::Timeout;
-            if (control.complete_capacity_handoff(
-                    request.sequence, request.request_id, 0, failure)) {
-                result.status = failure;
-                result.frame_address = 0;
-            } else if (!control.capacity_handoff_result(request, result)) {
-                result.status = hbfsim::RequestStatus::IoError;
-                result.frame_address = 0;
-            }
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::microseconds(50));
-    }
-    completion.status = static_cast<std::uint32_t>(result.status);
-    completion.cache_frame_address = result.frame_address;
-    const auto finished = monotonic_ns();
-    completion.service_ns = finished >= started ? finished - started : 0;
-    if (!control.release_capacity_handoff(request)) {
-        completion.status = static_cast<std::uint32_t>(
-            hbfsim::RequestStatus::IoError);
-        completion.cache_frame_address = 0;
-    }
-}
-
 }  // namespace
 
 int main(int argc, char** argv)
@@ -203,17 +131,19 @@ int main(int argc, char** argv)
         hbfsim::MqsimOnlineEngine engine(profile);
         hbfsim::host_service::RequestDispatcher dispatcher(
             control, hbfsim::host_service::RequestDispatcher::Engine{
+                         .prepare = [&control](
+                                        const hbfsim::HbfRequest& request) {
+                             return hbfsim::host_service::prepare_host_dispatch(
+                                 control, request, monotonic_ns, [] {
+                                     std::this_thread::sleep_for(
+                                         std::chrono::microseconds(50));
+                                 });
+                         },
                          .submit = [&engine](const hbfsim::HbfRequest& request) {
                              engine.submit(request);
                          },
                          .run_next_completion = [&engine] {
                              return engine.run_next_completion();
-                         },
-                         .finalize = [&control](
-                                         const hbfsim::HbfRequest& request,
-                                         hbfsim::HbfCompletion& completion) {
-                             finalize_capacity_completion(control, request,
-                                                          completion);
                          },
             });
 #else
@@ -221,6 +151,21 @@ int main(int argc, char** argv)
         std::deque<hbfsim::HbfCompletion> disabled_completions;
         hbfsim::host_service::RequestDispatcher dispatcher(
             control, hbfsim::host_service::RequestDispatcher::Engine{
+                         .prepare = [&control](
+                                        const hbfsim::HbfRequest& request) {
+                             auto prepared =
+                                 hbfsim::host_service::prepare_host_dispatch(
+                                 control, request, monotonic_ns, [] {
+                                     std::this_thread::sleep_for(
+                                         std::chrono::microseconds(50));
+                                 }, false);
+                             if (prepared.media_action_count != 0) {
+                                 prepared.completion =
+                                     unsupported_completion(request);
+                                 prepared.media_action_count = 0;
+                             }
+                             return prepared;
+                         },
                          .submit = [&](const hbfsim::HbfRequest& request) {
                              disabled_completions.push_back(
                                  unsupported_completion(request));
@@ -233,12 +178,6 @@ int main(int argc, char** argv)
                              auto completion = disabled_completions.front();
                              disabled_completions.pop_front();
                              return completion;
-                         },
-                         .finalize = [&control](
-                                         const hbfsim::HbfRequest& request,
-                                         hbfsim::HbfCompletion& completion) {
-                             finalize_capacity_completion(control, request,
-                                                          completion);
                          },
             });
 #endif

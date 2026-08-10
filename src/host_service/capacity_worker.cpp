@@ -46,6 +46,13 @@ RequestStatus CapacityWorker::flush()
     return service_.flush();
 }
 
+RequestStatus CapacityWorker::flush(
+    const CapacityPageService::ModelProgram& model_program,
+    std::optional<std::uint32_t> range_id)
+{
+    return service_.flush(model_program, range_id);
+}
+
 void CapacityWorker::run(std::stop_token stop)
 {
     while (!stop.stop_requested()) {
@@ -68,7 +75,10 @@ void CapacityWorker::run(std::stop_token stop)
             if (resolved.status == RequestStatus::Pending ||
                 resolved.status > RequestStatus::DaemonLost ||
                 (resolved.status == RequestStatus::Ready) !=
-                    (resolved.frame_address != 0)) {
+                    (resolved.frame_address != 0) ||
+                !valid_capacity_media_plan(resolved.media) ||
+                (resolved.status != RequestStatus::Ready &&
+                 resolved.media.flags != CapacityMediaNone)) {
                 resolved = {.status = RequestStatus::IoError,
                             .frame_address = 0};
             }
@@ -77,7 +87,7 @@ void CapacityWorker::run(std::stop_token stop)
             // lost race; never write the slot by any other path.
             (void)control_.complete_capacity_handoff(
                 handoff.ticket, handoff.request_id, resolved.frame_address,
-                resolved.status);
+                resolved.status, resolved.media);
         }
         if (!claimed && !stop.stop_requested()) {
             std::unique_lock lock(idle_mutex_);

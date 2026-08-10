@@ -42,6 +42,7 @@ CapacityPageService::CapacityPageService(BackingStore& backing,
               .read_page = [&backing](std::uint64_t page,
                                       std::size_t bytes) {
                   return RoutedPage{.status = RequestStatus::Ready,
+                                    .range_id = 1,
                                     .bytes = backing.read_page(page, bytes)};
               },
               .write_page = [&backing](std::uint64_t page,
@@ -99,6 +100,7 @@ CapacityResolveResult CapacityPageService::resolve(
                 .frame_address = *resident};
     }
 
+    CapacityMediaPlan media{.flags = CapacityMediaRead};
     auto frame = cache_.free_frame();
     if (!frame.has_value()) {
         auto eviction = cache_.begin_eviction();
@@ -106,19 +108,31 @@ CapacityResolveResult CapacityPageService::resolve(
             return {.status = RequestStatus::IoError};
         }
         if (eviction->dirty) {
+            const auto victim_range =
+                resident_range_ids_.find(eviction->logical_page);
+            if (victim_range == resident_range_ids_.end() ||
+                victim_range->second == 0) {
+                (void)cache_.cancel_eviction(*eviction);
+                return {.status = RequestStatus::IoError};
+            }
             const auto status = writeback(*eviction);
             if (status != RequestStatus::Ready) {
                 (void)cache_.cancel_eviction(*eviction);
                 return {.status = status};
             }
+            media.flags |= CapacityMediaProgram;
+            media.program_page = eviction->logical_page;
+            media.program_range_id = victim_range->second;
         }
         if (!cache_.complete_eviction(*eviction)) {
             return {.status = RequestStatus::IoError};
         }
+        resident_range_ids_.erase(eviction->logical_page);
         frame = eviction->frame_address;
     }
 
     std::vector<std::byte> page;
+    std::uint32_t range_id = 0;
     try {
         auto routed = backing_.read_page(logical_page, page_bytes_);
         if (routed.status != RequestStatus::Ready) {
@@ -127,6 +141,10 @@ CapacityResolveResult CapacityPageService::resolve(
         if (routed.bytes.size() != page_bytes_) {
             return {.status = RequestStatus::IoError};
         }
+        if (routed.range_id == 0) {
+            return {.status = RequestStatus::IoError};
+        }
+        range_id = routed.range_id;
         page = std::move(routed.bytes);
     } catch (...) {
         return {.status = RequestStatus::IoError};
@@ -138,11 +156,26 @@ CapacityResolveResult CapacityPageService::resolve(
     } catch (...) {
         return {.status = RequestStatus::CopyError};
     }
-    if (!cache_.publish(logical_page, *frame) ||
-        (operation == 1 && !cache_.mark_dirty(logical_page))) {
+    try {
+        const auto [entry, inserted] =
+            resident_range_ids_.emplace(logical_page, range_id);
+        (void)entry;
+        if (!inserted) {
+            return {.status = RequestStatus::IoError};
+        }
+    } catch (...) {
         return {.status = RequestStatus::IoError};
     }
-    return {.status = RequestStatus::Ready, .frame_address = *frame};
+    if (!cache_.publish(logical_page, *frame)) {
+        resident_range_ids_.erase(logical_page);
+        return {.status = RequestStatus::IoError};
+    }
+    if (operation == 1 && !cache_.mark_dirty(logical_page)) {
+        return {.status = RequestStatus::IoError};
+    }
+    return {.status = RequestStatus::Ready,
+            .frame_address = *frame,
+            .media = media};
 }
 
 RequestStatus CapacityPageService::flush()
@@ -175,12 +208,83 @@ RequestStatus CapacityPageService::flush()
         if (!cache_.complete_eviction(*eviction)) {
             return RequestStatus::IoError;
         }
+        resident_range_ids_.erase(eviction->logical_page);
     }
     try {
         if (!synchronized) {
             return checked_status(backing_.flush());
         }
         return RequestStatus::Ready;
+    } catch (...) {
+        return RequestStatus::IoError;
+    }
+}
+
+RequestStatus CapacityPageService::flush(
+    const ModelProgram& model_program,
+    std::optional<std::uint32_t> range_id)
+{
+    if (!model_program || (range_id.has_value() && *range_id == 0)) {
+        return RequestStatus::IoError;
+    }
+    std::lock_guard lock(mutex_);
+    std::vector<std::uint64_t> candidates;
+    try {
+        candidates.reserve(resident_range_ids_.size());
+        for (const auto& [page, resident_range] : resident_range_ids_) {
+            if (!range_id.has_value() || resident_range == *range_id) {
+                candidates.push_back(page);
+            }
+        }
+    } catch (...) {
+        return RequestStatus::IoError;
+    }
+
+    bool synchronized = false;
+    for (const auto page : candidates) {
+        auto eviction = cache_.begin_eviction_in_range(page, 1, true);
+        if (!eviction.has_value()) {
+            continue;
+        }
+        const auto resident = resident_range_ids_.find(page);
+        if (resident == resident_range_ids_.end() || resident->second == 0) {
+            (void)cache_.cancel_eviction(*eviction);
+            return RequestStatus::IoError;
+        }
+        auto status = writeback(*eviction);
+        if (status != RequestStatus::Ready) {
+            (void)cache_.cancel_eviction(*eviction);
+            return status;
+        }
+        try {
+            status = checked_status(model_program(resident->second, page));
+        } catch (...) {
+            status = RequestStatus::IoError;
+        }
+        if (status != RequestStatus::Ready) {
+            (void)cache_.cancel_eviction(*eviction);
+            return status;
+        }
+        try {
+            status = checked_status(backing_.flush());
+        } catch (...) {
+            status = RequestStatus::IoError;
+        }
+        if (status != RequestStatus::Ready) {
+            (void)cache_.cancel_eviction(*eviction);
+            return status;
+        }
+        if (!cache_.complete_eviction(*eviction)) {
+            return RequestStatus::IoError;
+        }
+        resident_range_ids_.erase(resident);
+        synchronized = true;
+    }
+    if (synchronized) {
+        return RequestStatus::Ready;
+    }
+    try {
+        return checked_status(backing_.flush());
     } catch (...) {
         return RequestStatus::IoError;
     }
@@ -226,6 +330,7 @@ RequestStatus CapacityPageService::flush_range(std::uint64_t first_page,
         if (!cache_.complete_eviction(*eviction)) {
             return RequestStatus::IoError;
         }
+        resident_range_ids_.erase(eviction->logical_page);
     }
     if (synchronized) {
         return RequestStatus::Ready;

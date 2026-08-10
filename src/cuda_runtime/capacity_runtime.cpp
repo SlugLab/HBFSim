@@ -31,7 +31,7 @@ std::size_t frame_count(const Profile& profile)
 
 CapacityRuntime::PinnedPage::~PinnedPage()
 {
-    reset();
+    (void)release();
 }
 
 CapacityRuntime::PinnedPage::PinnedPage(PinnedPage&& other) noexcept
@@ -43,9 +43,10 @@ CapacityRuntime::PinnedPage& CapacityRuntime::PinnedPage::operator=(
     PinnedPage&& other) noexcept
 {
     if (this != &other) {
-        reset();
-        data_ = std::exchange(other.data_, nullptr);
-        bytes_ = std::exchange(other.bytes_, 0);
+        if (release()) {
+            data_ = std::exchange(other.data_, nullptr);
+            bytes_ = std::exchange(other.bytes_, 0);
+        }
     }
     return *this;
 }
@@ -71,15 +72,18 @@ CapacityRuntime::PinnedPage CapacityRuntime::PinnedPage::allocate(
 #endif
 }
 
-void CapacityRuntime::PinnedPage::reset() noexcept
+bool CapacityRuntime::PinnedPage::release() noexcept
 {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (data_ != nullptr) {
-        (void)::cudaFreeHost(data_);
+        if (::cudaFreeHost(data_) != cudaSuccess) {
+            return false;
+        }
     }
 #endif
     data_ = nullptr;
     bytes_ = 0;
+    return true;
 }
 
 std::unique_ptr<CapacityRuntime> CapacityRuntime::create(
@@ -208,6 +212,13 @@ RequestStatus CapacityRuntime::flush(
 void CapacityRuntime::stop()
 {
     worker_.stop();
+}
+
+bool CapacityRuntime::release_cuda_resources() noexcept
+{
+    const auto bounce_released = bounce_.release();
+    const auto frames_released = vmm_.release();
+    return bounce_released && frames_released;
 }
 
 }  // namespace hbfsim::runtime

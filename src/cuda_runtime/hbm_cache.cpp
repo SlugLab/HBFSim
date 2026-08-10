@@ -51,6 +51,33 @@ std::optional<std::uint64_t> HbmCache::resolve(
     return frame.address;
 }
 
+std::optional<std::uint64_t> HbmCache::reclaim_eviction(
+    std::uint64_t logical_page)
+{
+    std::lock_guard lock(mutex_);
+    const auto evicting = evicting_pages_.find(logical_page);
+    if (evicting == evicting_pages_.end() ||
+        evicting->second >= frames_.size() ||
+        page_to_frame_.contains(logical_page)) {
+        return std::nullopt;
+    }
+    auto& frame = frames_[evicting->second];
+    if (!frame.evicting || !frame.logical_page.has_value() ||
+        *frame.logical_page != logical_page) {
+        return std::nullopt;
+    }
+    const auto [resident, inserted] =
+        page_to_frame_.emplace(logical_page, evicting->second);
+    (void)resident;
+    if (!inserted) {
+        return std::nullopt;
+    }
+    evicting_pages_.erase(evicting);
+    frame.evicting = false;
+    frame.referenced = true;
+    return frame.address;
+}
+
 bool HbmCache::mark_dirty(std::uint64_t logical_page)
 {
     std::lock_guard lock(mutex_);

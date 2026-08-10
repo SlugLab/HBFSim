@@ -26,6 +26,7 @@ bool unload_fails = false;
 bool lifecycle_fails = false;
 int launch_count = 0;
 int synchronize_count = 0;
+bool synchronize_fails = false;
 int unregister_count = 0;
 bool unregister_fails = false;
 bool nested_runtime_reset = false;
@@ -359,7 +360,7 @@ int cudaHostGetDevicePointer(void** device, void* host, unsigned int)
 int cudaDeviceSynchronize()
 {
     ++synchronize_count;
-    return 0;
+    return synchronize_fails ? 1 : 0;
 }
 
 int cudaHostUnregister(void*)
@@ -929,6 +930,11 @@ int fakeCudaLaunchCount()
 void fakeCudaSetHostUnregisterFailure(int fail)
 {
     unregister_fails = fail != 0;
+}
+
+void fakeCudaSetSynchronizeFailure(int fail)
+{
+    synchronize_fails = fail != 0;
 }
 
 void fakeCudaResetLifecycleCounts()

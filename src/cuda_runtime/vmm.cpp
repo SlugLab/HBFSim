@@ -151,7 +151,7 @@ bool CudaVmmDriver::set_access(std::uintptr_t address, std::size_t bytes,
 
 VmmRange::~VmmRange()
 {
-    reset();
+    (void)release();
 }
 
 VmmRange::VmmRange(VmmRange&& other) noexcept
@@ -165,11 +165,12 @@ VmmRange::VmmRange(VmmRange&& other) noexcept
 VmmRange& VmmRange::operator=(VmmRange&& other) noexcept
 {
     if (this != &other) {
-        reset();
-        driver_ = std::exchange(other.driver_, nullptr);
-        base_ = std::exchange(other.base_, 0);
-        logical_bytes_ = std::exchange(other.logical_bytes_, 0);
-        reserved_bytes_ = std::exchange(other.reserved_bytes_, 0);
+        if (release()) {
+            driver_ = std::exchange(other.driver_, nullptr);
+            base_ = std::exchange(other.base_, 0);
+            logical_bytes_ = std::exchange(other.logical_bytes_, 0);
+            reserved_bytes_ = std::exchange(other.reserved_bytes_, 0);
+        }
     }
     return *this;
 }
@@ -199,20 +200,23 @@ VmmRange VmmRange::reserve_logical(VmmDriver& driver,
     return result;
 }
 
-void VmmRange::reset() noexcept
+bool VmmRange::release() noexcept
 {
     if (driver_ != nullptr && base_ != 0 && reserved_bytes_ != 0) {
-        (void)driver_->free_address(base_, reserved_bytes_);
+        if (!driver_->free_address(base_, reserved_bytes_)) {
+            return false;
+        }
     }
     driver_ = nullptr;
     base_ = 0;
     logical_bytes_ = 0;
     reserved_bytes_ = 0;
+    return true;
 }
 
 VmmFramePool::~VmmFramePool()
 {
-    reset();
+    (void)release();
 }
 
 VmmFramePool::VmmFramePool(VmmFramePool&& other) noexcept
@@ -228,13 +232,14 @@ VmmFramePool::VmmFramePool(VmmFramePool&& other) noexcept
 VmmFramePool& VmmFramePool::operator=(VmmFramePool&& other) noexcept
 {
     if (this != &other) {
-        reset();
-        driver_ = std::exchange(other.driver_, nullptr);
-        base_ = std::exchange(other.base_, 0);
-        reserved_bytes_ = std::exchange(other.reserved_bytes_, 0);
-        handle_ = std::exchange(other.handle_, 0);
-        mapped_ = std::exchange(other.mapped_, false);
-        frame_addresses_ = std::move(other.frame_addresses_);
+        if (release()) {
+            driver_ = std::exchange(other.driver_, nullptr);
+            base_ = std::exchange(other.base_, 0);
+            reserved_bytes_ = std::exchange(other.reserved_bytes_, 0);
+            handle_ = std::exchange(other.handle_, 0);
+            mapped_ = std::exchange(other.mapped_, false);
+            frame_addresses_ = std::move(other.frame_addresses_);
+        }
     }
     return *this;
 }
@@ -276,23 +281,30 @@ VmmFramePool VmmFramePool::create(VmmDriver& driver,
     return result;
 }
 
-void VmmFramePool::reset() noexcept
+bool VmmFramePool::release() noexcept
 {
     if (driver_ != nullptr && mapped_) {
-        (void)driver_->unmap(base_, reserved_bytes_);
+        if (!driver_->unmap(base_, reserved_bytes_)) {
+            return false;
+        }
+        mapped_ = false;
     }
     if (driver_ != nullptr && handle_ != 0) {
-        (void)driver_->release(handle_);
+        if (!driver_->release(handle_)) {
+            return false;
+        }
+        handle_ = 0;
     }
     if (driver_ != nullptr && base_ != 0 && reserved_bytes_ != 0) {
-        (void)driver_->free_address(base_, reserved_bytes_);
+        if (!driver_->free_address(base_, reserved_bytes_)) {
+            return false;
+        }
+        base_ = 0;
+        reserved_bytes_ = 0;
     }
     driver_ = nullptr;
-    base_ = 0;
-    reserved_bytes_ = 0;
-    handle_ = 0;
-    mapped_ = false;
     frame_addresses_.clear();
+    return true;
 }
 
 }  // namespace hbfsim::runtime

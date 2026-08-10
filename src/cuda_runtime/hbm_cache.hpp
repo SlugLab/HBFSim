@@ -24,6 +24,8 @@ class HbmCache {
                  std::uint64_t frame_address);
     [[nodiscard]] std::optional<std::uint64_t> resolve(
         std::uint64_t logical_page);
+    [[nodiscard]] std::optional<std::uint64_t> reclaim_eviction(
+        std::uint64_t logical_page);
     bool mark_dirty(std::uint64_t logical_page);
     [[nodiscard]] std::size_t dirty_pages() const;
     [[nodiscard]] std::optional<std::uint64_t> free_frame() const;

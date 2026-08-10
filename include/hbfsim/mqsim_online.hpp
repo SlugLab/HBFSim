@@ -24,6 +24,7 @@ public:
     void submit(const HbfRequest& request);
     std::optional<HbfCompletion> run_next_completion();
     [[nodiscard]] std::size_t pending() const noexcept;
+    [[nodiscard]] std::uint64_t current_time_ns() const noexcept;
 
 private:
     class Impl;

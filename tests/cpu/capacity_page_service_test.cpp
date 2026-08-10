@@ -4,13 +4,17 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <condition_variable>
 #include <filesystem>
+#include <mutex>
 #include <span>
 #include <stdexcept>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include <unistd.h>
@@ -268,6 +272,72 @@ int main()
               2) == hbfsim::RequestStatus::Ready);
     CHECK(callback_cache.dirty_pages() == 0);
     CHECK(callback_flushes == 2);
+
+    CHECK(callback_service.resolve(0, 1).status ==
+          hbfsim::RequestStatus::Ready);
+    std::mutex concurrent_mutex;
+    std::condition_variable concurrent_ready;
+    bool concurrent_done = false;
+    auto concurrent_status = hbfsim::RequestStatus::Pending;
+    CHECK(callback_service.flush(
+              [&](std::uint32_t, std::uint64_t) {
+                  std::thread concurrent([&] {
+                      const auto resolved = callback_service.resolve(10, 0);
+                      {
+                          std::lock_guard lock(concurrent_mutex);
+                          concurrent_status = resolved.status;
+                          concurrent_done = true;
+                      }
+                      concurrent_ready.notify_one();
+                  });
+                  std::unique_lock lock(concurrent_mutex);
+                  if (!concurrent_ready.wait_for(
+                          lock, std::chrono::milliseconds(100),
+                          [&] { return concurrent_done; })) {
+                      concurrent.detach();
+                      return hbfsim::RequestStatus::Timeout;
+                  }
+                  lock.unlock();
+                  concurrent.join();
+                  return concurrent_status;
+              },
+              1) == hbfsim::RequestStatus::Ready);
+    CHECK(concurrent_status == hbfsim::RequestStatus::Ready);
+
+    hbfsim::runtime::HbmCache reclaim_cache({0x6000});
+    frames.emplace(0x6000, std::vector<std::byte>(page_bytes));
+    hbfsim::host_service::CapacityPageService reclaim_service(
+        backing, reclaim_cache, page_bytes,
+        {
+            .host_to_frame = [&](std::uint64_t frame,
+                                 std::span<const std::byte> data) {
+                std::ranges::copy(data, frames.at(frame).begin());
+                return true;
+            },
+            .frame_to_host = [&](std::uint64_t frame,
+                                 std::span<std::byte> data) {
+                std::ranges::copy(frames.at(frame), data.begin());
+                return true;
+            },
+        });
+    CHECK(reclaim_service.resolve(0, 1).status ==
+          hbfsim::RequestStatus::Ready);
+    auto reclaim_status = hbfsim::RequestStatus::Pending;
+    CHECK(reclaim_service.flush(
+              [&](std::uint32_t, std::uint64_t) {
+                  std::thread concurrent([&] {
+                      reclaim_status = reclaim_service.resolve(0, 0).status;
+                  });
+                  concurrent.join();
+                  return reclaim_status;
+              }) == hbfsim::RequestStatus::IoError);
+    CHECK(reclaim_status == hbfsim::RequestStatus::Ready);
+    CHECK(reclaim_cache.dirty_pages() == 1);
+    CHECK(reclaim_service.flush(
+              [](std::uint32_t, std::uint64_t) {
+                  return hbfsim::RequestStatus::Ready;
+              }) == hbfsim::RequestStatus::Ready);
+    CHECK(reclaim_cache.dirty_pages() == 0);
 
     std::filesystem::remove(path);
     return 0;

@@ -1,8 +1,10 @@
 #include "context.hpp"
 
+#include "capacity_runtime.hpp"
 #include "range_table.hpp"
 
 #include "../host_service/control_layout.hpp"
+#include "../host_service/request_dispatcher.hpp"
 
 #include <hbfsim/profile.hpp>
 #include <hbfsim/launch_gate_abi.hpp>
@@ -62,7 +64,14 @@ struct hbfsim_context {
     bool daemon_ready{false};
     hbfsim::runtime::AfterBeginRetireHook after_begin_retire{nullptr};
     void* after_begin_retire_state{nullptr};
+    std::unique_ptr<hbfsim::Profile> profile;
+    std::unique_ptr<hbfsim::runtime::CapacityRuntime> capacity;
+    std::array<std::unique_ptr<hbfsim::runtime::CapacityMapping>,
+               hbfsim::host_service::kRangeCapacity>
+        capacity_mappings;
     std::unique_ptr<hbfsim::runtime::RangeTable> ranges;
+    std::uint64_t next_capacity_request_id{1};
+    std::mutex capacity_mutex;
     std::mutex process_mutex;
 };
 
@@ -200,6 +209,30 @@ enum class ReleaseResult { destroyed, retryable, quarantined };
 
 int process_status(hbfsim_context* context) noexcept;
 std::uint64_t monotonic_ns();
+RequestStatus submit_capacity_program(hbfsim_context* context,
+                                      std::uint32_t range_id,
+                                      std::uint64_t global_page) noexcept;
+
+int public_capacity_status(RequestStatus status) noexcept
+{
+    switch (status) {
+    case RequestStatus::Ready:
+        return HBFSIM_OK;
+    case RequestStatus::CopyError:
+        return HBFSIM_CUDA_ERROR;
+    case RequestStatus::Timeout:
+        return HBFSIM_TIMEOUT;
+    case RequestStatus::Unsupported:
+        return HBFSIM_UNSUPPORTED;
+    case RequestStatus::DaemonLost:
+        return HBFSIM_DAEMON_LOST;
+    case RequestStatus::Pending:
+    case RequestStatus::IoError:
+    case RequestStatus::ChecksumError:
+        return HBFSIM_IO_ERROR;
+    }
+    return HBFSIM_IO_ERROR;
+}
 
 int retirement_liveness(hbfsim_context* context) noexcept
 {
@@ -412,9 +445,25 @@ ReleaseResult release_context(hbfsim_context* context,
         if ((context->daemon_ready &&
              retirement_liveness(context) != HBFSIM_OK) ||
             !cuda_domain_is_current(context->cuda_context,
-                                    context->device_ordinal) ||
-            ::cudaDeviceSynchronize() != cudaSuccess ||
-            context->launch_gate_api->invalidate_retire(retire_token) != 0) {
+                                    context->device_ordinal)) {
+            quarantine();
+            return ReleaseResult::quarantined;
+        }
+        if (::cudaDeviceSynchronize() != cudaSuccess) {
+            quarantine();
+            return ReleaseResult::quarantined;
+        }
+        if (context->capacity &&
+            context->capacity->flush(
+                [context](std::uint32_t range_id,
+                          std::uint64_t global_page) {
+                    return submit_capacity_program(context, range_id,
+                                                   global_page);
+                }) != RequestStatus::Ready) {
+            quarantine();
+            return ReleaseResult::quarantined;
+        }
+        if (context->launch_gate_api->invalidate_retire(retire_token) != 0) {
             quarantine();
             return ReleaseResult::quarantined;
         }
@@ -422,6 +471,43 @@ ReleaseResult release_context(hbfsim_context* context,
         control.header()->control_generation = 0;
     }
 #endif
+    if (context->capacity) {
+        context->capacity->stop();
+        for (auto& mapping : context->capacity_mappings) {
+            if (mapping) {
+                if (!mapping->logical_range.release()) {
+                    if (retire_token != 0) {
+                        (void)context->launch_gate_api->quarantine_retire(
+                            retire_token);
+                        retire_token = 0;
+                    }
+                    return ReleaseResult::quarantined;
+                }
+            }
+            if (mapping && mapping->active) {
+                if (context->capacity->router().deactivate(
+                        mapping->range_id) != RequestStatus::Ready) {
+                    if (retire_token != 0) {
+                        (void)context->launch_gate_api->quarantine_retire(
+                            retire_token);
+                        retire_token = 0;
+                    }
+                    return ReleaseResult::quarantined;
+                }
+                mapping->active = false;
+            }
+            mapping.reset();
+        }
+        if (!context->capacity->release_cuda_resources()) {
+            if (retire_token != 0) {
+                (void)context->launch_gate_api->quarantine_retire(
+                    retire_token);
+                retire_token = 0;
+            }
+            return ReleaseResult::quarantined;
+        }
+        context->capacity.reset();
+    }
     if (request_shutdown && context->control_mapping != MAP_FAILED) {
         ControlView control(context->control_mapping, context->control_bytes);
         if (control.valid()) {
@@ -621,6 +707,12 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         return HBFSIM_IO_ERROR;
     }
     context->request_timeout_ns = options->request_timeout_ns;
+    context->profile = std::unique_ptr<Profile>(
+        new (std::nothrow) Profile(profile));
+    if (!context->profile) {
+        release_context(context.release(), false);
+        return HBFSIM_IO_ERROR;
+    }
     context->control_bytes =
         host_service::control_region_bytes(options->ring_capacity);
     context->control_fd = create_memfd();
@@ -753,7 +845,7 @@ int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
     const auto deadline = monotonic_ns() + context->request_timeout_ns;
     std::chrono::nanoseconds backoff(1'000);
     for (;;) {
-        const auto status = process_status(context);
+        const auto status = retirement_liveness(context);
         if (status != HBFSIM_OK) {
             return status;
         }
@@ -964,7 +1056,7 @@ int wait_for_completion_for_test(hbfsim_context* context,
             }
             return HBFSIM_OK;
         }
-        const auto status = process_status(context);
+        const auto status = retirement_liveness(context);
         if (status != HBFSIM_OK) {
             if (control.try_consume_completion(ticket, *completion) &&
                 completion->request_id == request_id) {
@@ -1117,6 +1209,75 @@ void set_after_begin_retire_hook_for_test(
     }
 }
 
+namespace {
+
+RequestStatus submit_capacity_program(hbfsim_context* context,
+                                      std::uint32_t range_id,
+                                      std::uint64_t global_page) noexcept
+{
+    if (context == nullptr || !context->profile || range_id == 0 ||
+        context->profile->page_bytes == 0 ||
+        global_page > std::numeric_limits<std::uint64_t>::max() /
+                          context->profile->page_bytes ||
+        context->next_capacity_request_id == 0) {
+        return RequestStatus::IoError;
+    }
+    const auto request_id = context->next_capacity_request_id;
+    context->next_capacity_request_id =
+        request_id == std::numeric_limits<std::uint64_t>::max()
+            ? 0
+            : request_id + 1;
+    const HbfRequest request{
+        .request_id = request_id,
+        .sequence = 0,
+        .arrival_ns = monotonic_ns(),
+        .logical_address =
+            global_page * context->profile->page_bytes,
+        .deadline_ns = 0,
+        .bytes = context->profile->page_bytes,
+        .range_id = range_id,
+        .stream_id = 0,
+        .operation =
+            static_cast<std::uint32_t>(RequestOperation::Write),
+        .page_generation = 1,
+        .flags = host_service::kRequestFlagExplicitCapacityProgram,
+    };
+    std::uint64_t ticket = 0;
+    const auto enqueued = enqueue_with_deadline(context, request, &ticket);
+    if (enqueued != HBFSIM_OK) {
+        switch (enqueued) {
+        case HBFSIM_TIMEOUT:
+            return RequestStatus::Timeout;
+        case HBFSIM_DAEMON_LOST:
+            return RequestStatus::DaemonLost;
+        case HBFSIM_UNSUPPORTED:
+            return RequestStatus::Unsupported;
+        default:
+            return RequestStatus::IoError;
+        }
+    }
+    HbfCompletion completion{};
+    const auto waited = wait_for_completion_for_test(
+        context, ticket, request.request_id, &completion);
+    if (waited != HBFSIM_OK) {
+        switch (waited) {
+        case HBFSIM_TIMEOUT:
+            return RequestStatus::Timeout;
+        case HBFSIM_DAEMON_LOST:
+            return RequestStatus::DaemonLost;
+        default:
+            return RequestStatus::IoError;
+        }
+    }
+    if (completion.status >
+        static_cast<std::uint32_t>(RequestStatus::DaemonLost)) {
+        return RequestStatus::IoError;
+    }
+    return static_cast<RequestStatus>(completion.status);
+}
+
+}  // namespace
+
 }  // namespace hbfsim::runtime
 
 extern "C" int hbfsim_context_create(const hbfsim_options* options,
@@ -1192,7 +1353,7 @@ extern "C" int hbfsim_register_device(
 }
 
 extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
-                               uint64_t, size_t length,
+                               uint64_t file_offset, size_t length,
                                const hbfsim_range_options* options,
                                void** logical_device_ptr_out)
 {
@@ -1207,8 +1368,173 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
     if (!operation) {
         return HBFSIM_IO_ERROR;
     }
-    const auto status = hbfsim::runtime::process_status(context);
-    return status == HBFSIM_OK ? HBFSIM_UNSUPPORTED : status;
+    if (options->mode != HBFSIM_RANGE_MODE_CAPACITY) {
+        return options->mode == HBFSIM_RANGE_MODE_TIMING
+                   ? HBFSIM_UNSUPPORTED
+                   : HBFSIM_INVALID_ARGUMENT;
+    }
+    if ((options->permissions != HBFSIM_RANGE_READ &&
+         options->permissions != HBFSIM_RANGE_READ_WRITE) ||
+        options->cache_policy != HBFSIM_CACHE_POLICY_NONE ||
+        file_offset > std::numeric_limits<std::uint64_t>::max() - length) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    const auto process = hbfsim::runtime::retirement_liveness(context);
+    if (process != HBFSIM_OK) {
+        return process;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if ((hbfsim::host_service::atomic_load(
+             control.header()->reserved0, std::memory_order_acquire) &
+         hbfsim::host_service::kControlCapabilityCapacityMedia) == 0) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    if (!context->cuda_registered) {
+        return HBFSIM_UNSUPPORTED;
+    }
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (!context->cuda_registered || context->device_control == nullptr ||
+        !context->timing_owner_active || context->launch_gate_api == nullptr ||
+        context->control_generation == 0 || !context->profile ||
+        !context->ranges ||
+        !hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
+                                                 context->device_ordinal)) {
+        return HBFSIM_CUDA_ERROR;
+    }
+
+    std::lock_guard lifecycle(context->capacity_mutex);
+    auto vacant = context->capacity_mappings.end();
+    for (auto item = context->capacity_mappings.begin();
+         item != context->capacity_mappings.end(); ++item) {
+        if (!*item) {
+            vacant = item;
+            break;
+        }
+    }
+    if (vacant == context->capacity_mappings.end()) {
+        return HBFSIM_UNSUPPORTED;
+    }
+
+    try {
+        auto backing =
+            std::make_shared<hbfsim::host_service::BackingStore>(
+                path, file_offset, length,
+                options->permissions == HBFSIM_RANGE_READ_WRITE);
+        if (!context->capacity) {
+            context->capacity = hbfsim::runtime::CapacityRuntime::create(
+                *context->profile, control, context->cuda_context,
+                context->device_ordinal);
+            if (!context->capacity) {
+                return HBFSIM_CUDA_ERROR;
+            }
+        }
+
+        auto mapping = std::make_unique<hbfsim::runtime::CapacityMapping>();
+        mapping->backing = std::move(backing);
+        mapping->logical_range = hbfsim::runtime::VmmRange::reserve_logical(
+            context->capacity->vmm(), length, 0, context->device_ordinal);
+
+        struct MapTransaction {
+            hbfsim_context* context;
+            hbfsim::runtime::CapacityMapping* mapping;
+            std::uint32_t permissions;
+        } transaction{context, mapping.get(), options->permissions};
+        const auto publish = +[](
+                                 const hbfsim::host_service::SharedRangeRecord&
+                                     record,
+                                 hbfsim::runtime::PublishRange publish_range,
+                                 void* publish_state,
+                                 void* opaque) noexcept -> int {
+            auto& item = *static_cast<MapTransaction*>(opaque);
+            auto& runtime = *item.context->capacity;
+            auto& mapped = *item.mapping;
+            const auto page_bytes = record.page_bytes;
+            if (page_bytes == 0 || record.file_offset % page_bytes != 0 ||
+                record.length >
+                    std::numeric_limits<std::uint64_t>::max() -
+                        (page_bytes - 1)) {
+                return HBFSIM_INVALID_ARGUMENT;
+            }
+            const auto first_page = record.file_offset / page_bytes;
+            const auto page_count =
+                (record.length + page_bytes - 1) / page_bytes;
+            hbfsim::host_service::CapacityBackingRouter::Token token = 0;
+            try {
+                token = runtime.router().stage(
+                    record.range_id, first_page, page_count,
+                    item.permissions == HBFSIM_RANGE_READ_WRITE,
+                    mapped.backing);
+            } catch (...) {
+                return HBFSIM_IO_ERROR;
+            }
+            if (token == 0) {
+                return HBFSIM_IO_ERROR;
+            }
+            struct GatePublication {
+                hbfsim::runtime::CapacityMapping* mapping;
+                hbfsim::host_service::CapacityBackingRouter* router;
+                hbfsim::runtime::PublishRange publish;
+                void* publish_state;
+                std::uint32_t range_id;
+                std::uint64_t first_page;
+                std::uint64_t page_count;
+                hbfsim::host_service::CapacityBackingRouter::Token token;
+            } publication{&mapped,
+                          &runtime.router(),
+                          publish_range,
+                          publish_state,
+                          record.range_id,
+                          first_page,
+                          page_count,
+                          token};
+            const auto acknowledge = +[](void* state) noexcept -> int {
+                auto& staged = *static_cast<GatePublication*>(state);
+                if (!staged.router->activate(staged.token)) {
+                    return -1;
+                }
+                staged.mapping->range_id = staged.range_id;
+                staged.mapping->first_page = staged.first_page;
+                staged.mapping->page_count = staged.page_count;
+                staged.mapping->router_token = staged.token;
+                staged.mapping->active = true;
+                staged.publish(staged.publish_state);
+                return 0;
+            };
+            const auto gate_status =
+                item.context->launch_gate_api->register_range(
+                    reinterpret_cast<std::uintptr_t>(item.context),
+                    item.context->control_generation, record.base,
+                    record.base + record.length, acknowledge, &publication);
+            if (!mapped.active) {
+                runtime.router().cancel(token);
+            }
+            return hbfsim::runtime::normalize_launch_gate_status(gate_status);
+        };
+        const auto status = context->ranges->add(
+            mapping->logical_range.base(), length, *options, publish,
+            &transaction);
+        if (status != HBFSIM_OK) {
+            if (!mapping->logical_range.release()) {
+                *vacant = std::move(mapping);
+                return HBFSIM_CUDA_ERROR;
+            }
+            return status;
+        }
+        *logical_device_ptr_out =
+            reinterpret_cast<void*>(mapping->logical_range.base());
+        *vacant = std::move(mapping);
+        return HBFSIM_OK;
+    } catch (const hbfsim::host_service::BackingStoreError&) {
+        return HBFSIM_IO_ERROR;
+    } catch (const hbfsim::runtime::VmmError&) {
+        return HBFSIM_CUDA_ERROR;
+    } catch (...) {
+        return HBFSIM_IO_ERROR;
+    }
+#else
+    return HBFSIM_CUDA_ERROR;
+#endif
 }
 
 extern "C" int hbfsim_flush(hbfsim_context* context)
@@ -1220,7 +1546,31 @@ extern "C" int hbfsim_flush(hbfsim_context* context)
     if (!operation) {
         return HBFSIM_IO_ERROR;
     }
-    return hbfsim::runtime::process_status(context);
+    const auto process = hbfsim::runtime::retirement_liveness(context);
+    if (process != HBFSIM_OK) {
+        return process;
+    }
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (context->cuda_registered &&
+        !hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
+                                                 context->device_ordinal)) {
+        return HBFSIM_CUDA_ERROR;
+    }
+#endif
+    std::lock_guard lifecycle(context->capacity_mutex);
+    if (!context->capacity) {
+        return HBFSIM_OK;
+    }
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    const auto status = context->capacity->flush(
+        [context](std::uint32_t range_id, std::uint64_t global_page) {
+            return hbfsim::runtime::submit_capacity_program(
+                context, range_id, global_page);
+        });
+    return hbfsim::runtime::public_capacity_status(status);
+#else
+    return HBFSIM_CUDA_ERROR;
+#endif
 }
 
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
@@ -1232,8 +1582,98 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
     if (!operation) {
         return HBFSIM_IO_ERROR;
     }
-    const auto status = hbfsim::runtime::process_status(context);
-    return status == HBFSIM_OK ? HBFSIM_UNSUPPORTED : status;
+    const auto process = hbfsim::runtime::retirement_liveness(context);
+    if (process != HBFSIM_OK) {
+        return process;
+    }
+    std::lock_guard lifecycle(context->capacity_mutex);
+    if (!context->capacity) {
+        return HBFSIM_UNSUPPORTED;
+    }
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (!hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
+                                                 context->device_ordinal) ||
+        context->launch_gate_api == nullptr ||
+        context->control_generation == 0) {
+        return HBFSIM_CUDA_ERROR;
+    }
+    auto found = context->capacity_mappings.end();
+    const auto base = reinterpret_cast<std::uintptr_t>(range_base);
+    for (auto item = context->capacity_mappings.begin();
+         item != context->capacity_mappings.end(); ++item) {
+        if (*item && (*item)->logical_range.base() == base) {
+            found = item;
+            break;
+        }
+    }
+    if (found == context->capacity_mappings.end() || !context->capacity ||
+        !context->ranges) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    struct UnregisterTransaction {
+        hbfsim_context* context;
+        hbfsim::runtime::CapacityMapping* mapping;
+        int failure{HBFSIM_IO_ERROR};
+    } transaction{context, found->get()};
+    const auto remove = +[](
+                            const hbfsim::host_service::SharedRangeRecord&
+                                record,
+                            hbfsim::runtime::PublishRange publish_range,
+                            void* publish_state,
+                            void* opaque) noexcept -> int {
+        auto& item = *static_cast<UnregisterTransaction*>(opaque);
+        struct GateRemoval {
+            UnregisterTransaction* transaction;
+            hbfsim::runtime::PublishRange publish;
+            void* publish_state;
+        } removal{&item, publish_range, publish_state};
+        const auto acknowledge = +[](void* state) noexcept -> int {
+            auto& pending = *static_cast<GateRemoval*>(state);
+            auto& transaction = *pending.transaction;
+            auto* context = transaction.context;
+            const auto flushed = context->capacity->flush(
+                [context](std::uint32_t range_id,
+                          std::uint64_t global_page) {
+                    return hbfsim::runtime::submit_capacity_program(
+                        context, range_id, global_page);
+                },
+                transaction.mapping->range_id);
+            if (flushed != hbfsim::RequestStatus::Ready) {
+                transaction.failure =
+                    hbfsim::runtime::public_capacity_status(flushed);
+                return -1;
+            }
+            if (!transaction.mapping->logical_range.release()) {
+                transaction.failure = HBFSIM_CUDA_ERROR;
+                return -1;
+            }
+            if (context->capacity->router().deactivate(
+                    transaction.mapping->range_id) !=
+                hbfsim::RequestStatus::Ready) {
+                transaction.failure = HBFSIM_IO_ERROR;
+                return -1;
+            }
+            transaction.mapping->active = false;
+            pending.publish(pending.publish_state);
+            transaction.failure = HBFSIM_OK;
+            return 0;
+        };
+        const auto gate_status =
+            item.context->launch_gate_api->unregister_range(
+                reinterpret_cast<std::uintptr_t>(item.context),
+                item.context->control_generation, record.base,
+                record.base + record.length, acknowledge, &removal);
+        return gate_status == 0 ? HBFSIM_OK : item.failure;
+    };
+    const auto status = context->ranges->remove(base, remove, &transaction);
+    if (status != HBFSIM_OK) {
+        return status;
+    }
+    found->reset();
+    return HBFSIM_OK;
+#else
+    return HBFSIM_CUDA_ERROR;
+#endif
 }
 
 extern "C" void hbfsim_context_destroy(hbfsim_context* context)

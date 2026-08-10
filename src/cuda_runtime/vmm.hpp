@@ -66,10 +66,9 @@ class VmmRange {
     {
         return reserved_bytes_;
     }
+    [[nodiscard]] bool release() noexcept;
 
   private:
-    void reset() noexcept;
-
     VmmDriver* driver_{nullptr};
     std::uintptr_t base_{0};
     std::size_t logical_bytes_{0};
@@ -94,10 +93,9 @@ class VmmFramePool {
     {
         return frame_addresses_;
     }
+    [[nodiscard]] bool release() noexcept;
 
   private:
-    void reset() noexcept;
-
     VmmDriver* driver_{nullptr};
     std::uintptr_t base_{0};
     std::size_t reserved_bytes_{0};

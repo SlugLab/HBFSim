@@ -99,6 +99,14 @@ CapacityResolveResult CapacityPageService::resolve(
         return {.status = RequestStatus::Ready,
                 .frame_address = *resident};
     }
+    if (const auto reclaimed = cache_.reclaim_eviction(logical_page);
+        reclaimed) {
+        if (operation == 1 && !cache_.mark_dirty(logical_page)) {
+            return {.status = RequestStatus::IoError};
+        }
+        return {.status = RequestStatus::Ready,
+                .frame_address = *reclaimed};
+    }
 
     CapacityMediaPlan media{.flags = CapacityMediaRead};
     auto frame = cache_.free_frame();
@@ -227,7 +235,7 @@ RequestStatus CapacityPageService::flush(
     if (!model_program || (range_id.has_value() && *range_id == 0)) {
         return RequestStatus::IoError;
     }
-    std::lock_guard lock(mutex_);
+    std::unique_lock lock(mutex_);
     std::vector<std::uint64_t> candidates;
     try {
         candidates.reserve(resident_range_ids_.size());
@@ -251,16 +259,19 @@ RequestStatus CapacityPageService::flush(
             (void)cache_.cancel_eviction(*eviction);
             return RequestStatus::IoError;
         }
+        const auto resident_range = resident->second;
         auto status = writeback(*eviction);
         if (status != RequestStatus::Ready) {
             (void)cache_.cancel_eviction(*eviction);
             return status;
         }
+        lock.unlock();
         try {
-            status = checked_status(model_program(resident->second, page));
+            status = checked_status(model_program(resident_range, page));
         } catch (...) {
             status = RequestStatus::IoError;
         }
+        lock.lock();
         if (status != RequestStatus::Ready) {
             (void)cache_.cancel_eviction(*eviction);
             return status;
@@ -274,10 +285,16 @@ RequestStatus CapacityPageService::flush(
             (void)cache_.cancel_eviction(*eviction);
             return status;
         }
+        const auto current_resident = resident_range_ids_.find(page);
+        if (current_resident == resident_range_ids_.end() ||
+            current_resident->second != resident_range) {
+            (void)cache_.cancel_eviction(*eviction);
+            return RequestStatus::IoError;
+        }
         if (!cache_.complete_eviction(*eviction)) {
             return RequestStatus::IoError;
         }
-        resident_range_ids_.erase(resident);
+        resident_range_ids_.erase(current_resident);
         synchronized = true;
     }
     if (synchronized) {

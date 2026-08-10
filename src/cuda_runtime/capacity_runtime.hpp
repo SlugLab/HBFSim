@@ -46,6 +46,7 @@ class CapacityRuntime {
         host_service::CapacityPageService::ModelProgram model_program,
         std::optional<std::uint32_t> range_id = std::nullopt);
     void stop();
+    [[nodiscard]] bool release_cuda_resources() noexcept;
 
   private:
     class PinnedPage {
@@ -59,9 +60,9 @@ class CapacityRuntime {
 
         static PinnedPage allocate(std::size_t bytes);
         [[nodiscard]] std::byte* data() noexcept { return data_; }
+        [[nodiscard]] bool release() noexcept;
 
       private:
-        void reset() noexcept;
         std::byte* data_{nullptr};
         std::size_t bytes_{0};
     };

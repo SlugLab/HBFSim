@@ -114,6 +114,17 @@ int main()
         assert(third->request_id == 3);
         assert(fourth->request_id == 4);
 
+        const auto current_time = engine.current_time_ns();
+        assert(current_time != 0);
+        bool past_arrival_rejected = false;
+        try {
+            engine.submit(
+                read_request(6, 6, current_time - 1, 0xC000, 16'384));
+        } catch (const std::invalid_argument&) {
+            past_arrival_rejected = true;
+        }
+        assert(past_arrival_rejected);
+
         bool rejected = false;
         try {
             engine.submit(read_request(5, 5, next_arrival + 100, 1, 511));

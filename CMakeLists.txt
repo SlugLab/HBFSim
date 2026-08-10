@@ -467,6 +467,25 @@ if(CUDAToolkit_FOUND)
                         "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/nominal.json"
                 )
             endforeach()
+            if(HBFSIM_ENABLE_MQSIM)
+                set(public_cuda_capacity_modes
+                    capacity capacity-destroy-failure
+                    capacity-destroy-cleanup-failure)
+            else()
+                set(public_cuda_capacity_modes capacity-disabled)
+            endif()
+            foreach(public_cuda_capacity_mode IN LISTS public_cuda_capacity_modes)
+                add_test(
+                    NAME public_cuda_lifecycle_${public_cuda_capacity_mode}
+                    COMMAND
+                        "${CMAKE_COMMAND}" -E env
+                        "LD_PRELOAD=$<TARGET_FILE:hbfsim_launch_gate>"
+                        "HBFSIM_DAEMON_PATH=$<TARGET_FILE:hbfsimd>"
+                        "$<TARGET_FILE:public_cuda_lifecycle_test>"
+                        "${public_cuda_capacity_mode}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/nominal.json"
+                )
+            endforeach()
         endif()
         find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
         add_test(

@@ -285,6 +285,13 @@ std::size_t MqsimOnlineEngine::pending() const noexcept
     return impl_->pending_requests;
 }
 
+std::uint64_t MqsimOnlineEngine::current_time_ns() const noexcept
+{
+    return Simulator->Has_started()
+               ? static_cast<std::uint64_t>(Simulator->Time())
+               : 0;
+}
+
 std::vector<HbfCompletion> run_mqsim_trace(
     const Profile& profile, const std::filesystem::path& trace_path)
 {

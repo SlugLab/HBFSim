@@ -8,6 +8,7 @@
 #include <hbfsim/mqsim_online.hpp>
 #endif
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdint>
@@ -129,6 +130,10 @@ int main(int argc, char** argv)
 
 #if defined(HBFSIM_ENABLE_MQSIM_RUNTIME)
         hbfsim::MqsimOnlineEngine engine(profile);
+        hbfsim::host_service::atomic_store(
+            control.header()->reserved0,
+            hbfsim::host_service::kControlCapabilityCapacityMedia,
+            std::memory_order_release);
         hbfsim::host_service::RequestDispatcher dispatcher(
             control, hbfsim::host_service::RequestDispatcher::Engine{
                          .prepare = [&control](
@@ -140,7 +145,11 @@ int main(int argc, char** argv)
                                  });
                          },
                          .submit = [&engine](const hbfsim::HbfRequest& request) {
-                             engine.submit(request);
+                             auto scheduled = request;
+                             scheduled.arrival_ns = std::max(
+                                 scheduled.arrival_ns,
+                                 engine.current_time_ns());
+                             engine.submit(scheduled);
                          },
                          .run_next_completion = [&engine] {
                              return engine.run_next_completion();

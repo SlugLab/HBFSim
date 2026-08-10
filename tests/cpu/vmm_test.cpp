@@ -42,6 +42,10 @@ class FakeVmmDriver final : public hbfsim::runtime::VmmDriver {
     {
         freed_addresses.push_back(address);
         freed_bytes.push_back(bytes);
+        if (fail_next_free) {
+            fail_next_free = false;
+            return false;
+        }
         return true;
     }
 
@@ -54,6 +58,10 @@ class FakeVmmDriver final : public hbfsim::runtime::VmmDriver {
     bool release(std::uint64_t handle) override
     {
         released.push_back(handle);
+        if (fail_next_release) {
+            fail_next_release = false;
+            return false;
+        }
         return true;
     }
 
@@ -70,6 +78,10 @@ class FakeVmmDriver final : public hbfsim::runtime::VmmDriver {
     {
         unmapped_addresses.push_back(address);
         unmapped_bytes.push_back(bytes);
+        if (fail_next_unmap) {
+            fail_next_unmap = false;
+            return false;
+        }
         return true;
     }
 
@@ -83,6 +95,9 @@ class FakeVmmDriver final : public hbfsim::runtime::VmmDriver {
     std::uintptr_t next_address{0x1'0000'0000ULL};
     std::uint64_t next_handle{10};
     std::size_t fail_access_call{0};
+    bool fail_next_free{false};
+    bool fail_next_release{false};
+    bool fail_next_unmap{false};
     std::vector<std::size_t> reserved_bytes;
     std::vector<std::size_t> reserved_alignments;
     std::vector<std::uintptr_t> freed_addresses;
@@ -143,5 +158,40 @@ int main()
     CHECK(failing.unmapped_addresses.size() == 1);
     CHECK(failing.released.size() == 1);
     CHECK(failing.freed_addresses.size() == 1);
+
+    FakeVmmDriver retrying;
+    auto logical = hbfsim::runtime::VmmRange::reserve_logical(
+        retrying, 4096, 0, 0);
+    retrying.fail_next_free = true;
+    CHECK(!logical.release());
+    CHECK(logical.base() == retrying.next_address);
+    CHECK(logical.release());
+    CHECK(logical.base() == 0);
+    CHECK(retrying.freed_addresses.size() == 2);
+
+    retrying.next_address = 0x3'0000'0000ULL;
+    auto frames = hbfsim::runtime::VmmFramePool::create(
+        retrying, 2, 4096, 0);
+    retrying.fail_next_unmap = true;
+    CHECK(!frames.release());
+    CHECK(retrying.released.size() == 0);
+    CHECK(retrying.freed_addresses.size() == 2);
+    CHECK(frames.release());
+    CHECK(retrying.unmapped_addresses.size() == 2);
+    CHECK(retrying.released.size() == 1);
+    CHECK(retrying.freed_addresses.size() == 3);
+
+    retrying.next_address = 0x4'0000'0000ULL;
+    auto release_retry = hbfsim::runtime::VmmFramePool::create(
+        retrying, 2, 4096, 0);
+    retrying.fail_next_release = true;
+    CHECK(!release_retry.release());
+    CHECK(retrying.unmapped_addresses.size() == 3);
+    CHECK(retrying.released.size() == 2);
+    CHECK(retrying.freed_addresses.size() == 3);
+    CHECK(release_retry.release());
+    CHECK(retrying.unmapped_addresses.size() == 3);
+    CHECK(retrying.released.size() == 3);
+    CHECK(retrying.freed_addresses.size() == 4);
     return 0;
 }

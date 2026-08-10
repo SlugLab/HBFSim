@@ -15,11 +15,14 @@ add_library(
     src/api.cpp
     src/cuda_runtime/context.cpp
     src/cuda_runtime/coverage.cpp
+    src/cuda_runtime/hbm_cache.cpp
     src/cuda_runtime/module_identity.cpp
     src/cuda_runtime/range_table.cpp
     src/cuda_runtime/timing_binding.cpp
+    src/cuda_runtime/vmm.cpp
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
+    src/host_service/backing_store.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/transform.cpp
@@ -78,6 +81,18 @@ add_executable(
 )
 target_link_libraries(hbfsim_device_helper_abi_tests PRIVATE hbfsim_core)
 add_test(NAME device_helper_abi COMMAND hbfsim_device_helper_abi_tests)
+
+add_executable(hbfsim_backing_store_tests tests/cpu/backing_store_test.cpp)
+target_link_libraries(hbfsim_backing_store_tests PRIVATE hbfsim_core)
+add_test(NAME backing_store COMMAND hbfsim_backing_store_tests)
+
+add_executable(hbfsim_hbm_cache_tests tests/cpu/hbm_cache_test.cpp)
+target_link_libraries(hbfsim_hbm_cache_tests PRIVATE hbfsim_core)
+add_test(NAME hbm_cache COMMAND hbfsim_hbm_cache_tests)
+
+add_executable(hbfsim_vmm_tests tests/cpu/vmm_test.cpp)
+target_link_libraries(hbfsim_vmm_tests PRIVATE hbfsim_core)
+add_test(NAME vmm COMMAND hbfsim_vmm_tests)
 
 add_executable(
     hbfsim_device_ordering_reference_tests

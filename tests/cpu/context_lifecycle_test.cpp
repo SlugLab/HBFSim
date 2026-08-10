@@ -54,6 +54,34 @@ void observe_cloexec(int control_fd, void* opaque) noexcept
     *observed = flags >= 0 && (flags & FD_CLOEXEC) != 0;
 }
 
+struct TimingGateState {
+    bool accept{true};
+    std::size_t calls{0};
+    void* owner{nullptr};
+    std::uintptr_t control_alias{0};
+    std::uintptr_t begin{0};
+    std::uintptr_t end{0};
+};
+
+int register_timing_range(void* owner, std::uintptr_t control_alias,
+                          std::uintptr_t begin, std::uintptr_t end,
+                          hbfsim::runtime::PublishRange publish_range,
+                          void* publish_state,
+                          void* opaque) noexcept
+{
+    auto& state = *static_cast<TimingGateState*>(opaque);
+    ++state.calls;
+    state.owner = owner;
+    state.control_alias = control_alias;
+    state.begin = begin;
+    state.end = end;
+    if (!state.accept) {
+        return HBFSIM_IO_ERROR;
+    }
+    publish_range(publish_state);
+    return HBFSIM_OK;
+}
+
 void verify_daemon_dies_with_context_process(
     const hbfsim_options& options, const char* daemon_path)
 {
@@ -175,10 +203,38 @@ int main(int argc, char** argv)
     CHECK((seals & (F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL)) ==
           (F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL));
 
-    hbfsim_range_options range_options{};
+    hbfsim_range_options range_options{
+        .mode = HBFSIM_RANGE_MODE_TIMING,
+        .permissions = HBFSIM_RANGE_READ_WRITE,
+        .cache_policy = HBFSIM_CACHE_POLICY_NONE,
+        .stream_id = 0,
+    };
     CHECK(hbfsim_register_device(context, reinterpret_cast<void*>(1), 4096,
-                                 &range_options) == HBFSIM_UNSUPPORTED);
+                                 &range_options) == HBFSIM_CUDA_ERROR);
+    TimingGateState timing_gate;
+    CHECK(hbfsim::runtime::register_device_with_gate_for_test(
+              context, reinterpret_cast<void*>(0x3000), 0x1000,
+              &range_options, 0xfeed'0000, register_timing_range,
+              &timing_gate) == HBFSIM_OK);
+    CHECK(timing_gate.calls == 1);
+    CHECK(timing_gate.owner == context);
+    CHECK(timing_gate.control_alias == 0xfeed'0000);
+    CHECK(timing_gate.begin == 0x3000);
+    CHECK(timing_gate.end == 0x4000);
+    CHECK(hbfsim::runtime::range_count_for_test(context) == 1);
+    CHECK(hbfsim::runtime::register_device_with_gate_for_test(
+              context, reinterpret_cast<void*>(0x3800), 0x1000,
+              &range_options, 0xfeed'0000, register_timing_range,
+              &timing_gate) == HBFSIM_INVALID_ARGUMENT);
+    CHECK(timing_gate.calls == 1);
+    timing_gate.accept = false;
+    CHECK(hbfsim::runtime::register_device_with_gate_for_test(
+              context, reinterpret_cast<void*>(0x5000), 0x1000,
+              &range_options, 0xfeed'0000, register_timing_range,
+              &timing_gate) == HBFSIM_IO_ERROR);
+    CHECK(hbfsim::runtime::range_count_for_test(context) == 1);
     void* logical_pointer = reinterpret_cast<void*>(1);
+    range_options.mode = HBFSIM_RANGE_MODE_CAPACITY;
     CHECK(hbfsim_map_file(context, "/does/not/need/to/exist", 0, 4096,
                           &range_options,
                           &logical_pointer) == HBFSIM_UNSUPPORTED);
@@ -203,10 +259,14 @@ int main(int argc, char** argv)
     }
     CHECK(second_heartbeat > first_heartbeat);
     CHECK(second_heartbeat - first_heartbeat <= 10'000'000);
+    CHECK(hbfsim::runtime::retirement_liveness_for_test(context) ==
+          HBFSIM_OK);
 
     CHECK(::kill(daemon, SIGKILL) == 0);
     CHECK(hbfsim::runtime::wait_for_fault_for_test(
               context, std::chrono::milliseconds(500)) ==
+          HBFSIM_DAEMON_LOST);
+    CHECK(hbfsim::runtime::retirement_liveness_for_test(context) ==
           HBFSIM_DAEMON_LOST);
     hbfsim_context_destroy(context);
 

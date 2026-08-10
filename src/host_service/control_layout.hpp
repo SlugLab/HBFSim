@@ -11,7 +11,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 1;
+inline constexpr std::uint32_t kControlAbiVersion = 2;
 inline constexpr std::uint32_t kRangeCapacity = 64;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -27,7 +27,7 @@ struct alignas(64) SharedControlHeader {
     std::uint32_t ring_capacity;
     std::uint32_t range_capacity;
     std::uint32_t page_capacity;
-    std::uint32_t flags;
+    alignas(4) std::uint32_t range_count;
     std::uint64_t range_offset;
     std::uint64_t request_offset;
     std::uint64_t completion_offset;
@@ -41,6 +41,11 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t fault;
     alignas(8) std::uint64_t daemon_pid;
     alignas(8) std::uint64_t admission_state;
+    alignas(8) std::uint64_t request_timeout_ns;
+    alignas(8) std::uint64_t heartbeat_timeout_ns;
+    alignas(4) std::uint32_t time_scale;
+    std::uint32_t reserved0;
+    alignas(8) std::uint64_t control_generation;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -53,7 +58,7 @@ struct alignas(64) SharedRangeRecord {
     std::uint32_t cache_policy;
     std::uint32_t stream_id;
     std::uint32_t flags;
-    std::uint64_t reserved0;
+    std::uint64_t page_bytes;
     std::uint64_t reserved1;
 };
 
@@ -69,6 +74,8 @@ using SharedCompletionSlot = SharedRingSlot<HbfCompletion>;
 
 static_assert(std::atomic<std::uint64_t>::is_always_lock_free,
               "process-shared counters require lock-free 64-bit atomics");
+static_assert(std::atomic<std::uint32_t>::is_always_lock_free,
+              "process-shared counters require lock-free 32-bit atomics");
 static_assert(std::is_standard_layout_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
@@ -110,10 +117,22 @@ inline std::uint64_t atomic_load(const std::uint64_t& value,
     return std::atomic_ref<const std::uint64_t>(value).load(order);
 }
 
+inline std::uint32_t atomic_load(const std::uint32_t& value,
+                                 std::memory_order order) noexcept
+{
+    return std::atomic_ref<const std::uint32_t>(value).load(order);
+}
+
 inline void atomic_store(std::uint64_t& target, std::uint64_t value,
                          std::memory_order order) noexcept
 {
     std::atomic_ref<std::uint64_t>(target).store(value, order);
+}
+
+inline void atomic_store(std::uint32_t& target, std::uint32_t value,
+                         std::memory_order order) noexcept
+{
+    std::atomic_ref<std::uint32_t>(target).store(value, order);
 }
 
 inline bool atomic_compare_exchange_weak(

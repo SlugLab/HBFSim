@@ -15,6 +15,32 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
+Publish = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_void_p)
+Activate = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
+    ctypes.c_int, ctypes.POINTER(ctypes.c_uint64))
+Register = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64, ctypes.c_size_t,
+    ctypes.c_size_t, Publish, ctypes.c_void_p)
+BeginRetire = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64,
+    ctypes.POINTER(ctypes.c_size_t))
+FinishRetire = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_size_t)
+
+
+class GateApi(ctypes.Structure):
+    _fields_ = [
+        ("abi_version", ctypes.c_uint32),
+        ("struct_bytes", ctypes.c_uint32),
+        ("activate", Activate),
+        ("register_timing_range", Register),
+        ("begin_retire", BeginRetire),
+        ("invalidate_retire", FinishRetire),
+        ("finish_retire", FinishRetire),
+        ("quarantine_retire", FinishRetire),
+    ]
+
+
 def canonical_ptx(identity: bytes) -> str:
     values = ", ".join(f"0x{byte:02x}" for byte in identity)
     return (
@@ -74,10 +100,27 @@ def main() -> int:
 
     process = ctypes.CDLL(None)
     fake_library = ctypes.CDLL(fake)
-    add_range = process.hbfsim_coverage_add_range
-    add_range.argtypes = [ctypes.c_size_t, ctypes.c_size_t]
-    add_range.restype = ctypes.c_int
-    require(add_range(0x1000, 0x2000) == 0, "failed to register test HBF range")
+    getter = process.hbfsim_launch_gate_get_api
+    getter.argtypes = [ctypes.c_uint32]
+    getter.restype = ctypes.POINTER(GateApi)
+    api_pointer = getter(1)
+    require(bool(api_pointer), "launch gate v1 API unavailable")
+    api = api_pointer.contents
+    fake_library.fakeCudaSetCurrentDomain.argtypes = [ctypes.c_size_t,
+                                                       ctypes.c_int]
+    fake_library.fakeCudaSetCurrentDomain(0xCA00, 3)
+    generation = ctypes.c_uint64()
+    require(api.activate(0xA000, 0xFEED0000, 0xCA00, 3,
+                         ctypes.byref(generation)) == 0,
+            "failed to activate test timing owner")
+
+    @Publish
+    def publish(_state: ctypes.c_void_p) -> int:
+        return 0
+
+    require(api.register_timing_range(
+                0xA000, generation.value, 0x1000, 0x2000, publish, None) == 0,
+            "failed to register owned test HBF range")
 
     begin = process.hbfsim_begin_module_load_from_ptx
     begin.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
@@ -102,7 +145,6 @@ def main() -> int:
     fake_library.fakeCudaSetUnloadFailure.argtypes = [ctypes.c_int]
     fake_library.fakeCudaSetLifecycleFailure.argtypes = [ctypes.c_int]
     fake_library.fakeCudaSetMarkerAvailable.argtypes = [ctypes.c_int]
-    fake_library.fakeCudaResetConcurrentLoads.argtypes = []
     fake_library.fakeCudaSetModuleIdentity.argtypes = [
         ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,
     ]
@@ -237,12 +279,13 @@ def main() -> int:
     with manifest_path.open("a") as output:
         output.write(json.dumps(manifest(identity_b)) + "\n")
     set_live_identity(identity_b)
-    fake_library.fakeCudaResetConcurrentLoads()
     results: dict[str, tuple[int, ctypes.c_void_p]] = {}
+    transactions_ready = threading.Barrier(2)
 
     def concurrent_load(name: str, identity: bytes, image: bytes) -> None:
         require(begin_ptx(canonical_ptx(identity)) != 0,
                 f"failed to begin concurrent {name} transaction")
+        transactions_ready.wait()
         results[name] = load_image(image)
 
     thread_a = threading.Thread(
@@ -266,31 +309,25 @@ def main() -> int:
     require(unload(stale_a) == 0, "failed to unload stale A spoof")
 
     driver_lifecycle = [
-        ("cuCtxDestroy", ctypes.c_void_p(0xC000)),
-        ("cuCtxDestroy_v2", ctypes.c_void_p(0xC000)),
-        ("cuCtxDetach", ctypes.c_void_p(0xC000)),
-        ("cuDevicePrimaryCtxReset", ctypes.c_int(0)),
-        ("cuDevicePrimaryCtxReset_v2", ctypes.c_int(0)),
-        ("cuDevicePrimaryCtxRelease", ctypes.c_int(0)),
-        ("cuDevicePrimaryCtxRelease_v2", ctypes.c_int(0)),
+        ("cuCtxDestroy", ctypes.c_void_p(0xCB00)),
+        ("cuCtxDestroy_v2", ctypes.c_void_p(0xCB00)),
+        ("cuCtxDetach", ctypes.c_void_p(0xCB00)),
+        ("cuDevicePrimaryCtxReset", ctypes.c_int(4)),
+        ("cuDevicePrimaryCtxReset_v2", ctypes.c_int(4)),
+        ("cuDevicePrimaryCtxRelease", ctypes.c_int(4)),
+        ("cuDevicePrimaryCtxRelease_v2", ctypes.c_int(4)),
     ]
     if toolkit_version >= (12, 4):
         driver_lifecycle.append(
-            ("cuGreenCtxDestroy", ctypes.c_void_p(0xC100)))
-    lifecycle = list(driver_lifecycle)
-    lifecycle.append(("cudaDeviceReset", None))
-    if toolkit_version < (13, 0):
-        lifecycle.append(("cudaThreadExit", None))
+            ("cuGreenCtxDestroy", ctypes.c_void_p(0xC200)))
 
     set_live_identity(trusted_identity)
-    for symbol, argument in lifecycle:
-        require(begin_ptx(trusted_ptx) != 0,
-                f"failed to begin trusted load before {symbol}")
-        result, before_context_end = load_image(
-            f"trusted-before-{symbol}".encode())
-        require(result == 0 and launch_kernel() == 0,
-                f"failed to establish association before {symbol}")
-
+    require(begin_ptx(trusted_ptx) != 0,
+            "failed to establish trusted module before lifecycle checks")
+    result, before_context_end = load_image(b"trusted-before-lifecycle")
+    require(result == 0 and launch_kernel() == 0,
+            "failed to establish lifecycle association")
+    for symbol, argument in driver_lifecycle:
         function_under_test = getattr(process, symbol)
         function_under_test.restype = ctypes.c_int
         if argument is None:
@@ -304,17 +341,17 @@ def main() -> int:
         require(function_under_test(*call) != 0 and launch_kernel() == 0,
                 f"failed {symbol} erased a live association")
         fake_library.fakeCudaSetLifecycleFailure(0)
-        require(function_under_test(*call) == 0,
-                f"successful {symbol} failed in fake driver")
+        require(function_under_test(*call) == 0 and launch_kernel() == 0,
+                f"foreign {symbol} erased owner-context state")
 
-        result, context_reuse = load_image(
-            f"reuse-after-{symbol}".encode())
-        require(result == 0 and
-                context_reuse.value == before_context_end.value and
-                launch_kernel() != 0,
-                f"successful {symbol} retained stale authorization")
-        require(unload(context_reuse) == 0,
-                f"failed to unload spoof after {symbol}")
+    owner_destroy = process.cuCtxDestroy
+    owner_destroy.argtypes = [ctypes.c_void_p]
+    owner_destroy.restype = ctypes.c_int
+    require(owner_destroy(ctypes.c_void_p(0xCA00)) != 0 and
+            launch_kernel() == 0,
+            "owner-context destroy bypassed managed teardown")
+    require(unload(before_context_end) == 0,
+            "failed to unload lifecycle module")
     return 0
 
 

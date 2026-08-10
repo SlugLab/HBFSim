@@ -1,6 +1,5 @@
 #include <cuda_runtime_api.h>
-
-#include <dlfcn.h>
+#include <hbfsim/api.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -12,8 +11,6 @@ extern "C" __global__ void unsupported_hbf_kernel(unsigned long long* value)
 }
 
 namespace {
-
-using add_range_fn = int (*)(std::uintptr_t, std::uintptr_t);
 
 int hbm_run()
 {
@@ -51,16 +48,29 @@ int hbf_run()
         std::fprintf(stderr, "failed to allocate safe HBF test word\n");
         return 5;
     }
-    auto add_range = reinterpret_cast<add_range_fn>(
-        dlsym(RTLD_DEFAULT, "hbfsim_coverage_add_range"));
-    if (add_range == nullptr) {
-        std::fprintf(stderr, "missing hbfsim_coverage_add_range interposer\n");
+    hbfsim_context* context = nullptr;
+    const hbfsim_options context_options{
+        .profile_path = "configs/profiles/nominal.json",
+        .report_dir = "/tmp/hbfsim-unsupported-kernel",
+        .mode = 0,
+        .ring_capacity = 8,
+        .request_timeout_ns = 1'000'000'000,
+    };
+    if (hbfsim_context_create(&context_options, &context) != HBFSIM_OK) {
+        std::fprintf(stderr, "failed to create public HBF context\n");
         cudaFree(logical);
         return 6;
     }
-    const auto hbf_begin = reinterpret_cast<std::uintptr_t>(logical);
-    if (add_range(hbf_begin, hbf_begin + sizeof(*logical)) != 0) {
+    const hbfsim_range_options range_options{
+        .mode = HBFSIM_RANGE_MODE_TIMING,
+        .permissions = HBFSIM_RANGE_READ_WRITE,
+        .cache_policy = HBFSIM_CACHE_POLICY_NONE,
+        .stream_id = 0,
+    };
+    if (hbfsim_register_device(context, logical, sizeof(*logical),
+                               &range_options) != HBFSIM_OK) {
         std::fprintf(stderr, "failed to register HBF test range\n");
+        hbfsim_context_destroy(context);
         cudaFree(logical);
         return 7;
     }
@@ -73,9 +83,11 @@ int hbf_run()
         }
         std::fprintf(stderr, "HBF launch was not rejected: %s\n",
                      cudaGetErrorString(status));
+        hbfsim_context_destroy(context);
         cudaFree(logical);
         return 8;
     }
+    hbfsim_context_destroy(context);
     cudaFree(logical);
     std::puts("HBF launch rejected before kernel execution");
     return 0;

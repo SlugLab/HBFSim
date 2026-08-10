@@ -34,7 +34,7 @@ def main() -> int:
     ).stdout
     exported = {line.split()[-1] for line in output.splitlines() if line.split()}
     toolkit_version = tuple(
-        int(part) for part in sys.argv[4].split(".")[:2])
+        int(part) for part in sys.argv[5].split(".")[:2])
     required = {
         "cuLaunchKernel", "cuLaunchKernel_ptsz",
         "cuLaunchKernelEx", "cuLaunchKernelEx_ptsz",
@@ -66,8 +66,15 @@ def main() -> int:
     missing = required - exported
     if missing:
         raise RuntimeError(f"missing launch interceptors: {sorted(missing)}")
+    require("hbfsim_coverage_add_range" not in exported,
+            "launch gate exports a range-registration bypass")
 
     source = pathlib.Path(sys.argv[3]).read_text()
+    require("hbfsim_coverage_add_range" not in source,
+            "launch gate source retains a range-registration bypass")
+    context_source = pathlib.Path(sys.argv[4]).read_text()
+    require("api->quarantine_retire == nullptr" in context_source,
+            "context accepts a launch-gate API without quarantine_retire")
     require("hbfsim_expect_module_identity" not in source and
             "discard_expectations" not in source and
             "expected_" not in source,
@@ -111,22 +118,45 @@ def main() -> int:
             "live_module_identity" in module_load and
             "module_identities().associate" in module_load,
             "module load does not bind successful exact pass provenance")
+    require("lifecycle_transition_mutex" in module_load,
+            "module load is not serialized with lifecycle transitions")
     module_unload = function_body(source, "cuModuleUnload(")
     require("result == CUDA_SUCCESS" in module_unload and
             "module_identities().erase" in module_unload,
             "module unload does not erase association only after success")
+    require("lifecycle_transition_mutex" in module_unload,
+            "module unload is not serialized with lifecycle transitions")
     for symbol in required & {
         "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
-        "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
-        "cuDevicePrimaryCtxRelease",
-        "cuDevicePrimaryCtxRelease_v2", "cuGreenCtxDestroy",
+        "cuGreenCtxDestroy",
         "cudaDeviceReset", "cudaThreadExit",
     }:
         lifecycle_body = function_body(source, f"{symbol}(")
-        require("module_identities().clear" in lifecycle_body and
+        require("lifecycle_transition_mutex" in lifecycle_body,
+                f"{symbol} is not serialized with owner activation")
+        require("erase_context_state" in lifecycle_body and
                 ("result == CUDA_SUCCESS" in lifecycle_body or
                  "result == cudaSuccess" in lifecycle_body),
-                f"{symbol} does not clear associations only after success")
+                f"{symbol} does not invalidate exact-domain state only after success")
+    for symbol in required & {
+        "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
+        "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
+    }:
+        lifecycle_body = function_body(source, f"{symbol}(")
+        require("lifecycle_transition_mutex" in lifecycle_body,
+                f"{symbol} is not serialized with owner activation")
+        require("module_identities().clear" not in lifecycle_body and
+                "timing_bindings().clear" not in lifecycle_body,
+                f"{symbol} globally clears ambiguous primary-context state")
+    activation = function_body(source, "activate_timing_owner(")
+    activation_lock = function_body(source, "activation_transition_lock(")
+    require("activation_transition_lock" in activation and
+            "lifecycle_transition_mutex" in activation_lock,
+            "owner activation is not serialized with lifecycle transitions")
+    require("current_cuda_domain" in activation and
+            "live_domain->context != cuda_context" in activation and
+            "live_domain->device != device_ordinal" in activation,
+            "owner activation does not revalidate its exact live CUDA domain")
     runtime_multi = function_body(
         source, "cudaLaunchCooperativeKernelMultiDevice(")
     require("RuntimeLaunchScope scope;" in runtime_multi,

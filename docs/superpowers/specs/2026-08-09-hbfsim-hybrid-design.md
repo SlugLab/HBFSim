@@ -172,12 +172,21 @@ void hbfsim_context_destroy(struct hbfsim_context *);
 
 `hbfsim_register_device` enables timing emulation over an existing HBM allocation. `hbfsim_map_file` reserves an unbacked CUDA virtual-address interval and enables capacity emulation. Range registration is immutable while kernels are using the range. A context owns its range table, request ring, page directory, HBM frames, service process connection, and report.
 
-Task 7 establishes the complete ABI but implements only context lifecycle and
-transport. Until Tasks 8 and 9 add their respective range backends,
-`hbfsim_register_device`, `hbfsim_map_file`, and `hbfsim_unregister` validate
-arguments and fail closed with `HBFSIM_UNSUPPORTED`; they never report a range
-as active. `hbfsim_flush` on a live Task 7 context reports only transport
-health because there are no registered dirty ranges yet.
+Task 7 establishes context lifecycle and transport. The Task 8 host slice adds
+timing-only `hbfsim_register_device`: it accepts only a non-managed device
+allocation owned by the context's exact CUDA context/device, rejects overflow
+or a range extending beyond that allocation, and publishes a validated record
+through a gate-owned transaction. Capacity registration, unregister, and dirty
+flush remain Task 9 work and fail closed until that backend exists.
+
+The launch gate exposes a versioned v1 callback table. Context creation claims
+one active timing owner and binds the mapped control alias plus a monotonic,
+non-wrapping generation to trusted modules in the same CUDA context/device.
+Trusted modules with missing or malformed control symbols remain identified but
+explicitly unbound; only a launch carrying a registered HBF pointer through
+such a module is rejected. A second concurrent owner, a foreign context/device,
+or generation exhaustion fails closed. Clean destruction permits a later owner
+with a higher generation.
 
 The parent keeps the control memfd close-on-exec throughout daemon spawning.
 The child requests `SIGKILL` if its parent dies, verifies that the expected
@@ -191,8 +200,42 @@ Context destruction keeps the daemon shutdown, `SIGTERM`, and `SIGKILL`
 signaling schedule within five seconds and synchronously reaps a normally
 schedulable child. A child stuck in kernel-uninterruptible sleep can delay the
 final reap beyond that interval, so this is not a hard total destruction or
-reap deadline. CUDA device synchronization and host-memory unregister follow
-daemon reap and likewise have no cancellable deadline.
+reap deadline. Public context operations enter through a shared admission
+record before dereferencing the opaque context. Destruction closes admission,
+rejects new operations, and waits for admitted operations to drain without
+holding the admission mutex during teardown or deletion. A wrong-domain
+attempt reopens admission for retry; successful teardown removes the record,
+while permanent quarantine leaves it closed. For a timing owner, destruction
+first verifies that the exact
+owner CUDA context/device is current and samples daemon process and heartbeat
+liveness. It then takes the gate's exclusive launch lock and marks the binding
+retiring even when that sample failed, converting the failure into permanent
+quarantine only after launches are quiesced. It rechecks liveness immediately
+before synchronizing the device. It invalidates module bindings, requests
+daemon shutdown and reaps it, and finally unregisters host control memory
+before releasing gate ownership, clearing timing ranges, and unmapping. A
+liveness, synchronization,
+cleanup, or binding-write failure permanently retains the retiring
+owner/generation, timing ranges, and mapping, but releases the synchronization
+lock. Relevant launches can therefore acquire the shared guard and fail closed
+promptly instead of hanging or bypassing the quarantined binding. These CUDA
+operations have no cancellable deadline.
+
+CUDA lifecycle interposition never treats an opaque green-context handle as a
+`CUcontext`: it resolves the exact context with `cuCtxFromGreenCtx` first.
+Owner activation, trusted module association changes, and every intercepted
+context/device/runtime lifecycle transition share one recursive mutex held
+across the active-owner check, underlying CUDA call, and exact cleanup.
+Recursion permits a runtime reset to enter an interposed driver lifecycle API
+on the same thread, while activation from another thread remains excluded.
+Activation cannot claim a domain in the interval between a lifecycle precheck
+and its cleanup: after taking the transition mutex it re-queries the driver and
+requires the live current context/device to exactly match the supplied domain.
+Explicit destruction/reset of the active owner context or device is rejected
+before reaching CUDA; foreign-device primary-context operations may proceed and
+discard only unbound records for that device. The production launch gate has no
+direct range-add export; timing ranges enter only through
+`hbfsim_register_device` and its owner-checked transaction.
 
 ## 7. PTX Transformation Contract
 

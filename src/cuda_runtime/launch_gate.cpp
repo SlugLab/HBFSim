@@ -1,14 +1,18 @@
 #include "hbfsim/coverage.hpp"
+#include "hbfsim/launch_gate_abi.hpp"
 #include "hbfsim/module_identity.hpp"
+#include "hbfsim/timing_binding.hpp"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <dlfcn.h>
 
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -28,6 +32,8 @@
 #endif
 
 namespace {
+
+hbfsim::TimingBindingRegistry& timing_bindings();
 
 const char* environment_or(const char* name, const char* fallback)
 {
@@ -50,10 +56,39 @@ class RuntimeGate {
     {
         return range_launch_sync_.launch_guard();
     }
-    void add_range(std::uintptr_t begin, std::uintptr_t end)
+    int register_timing_range(std::uintptr_t owner, std::uint64_t generation,
+                              std::uintptr_t begin, std::uintptr_t end,
+                              hbfsim::LaunchGatePublishRange publish,
+                              void* publish_state) noexcept
     {
-        auto lock = range_launch_sync_.registration_guard();
-        gate_.add_range(begin, end);
+        if (publish == nullptr) {
+            return -1;
+        }
+        try {
+            auto lock = range_launch_sync_.registration_guard();
+            if (!timing_bindings().owns(owner, generation)) {
+                return -1;
+            }
+            gate_.add_range(begin, end);
+            if (publish(publish_state) != 0) {
+                gate_.remove_range(begin, end);
+                return -1;
+            }
+            return 0;
+        } catch (const std::exception& error) {
+            std::cerr << "hbfsim timing range registration: " << error.what()
+                      << '\n';
+            return -1;
+        }
+    }
+    std::unique_lock<std::shared_mutex> retirement_guard()
+    {
+        return range_launch_sync_.retirement_guard();
+    }
+    void finish_retirement() noexcept
+    {
+        gate_.clear_ranges();
+        range_launch_sync_.reset_launch_seen();
     }
     void mark_launch_seen() noexcept
     {
@@ -107,6 +142,46 @@ hbfsim::ModuleIdentityRegistry& module_identities()
     return registry;
 }
 
+hbfsim::TimingBindingRegistry& timing_bindings()
+{
+    static hbfsim::TimingBindingRegistry registry;
+    return registry;
+}
+
+std::recursive_mutex& lifecycle_transition_mutex()
+{
+    static std::recursive_mutex mutex;
+    return mutex;
+}
+
+#if defined(HBFSIM_ENABLE_TEST_HOOKS)
+std::atomic<bool> activation_attempt_armed{false};
+std::atomic<bool> activation_attempt_seen{false};
+std::atomic<bool> activation_contention_observed{false};
+#endif
+
+std::unique_lock<std::recursive_mutex> activation_transition_lock()
+{
+#if defined(HBFSIM_ENABLE_TEST_HOOKS)
+    std::unique_lock transition(lifecycle_transition_mutex(), std::defer_lock);
+    if (activation_attempt_armed.exchange(false, std::memory_order_acq_rel)) {
+        const bool acquired = transition.try_lock();
+        activation_contention_observed.store(!acquired,
+                                             std::memory_order_release);
+        activation_attempt_seen.store(true, std::memory_order_release);
+        activation_attempt_seen.notify_all();
+        if (!acquired) {
+            transition.lock();
+        }
+    } else {
+        transition.lock();
+    }
+    return transition;
+#else
+    return std::unique_lock(lifecycle_transition_mutex());
+#endif
+}
+
 hbfsim::ModuleLoadTransactionStore& module_load_transactions()
 {
     static hbfsim::ModuleLoadTransactionStore transactions;
@@ -145,6 +220,249 @@ hbfsim::ModuleHandle module_handle(CUmodule module)
 {
     return reinterpret_cast<hbfsim::ModuleHandle>(module);
 }
+
+struct CudaDomain {
+    std::uintptr_t context{0};
+    int device{-1};
+};
+
+std::optional<CudaDomain> current_cuda_domain()
+{
+    using get_context_type = CUresult (*)(CUcontext*);
+    using get_device_type = CUresult (*)(CUdevice*);
+    static auto get_context = reinterpret_cast<get_context_type>(
+        driver_symbol("cuCtxGetCurrent"));
+    static auto get_device =
+        reinterpret_cast<get_device_type>(driver_symbol("cuCtxGetDevice"));
+    CUcontext context = nullptr;
+    CUdevice device = -1;
+    if (get_context == nullptr || get_device == nullptr ||
+        get_context(&context) != CUDA_SUCCESS || context == nullptr ||
+        get_device(&device) != CUDA_SUCCESS || device < 0) {
+        return std::nullopt;
+    }
+    return CudaDomain{.context = reinterpret_cast<std::uintptr_t>(context),
+                      .device = static_cast<int>(device)};
+}
+
+bool initialize_module_control(hbfsim::ModuleHandle raw_module,
+                               std::uintptr_t control_alias,
+                               std::uint64_t generation, void*) noexcept
+{
+    using get_global_type =
+        CUresult (*)(CUdeviceptr*, std::size_t*, CUmodule, const char*);
+    using copy_type = CUresult (*)(CUdeviceptr, const void*, std::size_t);
+    static auto get_global = reinterpret_cast<get_global_type>(
+        driver_symbol("cuModuleGetGlobal_v2"));
+    static auto copy =
+        reinterpret_cast<copy_type>(driver_symbol("cuMemcpyHtoD_v2"));
+    if (get_global == nullptr || copy == nullptr) {
+        return false;
+    }
+    const auto module = reinterpret_cast<CUmodule>(raw_module);
+    CUdeviceptr alias_address = 0;
+    CUdeviceptr generation_address = 0;
+    std::size_t alias_bytes = 0;
+    std::size_t generation_bytes = 0;
+    if (get_global(&alias_address, &alias_bytes, module,
+                   "__hbfsim_control") != CUDA_SUCCESS ||
+        alias_bytes != sizeof(control_alias) ||
+        get_global(&generation_address, &generation_bytes, module,
+                   "__hbfsim_control_generation") != CUDA_SUCCESS ||
+        generation_bytes != sizeof(generation)) {
+        return false;
+    }
+    if (control_alias != 0) {
+        // Publish generation before alias. A failed second write leaves the
+        // dereference-enabling alias at zero; best-effort generation rollback
+        // keeps diagnostics clean but is not required for safety.
+        if (copy(generation_address, &generation, sizeof(generation)) !=
+            CUDA_SUCCESS) {
+            return false;
+        }
+        if (copy(alias_address, &control_alias, sizeof(control_alias)) !=
+            CUDA_SUCCESS) {
+            const std::uint64_t zero = 0;
+            (void)copy(generation_address, &zero, sizeof(zero));
+            return false;
+        }
+    } else {
+        // Invalidate the alias first. Even if clearing generation fails, the
+        // module can no longer dereference the retiring control mapping.
+        if (copy(alias_address, &control_alias, sizeof(control_alias)) !=
+                CUDA_SUCCESS ||
+            copy(generation_address, &generation, sizeof(generation)) !=
+                CUDA_SUCCESS) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void erase_module_identity(hbfsim::ModuleHandle module, void*) noexcept
+{
+    module_identities().erase(module);
+}
+
+void erase_context_state(std::uintptr_t cuda_context) noexcept
+{
+    timing_bindings().erase_context(cuda_context, erase_module_identity,
+                                    nullptr);
+}
+
+void erase_unbound_device_state(int device_ordinal) noexcept
+{
+    timing_bindings().erase_unbound_device(
+        device_ordinal, erase_module_identity, nullptr);
+}
+
+bool timing_binding_ready(CUfunction function) noexcept
+{
+    using get_module_type = CUresult (*)(CUmodule*, CUfunction);
+    static auto get_module =
+        reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
+    CUmodule module = nullptr;
+    const auto domain = current_cuda_domain();
+    return get_module != nullptr && domain.has_value() &&
+           get_module(&module, function) == CUDA_SUCCESS && module != nullptr &&
+           timing_bindings().ready_for_active(
+               module_handle(module), domain->context, domain->device);
+}
+
+hbfsim::GateDecision require_timing_binding(hbfsim::GateDecision decision,
+                                            CUfunction function)
+{
+    if (decision.allowed && decision.address != 0 &&
+        !timing_binding_ready(function)) {
+        decision.allowed = false;
+        decision.reason = "control_binding_unavailable";
+    }
+    return decision;
+}
+
+struct RetireToken {
+    std::uintptr_t owner;
+    std::uint64_t generation;
+    std::unique_lock<std::shared_mutex> launch_lock;
+    bool invalidated{false};
+};
+
+int activate_timing_owner(std::uintptr_t owner,
+                          std::uintptr_t control_alias,
+                          std::uintptr_t cuda_context, int device_ordinal,
+                          std::uint64_t* generation_out) noexcept
+{
+    auto transition = activation_transition_lock();
+    if (generation_out == nullptr) {
+        return -1;
+    }
+    const auto live_domain = current_cuda_domain();
+    if (!live_domain.has_value() || live_domain->context != cuda_context ||
+        live_domain->device != device_ordinal) {
+        *generation_out = 0;
+        return -1;
+    }
+    std::uint64_t generation = 0;
+    if (!timing_bindings().activate(owner, control_alias, cuda_context,
+                                    device_ordinal,
+                                    initialize_module_control, nullptr,
+                                    generation)) {
+        *generation_out = 0;
+        return -1;
+    }
+    *generation_out = generation;
+    return 0;
+}
+
+int register_timing_range(std::uintptr_t owner, std::uint64_t generation,
+                          std::uintptr_t begin, std::uintptr_t end,
+                          hbfsim::LaunchGatePublishRange publish,
+                          void* publish_state) noexcept
+{
+    if (owner == 0 || generation == 0 || begin >= end) {
+        return -1;
+    }
+    return runtime_gate().register_timing_range(
+        owner, generation, begin, end, publish, publish_state);
+}
+
+int begin_retire(std::uintptr_t owner, std::uint64_t generation,
+                 std::uintptr_t* token_out) noexcept
+{
+    if (owner == 0 || generation == 0 || token_out == nullptr) {
+        return -1;
+    }
+    *token_out = 0;
+    try {
+        auto token = std::make_unique<RetireToken>(RetireToken{
+            .owner = owner,
+            .generation = generation,
+            .launch_lock = runtime_gate().retirement_guard(),
+        });
+        if (!timing_bindings().quiesce(owner, generation)) {
+            return -1;
+        }
+        *token_out = reinterpret_cast<std::uintptr_t>(token.release());
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int invalidate_retire(std::uintptr_t raw_token) noexcept
+{
+    if (raw_token == 0) {
+        return -1;
+    }
+    auto* token = reinterpret_cast<RetireToken*>(raw_token);
+    if (token->invalidated) {
+        return 0;
+    }
+    if (!timing_bindings().invalidate(token->owner, token->generation,
+                                      initialize_module_control, nullptr)) {
+        return -1;
+    }
+    token->invalidated = true;
+    return 0;
+}
+
+int finish_retire(std::uintptr_t raw_token) noexcept
+{
+    if (raw_token == 0) {
+        return -1;
+    }
+    auto* token = reinterpret_cast<RetireToken*>(raw_token);
+    if (!token->invalidated ||
+        !timing_bindings().finish_retire(token->owner, token->generation)) {
+        return -1;
+    }
+    runtime_gate().finish_retirement();
+    delete token;
+    return 0;
+}
+
+int quarantine_retire(std::uintptr_t raw_token) noexcept
+{
+    if (raw_token == 0) {
+        return -1;
+    }
+    // Quiesce already made the binding permanently not-ready. Keep that
+    // state and all timing ranges, but release the exclusive lock so future
+    // relevant launches can acquire a shared guard and fail closed.
+    delete reinterpret_cast<RetireToken*>(raw_token);
+    return 0;
+}
+
+const hbfsim::LaunchGateApiV1 launch_gate_api{
+    .abi_version = hbfsim::kLaunchGateAbiVersion,
+    .struct_bytes = sizeof(hbfsim::LaunchGateApiV1),
+    .activate = activate_timing_owner,
+    .register_timing_range = register_timing_range,
+    .begin_retire = begin_retire,
+    .invalidate_retire = invalidate_retire,
+    .finish_retire = finish_retire,
+    .quarantine_retire = quarantine_retire,
+};
 
 std::string handle_id(CUfunction function)
 {
@@ -271,7 +589,9 @@ hbfsim::GateDecision inspect_function_launch(CUfunction function,
         CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
     static auto get_info =
         reinterpret_cast<get_info_type>(driver_symbol("cuFuncGetParamInfo"));
-    return inspect_bounded(function, module_id, kernel, arguments, get_info);
+    return require_timing_binding(
+        inspect_bounded(function, module_id, kernel, arguments, get_info),
+        function);
 }
 
 hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
@@ -296,8 +616,10 @@ hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
                 raw_name != nullptr
             ? raw_name
             : "unknown_cukernel";
-    return inspect_bounded(reinterpret_cast<CUkernel>(kernel),
-                           "cuda-module:unknown", name, arguments, get_info);
+    return require_timing_binding(
+        inspect_bounded(reinterpret_cast<CUkernel>(kernel),
+                        "cuda-module:unknown", name, arguments, get_info),
+        function);
 }
 
 hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
@@ -415,16 +737,28 @@ cudaError_t kernel_launch(const char* symbol, cudaKernel_t kernel, dim3 grid,
 
 }  // namespace
 
-extern "C" int hbfsim_coverage_add_range(std::uintptr_t begin,
-                                         std::uintptr_t end) noexcept
+#if defined(HBFSIM_ENABLE_TEST_HOOKS)
+extern "C" void hbfsim_test_arm_activation_attempt() noexcept
 {
-    try {
-        runtime_gate().add_range(begin, end);
-        return 0;
-    } catch (const std::exception& error) {
-        std::cerr << "hbfsim range registration: " << error.what() << '\n';
-        return -1;
-    }
+    activation_attempt_seen.store(false, std::memory_order_release);
+    activation_contention_observed.store(false, std::memory_order_release);
+    activation_attempt_armed.store(true, std::memory_order_release);
+}
+
+extern "C" int hbfsim_test_wait_activation_attempt() noexcept
+{
+    activation_attempt_seen.wait(false, std::memory_order_acquire);
+    return activation_contention_observed.load(std::memory_order_acquire) ? 1
+                                                                          : 0;
+}
+#endif
+
+extern "C" const hbfsim::LaunchGateApiV1*
+hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
+{
+    return requested_version == hbfsim::kLaunchGateAbiVersion
+               ? &launch_gate_api
+               : nullptr;
 }
 
 #define HBFSIM_DRIVER_LAUNCH(name)                                             \
@@ -698,6 +1032,7 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
     const auto result =
         original(module, image, option_count, options, option_values);
     if (result != CUDA_SUCCESS) {
@@ -706,7 +1041,11 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     if (trusted_identity.has_value() && module != nullptr &&
         *module != nullptr) {
         if (const auto identity = live_module_identity(*module)) {
-            if (*identity == *trusted_identity) {
+            const auto domain = current_cuda_domain();
+            if (*identity == *trusted_identity && domain.has_value()) {
+                (void)timing_bindings().add_module(
+                    module_handle(*module), domain->context, domain->device,
+                    initialize_module_control, nullptr);
                 (void)module_identities().associate(module_handle(*module),
                                                     *identity);
             }
@@ -722,9 +1061,11 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
     const auto result = original(module);
     if (result == CUDA_SUCCESS) {
         module_identities().erase(module_handle(module));
+        timing_bindings().erase(module_handle(module));
     }
     return result;
 }
@@ -736,9 +1077,14 @@ extern "C" CUresult cuCtxDestroy(CUcontext context)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_context(
+            reinterpret_cast<std::uintptr_t>(context))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(context);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_context_state(reinterpret_cast<std::uintptr_t>(context));
     }
     return result;
 }
@@ -750,9 +1096,14 @@ extern "C" CUresult cuCtxDestroy_v2(CUcontext context)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_context(
+            reinterpret_cast<std::uintptr_t>(context))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(context);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_context_state(reinterpret_cast<std::uintptr_t>(context));
     }
     return result;
 }
@@ -764,9 +1115,14 @@ extern "C" CUresult cuCtxDetach(CUcontext context)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_context(
+            reinterpret_cast<std::uintptr_t>(context))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(context);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_context_state(reinterpret_cast<std::uintptr_t>(context));
     }
     return result;
 }
@@ -779,9 +1135,13 @@ extern "C" CUresult cuDevicePrimaryCtxReset(CUdevice device)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_device(static_cast<int>(device))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(device);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_unbound_device_state(static_cast<int>(device));
     }
     return result;
 }
@@ -794,9 +1154,13 @@ extern "C" CUresult cuDevicePrimaryCtxReset_v2(CUdevice device)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_device(static_cast<int>(device))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(device);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_unbound_device_state(static_cast<int>(device));
     }
     return result;
 }
@@ -809,9 +1173,13 @@ extern "C" CUresult cuDevicePrimaryCtxRelease(CUdevice device)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_device(static_cast<int>(device))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(device);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_unbound_device_state(static_cast<int>(device));
     }
     return result;
 }
@@ -824,9 +1192,13 @@ extern "C" CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device)
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (timing_bindings().active_device(static_cast<int>(device))) {
+        return CUDA_ERROR_NOT_PERMITTED;
+    }
     const auto result = original(device);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_unbound_device_state(static_cast<int>(device));
     }
     return result;
 }
@@ -835,14 +1207,27 @@ extern "C" CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device)
 extern "C" CUresult cuGreenCtxDestroy(CUgreenCtx context)
 {
     using type = CUresult (*)(CUgreenCtx);
+    using from_green_type = CUresult (*)(CUcontext*, CUgreenCtx);
     auto original =
         reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGreenCtxDestroy"));
-    if (original == nullptr) {
+    auto from_green = reinterpret_cast<from_green_type>(
+        driver_symbol("cuCtxFromGreenCtx"));
+    CUcontext cuda_context = nullptr;
+    if (original == nullptr || from_green == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    if (from_green(&cuda_context, context) != CUDA_SUCCESS ||
+        cuda_context == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    if (timing_bindings().active_context(
+            reinterpret_cast<std::uintptr_t>(cuda_context))) {
+        return CUDA_ERROR_NOT_PERMITTED;
     }
     const auto result = original(context);
     if (result == CUDA_SUCCESS) {
-        module_identities().clear();
+        erase_context_state(reinterpret_cast<std::uintptr_t>(cuda_context));
     }
     return result;
 }
@@ -855,9 +1240,15 @@ extern "C" cudaError_t cudaDeviceReset()
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    const auto domain = current_cuda_domain();
+    if (domain.has_value() && timing_bindings().active_domain(
+                                  domain->context, domain->device)) {
+        return cudaErrorNotPermitted;
+    }
     const auto result = original();
-    if (result == cudaSuccess) {
-        module_identities().clear();
+    if (result == cudaSuccess && domain.has_value()) {
+        erase_context_state(domain->context);
     }
     return result;
 }
@@ -870,9 +1261,15 @@ extern "C" cudaError_t cudaThreadExit()
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
+    std::lock_guard transition(lifecycle_transition_mutex());
+    const auto domain = current_cuda_domain();
+    if (domain.has_value() && timing_bindings().active_domain(
+                                  domain->context, domain->device)) {
+        return cudaErrorNotPermitted;
+    }
     const auto result = original();
-    if (result == cudaSuccess) {
-        module_identities().clear();
+    if (result == cudaSuccess && domain.has_value()) {
+        erase_context_state(domain->context);
     }
     return result;
 }

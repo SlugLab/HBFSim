@@ -16,6 +16,8 @@ add_library(
     src/cuda_runtime/context.cpp
     src/cuda_runtime/coverage.cpp
     src/cuda_runtime/module_identity.cpp
+    src/cuda_runtime/range_table.cpp
+    src/cuda_runtime/timing_binding.cpp
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
     src/protocol/page_directory.cpp
@@ -36,6 +38,7 @@ target_include_directories(
     hbfsimd PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/host_service"
 )
 target_compile_features(hbfsim_core PUBLIC cxx_std_20)
+target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS})
 set_target_properties(hbfsim_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
     hbfsim_core
@@ -61,6 +64,14 @@ add_test(NAME protocol COMMAND hbfsim_protocol_tests)
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)
 add_test(NAME page_directory COMMAND hbfsim_page_directory_tests)
+
+add_executable(hbfsim_range_table_tests tests/cpu/range_table_test.cpp)
+target_link_libraries(hbfsim_range_table_tests PRIVATE hbfsim_core)
+add_test(NAME range_table COMMAND hbfsim_range_table_tests)
+
+add_executable(hbfsim_timing_binding_tests tests/cpu/timing_binding_test.cpp)
+target_link_libraries(hbfsim_timing_binding_tests PRIVATE hbfsim_core)
+add_test(NAME timing_binding COMMAND hbfsim_timing_binding_tests)
 
 add_executable(context_lifecycle_test tests/cpu/context_lifecycle_test.cpp)
 target_link_libraries(context_lifecycle_test PRIVATE hbfsim_core)
@@ -265,12 +276,52 @@ if(CUDAToolkit_FOUND)
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     if(BUILD_TESTING)
+        target_compile_definitions(
+            hbfsim_launch_gate PRIVATE HBFSIM_ENABLE_TEST_HOOKS=1
+        )
         add_library(
             fake_cuda_lookup SHARED tests/integration/fake_cuda_lookup.cpp
         )
         set_target_properties(
             fake_cuda_lookup PROPERTIES OUTPUT_NAME cuda SOVERSION 1
         )
+        if(HBFSIM_ENABLE_CUDA)
+            add_executable(
+                device_range_validation_test
+                tests/integration/device_range_validation_test.cpp
+            )
+            target_link_libraries(
+                device_range_validation_test
+                PRIVATE hbfsim_core fake_cuda_lookup
+            )
+            add_test(
+                NAME device_range_validation
+                COMMAND device_range_validation_test
+            )
+            add_executable(
+                public_cuda_lifecycle_test
+                tests/integration/public_cuda_lifecycle_test.cpp
+            )
+            target_link_libraries(
+                public_cuda_lifecycle_test PRIVATE hbfsim_core fake_cuda_lookup
+            )
+            foreach(
+                mode
+                IN ITEMS clean daemon-death daemon-after-begin
+                         unregister-failure register-destroy-race
+            )
+                add_test(
+                    NAME public_cuda_lifecycle_${mode}
+                    COMMAND
+                        "${CMAKE_COMMAND}" -E env
+                        "LD_PRELOAD=$<TARGET_FILE:hbfsim_launch_gate>"
+                        "HBFSIM_DAEMON_PATH=$<TARGET_FILE:hbfsimd>"
+                        "$<TARGET_FILE:public_cuda_lifecycle_test>"
+                        "${mode}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/nominal.json"
+                )
+            endforeach()
+        endif()
         find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
         add_test(
             NAME launch_gate_symbols
@@ -279,6 +330,7 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "${HBFSIM_NM_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/launch_gate.cpp"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/context.cpp"
                     "${CUDAToolkit_VERSION}"
         )
         add_test(
@@ -299,6 +351,13 @@ if(CUDAToolkit_FOUND)
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
                     "${CUDAToolkit_VERSION}"
         )
+        add_test(
+            NAME timing_gate_binding
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_gate_binding.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+                    "$<TARGET_FILE:fake_cuda_lookup>"
+        )
     endif()
 elseif(HBFSIM_ENABLE_CUDA)
     message(FATAL_ERROR "HBFSIM_ENABLE_CUDA requires CUDA Toolkit 12.8 or newer")
@@ -306,11 +365,13 @@ endif()
 
 if(HBFSIM_ENABLE_CUDA)
     target_compile_definitions(hbfsim_core PRIVATE HBFSIM_ENABLE_CUDA_RUNTIME=1)
-    target_link_libraries(hbfsim_core PRIVATE CUDA::cudart)
+    target_link_libraries(hbfsim_core PRIVATE CUDA::cudart CUDA::cuda_driver)
     enable_language(CUDA)
 
     add_executable(unsupported_kernel tests/gpu/unsupported_kernel.cu)
-    target_link_libraries(unsupported_kernel PRIVATE CUDA::cudart ${CMAKE_DL_LIBS})
+    target_link_libraries(
+        unsupported_kernel PRIVATE hbfsim_core CUDA::cudart ${CMAKE_DL_LIBS}
+    )
     set_target_properties(
         unsupported_kernel PROPERTIES
         CUDA_ARCHITECTURES "120-real;120-virtual"

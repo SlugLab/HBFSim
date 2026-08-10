@@ -19,6 +19,21 @@ enum hbfsim_error {
     HBFSIM_DAEMON_LOST = 6
 };
 
+enum hbfsim_range_mode {
+    HBFSIM_RANGE_MODE_TIMING = 1,
+    HBFSIM_RANGE_MODE_CAPACITY = 2
+};
+
+enum hbfsim_range_permission {
+    HBFSIM_RANGE_READ = 1u << 0,
+    HBFSIM_RANGE_WRITE = 1u << 1,
+    HBFSIM_RANGE_READ_WRITE = HBFSIM_RANGE_READ | HBFSIM_RANGE_WRITE
+};
+
+enum hbfsim_cache_policy {
+    HBFSIM_CACHE_POLICY_NONE = 0
+};
+
 typedef struct hbfsim_options {
     const char* profile_path;
     const char* report_dir;

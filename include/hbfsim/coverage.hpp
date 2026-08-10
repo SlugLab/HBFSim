@@ -29,10 +29,19 @@ class LaunchRangeSynchronizer {
         }
         return lock;
     }
+    [[nodiscard]] std::unique_lock<std::shared_mutex> retirement_guard()
+    {
+        return std::unique_lock(mutex_);
+    }
     // The caller must hold launch_guard() until the launch has been enqueued.
     void mark_launch_seen() noexcept
     {
         launch_seen_.store(true, std::memory_order_release);
+    }
+    // The caller must hold retirement_guard().
+    void reset_launch_seen() noexcept
+    {
+        launch_seen_.store(false, std::memory_order_release);
     }
 
   private:
@@ -107,6 +116,8 @@ class CoverageGate {
   public:
     void add_module(ModuleManifest manifest);
     void add_range(std::uintptr_t begin, std::uintptr_t end);
+    void remove_range(std::uintptr_t begin, std::uintptr_t end) noexcept;
+    void clear_ranges();
     [[nodiscard]] bool has_ranges() const;
     [[nodiscard]] GateDecision check_launch(const KernelLaunch& launch) const;
 

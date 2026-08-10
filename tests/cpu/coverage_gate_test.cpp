@@ -101,6 +101,14 @@ int main()
     CHECK(late_registration.wait_for(std::chrono::seconds(1)) ==
           std::future_status::ready);
     CHECK(late_registration.get());
+
+    {
+        auto retirement = launch_state.retirement_guard();
+        launch_state.reset_launch_seen();
+    }
+    {
+        auto registration_after_retire = launch_state.registration_guard();
+    }
     hbfsim::CoverageGate gate;
     gate.add_module(manifest("ptx:aaa", "same_name",
                              {{.index = 0,
@@ -118,6 +126,10 @@ int main()
         .instrumented = false,
         .cubin_only = true,
     });
+    gate.add_range(0x100000, 0x200000);
+    CHECK(gate.has_ranges());
+    gate.clear_ranges();
+    CHECK(!gate.has_ranges());
     gate.add_range(0x100000, 0x200000);
 
     const auto safe = gate.check_launch(

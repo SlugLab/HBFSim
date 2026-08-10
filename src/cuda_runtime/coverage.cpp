@@ -128,6 +128,26 @@ void CoverageGate::add_range(std::uintptr_t begin, std::uintptr_t end)
     ranges_.push_back({begin, end});
 }
 
+void CoverageGate::remove_range(std::uintptr_t begin,
+                                std::uintptr_t end) noexcept
+{
+    std::unique_lock lock(mutex_);
+    const auto found = std::find_if(
+        ranges_.rbegin(), ranges_.rend(),
+        [=](const AddressRange& range) {
+            return range.begin == begin && range.end == end;
+        });
+    if (found != ranges_.rend()) {
+        ranges_.erase(std::next(found).base());
+    }
+}
+
+void CoverageGate::clear_ranges()
+{
+    std::unique_lock lock(mutex_);
+    ranges_.clear();
+}
+
 bool CoverageGate::has_ranges() const
 {
     std::shared_lock lock(mutex_);

@@ -710,6 +710,30 @@ git commit -m "feat: add HBF host service and shared transport"
 - Produces PTX-callable `__hbfsim_resolve(uint64_t address, uint32_t bytes, uint32_t operation, uint32_t *status) -> uint64_t`.
 - Produces timing-only registration through `hbfsim_register_device`.
 
+The host-registration sub-slice uses control ABI v2 and a versioned launch-gate
+v1 callback table. One active production context owns the gate at a time.
+Public operations use shared admission records: destroy closes admission and
+waits for active operations, reopens after a wrong-domain retry, and leaves
+permanent quarantine closed. Gate activation, module association changes, and
+CUDA lifecycle wrappers share a recursive transition mutex through driver
+cleanup, allowing same-thread runtime-to-driver lifecycle reentry. Activation
+re-queries the driver under that mutex and rejects a stale or mismatched
+context/device snapshot.
+Registration validates the exact CUDA context/device and device-allocation
+bounds, then performs gate staging and shared range publication under the same
+exclusive launch lock. Module bindings record exact context/device/generation;
+unbound and foreign modules fail closed only for relevant HBF launches.
+Retirement first verifies the exact owner CUDA domain and samples
+process/heartbeat liveness, then always acquires the retirement token and marks
+bindings not-ready before acting on a failed sample. It rechecks liveness
+immediately before synchronization, invalidates bindings, shuts down the
+daemon, unregisters the mapped control region, and only then releases gate
+ownership and clears timing ranges. Any failure after token acquisition keeps
+the owner/generation and ranges permanently retiring but releases the
+synchronization lock, so relevant launches reject promptly.
+The range, binding, fake-driver, and gate tests for this sub-slice are
+CPU/static proof, not live timing injection.
+
 - [ ] **Step 1: Write baseline-versus-instrumented CUDA checks**
 
 ```cpp

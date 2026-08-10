@@ -108,8 +108,8 @@ live GPU, capacity, or LLM proof.
 | PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
 | Live bpftime + GPU interception proof | Blocked on local bpftime/toolchain and GPU recovery |
-| Explicit public range API and host service | In progress |
-| Live delay injection and timing-only GPU proof | Planned |
+| Timing-only host range registration and host service | Implemented; CPU/static checks pass |
+| PTX resolver helper and live timing-only GPU proof | In progress; no live proof yet |
 | File-backed capacity mode and hybrid fast model | Planned |
 | CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
 

@@ -117,7 +117,35 @@ llama.cpp / vLLM / CUDA microbenchmark
       execute original load or store
 ```
 
-The host service and GPU runtime communicate through fixed-size, pinned, GPU-visible control memory. Bulk page data is copied into preallocated HBM cache frames; the shared ring carries only descriptors and completion state.
+The host service and GPU runtime communicate through fixed-size, pinned,
+GPU-visible control memory. The runtime creates a sealable memfd, sizes it,
+applies shrink, grow, and further-seal seals, maps it `MAP_SHARED`, and
+registers those exact pages with
+`cudaHostRegisterMapped | cudaHostRegisterPortable`; it then obtains the GPU
+alias with `cudaHostGetDevicePointer`. The inherited memfd survives the daemon
+`exec`, so both processes and the GPU observe the same ring pages. This uses
+`cudaHostRegisterMapped`, rather than `cudaHostAllocMapped`, because memory
+returned by `cudaHostAllocMapped` has no file descriptor that an exec'd daemon
+can remap. Registration or device-pointer lookup failure is a hard
+`HBFSIM_CUDA_ERROR`; production never falls back to an unregistered mapping.
+The daemon accepts only a regular sealed memfd with the required seals, exact
+size, magic, ABI version, capacity, and layout offsets.
+It publishes the first heartbeat only after constructing the profile,
+timing engine, and dispatcher, making that heartbeat the readiness boundary.
+The context uses a 10-second startup allowance for this one-time work; request
+deadlines remain independently controlled by `request_timeout_ns`.
+Bulk page data is copied into preallocated HBM cache frames; the shared ring
+carries only descriptors and completion state.
+
+Request reservation also reserves the completion slot at the same ring index.
+The reservation sequence is stamped into the request and is the completion
+ticket; callers cannot supply or override it. A waiter consumes only the
+completion matching its ticket, and the slot cannot be reused after wraparound
+until that waiter consumes the terminal result. The daemon drains all request
+descriptors currently visible in reservation order and submits the whole batch
+to the timing engine before advancing modeled completions. This preserves
+overlap and queue contention without requiring waiters to consume a global
+completion stream in completion order.
 
 ## 6. Public Host API
 
@@ -143,6 +171,28 @@ void hbfsim_context_destroy(struct hbfsim_context *);
 ```
 
 `hbfsim_register_device` enables timing emulation over an existing HBM allocation. `hbfsim_map_file` reserves an unbacked CUDA virtual-address interval and enables capacity emulation. Range registration is immutable while kernels are using the range. A context owns its range table, request ring, page directory, HBM frames, service process connection, and report.
+
+Task 7 establishes the complete ABI but implements only context lifecycle and
+transport. Until Tasks 8 and 9 add their respective range backends,
+`hbfsim_register_device`, `hbfsim_map_file`, and `hbfsim_unregister` validate
+arguments and fail closed with `HBFSIM_UNSUPPORTED`; they never report a range
+as active. `hbfsim_flush` on a live Task 7 context reports only transport
+health because there are no registered dirty ranges yet.
+
+The parent keeps the control memfd close-on-exec throughout daemon spawning.
+The child requests `SIGKILL` if its parent dies, verifies that the expected
+parent still exists, closes unrelated descriptors, and only then clears its
+own close-on-exec flag immediately before `execve`. The daemon exec environment
+preserves ordinary configuration while removing loader, bpftime, coverage,
+and pass-instrumentation variables so application interposition does not leak
+into the host service.
+
+Context destruction keeps the daemon shutdown, `SIGTERM`, and `SIGKILL`
+signaling schedule within five seconds and synchronously reaps a normally
+schedulable child. A child stuck in kernel-uninterruptible sleep can delay the
+final reap beyond that interval, so this is not a hard total destruction or
+reap deadline. CUDA device synchronization and host-memory unregister follow
+daemon reap and likewise have no cancellable deadline.
 
 ## 7. PTX Transformation Contract
 
@@ -344,6 +394,24 @@ TIMEOUT, UNSUPPORTED, DAEMON_LOST
 ```
 
 The GPU wait path has a configurable deadline and observes a host heartbeat. Ring exhaustion applies controlled backpressure and cannot overwrite a live descriptor. If the daemon, MQSim adapter, file reader, CUDA copy, or checksum operation fails, the host writes a global fault word and completes all affected waiters with an error. The workload then exits through a controlled CUDA error path rather than spinning indefinitely.
+
+For a dispatcher or timing-engine submit/completion failure, the daemon first
+publishes terminal `IO_ERROR` completions to every accepted, outstanding, and
+currently queued request's reserved completion ticket, then release-publishes
+the global fault. Thus a waiter that observes the fault also observes its
+terminal slot and no waiter depends on another request consuming a global
+completion queue.
+Admission and reservation quiescence share one lock-free state word: its high
+bit closes admission and its remaining bits count reservations that have
+passed the gate but have not release-published their request slot. Fault
+handling atomically closes admission, waits for that count to reach zero, and
+only then drains and fails the queued tickets. A producer paused before its
+admission CAS is rejected after closure; one paused after reserving is included
+in quiescence and receives its exact terminal completion.
+`MqsimOnlineEngine::run_next_completion()` returning no value while requests
+remain outstanding is such a terminal completion failure: it means no
+simulator event can produce the missing result and must not be retried as a
+transient condition.
 
 Every failure report contains the kernel, module, transformed PTX instruction, operation type, logical address, logical page, range identifier, request identifier, page generation, MQSim time, host time, and terminal state.
 

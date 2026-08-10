@@ -13,9 +13,11 @@ find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 add_library(
     hbfsim_core STATIC
     src/api.cpp
+    src/cuda_runtime/context.cpp
     src/cuda_runtime/coverage.cpp
     src/cuda_runtime/module_identity.cpp
     src/profile/profile.cpp
+    src/host_service/request_dispatcher.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/transform.cpp
@@ -26,6 +28,12 @@ target_include_directories(
     hbfsim_core
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+)
+
+add_executable(hbfsimd src/host_service/main.cpp)
+target_link_libraries(hbfsimd PRIVATE hbfsim_core)
+target_include_directories(
+    hbfsimd PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/host_service"
 )
 target_compile_features(hbfsim_core PUBLIC cxx_std_20)
 set_target_properties(hbfsim_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -53,6 +61,34 @@ add_test(NAME protocol COMMAND hbfsim_protocol_tests)
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)
 add_test(NAME page_directory COMMAND hbfsim_page_directory_tests)
+
+add_executable(context_lifecycle_test tests/cpu/context_lifecycle_test.cpp)
+target_link_libraries(context_lifecycle_test PRIVATE hbfsim_core)
+add_library(hbfsim_marker_preload SHARED tests/integration/marker_preload.cpp)
+add_dependencies(context_lifecycle_test hbfsim_marker_preload)
+if(NOT HBFSIM_ENABLE_CUDA)
+    target_compile_definitions(
+        context_lifecycle_test PRIVATE HBFSIM_TEST_CUDA_DISABLED=1
+    )
+endif()
+add_test(
+    NAME context_lifecycle
+    COMMAND context_lifecycle_test "$<TARGET_FILE:hbfsimd>"
+            "$<TARGET_FILE:hbfsim_marker_preload>"
+)
+set_tests_properties(
+    context_lifecycle PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(daemon_protocol_test tests/integration/daemon_protocol_test.cpp)
+target_link_libraries(daemon_protocol_test PRIVATE hbfsim_core)
+add_test(
+    NAME daemon_protocol
+    COMMAND daemon_protocol_test "$<TARGET_FILE:hbfsimd>"
+)
+set_tests_properties(
+    daemon_protocol PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 add_executable(coverage_gate_test tests/cpu/coverage_gate_test.cpp)
 target_link_libraries(coverage_gate_test PRIVATE hbfsim_core)
@@ -269,6 +305,8 @@ elseif(HBFSIM_ENABLE_CUDA)
 endif()
 
 if(HBFSIM_ENABLE_CUDA)
+    target_compile_definitions(hbfsim_core PRIVATE HBFSIM_ENABLE_CUDA_RUNTIME=1)
+    target_link_libraries(hbfsim_core PRIVATE CUDA::cudart)
     enable_language(CUDA)
 
     add_executable(unsupported_kernel tests/gpu/unsupported_kernel.cu)
@@ -305,6 +343,10 @@ if(HBFSIM_ENABLE_MQSIM)
 
     target_sources(hbfsim_core PRIVATE src/mqsim_adapter/mqsim_online.cpp)
     target_link_libraries(hbfsim_core PRIVATE mqsim_hbf)
+    target_compile_definitions(hbfsimd PRIVATE HBFSIM_ENABLE_MQSIM_RUNTIME=1)
+    target_compile_definitions(
+        daemon_protocol_test PRIVATE HBFSIM_TEST_MQSIM_ENABLED=1
+    )
 
     add_executable(mqsim_online_test tests/integration/mqsim_online_test.cpp)
     target_link_libraries(mqsim_online_test PRIVATE hbfsim_core)

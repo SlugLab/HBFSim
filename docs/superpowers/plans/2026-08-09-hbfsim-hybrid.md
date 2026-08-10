@@ -624,11 +624,63 @@ struct hbfsim_range_options {
 };
 ```
 
-Allocate control memory with `cudaHostAllocMapped`, obtain its device pointer with `cudaHostGetDevicePointer`, initialize slot sequences, then fork/exec `hbfsimd` with an inherited memfd. The daemon updates `heartbeat_ns` at least every 10 ms. Context destruction sets shutdown, waits up to 5 seconds, terminates an unresponsive child, synchronizes CUDA, and frees memory.
+Create a sealable memfd, size it, apply shrink/grow/further-seal seals, map it
+`MAP_SHARED`, register that exact mapping with
+`cudaHostRegisterMapped | cudaHostRegisterPortable`, obtain its device pointer
+with `cudaHostGetDevicePointer`, initialize slot sequences, then fork/exec
+`hbfsimd` with the inherited memfd. `cudaHostAllocMapped` is not suitable here:
+its allocation has no file descriptor that survives `exec`, so an exec'd
+daemon could not map the same pages. CUDA registration or device-pointer lookup
+failure returns `HBFSIM_CUDA_ERROR` without a pageable fallback. A separately
+named CPU-only test seam skips CUDA registration and cannot count as live CUDA
+proof. The daemon rejects a non-memfd, missing seals, or any size, magic, ABI,
+capacity, or offset mismatch. The child closes every inherited descriptor
+other than standard input/output/error and the control fd, using a raw close
+loop if `close_range` is unavailable or fails. The daemon updates
+`heartbeat_ns` at least every 10 ms. The first heartbeat is published only
+after profile, timing-engine, and dispatcher construction and therefore serves
+as startup readiness; the context allows 10 seconds for this initialization,
+separate from the per-request timeout. The parent never clears close-on-exec
+on its memfd. Before exec, the child installs a parent-death `SIGKILL`, verifies
+the expected parent, clears close-on-exec only on its copy, and uses an
+environment with loader, bpftime, coverage, and pass-instrumentation variables
+removed. Context destruction sets shutdown and
+keeps the `SIGTERM`/`SIGKILL` signaling schedule within 5 seconds, then
+synchronously reaps a normally schedulable child. A child stuck in
+kernel-uninterruptible sleep can delay that final reap beyond the signaling
+bound; no detached reaper is used. CUDA synchronization and unregister follow
+reap and are not included in a total destroy deadline because the CUDA runtime
+exposes no cancellable synchronization deadline.
 
 - [ ] **Step 4: Implement bounded request dispatch**
 
-The dispatcher drains descriptors in sequence order, submits reference requests to `MqsimOnlineEngine`, and publishes terminal status to the matching completion slot. A ring-full producer waits with bounded backoff and returns `HBFSIM_TIMEOUT` at the configured deadline.
+Request reservation atomically requires both the request slot and the matching
+completion slot to be free, stamps the reservation sequence into
+`HbfRequest.sequence`, and returns that sequence as the ticket. Each waiter
+polls and consumes only its ticket's completion slot; consuming advances that
+slot by the ring capacity so wraparound cannot reuse it early. The dispatcher
+drains all currently visible descriptors in reservation order and submits the
+whole batch to `MqsimOnlineEngine` before advancing completions, then publishes
+each terminal result to its exact ticket. Submit, completion, or malformed
+result failure terminally completes every accepted, outstanding, and queued
+ticket with `IO_ERROR` before publishing the global fault. A ring-full producer
+waits with bounded backoff and returns `HBFSIM_TIMEOUT` at the configured
+deadline. If `MqsimOnlineEngine::run_next_completion()` returns no value while
+tickets remain outstanding, treat that as the same terminal failure because
+MQSim has no remaining event capable of completing them.
+
+Use one lock-free admission word with a closed bit and an in-flight reservation
+count. Fault handling closes admission atomically, waits for reservations that
+already passed the gate to release-publish their request slots, then drains and
+fails those tickets. A producer that checked the gate but did not win admission
+before closure must be rejected; a producer that already reserved a ticket
+must become visible and receive its exact terminal completion before the
+global fault is release-published.
+
+Task 7 leaves `hbfsim_register_device`, `hbfsim_map_file`, and
+`hbfsim_unregister` as argument-validating, fail-closed `HBFSIM_UNSUPPORTED`
+stubs. Task 8 implements timing-range registration and Task 9 implements file
+mapping and capacity-mode unregister behavior.
 
 - [ ] **Step 5: Run lifecycle, wraparound, and crash tests**
 

@@ -43,7 +43,13 @@ HBFSim pins external dependencies instead of copying their source into first-par
 - MQSim is pinned initially to commit `51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16`. HBFSim adds an online request adapter while retaining its event engine and flash backend model.
 - llama.cpp and vLLM are external workload dependencies. The tested revisions are recorded in every run manifest and in the repository's compatibility lock file after the first passing integration. They are not silently upgraded.
 
-The HBF PTX pass is owned by HBFSim and built against bpftime's PTX-pass interfaces. Upstream bpftime changes are kept minimal; any required bpftime patch is stored as an explicit, reviewable patch and accompanied by an upstreamable test.
+The HBF PTX pass is owned by HBFSim and built against bpftime's PTX-pass
+interfaces. Upstream bpftime changes are kept minimal; any required bpftime
+patch is stored as an explicit, reviewable patch and accompanied by an
+upstreamable test. HBFSim never builds a locally dirtied bpftime submodule.
+Its bpftime build helper copies the pinned source, applies the recorded patch,
+and stamps the output with the pinned commit and patch digest. The launch
+script refuses an unstamped or mismatched bpftime build.
 
 ## 4. Repository Layout
 
@@ -176,26 +182,60 @@ keeps the range set inspected by the gate identical to the set visible when the
 work is enqueued.
 
 Module authorization uses host-side load provenance, not an embedded PTX symbol
-alone. After producing a transformed module, the trusted PTX pass publishes its
-exact 256-bit identity to the launch gate through an internal process callback.
-The expectation is cross-thread because bpftime transforms and compiles PTX on
-worker threads, and it is one-shot because one pass result authorizes one new
-module association. The gate interposes bpftime's `cuModuleLoadDataEx` path. A
-successful load is associated only when the live module's constant identity
-exactly matches and atomically consumes a pending expectation. Failed loads
-create no association. Concurrent loads consume only their matching identity;
-two loads cannot consume the same expectation. Repeated sequential pass results
-for the same module identity coalesce into that single pending expectation.
+alone. The pass writes the exact 256-bit identity into the transformed PTX but
+does not publish a process-global expectation. On a module-cache miss, the
+patched bpftime load site brackets its one direct `cuModuleLoadDataEx` call
+with these optional gate callbacks:
+
+```c
+uint64_t hbfsim_begin_module_load_from_ptx(const char *ptx,
+                                           size_t size);
+void hbfsim_end_module_load(uint64_t token);
+```
+
+`hbfsim_begin_module_load_from_ptx` accepts only one canonical 32-byte
+`__hbfsim_module_identity` declaration and installs the identity and a nonzero
+token in thread-local state. Missing, malformed, duplicate, or nested input
+returns zero. bpftime calls `hbfsim_end_module_load` unconditionally after the
+load; an absent gate leaves standalone bpftime behavior unchanged.
+
+The gate's `cuModuleLoadDataEx` wrapper atomically takes and clears the current
+thread's transaction before it invokes the original driver function. It
+associates the returned module only when the original load succeeds and the
+identity read from the live module exactly matches the transaction. A missing
+original, failed load, missing live identity, or mismatch cancels only that
+load's transaction. `hbfsim_end_module_load` cancels a matching transaction
+only if no interposed load consumed it. Therefore concurrent loads cannot
+consume or cancel one another, including the case where load A fails while
+load B succeeds, and no identity can remain pending for a later load.
 
 Launch inspection resolves the `CUmodule` for the launched function and trusts
 only the host-side association. A cubin that copies the reserved constant but
 was not produced by a fresh trusted pass remains unassociated and is rejected
 when it can receive an HBF pointer. A successful `cuModuleUnload` removes the
-association; a failed unload leaves it intact. This prevents stale authorization
-when CUDA reuses a module handle while preserving bpftime's module-cache reuse
-for the lifetime of a loaded module. Hostile code already executing inside the
-same process could race or call the internal callback and is outside the threat
-model; ordinary workload module bytes and cubin-only inputs cannot self-authorize.
+association; a failed unload leaves it intact. Successful context-destruction
+or device-reset operations conservatively clear all module associations because
+the first implementation does not index associations by CUDA context. The
+covered driver calls are `cuCtxDestroy` and `_v2`,
+`cuDevicePrimaryCtxReset` and `_v2`, and
+`cuDevicePrimaryCtxRelease` and `_v2`. The covered runtime call is
+`cudaDeviceReset`; CUDA 12 also covers its deprecated equivalent
+`cudaThreadExit`. CUDA 12.4 and newer cover `cuGreenCtxDestroy` because it
+releases primary-context resources. Failed lifecycle calls retain associations.
+Every driver spelling is substituted through both `cuGetProcAddress` ABIs and
+all four `cudaGetDriverEntryPoint` ABIs so queried entry points cannot bypass
+cleanup.
+
+PTX compilation-cache hits still reach a module-cache miss and receive a fresh
+transaction from the retained patched PTX. A bpftime `module_pool` hit issues no
+load and creates no transaction; its already-live association remains valid.
+After context destruction or reset, an old module-pool handle has no gate
+association and therefore fails closed. A genuine later module reload must
+complete a new exact transaction. This prevents stale authorization when CUDA
+reuses a module handle while preserving bpftime's valid module-cache reuse for
+the lifetime of a loaded context. Hostile code already executing inside the
+same process could call the internal callbacks and is outside the threat model;
+ordinary workload module bytes and cubin-only inputs cannot self-authorize.
 
 ## 8. Range Lookup and Warp Coalescing
 

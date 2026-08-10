@@ -175,6 +175,28 @@ launch lock remains held, and every later registration attempt fails. This
 keeps the range set inspected by the gate identical to the set visible when the
 work is enqueued.
 
+Module authorization uses host-side load provenance, not an embedded PTX symbol
+alone. After producing a transformed module, the trusted PTX pass publishes its
+exact 256-bit identity to the launch gate through an internal process callback.
+The expectation is cross-thread because bpftime transforms and compiles PTX on
+worker threads, and it is one-shot because one pass result authorizes one new
+module association. The gate interposes bpftime's `cuModuleLoadDataEx` path. A
+successful load is associated only when the live module's constant identity
+exactly matches and atomically consumes a pending expectation. Failed loads
+create no association. Concurrent loads consume only their matching identity;
+two loads cannot consume the same expectation. Repeated sequential pass results
+for the same module identity coalesce into that single pending expectation.
+
+Launch inspection resolves the `CUmodule` for the launched function and trusts
+only the host-side association. A cubin that copies the reserved constant but
+was not produced by a fresh trusted pass remains unassociated and is rejected
+when it can receive an HBF pointer. A successful `cuModuleUnload` removes the
+association; a failed unload leaves it intact. This prevents stale authorization
+when CUDA reuses a module handle while preserving bpftime's module-cache reuse
+for the lifetime of a loaded module. Hostile code already executing inside the
+same process could race or call the internal callback and is outside the threat
+model; ordinary workload module bytes and cubin-only inputs cannot self-authorize.
+
 ## 8. Range Lookup and Warp Coalescing
 
 The GPU-visible range table is a sorted immutable array of non-overlapping intervals. Each record includes base, length, range identifier, mode, access permissions, logical page size, and cache policy. The first implementation supports at least 64 simultaneously registered ranges.

@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import shutil
 import stat
 import subprocess
 import sys
@@ -87,22 +88,127 @@ def require_dirty_refusal(
             f"prepare script copied {label} bpftime state")
 
 
-def main() -> int:
-    helper = pathlib.Path(sys.argv[1]).resolve()
-    bpftime = pathlib.Path(sys.argv[2]).resolve()
-    prepare = pathlib.Path(sys.argv[3]).resolve()
-    real_cmake = subprocess.run(
-        ["bash", "-lc", "command -v cmake"], check=True, text=True,
-        capture_output=True,
-    ).stdout.strip()
-    require(git_status(bpftime) == "",
-            "bpftime must be clean before the dirty-source regression")
-    before = subprocess.run(
-        ["git", "-C", str(bpftime), "status", "--porcelain"],
+def copy_test_layout(
+    helper: pathlib.Path,
+    bpftime: pathlib.Path,
+    prepare: pathlib.Path,
+    scratch: pathlib.Path,
+) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+    root = scratch / "hbfsim"
+    isolated_helper = root / "scripts/build_patched_bpftime.sh"
+    isolated_prepare = root / "cmake/PreparePatchedBpftime.cmake"
+    isolated_patch = (
+        root / "patches/bpftime/0001-exact-module-load-provenance.patch"
+    )
+    isolated_bpftime = root / "third_party/bpftime"
+    isolated_helper.parent.mkdir(parents=True)
+    isolated_prepare.parent.mkdir(parents=True)
+    isolated_patch.parent.mkdir(parents=True)
+    isolated_bpftime.parent.mkdir(parents=True)
+    shutil.copy2(helper, isolated_helper)
+    shutil.copy2(prepare, isolated_prepare)
+    shutil.copy2(
+        helper.parent.parent
+        / "patches/bpftime/0001-exact-module-load-provenance.patch",
+        isolated_patch,
+    )
+    revision = subprocess.run(
+        ["git", "-C", str(bpftime), "rev-parse", "HEAD"],
         check=True,
         text=True,
         capture_output=True,
-    ).stdout
+    ).stdout.strip()
+    subprocess.run(
+        [
+            "git", "clone", "--quiet", "--no-local", "--no-checkout",
+            "--no-recurse-submodules", str(bpftime), str(isolated_bpftime),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(isolated_bpftime), "checkout", "--quiet",
+         "--detach", revision],
+        check=True,
+    )
+    require(git_status(isolated_bpftime) == "",
+            "isolated bpftime copy is not clean")
+    return isolated_helper, isolated_bpftime, isolated_prepare
+
+
+def run_isolated_worker(
+    helper: pathlib.Path,
+    bpftime: pathlib.Path,
+    prepare: pathlib.Path,
+) -> int:
+    real_cmake = shutil.which("cmake")
+    require(real_cmake is not None, "cmake is unavailable")
+    with tempfile.TemporaryDirectory(prefix="hbfsim-bpftime-dirty-") as root:
+        scratch = pathlib.Path(root)
+        isolated_helper, isolated_bpftime, isolated_prepare = copy_test_layout(
+            helper, bpftime, prepare, scratch
+        )
+        checked = subprocess.run(
+            [str(isolated_helper), "--check"], text=True, capture_output=True
+        )
+        require(checked.returncode == 0,
+                f"isolated helper check failed: {checked.stderr}")
+        require("bpftime patch applies to pinned source" in checked.stdout,
+                f"isolated helper reported wrong result: {checked.stdout}")
+
+        tracked = isolated_bpftime / "CMakeLists.txt"
+        original = tracked.read_bytes()
+        untracked = isolated_bpftime / ".hbfsim-dirty-regression"
+
+        tracked.write_bytes(original + b"\n# hbfsim dirty regression\n")
+        require_dirty_refusal(
+            "unstaged", isolated_helper, isolated_bpftime,
+            isolated_prepare, scratch, real_cmake)
+        tracked.write_bytes(original)
+        require(git_status(isolated_bpftime) == "",
+                "failed to restore isolated unstaged source")
+
+        tracked.write_bytes(original + b"\n# hbfsim dirty regression\n")
+        subprocess.run(
+            ["git", "-C", str(isolated_bpftime), "add", "--",
+             "CMakeLists.txt"],
+            check=True,
+        )
+        require_dirty_refusal(
+            "staged", isolated_helper, isolated_bpftime,
+            isolated_prepare, scratch, real_cmake)
+        subprocess.run(
+            ["git", "-C", str(isolated_bpftime), "reset", "-q", "HEAD",
+             "--", "CMakeLists.txt"],
+            check=True,
+        )
+        tracked.write_bytes(original)
+        require(git_status(isolated_bpftime) == "",
+                "failed to restore isolated staged source")
+
+        untracked.write_text("hbfsim dirty regression\n")
+        require_dirty_refusal(
+            "untracked", isolated_helper, isolated_bpftime,
+            isolated_prepare, scratch, real_cmake)
+        untracked.unlink()
+        require(git_status(isolated_bpftime) == "",
+                "failed to remove isolated untracked source")
+    return 0
+
+
+def main() -> int:
+    if sys.argv[1] == "--isolated-worker":
+        return run_isolated_worker(
+            pathlib.Path(sys.argv[2]).resolve(),
+            pathlib.Path(sys.argv[3]).resolve(),
+            pathlib.Path(sys.argv[4]).resolve(),
+        )
+
+    helper = pathlib.Path(sys.argv[1]).resolve()
+    bpftime = pathlib.Path(sys.argv[2]).resolve()
+    prepare = pathlib.Path(sys.argv[3]).resolve()
+    before = git_status(bpftime)
+    require(before == "",
+            "bpftime must be clean before the isolated dirty regression")
     checked = subprocess.run(
         [str(helper), "--check"], text=True, capture_output=True
     )
@@ -110,62 +216,22 @@ def main() -> int:
             f"patched bpftime helper check failed: {checked.stderr}")
     require("bpftime patch applies to pinned source" in checked.stdout,
             f"helper did not report exact applicability: {checked.stdout}")
-    after = subprocess.run(
-        ["git", "-C", str(bpftime), "status", "--porcelain"],
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout
-    require(after == before,
-            "patched bpftime helper dirtied the pinned submodule in check mode")
 
-    tracked = bpftime / "CMakeLists.txt"
-    original = tracked.read_bytes()
-    untracked = bpftime / ".hbfsim-dirty-regression"
-    require(not untracked.exists(),
-            f"dirty-source regression path already exists: {untracked}")
-    with tempfile.TemporaryDirectory(prefix="hbfsim-bpftime-dirty-") as root:
-        scratch = pathlib.Path(root)
-        try:
-            tracked.write_bytes(original + b"\n# hbfsim dirty regression\n")
-            require_dirty_refusal(
-                "unstaged", helper, bpftime, prepare, scratch, real_cmake)
-            tracked.write_bytes(original)
-            require(git_status(bpftime) == "",
-                    "failed to restore unstaged bpftime source")
-
-            tracked.write_bytes(original + b"\n# hbfsim dirty regression\n")
-            subprocess.run(
-                ["git", "-C", str(bpftime), "add", "--", "CMakeLists.txt"],
-                check=True,
-            )
-            require_dirty_refusal(
-                "staged", helper, bpftime, prepare, scratch, real_cmake)
-            subprocess.run(
-                ["git", "-C", str(bpftime), "reset", "-q", "HEAD", "--",
-                 "CMakeLists.txt"],
-                check=True,
-            )
-            tracked.write_bytes(original)
-            require(git_status(bpftime) == "",
-                    "failed to restore staged bpftime source")
-
-            untracked.write_text("hbfsim dirty regression\n")
-            require_dirty_refusal(
-                "untracked", helper, bpftime, prepare, scratch, real_cmake)
-            untracked.unlink()
-            require(git_status(bpftime) == "",
-                    "failed to remove untracked bpftime source")
-        finally:
-            subprocess.run(
-                ["git", "-C", str(bpftime), "reset", "-q", "HEAD", "--",
-                 "CMakeLists.txt"],
-                check=False,
-            )
-            tracked.write_bytes(original)
-            untracked.unlink(missing_ok=True)
-    require(git_status(bpftime) == "",
-            "dirty-source regression did not restore clean bpftime source")
+    command = [
+        sys.executable, __file__, "--isolated-worker",
+        str(helper), str(bpftime), str(prepare),
+    ]
+    workers = [
+        subprocess.Popen(command, text=True, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+        for _ in range(2)
+    ]
+    results = [worker.communicate() for worker in workers]
+    for index, (worker, (stdout, stderr)) in enumerate(zip(workers, results)):
+        require(worker.returncode == 0,
+                f"isolated worker {index} failed:\n{stdout}{stderr}")
+    require(git_status(bpftime) == before,
+            "concurrent isolated regressions dirtied the real submodule")
     return 0
 
 

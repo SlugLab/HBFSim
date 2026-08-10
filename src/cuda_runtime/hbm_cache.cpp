@@ -72,6 +72,17 @@ std::size_t HbmCache::dirty_pages() const
     return dirty_pages_;
 }
 
+std::optional<std::uint64_t> HbmCache::free_frame() const
+{
+    std::lock_guard lock(mutex_);
+    for (const auto& frame : frames_) {
+        if (!frame.logical_page.has_value() && !frame.evicting) {
+            return frame.address;
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<CacheEviction> HbmCache::begin_eviction()
 {
     std::lock_guard lock(mutex_);

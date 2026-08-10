@@ -26,6 +26,7 @@ class HbmCache {
         std::uint64_t logical_page);
     bool mark_dirty(std::uint64_t logical_page);
     [[nodiscard]] std::size_t dirty_pages() const;
+    [[nodiscard]] std::optional<std::uint64_t> free_frame() const;
     [[nodiscard]] std::optional<CacheEviction> begin_eviction();
     bool cancel_eviction(const CacheEviction& eviction);
     bool complete_eviction(const CacheEviction& eviction);

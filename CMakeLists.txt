@@ -23,6 +23,7 @@ add_library(
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
+    src/host_service/capacity_page_service.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/transform.cpp
@@ -93,6 +94,18 @@ add_test(NAME hbm_cache COMMAND hbfsim_hbm_cache_tests)
 add_executable(hbfsim_vmm_tests tests/cpu/vmm_test.cpp)
 target_link_libraries(hbfsim_vmm_tests PRIVATE hbfsim_core)
 add_test(NAME vmm COMMAND hbfsim_vmm_tests)
+
+add_executable(
+    hbfsim_capacity_page_service_tests
+    tests/cpu/capacity_page_service_test.cpp
+)
+target_link_libraries(hbfsim_capacity_page_service_tests PRIVATE hbfsim_core)
+target_link_options(
+    hbfsim_capacity_page_service_tests PRIVATE "LINKER:--wrap=fdatasync"
+)
+add_test(
+    NAME capacity_page_service COMMAND hbfsim_capacity_page_service_tests
+)
 
 add_executable(
     hbfsim_device_ordering_reference_tests

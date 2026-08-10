@@ -800,10 +800,12 @@ git commit -m "feat: inject live HBF delay into CUDA loads"
 
 The first Task 9 foundation slice provides a bounded `BackingStore`, a
 generation-checked two-phase deterministic clock cache, an unbacked `VmmRange`,
-and a separately mapped `VmmFramePool`. CPU/fake-driver tests and CUDA-enabled
-static compilation cover these primitives. The public capacity API remains
-fail-closed until the daemon/data-copy path, dirty flush, unregister, and live
-coverage proof are connected; this slice is not capacity-mode execution proof.
+and a separately mapped `VmmFramePool`. A serialized `CapacityPageService`
+connects host-frame copies, read-for-ownership, dirty eviction, and explicit
+flush with failure rollback. CPU/fake-driver tests and CUDA-enabled static
+compilation cover these primitives. The public capacity API remains fail-closed
+until real CUDA copies, timing completions, unregister, and live coverage proof
+are connected; this slice is not capacity-mode execution proof.
 
 **Files:**
 - Create: `src/cuda_runtime/vmm.hpp`

@@ -47,6 +47,13 @@ Both modes use the same explicit ranges, PTX coverage rules, named HBF profiles,
 and reporting model. Timing-only mode isolates delay from paging. Capacity mode
 adds page residency, eviction, and backing I/O.
 
+In capacity mode, all registered file ranges in a context share one bounded HBM
+page cache. A cache hit resolves directly to its resident HBM frame. A miss
+loads the backing page and contributes one modeled media read; a dirty eviction
+contributes a modeled media program before its bytes return to the backing
+file. MQSim therefore sees the HBF media work caused by misses and dirty
+writebacks, rather than every GPU load and store.
+
 ## Intended end-to-end path
 
 ```text
@@ -94,9 +101,10 @@ device delay it is trying to model.
 
 ## Project status
 
-The `hybrid` branch is under active development. It contains the simulator
-foundation and a statically verified GPU interception path, not yet a complete
-live GPU, capacity, or LLM proof.
+The `hybrid` branch is under active development. The public file-capacity
+lifecycle now works end to end under a fake CUDA driver and the online MQSim
+backend. This proves the host-side transactions and failure policy, but it is
+not evidence that a CUDA kernel has used the path on a real GPU.
 
 | Component | Status |
 |---|---|
@@ -107,17 +115,21 @@ live GPU, capacity, or LLM proof.
 | Reproducible MQSim media benchmark | Implemented and tested |
 | PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
-| Live bpftime + GPU interception proof | Blocked on local bpftime/toolchain and GPU recovery |
+| Live bpftime + GPU interception proof | Pending live-GPU validation |
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
 | Live timing-only GPU proof | Not run; no live proof yet |
-| File-backed capacity mode | Backing-store, page-service, parent worker, clock-cache, CUDA VMM, mode-2 resolver translation, and daemon/parent handoff implemented; public/live path not yet connected |
+| File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
 | Hybrid fast model | Planned |
-| CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
+| Real-GPU capacity and over-VRAM proof | Pending |
+| Live delay injection, CUDA fault matrix, llama.cpp, and vLLM proof runs | Pending |
+| GPU/CXL-SSD thermal validation | Pending |
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
-GPU proof. The repository does not yet claim working delay injection, over-VRAM
-capacity emulation, llama.cpp, or vLLM execution.
+GPU proof. The repository does not yet claim working live delay injection,
+real-GPU or over-VRAM capacity emulation, llama.cpp/vLLM execution, or thermal
+validation. The complete non-live checkpoint and exact commands are recorded
+in [the 2026-08-10 proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
 
 ## Requirements
 
@@ -132,18 +144,14 @@ capacity emulation, llama.cpp, or vLLM execution.
 
 The current media simulator and its benchmark can be built without a GPU.
 
-The capacity foundation now includes bounded file-window I/O, serialized page
-resolution with read-for-ownership, deterministic two-phase clock eviction and
-dirty flush, unbacked CUDA virtual-range reservation, and a separate mapped HBM
-frame interval. The rewritten device helper now understands capacity ranges and
-translates a successful completion into `cache_frame + page_offset`; the daemon
-uses a generation-stamped shared handoff to wait for the parent CUDA context to
-service that page. A bounded parent worker now resolves those handoffs through
-the page service, tolerates timeout/reclaim races, and delegates flush using
-host-memory test callbacks. These components have bit-exact host-frame,
-CPU/fake-driver, and CUDA static-build coverage, but `hbfsim_map_file`
-intentionally remains fail-closed until the worker is connected to real CUDA
-copies and owns the full context map/flush/unregister lifecycle.
+The capacity runtime owns the logical CUDA VMM ranges, one shared HBM frame
+pool, the clock cache, backing-file router, bounce page, page service, and
+parent worker. Public `hbfsim_map_file`, `hbfsim_flush`, and
+`hbfsim_unregister` use transactional publication and checked rollback. Dirty
+teardown failures quarantine the owner so a relevant launch fails closed
+instead of bypassing unresolved state. These properties have CPU,
+CUDA-static/PTX, fake-driver, and MQSim coverage; real CUDA copies and kernel
+execution remain a separate pending proof gate.
 
 ## Clone and build
 
@@ -269,8 +277,9 @@ When CUDA 12.8 is installed, the check assembles the rewritten PTX for
 `sm_120` with `ptxas`. The initial pass recognizes selected scalar/vector,
 predicated, offset, and cache-qualified global loads and stores. Atomics,
 generic-space operations, texture/surface operations, malformed addresses, and
-inline SASS remain outside the supported HBF path and must fail closed once the
-runtime coverage gate is connected.
+inline SASS remain outside the supported HBF path. The runtime coverage gate
+rejects a relevant launch when those operations could consume an HBF pointer;
+this behavior has static/fake-driver coverage but no live-GPU proof yet.
 
 For a modified module, the pass now embeds one PTX-callable resolver directly
 into that module. The helper validates control ABI v2 and the exact control
@@ -316,6 +325,7 @@ The design contract and implementation plan are in:
 
 1. Complete the safe live-GPU delay proof and validate modeled time separately
    from emulator overhead.
-2. Add file-backed capacity mode and the calibrated GPU-local hybrid model.
-3. Run the deterministic CUDA/fault matrix, then TinyLlama through llama.cpp
-   and vLLM with bit-exact output gates.
+2. Validate the file-backed cache with real CUDA copies and an over-VRAM
+   workload, then add the calibrated GPU-local hybrid model.
+3. Run the deterministic CUDA/fault matrix, TinyLlama through llama.cpp and
+   vLLM with bit-exact output gates, and GPU/CXL-SSD thermal validation.

@@ -677,10 +677,11 @@ before closure must be rejected; a producer that already reserved a ticket
 must become visible and receive its exact terminal completion before the
 global fault is release-published.
 
-Task 7 leaves `hbfsim_register_device`, `hbfsim_map_file`, and
-`hbfsim_unregister` as argument-validating, fail-closed `HBFSIM_UNSUPPORTED`
-stubs. Task 8 implements timing-range registration and Task 9 implements file
-mapping and capacity-mode unregister behavior.
+At the Task 7 checkpoint, `hbfsim_register_device`, `hbfsim_map_file`, and
+`hbfsim_unregister` were argument-validating, fail-closed
+`HBFSIM_UNSUPPORTED` stubs. Task 8 implemented timing-range registration; the
+2026-08-10 public capacity checkpoint later implemented file mapping, flush,
+and capacity-mode unregister behavior.
 
 - [ ] **Step 5: Run lifecycle, wraparound, and crash tests**
 
@@ -814,9 +815,19 @@ stop and destruction wait for an in-flight service callback but do not flush.
 The owning context must successfully flush before teardown when persistence is
 required, and ordinary object-lifetime synchronization still prohibits racing
 destruction with member calls. CPU/fake-driver tests and CUDA-enabled static
-compilation cover these primitives. The public capacity API remains fail-closed
-until that worker is connected to context-owned VMM frames and real CUDA copies;
-this slice is not capacity-mode execution proof.
+compilation originally covered these primitives as an isolated foundation.
+
+**Current checkpoint (2026-08-10):** the follow-on public-capacity work now
+connects the worker to a context-owned VMM frame pool, one shared bounded cache,
+a multi-file backing router, page service, and pinned bounce page. Public
+`hbfsim_map_file`, `hbfsim_flush`, and capacity `hbfsim_unregister` use
+transactional publication, modeled miss/dirty-writeback requests, checked
+rollback/retry, and fail-closed quarantine on unsafe teardown. CPU,
+CUDA-static/PTX, stateful fake-driver, MQSim, stress, and TSAN gates pass. This
+does not complete the live GPU steps below: real CUDA copies, kernel execution,
+the over-VRAM proof, live delay, llama.cpp, vLLM, and thermal validation remain
+pending. See the
+[non-live proof artifact](../../proofs/2026-08-10-capacity-runtime-non-live.md).
 
 **Files:**
 - Create: `src/cuda_runtime/vmm.hpp`

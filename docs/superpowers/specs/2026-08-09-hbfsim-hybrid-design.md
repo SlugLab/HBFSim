@@ -135,19 +135,23 @@ timing engine, and dispatcher, making that heartbeat the readiness boundary.
 The context uses a 10-second startup allowance for this one-time work; request
 deadlines remain independently controlled by `request_timeout_ns`.
 Bulk page data is copied into preallocated HBM cache frames; the shared ring
-carries only descriptors and completion state.
+carries only descriptors and completion state. All file mappings owned by one
+context share this bounded cache. Hits return the resident frame without a
+media request. A miss creates a modeled read for the incoming page, while a
+dirty victim creates an ordered modeled program before the read. Explicit
+flush creates only the required dirty-page programs. Thus MQSim observes cache
+misses and dirty writebacks, not every rewritten load or store.
 
-The parent-side capacity-worker foundation scans the bounded shared page slots
-on an owned, synchronously joined thread. It resolves each claimed,
-generation-stamped handoff through a referenced serialized page service and
-publishes only through the exact ticket/request completion CAS. A daemon
+The parent-side capacity worker scans the bounded shared page slots on an
+owned, synchronously joined thread. It resolves each claimed,
+generation-stamped handoff through the context-owned serialized page service
+and publishes only through the exact ticket/request completion CAS. A daemon
 timeout and reclaim that wins this race is benign, including after slot reuse.
-Concurrent stop callers serialize the stop/join transition. Stop and destruction
-wait for an in-flight page-service callback, but neither implicitly flushes dirty
-pages; the owning context must complete a successful explicit flush before
-teardown when persistence is required. Ordinary object-lifetime synchronization
-still forbids racing destruction with member calls. This checkpoint is not yet
-wired to context-owned VMM frames or real CUDA copy callbacks.
+The context now owns the VMM frame pool, shared cache, backing router, mappings,
+pinned bounce page, page service, and worker. Public map/flush/unregister and
+destruction connect these pieces transactionally. Their CUDA calls are proven
+with a stateful fake driver; real device copies and kernel execution are still
+pending.
 
 Request reservation also reserves the completion slot at the same ring index.
 The reservation sequence is stamped into the request and is the completion
@@ -184,12 +188,15 @@ void hbfsim_context_destroy(struct hbfsim_context *);
 
 `hbfsim_register_device` enables timing emulation over an existing HBM allocation. `hbfsim_map_file` reserves an unbacked CUDA virtual-address interval and enables capacity emulation. Range registration is immutable while kernels are using the range. A context owns its range table, request ring, page directory, HBM frames, service process connection, and report.
 
-Task 7 establishes context lifecycle and transport. The Task 8 host slice adds
-timing-only `hbfsim_register_device`: it accepts only a non-managed device
-allocation owned by the context's exact CUDA context/device, rejects overflow
-or a range extending beyond that allocation, and publishes a validated record
-through a gate-owned transaction. Capacity registration, unregister, and dirty
-flush remain Task 9 work and fail closed until that backend exists.
+Task 7 established context lifecycle and transport, and Task 8 added
+timing-only `hbfsim_register_device`. The current capacity checkpoint also
+implements `hbfsim_map_file`, `hbfsim_flush`, and capacity
+`hbfsim_unregister`. Mapping publication stages the backing route and VMM
+reservation before an atomic range-table/gate acknowledgement. Flush converts
+dirty pages into modeled program requests. Unregister synchronizes, flushes the
+selected mapping, removes its route and range, then releases VMM/backing
+ownership. Pre-publication errors roll back; failures after retirement retain
+reachable state and quarantine the owner so relevant launches fail closed.
 
 The launch gate exposes a versioned v2 callback table with mode-neutral range
 registration and explicit range removal. Context creation claims
@@ -423,6 +430,15 @@ The host service uses the backing file as the authoritative byte store. It reads
 Read-only ranges share clean cached pages. Writable microbenchmark ranges use write-back caching. A partial-page write miss performs a read-for-ownership. Dirty eviction submits a modeled program request and writes the page to the backing file. `hbfsim_flush` blocks until all dirty pages and modeled program operations complete. CPU modification of a registered backing range is prohibited until unregister or context destruction.
 
 The default HBM page cache is 8 GiB on the primary 96 GiB-class validation GPU and is configurable. Cache replacement begins with deterministic clock eviction so repeated runs with the same request order remain reproducible.
+
+As of the 2026-08-10 non-live checkpoint, the public multi-file lifecycle,
+shared-cache hit/miss behavior, dirty persistence, MQSim media planning,
+rollback, retry, and quarantine paths pass CPU, CUDA-static/PTX, stateful
+fake-driver, MQSim, stress, and ThreadSanitizer gates. This is host/runtime
+evidence only. The larger-than-VRAM test in Section 15.3 remains pending on a
+real GPU, as do live delay, llama.cpp, vLLM, and thermal validation. Exact
+checkpoint evidence is in
+[`docs/proofs/2026-08-10-capacity-runtime-non-live.md`](../../proofs/2026-08-10-capacity-runtime-non-live.md).
 
 ## 12. HBF Profiles
 

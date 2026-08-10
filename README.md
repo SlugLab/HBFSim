@@ -1,68 +1,121 @@
 # HBFSim
 
-HBFSim is a hybrid High-Bandwidth Flash (HBF) workload emulator for CUDA
-applications. It combines automatic PTX memory-operation rewriting from the
-bpftime/eGPU lineage with an online, media-only MQSim timing backend. The target
-runtime supports explicitly registered HBF ranges, live delay injection, a
-GPU-local fast model, and file-backed capacity beyond VRAM.
+HBFSim is a live workload emulator for studying a simple systems question:
 
-The included HBF profiles are synthetic design-space points. They are not
-vendor specifications or a claim that HBF is a finalized commercial standard.
+> What would GPU applications look like if they could directly access a large,
+> flash-backed memory tier with much higher bandwidth than conventional storage,
+> but higher latency than HBM?
+
+The project calls that hypothetical tier **High-Bandwidth Flash (HBF)**. HBFSim
+does not assume a particular vendor device or finalized HBF standard. Instead,
+it provides named, synthetic profiles so researchers can explore the design
+space before hardware exists.
+
+## The high-level idea
+
+Most storage simulators replay traces after an application has finished, while
+most GPU memory simulators do not execute the original CUDA workload. HBFSim is
+designed to keep the workload live: the application runs normally, selected GPU
+memory operations are identified automatically, and HBF timing or capacity
+effects are applied during execution.
+
+Three ideas make this possible:
+
+1. **Explicit HBF ranges define intent.** Only addresses registered by the
+   application or runtime are treated as HBF. Ordinary HBM pointers remain on
+   the native fast path.
+2. **PTX rewriting provides visibility.** A bpftime/eGPU-derived interception
+   path rewrites supported global loads and stores so HBF accesses can be
+   resolved without modifying each CUDA kernel by hand. A coverage gate rejects
+   any HBF pointer that reaches code whose behavior cannot be proven safe.
+3. **Detailed and fast timing models work together.** An online, media-only
+   MQSim path is the detailed reference model. A calibrated GPU-local model is
+   intended to handle the common path cheaply, while sampled requests keep it
+   anchored to MQSim.
+
+The result is intended to preserve application semantics while changing where
+data comes from and how long access takes.
+
+## Two complementary modes
+
+| Mode | What changes | Primary question |
+|---|---|---|
+| **Timing-only** | Data stays in normal GPU memory; HBFSim injects modeled delay for registered accesses. | How sensitive is this workload to HBF latency, bandwidth, and contention? |
+| **Capacity** | Registered data is backed by a file and staged through an HBM page cache. | Can a workload run with a working set larger than available VRAM, and what cache behavior results? |
+
+Both modes use the same explicit ranges, PTX coverage rules, named HBF profiles,
+and reporting model. Timing-only mode isolates delay from paging. Capacity mode
+adds page residency, eviction, and backing I/O.
+
+## Intended end-to-end path
+
+```text
+CUDA workload (microbenchmark, llama.cpp, or vLLM)
+                         |
+                         v
+       explicit HBF ranges + fail-closed coverage gate
+                         |
+                         v
+          automatic PTX load/store instrumentation
+                         |
+                         v
+             GPU range lookup and page resolver
+                  /                    \
+                 v                      v
+       HBM / HBM-cache hit       shared request ring
+                                         |
+                                         v
+                                HBF host service
+                                /              \
+                               v                v
+                    online MQSim timing   file backing store
+```
+
+MQSim is used as a flash-media model, not as an SSD host-stack model. The HBF
+adapter bypasses NVMe, PCIe, SATA, and host-driver events while retaining flash
+mapping, transaction scheduling, NAND timing, queueing, contention, and channel
+behavior.
+
+HBFSim reports modeled device time separately from host service time, wall-clock
+time, and emulator overhead. This separation is essential: a live emulator can
+be functionally correct while its own software overhead is larger than the
+device delay it is trying to model.
+
+## What HBFSim is meant to evaluate
+
+- sensitivity to HBF read/program latency, channel count, queue depth, and
+  aggregate bandwidth;
+- the benefit of an HBM cache in front of a much larger flash-backed tier;
+- detailed MQSim timing versus a calibrated fast model;
+- correctness and failure behavior when only part of a CUDA workload can be
+  instrumented; and
+- end-to-end effects on deterministic llama.cpp and vLLM inference, including
+  bit-exact token checks against each runtime's own baseline.
 
 ## Project status
 
-The `hybrid` branch is under active development. The repository currently
-contains a working simulator foundation, not yet the complete live GPU system.
+The `hybrid` branch is under active development. It contains the simulator
+foundation and a statically verified GPU interception path, not yet a complete
+live GPU, capacity, or LLM proof.
 
 | Component | Status |
 |---|---|
 | Pinned bpftime and MQSim dependencies | Implemented |
-| Validated named HBF profiles | Implemented |
-| Fixed-layout request/completion protocol and page state machine | Implemented |
-| Incremental media-only MQSim HBF interface | Implemented and regression-tested |
-| MQSim trace-equivalence path | Implemented and regression-tested |
-| Automatic rewriting of supported PTX global loads/stores | Initial pass implemented |
-| Reproducible MQSim media benchmark | Implemented |
-| bpftime CUDA module interception and fail-closed launch gate | In progress |
-| Explicit runtime range registration and live GPU delay injection | Planned |
-| File-backed capacity mode and hybrid GPU timing model | Planned |
+| Named synthetic HBF profiles | Implemented and validated |
+| Request/completion protocol and page state machine | Implemented and tested |
+| Incremental media-only MQSim interface and trace equivalence | Implemented and tested |
+| Reproducible MQSim media benchmark | Implemented and tested |
+| PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
+| bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
+| Live bpftime + GPU interception proof | Blocked on local bpftime/toolchain and GPU recovery |
+| Explicit public range API and host service | In progress |
+| Live delay injection and timing-only GPU proof | Planned |
+| File-backed capacity mode and hybrid fast model | Planned |
 | CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
 
-CPU/MQSim tests or successful PTX assembly do not constitute proof of live GPU
-delay, over-VRAM capacity emulation, llama.cpp, or vLLM support.
-
-## Architecture
-
-```text
-CUDA workload: microbench / llama.cpp / vLLM
-                         |
-                         v
-          bpftime CUDA interception and coverage gate
-                         |
-                         v
-               HBFSim automatic PTX pass
-               - supported ld.global forms
-               - supported st.global forms
-               - preserve predicates
-               - reject unsupported HBF use
-                         |
-                         v
-          explicit HBF range lookup on the GPU
-               /                         \
-              v                           v
-       HBM cache hit              shared request ring
-                                            |
-                                            v
-                                    HBF host service
-                                   /                \
-                                  v                  v
-                         online MQSim model    backing-page I/O
-```
-
-The online MQSim adapter bypasses NVMe, PCIe, SATA, and host-driver events. It
-retains MQSim's event engine, flash mapping, transaction scheduling, NAND
-timing, contention, and channel behavior. This makes it a media reference for
-the intended HBF path rather than an SSD host-stack benchmark.
+Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
+GPU proof. The repository does not yet claim working delay injection, over-VRAM
+capacity emulation, llama.cpp, or vLLM execution.
 
 ## Requirements
 

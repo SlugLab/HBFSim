@@ -45,6 +45,10 @@ def main() -> int:
         "cudaLaunchCooperativeKernel", "cudaLaunchCooperativeKernel_ptsz",
         "cudaGraphLaunch", "cudaGraphLaunch_ptsz",
         "__cudaLaunchKernel", "__cudaLaunchKernel_ptsz",
+        "cuGetProcAddress", "cuGetProcAddress_v2",
+        "cudaGetDriverEntryPoint", "cudaGetDriverEntryPoint_ptsz",
+        "cudaGetDriverEntryPointByVersion",
+        "cudaGetDriverEntryPointByVersion_ptsz",
     }
     toolkit_major = int(sys.argv[4].split(".", maxsplit=1)[0])
     if toolkit_major < 13:
@@ -54,7 +58,15 @@ def main() -> int:
         raise RuntimeError(f"missing launch interceptors: {sorted(missing)}")
 
     source = pathlib.Path(sys.argv[3]).read_text()
-    require('"__hbfsim_module_marker"' in source and
+    require("gated_launch_wrapper_address" in source,
+            "launch lookup APIs do not use an explicit local wrapper map")
+    require("RTLD_DEFAULT" not in source,
+            "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
+    for symbol in required:
+        if "Launch" in symbol:
+            require(f'"{symbol}"' in source or f'({symbol})' in source,
+                    f"launch wrapper is absent from substitution logic: {symbol}")
+    require('"__hbfsim_module_identity"' in source and
             'driver_symbol("cuModuleGetGlobal_v2")' in source and
             'driver_symbol("cuMemcpyDtoH_v2")' in source,
             "launch gate does not resolve the pass marker from the live module")

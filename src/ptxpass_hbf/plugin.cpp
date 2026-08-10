@@ -1,20 +1,21 @@
+#include "hbfsim/durable_append.hpp"
 #include "transform.hpp"
 
 #include <json.hpp>
+#include <openssl/sha.h>
 
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <cerrno>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <exception>
 #include <iomanip>
+#include <mutex>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -151,26 +152,65 @@ std::vector<PassParameter> parameter_metadata(const std::string& ptx,
     return parameters;
 }
 
-std::string module_marker(const std::string& ptx)
+constexpr std::string_view module_identity_symbol = "__hbfsim_module_identity";
+
+std::array<unsigned char, SHA256_DIGEST_LENGTH> sha256(const std::string& text)
 {
-    static const std::regex existing(
-        R"(__hbfsim_module_marker\s*=\s*0x([0-9a-fA-F]{16}))");
-    std::smatch match;
-    if (std::regex_search(ptx, match, existing)) {
-        return match[1].str();
-    }
-    std::uint64_t hash = 14695981039346656037ULL;
-    for (const unsigned char byte : ptx) {
-        hash = (hash ^ byte) * 1099511628211ULL;
-    }
+    std::array<unsigned char, SHA256_DIGEST_LENGTH> digest{};
+    SHA256(reinterpret_cast<const unsigned char*>(text.data()), text.size(),
+           digest.data());
+    return digest;
+}
+
+std::string
+hex_identity(const std::array<unsigned char, SHA256_DIGEST_LENGTH>& identity)
+{
     std::ostringstream output;
-    output << std::hex << std::setfill('0') << std::setw(16) << hash;
+    output << std::hex << std::setfill('0');
+    for (const auto byte : identity) {
+        output << std::setw(2) << static_cast<unsigned>(byte);
+    }
     return output.str();
 }
 
-std::string inject_module_marker(std::string ptx, const std::string& marker)
+class TrustedModuleRegistry {
+  public:
+    std::string identity_for(const std::string& ptx)
+    {
+        const auto state = hex_identity(sha256(ptx));
+        std::lock_guard lock(mutex_);
+        if (ptx.find(module_identity_symbol) == std::string::npos) {
+            return state;
+        }
+        const auto found = emitted_states_.find(state);
+        if (found == emitted_states_.end()) {
+            throw std::invalid_argument(
+                "untrusted preexisting HBFSim module identity");
+        }
+        return found->second;
+    }
+
+    void record(const std::string& emitted_ptx, const std::string& identity)
+    {
+        std::lock_guard lock(mutex_);
+        emitted_states_.insert_or_assign(hex_identity(sha256(emitted_ptx)),
+                                         identity);
+    }
+
+  private:
+    std::mutex mutex_;
+    std::unordered_map<std::string, std::string> emitted_states_;
+};
+
+TrustedModuleRegistry& trusted_modules()
 {
-    if (ptx.find("__hbfsim_module_marker") != std::string::npos) {
+    static TrustedModuleRegistry registry;
+    return registry;
+}
+
+std::string inject_module_identity(std::string ptx, const std::string& identity)
+{
+    if (ptx.find(module_identity_symbol) != std::string::npos) {
         return ptx;
     }
     const auto directives_end = ptx.find(".address_size");
@@ -178,9 +218,17 @@ std::string inject_module_marker(std::string ptx, const std::string& marker)
                              ? std::string::npos
                              : ptx.find('\n', directives_end);
     const auto insert = newline == std::string::npos ? 0 : newline + 1;
-    ptx.insert(insert,
-               ".visible .global .align 8 .u64 __hbfsim_module_marker = 0x" +
-                   marker + ";\n");
+    std::ostringstream declaration;
+    declaration << ".visible .const .align 8 .b8 " << module_identity_symbol
+                << "[32] = {";
+    for (std::size_t index = 0; index < SHA256_DIGEST_LENGTH; ++index) {
+        if (index != 0) {
+            declaration << ", ";
+        }
+        declaration << "0x" << identity.substr(index * 2, 2);
+    }
+    declaration << "};\n";
+    ptx.insert(insert, declaration.str());
     return ptx;
 }
 
@@ -199,19 +247,7 @@ void append_manifest(const nlohmann::json& manifest)
         return;
     }
     const std::string line = manifest.dump() + '\n';
-    const int fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    if (fd < 0) {
-        throw std::runtime_error(std::string("unable to open pass manifest: ") +
-                                 std::strerror(errno));
-    }
-    const auto written = write(fd, line.data(), line.size());
-    const int saved_errno = errno;
-    close(fd);
-    if (written < 0 || static_cast<std::size_t>(written) != line.size()) {
-        throw std::runtime_error(
-            std::string("unable to append pass manifest: ") +
-            std::strerror(saved_errno));
-    }
+    hbfsim::append_durable_line(path, line);
 }
 
 int copy_output(const std::string& text, int length, char* output)
@@ -259,9 +295,9 @@ extern "C" int process_input(const char* input, int length, char* output)
                 "ebpf_communication_data_symbol", "constData"),
         };
         auto transformed = hbfsim::ptx::transform_ptx(request);
-        const auto marker = module_marker(request.full_ptx);
+        const auto identity = trusted_modules().identity_for(request.full_ptx);
         transformed.output_ptx =
-            inject_module_marker(std::move(transformed.output_ptx), marker);
+            inject_module_identity(std::move(transformed.output_ptx), identity);
         const auto parameters =
             parameter_metadata(request.full_ptx, request.to_patch_kernel);
 
@@ -292,7 +328,7 @@ extern "C" int process_input(const char* input, int length, char* output)
             });
         }
         append_manifest({
-            {"module_id", "ptx:" + marker},
+            {"module_id", "ptx:sha256:" + identity},
             {"kernel", request.to_patch_kernel},
             {"ptx_target", ptx_target(request.full_ptx)},
             {"instrumented",
@@ -306,7 +342,7 @@ extern "C" int process_input(const char* input, int length, char* output)
             {"unsupported_opcodes", relevant_unsupported},
         });
 
-        return copy_output(
+        const auto response =
             nlohmann::json{
                 {"output_ptx", transformed.output_ptx},
                 {"modified", transformed.modified},
@@ -320,8 +356,12 @@ extern "C" int process_input(const char* input, int length, char* output)
                   {"unsupported_opcodes",
                    transformed.coverage.unsupported_opcodes}}},
             }
-                .dump(),
-            length, output);
+                .dump();
+        const auto status = copy_output(response, length, output);
+        if (status == 0) {
+            trusted_modules().record(transformed.output_ptx, identity);
+        }
+        return status;
     } catch (const nlohmann::json::exception& error) {
         std::fprintf(stderr, "ptxpass_hbf configuration error: %s\n",
                      error.what());

@@ -168,6 +168,13 @@ The transformer emits a machine-readable coverage manifest for every CUDA module
 
 `atom.global`, `red.global`, texture, surface, generic-space accesses that cannot be resolved, inline SASS, and unrecognized address expressions are unsupported in an HBF range. They may execute for non-HBF allocations. If static analysis or runtime launch metadata shows that an unsupported or uninstrumented kernel can receive an HBF logical pointer, launch is rejected before execution.
 
+All HBF ranges must be registered before the workload's first approved CUDA
+launch. Range registration and launch enqueue share one synchronization
+boundary: the gate records the first approved launch before dispatch while the
+launch lock remains held, and every later registration attempt fails. This
+keeps the range set inspected by the gate identical to the set visible when the
+work is enqueued.
+
 ## 8. Range Lookup and Warp Coalescing
 
 The GPU-visible range table is a sorted immutable array of non-overlapping intervals. Each record includes base, length, range identifier, mode, access permissions, logical page size, and cache policy. The first implementation supports at least 64 simultaneously registered ranges.

@@ -56,7 +56,12 @@ void require(bool condition, const char* message)
 
 int main()
 {
-    CHECK(hbfsim::module_id_from_marker(0x123) == "ptx:0000000000000123");
+    std::array<std::uint8_t, 32> identity{};
+    identity.front() = 0x12;
+    identity.back() = 0x34;
+    CHECK(hbfsim::module_id_from_identity(identity) ==
+          "ptx:sha256:"
+          "1200000000000000000000000000000000000000000000000000000000000034");
     CHECK(!hbfsim::uninspectable_launch_decision(true, "graph_launch").allowed);
     CHECK(hbfsim::uninspectable_launch_decision(false, "graph_launch").allowed);
     hbfsim::LaunchRangeSynchronizer synchronizer;
@@ -75,6 +80,27 @@ int main()
     launch_lock.unlock();
     CHECK(registration.wait_for(std::chrono::seconds(1)) ==
           std::future_status::ready);
+
+    hbfsim::LaunchRangeSynchronizer launch_state;
+    {
+        auto registration_guard = launch_state.registration_guard();
+    }
+    auto active_launch = launch_state.launch_guard();
+    launch_state.mark_launch_seen();
+    auto late_registration = std::async(std::launch::async, [&launch_state] {
+        try {
+            auto guard = launch_state.registration_guard();
+            return false;
+        } catch (const std::logic_error&) {
+            return true;
+        }
+    });
+    CHECK(late_registration.wait_for(std::chrono::milliseconds(20)) ==
+          std::future_status::timeout);
+    active_launch.unlock();
+    CHECK(late_registration.wait_for(std::chrono::seconds(1)) ==
+          std::future_status::ready);
+    CHECK(late_registration.get());
     hbfsim::CoverageGate gate;
     gate.add_module(manifest("ptx:aaa", "same_name",
                              {{.index = 0,
@@ -235,9 +261,9 @@ int main()
     CHECK(!hbfsim::try_append_coverage(still_unwritable, safe));
     CHECK(!hbfsim::coverage_decision_permits_launch(still_unwritable, safe));
 
-    const auto launch_report = std::filesystem::temp_directory_path() /
-                               ("hbfsim-launch-policy-test-" + test_id +
-                                ".json");
+    const auto launch_report =
+        std::filesystem::temp_directory_path() /
+        ("hbfsim-launch-policy-test-" + test_id + ".json");
     std::filesystem::remove(launch_report);
     hbfsim::CoverageWriter launch_writer(launch_report);
     CHECK(hbfsim::coverage_decision_permits_launch(launch_writer, safe));

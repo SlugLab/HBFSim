@@ -13,6 +13,10 @@
 #include <string>
 #include <utility>
 
+#ifdef cuGetProcAddress
+#undef cuGetProcAddress
+#endif
+
 namespace {
 
 const char* environment_or(const char* name, const char* fallback)
@@ -28,7 +32,10 @@ class RuntimeGate {
     {
     }
 
-    hbfsim::CoverageGate& gate() { return gate_; }
+    hbfsim::CoverageGate& gate()
+    {
+        return gate_;
+    }
     std::shared_lock<std::shared_mutex> launch_guard()
     {
         return range_launch_sync_.launch_guard();
@@ -37,6 +44,10 @@ class RuntimeGate {
     {
         auto lock = range_launch_sync_.registration_guard();
         gate_.add_range(begin, end);
+    }
+    void mark_launch_seen() noexcept
+    {
+        range_launch_sync_.mark_launch_seen();
     }
 
     void refresh_manifests()
@@ -105,13 +116,13 @@ std::string handle_id(CUfunction function)
         reinterpret_cast<copy_type>(driver_symbol("cuMemcpyDtoH_v2"));
     CUdeviceptr address = 0;
     std::size_t size = 0;
-    std::uint64_t marker = 0;
+    std::array<std::uint8_t, 32> identity{};
     if (get_global != nullptr && copy != nullptr &&
-        get_global(&address, &size, module, "__hbfsim_module_marker") ==
+        get_global(&address, &size, module, "__hbfsim_module_identity") ==
             CUDA_SUCCESS &&
-        size == sizeof(marker) &&
-        copy(&marker, address, sizeof(marker)) == CUDA_SUCCESS) {
-        return hbfsim::module_id_from_marker(marker);
+        size == identity.size() &&
+        copy(identity.data(), address, identity.size()) == CUDA_SUCCESS) {
+        return hbfsim::module_id_from_identity(identity);
     }
     return {};
 }
@@ -277,13 +288,23 @@ hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
 
 thread_local bool runtime_launch_in_progress = false;
 struct RuntimeLaunchScope {
-    RuntimeLaunchScope() { runtime_launch_in_progress = true; }
-    ~RuntimeLaunchScope() { runtime_launch_in_progress = false; }
+    RuntimeLaunchScope()
+    {
+        runtime_launch_in_progress = true;
+    }
+    ~RuntimeLaunchScope()
+    {
+        runtime_launch_in_progress = false;
+    }
 };
 
 bool approve(const hbfsim::GateDecision& decision)
 {
-    return runtime_gate().approve(decision);
+    if (!runtime_gate().approve(decision)) {
+        return false;
+    }
+    runtime_gate().mark_launch_seen();
+    return true;
 }
 
 using driver_launch_type = CUresult (*)(CUfunction, unsigned int, unsigned int,
@@ -615,3 +636,195 @@ cudaLaunchCooperativeKernelMultiDevice(struct cudaLaunchParams* launches,
     return original(launches, count, flags);
 }
 #endif
+
+namespace {
+
+template <typename Function> void* wrapper_address(Function function)
+{
+    return reinterpret_cast<void*>(function);
+}
+
+void* gated_launch_wrapper_address(const char* symbol, bool per_thread)
+{
+    if (symbol == nullptr) {
+        return nullptr;
+    }
+    struct WrapperPair {
+        const char* name;
+        void* legacy;
+        void* per_thread;
+    };
+    const WrapperPair wrappers[] = {
+        {"cuLaunch", wrapper_address(&cuLaunch), nullptr},
+        {"cuLaunchGrid", wrapper_address(&cuLaunchGrid), nullptr},
+        {"cuLaunchGridAsync", wrapper_address(&cuLaunchGridAsync), nullptr},
+        {"cuLaunchKernel", wrapper_address(&cuLaunchKernel),
+         wrapper_address(&cuLaunchKernel_ptsz)},
+        {"cuLaunchKernel_ptsz", wrapper_address(&cuLaunchKernel_ptsz),
+         wrapper_address(&cuLaunchKernel_ptsz)},
+        {"cuLaunchKernelEx", wrapper_address(&cuLaunchKernelEx),
+         wrapper_address(&cuLaunchKernelEx_ptsz)},
+        {"cuLaunchKernelEx_ptsz", wrapper_address(&cuLaunchKernelEx_ptsz),
+         wrapper_address(&cuLaunchKernelEx_ptsz)},
+        {"cuLaunchCooperativeKernel",
+         wrapper_address(&cuLaunchCooperativeKernel),
+         wrapper_address(&cuLaunchCooperativeKernel_ptsz)},
+        {"cuLaunchCooperativeKernel_ptsz",
+         wrapper_address(&cuLaunchCooperativeKernel_ptsz),
+         wrapper_address(&cuLaunchCooperativeKernel_ptsz)},
+        {"cuLaunchCooperativeKernelMultiDevice",
+         wrapper_address(&cuLaunchCooperativeKernelMultiDevice), nullptr},
+        {"cuGraphLaunch", wrapper_address(&cuGraphLaunch),
+         wrapper_address(&cuGraphLaunch_ptsz)},
+        {"cuGraphLaunch_ptsz", wrapper_address(&cuGraphLaunch_ptsz),
+         wrapper_address(&cuGraphLaunch_ptsz)},
+        {"cudaLaunchKernel", wrapper_address(&cudaLaunchKernel),
+         wrapper_address(&cudaLaunchKernel_ptsz)},
+        {"cudaLaunchKernel_ptsz", wrapper_address(&cudaLaunchKernel_ptsz),
+         wrapper_address(&cudaLaunchKernel_ptsz)},
+        {"cudaLaunchKernelExC", wrapper_address(&cudaLaunchKernelExC),
+         wrapper_address(&cudaLaunchKernelExC_ptsz)},
+        {"cudaLaunchKernelExC_ptsz", wrapper_address(&cudaLaunchKernelExC_ptsz),
+         wrapper_address(&cudaLaunchKernelExC_ptsz)},
+        {"cudaLaunchCooperativeKernel",
+         wrapper_address(&cudaLaunchCooperativeKernel),
+         wrapper_address(&cudaLaunchCooperativeKernel_ptsz)},
+        {"cudaLaunchCooperativeKernel_ptsz",
+         wrapper_address(&cudaLaunchCooperativeKernel_ptsz),
+         wrapper_address(&cudaLaunchCooperativeKernel_ptsz)},
+#if CUDART_VERSION < 13000
+        {"cudaLaunchCooperativeKernelMultiDevice",
+         wrapper_address(&cudaLaunchCooperativeKernelMultiDevice), nullptr},
+#endif
+        {"cudaGraphLaunch", wrapper_address(&cudaGraphLaunch),
+         wrapper_address(&cudaGraphLaunch_ptsz)},
+        {"cudaGraphLaunch_ptsz", wrapper_address(&cudaGraphLaunch_ptsz),
+         wrapper_address(&cudaGraphLaunch_ptsz)},
+        {"__cudaLaunchKernel", wrapper_address(&__cudaLaunchKernel),
+         wrapper_address(&__cudaLaunchKernel_ptsz)},
+        {"__cudaLaunchKernel_ptsz", wrapper_address(&__cudaLaunchKernel_ptsz),
+         wrapper_address(&__cudaLaunchKernel_ptsz)},
+    };
+    for (const auto& wrapper : wrappers) {
+        if (std::strcmp(symbol, wrapper.name) == 0) {
+            return per_thread && wrapper.per_thread != nullptr
+                       ? wrapper.per_thread
+                       : wrapper.legacy;
+        }
+    }
+    return nullptr;
+}
+
+void substitute_gated_launch(const char* symbol, void** function,
+                             bool per_thread)
+{
+    if (function == nullptr || *function == nullptr) {
+        return;
+    }
+    if (void* replacement = gated_launch_wrapper_address(symbol, per_thread)) {
+        *function = replacement;
+    }
+}
+
+}  // namespace
+
+extern "C" CUresult cuGetProcAddress(const char* symbol, void** function,
+                                     int cuda_version, cuuint64_t flags)
+{
+    using type = CUresult (*)(const char*, void**, int, cuuint64_t);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGetProcAddress"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(symbol, function, cuda_version, flags);
+    if (result == CUDA_SUCCESS) {
+        substitute_gated_launch(
+            symbol, function,
+            (flags & CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM) != 0);
+    }
+    return result;
+}
+
+extern "C" CUresult cuGetProcAddress_v2(const char* symbol, void** function,
+                                        int cuda_version, cuuint64_t flags,
+                                        CUdriverProcAddressQueryResult* status)
+{
+    using type = CUresult (*)(const char*, void**, int, cuuint64_t,
+                              CUdriverProcAddressQueryResult*);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGetProcAddress_v2"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(symbol, function, cuda_version, flags, status);
+    if (result == CUDA_SUCCESS) {
+        substitute_gated_launch(
+            symbol, function,
+            (flags & CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM) != 0);
+    }
+    return result;
+}
+
+namespace {
+
+cudaError_t runtime_driver_entry_point(const char* lookup_symbol,
+                                       const char* symbol, void** function,
+                                       unsigned int* cuda_version,
+                                       unsigned long long flags,
+                                       cudaDriverEntryPointQueryResult* status)
+{
+    cudaError_t result = cudaErrorInitializationError;
+    if (cuda_version == nullptr) {
+        using type = cudaError_t (*)(const char*, void**, unsigned long long,
+                                     cudaDriverEntryPointQueryResult*);
+        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, lookup_symbol));
+        if (original != nullptr) {
+            result = original(symbol, function, flags, status);
+        }
+    } else {
+        using type = cudaError_t (*)(const char*, void**, unsigned int,
+                                     unsigned long long,
+                                     cudaDriverEntryPointQueryResult*);
+        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, lookup_symbol));
+        if (original != nullptr) {
+            result = original(symbol, function, *cuda_version, flags, status);
+        }
+    }
+    if (result == cudaSuccess) {
+        const std::size_t lookup_length = std::strlen(lookup_symbol);
+        const bool lookup_is_ptsz =
+            lookup_length >= 5 &&
+            std::strcmp(lookup_symbol + lookup_length - 5, "_ptsz") == 0;
+        substitute_gated_launch(
+            symbol, function,
+            lookup_is_ptsz || (flags & cudaEnablePerThreadDefaultStream) != 0);
+    }
+    return result;
+}
+
+}  // namespace
+
+#define HBFSIM_RUNTIME_DRIVER_ENTRY(name)                                      \
+    extern "C" cudaError_t name(const char* symbol, void** function,           \
+                                unsigned long long flags,                      \
+                                cudaDriverEntryPointQueryResult* status)       \
+    {                                                                          \
+        return runtime_driver_entry_point(#name, symbol, function, nullptr,    \
+                                          flags, status);                      \
+    }
+
+HBFSIM_RUNTIME_DRIVER_ENTRY(cudaGetDriverEntryPoint)
+HBFSIM_RUNTIME_DRIVER_ENTRY(cudaGetDriverEntryPoint_ptsz)
+
+#define HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(name)                            \
+    extern "C" cudaError_t name(                                               \
+        const char* symbol, void** function, unsigned int cuda_version,        \
+        unsigned long long flags, cudaDriverEntryPointQueryResult* status)     \
+    {                                                                          \
+        return runtime_driver_entry_point(#name, symbol, function,             \
+                                          &cuda_version, flags, status);       \
+    }
+
+HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion)
+HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion_ptsz)

@@ -44,11 +44,14 @@ GateDecision rejected(const KernelLaunch& launch, const std::string& reason)
 
 }  // namespace
 
-std::string module_id_from_marker(std::uint64_t marker)
+std::string
+module_id_from_identity(const std::array<std::uint8_t, 32>& identity)
 {
     std::ostringstream output;
-    output << "ptx:" << std::hex << std::setfill('0') << std::setw(16)
-           << marker;
+    output << "ptx:sha256:" << std::hex << std::setfill('0');
+    for (const auto byte : identity) {
+        output << std::setw(2) << static_cast<unsigned>(byte);
+    }
     return output.str();
 }
 

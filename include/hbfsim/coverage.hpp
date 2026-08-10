@@ -1,10 +1,13 @@
 #pragma once
 
+#include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -19,11 +22,22 @@ class LaunchRangeSynchronizer {
     }
     [[nodiscard]] std::unique_lock<std::shared_mutex> registration_guard()
     {
-        return std::unique_lock(mutex_);
+        std::unique_lock lock(mutex_);
+        if (launch_seen_.load(std::memory_order_acquire)) {
+            throw std::logic_error(
+                "HBF ranges must be registered before the first launch");
+        }
+        return lock;
+    }
+    // The caller must hold launch_guard() until the launch has been enqueued.
+    void mark_launch_seen() noexcept
+    {
+        launch_seen_.store(true, std::memory_order_release);
     }
 
   private:
     std::shared_mutex mutex_;
+    std::atomic_bool launch_seen_{false};
 };
 
 enum class ParameterKind { Scalar, Pointer, OpaqueAggregate };
@@ -84,7 +98,8 @@ struct GateDecision {
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);
-[[nodiscard]] std::string module_id_from_marker(std::uint64_t marker);
+[[nodiscard]] std::string
+module_id_from_identity(const std::array<std::uint8_t, 32>& identity);
 [[nodiscard]] GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
                                                          std::string kind);
 

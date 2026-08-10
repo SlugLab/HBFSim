@@ -4,6 +4,7 @@ import ctypes
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,20 @@ import tempfile
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
+
+
+def request_for(ptx: str, kernel: str) -> bytes:
+    return json.dumps(
+        {
+            "input": {
+                "full_ptx": ptx,
+                "to_patch_kernel": kernel,
+                "global_ebpf_map_info_symbol": "map_info",
+                "ebpf_communication_data_symbol": "constData",
+            },
+            "ebpf_instructions": [],
+        }
+    ).encode()
 
 
 def main() -> int:
@@ -26,17 +41,7 @@ def main() -> int:
     require(config["name"] == "hbf_memory", "unexpected plugin name")
 
     ptx = pathlib.Path("tests/fixtures/ptx/supported.ptx").read_text()
-    request = json.dumps(
-        {
-            "input": {
-                "full_ptx": ptx,
-                "to_patch_kernel": "kernel",
-                "global_ebpf_map_info_symbol": "map_info",
-                "ebpf_communication_data_symbol": "constData",
-            },
-            "ebpf_instructions": [],
-        }
-    ).encode()
+    request = request_for(ptx, "kernel")
     output = ctypes.create_string_buffer(16 * 1024 * 1024)
     with tempfile.TemporaryDirectory(prefix="hbfsim-pass-") as directory:
         manifest_path = pathlib.Path(directory) / "manifests.jsonl"
@@ -56,12 +61,16 @@ def main() -> int:
             },
             f"unexpected plugin coverage: {response['coverage']}",
         )
-        require(response["output_ptx"].count("__hbfsim_module_marker") == 1,
-                "transformed PTX must contain exactly one module marker")
+        require(response["output_ptx"].count("__hbfsim_module_identity") == 1,
+                "transformed PTX must contain exactly one module identity")
+        require(".visible .const .align 8 .b8 __hbfsim_module_identity[32]"
+                in response["output_ptx"],
+                "module identity must use immutable PTX constant storage")
 
         manifest = json.loads(manifest_path.read_text())
-        require(manifest["module_id"].startswith("ptx:"),
-                "manifest lacks PTX module identity")
+        require(re.fullmatch(r"ptx:sha256:[0-9a-f]{64}",
+                             manifest["module_id"]) is not None,
+                f"manifest lacks SHA-256 module identity: {manifest['module_id']}")
         require(manifest["kernel"] == "kernel", "manifest kernel mismatch")
         require(manifest["ptx_target"] == "sm_120", "manifest target mismatch")
         require(manifest["instrumented"] is True,
@@ -76,9 +85,12 @@ def main() -> int:
         )
         require(manifest["unsupported_parameters"] == [],
                 "supported kernel has unsupported parameters")
-        marker = manifest["module_id"].removeprefix("ptx:")
-        require(f"__hbfsim_module_marker = 0x{marker}" in response["output_ptx"],
-                "manifest identity does not match injected module marker")
+        identity = manifest["module_id"].removeprefix("ptx:sha256:")
+        identity_bytes = ", ".join(
+            f"0x{identity[index:index + 2]}" for index in range(0, 64, 2)
+        )
+        require(identity_bytes in response["output_ptx"],
+                "manifest identity does not match injected module identity")
         ptx_file = pathlib.Path(directory) / "marked.ptx"
         cubin_file = pathlib.Path(directory) / "marked.cubin"
         ptx_file.write_text(response["output_ptx"])
@@ -90,6 +102,94 @@ def main() -> int:
             )
             require(assembled.returncode == 0,
                     f"marked PTX failed to assemble: {assembled.stderr}")
+
+        malicious_ptx = ptx.replace(
+            ".address_size 64\n",
+            ".address_size 64\n.visible .const .align 8 .b8 "
+            "__hbfsim_module_identity[32];\n",
+        )
+        malicious_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        malicious_status = plugin.process_input(
+            request_for(malicious_ptx, "kernel"), len(malicious_output),
+            malicious_output,
+        )
+        require(malicious_status != 0,
+                "plugin accepted an untrusted preexisting identity marker")
+
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = "/proc/1/hbfsim-manifest.jsonl"
+        manifest_error_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        manifest_error_status = plugin.process_input(
+            request, len(manifest_error_output), manifest_error_output,
+        )
+        require(manifest_error_status != 0,
+                "plugin ignored an undurable manifest error")
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest_path)
+
+        second_kernel = """
+.visible .entry kernel_b(
+    .param .u64 kernel_b_ptr
+)
+{
+    .reg .b32 %r<4>;
+    .reg .b64 %rd<4>;
+    ld.param.u64 %rd1, [kernel_b_ptr];
+    ld.global.u32 %r1, [%rd1];
+    ret;
+}
+"""
+        multi_ptx = ptx.replace(".visible .entry kernel(",
+                                ".visible .entry kernel_a(") + second_kernel
+        manifest_path.unlink()
+        first_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        first_status = plugin.process_input(
+            request_for(multi_ptx, "kernel_a"), len(first_output), first_output)
+        require(first_status == 0,
+                f"first sequential pass failed with status {first_status}")
+        first_response = json.loads(first_output.value)
+        second_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        second_status = plugin.process_input(
+            request_for(first_response["output_ptx"], "kernel_b"),
+            len(second_output), second_output,
+        )
+        require(second_status == 0,
+                f"second sequential pass failed with status {second_status}")
+        sequential_manifests = [
+            json.loads(line) for line in manifest_path.read_text().splitlines()
+            if line
+        ]
+        require(len(sequential_manifests) == 2,
+                "sequential pass did not emit two manifests")
+        require(sequential_manifests[0]["module_id"] ==
+                sequential_manifests[1]["module_id"],
+                "sequential passes changed trusted module identity")
+        second_response = json.loads(second_output.value)
+        require(second_response["output_ptx"].count(
+                    "__hbfsim_module_identity") == 1,
+                "sequential pass duplicated module identity storage")
+        if ptxas.exists():
+            ptx_file.write_text(second_response["output_ptx"])
+            assembled = subprocess.run(
+                [str(ptxas), "-arch=sm_120", str(ptx_file), "-o", str(cubin_file)],
+                text=True, capture_output=True,
+            )
+            require(assembled.returncode == 0,
+                    f"sequential marked PTX failed to assemble: {assembled.stderr}")
+
+        first_byte = re.search(r"0x([0-9a-f]{2})",
+                               second_response["output_ptx"])
+        require(first_byte is not None, "trusted identity has no bytes")
+        replacement = "0x00" if first_byte.group(1) != "00" else "0x01"
+        mutated_ptx = (
+            second_response["output_ptx"][:first_byte.start()] + replacement +
+            second_response["output_ptx"][first_byte.end():]
+        )
+        mutated_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        mutated_status = plugin.process_input(
+            request_for(mutated_ptx, "kernel_b"), len(mutated_output),
+            mutated_output,
+        )
+        require(mutated_status != 0,
+                "plugin accepted a mutated trusted module state")
         manifest_path.unlink()
 
         aggregate_ptx = pathlib.Path(

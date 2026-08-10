@@ -8,6 +8,7 @@ option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF
 
 include(CTest)
 include(cmake/Dependencies.cmake)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
 add_library(
     hbfsim_core STATIC
@@ -18,6 +19,7 @@ add_library(
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/transform.cpp
     src/reporting/coverage_writer.cpp
+    src/reporting/durable_append.cpp
 )
 target_include_directories(
     hbfsim_core
@@ -55,6 +57,14 @@ add_executable(coverage_gate_test tests/cpu/coverage_gate_test.cpp)
 target_link_libraries(coverage_gate_test PRIVATE hbfsim_core)
 add_test(NAME coverage_gate COMMAND coverage_gate_test)
 
+add_executable(durable_append_test tests/cpu/durable_append_test.cpp)
+target_link_libraries(durable_append_test PRIVATE hbfsim_core)
+target_link_options(
+    durable_append_test PRIVATE
+    "LINKER:--wrap=write,--wrap=fdatasync,--wrap=fsync"
+)
+add_test(NAME durable_append COMMAND durable_append_test)
+
 add_executable(ptx_transform_test tests/cpu/ptx_transform_test.cpp)
 target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)
 target_include_directories(
@@ -79,7 +89,7 @@ set_target_properties(
 )
 
 add_library(ptxpass_hbf_plugin SHARED src/ptxpass_hbf/plugin.cpp)
-target_link_libraries(ptxpass_hbf_plugin PRIVATE hbfsim_core)
+target_link_libraries(ptxpass_hbf_plugin PRIVATE hbfsim_core OpenSSL::Crypto)
 target_include_directories(
     ptxpass_hbf_plugin
     PRIVATE
@@ -192,6 +202,9 @@ if(CUDAToolkit_FOUND)
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     if(BUILD_TESTING)
+        add_library(
+            fake_cuda_lookup SHARED tests/integration/fake_cuda_lookup.cpp
+        )
         find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
         add_test(
             NAME launch_gate_symbols
@@ -201,6 +214,13 @@ if(CUDAToolkit_FOUND)
                     "${HBFSIM_NM_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/launch_gate.cpp"
                     "${CUDAToolkit_VERSION}"
+        )
+        add_test(
+            NAME cuda_lookup_interposition
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_lookup_interposition.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+                    "$<TARGET_FILE:fake_cuda_lookup>"
         )
     endif()
 elseif(HBFSIM_ENABLE_CUDA)

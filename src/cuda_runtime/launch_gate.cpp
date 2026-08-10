@@ -17,6 +17,15 @@
 #ifdef cuGetProcAddress
 #undef cuGetProcAddress
 #endif
+#ifdef cuCtxDestroy
+#undef cuCtxDestroy
+#endif
+#ifdef cuDevicePrimaryCtxRelease
+#undef cuDevicePrimaryCtxRelease
+#endif
+#ifdef cuDevicePrimaryCtxReset
+#undef cuDevicePrimaryCtxReset
+#endif
 
 namespace {
 
@@ -96,6 +105,12 @@ hbfsim::ModuleIdentityRegistry& module_identities()
 {
     static hbfsim::ModuleIdentityRegistry registry;
     return registry;
+}
+
+hbfsim::ModuleLoadTransactionStore& module_load_transactions()
+{
+    static hbfsim::ModuleLoadTransactionStore transactions;
+    return transactions;
 }
 
 void* driver_symbol(const char* name)
@@ -656,16 +671,18 @@ cudaLaunchCooperativeKernelMultiDevice(struct cudaLaunchParams* launches,
 }
 #endif
 
-extern "C" int hbfsim_expect_module_identity(const std::uint8_t* identity,
-                                             std::size_t size) noexcept
+extern "C" std::uint64_t
+hbfsim_begin_module_load_from_ptx(const char* ptx, std::size_t size) noexcept
 {
-    if (identity == nullptr || size != hbfsim::ModuleIdentity{}.size()) {
-        return -1;
+    if (ptx == nullptr) {
+        return 0;
     }
-    hbfsim::ModuleIdentity value{};
-    std::memcpy(value.data(), identity, value.size());
-    module_identities().expect(value);
-    return 0;
+    return module_load_transactions().begin(std::string_view(ptx, size));
+}
+
+extern "C" void hbfsim_end_module_load(std::uint64_t token) noexcept
+{
+    module_load_transactions().end(token);
 }
 
 extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
@@ -673,24 +690,26 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
                                        CUjit_option* options,
                                        void** option_values)
 {
+    const auto trusted_identity = module_load_transactions().take();
     using type = CUresult (*)(CUmodule*, const void*, unsigned int,
                               CUjit_option*, void**);
     auto original =
         reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuModuleLoadDataEx"));
     if (original == nullptr) {
-        module_identities().discard_expectations();
         return CUDA_ERROR_NOT_INITIALIZED;
     }
     const auto result =
         original(module, image, option_count, options, option_values);
     if (result != CUDA_SUCCESS) {
-        module_identities().discard_expectations();
         return result;
     }
-    if (module != nullptr && *module != nullptr) {
+    if (trusted_identity.has_value() && module != nullptr &&
+        *module != nullptr) {
         if (const auto identity = live_module_identity(*module)) {
-            (void)module_identities().associate(module_handle(*module),
-                                                *identity);
+            if (*identity == *trusted_identity) {
+                (void)module_identities().associate(module_handle(*module),
+                                                    *identity);
+            }
         }
     }
     return result;
@@ -709,6 +728,141 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
     }
     return result;
 }
+
+extern "C" CUresult cuCtxDestroy(CUcontext context)
+{
+    using type = CUresult (*)(CUcontext);
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDestroy"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(context);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+extern "C" CUresult cuCtxDestroy_v2(CUcontext context)
+{
+    using type = CUresult (*)(CUcontext);
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDestroy_v2"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(context);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+extern "C" CUresult cuDevicePrimaryCtxReset(CUdevice device)
+{
+    using type = CUresult (*)(CUdevice);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxReset"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(device);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+extern "C" CUresult cuDevicePrimaryCtxReset_v2(CUdevice device)
+{
+    using type = CUresult (*)(CUdevice);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxReset_v2"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(device);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+extern "C" CUresult cuDevicePrimaryCtxRelease(CUdevice device)
+{
+    using type = CUresult (*)(CUdevice);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxRelease"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(device);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+extern "C" CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device)
+{
+    using type = CUresult (*)(CUdevice);
+    auto original = reinterpret_cast<type>(
+        dlsym(RTLD_NEXT, "cuDevicePrimaryCtxRelease_v2"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(device);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+#if CUDA_VERSION >= 12040
+extern "C" CUresult cuGreenCtxDestroy(CUgreenCtx context)
+{
+    using type = CUresult (*)(CUgreenCtx);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGreenCtxDestroy"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(context);
+    if (result == CUDA_SUCCESS) {
+        module_identities().clear();
+    }
+    return result;
+}
+#endif
+
+extern "C" cudaError_t cudaDeviceReset()
+{
+    using type = cudaError_t (*)();
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cudaDeviceReset"));
+    if (original == nullptr) {
+        return cudaErrorInitializationError;
+    }
+    const auto result = original();
+    if (result == cudaSuccess) {
+        module_identities().clear();
+    }
+    return result;
+}
+
+#if CUDART_VERSION < 13000
+extern "C" cudaError_t cudaThreadExit()
+{
+    using type = cudaError_t (*)();
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cudaThreadExit"));
+    if (original == nullptr) {
+        return cudaErrorInitializationError;
+    }
+    const auto result = original();
+    if (result == cudaSuccess) {
+        module_identities().clear();
+    }
+    return result;
+}
+#endif
 
 namespace {
 
@@ -753,6 +907,19 @@ void* interposed_wrapper_address(const char* symbol, bool per_thread)
          wrapper_address(&cuGraphLaunch_ptsz)},
         {"cuModuleLoadDataEx", wrapper_address(&cuModuleLoadDataEx), nullptr},
         {"cuModuleUnload", wrapper_address(&cuModuleUnload), nullptr},
+        {"cuCtxDestroy", wrapper_address(&cuCtxDestroy), nullptr},
+        {"cuCtxDestroy_v2", wrapper_address(&cuCtxDestroy_v2), nullptr},
+        {"cuDevicePrimaryCtxReset", wrapper_address(&cuDevicePrimaryCtxReset),
+         nullptr},
+        {"cuDevicePrimaryCtxReset_v2",
+         wrapper_address(&cuDevicePrimaryCtxReset_v2), nullptr},
+        {"cuDevicePrimaryCtxRelease",
+         wrapper_address(&cuDevicePrimaryCtxRelease), nullptr},
+        {"cuDevicePrimaryCtxRelease_v2",
+         wrapper_address(&cuDevicePrimaryCtxRelease_v2), nullptr},
+#if CUDA_VERSION >= 12040
+        {"cuGreenCtxDestroy", wrapper_address(&cuGreenCtxDestroy), nullptr},
+#endif
     };
     for (const auto& wrapper : wrappers) {
         if (std::strcmp(symbol, wrapper.name) == 0) {

@@ -31,9 +31,11 @@ def request_for(ptx: str, kernel: str) -> bytes:
 
 def main() -> int:
     source = pathlib.Path(sys.argv[2]).read_text()
-    require("hbfsim_expect_module_identity" in source and
-            "dlsym(RTLD_DEFAULT" in source,
-            "trusted PTX output does not publish its module-load expectation")
+    for forbidden in ("hbfsim_expect_module_identity",
+                      "publish_module_expectation", "dlsym(RTLD_DEFAULT"):
+        require(forbidden not in source,
+                "PTX pass still publishes stale process-global trust: "
+                f"{forbidden}")
     plugin = ctypes.CDLL(str(pathlib.Path(sys.argv[1]).resolve()))
     plugin.print_config.argtypes = [ctypes.c_int, ctypes.c_char_p]
     plugin.process_input.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p]

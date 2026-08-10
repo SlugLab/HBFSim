@@ -95,7 +95,7 @@ set_target_properties(
 
 add_library(ptxpass_hbf_plugin SHARED src/ptxpass_hbf/plugin.cpp)
 target_link_libraries(
-    ptxpass_hbf_plugin PRIVATE hbfsim_core OpenSSL::Crypto ${CMAKE_DL_LIBS}
+    ptxpass_hbf_plugin PRIVATE hbfsim_core OpenSSL::Crypto
 )
 target_include_directories(
     ptxpass_hbf_plugin
@@ -123,6 +123,23 @@ if(BUILD_TESTING)
         ptxpass_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
 
+    add_test(
+        NAME bpftime_patch
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_patch.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+    )
+    add_test(
+        NAME build_patched_bpftime
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_build_patched_bpftime.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build_patched_bpftime.sh"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+    )
+
     add_executable(
         coverage_manifest_flow_test
         tests/integration/coverage_manifest_flow_test.cpp
@@ -148,6 +165,7 @@ if(BUILD_TESTING)
             "${HBFSIM_PYTHON3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_run_with_bpftime.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_with_bpftime.sh"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
     )
 endif()
 
@@ -232,6 +250,7 @@ if(CUDAToolkit_FOUND)
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_lookup_interposition.py"
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
+                    "${CUDAToolkit_VERSION}"
         )
         add_test(
             NAME cuda_module_association
@@ -241,6 +260,7 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:fake_cuda_lookup>"
                     "$<TARGET_FILE:ptxpass_hbf_plugin>"
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
+                    "${CUDAToolkit_VERSION}"
         )
     endif()
 elseif(HBFSIM_ENABLE_CUDA)

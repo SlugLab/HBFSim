@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import os
 import pathlib
 import stat
@@ -20,6 +21,7 @@ def executable(path: pathlib.Path, text: str) -> None:
 
 def main() -> int:
     wrapper = pathlib.Path(sys.argv[1]).resolve()
+    patch = pathlib.Path(sys.argv[2]).resolve()
     with tempfile.TemporaryDirectory(prefix="hbfsim-wrapper-") as directory:
         root = pathlib.Path(directory)
         hbfsim_build = root / "hbfsim-build"
@@ -40,11 +42,13 @@ def main() -> int:
         probe = root / "probe.bpf.o"
         probe.touch()
         loader = root / "loader"
+        loader_started = root / "loader-started"
         executable(
             loader,
             "#!/usr/bin/env bash\n"
             "set -eu\n"
             "test -r \"$1\"\n"
+            f"touch {loader_started}\n"
             "printf 'HBFSIM_BPFTIME_ATTACH_READY v1\\nshm=bpftime\\nattach_type=8\\nentries=1\\n' > \"$2\"\n"
             "exec /bin/sleep 30\n",
         )
@@ -72,6 +76,49 @@ def main() -> int:
                 "LD_PRELOAD": str(preload),
             }
         )
+        missing_stamp = subprocess.run(
+            [str(wrapper), "--", str(command), str(output)],
+            env=env,
+            text=True,
+            capture_output=True,
+        )
+        require(missing_stamp.returncode == 66 and
+                "bpftime build provenance is missing" in missing_stamp.stderr,
+                f"wrapper accepted missing provenance: {missing_stamp.stderr}")
+        require(not loader_started.exists(),
+                "wrapper started loader before checking missing provenance")
+
+        commit = "ec26daecc8e787fb80fd95dd596a576404a5e36e"
+        digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+        stamp = bpftime_build / "hbfsim-bpftime.provenance"
+
+        def write_stamp(stamp_commit: str, stamp_digest: str,
+                        version: str) -> None:
+            stamp.write_text(
+                f"bpftime_commit={stamp_commit}\n"
+                f"patch_sha256={stamp_digest}\n"
+                f"bridge_version={version}\n"
+            )
+
+        for label, stamp_commit, stamp_digest, version in (
+            ("commit", "0" * 40, digest, "1"),
+            ("digest", commit, "0" * 64, "1"),
+            ("version", commit, digest, "2"),
+        ):
+            write_stamp(stamp_commit, stamp_digest, version)
+            rejected_stamp = subprocess.run(
+                [str(wrapper), "--", str(command), str(output)],
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            require(rejected_stamp.returncode == 66 and
+                    "bpftime build provenance mismatch" in rejected_stamp.stderr,
+                    f"wrapper accepted wrong {label}: {rejected_stamp.stderr}")
+            require(not loader_started.exists(),
+                    f"wrapper started loader before rejecting wrong {label}")
+
+        write_stamp(commit, digest, "1")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,

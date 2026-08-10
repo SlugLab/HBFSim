@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+
+import pathlib
+import subprocess
+import sys
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise RuntimeError(message)
+
+
+def main() -> int:
+    patch = pathlib.Path(sys.argv[1]).resolve()
+    bpftime = pathlib.Path(sys.argv[2]).resolve()
+    require(patch.is_file(), f"bpftime provenance patch is missing: {patch}")
+    applied = subprocess.run(
+        ["git", "-C", str(bpftime), "apply", "--check", str(patch)],
+        text=True,
+        capture_output=True,
+    )
+    require(applied.returncode == 0,
+            f"bpftime provenance patch does not apply: {applied.stderr}")
+
+    text = patch.read_text()
+    for required in (
+        "hbfsim_begin_module_load_from_ptx",
+        "hbfsim_end_module_load",
+        "module_load_provenance_scope",
+        "cuModuleLoadDataEx",
+        "test_module_load_provenance.cpp",
+        "both callbacks absent",
+        "partial callback pair",
+        "zero begin token",
+        "matching begin and end",
+    ):
+        require(required in text,
+                f"bpftime provenance patch lacks contract evidence: {required}")
+
+    cache_hit = text.find('SPDLOG_INFO("Module {} found in cache"')
+    cache_miss = text.find("module_load_provenance_scope provenance")
+    load = text.find("cuModuleLoadDataEx", cache_miss)
+    require(cache_hit >= 0 and cache_miss > cache_hit and load > cache_miss,
+            "bpftime bridge is not confined to the cache-miss load path")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

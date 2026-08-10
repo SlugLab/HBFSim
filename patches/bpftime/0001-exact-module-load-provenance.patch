@@ -1,0 +1,528 @@
+From 824a729c562e247ddd55a861d86e8dff5d165fca Mon Sep 17 00:00:00 2001
+From: HBFSim <hbfsim@example.invalid>
+Date: Mon, 10 Aug 2026 06:58:01 +0000
+Subject: [PATCH] exact module load provenance
+
+---
+ attach/nv_attach_impl/CMakeLists.txt          |  1 +
+ .../nv_attach_fatbin_record.cpp               | 23 ++++-
+ .../nv_attach_module_load_provenance.cpp      | 47 ++++++++++
+ .../nv_attach_module_load_provenance.hpp      | 39 ++++++++
+ attach/nv_attach_impl/test/CMakeLists.txt     |  1 +
+ .../test/test_module_load_provenance.cpp      | 93 +++++++++++++++++++
+ 6 files changed, 199 insertions(+), 5 deletions(-)
+ create mode 100644 attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
+ create mode 100644 attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
+ create mode 100644 attach/nv_attach_impl/test/test_module_load_provenance.cpp
+
+diff --git a/attach/nv_attach_impl/CMakeLists.txt b/attach/nv_attach_impl/CMakeLists.txt
+index 692c084..b7b591d 100644
+--- a/attach/nv_attach_impl/CMakeLists.txt
++++ b/attach/nv_attach_impl/CMakeLists.txt
+@@ -1,80 +1,81 @@
+ include(../../cmake/cuda.cmake)
+ 
+ # PTX transform passes now live under pass/
+ add_subdirectory(pass/ptxpass_core)
+ add_subdirectory(pass/ptxpass_kprobe_entry)
+ add_subdirectory(pass/ptxpass_kretprobe)
+ add_subdirectory(pass/ptxpass_kprobe_memcapture)
+ 
+ list(APPEND PTX_PASS_EXECUTABLE $<TARGET_FILE:ptxpass_kprobe_entry>)
+ list(APPEND PTX_PASS_EXECUTABLE $<TARGET_FILE:ptxpass_kretprobe>)
+ list(APPEND PTX_PASS_EXECUTABLE $<TARGET_FILE:ptxpass_kprobe_memcapture>)
+ 
+ message("PTX_PASS_EXECUTABLE=${PTX_PASS_EXECUTABLE}")
+ 
+ 
+ # Independent PTX compiler
+ add_subdirectory(ptx_compiler)
+ 
+ list(APPEND PTX_COMPILER_SHARED_LIB $<TARGET_FILE:nv_attach_impl_ptx_compiler>)
+ 
+ message("PTX_COMPILER_SHARED_LIB=${PTX_COMPILER_SHARED_LIB}")
+ 
+ add_library(
+     bpftime_nv_attach_impl STATIC
+     nv_attach_impl.cpp
+     nv_attach_private_data.cpp
+     nv_attach_impl_frida_setup.cpp
+     nv_attach_impl_patcher.cpp
+     nv_attach_utils.cpp
+     nv_attach_fatbin_record.cpp
++    nv_attach_module_load_provenance.cpp
+     nv_elf_introspect.cpp
+ )
+ 
+ add_dependencies(
+     bpftime_nv_attach_impl
+     bpftime_base_attach_impl
+     spdlog::spdlog
+     FridaGum
+     llvmbpf_vm
+     bpftime_vm_compat
+     ptxpass_core
+     ptxpass_kprobe_entry
+     ptxpass_kretprobe
+     ptxpass_kprobe_memcapture
+     nv_attach_impl_ptx_compiler
+ )
+ set(NV_ATTACH_IMPL_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} )
+ find_cuda()
+ 
+ target_include_directories(bpftime_nv_attach_impl PRIVATE ${SPDLOG_INCLUDE} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/third_party PUBLIC ${CMAKE_SOURCE_DIR}/runtime/ ${BASE_ATTACH_IMPL_INCLUDE} ${NV_ATTACH_IMPL_INCLUDE} ${CUDA_INCLUDE_PATH} ${FRIDA_GUM_INSTALL_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../runtime ${CMAKE_CURRENT_SOURCE_DIR}/../../vm/llvm-jit/include ${CMAKE_CURRENT_SOURCE_DIR}/pass/ptxpass_core/include)
+ 
+ target_link_directories(bpftime_nv_attach_impl PUBLIC ${CUDA_LIBRARY_PATH} )
+ 
+ target_link_libraries(bpftime_nv_attach_impl PUBLIC bpftime_base_attach_impl spdlog::spdlog ${CUDA_LIBS} PRIVATE  ${FRIDA_GUM_INSTALL_DIR}/libfrida-gum.a PUBLIC llvmbpf_vm bpftime_vm_compat ptxpass_core)
+ 
+ set_property(TARGET bpftime_nv_attach_impl PROPERTY CXX_STANDARD 20)
+ 
+ # nv_attach_impl includes internal llvmbpf headers that include LLVM headers
+ # (e.g. vm/llvm-jit/src/llvm_jit_context.hpp). Make sure LLVM include dirs are
+ # available to this target as well.
+ if(DEFINED LLVM_INCLUDE_DIRS)
+   target_include_directories(bpftime_nv_attach_impl PRIVATE ${LLVM_INCLUDE_DIRS})
+ endif()
+ get_target_property(LLVMBPF_VM_INCLUDES llvmbpf_vm INCLUDE_DIRECTORIES)
+ if(LLVMBPF_VM_INCLUDES)
+   target_include_directories(bpftime_nv_attach_impl PRIVATE ${LLVMBPF_VM_INCLUDES})
+ endif()
+ 
+ # Create a build-time header file with the PTX pass paths
+ # This avoids shell escaping issues with colons and quotes
+ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ptx_pass_config.h"
+      CONTENT "#pragma once\nstatic constexpr const char *DEFAULT_PTX_PASS_EXECUTABLE = \"$<JOIN:${PTX_PASS_EXECUTABLE},:>\";static constexpr const char* DEFAULT_PTX_COMPILER_SHARED_LIB=\"$<JOIN:${PTX_COMPILER_SHARED_LIB},:>\";\n")
+ 
+ 
+ target_link_options(bpftime_nv_attach_impl PUBLIC "-Wl,--whole-archive" "$<TARGET_FILE:bpftime_nv_attach_impl>" "-Wl,--no-whole-archive")
+ 
+ add_subdirectory(test)
+ 
+ 
+ find_package(OpenSSL REQUIRED)
+diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+index 2e0f799..5562858 100644
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+@@ -1,51 +1,52 @@
+ #include "nv_attach_fatbin_record.hpp"
++#include "nv_attach_module_load_provenance.hpp"
+ #include "cuda.h"
+ #include "nvPTXCompiler.h"
+ #include "nv_attach_utils.hpp"
+ #include "spdlog/spdlog.h"
+ #include "nv_attach_impl.hpp"
+ #include <boost/asio/post.hpp>
+ #include <boost/asio/thread_pool.hpp>
+ #include <cstddef>
+ #include <cstdint>
+ #include <cstring>
+ #include <cstdio>
+ #include <dlfcn.h>
+ #include <iterator>
+ #include <stdexcept>
+ #include <ptx_pass_config.h>
+ #include "ptx_compiler/ptx_compiler.hpp"
+ #include <utility>
+ #define CUDA_DRIVER_CHECK_NO_EXCEPTION(expr, message)                          \
+ 	do {                                                                   \
+ 		if (auto err = expr; err != CUDA_SUCCESS) {                    \
+ 			SPDLOG_ERROR("{}: {}", message, (int)err);             \
+ 		}                                                              \
+ 	} while (false)
+ #define CUDA_DRIVER_CHECK_EXCEPTION(expr, message)                             \
+ 	do {                                                                   \
+ 		if (auto err = expr; err != CUDA_SUCCESS) {                    \
+ 			SPDLOG_ERROR("{}: {}", message, (int)err);             \
+ 			throw std::runtime_error(message);                     \
+ 		}                                                              \
+ 	} while (false)
+ #define NVPTXCOMPILER_CHECK_EXCEPTION(x, message)                              \
+ 	do {                                                                   \
+ 		nvPTXCompileResult result = x;                                 \
+ 		if (result != NVPTXCOMPILE_SUCCESS) {                          \
+ 			SPDLOG_ERROR("error: {} failed with error code {}\n",  \
+ 				     #x, (int)result);                         \
+ 			throw std::runtime_error(message);                     \
+ 		}                                                              \
+ 	} while (0)
+ namespace bpftime::attach
+ {
+ using bpftime::attach::rewrite_ptx_target;
+ 
+ fatbin_record::~fatbin_record()
+ {
+ }
+ ptx_in_module::~ptx_in_module()
+ {
+ 	CUDA_DRIVER_CHECK_NO_EXCEPTION(cuModuleUnload(this->module_ptr),
+ 				       "Unable to unload module");
+@@ -179,104 +180,116 @@ std::map<std::string, std::vector<uint8_t>> fatbin_record::compile_ptxs(
+ 					compiled_ptx[name] = compiled_program;
+ 					this->ptx_pool->insert(std::make_pair(
+ 						sha256_string,
+ 						compiled_program));
+ 					SPDLOG_INFO("Compile of {} done", name);
+ 				}
+ 			});
+ 	}
+ 	pool.join();
+ 	return compiled_ptx;
+ }
+ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ {
+ 	if (ptx_loaded)
+ 		return;
+ 	if (impl.shared_mem_ptr == 0) {
+ 		throw std::runtime_error(
+ 			"shared_mem_ptr is not initialized before loading PTX");
+ 	}
+ 	SPDLOG_INFO("Loading & patching current fatbin..");
+ 
+ 	auto patched_ptx = *impl.hack_fatbin(original_ptx);
+ 
+ 	auto compiled_ptx = compile_ptxs(impl, patched_ptx);
+ 
+ 	for (const auto &[name, ptx_and_trampoline_flag] : patched_ptx) {
+ 		const auto &ptx = std::get<0>(ptx_and_trampoline_flag);
+ 		bool added_trampoline = std::get<1>(ptx_and_trampoline_flag);
+ 		const auto &compiled_elf = compiled_ptx.at(name);
+ 		auto sha256_string =
+ 			sha256(compiled_elf.data(), compiled_elf.size());
+ 		if (auto itr = module_pool->find(sha256_string);
+ 		    itr != module_pool->end()) {
+ 			SPDLOG_INFO("Module {} found in cache", name);
+ 			ptxs.push_back(itr->second);
+ 		} else {
+ 			CUmodule module;
+ 			SPDLOG_INFO("Loading module: {}, not found in cache",
+ 				    name);
+ 			char error_buf[8192] = { 0 }, info_buf[8192] = { 0 };
+ 			CUjit_option options[] = {
+ 				CU_JIT_INFO_LOG_BUFFER,
+ 				CU_JIT_INFO_LOG_BUFFER_SIZE_BYTES,
+ 				CU_JIT_ERROR_LOG_BUFFER,
+ 				CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES
+ 			};
+ 			void *option_values[] = {
+ 				(void *)info_buf, (void *)std::size(info_buf),
+ 				(void *)error_buf, (void *)std::size(error_buf)
+ 			};
+-			if (auto err = cuModuleLoadDataEx(
+-				    &module, compiled_elf.data(),
+-				    std::size(options), options, option_values);
+-			    err != CUDA_SUCCESS) {
++			CUresult load_result;
++			{
++				module_load_provenance_scope provenance(
++					ptx, find_module_load_provenance_hooks());
++				if (!provenance.permits_load()) {
++					SPDLOG_ERROR(
++						"Module {} load provenance rejected",
++						name);
++					throw std::runtime_error(
++						"Module load provenance rejected");
++				}
++				load_result = cuModuleLoadDataEx(
++					&module, compiled_elf.data(),
++					std::size(options), options, option_values);
++			}
++			if (load_result != CUDA_SUCCESS) {
+ 				SPDLOG_ERROR("Unable to compile module {}: {}",
+-					     name, (int)err);
++					     name, (int)load_result);
+ 				SPDLOG_ERROR("Info: {}", info_buf);
+ 				SPDLOG_ERROR("Error: {}", error_buf);
+ 				throw std::runtime_error(
+ 					"Unable to compile module");
+ 			}
+ 			if (added_trampoline) {
+ 				CUdeviceptr const_data_ptr, map_basic_info_ptr;
+ 				size_t const_data_size, map_basic_info_size;
+ 				SPDLOG_INFO(
+ 					"Copying trampoline data to device");
+ 				CUDA_DRIVER_CHECK_EXCEPTION(
+ 					cuModuleGetGlobal(&const_data_ptr,
+ 							  &const_data_size,
+ 							  module, "constData"),
+ 					"Unable to get pointer of constData");
+ 				SPDLOG_INFO(
+ 			"constData symbol device_ptr={:x} size={} shared_mem_ptr={:x}",
+ 			(uintptr_t)const_data_ptr, const_data_size,
+ 			(uintptr_t)impl.shared_mem_ptr);
+ 		CUDA_DRIVER_CHECK_EXCEPTION(
+ 					cuModuleGetGlobal(&map_basic_info_ptr,
+ 							  &map_basic_info_size,
+ 							  module, "map_info"),
+ 					"Unable to get pointer of map_info");
+ 				SPDLOG_INFO("map_info symbol device_ptr={:x} size={}",
+ 			    (uintptr_t)map_basic_info_ptr, map_basic_info_size);
+ 		CUDA_DRIVER_CHECK_EXCEPTION(
+ 					cuMemcpyHtoD(const_data_ptr,
+ 						     &impl.shared_mem_ptr,
+ 						     const_data_size),
+ 					"Unable to copy constData pointer to device");
+ 				CUDA_DRIVER_CHECK_EXCEPTION(
+ 					cuMemcpyHtoD(map_basic_info_ptr,
+ 						     impl.map_basic_info->data(),
+ 						     map_basic_info_size),
+ 					"Unable to copy constData pointer to device");
+ 				SPDLOG_INFO("Trampoline data copied");
+ 			}
+ 			auto ptr = std::make_shared<ptx_in_module>(module);
+ 			module_pool->insert(std::make_pair(sha256_string, ptr));
+ 			ptxs.push_back(ptr);
+ 			SPDLOG_INFO("Loaded module: {}", name);
+ 		}
+ 	}
+ 	ptx_loaded = true;
+ }
+ 
+ } // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp b/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
+new file mode 100644
+index 0000000..3b56eb5
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
+@@ -0,0 +1,47 @@
++#include "nv_attach_module_load_provenance.hpp"
++
++#include <dlfcn.h>
++
++namespace bpftime::attach
++{
++
++module_load_provenance_hooks find_module_load_provenance_hooks()
++{
++	return {
++		.begin = reinterpret_cast<begin_module_load_fn>(dlsym(
++			RTLD_DEFAULT, "hbfsim_begin_module_load_from_ptx")),
++		.end = reinterpret_cast<end_module_load_fn>(
++			dlsym(RTLD_DEFAULT, "hbfsim_end_module_load")),
++	};
++}
++
++module_load_provenance_scope::module_load_provenance_scope(
++	std::string_view ptx, module_load_provenance_hooks hooks)
++{
++	if (hooks.begin == nullptr && hooks.end == nullptr) {
++		permitted_ = true;
++		return;
++	}
++	if (hooks.begin == nullptr || hooks.end == nullptr) {
++		return;
++	}
++	token_ = hooks.begin(ptx.data(), ptx.size());
++	if (token_ == 0) {
++		return;
++	}
++	end_ = hooks.end;
++	permitted_ = true;
++}
++
++module_load_provenance_scope::~module_load_provenance_scope()
++{
++	if (token_ != 0 && end_ != nullptr)
++		end_(token_);
++}
++
++bool module_load_provenance_scope::permits_load() const
++{
++	return permitted_;
++}
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp b/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
+new file mode 100644
+index 0000000..cd7a2f8
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
+@@ -0,0 +1,39 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++namespace bpftime::attach
++{
++
++using begin_module_load_fn = uint64_t (*)(const char *, size_t);
++using end_module_load_fn = void (*)(uint64_t);
++
++struct module_load_provenance_hooks {
++	begin_module_load_fn begin = nullptr;
++	end_module_load_fn end = nullptr;
++};
++
++module_load_provenance_hooks find_module_load_provenance_hooks();
++
++class module_load_provenance_scope {
++    public:
++	module_load_provenance_scope(std::string_view ptx,
++				     module_load_provenance_hooks hooks);
++	~module_load_provenance_scope();
++
++	module_load_provenance_scope(const module_load_provenance_scope &) =
++		delete;
++	module_load_provenance_scope &
++	operator=(const module_load_provenance_scope &) = delete;
++
++	[[nodiscard]] bool permits_load() const;
++
++    private:
++	end_module_load_fn end_ = nullptr;
++	uint64_t token_ = 0;
++	bool permitted_ = false;
++};
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/test/CMakeLists.txt b/attach/nv_attach_impl/test/CMakeLists.txt
+index 4094b3e..5227ff2 100644
+--- a/attach/nv_attach_impl/test/CMakeLists.txt
++++ b/attach/nv_attach_impl/test/CMakeLists.txt
+@@ -1,40 +1,41 @@
+ set(TEST_SOURCES
+     nv_attach_impl_tests.cpp
+     test_register_guard.cpp
+     test_ptxpass.cpp
++    test_module_load_provenance.cpp
+     # test_kernel_finder.cpp
+ )
+ add_executable(bpftime_nv_attach_tests ${TEST_SOURCES})
+ 
+ target_include_directories(bpftime_nv_attach_tests PUBLIC ${CMAKE_SOURCE_DIR}/third_party)
+ 
+ option(TEST_LCOV "option for lcov" OFF)
+ 
+ if(${TEST_LCOV})
+     target_compile_options(bpftime_nv_attach_tests PRIVATE -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
+ endif()
+ if(${ENABLE_EBPF_VERIFIER} AND NOT TARGET Catch2)
+     message(STATUS "Adding Catch2 by FetchContent at nv_attach_impl")
+     Include(FetchContent)
+     FetchContent_Declare(
+         Catch2
+         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+         GIT_TAG v3.4.0
+     )
+     FetchContent_MakeAvailable(Catch2)
+ 
+     # if not enable verifier, we will use the catch2 from submodule
+ endif()
+ 
+ add_dependencies(bpftime_nv_attach_tests Catch2 bpftime_nv_attach_impl ptxpass_core spdlog::spdlog)
+ if(${TEST_LCOV})
+     target_link_options(bpftime_nv_attach_tests PRIVATE -lgcov)
+     target_link_libraries(bpftime_nv_attach_tests PRIVATE Catch2::Catch2WithMain bpftime_nv_attach_impl ptxpass_core spdlog::spdlog gcov cuda)
+ else()
+     target_link_libraries(bpftime_nv_attach_tests PRIVATE Catch2::Catch2WithMain bpftime_nv_attach_impl ptxpass_core spdlog::spdlog cuda)
+ endif()
+ target_include_directories(bpftime_nv_attach_tests PRIVATE ${CMAKE_SOURCE_DIR}/runtime/ ${NV_ATTACH_IMPL_INCLUDE} ${CMAKE_SOURCE_DIR}/attach/nv_attach_impl/pass/ptxpass_core/include ${Catch2_INCLUDE} ${SPDLOG_INCLUDE})
+ 
+ add_test(NAME bpftime_nv_attach_tests COMMAND bpftime_nv_attach_tests)
+ 
+ set_property(TARGET bpftime_nv_attach_tests PROPERTY CXX_STANDARD 20)
+diff --git a/attach/nv_attach_impl/test/test_module_load_provenance.cpp b/attach/nv_attach_impl/test/test_module_load_provenance.cpp
+new file mode 100644
+index 0000000..24e716f
+--- /dev/null
++++ b/attach/nv_attach_impl/test/test_module_load_provenance.cpp
+@@ -0,0 +1,93 @@
++#include "nv_attach_module_load_provenance.hpp"
++
++#include <catch2/catch_test_macros.hpp>
++
++using namespace bpftime::attach;
++
++namespace
++{
++
++int begin_calls;
++int end_calls;
++uint64_t ended_token;
++
++uint64_t begin_matching(const char *ptx, size_t size)
++{
++	REQUIRE(std::string_view(ptx, size) == "patched ptx");
++	begin_calls++;
++	return 0x1234;
++}
++
++uint64_t begin_zero(const char *, size_t)
++{
++	begin_calls++;
++	return 0;
++}
++
++void end_matching(uint64_t token)
++{
++	end_calls++;
++	ended_token = token;
++}
++
++void reset_calls()
++{
++	begin_calls = 0;
++	end_calls = 0;
++	ended_token = 0;
++}
++
++} // namespace
++
++TEST_CASE("both callbacks absent permits standalone module load",
++	  "[module_load_provenance]")
++{
++	module_load_provenance_scope scope("patched ptx", {});
++	REQUIRE(scope.permits_load());
++}
++
++TEST_CASE("partial callback pair rejects module load",
++	  "[module_load_provenance]")
++{
++	SECTION("begin only")
++	{
++		module_load_provenance_scope scope(
++			"patched ptx", { .begin = begin_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	SECTION("end only")
++	{
++		module_load_provenance_scope scope(
++			"patched ptx", { .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++}
++
++TEST_CASE("zero begin token rejects module load", "[module_load_provenance]")
++{
++	reset_calls();
++	{
++		module_load_provenance_scope scope(
++			"patched ptx",
++			{ .begin = begin_zero, .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	REQUIRE(begin_calls == 1);
++	REQUIRE(end_calls == 0);
++}
++
++TEST_CASE("matching begin and end bracket module load",
++	  "[module_load_provenance]")
++{
++	reset_calls();
++	{
++		module_load_provenance_scope scope(
++			"patched ptx",
++			{ .begin = begin_matching, .end = end_matching });
++		REQUIRE(scope.permits_load());
++		REQUIRE(begin_calls == 1);
++		REQUIRE(end_calls == 0);
++	}
++	REQUIRE(end_calls == 1);
++	REQUIRE(ended_token == 0x1234);
++}
+-- 
+2.53.0
+

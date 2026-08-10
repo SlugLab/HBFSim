@@ -43,6 +43,7 @@ def lookup(process: ctypes.CDLL, name: str, symbol: str, flags: int) -> tuple[in
 def main() -> int:
     gate = str(pathlib.Path(sys.argv[1]).resolve())
     fake = str(pathlib.Path(sys.argv[2]).resolve())
+    toolkit_version = tuple(int(part) for part in sys.argv[3].split(".")[:2])
     if os.environ.get("HBFSIM_FAKE_LOOKUP_ACTIVE") != "1":
         environment = os.environ.copy()
         environment["HBFSIM_FAKE_LOOKUP_ACTIVE"] = "1"
@@ -50,7 +51,8 @@ def main() -> int:
             item for item in (gate, fake, environment.get("LD_PRELOAD", ""))
             if item
         )
-        return subprocess.run([sys.executable, __file__, gate, fake],
+        return subprocess.run([sys.executable, __file__, gate, fake,
+                               sys.argv[3]],
                               env=environment, check=False).returncode
 
     process = ctypes.CDLL(None)
@@ -68,7 +70,14 @@ def main() -> int:
          "cuLaunchCooperativeKernelMultiDevice"),
         ("cuGraphLaunch", "cuGraphLaunch", "cuGraphLaunch_ptsz"),
     )
-    lifecycle_symbols = ("cuModuleLoadDataEx", "cuModuleUnload")
+    lifecycle_symbols = [
+        "cuModuleLoadDataEx", "cuModuleUnload",
+        "cuCtxDestroy", "cuCtxDestroy_v2",
+        "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
+        "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
+    ]
+    if toolkit_version >= (12, 4):
+        lifecycle_symbols.append("cuGreenCtxDestroy")
     lookup_apis = (
         ("cuGetProcAddress", False),
         ("cuGetProcAddress_v2", False),

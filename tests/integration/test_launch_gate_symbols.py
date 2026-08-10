@@ -33,6 +33,8 @@ def main() -> int:
         check=True, text=True, capture_output=True
     ).stdout
     exported = {line.split()[-1] for line in output.splitlines() if line.split()}
+    toolkit_version = tuple(
+        int(part) for part in sys.argv[4].split(".")[:2])
     required = {
         "cuLaunchKernel", "cuLaunchKernel_ptsz",
         "cuLaunchKernelEx", "cuLaunchKernelEx_ptsz",
@@ -50,16 +52,26 @@ def main() -> int:
         "cudaGetDriverEntryPointByVersion",
         "cudaGetDriverEntryPointByVersion_ptsz",
         "cuModuleLoadDataEx", "cuModuleUnload",
-        "hbfsim_expect_module_identity",
+        "hbfsim_begin_module_load_from_ptx", "hbfsim_end_module_load",
+        "cuCtxDestroy", "cuCtxDestroy_v2",
+        "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
+        "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
+        "cudaDeviceReset",
     }
-    toolkit_major = int(sys.argv[4].split(".", maxsplit=1)[0])
-    if toolkit_major < 13:
-        required.add("cudaLaunchCooperativeKernelMultiDevice")
+    if toolkit_version < (13, 0):
+        required.update({"cudaLaunchCooperativeKernelMultiDevice",
+                         "cudaThreadExit"})
+    if toolkit_version >= (12, 4):
+        required.add("cuGreenCtxDestroy")
     missing = required - exported
     if missing:
         raise RuntimeError(f"missing launch interceptors: {sorted(missing)}")
 
     source = pathlib.Path(sys.argv[3]).read_text()
+    require("hbfsim_expect_module_identity" not in source and
+            "discard_expectations" not in source and
+            "expected_" not in source,
+            "launch gate retains process-global module expectations")
     require("interposed_wrapper_address" in source,
             "driver-entry APIs do not use an explicit local wrapper map")
     lookup_map = function_body(source, "interposed_wrapper_address(")
@@ -68,9 +80,17 @@ def main() -> int:
             "driver-entry lookup map contains invalid runtime API names")
     require("RTLD_DEFAULT" not in source,
             "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
-    require('"cuModuleLoadDataEx"' in lookup_map and
-            '"cuModuleUnload"' in lookup_map,
-            "driver-entry lookup can bypass module lifecycle interposition")
+    driver_lifecycle = {
+        "cuModuleLoadDataEx", "cuModuleUnload", "cuCtxDestroy",
+        "cuCtxDestroy_v2", "cuDevicePrimaryCtxReset",
+        "cuDevicePrimaryCtxReset_v2", "cuDevicePrimaryCtxRelease",
+        "cuDevicePrimaryCtxRelease_v2",
+    }
+    if toolkit_version >= (12, 4):
+        driver_lifecycle.add("cuGreenCtxDestroy")
+    for symbol in driver_lifecycle:
+        require(f'"{symbol}"' in lookup_map,
+                f"driver-entry lookup can bypass lifecycle hook: {symbol}")
     for symbol in required:
         if "Launch" in symbol:
             require(f'"{symbol}"' in source or f'({symbol})' in source,
@@ -85,8 +105,9 @@ def main() -> int:
             "__hbfsim_module_identity" not in handle_id,
             "launch authorization still trusts an embedded identity directly")
     module_load = function_body(source, "cuModuleLoadDataEx(")
-    require("result != CUDA_SUCCESS" in module_load and
-            "discard_expectations" in module_load and
+    require("module_load_transactions().take" in module_load and
+            module_load.find("module_load_transactions().take") <
+            module_load.find("dlsym(RTLD_NEXT") and
             "live_module_identity" in module_load and
             "module_identities().associate" in module_load,
             "module load does not bind successful exact pass provenance")
@@ -94,6 +115,17 @@ def main() -> int:
     require("result == CUDA_SUCCESS" in module_unload and
             "module_identities().erase" in module_unload,
             "module unload does not erase association only after success")
+    for symbol in required & {
+        "cuCtxDestroy", "cuCtxDestroy_v2", "cuDevicePrimaryCtxReset",
+        "cuDevicePrimaryCtxReset_v2", "cuDevicePrimaryCtxRelease",
+        "cuDevicePrimaryCtxRelease_v2", "cuGreenCtxDestroy",
+        "cudaDeviceReset", "cudaThreadExit",
+    }:
+        lifecycle_body = function_body(source, f"{symbol}(")
+        require("module_identities().clear" in lifecycle_body and
+                ("result == CUDA_SUCCESS" in lifecycle_body or
+                 "result == cudaSuccess" in lifecycle_body),
+                f"{symbol} does not clear associations only after success")
     runtime_multi = function_body(
         source, "cudaLaunchCooperativeKernelMultiDevice(")
     require("RuntimeLaunchScope scope;" in runtime_multi,

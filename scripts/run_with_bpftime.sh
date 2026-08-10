@@ -22,7 +22,7 @@ canonical_build_dir() {
 HBFSIM_BUILD_DIR=$(canonical_build_dir HBFSIM_BUILD_DIR \
     "${HBFSIM_BUILD_DIR:-$HBFSIM_ROOT/build}")
 HBFSIM_BPFTIME_BUILD_DIR=$(canonical_build_dir HBFSIM_BPFTIME_BUILD_DIR \
-    "${HBFSIM_BPFTIME_BUILD_DIR:-$HBFSIM_ROOT/third_party/bpftime/build}")
+    "${HBFSIM_BPFTIME_BUILD_DIR:-$HBFSIM_ROOT/build-bpftime-hbfsim}")
 HBFSIM_CUDA_ROOT=${HBFSIM_CUDA_ROOT:-/usr/local/cuda-12.8}
 if [[ $HBFSIM_CUDA_ROOT != /* || ! -d $HBFSIM_CUDA_ROOT ]]; then
     echo "run_with_bpftime: HBFSIM_CUDA_ROOT must be an existing absolute directory: $HBFSIM_CUDA_ROOT" >&2
@@ -36,6 +36,22 @@ HBFSIM_GATE="$HBFSIM_BUILD_DIR/libhbfsim_launch_gate.so"
 HBFSIM_PASS="$HBFSIM_BUILD_DIR/libptxpass_hbf.so"
 HBFSIM_BPFTIME_LOADER=${HBFSIM_BPFTIME_LOADER:-$HBFSIM_BUILD_DIR/hbfsim_bpftime_attach_loader}
 HBFSIM_BPFTIME_PROBE=${HBFSIM_BPFTIME_PROBE:-$HBFSIM_BUILD_DIR/coverage_probe.bpf.o}
+
+BPFTIME_PROVENANCE="$HBFSIM_BPFTIME_BUILD_DIR/hbfsim-bpftime.provenance"
+BPFTIME_PATCH="$HBFSIM_ROOT/patches/bpftime/0001-exact-module-load-provenance.patch"
+if [[ ! -r $BPFTIME_PROVENANCE ]]; then
+    echo "run_with_bpftime: bpftime build provenance is missing: $BPFTIME_PROVENANCE" >&2
+    exit 66
+fi
+mapfile -t provenance < "$BPFTIME_PROVENANCE"
+expected_digest=$(sha256sum "$BPFTIME_PATCH" | awk '{print $1}')
+if [[ ${#provenance[@]} -ne 3 ||
+      ${provenance[0]:-} != bpftime_commit=ec26daecc8e787fb80fd95dd596a576404a5e36e ||
+      ${provenance[1]:-} != patch_sha256="$expected_digest" ||
+      ${provenance[2]:-} != bridge_version=1 ]]; then
+    echo "run_with_bpftime: bpftime build provenance mismatch: $BPFTIME_PROVENANCE" >&2
+    exit 66
+fi
 
 for library in "$BPFTIME_AGENT" "$BPFTIME_SERVER" "$HBFSIM_GATE" "$HBFSIM_PASS"; do
     if [[ ! -r $library ]]; then

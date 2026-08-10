@@ -7,7 +7,6 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <dlfcn.h>
 #include <exception>
 #include <iomanip>
 #include <mutex>
@@ -209,25 +208,6 @@ TrustedModuleRegistry& trusted_modules()
     return registry;
 }
 
-void publish_module_expectation(const std::string& identity)
-{
-    using callback_type = int (*)(const std::uint8_t*, std::size_t);
-    const auto callback = reinterpret_cast<callback_type>(
-        dlsym(RTLD_DEFAULT, "hbfsim_expect_module_identity"));
-    if (callback == nullptr) {
-        return;
-    }
-    std::array<std::uint8_t, SHA256_DIGEST_LENGTH> bytes{};
-    for (std::size_t index = 0; index < bytes.size(); ++index) {
-        bytes[index] = static_cast<std::uint8_t>(
-            std::stoul(identity.substr(index * 2, 2), nullptr, 16));
-    }
-    if (callback(bytes.data(), bytes.size()) != 0) {
-        throw std::runtime_error(
-            "launch gate rejected transformed module identity");
-    }
-}
-
 std::string inject_module_identity(std::string ptx, const std::string& identity)
 {
     if (ptx.find(module_identity_symbol) != std::string::npos) {
@@ -380,7 +360,6 @@ extern "C" int process_input(const char* input, int length, char* output)
         const auto status = copy_output(response, length, output);
         if (status == 0) {
             trusted_modules().record(transformed.output_ptx, identity);
-            publish_module_expectation(identity);
         }
         return status;
     } catch (const nlohmann::json::exception& error) {

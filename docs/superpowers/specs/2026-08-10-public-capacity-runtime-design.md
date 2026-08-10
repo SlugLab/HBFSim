@@ -65,33 +65,62 @@ Any failure before publication releases the VMM reservation, backing store,
 and registry slot. Publication is the no-fail point: the worker-visible mapping
 must exist before the device-visible range count is released.
 
-## 5. Request and Cache Flow
+## 5. Request, Cache, and Media Flow
 
 The device helper already converts an address to a global synthetic media page.
-The daemon models the request, then creates a generation-stamped capacity
-handoff. The single parent worker claims it and asks the routed page service to
-resolve that global page.
+For capacity ranges, the daemon must consult the parent page service before it
+submits media work to MQSim. Modeling first would incorrectly charge a flash
+read for an HBM-cache hit and incorrectly program flash for every store hit.
 
-On a hit, the cache returns the existing frame. On a miss, the router selects
-the unique active mapping interval, reads the mapping-local page, copies it
-through the pinned bounce page, and publishes the frame only after the CUDA
-copy succeeds. A write miss performs read-for-ownership and marks the frame
-dirty. Completion uses only the exact `(ticket, request_id)` CAS, so a daemon
-timeout or slot reuse cannot receive an old frame.
+The daemon therefore creates the generation-stamped capacity handoff as its
+prepare step. The single parent worker claims it and asks the routed page
+service to resolve that global page. The response contains the terminal status,
+frame address, and an explicit media plan:
 
-Dirty-eviction program timing must be represented in the daemon timing engine
-before writable capacity is declared live. The implementation may stage the
-public lifecycle first, but it must keep writable capacity fail-closed until
-that timing path and rollback behavior have tests. Read-only mappings may use
-the already modeled read request path.
+- a read or write hit has no media action;
+- a clean miss has one read action for the requested global page;
+- a miss that evicts a dirty page has a program action for the victim followed
+  by a read action for the requested page; and
+- flush has one program action for each dirty page it persists.
+
+The fixed 64-byte `PageEntry` ABI carries the plan without growing shared
+memory: `logical_page` remains the requested page, `checksum` carries the
+victim page when present, the low 32 bits of `reserved1` carry action flags,
+and the high 32 bits carry the victim range ID. `reserved0` remains the
+generation-tagged completion/status word. The requested read keeps the
+original request's range ID; the victim program uses its separately returned
+range ID, because a shared cache may evict a page from another mapping.
+
+The daemon submits zero, one, or two internal media requests to the same timing
+engine used by ordinary requests. Internal requests have collision-free IDs
+derived from the original ticket and action index. A dirty-victim program must
+complete before the dependent read is submitted. Other outstanding requests
+remain free to interleave, so MQSim still observes channel, die, and queue
+contention. The original GPU completion accumulates the constituent modeled
+times and is published only after the final required media action and the
+parent copy both succeed.
+
+On a miss, the router selects the unique active mapping interval, performs the
+checked backing I/O, and copies through the pinned bounce page. Physical file
+and CUDA-copy time is reported as service/emulator overhead, not media time.
+A write miss performs read-for-ownership and marks the frame dirty; a write hit
+only marks the resident frame dirty. Completion uses only the exact
+`(ticket, request_id)` CAS, so a daemon timeout or slot reuse cannot receive an
+old frame.
+
+Public capacity remains fail-closed until this prepare-before-model pipeline is
+implemented. Enabling only read-only mappings early is also prohibited because
+cache hits would still have incorrect timing under the old model-first order.
 
 ## 6. Flush and Unregister
 
 `hbfsim_flush` first verifies daemon and CUDA-domain health, then serializes
-with page resolution and flushes all dirty frames. A successful return means
-the frame-to-host copy, checked backing write, required modeled program work,
-and `fdatasync` all completed. Any failure leaves the dirty cache state
-retryable and returns the corresponding public error.
+with page resolution and flushes all dirty frames. Flush submits its program
+actions through the same daemon timing engine and waits for their exact
+completions before committing eviction. A successful return means the
+frame-to-host copy, checked backing write, modeled program work, and `fdatasync`
+all completed. Any failure leaves the dirty cache state retryable and returns
+the corresponding public error.
 
 `hbfsim_unregister` identifies the exact logical VMM base. Under launch-gate
 ABI v2 it takes the exclusive launch mutation boundary and synchronizes the
@@ -127,13 +156,15 @@ Implementation proceeds in three reviewable slices:
 1. **Routed service:** CPU tests cover two backing files with overlapping file
    offsets, global-page routing, shared eviction, wrong-range rejection,
    timeout/reuse, dirty rollback, and concurrent registry mutation safety.
-2. **Public read-only lifecycle:** fake-CUDA VMM/context/copy support proves two
-   mappings, transactional rollback, exact logical pointers, flush,
-   unregister, context teardown order, and launch-gate rejection. A small test
-   profile avoids allocating the nominal 8 GiB cache.
-3. **Writable lifecycle:** CPU/fake tests prove read-for-ownership, modeled
-   program timing, dirty eviction, retryable flush failure, unregister, and
-   destruction quarantine.
+2. **Capacity timing coordinator:** CPU/MQSim tests prove prepare-before-model,
+   zero media work on hits, one read on clean miss, ordered program-then-read
+   on dirty eviction, interleaving with unrelated requests, timeout, and exact
+   modeled-time accumulation.
+3. **Public lifecycle:** fake-CUDA VMM/context/copy support proves two mappings,
+   transactional rollback, exact logical pointers, read-for-ownership, dirty
+   eviction, retryable flush failure, unregister, context teardown quarantine,
+   and launch-gate rejection. A small test profile avoids allocating the
+   nominal 8 GiB cache.
 
 Every slice must pass CPU, TSAN, CUDA static/PTX/fake-driver, and MQSim matrices.
 Real GPU execution remains a separate proof gate and is prohibited on the

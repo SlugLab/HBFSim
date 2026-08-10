@@ -197,7 +197,10 @@ void hbfsim_end_module_load(uint64_t token);
 `__hbfsim_module_identity` declaration and installs the identity and a nonzero
 token in thread-local state. Missing, malformed, duplicate, or nested input
 returns zero. bpftime calls `hbfsim_end_module_load` unconditionally after the
-load; an absent gate leaves standalone bpftime behavior unchanged.
+load. If both callbacks are absent, standalone bpftime behavior is unchanged.
+If only one callback is present, or if the begin callback is present but
+returns zero, bpftime reports the provenance failure and does not execute that
+module load.
 
 The gate's `cuModuleLoadDataEx` wrapper atomically takes and clears the current
 thread's transaction before it invokes the original driver function. It

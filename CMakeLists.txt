@@ -24,6 +24,7 @@ add_library(
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
     src/host_service/capacity_page_service.cpp
+    src/host_service/capacity_worker.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/transform.cpp
@@ -112,6 +113,12 @@ add_executable(
 )
 target_link_libraries(hbfsim_capacity_handoff_tests PRIVATE hbfsim_core)
 add_test(NAME capacity_handoff COMMAND hbfsim_capacity_handoff_tests)
+
+add_executable(
+    hbfsim_capacity_worker_tests tests/cpu/capacity_worker_test.cpp
+)
+target_link_libraries(hbfsim_capacity_worker_tests PRIVATE hbfsim_core)
+add_test(NAME capacity_worker COMMAND hbfsim_capacity_worker_tests)
 
 add_executable(
     hbfsim_device_ordering_reference_tests

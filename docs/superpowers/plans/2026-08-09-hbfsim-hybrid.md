@@ -806,10 +806,17 @@ connects host-frame copies, read-for-ownership, dirty eviction, and explicit
 flush with failure rollback. Mode-2 device resolution now consumes a returned
 HBM frame address, and the daemon/parent boundary has a generation-stamped
 page-service handoff. Range publication/removal uses launch-gate ABI v2.
-CPU/fake-driver tests and CUDA-enabled static compilation cover these
-primitives. The public capacity API remains fail-closed until the parent worker
-performs real CUDA copies and owns map/flush/unregister; this slice is not
-capacity-mode execution proof.
+A parent-side `CapacityWorker` checkpoint owns and joins a bounded scanner
+thread, resolves claimed generation-stamped handoffs through the serialized
+page service, tolerates daemon timeout/reclaim winning exact-ticket completion,
+and delegates dirty flush. Concurrent `stop()` callers serialize one stop/join;
+stop and destruction wait for an in-flight service callback but do not flush.
+The owning context must successfully flush before teardown when persistence is
+required, and ordinary object-lifetime synchronization still prohibits racing
+destruction with member calls. CPU/fake-driver tests and CUDA-enabled static
+compilation cover these primitives. The public capacity API remains fail-closed
+until that worker is connected to context-owned VMM frames and real CUDA copies;
+this slice is not capacity-mode execution proof.
 
 **Files:**
 - Create: `src/cuda_runtime/vmm.hpp`

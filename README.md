@@ -111,7 +111,7 @@ live GPU, capacity, or LLM proof.
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
 | Live timing-only GPU proof | Not run; no live proof yet |
-| File-backed capacity mode | Backing-store, page-service, clock-cache, CUDA VMM, mode-2 resolver translation, and daemon/parent handoff implemented; public/live path not yet connected |
+| File-backed capacity mode | Backing-store, page-service, parent worker, clock-cache, CUDA VMM, mode-2 resolver translation, and daemon/parent handoff implemented; public/live path not yet connected |
 | Hybrid fast model | Planned |
 | CUDA fault matrix, llama.cpp, and vLLM proof runs | Planned |
 
@@ -138,10 +138,12 @@ dirty flush, unbacked CUDA virtual-range reservation, and a separate mapped HBM
 frame interval. The rewritten device helper now understands capacity ranges and
 translates a successful completion into `cache_frame + page_offset`; the daemon
 uses a generation-stamped shared handoff to wait for the parent CUDA context to
-service that page. These components have bit-exact host-frame,
+service that page. A bounded parent worker now resolves those handoffs through
+the page service, tolerates timeout/reclaim races, and delegates flush using
+host-memory test callbacks. These components have bit-exact host-frame,
 CPU/fake-driver, and CUDA static-build coverage, but `hbfsim_map_file`
-intentionally remains fail-closed until the parent worker performs real CUDA
-copies and owns the full map/flush/unregister lifecycle.
+intentionally remains fail-closed until the worker is connected to real CUDA
+copies and owns the full context map/flush/unregister lifecycle.
 
 ## Clone and build
 

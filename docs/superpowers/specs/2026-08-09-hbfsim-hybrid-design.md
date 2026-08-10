@@ -137,6 +137,18 @@ deadlines remain independently controlled by `request_timeout_ns`.
 Bulk page data is copied into preallocated HBM cache frames; the shared ring
 carries only descriptors and completion state.
 
+The parent-side capacity-worker foundation scans the bounded shared page slots
+on an owned, synchronously joined thread. It resolves each claimed,
+generation-stamped handoff through a referenced serialized page service and
+publishes only through the exact ticket/request completion CAS. A daemon
+timeout and reclaim that wins this race is benign, including after slot reuse.
+Concurrent stop callers serialize the stop/join transition. Stop and destruction
+wait for an in-flight page-service callback, but neither implicitly flushes dirty
+pages; the owning context must complete a successful explicit flush before
+teardown when persistence is required. Ordinary object-lifetime synchronization
+still forbids racing destruction with member calls. This checkpoint is not yet
+wired to context-owned VMM frames or real CUDA copy callbacks.
+
 Request reservation also reserves the completion slot at the same ring index.
 The reservation sequence is stamped into the request and is the completion
 ticket; callers cannot supply or override it. A waiter consumes only the

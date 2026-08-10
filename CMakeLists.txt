@@ -23,6 +23,7 @@ add_library(
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
+    src/host_service/capacity_backing_router.cpp
     src/host_service/capacity_page_service.cpp
     src/host_service/capacity_worker.cpp
     src/protocol/page_directory.cpp
@@ -87,6 +88,15 @@ add_test(NAME device_helper_abi COMMAND hbfsim_device_helper_abi_tests)
 add_executable(hbfsim_backing_store_tests tests/cpu/backing_store_test.cpp)
 target_link_libraries(hbfsim_backing_store_tests PRIVATE hbfsim_core)
 add_test(NAME backing_store COMMAND hbfsim_backing_store_tests)
+
+add_executable(
+    hbfsim_capacity_backing_router_tests
+    tests/cpu/capacity_backing_router_test.cpp
+)
+target_link_libraries(hbfsim_capacity_backing_router_tests PRIVATE hbfsim_core)
+add_test(
+    NAME capacity_backing_router COMMAND hbfsim_capacity_backing_router_tests
+)
 
 add_executable(hbfsim_hbm_cache_tests tests/cpu/hbm_cache_test.cpp)
 target_link_libraries(hbfsim_hbm_cache_tests PRIVATE hbfsim_core)

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -78,5 +79,31 @@ int main()
     CHECK(!reserved.publish(9, 0x4000));
     CHECK(reserved.cancel_eviction(*in_writeback));
     CHECK(reserved.resolve(9).value() == 0x3000);
+
+    hbfsim::runtime::HbmCache ranged({0x5000, 0x6000, 0x7000});
+    CHECK(ranged.publish(10, 0x5000));
+    CHECK(ranged.publish(20, 0x6000));
+    CHECK(ranged.publish(30, 0x7000));
+    CHECK(ranged.mark_dirty(10));
+    CHECK(ranged.mark_dirty(20));
+    const auto range_twenty = ranged.begin_eviction_in_range(20, 1, true);
+    CHECK(range_twenty.has_value());
+    CHECK(range_twenty->logical_page == 20);
+    CHECK(range_twenty->dirty);
+    CHECK(ranged.resolve(10).has_value());
+    CHECK(ranged.complete_eviction(*range_twenty));
+    CHECK(!ranged.complete_eviction(*range_twenty));
+    CHECK(!ranged.begin_eviction_in_range(30, 1, true).has_value());
+    CHECK(ranged.resolve(30).has_value());
+    CHECK(!ranged.begin_eviction_in_range(0, 0, false).has_value());
+    CHECK(!ranged
+               .begin_eviction_in_range(
+                   std::numeric_limits<std::uint64_t>::max(), 2, false)
+               .has_value());
+    const auto range_ten = ranged.begin_eviction_in_range(10, 1, true);
+    CHECK(range_ten.has_value());
+    CHECK(range_ten->logical_page == 10);
+    CHECK(ranged.cancel_eviction(*range_ten));
+    CHECK(ranged.resolve(10).value() == 0x5000);
     return 0;
 }

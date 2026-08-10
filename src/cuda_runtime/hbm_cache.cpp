@@ -1,5 +1,6 @@
 #include "hbm_cache.hpp"
 
+#include <limits>
 #include <stdexcept>
 
 namespace hbfsim::runtime {
@@ -86,15 +87,40 @@ std::optional<std::uint64_t> HbmCache::free_frame() const
 std::optional<CacheEviction> HbmCache::begin_eviction()
 {
     std::lock_guard lock(mutex_);
+    return begin_eviction_locked(false, 0, 0, false);
+}
+
+std::optional<CacheEviction> HbmCache::begin_eviction_in_range(
+    std::uint64_t first_page, std::uint64_t page_count, bool dirty_only)
+{
+    if (page_count == 0 ||
+        first_page > std::numeric_limits<std::uint64_t>::max() - page_count) {
+        return std::nullopt;
+    }
+    std::lock_guard lock(mutex_);
+    return begin_eviction_locked(true, first_page, page_count, dirty_only);
+}
+
+std::optional<CacheEviction> HbmCache::begin_eviction_locked(
+    bool range_limited, std::uint64_t first_page,
+    std::uint64_t page_count, bool dirty_only)
+{
     if (frames_.empty() || page_to_frame_.empty()) {
         return std::nullopt;
     }
+    const auto last_page = first_page + page_count;
     const auto limit = frames_.size() * 2;
     for (std::size_t scanned = 0; scanned < limit; ++scanned) {
         const auto index = clock_hand_;
         clock_hand_ = (clock_hand_ + 1) % frames_.size();
         auto& frame = frames_[index];
         if (!frame.logical_page.has_value() || frame.evicting) {
+            continue;
+        }
+        if ((range_limited &&
+             (*frame.logical_page < first_page ||
+              *frame.logical_page >= last_page)) ||
+            (dirty_only && !frame.dirty)) {
             continue;
         }
         if (frame.referenced) {

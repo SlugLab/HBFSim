@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backing_store.hpp"
+#include "capacity_backing_router.hpp"
 
 #include "../cuda_runtime/hbm_cache.hpp"
 
@@ -11,6 +12,7 @@
 #include <functional>
 #include <mutex>
 #include <span>
+#include <vector>
 
 namespace hbfsim::host_service {
 
@@ -26,19 +28,33 @@ struct CapacityResolveResult {
     std::uint64_t frame_address{0};
 };
 
+struct CapacityBackingIo {
+    std::function<RoutedPage(std::uint64_t, std::size_t)> read_page;
+    std::function<RequestStatus(std::uint64_t, std::size_t,
+                                std::span<const std::byte>)>
+        write_page;
+    std::function<RequestStatus()> flush;
+};
+
 class CapacityPageService {
   public:
+    CapacityPageService(CapacityBackingIo backing, runtime::HbmCache& cache,
+                        std::size_t page_bytes, CapacityFrameIo frame_io);
     CapacityPageService(BackingStore& backing, runtime::HbmCache& cache,
                         std::size_t page_bytes, CapacityFrameIo frame_io);
 
     CapacityResolveResult resolve(std::uint64_t logical_page,
                                   std::uint32_t operation);
     RequestStatus flush();
+    RequestStatus flush(std::uint64_t first_page,
+                        std::uint64_t page_count);
 
   private:
     RequestStatus writeback(const runtime::CacheEviction& eviction);
+    RequestStatus flush_range(std::uint64_t first_page,
+                              std::uint64_t page_count);
 
-    BackingStore& backing_;
+    CapacityBackingIo backing_;
     runtime::HbmCache& cache_;
     std::size_t page_bytes_;
     CapacityFrameIo frame_io_;

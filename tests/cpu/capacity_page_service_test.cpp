@@ -181,6 +181,57 @@ int main()
           hbfsim::RequestStatus::CopyError);
     CHECK(!retry_cache.resolve(2).has_value());
 
+    std::vector<std::uint64_t> callback_reads;
+    std::vector<std::uint64_t> callback_writes;
+    std::size_t callback_flushes = 0;
+    hbfsim::runtime::HbmCache callback_cache({0x4000, 0x5000});
+    frames.emplace(0x4000, std::vector<std::byte>(page_bytes));
+    frames.emplace(0x5000, std::vector<std::byte>(page_bytes));
+    hbfsim::host_service::CapacityPageService callback_service(
+        {
+            .read_page = [&](std::uint64_t global_page, std::size_t bytes) {
+                callback_reads.push_back(global_page);
+                return hbfsim::host_service::RoutedPage{
+                    .status = hbfsim::RequestStatus::Ready,
+                    .range_id = global_page < 2 ? 1u : 2u,
+                    .bytes = std::vector<std::byte>(
+                        bytes, static_cast<std::byte>(global_page)),
+                };
+            },
+            .write_page = [&](std::uint64_t global_page, std::size_t,
+                              std::span<const std::byte>) {
+                callback_writes.push_back(global_page);
+                return hbfsim::RequestStatus::Ready;
+            },
+            .flush = [&] {
+                ++callback_flushes;
+                return hbfsim::RequestStatus::Ready;
+            },
+        },
+        callback_cache, page_bytes,
+        {
+            .host_to_frame = [&](std::uint64_t frame,
+                                 std::span<const std::byte> data) {
+                std::ranges::copy(data, frames.at(frame).begin());
+                return true;
+            },
+            .frame_to_host = [&](std::uint64_t frame,
+                                 std::span<std::byte> data) {
+                std::ranges::copy(frames.at(frame), data.begin());
+                return true;
+            },
+        });
+    CHECK(callback_service.resolve(0, 1).status ==
+          hbfsim::RequestStatus::Ready);
+    CHECK(callback_service.resolve(10, 1).status ==
+          hbfsim::RequestStatus::Ready);
+    CHECK((callback_reads == std::vector<std::uint64_t>{0, 10}));
+    CHECK(callback_service.flush(0, 2) == hbfsim::RequestStatus::Ready);
+    CHECK((callback_writes == std::vector<std::uint64_t>{0}));
+    CHECK(callback_cache.resolve(10).has_value());
+    CHECK(callback_cache.dirty_pages() == 1);
+    CHECK(callback_flushes == 1);
+
     std::filesystem::remove(path);
     return 0;
 }

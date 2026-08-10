@@ -28,6 +28,9 @@ class HbmCache {
     [[nodiscard]] std::size_t dirty_pages() const;
     [[nodiscard]] std::optional<std::uint64_t> free_frame() const;
     [[nodiscard]] std::optional<CacheEviction> begin_eviction();
+    [[nodiscard]] std::optional<CacheEviction> begin_eviction_in_range(
+        std::uint64_t first_page, std::uint64_t page_count,
+        bool dirty_only);
     bool cancel_eviction(const CacheEviction& eviction);
     bool complete_eviction(const CacheEviction& eviction);
 
@@ -40,6 +43,10 @@ class HbmCache {
         bool evicting{false};
         std::uint64_t generation{1};
     };
+
+    [[nodiscard]] std::optional<CacheEviction> begin_eviction_locked(
+        bool range_limited, std::uint64_t first_page,
+        std::uint64_t page_count, bool dirty_only);
 
     mutable std::mutex mutex_;
     std::vector<Frame> frames_;

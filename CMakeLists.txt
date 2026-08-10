@@ -104,6 +104,68 @@ if(BUILD_TESTING)
     set_tests_properties(
         ptxpass_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+
+    add_executable(
+        coverage_manifest_flow_test
+        tests/integration/coverage_manifest_flow_test.cpp
+    )
+    target_link_libraries(
+        coverage_manifest_flow_test PRIVATE hbfsim_core ${CMAKE_DL_LIBS}
+    )
+    target_include_directories(
+        coverage_manifest_flow_test
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+    )
+    add_test(
+        NAME coverage_manifest_flow
+        COMMAND
+            coverage_manifest_flow_test
+            "$<TARGET_FILE:ptxpass_hbf_plugin>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/unsupported_pointer.ptx"
+    )
+
+    add_test(
+        NAME run_with_bpftime
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_run_with_bpftime.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_with_bpftime.sh"
+    )
+endif()
+
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(LIBBPF QUIET IMPORTED_TARGET libbpf)
+endif()
+find_program(HBFSIM_CLANG_EXECUTABLE NAMES clang-19 clang)
+find_program(HBFSIM_LLVM_OBJDUMP_EXECUTABLE NAMES llvm-objdump-19 llvm-objdump)
+if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
+    add_executable(
+        hbfsim_bpftime_attach_loader
+        src/cuda_runtime/bpftime_attach_loader.cpp
+    )
+    target_link_libraries(hbfsim_bpftime_attach_loader PRIVATE PkgConfig::LIBBPF)
+    set(HBFSIM_COVERAGE_PROBE "${CMAKE_BINARY_DIR}/coverage_probe.bpf.o")
+    add_custom_command(
+        OUTPUT "${HBFSIM_COVERAGE_PROBE}"
+        COMMAND
+            "${HBFSIM_CLANG_EXECUTABLE}" -target bpf -O2 -g -c
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/coverage_probe.bpf.c"
+            -o "${HBFSIM_COVERAGE_PROBE}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/coverage_probe.bpf.c"
+        VERBATIM
+    )
+    add_custom_target(hbfsim_coverage_probe ALL DEPENDS "${HBFSIM_COVERAGE_PROBE}")
+    if(BUILD_TESTING AND HBFSIM_LLVM_OBJDUMP_EXECUTABLE)
+        add_test(
+            NAME bpftime_coverage_probe
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_probe.py"
+                "${HBFSIM_COVERAGE_PROBE}"
+                "${HBFSIM_LLVM_OBJDUMP_EXECUTABLE}"
+        )
+    endif()
 endif()
 
 find_package(CUDAToolkit 12.8 QUIET)
@@ -131,10 +193,28 @@ if(HBFSIM_ENABLE_CUDA)
     target_link_libraries(unsupported_kernel PRIVATE CUDA::cudart ${CMAKE_DL_LIBS})
     set_target_properties(
         unsupported_kernel PROPERTIES
-        CUDA_ARCHITECTURES "120-real"
+        CUDA_ARCHITECTURES "120-real;120-virtual"
         CUDA_RUNTIME_LIBRARY Shared
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
     )
+    if(TARGET hbfsim_bpftime_attach_loader AND TARGET hbfsim_coverage_probe)
+        add_dependencies(
+            unsupported_kernel hbfsim_bpftime_attach_loader hbfsim_coverage_probe
+        )
+    endif()
+    if(TARGET hbfsim_launch_gate)
+        add_dependencies(unsupported_kernel hbfsim_launch_gate ptxpass_hbf_plugin)
+    endif()
+    if(BUILD_TESTING)
+        add_test(
+            NAME unsupported_kernel_ptx
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_ptx.py"
+                "$<TARGET_FILE:unsupported_kernel>"
+                "${CUDAToolkit_BIN_DIR}/cuobjdump"
+        )
+    endif()
 endif()
 
 if(HBFSIM_ENABLE_MQSIM)

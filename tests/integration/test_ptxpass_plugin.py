@@ -42,10 +42,47 @@ def main() -> int:
         assert "__hbfsim_resolve" in response["output_ptx"]
 
         manifest = json.loads(manifest_path.read_text())
-        assert manifest["name"] == "kernel"
+        assert manifest["module_id"].startswith("ptx:")
+        assert manifest["kernel"] == "kernel"
+        assert manifest["ptx_target"] == "sm_120"
         assert manifest["instrumented"] is True
-        assert manifest["pointer_parameters"] == [0]
+        assert manifest["cubin_only"] is False
+        assert manifest["parameters"] == [
+            {"index": 0, "offset": 0, "width": 8, "kind": "pointer"}
+        ]
         assert manifest["unsupported_parameters"] == []
+        manifest_path.unlink()
+
+        aggregate_ptx = pathlib.Path(
+            "tests/fixtures/ptx/aggregate_parameter.ptx"
+        ).read_text()
+        aggregate_request = json.dumps(
+            {
+                "input": {
+                    "full_ptx": aggregate_ptx,
+                    "to_patch_kernel": "aggregate_kernel",
+                    "global_ebpf_map_info_symbol": "map_info",
+                    "ebpf_communication_data_symbol": "constData",
+                },
+                "ebpf_instructions": [],
+            }
+        ).encode()
+        aggregate_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        assert (
+            plugin.process_input(
+                aggregate_request, len(aggregate_output), aggregate_output
+            )
+            == 0
+        )
+        aggregate_manifest = json.loads(manifest_path.read_text())
+        assert aggregate_manifest["parameters"] == [
+            {
+                "index": 0,
+                "offset": 0,
+                "width": 24,
+                "kind": "opaque_aggregate",
+            }
+        ]
     return 0
 
 

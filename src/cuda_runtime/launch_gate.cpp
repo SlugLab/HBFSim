@@ -3,16 +3,15 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <dlfcn.h>
-#include <json.hpp>
 
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace {
 
@@ -39,34 +38,21 @@ class RuntimeGate {
         std::string line;
         while (std::getline(input, line)) {
             try {
-                const auto json = nlohmann::json::parse(line);
-                hbfsim::ModuleManifest manifest{
-                    .name = json.at("name").get<std::string>(),
-                    .instrumented = json.value("instrumented", false),
-                    .pointer_parameters =
-                        json.value("pointer_parameters", std::vector<std::size_t>{}),
-                };
-                for (const auto& unsupported :
-                     json.value("unsupported_parameters", nlohmann::json::array())) {
-                    manifest.unsupported_parameters.push_back({
-                        .index = unsupported.at("index").get<std::size_t>(),
-                        .operation = unsupported.at("operation").get<std::string>(),
-                    });
-                }
-                gate_.add_module(std::move(manifest));
-            } catch (const nlohmann::json::exception&) {
-                // A pass may still be appending its final line. The next launch retries.
+                gate_.add_module(hbfsim::module_manifest_from_json(line));
+            } catch (const std::exception&) {
+                // A concurrent pass may still be appending its last line.
             }
         }
     }
 
-    void record(const hbfsim::GateDecision& decision) noexcept
+    bool approve(const hbfsim::GateDecision& decision) noexcept
     {
-        try {
-            writer_.append(decision);
-        } catch (const std::exception& error) {
-            std::cerr << "hbfsim coverage writer: " << error.what() << '\n';
+        const bool approved =
+            hbfsim::coverage_decision_permits_launch(writer_, decision);
+        if (!approved && decision.allowed) {
+            std::cerr << "hbfsim coverage writer failed; rejecting launch\n";
         }
+        return approved;
     }
 
   private:
@@ -87,161 +73,244 @@ void* driver_symbol(const char* name)
     return driver == nullptr ? nullptr : dlsym(driver, name);
 }
 
-std::string driver_kernel_name(CUfunction function)
+std::string handle_id(CUfunction function)
 {
-    using function_type = CUresult (*)(const char**, CUfunction);
-    static auto get_name =
-        reinterpret_cast<function_type>(driver_symbol("cuFuncGetName"));
-    const char* name = nullptr;
-    if (get_name != nullptr && get_name(&name, function) == CUDA_SUCCESS &&
-        name != nullptr) {
-        return name;
+    using get_module_type = CUresult (*)(CUmodule*, CUfunction);
+    static auto get_module =
+        reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
+    CUmodule module = nullptr;
+    if (get_module == nullptr || get_module(&module, function) != CUDA_SUCCESS) {
+        return "cuda-module:unknown";
     }
-    return "unknown_cufunction";
+    std::ostringstream output;
+    output << "cuda-module:" << module;
+    return output.str();
 }
 
-std::string driver_kernel_name(CUkernel kernel)
+std::string function_name(CUfunction function)
 {
-    using function_type = CUresult (*)(const char**, CUkernel);
+    using get_name_type = CUresult (*)(const char**, CUfunction);
     static auto get_name =
-        reinterpret_cast<function_type>(driver_symbol("cuKernelGetName"));
+        reinterpret_cast<get_name_type>(driver_symbol("cuFuncGetName"));
     const char* name = nullptr;
-    if (get_name != nullptr && get_name(&name, kernel) == CUDA_SUCCESS &&
-        name != nullptr) {
-        return name;
-    }
-    return "unknown_cukernel";
+    return get_name != nullptr && get_name(&name, function) == CUDA_SUCCESS &&
+                   name != nullptr
+               ? name
+               : "unknown_cufunction";
 }
 
-hbfsim::GateDecision metadata_unavailable(std::string kernel)
+CUfunction kernel_function(cudaKernel_t kernel)
+{
+    using get_function_type = CUresult (*)(CUfunction*, CUkernel);
+    static auto get_function = reinterpret_cast<get_function_type>(
+        driver_symbol("cuKernelGetFunction"));
+    CUfunction function = nullptr;
+    if (get_function != nullptr) {
+        get_function(&function, reinterpret_cast<CUkernel>(kernel));
+    }
+    return function;
+}
+
+hbfsim::GateDecision unavailable(std::string module_id, std::string kernel)
 {
     return {
         .allowed = false,
-        .module = kernel,
+        .module_id = std::move(module_id),
         .kernel = std::move(kernel),
         .reason = "launch_metadata_unavailable",
         .operation = "opaque_pointer_access",
     };
 }
 
-hbfsim::GateDecision inspect_driver_launch(
-    CUfunction function, void** kernel_parameters, void** extra)
+template <typename Handle, typename GetInfo>
+hbfsim::GateDecision inspect_bounded(
+    Handle handle, std::string runtime_module_id, std::string kernel,
+    void** arguments, GetInfo get_info)
 {
     auto& runtime = runtime_gate();
     runtime.refresh_manifests();
-    const auto kernel = driver_kernel_name(function);
-
-    // The driver API exposes an exact parameter count and byte size. Iterate only
-    // entries accepted by cuFuncGetParamInfo; never probe kernel_parameters past
-    // that boundary. cudaLaunchKernel is forwarded to this driver interception
-    // because its host-stub API does not expose a safe argument-count query.
-    using get_parameter_info_type =
-        CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
-    static auto get_parameter_info = reinterpret_cast<get_parameter_info_type>(
-        driver_symbol("cuFuncGetParamInfo"));
-    if (get_parameter_info == nullptr || kernel_parameters == nullptr || extra != nullptr) {
+    if (arguments == nullptr || get_info == nullptr) {
         return runtime.gate().has_ranges()
-                   ? metadata_unavailable(kernel)
-                   : hbfsim::GateDecision{
-                         .allowed = true, .module = kernel, .kernel = kernel};
+                   ? unavailable(std::move(runtime_module_id), std::move(kernel))
+                   : hbfsim::GateDecision{.allowed = true,
+                                          .module_id = std::move(runtime_module_id),
+                                          .kernel = std::move(kernel)};
     }
 
-    hbfsim::KernelLaunch launch{.module = kernel, .kernel = kernel};
+    hbfsim::KernelLaunch launch{.kernel = kernel};
     for (std::size_t index = 0;; ++index) {
         std::size_t offset = 0;
-        std::size_t size = 0;
-        const auto status =
-            get_parameter_info(function, index, &offset, &size);
+        std::size_t width = 0;
+        const auto status = get_info(handle, index, &offset, &width);
         if (status == CUDA_ERROR_INVALID_VALUE) {
             break;
         }
         if (status != CUDA_SUCCESS) {
             return runtime.gate().has_ranges()
-                       ? metadata_unavailable(kernel)
-                       : hbfsim::GateDecision{
-                             .allowed = true, .module = kernel, .kernel = kernel};
+                       ? unavailable(std::move(runtime_module_id), std::move(kernel))
+                       : hbfsim::GateDecision{.allowed = true,
+                                              .module_id = std::move(runtime_module_id),
+                                              .kernel = std::move(kernel)};
         }
-        launch.arguments.resize(index + 1, 0);
-        if (size == sizeof(std::uintptr_t) && kernel_parameters[index] != nullptr) {
-            std::memcpy(&launch.arguments[index], kernel_parameters[index], size);
+        hbfsim::LaunchParameter parameter{
+            .index = index,
+            .offset = offset,
+            .width = width,
+            .opaque_aggregate = width > sizeof(std::uintptr_t),
+        };
+        // CUDA guarantees arguments[index] points to exactly width bytes. Only
+        // a single pointer-width scalar is read. Wider values are opaque and
+        // fail closed while any HBF range is active; no aggregate slot guessing.
+        if (width == sizeof(std::uintptr_t) && arguments[index] != nullptr) {
+            std::uintptr_t value = 0;
+            std::memcpy(&value, arguments[index], sizeof(value));
+            parameter.slots.push_back({.offset = 0, .value = value});
         }
+        launch.parameters.push_back(std::move(parameter));
     }
-    return runtime.gate().check_launch(launch);
+    auto decision = runtime.gate().check_launch(launch);
+    if (decision.module_id.empty()) {
+        decision.module_id = std::move(runtime_module_id);
+    }
+    return decision;
 }
 
-hbfsim::GateDecision inspect_runtime_launch(const void* function, void** arguments)
+hbfsim::GateDecision inspect_function_launch(
+    CUfunction function, void** arguments, void** extra)
+{
+    const auto module_id = handle_id(function);
+    const auto kernel = function_name(function);
+    if (extra != nullptr) {
+        return runtime_gate().gate().has_ranges()
+                   ? unavailable(module_id, kernel)
+                   : hbfsim::GateDecision{.allowed = true,
+                                          .module_id = module_id,
+                                          .kernel = kernel};
+    }
+    using get_info_type =
+        CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
+    static auto get_info = reinterpret_cast<get_info_type>(
+        driver_symbol("cuFuncGetParamInfo"));
+    return inspect_bounded(function, module_id, kernel, arguments, get_info);
+}
+
+hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel, void** arguments)
+{
+    const CUfunction function = kernel_function(kernel);
+    if (function != nullptr) {
+        return inspect_function_launch(function, arguments, nullptr);
+    }
+    using get_name_type = CUresult (*)(const char**, CUkernel);
+    using get_info_type =
+        CUresult (*)(CUkernel, std::size_t, std::size_t*, std::size_t*);
+    static auto get_name =
+        reinterpret_cast<get_name_type>(driver_symbol("cuKernelGetName"));
+    static auto get_info = reinterpret_cast<get_info_type>(
+        driver_symbol("cuKernelGetParamInfo"));
+    const char* raw_name = nullptr;
+    const std::string name = get_name != nullptr &&
+                                     get_name(&raw_name, reinterpret_cast<CUkernel>(kernel)) ==
+                                         CUDA_SUCCESS &&
+                                     raw_name != nullptr
+                                 ? raw_name
+                                 : "unknown_cukernel";
+    return inspect_bounded(reinterpret_cast<CUkernel>(kernel), "cuda-module:unknown",
+                           name, arguments, get_info);
+}
+
+hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
 {
     using get_function_type = cudaError_t (*)(cudaFunction_t*, const void*);
     static auto get_function = reinterpret_cast<get_function_type>(
         dlsym(RTLD_NEXT, "cudaGetFuncBySymbol"));
-    if (get_function == nullptr) {
-        return runtime_gate().gate().has_ranges()
-                   ? metadata_unavailable("unknown_runtime_kernel")
-                   : hbfsim::GateDecision{.allowed = true,
-                                          .module = "unknown_runtime_kernel",
-                                          .kernel = "unknown_runtime_kernel"};
-    }
     cudaFunction_t runtime_function = nullptr;
-    if (get_function(&runtime_function, function) != cudaSuccess ||
+    if (get_function == nullptr ||
+        get_function(&runtime_function, symbol) != cudaSuccess ||
         runtime_function == nullptr) {
         return runtime_gate().gate().has_ranges()
-                   ? metadata_unavailable("unknown_runtime_kernel")
+                   ? unavailable("cuda-module:unknown", "unknown_runtime_kernel")
                    : hbfsim::GateDecision{.allowed = true,
-                                          .module = "unknown_runtime_kernel",
+                                          .module_id = "cuda-module:unknown",
                                           .kernel = "unknown_runtime_kernel"};
     }
-    return inspect_driver_launch(
-        reinterpret_cast<CUfunction>(runtime_function), arguments, nullptr);
-}
-
-hbfsim::GateDecision inspect_runtime_launch(cudaKernel_t kernel, void** arguments)
-{
-    auto& runtime = runtime_gate();
-    runtime.refresh_manifests();
-    const auto kernel_name = driver_kernel_name(reinterpret_cast<CUkernel>(kernel));
-    using get_parameter_info_type =
-        CUresult (*)(CUkernel, std::size_t, std::size_t*, std::size_t*);
-    static auto get_parameter_info = reinterpret_cast<get_parameter_info_type>(
-        driver_symbol("cuKernelGetParamInfo"));
-    if (get_parameter_info == nullptr || arguments == nullptr) {
-        return runtime.gate().has_ranges()
-                   ? metadata_unavailable(kernel_name)
-                   : hbfsim::GateDecision{.allowed = true,
-                                          .module = kernel_name,
-                                          .kernel = kernel_name};
-    }
-
-    hbfsim::KernelLaunch launch{.module = kernel_name, .kernel = kernel_name};
-    for (std::size_t index = 0;; ++index) {
-        std::size_t offset = 0;
-        std::size_t size = 0;
-        const auto status = get_parameter_info(
-            reinterpret_cast<CUkernel>(kernel), index, &offset, &size);
-        if (status == CUDA_ERROR_INVALID_VALUE) {
-            break;
-        }
-        if (status != CUDA_SUCCESS) {
-            return runtime.gate().has_ranges()
-                       ? metadata_unavailable(kernel_name)
-                       : hbfsim::GateDecision{.allowed = true,
-                                              .module = kernel_name,
-                                              .kernel = kernel_name};
-        }
-        launch.arguments.resize(index + 1, 0);
-        if (size == sizeof(std::uintptr_t) && arguments[index] != nullptr) {
-            std::memcpy(&launch.arguments[index], arguments[index], size);
-        }
-    }
-    return runtime.gate().check_launch(launch);
+    return inspect_function_launch(reinterpret_cast<CUfunction>(runtime_function),
+                                   arguments, nullptr);
 }
 
 thread_local bool runtime_launch_in_progress = false;
-
-class RuntimeLaunchScope {
-  public:
+struct RuntimeLaunchScope {
     RuntimeLaunchScope() { runtime_launch_in_progress = true; }
     ~RuntimeLaunchScope() { runtime_launch_in_progress = false; }
 };
+
+bool approve(const hbfsim::GateDecision& decision)
+{
+    return runtime_gate().approve(decision);
+}
+
+using driver_launch_type = CUresult (*)(
+    CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
+    unsigned int, unsigned int, unsigned int, CUstream, void**, void**);
+
+CUresult driver_launch(
+    const char* symbol, CUfunction function, unsigned int grid_x,
+    unsigned int grid_y, unsigned int grid_z, unsigned int block_x,
+    unsigned int block_y, unsigned int block_z, unsigned int shared_memory,
+    CUstream stream, void** parameters, void** extra)
+{
+    auto original = reinterpret_cast<driver_launch_type>(dlsym(RTLD_NEXT, symbol));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    if (runtime_launch_in_progress) {
+        return original(function, grid_x, grid_y, grid_z, block_x, block_y,
+                        block_z, shared_memory, stream, parameters, extra);
+    }
+    const auto decision = inspect_function_launch(function, parameters, extra);
+    if (!approve(decision)) {
+        return CUDA_ERROR_NOT_SUPPORTED;
+    }
+    return original(function, grid_x, grid_y, grid_z, block_x, block_y, block_z,
+                    shared_memory, stream, parameters, extra);
+}
+
+using runtime_launch_type = cudaError_t (*)(
+    const void*, dim3, dim3, void**, std::size_t, cudaStream_t);
+
+cudaError_t runtime_launch(
+    const char* symbol, const void* function, dim3 grid, dim3 block,
+    void** arguments, std::size_t shared_memory, cudaStream_t stream)
+{
+    auto original = reinterpret_cast<runtime_launch_type>(dlsym(RTLD_NEXT, symbol));
+    if (original == nullptr) {
+        return cudaErrorInitializationError;
+    }
+    const auto decision = inspect_symbol_launch(function, arguments);
+    if (!approve(decision)) {
+        return cudaErrorNotSupported;
+    }
+    RuntimeLaunchScope scope;
+    return original(function, grid, block, arguments, shared_memory, stream);
+}
+
+using kernel_launch_type = cudaError_t (*)(
+    cudaKernel_t, dim3, dim3, void**, std::size_t, cudaStream_t);
+
+cudaError_t kernel_launch(
+    const char* symbol, cudaKernel_t kernel, dim3 grid, dim3 block,
+    void** arguments, std::size_t shared_memory, cudaStream_t stream)
+{
+    auto original = reinterpret_cast<kernel_launch_type>(dlsym(RTLD_NEXT, symbol));
+    if (original == nullptr) {
+        return cudaErrorInitializationError;
+    }
+    const auto decision = inspect_kernel_launch(kernel, arguments);
+    if (!approve(decision)) {
+        return cudaErrorNotSupported;
+    }
+    RuntimeLaunchScope scope;
+    return original(kernel, grid, block, arguments, shared_memory, stream);
+}
 
 }  // namespace
 
@@ -257,91 +326,41 @@ extern "C" int hbfsim_coverage_add_range(
     }
 }
 
-extern "C" CUresult cuLaunchKernel(
-    CUfunction function, unsigned int grid_x, unsigned int grid_y,
-    unsigned int grid_z, unsigned int block_x, unsigned int block_y,
-    unsigned int block_z, unsigned int shared_memory, CUstream stream,
-    void** kernel_parameters, void** extra)
-{
-    using launch_type = CUresult (*)(
-        CUfunction, unsigned int, unsigned int, unsigned int, unsigned int,
-        unsigned int, unsigned int, unsigned int, CUstream, void**, void**);
-    static auto original =
-        reinterpret_cast<launch_type>(dlsym(RTLD_NEXT, "cuLaunchKernel"));
-    if (original == nullptr) {
-        return CUDA_ERROR_NOT_INITIALIZED;
+#define HBFSIM_DRIVER_LAUNCH(name)                                              \
+    extern "C" CUresult name(                                                  \
+        CUfunction function, unsigned int grid_x, unsigned int grid_y,          \
+        unsigned int grid_z, unsigned int block_x, unsigned int block_y,        \
+        unsigned int block_z, unsigned int shared_memory, CUstream stream,      \
+        void** parameters, void** extra)                                        \
+    {                                                                            \
+        return driver_launch(#name, function, grid_x, grid_y, grid_z, block_x,  \
+                             block_y, block_z, shared_memory, stream, parameters,\
+                             extra);                                             \
     }
 
-    if (runtime_launch_in_progress) {
-        return original(function, grid_x, grid_y, grid_z, block_x, block_y,
-                        block_z, shared_memory, stream, kernel_parameters, extra);
+HBFSIM_DRIVER_LAUNCH(cuLaunchKernel)
+HBFSIM_DRIVER_LAUNCH(cuLaunchKernel_ptsz)
+
+#define HBFSIM_RUNTIME_LAUNCH(name)                                             \
+    extern "C" cudaError_t name(                                                \
+        const void* function, dim3 grid, dim3 block, void** arguments,          \
+        std::size_t shared_memory, cudaStream_t stream)                         \
+    {                                                                            \
+        return runtime_launch(#name, function, grid, block, arguments,          \
+                              shared_memory, stream);                            \
     }
 
-    auto decision = inspect_driver_launch(function, kernel_parameters, extra);
-    runtime_gate().record(decision);
-    if (!decision.allowed) {
-        return CUDA_ERROR_NOT_SUPPORTED;
-    }
-    return original(function, grid_x, grid_y, grid_z, block_x, block_y, block_z,
-                    shared_memory, stream, kernel_parameters, extra);
-}
+HBFSIM_RUNTIME_LAUNCH(cudaLaunchKernel)
+HBFSIM_RUNTIME_LAUNCH(cudaLaunchKernel_ptsz)
 
-extern "C" cudaError_t cudaLaunchKernel(
-    const void* function, dim3 grid, dim3 block, void** arguments,
-    std::size_t shared_memory, cudaStream_t stream)
-{
-    using launch_type = cudaError_t (*)(
-        const void*, dim3, dim3, void**, std::size_t, cudaStream_t);
-    static auto original =
-        reinterpret_cast<launch_type>(dlsym(RTLD_NEXT, "cudaLaunchKernel"));
-    if (original == nullptr) {
-        return cudaErrorInitializationError;
+#define HBFSIM_KERNEL_LAUNCH(name)                                              \
+    extern "C" cudaError_t name(                                                \
+        cudaKernel_t kernel, dim3 grid, dim3 block, void** arguments,           \
+        std::size_t shared_memory, cudaStream_t stream)                         \
+    {                                                                            \
+        return kernel_launch(#name, kernel, grid, block, arguments,             \
+                             shared_memory, stream);                             \
     }
-    const auto decision = inspect_runtime_launch(function, arguments);
-    runtime_gate().record(decision);
-    if (!decision.allowed) {
-        return cudaErrorNotSupported;
-    }
-    RuntimeLaunchScope scope;
-    return original(function, grid, block, arguments, shared_memory, stream);
-}
 
-extern "C" cudaError_t __cudaLaunchKernel(
-    cudaKernel_t kernel, dim3 grid, dim3 block, void** arguments,
-    std::size_t shared_memory, cudaStream_t stream)
-{
-    using launch_type = cudaError_t (*)(
-        cudaKernel_t, dim3, dim3, void**, std::size_t, cudaStream_t);
-    static auto original =
-        reinterpret_cast<launch_type>(dlsym(RTLD_NEXT, "__cudaLaunchKernel"));
-    if (original == nullptr) {
-        return cudaErrorInitializationError;
-    }
-    const auto decision = inspect_runtime_launch(kernel, arguments);
-    runtime_gate().record(decision);
-    if (!decision.allowed) {
-        return cudaErrorNotSupported;
-    }
-    RuntimeLaunchScope scope;
-    return original(kernel, grid, block, arguments, shared_memory, stream);
-}
-
-extern "C" cudaError_t __cudaLaunchKernel_ptsz(
-    cudaKernel_t kernel, dim3 grid, dim3 block, void** arguments,
-    std::size_t shared_memory, cudaStream_t stream)
-{
-    using launch_type = cudaError_t (*)(
-        cudaKernel_t, dim3, dim3, void**, std::size_t, cudaStream_t);
-    static auto original = reinterpret_cast<launch_type>(
-        dlsym(RTLD_NEXT, "__cudaLaunchKernel_ptsz"));
-    if (original == nullptr) {
-        return cudaErrorInitializationError;
-    }
-    const auto decision = inspect_runtime_launch(kernel, arguments);
-    runtime_gate().record(decision);
-    if (!decision.allowed) {
-        return cudaErrorNotSupported;
-    }
-    RuntimeLaunchScope scope;
-    return original(kernel, grid, block, arguments, shared_memory, stream);
-}
+HBFSIM_KERNEL_LAUNCH(__cudaLaunchKernel)
+HBFSIM_KERNEL_LAUNCH(__cudaLaunchKernel_ptsz)

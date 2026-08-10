@@ -12,12 +12,15 @@ nlohmann::json to_json(const GateDecision& decision)
 {
     return {
         {"allowed", decision.allowed},
-        {"module", decision.module},
+        {"module_id", decision.module_id},
         {"kernel", decision.kernel},
+        {"ptx_target", decision.ptx_target},
+        {"cubin_only", decision.cubin_only},
         {"reason", decision.reason},
         {"operation", decision.operation},
         {"inspected_parameters", decision.inspected_parameters},
         {"parameter_index", decision.parameter_index},
+        {"parameter_offset", decision.parameter_offset},
         {"address", decision.address},
     };
 }
@@ -54,6 +57,25 @@ void CoverageWriter::flush() const
     if (!output) {
         throw std::runtime_error("unable to write coverage report: " + path_.string());
     }
+}
+
+bool try_append_coverage(
+    CoverageWriter& writer, const GateDecision& decision) noexcept
+{
+    try {
+        writer.append(decision);
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool coverage_decision_permits_launch(
+    CoverageWriter& writer, const GateDecision& decision) noexcept
+{
+    // Auditability is part of the launch policy: a launch is approved only
+    // when its decision is safe and durably reportable.
+    return try_append_coverage(writer, decision) && decision.allowed;
 }
 
 }  // namespace hbfsim

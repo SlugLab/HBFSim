@@ -89,9 +89,6 @@ void append_durable_line(const std::filesystem::path& path,
             offset += static_cast<std::size_t>(count);
         }
         sync_fd(fd, path, false);
-        const int closing_fd = fd;
-        fd = -1;
-        close_checked(closing_fd, path);
 
         if (created) {
             const auto parent = path.parent_path().empty()
@@ -110,6 +107,9 @@ void append_durable_line(const std::filesystem::path& path,
             }
             close_checked(directory_fd, path);
         }
+        const int closing_fd = fd;
+        fd = -1;
+        close_checked(closing_fd, path);
     } catch (...) {
         if (fd >= 0) {
             ::close(fd);

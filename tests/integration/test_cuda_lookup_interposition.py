@@ -16,6 +16,30 @@ def address(library: ctypes.CDLL, symbol: str) -> int:
     return ctypes.cast(getattr(library, symbol), ctypes.c_void_p).value
 
 
+def lookup(process: ctypes.CDLL, name: str, symbol: str, flags: int) -> tuple[int, int]:
+    function = getattr(process, name)
+    output = ctypes.c_void_p()
+    status = ctypes.c_int()
+    arguments = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
+    call = [symbol.encode(), ctypes.byref(output)]
+    if name.startswith("cuGetProcAddress"):
+        arguments += [ctypes.c_int, ctypes.c_uint64]
+        call += [12080, flags]
+        if name.endswith("_v2"):
+            arguments.append(ctypes.POINTER(ctypes.c_int))
+            call.append(ctypes.byref(status))
+    else:
+        if "ByVersion" in name:
+            arguments.append(ctypes.c_uint)
+            call.append(12080)
+        arguments += [ctypes.c_uint64, ctypes.POINTER(ctypes.c_int)]
+        call += [flags, ctypes.byref(status)]
+    function.argtypes = arguments
+    function.restype = ctypes.c_int
+    result = function(*call)
+    return result, output.value
+
+
 def main() -> int:
     gate = str(pathlib.Path(sys.argv[1]).resolve())
     fake = str(pathlib.Path(sys.argv[2]).resolve())
@@ -31,61 +55,51 @@ def main() -> int:
 
     process = ctypes.CDLL(None)
     gate_library = ctypes.CDLL(gate)
-    expected_legacy = address(gate_library, "cudaLaunchKernel")
-    expected_ptsz = address(gate_library, "cudaLaunchKernel_ptsz")
-    output = ctypes.c_void_p()
-    status = ctypes.c_int()
-
-    driver_legacy = process.cuGetProcAddress
-    driver_legacy.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p),
-                              ctypes.c_int, ctypes.c_uint64]
-    driver_legacy.restype = ctypes.c_int
-    require(driver_legacy(b"cudaLaunchKernel", ctypes.byref(output), 12080, 0)
-            == 0 and output.value == expected_legacy,
-            "legacy driver lookup did not return the gated wrapper")
-    output.value = None
-    require(driver_legacy(b"fail", ctypes.byref(output), 12080, 0) != 0 and
-            output.value == 0x1234,
-            "failed driver lookup was substituted")
-
-    driver_v2 = process.cuGetProcAddress_v2
-    driver_v2.argtypes = driver_legacy.argtypes + [ctypes.POINTER(ctypes.c_int)]
-    driver_v2.restype = ctypes.c_int
-    output.value = None
-    require(driver_v2(b"cudaLaunchKernel", ctypes.byref(output), 12080, 2,
-                      ctypes.byref(status)) == 0 and
-            output.value == expected_ptsz,
-            "v2 driver PTDS lookup did not return the gated PTDS wrapper")
-
-    runtime_names = (
-        ("cudaGetDriverEntryPoint", False, False),
-        ("cudaGetDriverEntryPoint_ptsz", False, True),
-        ("cudaGetDriverEntryPointByVersion", True, False),
-        ("cudaGetDriverEntryPointByVersion_ptsz", True, True),
+    launch_symbols = (
+        ("cuLaunch", "cuLaunch", "cuLaunch"),
+        ("cuLaunchGrid", "cuLaunchGrid", "cuLaunchGrid"),
+        ("cuLaunchGridAsync", "cuLaunchGridAsync", "cuLaunchGridAsync"),
+        ("cuLaunchKernel", "cuLaunchKernel", "cuLaunchKernel_ptsz"),
+        ("cuLaunchKernelEx", "cuLaunchKernelEx", "cuLaunchKernelEx_ptsz"),
+        ("cuLaunchCooperativeKernel", "cuLaunchCooperativeKernel",
+         "cuLaunchCooperativeKernel_ptsz"),
+        ("cuLaunchCooperativeKernelMultiDevice",
+         "cuLaunchCooperativeKernelMultiDevice",
+         "cuLaunchCooperativeKernelMultiDevice"),
+        ("cuGraphLaunch", "cuGraphLaunch", "cuGraphLaunch_ptsz"),
     )
-    for lookup_name, versioned, ptsz in runtime_names:
-        lookup = getattr(process, lookup_name)
-        arguments = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
-        if versioned:
-            arguments.append(ctypes.c_uint)
-        arguments += [ctypes.c_uint64, ctypes.POINTER(ctypes.c_int)]
-        lookup.argtypes = arguments
-        lookup.restype = ctypes.c_int
-        call = [b"cudaLaunchKernel", ctypes.byref(output)]
-        if versioned:
-            call.append(12080)
-        call += [0, ctypes.byref(status)]
-        output.value = None
-        require(lookup(*call) == 0 and
-                output.value == (expected_ptsz if ptsz else expected_legacy),
-                f"{lookup_name} returned the wrong gated wrapper")
-        failure_call = [b"fail", ctypes.byref(output)]
-        if versioned:
-            failure_call.append(12080)
-        failure_call += [0, ctypes.byref(status)]
-        output.value = None
-        require(lookup(*failure_call) != 0 and output.value == 0x1234,
-                f"{lookup_name} substituted a failed original lookup")
+    lifecycle_symbols = ("cuModuleLoadDataEx", "cuModuleUnload")
+    lookup_apis = (
+        ("cuGetProcAddress", False),
+        ("cuGetProcAddress_v2", False),
+        ("cudaGetDriverEntryPoint", False),
+        ("cudaGetDriverEntryPoint_ptsz", True),
+        ("cudaGetDriverEntryPointByVersion", False),
+        ("cudaGetDriverEntryPointByVersion_ptsz", True),
+    )
+    for lookup_name, implicit_ptsz in lookup_apis:
+        for symbol, legacy_wrapper, ptsz_wrapper in launch_symbols:
+            for flags in (0, 2):
+                result, output = lookup(process, lookup_name, symbol, flags)
+                expected_name = (ptsz_wrapper if implicit_ptsz or flags == 2
+                                 else legacy_wrapper)
+                require(result == 0 and
+                        output == address(gate_library, expected_name),
+                        f"{lookup_name}({symbol}, flags={flags}) returned "
+                        f"the wrong gated wrapper")
+        for symbol in lifecycle_symbols:
+            for flags in (0, 2):
+                result, output = lookup(process, lookup_name, symbol, flags)
+                require(result == 0 and output == address(gate_library, symbol),
+                        f"{lookup_name} bypassed lifecycle hook {symbol}")
+
+        result, output = lookup(process, lookup_name, "cuMemcpyDtoH", 0)
+        require(result == 0 and output == 0x1234,
+                f"{lookup_name} substituted a non-gated driver function")
+        result, output = lookup(process, lookup_name, "cudaLaunchKernel", 0)
+        require(result != 0 and output == 0x1234,
+                f"{lookup_name} accepted an invalid runtime API name: "
+                f"result={result}, output={output}")
 
     return 0
 

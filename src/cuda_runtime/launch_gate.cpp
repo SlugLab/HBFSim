@@ -1,4 +1,5 @@
 #include "hbfsim/coverage.hpp"
+#include "hbfsim/module_identity.hpp"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -91,10 +92,43 @@ RuntimeGate& runtime_gate()
     return runtime;
 }
 
+hbfsim::ModuleIdentityRegistry& module_identities()
+{
+    static hbfsim::ModuleIdentityRegistry registry;
+    return registry;
+}
+
 void* driver_symbol(const char* name)
 {
     static void* driver = dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
     return driver == nullptr ? nullptr : dlsym(driver, name);
+}
+
+std::optional<hbfsim::ModuleIdentity> live_module_identity(CUmodule module)
+{
+    using get_global_type =
+        CUresult (*)(CUdeviceptr*, std::size_t*, CUmodule, const char*);
+    using copy_type = CUresult (*)(void*, CUdeviceptr, std::size_t);
+    static auto get_global = reinterpret_cast<get_global_type>(
+        driver_symbol("cuModuleGetGlobal_v2"));
+    static auto copy =
+        reinterpret_cast<copy_type>(driver_symbol("cuMemcpyDtoH_v2"));
+    CUdeviceptr address = 0;
+    std::size_t size = 0;
+    hbfsim::ModuleIdentity identity{};
+    if (get_global != nullptr && copy != nullptr &&
+        get_global(&address, &size, module, "__hbfsim_module_identity") ==
+            CUDA_SUCCESS &&
+        size == identity.size() &&
+        copy(identity.data(), address, identity.size()) == CUDA_SUCCESS) {
+        return identity;
+    }
+    return std::nullopt;
+}
+
+hbfsim::ModuleHandle module_handle(CUmodule module)
+{
+    return reinterpret_cast<hbfsim::ModuleHandle>(module);
 }
 
 std::string handle_id(CUfunction function)
@@ -105,26 +139,11 @@ std::string handle_id(CUfunction function)
     CUmodule module = nullptr;
     if (get_module == nullptr ||
         get_module(&module, function) != CUDA_SUCCESS) {
-        return "cuda-module:unknown";
+        return {};
     }
-    using get_global_type =
-        CUresult (*)(CUdeviceptr*, std::size_t*, CUmodule, const char*);
-    using copy_type = CUresult (*)(void*, CUdeviceptr, std::size_t);
-    static auto get_global = reinterpret_cast<get_global_type>(
-        driver_symbol("cuModuleGetGlobal_v2"));
-    static auto copy =
-        reinterpret_cast<copy_type>(driver_symbol("cuMemcpyDtoH_v2"));
-    CUdeviceptr address = 0;
-    std::size_t size = 0;
-    std::array<std::uint8_t, 32> identity{};
-    if (get_global != nullptr && copy != nullptr &&
-        get_global(&address, &size, module, "__hbfsim_module_identity") ==
-            CUDA_SUCCESS &&
-        size == identity.size() &&
-        copy(identity.data(), address, identity.size()) == CUDA_SUCCESS) {
-        return hbfsim::module_id_from_identity(identity);
-    }
-    return {};
+    const auto identity = module_identities().lookup(module_handle(module));
+    return identity.has_value() ? hbfsim::module_id_from_identity(*identity)
+                                : std::string{};
 }
 
 std::string function_name(CUfunction function)
@@ -637,6 +656,60 @@ cudaLaunchCooperativeKernelMultiDevice(struct cudaLaunchParams* launches,
 }
 #endif
 
+extern "C" int hbfsim_expect_module_identity(const std::uint8_t* identity,
+                                             std::size_t size) noexcept
+{
+    if (identity == nullptr || size != hbfsim::ModuleIdentity{}.size()) {
+        return -1;
+    }
+    hbfsim::ModuleIdentity value{};
+    std::memcpy(value.data(), identity, value.size());
+    module_identities().expect(value);
+    return 0;
+}
+
+extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
+                                       unsigned int option_count,
+                                       CUjit_option* options,
+                                       void** option_values)
+{
+    using type = CUresult (*)(CUmodule*, const void*, unsigned int,
+                              CUjit_option*, void**);
+    auto original =
+        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuModuleLoadDataEx"));
+    if (original == nullptr) {
+        module_identities().discard_expectations();
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result =
+        original(module, image, option_count, options, option_values);
+    if (result != CUDA_SUCCESS) {
+        module_identities().discard_expectations();
+        return result;
+    }
+    if (module != nullptr && *module != nullptr) {
+        if (const auto identity = live_module_identity(*module)) {
+            (void)module_identities().associate(module_handle(*module),
+                                                *identity);
+        }
+    }
+    return result;
+}
+
+extern "C" CUresult cuModuleUnload(CUmodule module)
+{
+    using type = CUresult (*)(CUmodule);
+    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuModuleUnload"));
+    if (original == nullptr) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+    const auto result = original(module);
+    if (result == CUDA_SUCCESS) {
+        module_identities().erase(module_handle(module));
+    }
+    return result;
+}
+
 namespace {
 
 template <typename Function> void* wrapper_address(Function function)
@@ -644,7 +717,7 @@ template <typename Function> void* wrapper_address(Function function)
     return reinterpret_cast<void*>(function);
 }
 
-void* gated_launch_wrapper_address(const char* symbol, bool per_thread)
+void* interposed_wrapper_address(const char* symbol, bool per_thread)
 {
     if (symbol == nullptr) {
         return nullptr;
@@ -678,32 +751,8 @@ void* gated_launch_wrapper_address(const char* symbol, bool per_thread)
          wrapper_address(&cuGraphLaunch_ptsz)},
         {"cuGraphLaunch_ptsz", wrapper_address(&cuGraphLaunch_ptsz),
          wrapper_address(&cuGraphLaunch_ptsz)},
-        {"cudaLaunchKernel", wrapper_address(&cudaLaunchKernel),
-         wrapper_address(&cudaLaunchKernel_ptsz)},
-        {"cudaLaunchKernel_ptsz", wrapper_address(&cudaLaunchKernel_ptsz),
-         wrapper_address(&cudaLaunchKernel_ptsz)},
-        {"cudaLaunchKernelExC", wrapper_address(&cudaLaunchKernelExC),
-         wrapper_address(&cudaLaunchKernelExC_ptsz)},
-        {"cudaLaunchKernelExC_ptsz", wrapper_address(&cudaLaunchKernelExC_ptsz),
-         wrapper_address(&cudaLaunchKernelExC_ptsz)},
-        {"cudaLaunchCooperativeKernel",
-         wrapper_address(&cudaLaunchCooperativeKernel),
-         wrapper_address(&cudaLaunchCooperativeKernel_ptsz)},
-        {"cudaLaunchCooperativeKernel_ptsz",
-         wrapper_address(&cudaLaunchCooperativeKernel_ptsz),
-         wrapper_address(&cudaLaunchCooperativeKernel_ptsz)},
-#if CUDART_VERSION < 13000
-        {"cudaLaunchCooperativeKernelMultiDevice",
-         wrapper_address(&cudaLaunchCooperativeKernelMultiDevice), nullptr},
-#endif
-        {"cudaGraphLaunch", wrapper_address(&cudaGraphLaunch),
-         wrapper_address(&cudaGraphLaunch_ptsz)},
-        {"cudaGraphLaunch_ptsz", wrapper_address(&cudaGraphLaunch_ptsz),
-         wrapper_address(&cudaGraphLaunch_ptsz)},
-        {"__cudaLaunchKernel", wrapper_address(&__cudaLaunchKernel),
-         wrapper_address(&__cudaLaunchKernel_ptsz)},
-        {"__cudaLaunchKernel_ptsz", wrapper_address(&__cudaLaunchKernel_ptsz),
-         wrapper_address(&__cudaLaunchKernel_ptsz)},
+        {"cuModuleLoadDataEx", wrapper_address(&cuModuleLoadDataEx), nullptr},
+        {"cuModuleUnload", wrapper_address(&cuModuleUnload), nullptr},
     };
     for (const auto& wrapper : wrappers) {
         if (std::strcmp(symbol, wrapper.name) == 0) {
@@ -721,7 +770,7 @@ void substitute_gated_launch(const char* symbol, void** function,
     if (function == nullptr || *function == nullptr) {
         return;
     }
-    if (void* replacement = gated_launch_wrapper_address(symbol, per_thread)) {
+    if (void* replacement = interposed_wrapper_address(symbol, per_thread)) {
         *function = replacement;
     }
 }

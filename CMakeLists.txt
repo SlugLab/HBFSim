@@ -14,6 +14,7 @@ add_library(
     hbfsim_core STATIC
     src/api.cpp
     src/cuda_runtime/coverage.cpp
+    src/cuda_runtime/module_identity.cpp
     src/profile/profile.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
@@ -65,6 +66,10 @@ target_link_options(
 )
 add_test(NAME durable_append COMMAND durable_append_test)
 
+add_executable(module_identity_test tests/cpu/module_identity_test.cpp)
+target_link_libraries(module_identity_test PRIVATE hbfsim_core)
+add_test(NAME module_identity COMMAND module_identity_test)
+
 add_executable(ptx_transform_test tests/cpu/ptx_transform_test.cpp)
 target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)
 target_include_directories(
@@ -89,7 +94,9 @@ set_target_properties(
 )
 
 add_library(ptxpass_hbf_plugin SHARED src/ptxpass_hbf/plugin.cpp)
-target_link_libraries(ptxpass_hbf_plugin PRIVATE hbfsim_core OpenSSL::Crypto)
+target_link_libraries(
+    ptxpass_hbf_plugin PRIVATE hbfsim_core OpenSSL::Crypto ${CMAKE_DL_LIBS}
+)
 target_include_directories(
     ptxpass_hbf_plugin
     PRIVATE
@@ -110,6 +117,7 @@ if(BUILD_TESTING)
             "${HBFSIM_PYTHON3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_ptxpass_plugin.py"
             "$<TARGET_FILE:ptxpass_hbf_plugin>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf/plugin.cpp"
     )
     set_tests_properties(
         ptxpass_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -205,6 +213,9 @@ if(CUDAToolkit_FOUND)
         add_library(
             fake_cuda_lookup SHARED tests/integration/fake_cuda_lookup.cpp
         )
+        set_target_properties(
+            fake_cuda_lookup PROPERTIES OUTPUT_NAME cuda SOVERSION 1
+        )
         find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
         add_test(
             NAME launch_gate_symbols
@@ -221,6 +232,15 @@ if(CUDAToolkit_FOUND)
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_lookup_interposition.py"
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
+        )
+        add_test(
+            NAME cuda_module_association
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_module_association.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+                    "$<TARGET_FILE:fake_cuda_lookup>"
+                    "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
         )
     endif()
 elseif(HBFSIM_ENABLE_CUDA)

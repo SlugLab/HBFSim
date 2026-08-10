@@ -49,6 +49,8 @@ def main() -> int:
         "cudaGetDriverEntryPoint", "cudaGetDriverEntryPoint_ptsz",
         "cudaGetDriverEntryPointByVersion",
         "cudaGetDriverEntryPointByVersion_ptsz",
+        "cuModuleLoadDataEx", "cuModuleUnload",
+        "hbfsim_expect_module_identity",
     }
     toolkit_major = int(sys.argv[4].split(".", maxsplit=1)[0])
     if toolkit_major < 13:
@@ -58,10 +60,17 @@ def main() -> int:
         raise RuntimeError(f"missing launch interceptors: {sorted(missing)}")
 
     source = pathlib.Path(sys.argv[3]).read_text()
-    require("gated_launch_wrapper_address" in source,
-            "launch lookup APIs do not use an explicit local wrapper map")
+    require("interposed_wrapper_address" in source,
+            "driver-entry APIs do not use an explicit local wrapper map")
+    lookup_map = function_body(source, "interposed_wrapper_address(")
+    require('{"cudaLaunch' not in lookup_map and
+            '{"__cudaLaunch' not in lookup_map,
+            "driver-entry lookup map contains invalid runtime API names")
     require("RTLD_DEFAULT" not in source,
             "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
+    require('"cuModuleLoadDataEx"' in lookup_map and
+            '"cuModuleUnload"' in lookup_map,
+            "driver-entry lookup can bypass module lifecycle interposition")
     for symbol in required:
         if "Launch" in symbol:
             require(f'"{symbol}"' in source or f'({symbol})' in source,
@@ -69,9 +78,22 @@ def main() -> int:
     require('"__hbfsim_module_identity"' in source and
             'driver_symbol("cuModuleGetGlobal_v2")' in source and
             'driver_symbol("cuMemcpyDtoH_v2")' in source,
-            "launch gate does not resolve the pass marker from the live module")
-    require("unordered_map<CUmodule" not in source,
-            "module identity must not be cached across CUmodule handle reuse")
+            "module load does not verify the live transformed identity")
+    handle_id = function_body(source, "handle_id(")
+    require("module_identities().lookup" in handle_id and
+            "live_module_identity" not in handle_id and
+            "__hbfsim_module_identity" not in handle_id,
+            "launch authorization still trusts an embedded identity directly")
+    module_load = function_body(source, "cuModuleLoadDataEx(")
+    require("result != CUDA_SUCCESS" in module_load and
+            "discard_expectations" in module_load and
+            "live_module_identity" in module_load and
+            "module_identities().associate" in module_load,
+            "module load does not bind successful exact pass provenance")
+    module_unload = function_body(source, "cuModuleUnload(")
+    require("result == CUDA_SUCCESS" in module_unload and
+            "module_identities().erase" in module_unload,
+            "module unload does not erase association only after success")
     runtime_multi = function_body(
         source, "cudaLaunchCooperativeKernelMultiDevice(")
     require("RuntimeLaunchScope scope;" in runtime_multi,

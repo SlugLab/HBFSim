@@ -106,4 +106,11 @@ set +e
 "$@"
 status=$?
 set -e
-exit "$status"
+if (( status != 0 )); then
+    exit "$status"
+fi
+
+if ! python3 -c 'import json,sys; lines=[x for x in open(sys.argv[1]) if x.strip()]; assert lines; manifests=[json.loads(x) for x in lines]; assert all(m.get("module_id") and m.get("kernel") for m in manifests); coverage=json.load(open(sys.argv[2])); assert isinstance(coverage.get("decisions"),list) and coverage["decisions"]' "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
+    echo "run_with_bpftime: target produced no valid instrumentation activation artifacts" >&2
+    exit 70
+fi

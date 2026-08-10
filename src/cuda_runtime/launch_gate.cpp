@@ -75,6 +75,10 @@ void* driver_symbol(const char* name)
 
 std::string handle_id(CUfunction function)
 {
+    // This handle identity deliberately cannot match the PTX content identity.
+    // Task 8 must establish an exact runtime module association (for example,
+    // by resolving a pass-injected module marker). Until then HBF launches fail
+    // closed instead of authorizing by a possibly-colliding kernel name.
     using get_module_type = CUresult (*)(CUmodule*, CUfunction);
     static auto get_module =
         reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));

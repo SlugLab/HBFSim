@@ -53,6 +53,12 @@ int main()
         "ptx:bbb", "same_name",
         {{.index = 0, .offset = 0, .width = 8,
           .kind = hbfsim::ParameterKind::Scalar}}));
+    gate.add_module({
+        .module_id = "cubin:no-marker",
+        .kernel = "same_name",
+        .instrumented = false,
+        .cubin_only = true,
+    });
     gate.add_range(0x100000, 0x200000);
 
     const auto safe = gate.check_launch(
@@ -64,7 +70,18 @@ int main()
     const auto collision =
         gate.check_launch(launch("", "same_name", {pointer(0, 0x100100)}));
     assert(!collision.allowed);
-    assert(collision.reason == "ambiguous_module_identity");
+    assert(collision.reason == "exact_module_identity_required");
+
+    hbfsim::CoverageGate unique_name_gate;
+    unique_name_gate.add_module(manifest(
+        "ptx:only", "unique_name",
+        {{.index = 0, .offset = 0, .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}}));
+    unique_name_gate.add_range(0x100000, 0x200000);
+    const auto no_id = unique_name_gate.check_launch(
+        launch("", "unique_name", {pointer(0, 0x100100)}));
+    assert(!no_id.allowed);
+    assert(no_id.reason == "exact_module_identity_required");
 
     const auto scalar = gate.check_launch(
         launch("ptx:bbb", "same_name", {pointer(0, 0x100100)}));

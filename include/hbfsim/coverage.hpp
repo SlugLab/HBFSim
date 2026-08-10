@@ -87,7 +87,6 @@ class CoverageGate {
 
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, ModuleManifest> modules_;
-    std::unordered_map<std::string, std::vector<std::string>> modules_by_kernel_;
     std::vector<AddressRange> ranges_;
 };
 

@@ -77,10 +77,6 @@ void CoverageGate::add_module(ModuleManifest manifest)
     }
     std::unique_lock lock(mutex_);
     const auto key = module_key(manifest.module_id, manifest.kernel);
-    auto& keys = modules_by_kernel_[manifest.kernel];
-    if (std::ranges::find(keys, key) == keys.end()) {
-        keys.push_back(key);
-    }
     modules_.insert_or_assign(key, std::move(manifest));
 }
 
@@ -125,20 +121,13 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 .inspected_parameters = launch.parameters.size()};
     }
 
+    if (launch.module_id.empty()) {
+        return rejected(launch, "exact_module_identity_required");
+    }
     const ModuleManifest* manifest = nullptr;
-    if (!launch.module_id.empty()) {
-        const auto found = modules_.find(module_key(launch.module_id, launch.kernel));
-        if (found != modules_.end()) {
-            manifest = &found->second;
-        }
-    } else {
-        const auto found = modules_by_kernel_.find(launch.kernel);
-        if (found != modules_by_kernel_.end() && found->second.size() > 1) {
-            return rejected(launch, "ambiguous_module_identity");
-        }
-        if (found != modules_by_kernel_.end() && found->second.size() == 1) {
-            manifest = &modules_.at(found->second.front());
-        }
+    const auto found = modules_.find(module_key(launch.module_id, launch.kernel));
+    if (found != modules_.end()) {
+        manifest = &found->second;
     }
     if (manifest == nullptr) {
         return rejected(launch, "uninstrumented_module");

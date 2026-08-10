@@ -196,8 +196,10 @@ void hbfsim_end_module_load(uint64_t token);
 `hbfsim_begin_module_load_from_ptx` accepts only one canonical 32-byte
 `__hbfsim_module_identity` declaration and installs the identity and a nonzero
 token in thread-local state. Missing, malformed, duplicate, or nested input
-returns zero. bpftime calls `hbfsim_end_module_load` unconditionally after the
-load. If both callbacks are absent, standalone bpftime behavior is unchanged.
+returns zero; a nested begin attempt also cancels the older transaction so the
+rejection cannot leave stale trust. bpftime calls `hbfsim_end_module_load`
+unconditionally after the load. If both callbacks are absent, standalone
+bpftime behavior is unchanged.
 If only one callback is present, or if the begin callback is present but
 returns zero, bpftime reports the provenance failure and does not execute that
 module load.

@@ -14,6 +14,7 @@ add_library(
     hbfsim_core STATIC
     src/api.cpp
     src/cuda_runtime/context.cpp
+    src/cuda_runtime/capacity_runtime.cpp
     src/cuda_runtime/coverage.cpp
     src/cuda_runtime/hbm_cache.cpp
     src/cuda_runtime/module_identity.cpp
@@ -411,12 +412,26 @@ if(CUDAToolkit_FOUND)
             hbfsim_launch_gate PRIVATE HBFSIM_ENABLE_TEST_HOOKS=1
         )
         add_library(
-            fake_cuda_lookup SHARED tests/integration/fake_cuda_lookup.cpp
+            fake_cuda_lookup SHARED
+            tests/integration/fake_cuda_lookup.cpp
+            tests/integration/fake_cuda_capacity_abi.cpp
+        )
+        target_include_directories(
+            fake_cuda_lookup PRIVATE "${CUDAToolkit_INCLUDE_DIRS}"
         )
         set_target_properties(
             fake_cuda_lookup PROPERTIES OUTPUT_NAME cuda SOVERSION 1
         )
         if(HBFSIM_ENABLE_CUDA)
+            add_executable(
+                capacity_runtime_test
+                tests/integration/capacity_runtime_test.cpp
+            )
+            target_link_libraries(
+                capacity_runtime_test PRIVATE hbfsim_core fake_cuda_lookup
+            )
+            add_test(NAME capacity_runtime COMMAND capacity_runtime_test)
+
             add_executable(
                 device_range_validation_test
                 tests/integration/device_range_validation_test.cpp
@@ -508,6 +523,21 @@ if(HBFSIM_ENABLE_CUDA)
     set_target_properties(
         unsupported_kernel PROPERTIES
         CUDA_ARCHITECTURES "120-real;120-virtual"
+        CUDA_RUNTIME_LIBRARY Shared
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
+    )
+
+    add_executable(
+        capacity_runtime_live_test EXCLUDE_FROM_ALL
+        tests/gpu/capacity_runtime_live_test.cu
+    )
+    target_link_libraries(
+        capacity_runtime_live_test
+        PRIVATE hbfsim_core CUDA::cudart CUDA::cuda_driver
+    )
+    set_target_properties(
+        capacity_runtime_live_test PROPERTIES
+        CUDA_ARCHITECTURES "75-real;75-virtual"
         CUDA_RUNTIME_LIBRARY Shared
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
     )

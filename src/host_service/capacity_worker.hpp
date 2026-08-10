@@ -12,6 +12,8 @@
 namespace hbfsim::host_service {
 
 using CapacityWorkerStopHook = void (*)(void*) noexcept;
+using CapacityWorkerStartHook = bool (*)(void*) noexcept;
+using CapacityWorkerExitHook = void (*)(void*) noexcept;
 
 // CapacityWorker does not own its ControlView mapping or CapacityPageService.
 // Both must outlive the worker. Destruction and stop() synchronously join the
@@ -23,7 +25,11 @@ class CapacityWorker {
   public:
     CapacityWorker(
         ControlView control, CapacityPageService& service,
-        std::chrono::microseconds idle_poll = std::chrono::microseconds(50));
+        std::chrono::microseconds idle_poll = std::chrono::microseconds(50),
+        CapacityWorkerStartHook start_hook = nullptr,
+        void* start_hook_state = nullptr,
+        CapacityWorkerExitHook exit_hook = nullptr,
+        void* exit_hook_state = nullptr);
     ~CapacityWorker();
 
     CapacityWorker(const CapacityWorker&) = delete;

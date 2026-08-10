@@ -1,19 +1,61 @@
 #include "capacity_worker.hpp"
 
+#include <future>
 #include <stdexcept>
 
 namespace hbfsim::host_service {
+namespace {
+
+class ThreadExitHook {
+  public:
+    ThreadExitHook(CapacityWorkerExitHook hook, void* state) noexcept
+        : hook_(hook), state_(state)
+    {}
+
+    ~ThreadExitHook()
+    {
+        if (hook_ != nullptr) {
+            hook_(state_);
+        }
+    }
+
+  private:
+    CapacityWorkerExitHook hook_;
+    void* state_;
+};
+
+}  // namespace
 
 CapacityWorker::CapacityWorker(ControlView control,
                                CapacityPageService& service,
-                               std::chrono::microseconds idle_poll)
+                               std::chrono::microseconds idle_poll,
+                               CapacityWorkerStartHook start_hook,
+                               void* start_hook_state,
+                               CapacityWorkerExitHook exit_hook,
+                               void* exit_hook_state)
     : control_(control), service_(service), idle_poll_(idle_poll)
 {
     if (!control_.valid() || idle_poll_ <= std::chrono::microseconds::zero()) {
         throw std::invalid_argument("invalid capacity worker configuration");
     }
     slot_count_ = control_.header()->page_capacity;
-    thread_ = std::jthread([this](std::stop_token stop) { run(stop); });
+    std::promise<bool> started;
+    auto readiness = started.get_future();
+    thread_ = std::jthread(
+        [this, start_hook, start_hook_state, exit_hook, exit_hook_state,
+         started = std::move(started)](std::stop_token stop) mutable {
+            ThreadExitHook cleanup(exit_hook, exit_hook_state);
+            const bool ready =
+                start_hook == nullptr || start_hook(start_hook_state);
+            started.set_value(ready);
+            if (ready) {
+                run(stop);
+            }
+        });
+    if (!readiness.get()) {
+        thread_.join();
+        throw std::runtime_error("capacity worker startup failed");
+    }
 }
 
 CapacityWorker::~CapacityWorker()

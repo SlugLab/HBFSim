@@ -1,10 +1,14 @@
+#include <algorithm>
 #include <array>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
 #include <mutex>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 extern "C" {
 
@@ -47,6 +51,100 @@ std::condition_variable lifecycle_pause_ready;
 bool lifecycle_pause_enabled = false;
 bool lifecycle_pause_entered = false;
 bool lifecycle_pause_released = false;
+
+enum CapacityEvent {
+    capacity_context_set = 1,
+    capacity_granularity = 2,
+    capacity_reserve = 3,
+    capacity_create = 4,
+    capacity_map = 5,
+    capacity_set_access = 6,
+    capacity_host_alloc = 7,
+    capacity_htod = 8,
+    capacity_dtoh = 9,
+    capacity_worker_context_exit = 10,
+    capacity_host_free = 11,
+    capacity_unmap = 12,
+    capacity_release = 13,
+    capacity_address_free = 14,
+};
+
+struct CapacityReservation {
+    std::size_t bytes{0};
+    std::size_t alignment{0};
+    std::uint64_t handle{0};
+    int device{-1};
+    int access_device{-1};
+    bool mapped{false};
+    bool accessible{false};
+};
+
+struct CapacityHandle {
+    std::size_t bytes{0};
+    int device{-1};
+};
+
+std::mutex capacity_mutex;
+std::unordered_map<std::uintptr_t, CapacityReservation>
+    capacity_reservations;
+std::unordered_map<std::uint64_t, CapacityHandle> capacity_handles;
+std::unordered_map<void*, std::size_t> capacity_pinned;
+std::unordered_map<std::string, int> capacity_fail_at;
+std::unordered_map<std::string, int> capacity_calls;
+std::vector<int> capacity_events;
+std::uint64_t capacity_next_handle = 1;
+std::size_t capacity_htod_calls = 0;
+std::size_t capacity_dtoh_calls = 0;
+std::size_t capacity_worker_contexts = 0;
+std::size_t capacity_explicit_context_clears = 0;
+std::uintptr_t capacity_last_context = 0;
+int capacity_last_device = -1;
+
+bool capacity_should_fail_locked(const char* operation)
+{
+    const auto call = ++capacity_calls[operation];
+    const auto failure = capacity_fail_at.find(operation);
+    return failure != capacity_fail_at.end() && failure->second == call;
+}
+
+bool capacity_valid_current_locked(int device)
+{
+    if (device < 0 || current_context == 0 || current_device != device) {
+        return false;
+    }
+    std::lock_guard domain_lock(domain_mutex);
+    const auto live = live_domains.find(current_context);
+    return live != live_domains.end() && live->second == device;
+}
+
+auto capacity_reservation_for_locked(std::uintptr_t address,
+                                     std::size_t bytes)
+{
+    return std::find_if(
+        capacity_reservations.begin(), capacity_reservations.end(),
+        [&](const auto& item) {
+            const auto base = item.first;
+            const auto size = item.second.bytes;
+            return address >= base && bytes <= size &&
+                   address - base <= size - bytes;
+        });
+}
+
+bool capacity_device_range_locked(std::uintptr_t address,
+                                  std::size_t bytes)
+{
+    const auto found = capacity_reservation_for_locked(address, bytes);
+    return found != capacity_reservations.end() && found->second.mapped &&
+           found->second.accessible &&
+           found->second.device == found->second.access_device &&
+           capacity_valid_current_locked(found->second.device);
+}
+
+struct CapacityThreadBinding {
+    bool counted{false};
+};
+
+thread_local CapacityThreadBinding capacity_thread_binding;
 
 }  // namespace
 
@@ -304,8 +402,52 @@ int cuFuncGetParamInfo(void*, std::size_t index, std::size_t* offset,
     return 0;
 }
 
-int cuCtxGetCurrent(void** context)
+int fakeCudaImplCtxSetCurrent(std::uintptr_t value)
 {
+    std::lock_guard capacity_lock(capacity_mutex);
+    if (capacity_should_fail_locked("cuCtxSetCurrent")) {
+        return 1;
+    }
+    if (value == 0) {
+        ++capacity_explicit_context_clears;
+        if (capacity_thread_binding.counted) {
+            capacity_thread_binding.counted = false;
+            --capacity_worker_contexts;
+            capacity_events.push_back(capacity_worker_context_exit);
+        }
+        current_context = 0;
+        current_device = -1;
+        return 0;
+    }
+    int device = -1;
+    {
+        std::lock_guard domain_lock(domain_mutex);
+        const auto live = live_domains.find(value);
+        if (live == live_domains.end()) {
+            return 1;
+        }
+        device = live->second;
+    }
+    current_context = value;
+    current_device = device;
+    capacity_last_context = value;
+    capacity_last_device = device;
+    if (!capacity_thread_binding.counted) {
+        capacity_thread_binding.counted = true;
+        ++capacity_worker_contexts;
+    }
+    capacity_events.push_back(capacity_context_set);
+    return 0;
+}
+
+int fakeCudaImplCtxGetCurrent(std::uintptr_t* context)
+{
+    {
+        std::lock_guard lock(capacity_mutex);
+        if (capacity_should_fail_locked("cuCtxGetCurrent")) {
+            return 1;
+        }
+    }
     if (context == nullptr || current_context == 0) {
         return 1;
     }
@@ -314,12 +456,18 @@ int cuCtxGetCurrent(void** context)
     if (live == live_domains.end() || live->second != current_device) {
         return 1;
     }
-    *context = reinterpret_cast<void*>(current_context);
+    *context = current_context;
     return 0;
 }
 
-int cuCtxGetDevice(int* device)
+int fakeCudaImplCtxGetDevice(int* device)
 {
+    {
+        std::lock_guard lock(capacity_mutex);
+        if (capacity_should_fail_locked("cuCtxGetDevice")) {
+            return 1;
+        }
+    }
     if (device == nullptr || current_device < 0) {
         return 1;
     }
@@ -419,9 +567,203 @@ int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
     return 1;
 }
 
-int cuMemcpyHtoD_v2(std::uintptr_t destination, const void* source,
-                     std::size_t size)
+int fakeCudaImplMemGetAllocationGranularity(std::size_t* granularity,
+                                            int device)
 {
+    std::lock_guard lock(capacity_mutex);
+    if (granularity == nullptr || !capacity_valid_current_locked(device) ||
+        capacity_should_fail_locked("cuMemGetAllocationGranularity")) {
+        return 1;
+    }
+    *granularity = 16 * 1024;
+    capacity_events.push_back(capacity_granularity);
+    return 0;
+}
+
+int fakeCudaImplMemAddressReserve(std::uintptr_t* address, std::size_t bytes,
+                                  std::size_t alignment,
+                                  std::uintptr_t requested,
+                                  std::uint64_t flags)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (address == nullptr || bytes == 0 || alignment == 0 || requested != 0 ||
+        flags != 0 || !capacity_valid_current_locked(current_device) ||
+        capacity_should_fail_locked("cuMemAddressReserve")) {
+        return 1;
+    }
+    void* storage = nullptr;
+    if (::posix_memalign(&storage, alignment, bytes) != 0 || storage == nullptr) {
+        return 1;
+    }
+    std::memset(storage, 0, bytes);
+    const auto base = reinterpret_cast<std::uintptr_t>(storage);
+    capacity_reservations.emplace(
+        base, CapacityReservation{.bytes = bytes,
+                                  .alignment = alignment,
+                                  .device = current_device});
+    *address = base;
+    capacity_events.push_back(capacity_reserve);
+    return 0;
+}
+
+int fakeCudaImplMemAddressFree(std::uintptr_t address, std::size_t bytes)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto found = capacity_reservations.find(address);
+    if (found == capacity_reservations.end() || found->second.bytes != bytes ||
+        found->second.mapped ||
+        !capacity_valid_current_locked(found->second.device) ||
+        capacity_should_fail_locked("cuMemAddressFree")) {
+        return 1;
+    }
+    ::free(reinterpret_cast<void*>(address));
+    capacity_reservations.erase(found);
+    capacity_events.push_back(capacity_address_free);
+    return 0;
+}
+
+int fakeCudaImplMemCreate(std::uint64_t* handle, std::size_t bytes,
+                          std::uint64_t flags, int device)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (handle == nullptr || bytes == 0 || flags != 0 ||
+        !capacity_valid_current_locked(device) ||
+        capacity_should_fail_locked("cuMemCreate")) {
+        return 1;
+    }
+    const auto value = capacity_next_handle++;
+    capacity_handles.emplace(value,
+                             CapacityHandle{.bytes = bytes, .device = device});
+    *handle = value;
+    capacity_events.push_back(capacity_create);
+    return 0;
+}
+
+int fakeCudaImplMemRelease(std::uint64_t handle)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto found = capacity_handles.find(handle);
+    const auto still_mapped = std::any_of(
+        capacity_reservations.begin(), capacity_reservations.end(),
+        [&](const auto& item) {
+            return item.second.mapped && item.second.handle == handle;
+        });
+    if (found == capacity_handles.end() || still_mapped ||
+        !capacity_valid_current_locked(found->second.device) ||
+        capacity_should_fail_locked("cuMemRelease")) {
+        return 1;
+    }
+    capacity_handles.erase(found);
+    capacity_events.push_back(capacity_release);
+    return 0;
+}
+
+int fakeCudaImplMemMap(std::uintptr_t address, std::size_t bytes,
+                       std::size_t offset, std::uint64_t handle,
+                       std::uint64_t flags)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto reservation = capacity_reservations.find(address);
+    const auto allocation = capacity_handles.find(handle);
+    if (reservation == capacity_reservations.end() ||
+        allocation == capacity_handles.end() || reservation->second.mapped ||
+        reservation->second.bytes != bytes ||
+        allocation->second.bytes != bytes ||
+        reservation->second.device != allocation->second.device ||
+        !capacity_valid_current_locked(reservation->second.device) ||
+        offset != 0 || flags != 0 ||
+        capacity_should_fail_locked("cuMemMap")) {
+        return 1;
+    }
+    reservation->second.mapped = true;
+    reservation->second.handle = handle;
+    capacity_events.push_back(capacity_map);
+    return 0;
+}
+
+int fakeCudaImplMemUnmap(std::uintptr_t address, std::size_t bytes)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto reservation = capacity_reservations.find(address);
+    if (reservation == capacity_reservations.end() ||
+        reservation->second.bytes != bytes || !reservation->second.mapped ||
+        !capacity_valid_current_locked(reservation->second.device) ||
+        capacity_should_fail_locked("cuMemUnmap")) {
+        return 1;
+    }
+    reservation->second.mapped = false;
+    reservation->second.accessible = false;
+    reservation->second.access_device = -1;
+    reservation->second.handle = 0;
+    capacity_events.push_back(capacity_unmap);
+    return 0;
+}
+
+int fakeCudaImplMemSetAccess(std::uintptr_t address, std::size_t bytes,
+                             std::size_t count, int device)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto reservation = capacity_reservations.find(address);
+    if (reservation == capacity_reservations.end() ||
+        reservation->second.bytes != bytes || !reservation->second.mapped ||
+        reservation->second.device != device ||
+        !capacity_valid_current_locked(device) || count != 1 ||
+        capacity_should_fail_locked("cuMemSetAccess")) {
+        return 1;
+    }
+    reservation->second.accessible = true;
+    reservation->second.access_device = device;
+    capacity_events.push_back(capacity_set_access);
+    return 0;
+}
+
+int fakeCudaImplHostAlloc(void** data, std::size_t bytes)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (data == nullptr || bytes == 0 ||
+        capacity_should_fail_locked("cudaHostAlloc")) {
+        return 1;
+    }
+    void* storage = std::malloc(bytes);
+    if (storage == nullptr) {
+        return 1;
+    }
+    capacity_pinned.emplace(storage, bytes);
+    *data = storage;
+    capacity_events.push_back(capacity_host_alloc);
+    return 0;
+}
+
+int fakeCudaImplFreeHost(void* data)
+{
+    std::lock_guard lock(capacity_mutex);
+    const auto found = capacity_pinned.find(data);
+    if (found == capacity_pinned.end() ||
+        capacity_should_fail_locked("cudaFreeHost")) {
+        return 1;
+    }
+    std::free(data);
+    capacity_pinned.erase(found);
+    capacity_events.push_back(capacity_host_free);
+    return 0;
+}
+
+int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
+                           std::size_t size)
+{
+    {
+        std::lock_guard lock(capacity_mutex);
+        if (source != nullptr &&
+            capacity_device_range_locked(destination, size)) {
+            if (capacity_should_fail_locked("cuMemcpyHtoD_v2")) {
+                return 1;
+            }
+            std::memcpy(reinterpret_cast<void*>(destination), source, size);
+            ++capacity_htod_calls;
+            capacity_events.push_back(capacity_htod);
+            return 0;
+        }
+    }
     ++control_copy_calls;
     if (control_copy_fails ||
         (control_copy_fail_position != 0 &&
@@ -434,8 +776,23 @@ int cuMemcpyHtoD_v2(std::uintptr_t destination, const void* source,
     return 0;
 }
 
-int cuMemcpyDtoH_v2(void* destination, std::uintptr_t source, std::size_t size)
+int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
+                           std::size_t size)
 {
+    {
+        std::lock_guard lock(capacity_mutex);
+        if (destination != nullptr &&
+            capacity_device_range_locked(source, size)) {
+            if (capacity_should_fail_locked("cuMemcpyDtoH_v2")) {
+                return 1;
+            }
+            std::memcpy(destination, reinterpret_cast<const void*>(source),
+                        size);
+            ++capacity_dtoh_calls;
+            capacity_events.push_back(capacity_dtoh);
+            return 0;
+        }
+    }
     if (destination == nullptr || source == 0 ||
         size != module_identity.size()) {
         return 1;
@@ -597,5 +954,151 @@ int fakeCudaSetModuleIdentity(const std::uint8_t* identity, std::size_t size)
     }
     std::memcpy(module_identity.data(), identity, module_identity.size());
     return 0;
+}
+
+void fakeCudaCapacityReset()
+{
+    std::lock_guard lock(capacity_mutex);
+    for (const auto& [address, reservation] : capacity_reservations) {
+        (void)reservation;
+        ::free(reinterpret_cast<void*>(address));
+    }
+    for (const auto& [data, bytes] : capacity_pinned) {
+        (void)bytes;
+        ::free(data);
+    }
+    capacity_reservations.clear();
+    capacity_handles.clear();
+    capacity_pinned.clear();
+    capacity_fail_at.clear();
+    capacity_calls.clear();
+    capacity_events.clear();
+    capacity_next_handle = 1;
+    capacity_htod_calls = 0;
+    capacity_dtoh_calls = 0;
+    capacity_worker_contexts = 0;
+    capacity_explicit_context_clears = 0;
+    capacity_last_context = 0;
+    capacity_last_device = -1;
+}
+
+void fakeCudaCapacityFail(const char* operation, int call)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (operation == nullptr || call <= 0) {
+        return;
+    }
+    capacity_fail_at[operation] = call;
+    capacity_calls[operation] = 0;
+}
+
+std::size_t fakeCudaCapacityLiveReservations()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_reservations.size();
+}
+
+std::size_t fakeCudaCapacityLiveHandles()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_handles.size();
+}
+
+std::size_t fakeCudaCapacityLivePinnedBuffers()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_pinned.size();
+}
+
+std::size_t fakeCudaCapacityLiveWorkerContexts()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_worker_contexts;
+}
+
+std::size_t fakeCudaCapacityExplicitContextClears()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_explicit_context_clears;
+}
+
+std::size_t fakeCudaCapacityReservedBytes()
+{
+    std::lock_guard lock(capacity_mutex);
+    std::size_t result = 0;
+    for (const auto& [address, reservation] : capacity_reservations) {
+        (void)address;
+        result += reservation.bytes;
+    }
+    return result;
+}
+
+std::size_t fakeCudaCapacityPinnedBytes()
+{
+    std::lock_guard lock(capacity_mutex);
+    std::size_t result = 0;
+    for (const auto& [data, bytes] : capacity_pinned) {
+        (void)data;
+        result += bytes;
+    }
+    return result;
+}
+
+std::size_t fakeCudaCapacityHtoDCalls()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_htod_calls;
+}
+
+std::size_t fakeCudaCapacityDtoHCalls()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_dtoh_calls;
+}
+
+std::uintptr_t fakeCudaCapacityLastContext()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_last_context;
+}
+
+int fakeCudaCapacityLastDevice()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_last_device;
+}
+
+int fakeCudaCapacityReadDevice(std::uintptr_t address, void* bytes,
+                               std::size_t size)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (bytes == nullptr || !capacity_device_range_locked(address, size)) {
+        return 1;
+    }
+    std::memcpy(bytes, reinterpret_cast<const void*>(address), size);
+    return 0;
+}
+
+int fakeCudaCapacityWriteDevice(std::uintptr_t address, const void* bytes,
+                                std::size_t size)
+{
+    std::lock_guard lock(capacity_mutex);
+    if (bytes == nullptr || !capacity_device_range_locked(address, size)) {
+        return 1;
+    }
+    std::memcpy(reinterpret_cast<void*>(address), bytes, size);
+    return 0;
+}
+
+std::size_t fakeCudaCapacityEventCount()
+{
+    std::lock_guard lock(capacity_mutex);
+    return capacity_events.size();
+}
+
+int fakeCudaCapacityEvent(std::size_t index)
+{
+    std::lock_guard lock(capacity_mutex);
+    return index < capacity_events.size() ? capacity_events[index] : 0;
 }
 }

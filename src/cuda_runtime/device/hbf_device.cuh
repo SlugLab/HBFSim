@@ -12,7 +12,7 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 3;
+inline constexpr std::uint32_t kControlAbiVersion = 4;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -68,6 +68,11 @@ struct alignas(64) SharedControlHeader {
     std::uint64_t reference_sample_threshold;
     std::uint32_t reference_warmup_requests;
     std::uint32_t timing_model;
+    alignas(8) std::uint64_t empirical_burst_state;
+    std::uint64_t empirical_cumulative_ns[6];
+    std::uint32_t empirical_breakpoint_pages[6];
+    std::uint32_t empirical_point_count;
+    std::uint32_t empirical_flags;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -144,7 +149,7 @@ struct MediaDescriptor {
     bool valid;
 };
 
-static_assert(sizeof(SharedControlHeader) == 256);
+static_assert(sizeof(SharedControlHeader) == 384);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(HbfRequest) == 64);
 static_assert(sizeof(HbfCompletion) == 64);
@@ -159,6 +164,11 @@ static_assert(offsetof(SharedControlHeader, request_timeout_ns) == 144);
 static_assert(offsetof(SharedControlHeader, control_generation) == 168);
 static_assert(offsetof(SharedControlHeader, read_latency_ns) == 176);
 static_assert(offsetof(SharedControlHeader, fast_request_sequence) == 200);
+static_assert(offsetof(SharedControlHeader, empirical_burst_state) == 256);
+static_assert(offsetof(SharedControlHeader, empirical_cumulative_ns) == 264);
+static_assert(offsetof(SharedControlHeader, empirical_breakpoint_pages) == 312);
+static_assert(offsetof(SharedControlHeader, empirical_point_count) == 336);
+static_assert(offsetof(SharedControlHeader, empirical_flags) == 340);
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
     std::uint64_t value) noexcept
@@ -289,6 +299,132 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t saturating_multiply(
 {
     return right != 0 && left > UINT64_MAX / right ? UINT64_MAX
                                                     : left * right;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t ceiling_scaled_delta(
+    std::uint64_t delta, std::uint32_t offset,
+    std::uint32_t span) noexcept
+{
+    if (delta == 0 || offset == 0) {
+        return 0;
+    }
+    if (span == 0) {
+        return UINT64_MAX;
+    }
+    const auto quotient = delta / span;
+    const auto remainder = delta % span;
+    const auto integral = saturating_multiply(quotient, offset);
+    const auto remainder_product = remainder * std::uint64_t{offset};
+    const auto fractional =
+        (remainder_product + span - 1) / span;
+    return saturating_add(integral, fractional);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t empirical_cumulative_ns(
+    const std::uint32_t* pages, const std::uint64_t* cumulative,
+    std::uint32_t count, std::uint32_t run_pages) noexcept
+{
+    if (run_pages == 0) {
+        return 0;
+    }
+    if (pages == nullptr || cumulative == nullptr || count == 0) {
+        return UINT64_MAX;
+    }
+
+    std::uint32_t right = 0;
+    while (right < count && run_pages > pages[right]) {
+        ++right;
+    }
+    if (right == count) {
+        right = count - 1;
+    }
+
+    std::uint32_t left_pages = 0;
+    std::uint64_t left_ns = 0;
+    if (right != 0) {
+        left_pages = pages[right - 1];
+        left_ns = cumulative[right - 1];
+    }
+    if (run_pages > pages[right] && count > 1) {
+        left_pages = pages[count - 2];
+        left_ns = cumulative[count - 2];
+        right = count - 1;
+    }
+
+    if (pages[right] <= left_pages || cumulative[right] < left_ns ||
+        run_pages < left_pages) {
+        return UINT64_MAX;
+    }
+    const auto increment = ceiling_scaled_delta(
+        cumulative[right] - left_ns, run_pages - left_pages,
+        pages[right] - left_pages);
+    return saturating_add(left_ns, increment);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t empirical_service_ns(
+    const std::uint32_t* pages, const std::uint64_t* cumulative,
+    std::uint32_t count, std::uint32_t run_pages) noexcept
+{
+    if (run_pages == 0) {
+        return 0;
+    }
+    const auto current =
+        empirical_cumulative_ns(pages, cumulative, count, run_pages);
+    const auto previous =
+        empirical_cumulative_ns(pages, cumulative, count, run_pages - 1);
+    return current < previous ? UINT64_MAX : current - previous;
+}
+
+inline constexpr std::uint64_t kEmpiricalBurstRunMask = 1023;
+inline constexpr std::uint64_t kMaximumEmpiricalPage =
+    (std::uint64_t{1} << 53) - 2;
+
+struct EmpiricalBurstUpdate {
+    std::uint64_t packed;
+    std::uint32_t run_pages;
+    bool valid;
+};
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t empirical_burst_run_pages(
+    std::uint64_t packed) noexcept
+{
+    return static_cast<std::uint32_t>(packed & kEmpiricalBurstRunMask);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t empirical_burst_operation(
+    std::uint64_t packed) noexcept
+{
+    return static_cast<std::uint32_t>((packed >> 10) & 1U);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t empirical_burst_page(
+    std::uint64_t packed) noexcept
+{
+    const auto page_plus_one = packed >> 11;
+    return page_plus_one == 0 ? UINT64_MAX : page_plus_one - 1;
+}
+
+HBFSIM_HOST_DEVICE constexpr EmpiricalBurstUpdate update_empirical_burst(
+    std::uint64_t previous, std::uint64_t page,
+    std::uint32_t operation) noexcept
+{
+    if (page > kMaximumEmpiricalPage || operation > 1) {
+        return {.packed = previous, .run_pages = 0, .valid = false};
+    }
+
+    std::uint32_t run_pages = 1;
+    const auto previous_page = empirical_burst_page(previous);
+    if (previous != 0 && empirical_burst_run_pages(previous) != 0 &&
+        empirical_burst_operation(previous) == operation &&
+        previous_page != UINT64_MAX && previous_page + 1 == page) {
+        const auto previous_run = empirical_burst_run_pages(previous);
+        run_pages = previous_run == kEmpiricalBurstRunMask
+                        ? previous_run
+                        : previous_run + 1;
+    }
+    const auto packed = ((page + 1) << 11) |
+                        (std::uint64_t{operation} << 10) | run_pages;
+    return {.packed = packed, .run_pages = run_pages, .valid = true};
 }
 
 #undef HBFSIM_HOST_DEVICE

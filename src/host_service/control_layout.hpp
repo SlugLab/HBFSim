@@ -12,7 +12,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 3;
+inline constexpr std::uint32_t kControlAbiVersion = 4;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
@@ -116,6 +116,11 @@ struct alignas(64) SharedControlHeader {
     std::uint64_t reference_sample_threshold;
     std::uint32_t reference_warmup_requests;
     std::uint32_t timing_model;
+    alignas(8) std::uint64_t empirical_burst_state;
+    std::uint64_t empirical_cumulative_ns[6];
+    std::uint32_t empirical_breakpoint_pages[6];
+    std::uint32_t empirical_point_count;
+    std::uint32_t empirical_flags;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -151,7 +156,7 @@ static_assert(std::is_trivially_copyable_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
-static_assert(sizeof(SharedControlHeader) == 256);
+static_assert(sizeof(SharedControlHeader) == 384);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedRequestSlot) == 128);
 static_assert(sizeof(SharedCompletionSlot) == 128);

@@ -16,6 +16,9 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
+    static_assert(device::kControlAbiVersion == 4);
+    static_assert(host_service::kControlAbiVersion == 4);
+    static_assert(sizeof(SharedControlHeader) == 384);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
     static_assert(sizeof(SharedRangeRecord) ==
@@ -50,6 +53,18 @@ int main()
     static_assert(offsetof(SharedControlHeader, fast_request_sequence) ==
                   offsetof(host_service::SharedControlHeader,
                            fast_request_sequence));
+    static_assert(offsetof(SharedControlHeader, empirical_burst_state) ==
+                  offsetof(host_service::SharedControlHeader,
+                           empirical_burst_state));
+    static_assert(offsetof(SharedControlHeader, empirical_cumulative_ns) ==
+                  offsetof(host_service::SharedControlHeader,
+                           empirical_cumulative_ns));
+    static_assert(offsetof(SharedControlHeader, empirical_breakpoint_pages) ==
+                  offsetof(host_service::SharedControlHeader,
+                           empirical_breakpoint_pages));
+    static_assert(offsetof(SharedControlHeader, empirical_flags) ==
+                  offsetof(host_service::SharedControlHeader,
+                           empirical_flags));
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));
@@ -110,5 +125,49 @@ int main()
           std::numeric_limits<std::uint64_t>::max());
     CHECK(saturating_multiply(std::numeric_limits<std::uint64_t>::max(), 2) ==
           std::numeric_limits<std::uint64_t>::max());
+
+    constexpr std::uint32_t pages[]{1, 4, 16, 64, 256, 512};
+    constexpr std::uint64_t cumulative[]{11'133, 41'495, 168'606,
+                                         2'824'351, 10'767'793, 20'254'374};
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 0) == 0);
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 1) == 11'133);
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 3) == 31'375);
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 4) == 41'495);
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 512) == 20'254'374);
+    CHECK(empirical_cumulative_ns(pages, cumulative, 6, 513) == 20'291'431);
+    CHECK(empirical_service_ns(pages, cumulative, 6, 4) ==
+          41'495 - empirical_cumulative_ns(pages, cumulative, 6, 3));
+
+    constexpr std::uint32_t overflow_pages[]{1, 2};
+    constexpr std::uint64_t overflow_cumulative[]{
+        std::numeric_limits<std::uint64_t>::max() - 1,
+        std::numeric_limits<std::uint64_t>::max()};
+    CHECK(empirical_cumulative_ns(overflow_pages, overflow_cumulative, 2,
+                                  std::numeric_limits<std::uint32_t>::max()) ==
+          std::numeric_limits<std::uint64_t>::max());
+
+    auto state = update_empirical_burst(0, 100, 0);
+    CHECK(state.valid);
+    CHECK(state.run_pages == 1);
+    CHECK(empirical_burst_page(state.packed) == 100);
+    CHECK(empirical_burst_operation(state.packed) == 0);
+    state = update_empirical_burst(state.packed, 101, 0);
+    CHECK(state.valid);
+    CHECK(state.run_pages == 2);
+    CHECK(update_empirical_burst(state.packed, 103, 0).run_pages == 1);
+    CHECK(update_empirical_burst(state.packed, 101, 0).run_pages == 1);
+    CHECK(update_empirical_burst(state.packed, 102, 1).run_pages == 1);
+
+    auto saturated = update_empirical_burst(0, 0, 0);
+    for (std::uint64_t page = 1; page < 1'024; ++page) {
+        saturated = update_empirical_burst(saturated.packed, page, 0);
+    }
+    CHECK(saturated.run_pages == 1023);
+    CHECK(update_empirical_burst(saturated.packed, 1'024, 0).run_pages ==
+          1023);
+    constexpr auto maximum_empirical_page = (std::uint64_t{1} << 53) - 2;
+    CHECK(update_empirical_burst(0, maximum_empirical_page, 1).valid);
+    CHECK(!update_empirical_burst(0, maximum_empirical_page + 1, 0).valid);
+    CHECK(!update_empirical_burst(0, 0, 2).valid);
     return 0;
 }

@@ -2,6 +2,7 @@
 
 #include <json.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -50,6 +51,45 @@ std::uint64_t calculate_blocks_per_plane(const Profile& profile)
     return blocks;
 }
 
+std::optional<EmpiricalVmemProfile> parse_empirical_vmem(
+    const nlohmann::json& document)
+{
+    const auto iterator = document.find("empirical_vmem");
+    if (iterator == document.end()) {
+        return std::nullopt;
+    }
+
+    const auto& empirical = *iterator;
+    const auto& curve = empirical.at("read_curve");
+    if (!curve.is_array() || curve.size() != 6) {
+        throw ProfileError(
+            "empirical_vmem read_curve must contain exactly 6 points");
+    }
+
+    EmpiricalVmemProfile parsed{
+        .source_kind = empirical.at("source_kind").get<std::string>(),
+        .source_sha256 = empirical.at("source_sha256").get<std::string>(),
+        .source_capacity_bytes =
+            empirical.at("source_capacity_bytes").get<std::uint64_t>(),
+        .quantile = empirical.at("quantile").get<std::string>(),
+        .sample_count = empirical.at("sample_count").get<std::uint32_t>(),
+        .read_curve = {},
+        .program_p50_ns =
+            empirical.at("program_p50_ns").get<std::uint64_t>(),
+        .program_p95_ns =
+            empirical.at("program_p95_ns").get<std::uint64_t>(),
+    };
+    for (std::size_t index = 0; index < parsed.read_curve.size(); ++index) {
+        parsed.read_curve[index] = EmpiricalVmemPoint{
+            .pages = curve.at(index).at("pages").get<std::uint32_t>(),
+            .cumulative_ns =
+                curve.at(index).at("cumulative_ns").get<std::uint64_t>(),
+            .p95_ns = curve.at(index).at("p95_ns").get<std::uint64_t>(),
+        };
+    }
+    return parsed;
+}
+
 }  // namespace
 
 Profile load_profile(const std::filesystem::path& path)
@@ -93,6 +133,7 @@ Profile load_profile(const std::filesystem::path& path)
             .time_scale = document.at("time_scale").get<std::uint32_t>(),
             .timing_tolerance_ns =
                 document.at("timing_tolerance_ns").get<std::uint64_t>(),
+            .empirical_vmem = parse_empirical_vmem(document),
         };
         validate_profile(profile);
         return profile;
@@ -143,6 +184,71 @@ void validate_profile(const Profile& profile)
     }
     require_nonzero(profile.time_scale, "time_scale");
     calculate_blocks_per_plane(profile);
+
+    if (!profile.empirical_vmem) {
+        return;
+    }
+    const auto& empirical = *profile.empirical_vmem;
+    if (profile.page_bytes != 4096) {
+        throw ProfileError("empirical_vmem requires page_bytes == 4096");
+    }
+    const auto valid_sha = empirical.source_sha256.size() == 64 &&
+                           std::all_of(empirical.source_sha256.begin(),
+                                       empirical.source_sha256.end(),
+                                       [](char character) {
+                                           return (character >= '0' &&
+                                                   character <= '9') ||
+                                                  (character >= 'a' &&
+                                                   character <= 'f');
+                                       });
+    if (!valid_sha) {
+        throw ProfileError(
+            "empirical_vmem source_sha256 must be lowercase hexadecimal SHA256");
+    }
+    if (empirical.source_kind.empty()) {
+        throw ProfileError("empirical_vmem source_kind must not be empty");
+    }
+    if (empirical.source_capacity_bytes == 0) {
+        throw ProfileError(
+            "empirical_vmem source_capacity_bytes must be greater than zero");
+    }
+    if (empirical.quantile != "p50") {
+        throw ProfileError("empirical_vmem quantile must be p50");
+    }
+    if (empirical.sample_count == 0) {
+        throw ProfileError(
+            "empirical_vmem sample_count must be greater than zero");
+    }
+
+    for (std::size_t index = 0; index < empirical.read_curve.size(); ++index) {
+        const auto& point = empirical.read_curve[index];
+        if (index != 0 &&
+            point.pages <= empirical.read_curve[index - 1].pages) {
+            throw ProfileError(
+                "empirical_vmem pages must be strictly increasing");
+        }
+        if (point.cumulative_ns == 0 ||
+            (index != 0 && point.cumulative_ns <=
+                               empirical.read_curve[index - 1].cumulative_ns)) {
+            throw ProfileError(
+                "empirical_vmem P50 latency must be strictly increasing");
+        }
+        if (point.p95_ns < point.cumulative_ns) {
+            throw ProfileError(
+                "empirical_vmem P95 latency must not be below P50");
+        }
+    }
+    if (empirical.read_curve.back().pages > 1023) {
+        throw ProfileError("empirical_vmem final page must not exceed 1023");
+    }
+    if (empirical.program_p50_ns == 0) {
+        throw ProfileError(
+            "empirical_vmem program P50 must be greater than zero");
+    }
+    if (empirical.program_p95_ns < empirical.program_p50_ns) {
+        throw ProfileError(
+            "empirical_vmem program P95 must not be below P50");
+    }
 }
 
 std::uint64_t blocks_per_plane(const Profile& profile)

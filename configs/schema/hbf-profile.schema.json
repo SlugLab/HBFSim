@@ -42,6 +42,47 @@
     "reference_sample_rate": { "type": "number", "minimum": 0, "maximum": 1 },
     "reference_warmup_requests": { "type": "integer", "minimum": 0 },
     "time_scale": { "type": "integer", "minimum": 1 },
-    "timing_tolerance_ns": { "type": "integer", "minimum": 0 }
+    "timing_tolerance_ns": { "type": "integer", "minimum": 0 },
+    "empirical_vmem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_sha256",
+        "source_capacity_bytes",
+        "quantile",
+        "sample_count",
+        "read_curve",
+        "program_p50_ns",
+        "program_p95_ns"
+      ],
+      "properties": {
+        "source_kind": { "type": "string", "minLength": 1 },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_capacity_bytes": { "type": "integer", "minimum": 1 },
+        "quantile": { "const": "p50" },
+        "sample_count": { "type": "integer", "minimum": 1 },
+        "read_curve": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pages", "cumulative_ns", "p95_ns"],
+            "properties": {
+              "pages": { "type": "integer", "minimum": 1, "maximum": 1023 },
+              "cumulative_ns": { "type": "integer", "minimum": 1 },
+              "p95_ns": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "program_p50_ns": { "type": "integer", "minimum": 1 },
+        "program_p95_ns": { "type": "integer", "minimum": 1 }
+      }
+    }
   }
 }

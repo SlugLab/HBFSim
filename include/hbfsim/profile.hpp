@@ -1,11 +1,30 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
 namespace hbfsim {
+
+struct EmpiricalVmemPoint {
+    std::uint32_t pages;
+    std::uint64_t cumulative_ns;
+    std::uint64_t p95_ns;
+};
+
+struct EmpiricalVmemProfile {
+    std::string source_kind;
+    std::string source_sha256;
+    std::uint64_t source_capacity_bytes;
+    std::string quantile;
+    std::uint32_t sample_count;
+    std::array<EmpiricalVmemPoint, 6> read_curve;
+    std::uint64_t program_p50_ns;
+    std::uint64_t program_p95_ns;
+};
 
 struct Profile {
     std::string name;
@@ -26,6 +45,7 @@ struct Profile {
     std::uint32_t reference_warmup_requests;
     std::uint32_t time_scale;
     std::uint64_t timing_tolerance_ns;
+    std::optional<EmpiricalVmemProfile> empirical_vmem;
 };
 
 class ProfileError : public std::runtime_error {

@@ -126,7 +126,10 @@ output profile, and a report path. It performs these operations without
 opening any device:
 
 1. Verify the source SHA256 when an expected digest is supplied.
-2. Reject unknown, missing, duplicate, non-finite, or non-positive rows.
+2. Recognize the source's RAM hot/cold, SSD cache-hot, cached-write, cold-read,
+   and fsync metric names; ignore the known non-target metrics and reject any
+   unknown name, missing target row, duplicate target key, non-finite value,
+   or non-positive value.
 3. Require 11 distinct sample numbers for every required metric and size.
 4. Compute nearest-rank P50 and P95 values from the raw samples.
 5. Check cumulative monotonicity and derive the aligned effective capacity.

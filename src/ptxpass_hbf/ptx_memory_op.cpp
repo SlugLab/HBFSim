@@ -77,7 +77,7 @@ std::optional<PtxMemoryOp> parse_memory_op(std::string_view input)
         line.erase(comment);
     }
     static const std::regex instruction(
-        R"(^\s*((?:@!?%[A-Za-z0-9_$]+)?)\s*((?:ld|st)\.global(?:\.[^\s]+)*)\s+(.+);\s*$)");
+        R"(^\s*((?:@!?%[A-Za-z0-9_$]+)?)\s*((?:ld|st)(?:\.volatile)?\.global(?:\.[^\s]+)*)\s+(.+);\s*$)");
     std::smatch match;
     if (!std::regex_match(line, match, instruction)) {
         return std::nullopt;
@@ -88,10 +88,10 @@ std::optional<PtxMemoryOp> parse_memory_op(std::string_view input)
     if (!bytes.has_value()) {
         return std::nullopt;
     }
-    const bool load = opcode.starts_with("ld.global");
+    const bool load = opcode.starts_with("ld.");
     const auto operands = match[3].str();
     static const std::regex address(
-        R"(\[\s*(%rd[A-Za-z0-9_$]*)(?:\s*([+-])\s*((?:0[xX])?[0-9A-Fa-f]+))?\s*\])");
+        R"(\[\s*(%rd[A-Za-z0-9_$]*)(?:\s*([+-])\s*(-?(?:0[xX])?[0-9A-Fa-f]+))?\s*\])");
     std::smatch address_match;
     if (!std::regex_search(operands, address_match, address)) {
         return std::nullopt;
@@ -99,7 +99,14 @@ std::optional<PtxMemoryOp> parse_memory_op(std::string_view input)
 
     std::string signed_offset;
     if (address_match[2].matched) {
-        signed_offset = address_match[2].str() + address_match[3].str();
+        auto magnitude = address_match[3].str();
+        const bool magnitude_negative = magnitude.starts_with('-');
+        if (magnitude_negative) {
+            magnitude.erase(magnitude.begin());
+        }
+        const bool negative =
+            (address_match[2].str() == "-") != magnitude_negative;
+        signed_offset = (negative ? "-" : "+") + magnitude;
     }
     const auto offset = parse_offset(signed_offset);
     if (!offset.has_value()) {

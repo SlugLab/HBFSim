@@ -36,6 +36,27 @@ Three ideas make this possible:
 The result is intended to preserve application semantics while changing where
 data comes from and how long access takes.
 
+### Calibrating the model from a real vmem path
+
+Named synthetic profiles remain useful for design-space exploration, but they
+do not capture the non-linear cost of a complete software-backed memory path.
+The `cd8p-vmem-p50` profile is calibrated from the committed
+`nvme-mem2nvm` cold-fault measurements on a Dell CD8P. It records cumulative
+P50 latency at 1, 4, 16, 64, 256, and 512 contiguous 4 KiB pages rather than
+reducing the path to one constant page latency or bandwidth number.
+
+For a sequential GPU access, HBFSim derives the current page's marginal delay
+from that cumulative curve and serializes it on the GPU-local fast timing
+channel. Random, reverse, repeated, or cross-operation accesses start a new
+burst. Legacy profiles still use the scalar latency/bandwidth model; malformed
+empirical metadata fails closed instead of falling back silently.
+
+This is a calibration of the complete measured vmem path, including its
+software overhead. The CD8P is PCIe NVMe, not a physical CXL endpoint, and an
+exact fit at the six source breakpoints is not an independent prediction. The
+[CD8P vmem proof](docs/proofs/2026-08-11-cd8p-vmem-tuning.md) records the source
+hash, scalar-model error, and a real-GPU automatic-PTX replay of all six points.
+
 ## Two complementary modes
 
 | Mode | What changes | Primary question |
@@ -181,6 +202,20 @@ timing modes, public file-backed capacity, and over-VRAM logical spans:
 
 ```bash
 python3 scripts/run_microbench.py --help
+```
+
+The end-to-end CD8P-vmem calibration has its own exact-breakpoint runner. It
+does not open `/dev/vmem0` or the raw NVMe namespace:
+
+```bash
+cmake --build /dev/shm/hbfsim-vllm-gpu13 \
+  --target hbf_vmem_tuning_bench hbfsimd \
+           hbfsim_vmem_tuning_probe -j2
+HBFSIM_BUILD_DIR=/dev/shm/hbfsim-vllm-gpu13 \
+HBFSIM_BPFTIME_BUILD_DIR=/dev/shm/hbfsim-bpftime-variant-gcc14 \
+python3 scripts/run_vmem_tuning_bench.py \
+  --profile configs/profiles/cd8p-vmem-p50.json \
+  --output /path/to/cd8p-vmem-summary.json
 ```
 
 The pinned llama.cpp adapter and deterministic comparison are driven by:

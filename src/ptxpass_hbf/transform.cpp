@@ -31,7 +31,7 @@ std::string replace_address(const PtxMemoryOp& op,
                             const std::string& scratch)
 {
     static const std::regex address(
-        R"(\[\s*%rd[A-Za-z0-9_$]*(?:\s*[+-]\s*(?:0[xX])?[0-9A-Fa-f]+)?\s*\])");
+        R"(\[\s*%rd[A-Za-z0-9_$]*(?:\s*[+-]\s*-?(?:0[xX])?[0-9A-Fa-f]+)?\s*\])");
     return std::regex_replace(op.original_line, address, "[" + scratch + "]",
                               std::regex_constants::format_first_only);
 }

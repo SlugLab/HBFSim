@@ -5,6 +5,8 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -18,6 +20,7 @@ SOURCE_SHA256 = (
     "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f")
 COMMITTED_PROFILE = ROOT / "configs/profiles/cd8p-vmem-p50.json"
 COMMITTED_REPORT = ROOT / "configs/tuning/cd8p-vmem-comparison.json"
+RUNNER = ROOT / "scripts/run_vmem_tuning_bench.py"
 
 READ_QUANTILES_NS = {
     4096: (11133, 38238),
@@ -206,6 +209,40 @@ class VmemTuningTest(unittest.TestCase):
                 str(fresh_report),
                 "configs/tuning/cd8p-vmem-comparison.json")
             self.assertEqual(normalized_report, COMMITTED_REPORT.read_text())
+
+    def test_real_gpu_runner_dry_run_contract(self):
+        self.assertTrue(RUNNER.is_file())
+        with tempfile.TemporaryDirectory() as temporary:
+            output = pathlib.Path(temporary) / "summary.json"
+            subprocess.run(
+                [sys.executable, str(RUNNER), "--dry-run",
+                 "--build-dir", "/dev/shm/hbfsim-vllm-gpu13",
+                 "--bpftime-build-dir",
+                 "/dev/shm/hbfsim-bpftime-variant-gcc14",
+                 "--profile", str(COMMITTED_PROFILE),
+                 "--output", str(output)],
+                cwd=ROOT, check=True, capture_output=True, text=True)
+            manifest = json.loads(output.read_text())
+        self.assertEqual(manifest["breakpoints"], [1, 4, 16, 64, 256, 512])
+        self.assertEqual(len(manifest["cases"]), 6)
+        self.assertTrue(
+            manifest["probe"].endswith("vmem_tuning_probe.bpf.o"))
+        self.assertEqual(manifest["policies"], {
+            "exact_checksum": True,
+            "modeled_total_equality": True,
+            "zero_unsafe_launches": True,
+        })
+        for case in manifest["cases"]:
+            self.assertIn("--mode", case["baseline_command"])
+            self.assertIn("baseline", case["baseline_command"])
+            self.assertNotIn("run_with_bpftime.sh",
+                             case["baseline_command"][0])
+            self.assertTrue(
+                case["tuned_command"][0].endswith("run_with_bpftime.sh"))
+            self.assertIn("--", case["tuned_command"])
+            self.assertIn("tuned", case["tuned_command"])
+            self.assertTrue(case["automatic_bpftime"])
+            self.assertGreater(case["expected_modeled_ns"], 0)
 
 
 if __name__ == "__main__":

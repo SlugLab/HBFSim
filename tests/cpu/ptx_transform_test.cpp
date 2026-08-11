@@ -48,6 +48,18 @@ int main()
     assert(nc.has_value());
     assert(nc->bytes == 16);
 
+    const auto volatile_load = hbfsim::ptx::parse_memory_op(
+        "ld.volatile.global.u8 %rd7, [%rd8+4096];");
+    assert(volatile_load.has_value());
+    assert(volatile_load->kind == hbfsim::ptx::AccessKind::Read);
+    assert(volatile_load->bytes == 1);
+    assert(volatile_load->base_register == "%rd8");
+    assert(volatile_load->offset == 4096);
+    const auto volatile_negative = hbfsim::ptx::parse_memory_op(
+        "ld.volatile.global.u8 %rd7, [%rd8+-32768];");
+    assert(volatile_negative.has_value());
+    assert(volatile_negative->offset == -32768);
+
     assert(!hbfsim::ptx::parse_memory_op("atom.global.add.u32 %r1, [%rd2], 1;"));
     assert(!hbfsim::ptx::parse_memory_op("ld.u32 %r1, [%rd2];"));
     assert(!hbfsim::ptx::parse_memory_op("ld.global.u32 %r1, [%r2+%r3];"));

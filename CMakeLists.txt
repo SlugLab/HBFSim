@@ -365,6 +365,23 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
     add_custom_target(
         hbfsim_microbench_probe ALL DEPENDS "${HBFSIM_MICROBENCH_PROBE}"
     )
+    set(
+        HBFSIM_VMEM_TUNING_PROBE
+        "${CMAKE_BINARY_DIR}/vmem_tuning_probe.bpf.o"
+    )
+    add_custom_command(
+        OUTPUT "${HBFSIM_VMEM_TUNING_PROBE}"
+        COMMAND
+            "${HBFSIM_CLANG_EXECUTABLE}" -target bpf -O2 -g -c
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/vmem_tuning_probe.bpf.c"
+            -o "${HBFSIM_VMEM_TUNING_PROBE}"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/vmem_tuning_probe.bpf.c"
+        VERBATIM
+    )
+    add_custom_target(
+        hbfsim_vmem_tuning_probe ALL DEPENDS "${HBFSIM_VMEM_TUNING_PROBE}"
+    )
     set(HBFSIM_LLAMA_PROBE "${CMAKE_BINARY_DIR}/llama_probe.bpf.o")
     add_custom_command(
         OUTPUT "${HBFSIM_LLAMA_PROBE}"

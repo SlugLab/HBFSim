@@ -12,7 +12,7 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 2;
+inline constexpr std::uint32_t kControlAbiVersion = 3;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -57,6 +57,17 @@ struct alignas(64) SharedControlHeader {
     alignas(4) std::uint32_t time_scale;
     std::uint32_t reserved0;
     alignas(8) std::uint64_t control_generation;
+    std::uint64_t read_latency_ns;
+    std::uint64_t program_latency_ns;
+    std::uint64_t aggregate_bandwidth_bytes_per_s;
+    alignas(8) std::uint64_t fast_request_sequence;
+    alignas(8) std::uint64_t fast_channel_tail_ns;
+    alignas(8) std::uint64_t fast_requests;
+    alignas(8) std::uint64_t reference_requests;
+    alignas(8) std::uint64_t fast_modeled_ns;
+    std::uint64_t reference_sample_threshold;
+    std::uint32_t reference_warmup_requests;
+    std::uint32_t timing_model;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -133,7 +144,7 @@ struct MediaDescriptor {
     bool valid;
 };
 
-static_assert(sizeof(SharedControlHeader) == 192);
+static_assert(sizeof(SharedControlHeader) == 256);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(HbfRequest) == 64);
 static_assert(sizeof(HbfCompletion) == 64);
@@ -146,6 +157,47 @@ static_assert(offsetof(SharedControlHeader, range_offset) == 40);
 static_assert(offsetof(SharedControlHeader, heartbeat_ns) == 104);
 static_assert(offsetof(SharedControlHeader, request_timeout_ns) == 144);
 static_assert(offsetof(SharedControlHeader, control_generation) == 168);
+static_assert(offsetof(SharedControlHeader, read_latency_ns) == 176);
+static_assert(offsetof(SharedControlHeader, fast_request_sequence) == 200);
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
+    std::uint64_t value) noexcept
+{
+    value += 0x9e3779b97f4a7c15ULL;
+    value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+    return value ^ (value >> 31);
+}
+
+HBFSIM_HOST_DEVICE constexpr bool hybrid_reference_sample(
+    std::uint64_t sequence, std::uint32_t warmup,
+    std::uint64_t threshold, std::uint64_t key) noexcept
+{
+    return sequence < warmup ||
+           (threshold != 0 && fast_hash(sequence ^ key) <= threshold);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_transfer_ns(
+    std::uint32_t bytes, std::uint64_t bandwidth_bytes_per_s) noexcept
+{
+    if (bytes == 0 || bandwidth_bytes_per_s == 0) {
+        return 0;
+    }
+    const auto numerator = static_cast<unsigned long long>(bytes) *
+                           1'000'000'000ULL;
+    return (numerator + bandwidth_bytes_per_s - 1) /
+           bandwidth_bytes_per_s;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_service_ns(
+    std::uint64_t base_latency_ns, std::uint32_t bytes,
+    std::uint64_t bandwidth_bytes_per_s) noexcept
+{
+    const auto transfer = fast_transfer_ns(bytes, bandwidth_bytes_per_s);
+    return transfer > UINT64_MAX - base_latency_ns
+               ? UINT64_MAX
+               : base_latency_ns + transfer;
+}
 
 HBFSIM_HOST_DEVICE constexpr bool valid_ring_capacity(
     std::uint32_t capacity) noexcept

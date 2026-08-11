@@ -81,6 +81,7 @@ class CapacityRuntime {
     std::size_t page_bytes_;
     std::uintptr_t cuda_context_;
     int device_ordinal_;
+    std::uintptr_t transfer_stream_{0};
     CudaVmmDriver driver_;
     VmmFramePool vmm_;
     HbmCache cache_;

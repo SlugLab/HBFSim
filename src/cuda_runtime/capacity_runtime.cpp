@@ -137,9 +137,28 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
       worker_(control, service_, std::chrono::microseconds(50),
               &CapacityRuntime::start_worker, this,
               &CapacityRuntime::stop_worker, this)
-{}
+{
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    CUstream stream = nullptr;
+    if (::cuStreamCreate(&stream, CU_STREAM_NON_BLOCKING) != CUDA_SUCCESS ||
+        stream == nullptr) {
+        throw std::runtime_error(
+            "failed to create CUDA capacity transfer stream");
+    }
+    transfer_stream_ = reinterpret_cast<std::uintptr_t>(stream);
+#endif
+}
 
-CapacityRuntime::~CapacityRuntime() = default;
+CapacityRuntime::~CapacityRuntime()
+{
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (transfer_stream_ != 0) {
+        (void)::cuStreamDestroy(
+            reinterpret_cast<CUstream>(transfer_stream_));
+        transfer_stream_ = 0;
+    }
+#endif
+}
 
 bool CapacityRuntime::start_worker(void* opaque) noexcept
 {
@@ -175,8 +194,12 @@ bool CapacityRuntime::host_to_frame(
         return false;
     }
     std::memcpy(bounce_.data(), bytes.data(), bytes.size());
-    return ::cuMemcpyHtoD(static_cast<CUdeviceptr>(frame), bounce_.data(),
-                          bytes.size()) == CUDA_SUCCESS;
+    const auto stream = reinterpret_cast<CUstream>(transfer_stream_);
+    return stream != nullptr &&
+           ::cuMemcpyHtoDAsync(static_cast<CUdeviceptr>(frame),
+                               bounce_.data(), bytes.size(), stream) ==
+               CUDA_SUCCESS &&
+           ::cuStreamSynchronize(stream) == CUDA_SUCCESS;
 #else
     (void)frame;
     (void)bytes;
@@ -188,9 +211,11 @@ bool CapacityRuntime::frame_to_host(
     std::uint64_t frame, std::span<std::byte> bytes) noexcept
 {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
-    if (bytes.size() != page_bytes_ ||
-        ::cuMemcpyDtoH(bounce_.data(), static_cast<CUdeviceptr>(frame),
-                       bytes.size()) != CUDA_SUCCESS) {
+    const auto stream = reinterpret_cast<CUstream>(transfer_stream_);
+    if (bytes.size() != page_bytes_ || stream == nullptr ||
+        ::cuMemcpyDtoHAsync(bounce_.data(), static_cast<CUdeviceptr>(frame),
+                            bytes.size(), stream) != CUDA_SUCCESS ||
+        ::cuStreamSynchronize(stream) != CUDA_SUCCESS) {
         return false;
     }
     std::memcpy(bytes.data(), bounce_.data(), bytes.size());
@@ -216,9 +241,20 @@ void CapacityRuntime::stop()
 
 bool CapacityRuntime::release_cuda_resources() noexcept
 {
+    bool stream_released = true;
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (transfer_stream_ != 0) {
+        stream_released =
+            ::cuStreamDestroy(reinterpret_cast<CUstream>(transfer_stream_)) ==
+            CUDA_SUCCESS;
+        if (stream_released) {
+            transfer_stream_ = 0;
+        }
+    }
+#endif
     const auto bounce_released = bounce_.release();
     const auto frames_released = vmm_.release();
-    return bounce_released && frames_released;
+    return stream_released && bounce_released && frames_released;
 }
 
 }  // namespace hbfsim::runtime

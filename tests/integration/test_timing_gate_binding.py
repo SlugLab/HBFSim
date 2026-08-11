@@ -268,6 +268,11 @@ def main() -> int:
         ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p),
         ctypes.POINTER(ctypes.c_void_p)]
     launch.restype = ctypes.c_int
+    approve_original = process.hbfsim_approve_original_cuda_function
+    approve_original.argtypes = [ctypes.c_void_p,
+                                 ctypes.POINTER(ctypes.c_void_p),
+                                 ctypes.POINTER(ctypes.c_void_p)]
+    approve_original.restype = ctypes.c_int
     pointer = ctypes.c_size_t(0x1008)
     parameters = (ctypes.c_void_p * 1)(
         ctypes.cast(ctypes.byref(pointer), ctypes.c_void_p))
@@ -498,6 +503,12 @@ def main() -> int:
                 0xA000, generation_a.value, 0x1000, 0x2000, publish,
                 None) == 0 and published.value == 1,
             "range transaction did not publish exactly once")
+    pointer.value = 0x3008
+    require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 1,
+            "ordinary HBM launch did not select the original function")
+    pointer.value = 0x1008
+    require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 2,
+            "modeled HBF launch did not select the patched function")
     require(launch_kernel() == 0, "bound trusted module launch was rejected")
     fake_library.fakeCudaSetCurrentDomain(0xCB00, 3)
     require(launch_kernel() != 0, "foreign CUDA context used a bound module")

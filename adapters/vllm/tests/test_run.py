@@ -55,3 +55,11 @@ def test_repository_commit_ignores_preload_logs(monkeypatch):
     )
 
     assert run_module.repository_commit() == commit
+
+
+def test_timing_model_defaults_to_hybrid(monkeypatch):
+    monkeypatch.setattr(
+        sys, "argv", ["run.py", "--mode", "timing", "--model", "/model",
+                      "--profile", "/profile.json", "--report-dir", "/report"]
+    )
+    assert run_module.parse_args().hbf_timing_model == "hybrid"

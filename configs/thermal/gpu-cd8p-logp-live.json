@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "gpu-cd8p-logp-live",
+  "source_artifact": "/mnt/disk2/hbfsim-thermal-logp-20260811",
+  "method": {
+    "response": "first_order_rc",
+    "objective": "log1p_temperature_rise_rmse",
+    "paper_weighted_history": {"n": 7, "alpha_k": "1/2^k"}
+  },
+  "gpu": {
+    "ambient_c": 28.0,
+    "steady_state_c": 73.5780194293642,
+    "tau_seconds": 13.1,
+    "log_rmse": 0.2964684206299372,
+    "rmse_c": 2.1870756397312805,
+    "observed_peak_c": 70.2992125984252,
+    "performance": {
+      "samples": 1292,
+      "tflops_per_c": -0.3280167842295832,
+      "cold_tflops": 387.7606615946093,
+      "hot_tflops": 373.31763045574144,
+      "change_pct": -3.7247283103636675,
+      "checksum_exact": true
+    }
+  },
+  "ssd": {
+    "model": "Dell DC NVMe CD8P E3.S 1.92TB",
+    "serial": "7EU0A01P0XK1",
+    "ambient_c": 34.0,
+    "steady_state_c": 37.18531186555492,
+    "tau_seconds": 12.4,
+    "log_rmse": 0.10091586782126642,
+    "rmse_c": 0.24227811155044404,
+    "observed_peak_c": 37.0,
+    "warning_temperature_c": 77.0,
+    "critical_temperature_c": 83.0,
+    "read_bandwidth_bytes_per_s": 7576684195,
+    "read_iops": 57805.512966,
+    "mean_completion_latency_ns": 1103129.617138
+  },
+  "safety": {"fio_read_only": true, "writes_issued": 0, "media_error_delta": 0}
+}

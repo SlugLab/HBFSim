@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "adapter_mode": "timing_only",
+  "llama_cpp_commit": "7ba604f1cb61cd14898138e9abc0b4ff2601f180",
+  "validated_stack": {
+    "cuda_toolkit": "13.0.88",
+    "driver": "595.84",
+    "compute_capability": "12.0",
+    "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  },
+  "claims": {
+    "explicit_weight_ranges": true,
+    "live_gpu_delay_kernel": true,
+    "semantic_output_check": true,
+    "capacity_supported_by_llama_adapter": false,
+    "opaque_llama_kernels_rewritten": false
+  }
+}

@@ -44,6 +44,18 @@ int main()
     static_assert(offsetof(SharedControlHeader, control_generation) ==
                   offsetof(host_service::SharedControlHeader,
                            control_generation));
+    static_assert(offsetof(SharedControlHeader, read_latency_ns) ==
+                  offsetof(host_service::SharedControlHeader,
+                           read_latency_ns));
+    static_assert(offsetof(SharedControlHeader, fast_request_sequence) ==
+                  offsetof(host_service::SharedControlHeader,
+                           fast_request_sequence));
+    static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
+    static_assert(!hbfsim::device::hybrid_reference_sample(
+        100, 4, 0, 7));
+    static_assert(hbfsim::device::fast_service_ns(10'000, 16'384,
+                                                  512'000'000'000ULL) ==
+                  10'032);
     static_assert(offsetof(hbfsim::device::HbfRequest, logical_address) ==
                   offsetof(hbfsim::HbfRequest, logical_address));
     static_assert(offsetof(hbfsim::device::HbfCompletion, status) ==

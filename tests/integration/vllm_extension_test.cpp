@@ -45,10 +45,11 @@ int main(int argc, char** argv)
         .profile_path = argv[2],
         .report_dir = report.c_str(),
         .ring_capacity = 8,
+        .timing_model = HBFSIM_MODEL_HYBRID,
         .request_timeout_ns = 1'000'000'000,
     };
     hbfsim_vllm_session* session = reinterpret_cast<hbfsim_vllm_session*>(1);
-    CHECK(hbfsim_vllm_abi_version() == 1);
+    CHECK(hbfsim_vllm_abi_version() == 2);
     CHECK(hbfsim_vllm_session_create(nullptr, &session) ==
           HBFSIM_INVALID_ARGUMENT);
     CHECK(session == nullptr);

@@ -500,7 +500,7 @@ index e3ca264..500d19e 100644
  
  			std::atomic<bool> enabled{ true };
 diff --git a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
-index 84158a1..c08d50f 100644
+index 84158a1..41b836f 100644
 --- a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
 +++ b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
 @@ -76,6 +76,8 @@ using cu_launch_kernel_fn_t = CUresult (*)(CUfunction, unsigned int,
@@ -560,7 +560,7 @@ index 84158a1..c08d50f 100644
  		auto current_fatbin = context->impl->current_fatbin;
  		current_fatbin->try_loading_ptxs(*context->impl);
  		auto fatbin_handle =
-@@ -511,15 +533,23 @@ static CUresult cu_launch_kernel_common(
+@@ -511,15 +533,33 @@ static CUresult cu_launch_kernel_common(
  				block_dim_x, block_dim_y, block_dim_z,
  				shared_mem_bytes, stream, kernel_params, extra);
  
@@ -571,9 +571,19 @@ index 84158a1..c08d50f 100644
 +	if (auto patched =
 +		    impl->find_patched_kernel_function_for_original(func);
 +	    patched) {
-+		func = *patched;
-+		impl->record_patched_launch(
-+			reinterpret_cast<cudaStream_t>(stream));
++		using gate_approve_fn = int (*)(CUfunction, void **, void **);
++		auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
++			RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
++		const auto gate_decision = gate_approve == nullptr
++						   ? 2
++						   : gate_approve(func, kernel_params, extra);
++		if (gate_decision == 0)
++			return CUDA_ERROR_NOT_SUPPORTED;
++		if (gate_decision > 1) {
++			func = *patched;
++			impl->record_patched_launch(
++				reinterpret_cast<cudaStream_t>(stream));
++		}
 +	} else {
 +		auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
 +			*impl, func);
@@ -588,7 +598,7 @@ index 84158a1..c08d50f 100644
  	}
  	return original(func, grid_dim_x, grid_dim_y, grid_dim_z, block_dim_x,
  			block_dim_y, block_dim_z, shared_mem_bytes, stream,
-@@ -547,6 +577,79 @@ extern "C" CUresult cuda_driver_function__cuLaunchKernel(
+@@ -547,6 +587,84 @@ extern "C" CUresult cuda_driver_function__cuLaunchKernel(
  				       extra);
  }
  
@@ -610,12 +620,17 @@ index 84158a1..c08d50f 100644
 +			auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
 +				RTLD_DEFAULT,
 +				"hbfsim_approve_original_cuda_function"));
-+			if (gate_approve != nullptr &&
-+			    gate_approve(func, kernel_params, extra) == 0)
++			const auto gate_decision = gate_approve == nullptr
++							   ? 2
++							   : gate_approve(func, kernel_params,
++									  extra);
++			if (gate_decision == 0)
 +				return CUDA_ERROR_NOT_SUPPORTED;
-+			func = *patched;
-+			impl->record_patched_launch(reinterpret_cast<cudaStream_t>(
-+				config == nullptr ? nullptr : config->hStream));
++			if (gate_decision > 1) {
++				func = *patched;
++				impl->record_patched_launch(reinterpret_cast<cudaStream_t>(
++					config == nullptr ? nullptr : config->hStream));
++			}
 +		} else if (auto kernel_name =
 +				   cuda_graph_maybe_get_kernel_name_from_cufunction(
 +					   *impl, func);
@@ -668,7 +683,7 @@ index 84158a1..c08d50f 100644
  extern "C" cudaError_t cuda_runtime_function__cudaLaunchKernel_ptsz(
  	const void *func, dim3 grid_dim, dim3 block_dim, void **args,
  	size_t shared_mem, cudaStream_t stream)
-@@ -578,6 +681,12 @@ cuda_graph_maybe_patch_kernel_node_params_v1(
+@@ -578,6 +696,12 @@ cuda_graph_maybe_patch_kernel_node_params_v1(
  	if (params == nullptr || params->func == nullptr) {
  		return params;
  	}
@@ -681,7 +696,7 @@ index 84158a1..c08d50f 100644
  	auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
  		impl, params->func);
  	if (!kernel_name) {
-@@ -602,6 +711,14 @@ cuda_graph_maybe_patch_kernel_node_params_v2(
+@@ -602,6 +726,14 @@ cuda_graph_maybe_patch_kernel_node_params_v2(
  	}
  	std::optional<std::string> kernel_name;
  	if (params->func != nullptr) {

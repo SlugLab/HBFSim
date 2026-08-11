@@ -1,0 +1,11 @@
+{
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0 F16 GGUF",
+  "llama_cpp_commit": "7ba604f1cb61cd14898138e9abc0b4ff2601f180",
+  "baseline_wall_seconds": 1.4701986619620584,
+  "timing_wall_seconds": 9.792094069009181,
+  "gpu_delay_launches": 10,
+  "injected_ns": 500000000,
+  "generated_text": "The author suggests that the fastest route",
+  "exact_output_match": true,
+  "full_artifact": "/mnt/disk2/hbfsim-llama-proof-20260811"
+}

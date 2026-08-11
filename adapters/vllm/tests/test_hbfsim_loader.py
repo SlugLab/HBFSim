@@ -73,6 +73,14 @@ def config(tmp_path, **overrides):
     return loader_module.TimingConfig.from_mapping(values)
 
 
+def test_timing_model_is_explicit_and_validated(tmp_path):
+    assert config(tmp_path).timing_model == "hybrid"
+    assert config(tmp_path, timing_model="fast").timing_model == "fast"
+    assert config(tmp_path, timing_model="reference").timing_model == "reference"
+    with pytest.raises(ValueError, match="timing_model"):
+        config(tmp_path, timing_model="unknown")
+
+
 def test_discovers_full_storages_and_deduplicates_aliases(tmp_path):
     shared = FakeStorage(0x1000, 0x1000)
     model = FakeModel([

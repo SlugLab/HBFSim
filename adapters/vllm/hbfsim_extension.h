@@ -13,6 +13,7 @@ typedef struct hbfsim_vllm_options {
     const char* profile_path;
     const char* report_dir;
     uint32_t ring_capacity;
+    uint32_t timing_model;
     uint64_t request_timeout_ns;
 } hbfsim_vllm_options;
 

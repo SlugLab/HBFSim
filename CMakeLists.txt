@@ -21,6 +21,7 @@ add_library(
     src/cuda_runtime/range_table.cpp
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/vmm.cpp
+    src/hybrid/calibrator.cpp
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
@@ -53,6 +54,14 @@ target_include_directories(
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
 )
 
+add_library(hbfsim SHARED src/cuda_runtime/shared_library.cpp)
+target_link_libraries(
+    hbfsim PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,hbfsim_core>"
+)
+set_target_properties(
+    hbfsim PROPERTIES OUTPUT_NAME hbfsim VERSION 0.1.0 SOVERSION 0
+)
+
 add_executable(hbfsim_cpu_tests tests/cpu/build_smoke.cpp)
 target_link_libraries(hbfsim_cpu_tests PRIVATE hbfsim_core)
 
@@ -63,6 +72,10 @@ target_link_libraries(hbfsim_profile_tests PRIVATE hbfsim_core)
 
 add_test(NAME profile COMMAND hbfsim_profile_tests)
 set_tests_properties(profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
+target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)
+add_test(NAME calibrator COMMAND hbfsim_calibrator_tests)
 
 add_executable(hbfsim_protocol_tests tests/cpu/protocol_layout_test.cpp)
 target_link_libraries(hbfsim_protocol_tests PRIVATE hbfsim_core)
@@ -252,6 +265,18 @@ endif()
 
 if(BUILD_TESTING)
     add_test(
+        NAME llama_cpp_adapter
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_llama_cpp.py"
+    )
+    add_test(
+        NAME thermal_logp
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_thermal_logp.py"
+    )
+    add_test(
         NAME bpftime_patch
         COMMAND
             "${HBFSIM_PYTHON3_EXECUTABLE}"
@@ -321,6 +346,55 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
         VERBATIM
     )
     add_custom_target(hbfsim_coverage_probe ALL DEPENDS "${HBFSIM_COVERAGE_PROBE}")
+    set(HBFSIM_MICROBENCH_PROBE "${CMAKE_BINARY_DIR}/microbench_probe.bpf.o")
+    add_custom_command(
+        OUTPUT "${HBFSIM_MICROBENCH_PROBE}"
+        COMMAND
+            "${HBFSIM_CLANG_EXECUTABLE}" -target bpf -O2 -g -c
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/microbench_probe.bpf.c"
+            -o "${HBFSIM_MICROBENCH_PROBE}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/microbench_probe.bpf.c"
+        VERBATIM
+    )
+    add_custom_target(
+        hbfsim_microbench_probe ALL DEPENDS "${HBFSIM_MICROBENCH_PROBE}"
+    )
+    set(HBFSIM_LLAMA_PROBE "${CMAKE_BINARY_DIR}/llama_probe.bpf.o")
+    add_custom_command(
+        OUTPUT "${HBFSIM_LLAMA_PROBE}"
+        COMMAND
+            "${HBFSIM_CLANG_EXECUTABLE}" -target bpf -O2 -g -c
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/llama_probe.bpf.c"
+            -o "${HBFSIM_LLAMA_PROBE}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/llama_probe.bpf.c"
+        VERBATIM
+    )
+    add_custom_target(hbfsim_llama_probe ALL DEPENDS "${HBFSIM_LLAMA_PROBE}")
+    set(HBFSIM_LLAMA_PROBE_PTX "${CMAKE_BINARY_DIR}/hbfsim_llama_probe.ptx")
+    add_custom_command(
+        OUTPUT "${HBFSIM_LLAMA_PROBE_PTX}"
+        COMMAND
+            "${CMAKE_CUDA_COMPILER}" --ptx
+            "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
+            -std=c++17 "--gpu-architecture=compute_${CMAKE_CUDA_ARCHITECTURES}"
+            -o "${HBFSIM_LLAMA_PROBE_PTX}"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
+        VERBATIM
+    )
+    add_custom_target(
+        hbfsim_llama_probe_ptx ALL DEPENDS "${HBFSIM_LLAMA_PROBE_PTX}"
+    )
+    add_library(
+        hbfsim_llama_probe_module SHARED
+        adapters/llama_cpp/hbfsim_llama_probe.cu
+    )
+    set_target_properties(
+        hbfsim_llama_probe_module PROPERTIES
+        OUTPUT_NAME hbfsim_llama_probe
+        CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
+        POSITION_INDEPENDENT_CODE ON
+    )
     set(HBFSIM_VLLM_PROBE "${CMAKE_BINARY_DIR}/vllm_fused_moe_probe.bpf.o")
     add_custom_command(
         OUTPUT "${HBFSIM_VLLM_PROBE}"
@@ -472,7 +546,7 @@ if(CUDAToolkit_FOUND)
             )
             foreach(
                 mode
-                IN ITEMS clean daemon-death daemon-after-begin
+                IN ITEMS clean timing-unregister daemon-death daemon-after-begin
                          unregister-failure register-destroy-race
             )
                 add_test(
@@ -554,6 +628,8 @@ if(HBFSIM_ENABLE_CUDA)
     target_link_libraries(hbfsim_core PRIVATE CUDA::cudart CUDA::cuda_driver)
     enable_language(CUDA)
 
+    add_subdirectory(benchmarks/cuda)
+
     add_executable(unsupported_kernel tests/gpu/unsupported_kernel.cu)
     target_link_libraries(
         unsupported_kernel PRIVATE hbfsim_core CUDA::cudart ${CMAKE_DL_LIBS}
@@ -588,6 +664,7 @@ if(HBFSIM_ENABLE_CUDA)
         target_include_directories(
             vllm_extension_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include"
         )
+        add_dependencies(vllm_extension_test hbfsimd)
         add_test(
             NAME vllm_extension
             COMMAND
@@ -654,6 +731,7 @@ endif()
 if(HBFSIM_ENABLE_MQSIM)
     include(cmake/MQSimPatchedBuild.cmake)
     hbfsim_add_patched_mqsim(mqsim_hbf)
+    set_target_properties(mqsim_hbf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     target_sources(hbfsim_core PRIVATE src/mqsim_adapter/mqsim_online.cpp)
     target_link_libraries(hbfsim_core PRIVATE mqsim_hbf)

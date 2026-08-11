@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "validation-observed": {
+      "gpu_heat_multiplier": 1.0,
+      "ssd_heat_multiplier": 1.0,
+      "duration_seconds": 60
+    },
+    "simulated-warning": {
+      "gpu_heat_multiplier": 1.35,
+      "ssd_heat_multiplier": 14.0,
+      "duration_seconds": 180,
+      "gpu_threshold_c": 83.0,
+      "ssd_threshold_c": 77.0
+    }
+  }
+}

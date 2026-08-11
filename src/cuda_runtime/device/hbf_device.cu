@@ -42,11 +42,11 @@ __device__ bool system_compare_exchange(std::uint64_t* address,
                                        cuda::memory_order_relaxed);
 }
 
-__device__ void system_fetch_add(std::uint64_t* address,
-                                 std::uint64_t increment)
+__device__ std::uint64_t system_fetch_add(std::uint64_t* address,
+                                          std::uint64_t increment)
 {
     cuda::atomic_ref<std::uint64_t, cuda::thread_scope_system> value(*address);
-    (void)value.fetch_add(increment, cuda::memory_order_relaxed);
+    return value.fetch_add(increment, cuda::memory_order_relaxed);
 }
 
 __device__ void system_fetch_sub_release(std::uint64_t* address,
@@ -291,6 +291,80 @@ __device__ CompletionResult resolve_leader(
                : CompletionResult{.status = reserved};
 }
 
+__device__ CompletionResult resolve_fast_or_hybrid(
+    SharedControlHeader* header, const SharedRangeRecord& range,
+    const hbfsim::device::MediaDescriptor& media,
+    std::uint32_t operation)
+{
+    constexpr std::uint32_t kFast = 1;
+    constexpr std::uint32_t kHybrid = 2;
+    const auto sequence = system_fetch_add(&header->fast_request_sequence, 1);
+    const auto sample_key = media.logical_address ^
+                            (static_cast<std::uint64_t>(range.range_id) << 32) ^
+                            operation;
+    if (header->timing_model == kHybrid &&
+        hbfsim::device::hybrid_reference_sample(
+            sequence, header->reference_warmup_requests,
+            header->reference_sample_threshold, sample_key)) {
+        (void)system_fetch_add(&header->reference_requests, 1);
+        return resolve_leader(header, range, media, operation);
+    }
+    if (header->timing_model != kFast && header->timing_model != kHybrid) {
+        return {.status = RequestStatus::Unsupported};
+    }
+
+    const auto base_latency = operation == 0 ? header->read_latency_ns
+                                             : header->program_latency_ns;
+    const auto transfer_ns = hbfsim::device::fast_transfer_ns(
+        media.bytes, header->aggregate_bandwidth_bytes_per_s);
+    if (base_latency == 0 || transfer_ns == 0 || header->time_scale == 0) {
+        return {.status = RequestStatus::Unsupported};
+    }
+    const auto arrival = gpu_time_ns();
+    const auto base_scaled = hbfsim::device::saturating_multiply(
+        base_latency, header->time_scale);
+    const auto transfer_scaled = hbfsim::device::saturating_multiply(
+        transfer_ns, header->time_scale);
+    auto tail = system_acquire(&header->fast_channel_tail_ns);
+    std::uint64_t transfer_target = 0;
+    for (;;) {
+        const auto transfer_start = tail > arrival ? tail : arrival;
+        transfer_target = hbfsim::device::saturating_add(
+            transfer_start, transfer_scaled);
+        auto expected = tail;
+        if (system_compare_exchange(&header->fast_channel_tail_ns, expected,
+                                    transfer_target)) {
+            break;
+        }
+        tail = expected;
+    }
+    const auto latency_target = hbfsim::device::saturating_add(
+        arrival, base_scaled);
+    const auto target = latency_target > transfer_target ? latency_target
+                                                          : transfer_target;
+    const auto deadline = hbfsim::device::saturating_add(
+        arrival, header->request_timeout_ns);
+    std::uint32_t sleep_ns = 64;
+    while (gpu_time_ns() < target) {
+        const auto now = gpu_time_ns();
+        if (now >= deadline) {
+            return {.status = RequestStatus::Timeout};
+        }
+        if (system_acquire(&header->shutdown) != 0 ||
+            system_acquire(&header->fault) != 0) {
+            return {.status = RequestStatus::DaemonLost};
+        }
+        bounded_sleep(sleep_ns);
+    }
+    (void)system_fetch_add(&header->fast_requests, 1);
+    (void)system_fetch_add(
+        &header->fast_modeled_ns,
+        hbfsim::device::fast_service_ns(
+            base_latency, media.bytes,
+            header->aggregate_bandwidth_bytes_per_s));
+    return {.status = RequestStatus::Ready};
+}
+
 }  // namespace
 
 extern "C" __device__ hbfsim::device::ResolveResult
@@ -338,6 +412,9 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         header->completion_offset != expected_completion_offset ||
         header->page_offset != expected_page_offset ||
         header->region_bytes != expected_region_bytes ||
+        header->timing_model > 2 || header->read_latency_ns == 0 ||
+        header->program_latency_ns == 0 ||
+        header->aggregate_bandwidth_bytes_per_s == 0 ||
         system_acquire(&header->control_generation) != expected_generation) {
         return fail(address, RequestStatus::Unsupported);
     }
@@ -369,9 +446,12 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto leader = __ffs(static_cast<int>(group)) - 1;
     CompletionResult resolution{.status = RequestStatus::Ready};
     if (static_cast<int>(lane_id()) == leader) {
-        resolution = resolve_leader(
-            const_cast<SharedControlHeader*>(header), *range, media,
-            operation);
+        auto* mutable_header = const_cast<SharedControlHeader*>(header);
+        resolution = range->mode == 1 && header->timing_model != 0
+                         ? resolve_fast_or_hybrid(mutable_header, *range,
+                                                  media, operation)
+                         : resolve_leader(mutable_header, *range, media,
+                                          operation);
     }
     auto status = __shfl_sync(
         group, static_cast<std::uint32_t>(resolution.status), leader);

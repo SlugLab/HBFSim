@@ -247,7 +247,7 @@ int main(int argc, char** argv)
                           &logical_pointer) == HBFSIM_UNSUPPORTED);
     CHECK(logical_pointer == nullptr);
     CHECK(hbfsim_unregister(context, reinterpret_cast<void*>(1)) ==
-          HBFSIM_UNSUPPORTED);
+          HBFSIM_CUDA_ERROR);
     CHECK(hbfsim_flush(context) == HBFSIM_OK);
 
     const auto daemon = hbfsim::runtime::daemon_pid_for_test(context);

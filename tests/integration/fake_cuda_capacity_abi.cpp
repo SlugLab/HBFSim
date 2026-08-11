@@ -199,4 +199,46 @@ CUresult CUDAAPI cuMemcpyDtoH_v2(void* destination, CUdeviceptr source,
                : CUDA_ERROR_INVALID_VALUE;
 }
 
+CUresult CUDAAPI cuStreamCreate(CUstream* stream, unsigned int flags)
+{
+    if (stream == nullptr || flags != CU_STREAM_NON_BLOCKING) {
+        return CUDA_ERROR_INVALID_VALUE;
+    }
+    *stream = reinterpret_cast<CUstream>(static_cast<std::uintptr_t>(0x5a00));
+    return CUDA_SUCCESS;
+}
+
+CUresult CUDAAPI cuStreamDestroy_v2(CUstream stream)
+{
+    return stream == reinterpret_cast<CUstream>(
+                         static_cast<std::uintptr_t>(0x5a00))
+               ? CUDA_SUCCESS
+               : CUDA_ERROR_INVALID_VALUE;
+}
+
+CUresult CUDAAPI cuStreamSynchronize(CUstream stream)
+{
+    return stream == reinterpret_cast<CUstream>(
+                         static_cast<std::uintptr_t>(0x5a00))
+               ? CUDA_SUCCESS
+               : CUDA_ERROR_INVALID_VALUE;
+}
+
+CUresult CUDAAPI cuMemcpyHtoDAsync_v2(CUdeviceptr destination,
+                                      const void* source,
+                                      std::size_t bytes, CUstream stream)
+{
+    return cuStreamSynchronize(stream) == CUDA_SUCCESS
+               ? cuMemcpyHtoD_v2(destination, source, bytes)
+               : CUDA_ERROR_INVALID_VALUE;
+}
+
+CUresult CUDAAPI cuMemcpyDtoHAsync_v2(void* destination, CUdeviceptr source,
+                                      std::size_t bytes, CUstream stream)
+{
+    return cuStreamSynchronize(stream) == CUDA_SUCCESS
+               ? cuMemcpyDtoH_v2(destination, source, bytes)
+               : CUDA_ERROR_INVALID_VALUE;
+}
+
 }  // extern "C"

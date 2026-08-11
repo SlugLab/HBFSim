@@ -10,7 +10,7 @@ struct hbfsim_vllm_session {
 
 extern "C" uint32_t hbfsim_vllm_abi_version(void)
 {
-    return 1;
+    return 2;
 }
 
 extern "C" int
@@ -24,6 +24,7 @@ hbfsim_vllm_session_create(const hbfsim_vllm_options* options,
     if (options == nullptr || options->profile_path == nullptr ||
         options->profile_path[0] == '\0' || options->report_dir == nullptr ||
         options->report_dir[0] == '\0' || options->ring_capacity == 0 ||
+        options->timing_model > HBFSIM_MODEL_HYBRID ||
         options->request_timeout_ns == 0) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -34,7 +35,7 @@ hbfsim_vllm_session_create(const hbfsim_vllm_options* options,
     const hbfsim_options context_options{
         .profile_path = options->profile_path,
         .report_dir = options->report_dir,
-        .mode = 0,
+        .mode = options->timing_model,
         .ring_capacity = options->ring_capacity,
         .request_timeout_ns = options->request_timeout_ns,
     };

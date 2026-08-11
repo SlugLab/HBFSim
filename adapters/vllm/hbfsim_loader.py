@@ -20,7 +20,8 @@ from vllm.model_executor.model_loader.default_loader import DefaultModelLoader
 
 HBFSIM_OK = 0
 HBFSIM_INVALID_ARGUMENT = 1
-HBFSIM_VLLM_ABI_VERSION = 1
+HBFSIM_VLLM_ABI_VERSION = 2
+_TIMING_MODELS = {"reference": 0, "fast": 1, "hybrid": 2}
 _UINTPTR_LIMIT = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 _REGISTERED = False
 
@@ -43,6 +44,7 @@ class TimingConfig:
     allow_opaque_timing: bool = True
     parameter_regex: str = ""
     max_bytes_per_storage: int = 0
+    timing_model: str = "hybrid"
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "TimingConfig":
@@ -61,6 +63,7 @@ class TimingConfig:
         delegate_extra = raw.get("default_loader_extra_config", {})
         parameter_regex = str(raw.get("parameter_regex", ""))
         max_bytes = int(raw.get("max_bytes_per_storage", 0))
+        timing_model = str(raw.get("timing_model", "hybrid"))
         if not profile or not report:
             raise ValueError("profile_path and report_dir are required")
         if ring <= 0 or timeout <= 0:
@@ -77,6 +80,10 @@ class TimingConfig:
             raise ValueError(f"invalid parameter_regex: {error}") from error
         if max_bytes < 0:
             raise ValueError("max_bytes_per_storage must be nonnegative")
+        if timing_model not in _TIMING_MODELS:
+            raise ValueError(
+                "timing_model must be reference, fast, or hybrid"
+            )
         return cls(
             profile_path=profile,
             report_dir=report,
@@ -90,6 +97,7 @@ class TimingConfig:
             allow_opaque_timing=bool(raw.get("allow_opaque_timing", True)),
             parameter_regex=parameter_regex,
             max_bytes_per_storage=max_bytes,
+            timing_model=timing_model,
         )
 
 
@@ -98,6 +106,7 @@ class _NativeOptions(ctypes.Structure):
         ("profile_path", ctypes.c_char_p),
         ("report_dir", ctypes.c_char_p),
         ("ring_capacity", ctypes.c_uint32),
+        ("timing_model", ctypes.c_uint32),
         ("request_timeout_ns", ctypes.c_uint64),
     ]
 
@@ -123,6 +132,7 @@ class NativeTimingSession:
             config.profile_path.encode(),
             config.report_dir.encode(),
             config.ring_capacity,
+            _TIMING_MODELS[config.timing_model],
             config.request_timeout_ns,
         )
         status = self._library.hbfsim_vllm_session_create(
@@ -290,6 +300,7 @@ def register_model_storages(
             "unique_storage_count": len(registered),
             "registered_bytes": sum(size for _, size in registered),
             "profile_path": config.profile_path,
+            "timing_model": config.timing_model,
             "selection": {
                 "parameter_regex": config.parameter_regex,
                 "max_bytes_per_storage": config.max_bytes_per_storage,

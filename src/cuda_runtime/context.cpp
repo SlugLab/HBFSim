@@ -401,6 +401,7 @@ bool valid_options(const hbfsim_options* options,
     return out != nullptr && options != nullptr &&
            options->profile_path != nullptr && options->profile_path[0] != '\0' &&
            options->report_dir != nullptr && options->report_dir[0] != '\0' &&
+           options->mode <= HBFSIM_MODEL_HYBRID &&
            host_service::valid_ring_capacity(options->ring_capacity) &&
            options->request_timeout_ns != 0;
 }
@@ -830,6 +831,20 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     control.header()->heartbeat_timeout_ns =
         std::max<std::uint64_t>(options->request_timeout_ns, 50'000'000);
     control.header()->time_scale = profile.time_scale;
+    control.header()->read_latency_ns = profile.read_latency_ns;
+    control.header()->program_latency_ns = profile.program_latency_ns;
+    control.header()->aggregate_bandwidth_bytes_per_s =
+        profile.aggregate_bandwidth_bytes_per_s;
+    control.header()->reference_warmup_requests =
+        profile.reference_warmup_requests;
+    control.header()->timing_model = options->mode;
+    control.header()->reference_sample_threshold =
+        profile.reference_sample_rate >= 1.0
+            ? std::numeric_limits<std::uint64_t>::max()
+            : static_cast<std::uint64_t>(
+                  profile.reference_sample_rate *
+                  static_cast<long double>(
+                      std::numeric_limits<std::uint64_t>::max()));
     try {
         context->ranges = std::make_unique<RangeTable>(
             control, profile.page_bytes, profile.capacity_bytes);
@@ -1698,6 +1713,37 @@ extern "C" int hbfsim_flush(hbfsim_context* context)
 #endif
 }
 
+extern "C" int hbfsim_get_stats(hbfsim_context* context,
+                                  hbfsim_stats* out)
+{
+    if (context == nullptr || out == nullptr) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation || context->control_mapping == MAP_FAILED) {
+        return HBFSIM_IO_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) {
+        return HBFSIM_IO_ERROR;
+    }
+    const auto* header = control.header();
+    *out = {
+        .requests_submitted = hbfsim::host_service::atomic_load(
+            header->request_producer, std::memory_order_acquire),
+        .requests_completed = hbfsim::host_service::atomic_load(
+            header->completion_consumer, std::memory_order_acquire),
+        .fast_requests = hbfsim::host_service::atomic_load(
+            header->fast_requests, std::memory_order_acquire),
+        .reference_requests = hbfsim::host_service::atomic_load(
+            header->reference_requests, std::memory_order_acquire),
+        .fast_modeled_ns = hbfsim::host_service::atomic_load(
+            header->fast_modeled_ns, std::memory_order_acquire),
+    };
+    return HBFSIM_OK;
+}
+
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 {
     if (context == nullptr || range_base == nullptr) {
@@ -1712,9 +1758,6 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
         return process;
     }
     std::lock_guard lifecycle(context->capacity_mutex);
-    if (!context->capacity) {
-        return HBFSIM_UNSUPPORTED;
-    }
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (!hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
                                                  context->device_ordinal) ||
@@ -1722,8 +1765,51 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
         context->control_generation == 0) {
         return HBFSIM_CUDA_ERROR;
     }
-    auto found = context->capacity_mappings.end();
     const auto base = reinterpret_cast<std::uintptr_t>(range_base);
+    const auto existing = context->ranges == nullptr
+                              ? hbfsim::runtime::RangeLookup{}
+                              : context->ranges->lookup(base, 1);
+    if (existing.kind != hbfsim::runtime::RangeLookupKind::Matched ||
+        existing.record == nullptr || existing.record->base != base) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (existing.record->mode == HBFSIM_RANGE_MODE_TIMING) {
+        struct TimingRemoval {
+            hbfsim_context* context;
+            int failure{HBFSIM_IO_ERROR};
+        } transaction{context};
+        const auto remove = +[](
+                                const hbfsim::host_service::SharedRangeRecord&
+                                    record,
+                                hbfsim::runtime::PublishRange publish,
+                                void* publish_state,
+                                void* opaque) noexcept -> int {
+            auto& item = *static_cast<TimingRemoval*>(opaque);
+            if (record.mode != HBFSIM_RANGE_MODE_TIMING) {
+                return HBFSIM_INVALID_ARGUMENT;
+            }
+            struct GateRemoval {
+                hbfsim::runtime::PublishRange publish;
+                void* publish_state;
+            } removal{publish, publish_state};
+            const auto acknowledge = +[](void* state) noexcept -> int {
+                auto& pending = *static_cast<GateRemoval*>(state);
+                pending.publish(pending.publish_state);
+                return 0;
+            };
+            const auto status = hbfsim::runtime::launch_gate_unregister(
+                item.context, record.base, record.base + record.length,
+                acknowledge, &removal);
+            item.failure = hbfsim::runtime::normalize_launch_gate_status(
+                status);
+            return item.failure;
+        };
+        return context->ranges->remove(base, remove, &transaction);
+    }
+    if (!context->capacity) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    auto found = context->capacity_mappings.end();
     for (auto item = context->capacity_mappings.begin();
          item != context->capacity_mappings.end(); ++item) {
         if (*item && (*item)->logical_range.base() == base) {

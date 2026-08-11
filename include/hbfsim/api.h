@@ -34,6 +34,12 @@ enum hbfsim_cache_policy {
     HBFSIM_CACHE_POLICY_NONE = 0
 };
 
+enum hbfsim_model_mode {
+    HBFSIM_MODEL_REFERENCE = 0,
+    HBFSIM_MODEL_FAST = 1,
+    HBFSIM_MODEL_HYBRID = 2
+};
+
 typedef struct hbfsim_options {
     const char* profile_path;
     const char* report_dir;
@@ -49,6 +55,14 @@ typedef struct hbfsim_range_options {
     uint32_t stream_id;
 } hbfsim_range_options;
 
+typedef struct hbfsim_stats {
+    uint64_t requests_submitted;
+    uint64_t requests_completed;
+    uint64_t fast_requests;
+    uint64_t reference_requests;
+    uint64_t fast_modeled_ns;
+} hbfsim_stats;
+
 uint32_t hbfsim_abi_version(void);
 int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
@@ -60,6 +74,7 @@ int hbfsim_map_file(hbfsim_context* context, const char* path,
                     const hbfsim_range_options* options,
                     void** logical_device_ptr_out);
 int hbfsim_flush(hbfsim_context* context);
+int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
 int hbfsim_unregister(hbfsim_context* context, void* range_base);
 void hbfsim_context_destroy(hbfsim_context* context);
 

@@ -45,7 +45,8 @@ def main() -> int:
         "hook_entries_snapshot",
 	"pass_execution_mutex",
 	"cuLaunchKernelEx",
-	"hbfsim_approve_original_cuda_function",
+        "hbfsim_approve_original_cuda_function",
+        "gate_decision > 1",
         "patched_kernel_by_ptx_variant",
         "patched_kernel_by_original_function",
         "find_patched_kernel_function_for_original",
@@ -82,6 +83,10 @@ def main() -> int:
                               exact_lookup)
     require(exact_lookup >= 0 and legacy_lookup > exact_lookup,
             "driver launch does not prefer exact CUfunction binding")
+    approval = text.find("const auto gate_decision")
+    substitution = text.find("gate_decision > 1", approval)
+    require(approval >= 0 and substitution > approval,
+            "exact launch bridge does not preserve ordinary HBM launches")
     return 0
 
 

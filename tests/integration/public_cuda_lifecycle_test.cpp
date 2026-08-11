@@ -707,7 +707,14 @@ int main(int argc, char** argv)
     CHECK(launch_relevant() == 0);
     CHECK(fakeCudaLaunchCount() == 1);
 
-    if (std::strcmp(argv[1], "clean") == 0) {
+    if (std::strcmp(argv[1], "timing-unregister") == 0) {
+        CHECK(hbfsim_unregister(context, reinterpret_cast<void*>(0x1000)) ==
+              HBFSIM_OK);
+        CHECK(hbfsim::runtime::range_count_for_test(context) == 0);
+        hbfsim_context_destroy(context);
+        CHECK(fakeCudaSynchronizeCount() == 2);
+        CHECK(fakeCudaUnregisterCount() == 1);
+    } else if (std::strcmp(argv[1], "clean") == 0) {
         const auto daemon = hbfsim::runtime::daemon_pid_for_test(context);
         fakeCudaSetCurrentDomain(0xCB00, 3);
         hbfsim_context_destroy(context);

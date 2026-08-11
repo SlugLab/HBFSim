@@ -101,10 +101,10 @@ device delay it is trying to model.
 
 ## Project status
 
-The `hybrid` branch is under active development. The public file-capacity
-lifecycle now works end to end under a fake CUDA driver and the online MQSim
-backend. This proves the host-side transactions and failure policy, but it is
-not evidence that a CUDA kernel has used the path on a real GPU.
+The `hybrid` branch now has real-GPU proof for automatic timing injection,
+public file-backed capacity beyond physical VRAM, deterministic vLLM and
+llama.cpp workloads, and GPU/CD8P thermal calibration. The table distinguishes
+those live gates from narrower CPU, fake-driver, and static PTX checks.
 
 | Component | Status |
 |---|---|
@@ -122,17 +122,15 @@ not evidence that a CUDA kernel has used the path on a real GPU.
 | Live timing-only GPU delay proof | Passed: 24 modeled fused-MoE launches on an explicit 16 KiB weight range |
 | File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
 | Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
-| Hybrid fast model | Planned |
-| Public/PTX real-GPU capacity and over-VRAM proof | Pending |
-| CUDA fault matrix and llama.cpp proof runs | Pending |
-| GPU and Dell CD8P thermal baseline | Real hardware checkpoint recorded; calibrated HBF thermal validation remains pending |
+| Hybrid fast model | Implemented with named `reference`, `fast`, and sampled `hybrid` modes |
+| Public/PTX real-GPU capacity and over-VRAM proof | Passed with a 110 GiB logical range and a 2 GiB HBM cache |
+| CUDA fault matrix and llama.cpp proof runs | Passed; TinyLlama timing-only injection preserves deterministic output |
+| GPU and Dell CD8P thermal validation | Calibrated LogP profile from live BF16 heating and read-only SMART/fio telemetry |
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
-GPU proof. Live timing injection is now proven for a bounded, explicit 16 KiB
-range consumed by vLLM's Triton fused-MoE kernel. The repository does not yet
-claim full-model timing scalability, public/PTX end-to-end or over-VRAM
-capacity emulation, llama.cpp execution, or a calibrated LogP thermal model.
-The complete non-live
+GPU proof. The newer live results below close the earlier timing scalability,
+over-VRAM capacity, llama.cpp, and LogP calibration proof gates, while keeping
+their boundaries explicit. The complete non-live
 checkpoint and exact commands are recorded
 in [the 2026-08-10 non-live proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
 A separate [live hardware checkpoint](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)
@@ -148,16 +146,69 @@ coverage, a matched baseline, and a read-only Dell CD8P comparison.
 ### Latest live benchmark
 
 The validated Qwen3-30B-A3B smoke used one 32-token prompt and generated eight
-tokens. A matched baseline took 0.270 s; the nominal HBF reference path took
-44.469 s and preserved the exact token IDs. The measured 164.70x slowdown is a
-software-emulator result, dominated by the current synchronous per-warp
-reference path, not a hardware projection.
+tokens. A matched baseline took 0.270 s; the detailed reference path took
+44.469 s, while the fast path completed in 2.014 s and preserved the exact
+token IDs. Fast mode is therefore about 20.8x faster than the reference
+emulator on this proof shape. These wall-clock ratios characterize the
+emulator, not projected HBF hardware.
 
-A concurrent, read-only Dell CD8P run sustained 7.515 GB/s and 57.34k IOPS with
-zero writes. Its temperature rose from 36 to 40 degrees C, while vLLM's 0.240 s
-generation time showed no measurable contention loss relative to the isolated
-baseline. The CD8P is PCIe NVMe rather than a CXL endpoint; it is used here as
-the requested storage and thermal validation device.
+The public capacity benchmark also completed a 110 GiB logical workload on a
+97,887 MiB RTX PRO 6000 using a 2 GiB HBM cache. All 128 sampled accesses
+matched the baseline checksum, all 128 page requests completed, and no unsafe
+launch was admitted. This is a sparse logical-capacity proof: it demonstrates
+address span and page routing beyond VRAM, not that 110 GiB of payload was
+resident or read during the short run.
+
+The llama.cpp timing-only adapter ran TinyLlama-1.1B-Chat-v1.0 F16 with ten
+50 ms GPU delay injections. Baseline and timing runs both generated
+`The author suggests that the fastest route`; the repository runner treats any
+semantic mismatch or zero-injection run as a failure.
+
+A fresh concurrent, read-only Dell CD8P run sustained 7.577 GB/s and 57.81k
+IOPS with zero writes. GPU temperature rose from 28 to 73 degrees C and CD8P
+SMART temperature rose from 34 to 37 degrees C. The fitted first-order LogP
+profile has time constants of 13.1 s (GPU) and 12.4 s (SSD); GPU BF16
+throughput changed by -3.72% across the sampled heating run with an exact
+scalar checksum. The CD8P is PCIe NVMe rather than a CXL endpoint; it is the
+physical flash/thermal proxy for the proposed HBF/CXL-attached storage tier.
+The consolidated evidence and proof boundaries are recorded in
+[the 2026-08-11 hybrid completion checkpoint](docs/proofs/2026-08-11-hybrid-complete.md).
+
+### Reproduce the live paths
+
+The microbenchmark covers automatic PTX rewriting, all access patterns,
+timing modes, public file-backed capacity, and over-VRAM logical spans:
+
+```bash
+python3 scripts/run_microbench.py --help
+```
+
+The pinned llama.cpp adapter and deterministic comparison are driven by:
+
+```bash
+HBFSIM_BUILD_DIR=/dev/shm/hbfsim-release-gpu13 \
+  adapters/llama_cpp/build.sh
+python3 adapters/llama_cpp/run.py --mode compare \
+  --llama-cli /dev/shm/hbfsim-llama-build/bin/llama-cli \
+  --model /path/to/tinyllama-f16.gguf \
+  --hbf-build /dev/shm/hbfsim-release-gpu13 \
+  --profile configs/profiles/nominal.json \
+  --report-dir /path/to/report
+```
+
+Thermal validation discovers the CD8P by exact model name, refuses mounted or
+held namespaces, and uses read-only fio. The simulated warning profile
+extrapolates the calibration without driving hardware to unsafe temperatures:
+
+```bash
+python3 scripts/thermal/collect.py --output /path/to/thermal-proof
+python3 scripts/thermal/fit_logp.py \
+  --input /path/to/thermal-proof --output /path/to/profile.json
+python3 scripts/thermal/simulate_overheat.py \
+  --calibration configs/thermal/gpu-cd8p-logp-live.json \
+  --scenarios configs/thermal/scenarios.json \
+  --profile simulated-warning --output /path/to/simulation.json
+```
 
 ## Requirements
 
@@ -167,8 +218,8 @@ the requested storage and thermal validation device.
 - Ninja
 - A C++20 compiler
 - Python 3
-- CUDA 12.8 at `/usr/local/cuda-12.8` for CUDA-enabled bootstrap and `sm_120`
-  PTX validation
+- CUDA 13.0 at `/usr/local/cuda-13.0` for the validated Blackwell build;
+  CUDA 12.8 remains the minimum supported toolkit for PTX validation
 
 The current media simulator and its benchmark can be built without a GPU.
 
@@ -178,9 +229,9 @@ parent worker. Public `hbfsim_map_file`, `hbfsim_flush`, and
 `hbfsim_unregister` use transactional publication and checked rollback. Dirty
 teardown failures quarantine the owner so a relevant launch fails closed
 instead of bypassing unresolved state. These properties have CPU,
-CUDA-static/PTX, fake-driver, and MQSim coverage. A direct internal-runtime
-smoke now covers real CUDA copies and one kernel; public API plus automatic PTX
-execution remains a separate pending proof gate.
+CUDA-static/PTX, fake-driver, MQSim, and real-GPU coverage. The 110 GiB
+logical-range run is the public API plus automatic PTX capacity gate; it
+complements rather than replaces the failure-injection tests.
 
 ## Clone and build
 
@@ -212,7 +263,7 @@ Build options:
 |---|---:|---|
 | `HBFSIM_ENABLE_CUDA` | `ON` | Enable CUDA-facing components and toolkit validation |
 | `HBFSIM_ENABLE_MQSIM` | `ON` | Build the online MQSim backend and media benchmark |
-| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable future llama.cpp and vLLM integration tests |
+| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable environment-dependent llama.cpp and vLLM integration tests |
 
 ## Run the MQSim media benchmark
 

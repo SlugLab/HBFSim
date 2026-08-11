@@ -1185,8 +1185,11 @@ extern "C" int hbfsim_approve_original_cuda_function(
         return 1;
     }
     auto guard = runtime_gate().launch_guard();
-    return approve(inspect_function_launch(function, parameters, extra)) ? 1
-                                                                         : 0;
+    const auto decision = inspect_function_launch(function, parameters, extra);
+    if (!approve(decision)) {
+        return 0;
+    }
+    return decision.modeled ? 2 : 1;
 }
 
 extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,

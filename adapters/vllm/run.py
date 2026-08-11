@@ -49,6 +49,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.85)
     parser.add_argument("--hbf-parameter-regex", default="")
     parser.add_argument("--hbf-range-bytes", type=int, default=0)
+    parser.add_argument(
+        "--hbf-timing-model",
+        choices=("reference", "fast", "hybrid"),
+        default="hybrid",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -158,6 +163,7 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
             "parameter_regex": args.hbf_parameter_regex,
             "max_bytes_per_storage": args.hbf_range_bytes,
         },
+        "hbf_timing_model": args.hbf_timing_model,
     }
 
 
@@ -211,6 +217,7 @@ def main() -> int:
                 "allow_opaque_timing": True,
                 "parameter_regex": args.hbf_parameter_regex,
                 "max_bytes_per_storage": args.hbf_range_bytes,
+                "timing_model": args.hbf_timing_model,
             }
 
         from vllm import LLM, SamplingParams

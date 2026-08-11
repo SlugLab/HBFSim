@@ -165,7 +165,7 @@ add_test(
 add_executable(context_lifecycle_test tests/cpu/context_lifecycle_test.cpp)
 target_link_libraries(context_lifecycle_test PRIVATE hbfsim_core)
 add_library(hbfsim_marker_preload SHARED tests/integration/marker_preload.cpp)
-add_dependencies(context_lifecycle_test hbfsim_marker_preload)
+add_dependencies(context_lifecycle_test hbfsim_marker_preload hbfsimd)
 if(NOT HBFSIM_ENABLE_CUDA)
     target_compile_definitions(
         context_lifecycle_test PRIVATE HBFSIM_TEST_CUDA_DISABLED=1

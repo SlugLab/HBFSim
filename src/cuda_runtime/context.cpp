@@ -838,6 +838,26 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     control.header()->reference_warmup_requests =
         profile.reference_warmup_requests;
     control.header()->timing_model = options->mode;
+    control.header()->empirical_burst_state = 0;
+    std::fill(std::begin(control.header()->empirical_cumulative_ns),
+              std::end(control.header()->empirical_cumulative_ns), 0);
+    std::fill(std::begin(control.header()->empirical_breakpoint_pages),
+              std::end(control.header()->empirical_breakpoint_pages), 0);
+    control.header()->empirical_point_count = 0;
+    control.header()->empirical_flags = 0;
+    if (profile.empirical_vmem) {
+        control.header()->empirical_flags = 1;
+        control.header()->empirical_point_count =
+            static_cast<std::uint32_t>(
+                profile.empirical_vmem->read_curve.size());
+        for (std::size_t index = 0;
+             index < profile.empirical_vmem->read_curve.size(); ++index) {
+            control.header()->empirical_breakpoint_pages[index] =
+                profile.empirical_vmem->read_curve[index].pages;
+            control.header()->empirical_cumulative_ns[index] =
+                profile.empirical_vmem->read_curve[index].cumulative_ns;
+        }
+    }
     control.header()->reference_sample_threshold =
         profile.reference_sample_rate >= 1.0
             ? std::numeric_limits<std::uint64_t>::max()

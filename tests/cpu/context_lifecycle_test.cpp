@@ -1,6 +1,7 @@
 #include <hbfsim/api.h>
 
 #include "../../src/cuda_runtime/context.hpp"
+#include "../../src/host_service/control_layout.hpp"
 
 #include <chrono>
 #include <csignal>
@@ -11,6 +12,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -52,6 +54,84 @@ void observe_cloexec(int control_fd, void* opaque) noexcept
     auto* observed = static_cast<bool*>(opaque);
     const auto flags = ::fcntl(control_fd, F_GETFD);
     *observed = flags >= 0 && (flags & FD_CLOEXEC) != 0;
+}
+
+std::filesystem::path write_tuned_profile(
+    const std::filesystem::path& report_dir)
+{
+    const auto path = report_dir / "cd8p-vmem-p50.json";
+    std::ofstream output(path);
+    output << R"JSON({
+  "name": "cd8p-vmem-p50",
+  "capacity_bytes": 1919850381312,
+  "page_bytes": 4096,
+  "read_latency_ns": 11133,
+  "program_latency_ns": 408305,
+  "channels": 32,
+  "dies_per_channel": 8,
+  "planes_per_die": 4,
+  "pages_per_block": 256,
+  "channel_width_bits": 8,
+  "channel_transfer_rate_mtps": 1600,
+  "queue_depth": 1,
+  "aggregate_bandwidth_bytes_per_s": 103540697,
+  "hbm_cache_bytes": 4294967296,
+  "reference_sample_rate": 0.01,
+  "reference_warmup_requests": 1024,
+  "time_scale": 1,
+  "timing_tolerance_ns": 27105,
+  "empirical_vmem": {
+    "source_kind": "nvme-mem2nvm-vmem-sw-cold-fault",
+    "source_sha256": "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f",
+    "source_capacity_bytes": 1920383410176,
+    "quantile": "p50",
+    "sample_count": 11,
+    "read_curve": [
+      {"pages": 1, "cumulative_ns": 11133, "p95_ns": 38238},
+      {"pages": 4, "cumulative_ns": 41495, "p95_ns": 43033},
+      {"pages": 16, "cumulative_ns": 168606, "p95_ns": 1247765},
+      {"pages": 64, "cumulative_ns": 2824351, "p95_ns": 3860958},
+      {"pages": 256, "cumulative_ns": 10767793, "p95_ns": 11968167},
+      {"pages": 512, "cumulative_ns": 20254374, "p95_ns": 22163673}
+    ],
+    "program_p50_ns": 408305,
+    "program_p95_ns": 596336
+  }
+}
+)JSON";
+    output.close();
+    CHECK(static_cast<bool>(output));
+    return path;
+}
+
+void verify_empirical_publication(hbfsim_context* context,
+                                  std::uint32_t ring_capacity,
+                                  bool expected_empirical)
+{
+    const auto bytes =
+        hbfsim::host_service::control_region_bytes(ring_capacity);
+    const auto mapping = ::mmap(
+        nullptr, bytes, PROT_READ, MAP_SHARED,
+        hbfsim::runtime::control_fd_for_test(context), 0);
+    CHECK(mapping != MAP_FAILED);
+    const auto* header =
+        static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
+    CHECK(header->abi_version == 4);
+    CHECK(header->empirical_burst_state == 0);
+    if (expected_empirical) {
+        CHECK(header->empirical_flags == 1);
+        CHECK(header->empirical_point_count == 6);
+        CHECK(header->empirical_breakpoint_pages[3] == 64);
+        CHECK(header->empirical_cumulative_ns[3] == 2'824'351);
+    } else {
+        CHECK(header->empirical_flags == 0);
+        CHECK(header->empirical_point_count == 0);
+        for (std::size_t index = 0; index < 6; ++index) {
+            CHECK(header->empirical_breakpoint_pages[index] == 0);
+            CHECK(header->empirical_cumulative_ns[index] == 0);
+        }
+    }
+    CHECK(::munmap(mapping, bytes) == 0);
 }
 
 struct TimingGateState {
@@ -197,6 +277,19 @@ int main(int argc, char** argv)
     CHECK(::unsetenv("HBFSIM_COVERAGE_PATH") == 0);
     CHECK(::unsetenv("HBFSIM_PASS_MANIFEST_PATH") == 0);
     CHECK(::unsetenv("HBFSIM_PRELOAD_MARKER_PATH") == 0);
+    verify_empirical_publication(context, options.ring_capacity, false);
+
+    const auto tuned_profile = write_tuned_profile(report_dir);
+    const auto tuned_options =
+        test_options(tuned_profile.c_str(), report_dir);
+    hbfsim_context* tuned_context = nullptr;
+    CHECK(hbfsim::runtime::create_cpu_test_context(
+              &tuned_options, argv[1], &tuned_context) == HBFSIM_OK);
+    verify_empirical_publication(tuned_context,
+                                 tuned_options.ring_capacity, true);
+    hbfsim_context_destroy(tuned_context);
+    CHECK(std::filesystem::remove(tuned_profile));
+
     const auto seals = ::fcntl(hbfsim::runtime::control_fd_for_test(context),
                                F_GET_SEALS);
     CHECK(seals >= 0);

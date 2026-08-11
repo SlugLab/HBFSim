@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import csv
+import contextlib
 import hashlib
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -9,6 +11,13 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/tune_vmem_profile.py"
+SOURCE_CSV = pathlib.Path(
+    "/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/"
+    "2026-07-30-vmem-sw-performance.csv")
+SOURCE_SHA256 = (
+    "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f")
+COMMITTED_PROFILE = ROOT / "configs/profiles/cd8p-vmem-p50.json"
+COMMITTED_REPORT = ROOT / "configs/tuning/cd8p-vmem-comparison.json"
 
 READ_QUANTILES_NS = {
     4096: (11133, 38238),
@@ -148,6 +157,55 @@ class VmemTuningTest(unittest.TestCase):
                     expected_sha256="0" * 64)
             self.assertFalse((root / "profile.json").exists())
             self.assertFalse((root / "report.json").exists())
+
+    def test_committed_cd8p_artifacts_match_reviewed_source(self):
+        self.assertTrue(COMMITTED_PROFILE.is_file())
+        self.assertTrue(COMMITTED_REPORT.is_file())
+        self.assertTrue(SOURCE_CSV.is_file())
+        self.assertEqual(
+            hashlib.sha256(SOURCE_CSV.read_bytes()).hexdigest(),
+            SOURCE_SHA256)
+
+        profile = json.loads(COMMITTED_PROFILE.read_text())
+        report = json.loads(COMMITTED_REPORT.read_text())
+        self.assertEqual(profile["capacity_bytes"], 1919850381312)
+        self.assertEqual(profile["page_bytes"], 4096)
+        self.assertEqual(profile["read_latency_ns"], 11133)
+        self.assertEqual(profile["program_latency_ns"], 408305)
+        self.assertEqual(profile["queue_depth"], 1)
+        self.assertEqual(
+            profile["aggregate_bandwidth_bytes_per_s"], 103540697)
+        self.assertEqual(profile["hbm_cache_bytes"], 4294967296)
+        self.assertEqual(profile["time_scale"], 1)
+        self.assertEqual(
+            profile["empirical_vmem"]["source_sha256"], SOURCE_SHA256)
+        self.assertEqual(len(profile["empirical_vmem"]["read_curve"]), 6)
+        self.assertEqual(report["effective_capacity_bytes"], 1919850381312)
+        self.assertTrue(report["all_breakpoints_exact"])
+        self.assertTrue(all(
+            comparison["empirical_relative_error"] == 0.0
+            for comparison in report["comparisons"]))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            fresh_profile = root / "cd8p-vmem-p50.json"
+            fresh_report = root / "cd8p-vmem-comparison.json"
+            with contextlib.chdir(ROOT):
+                self.module.generate(
+                    csv_path=SOURCE_CSV,
+                    base_profile=pathlib.Path(
+                        "configs/profiles/nominal.json"),
+                    profile_path=fresh_profile,
+                    report_path=fresh_report,
+                    expected_sha256=SOURCE_SHA256)
+            self.assertEqual(
+                fresh_profile.read_bytes(), COMMITTED_PROFILE.read_bytes())
+            normalized_report = fresh_report.read_text().replace(
+                str(fresh_profile), "configs/profiles/cd8p-vmem-p50.json"
+            ).replace(
+                str(fresh_report),
+                "configs/tuning/cd8p-vmem-comparison.json")
+            self.assertEqual(normalized_report, COMMITTED_REPORT.read_text())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,61 @@
+{
+  "name": "cd8p-vmem-p50",
+  "capacity_bytes": 1919850381312,
+  "page_bytes": 4096,
+  "read_latency_ns": 11133,
+  "program_latency_ns": 408305,
+  "channels": 32,
+  "dies_per_channel": 8,
+  "planes_per_die": 4,
+  "pages_per_block": 256,
+  "channel_width_bits": 8,
+  "channel_transfer_rate_mtps": 1600,
+  "queue_depth": 1,
+  "aggregate_bandwidth_bytes_per_s": 103540697,
+  "hbm_cache_bytes": 4294967296,
+  "reference_sample_rate": 0.01,
+  "reference_warmup_requests": 1024,
+  "time_scale": 1,
+  "timing_tolerance_ns": 27105,
+  "empirical_vmem": {
+    "source_kind": "nvme-mem2nvm-vmem-sw-cold-fault",
+    "source_sha256": "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f",
+    "source_capacity_bytes": 1920383410176,
+    "quantile": "p50",
+    "sample_count": 11,
+    "read_curve": [
+      {
+        "pages": 1,
+        "cumulative_ns": 11133,
+        "p95_ns": 38238
+      },
+      {
+        "pages": 4,
+        "cumulative_ns": 41495,
+        "p95_ns": 43033
+      },
+      {
+        "pages": 16,
+        "cumulative_ns": 168606,
+        "p95_ns": 1247765
+      },
+      {
+        "pages": 64,
+        "cumulative_ns": 2824351,
+        "p95_ns": 3860958
+      },
+      {
+        "pages": 256,
+        "cumulative_ns": 10767793,
+        "p95_ns": 11968167
+      },
+      {
+        "pages": 512,
+        "cumulative_ns": 20254374,
+        "p95_ns": 22163673
+      }
+    ],
+    "program_p50_ns": 408305,
+    "program_p95_ns": 596336
+  }
+}

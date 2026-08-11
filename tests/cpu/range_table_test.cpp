@@ -1,6 +1,7 @@
 #include <hbfsim/api.h>
 
 #include "../../src/cuda_runtime/range_table.hpp"
+#include "../../src/cuda_runtime/device/hbf_device.cuh"
 #include "../../src/host_service/control_layout.hpp"
 
 #include <array>
@@ -97,6 +98,9 @@ hbfsim_range_options capacity(std::uint32_t permissions =
 
 int main()
 {
+    CHECK(hbfsim::host_service::kRangeCapacity >= 32'768);
+    CHECK(hbfsim::host_service::kRangeCapacity ==
+          hbfsim::device::kRangeCapacity);
     constexpr std::uint32_t ring_capacity = 8;
     const auto bytes =
         hbfsim::host_service::control_region_bytes(ring_capacity);

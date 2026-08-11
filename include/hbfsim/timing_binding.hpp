@@ -37,6 +37,7 @@ class TimingBindingRegistry {
                                 ModuleControlInitializer initialize,
                                 void* state,
                                 std::uint64_t& generation_out) noexcept;
+    [[nodiscard]] bool can_activate() const noexcept;
     [[nodiscard]] bool quiesce(std::uintptr_t owner,
                                std::uint64_t generation) noexcept;
     [[nodiscard]] bool invalidate(std::uintptr_t owner,

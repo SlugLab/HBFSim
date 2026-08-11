@@ -115,26 +115,32 @@ not evidence that a CUDA kernel has used the path on a real GPU.
 | Reproducible MQSim media benchmark | Implemented and tested |
 | PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
-| Live bpftime + GPU interception proof | Pending live-GPU validation |
+| Live bpftime + GPU interception proof | Passed for vLLM launch observation; modeled PTX access pending |
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
-| Live timing-only GPU proof | Not run; no live proof yet |
+| vLLM timing-only adapter | Real Qwen3-30B-A3B execution passed; 435 storages registered and tokens bit-exact |
+| Live timing-only GPU delay proof | Blocked: production vLLM kernels were cubin-only, yielding 0 modeled accesses |
 | File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
 | Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
 | Hybrid fast model | Planned |
 | Public/PTX real-GPU capacity and over-VRAM proof | Pending |
-| Live delay injection, CUDA fault matrix, llama.cpp, and vLLM proof runs | Pending |
+| Live delay injection, CUDA fault matrix, and llama.cpp proof runs | Pending |
 | GPU and Dell CD8P thermal baseline | Real hardware checkpoint recorded; calibrated HBF thermal validation remains pending |
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
 GPU proof. The repository does not yet claim working live delay injection,
-public/PTX end-to-end or over-VRAM capacity emulation, llama.cpp/vLLM
-execution, or calibrated HBF thermal validation. The complete non-live
+public/PTX end-to-end or over-VRAM capacity emulation, llama.cpp execution,
+vLLM modeled HBF accesses, or calibrated HBF thermal validation. The vLLM
+adapter execution is documented separately and is not presented as a
+live-delay result. The complete non-live
 checkpoint and exact commands are recorded
 in [the 2026-08-10 non-live proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
 A separate [live hardware checkpoint](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)
 records the bounded real-GPU smoke, GPU thermal response, and read-only Dell
 CD8P media baseline without treating them as end-to-end HBF workload proof.
+The [real-GPU vLLM adapter proof](docs/proofs/2026-08-11-vllm-timing-adapter.md)
+records bit-exact Qwen execution, registration coverage, performance, and the
+cubin-only instrumentation blocker.
 
 ## Requirements
 

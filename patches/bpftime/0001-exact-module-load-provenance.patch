@@ -523,6 +523,91 @@ index 0000000..24e716f
 +	REQUIRE(end_calls == 1);
 +	REQUIRE(ended_token == 0x1234);
 +}
+diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+index ac44cbc2..af70266f 100644
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+@@ -192,6 +192,11 @@ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ {
+ 	if (ptx_loaded)
+ 		return;
++	if (original_ptx.empty()) {
++		SPDLOG_INFO("Skipping fatbin without extractable PTX");
++		ptx_loaded = true;
++		return;
++	}
+ 	if (impl.shared_mem_ptr == 0) {
+ 		throw std::runtime_error(
+ 			"shared_mem_ptr is not initialized before loading PTX");
+diff --git a/attach/nv_attach_impl/nv_attach_impl.cpp b/attach/nv_attach_impl/nv_attach_impl.cpp
+index e2d3412d..95ff3d81 100644
+--- a/attach/nv_attach_impl/nv_attach_impl.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl.cpp
+@@ -15,12 +15,7 @@
+ #include <boost/asio/io_context.hpp>
+ #include <boost/asio/post.hpp>
+ #include <boost/asio/thread_pool.hpp>
+-#include <boost/process.hpp>
+-#include <boost/process/detail/child_decl.hpp>
+-#include <boost/process/env.hpp>
+-#include <boost/process/io.hpp>
+-#include <boost/process/pipe.hpp>
+-#include <boost/process/start_dir.hpp>
++#include <boost/process/v1.hpp>
+ #include <chrono>
+ #include <cstdlib>
+ #include <cstring>
+diff --git a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
+index 0f30c5f4..eb26ec39 100644
+--- a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
+@@ -245,6 +245,12 @@ static cudaError_t launch_host_function_by_name(
+ 	return original(func, grid_dim, block_dim, args, shared_mem, stream);
+ }
+ 
++static bool fatbin_scan_disabled()
++{
++	const char *disabled = getenv("BPFTIME_CUDA_DISABLE_CUOBJDUMP");
++	return disabled != nullptr && disabled[0] == '1';
++}
++
+ static void example_listener_on_enter(GumInvocationListener *listener,
+ 				      GumInvocationContext *ic)
+ {
+@@ -253,6 +259,16 @@ static void example_listener_on_enter(GumInvocationListener *listener,
+ 		GUM_IC_GET_FUNC_DATA(ic, CUDARuntimeFunctionHookerContext *);
+ 	if (context->to_function == AttachedToFunction::RegisterFatbin) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterFatBinary..");
++		if (fatbin_scan_disabled()) {
++			auto record = std::make_unique<struct fatbin_record>();
++			record->module_pool = context->impl->module_pool;
++			record->ptx_pool = context->impl->ptx_pool;
++			context->impl->current_fatbin = record.get();
++			context->impl->fatbin_records.emplace_back(
++				std::move(record));
++			SPDLOG_INFO("Skipping CUDA fatbin registration scan");
++			return;
++		}
+ 
+ 		auto header = (__fatBinC_Wrapper_t *)
+ 			gum_invocation_context_get_nth_argument(gum_ctx, 0);
+@@ -292,6 +308,8 @@ static void example_listener_on_enter(GumInvocationListener *listener,
+ 	} else if (context->to_function ==
+ 		   AttachedToFunction::RegisterFunction) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterFunction..");
++		if (fatbin_scan_disabled())
++			return;
+ 		auto &impl = *context->impl;
+ 		auto current_fatbin = context->impl->current_fatbin;
+ 		current_fatbin->try_loading_ptxs(*context->impl);
+@@ -325,6 +343,8 @@ static void example_listener_on_enter(GumInvocationListener *listener,
+ 	} else if (context->to_function ==
+ 		   AttachedToFunction::RegisterVariable) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterVar");
++		if (fatbin_scan_disabled())
++			return;
+ 		auto current_fatbin = context->impl->current_fatbin;
+ 		current_fatbin->try_loading_ptxs(*context->impl);
+ 		auto fatbin_handle =
 -- 
 2.53.0
-

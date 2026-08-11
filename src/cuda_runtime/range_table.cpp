@@ -9,7 +9,8 @@ RangeTable::RangeTable(host_service::ControlView control,
                        std::uint32_t page_bytes,
                        std::uint64_t media_capacity_bytes) noexcept
     : control_(control), page_bytes_(page_bytes),
-      media_capacity_bytes_(media_capacity_bytes)
+      media_capacity_bytes_(media_capacity_bytes),
+      records_(host_service::kRangeCapacity)
 {
 }
 

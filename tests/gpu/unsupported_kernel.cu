@@ -76,20 +76,26 @@ int hbf_run()
     }
 
     unsupported_hbf_kernel<<<1, 1>>>(logical);
-    const auto status = cudaGetLastError();
-    if (status != cudaErrorNotSupported) {
-        if (status == cudaSuccess) {
-            cudaDeviceSynchronize();
-        }
-        std::fprintf(stderr, "HBF launch was not rejected: %s\n",
-                     cudaGetErrorString(status));
+    const auto launch_status = cudaGetLastError();
+    const auto sync_status = launch_status == cudaSuccess
+                                 ? cudaDeviceSynchronize()
+                                 : launch_status;
+    unsigned long long observed = 0;
+    const auto copy_status = sync_status == cudaSuccess
+                                 ? cudaMemcpy(&observed, logical,
+                                              sizeof(observed),
+                                              cudaMemcpyDeviceToHost)
+                                 : sync_status;
+    if (copy_status != cudaSuccess || observed != 1) {
+        std::fprintf(stderr, "opaque timing launch failed: %s value=%llu\n",
+                     cudaGetErrorString(copy_status), observed);
         hbfsim_context_destroy(context);
         cudaFree(logical);
         return 8;
     }
     hbfsim_context_destroy(context);
     cudaFree(logical);
-    std::puts("HBF launch rejected before kernel execution");
+    std::puts("opaque timing launch completed without claiming modeled delay");
     return 0;
 }
 

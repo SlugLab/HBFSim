@@ -56,7 +56,8 @@ struct hbfsim_context {
     pid_t daemon_pid{-1};
     std::uint64_t request_timeout_ns{0};
     bool cuda_registered{false};
-    const hbfsim::LaunchGateApiV2* launch_gate_api{nullptr};
+    const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
+    const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
@@ -79,6 +80,96 @@ namespace hbfsim::runtime {
 namespace {
 
 using host_service::ControlView;
+
+bool launch_gate_available(const hbfsim_context* context) noexcept
+{
+    return context != nullptr &&
+           (context->launch_gate_api_v3 != nullptr ||
+            context->launch_gate_api_v2 != nullptr);
+}
+
+int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
+                         std::uintptr_t control_alias,
+                         std::uintptr_t cuda_context, int device_ordinal,
+                         std::uint64_t* generation) noexcept
+{
+    return context->launch_gate_api_v3 != nullptr
+               ? context->launch_gate_api_v3->activate(
+                     owner, control_alias, cuda_context, device_ordinal,
+                     generation)
+               : context->launch_gate_api_v2->activate(
+                     owner, control_alias, cuda_context, device_ordinal,
+                     generation);
+}
+
+int launch_gate_register(hbfsim_context* context,
+                         hbfsim::LaunchGateRangePolicy policy,
+                         std::uintptr_t begin, std::uintptr_t end,
+                         hbfsim::LaunchGatePublishRange publish,
+                         void* publish_state) noexcept
+{
+    const auto owner = reinterpret_cast<std::uintptr_t>(context);
+    if (context->launch_gate_api_v3 != nullptr) {
+        return context->launch_gate_api_v3->register_range_with_policy(
+            owner, context->control_generation, begin, end, policy, publish,
+            publish_state);
+    }
+    return context->launch_gate_api_v2->register_range(
+        owner, context->control_generation, begin, end, publish,
+        publish_state);
+}
+
+int launch_gate_unregister(hbfsim_context* context, std::uintptr_t begin,
+                           std::uintptr_t end,
+                           hbfsim::LaunchGatePublishRange publish,
+                           void* publish_state) noexcept
+{
+    const auto owner = reinterpret_cast<std::uintptr_t>(context);
+    return context->launch_gate_api_v3 != nullptr
+               ? context->launch_gate_api_v3->unregister_range(
+                     owner, context->control_generation, begin, end, publish,
+                     publish_state)
+               : context->launch_gate_api_v2->unregister_range(
+                     owner, context->control_generation, begin, end, publish,
+                     publish_state);
+}
+
+int launch_gate_begin_retire(hbfsim_context* context,
+                             std::uintptr_t* token) noexcept
+{
+    const auto owner = reinterpret_cast<std::uintptr_t>(context);
+    return context->launch_gate_api_v3 != nullptr
+               ? context->launch_gate_api_v3->begin_retire(
+                     owner, context->control_generation, token)
+               : context->launch_gate_api_v2->begin_retire(
+                     owner, context->control_generation, token);
+}
+
+int launch_gate_invalidate(hbfsim_context* context,
+                           std::uintptr_t token) noexcept
+{
+    return context->launch_gate_api_v3 != nullptr
+               ? context->launch_gate_api_v3->invalidate_retire(token)
+               : context->launch_gate_api_v2->invalidate_retire(token);
+}
+
+int launch_gate_finish(hbfsim_context* context,
+                       std::uintptr_t token) noexcept
+{
+    return context->launch_gate_api_v3 != nullptr
+               ? context->launch_gate_api_v3->finish_retire(token)
+               : context->launch_gate_api_v2->finish_retire(token);
+}
+
+void launch_gate_quarantine(hbfsim_context* context,
+                            std::uintptr_t token) noexcept
+{
+    if (context->launch_gate_api_v3 != nullptr) {
+        (void)context->launch_gate_api_v3->quarantine_retire(token);
+    } else {
+        (void)context->launch_gate_api_v2->quarantine_retire(token);
+    }
+}
 
 // Startup readiness is distinct from per-request timeout. The MQSim engine is
 // constructed before hbfsimd publishes its first heartbeat and can require
@@ -415,7 +506,7 @@ ReleaseResult release_context(hbfsim_context* context,
     std::uintptr_t retire_token = 0;
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (context->timing_owner_active) {
-        if (context->launch_gate_api == nullptr) {
+        if (!launch_gate_available(context)) {
             return ReleaseResult::quarantined;
         }
         if (!cuda_domain_is_current(context->cuda_context,
@@ -426,13 +517,11 @@ ReleaseResult release_context(hbfsim_context* context,
         }
         const auto initial_liveness =
             context->daemon_ready ? retirement_liveness(context) : HBFSIM_OK;
-        if (context->launch_gate_api->begin_retire(
-                reinterpret_cast<std::uintptr_t>(context),
-                context->control_generation, &retire_token) != 0) {
+        if (launch_gate_begin_retire(context, &retire_token) != 0) {
             return ReleaseResult::quarantined;
         }
         const auto quarantine = [&]() noexcept {
-            (void)context->launch_gate_api->quarantine_retire(retire_token);
+            launch_gate_quarantine(context, retire_token);
             retire_token = 0;
         };
         if (initial_liveness != HBFSIM_OK) {
@@ -463,7 +552,7 @@ ReleaseResult release_context(hbfsim_context* context,
             quarantine();
             return ReleaseResult::quarantined;
         }
-        if (context->launch_gate_api->invalidate_retire(retire_token) != 0) {
+        if (launch_gate_invalidate(context, retire_token) != 0) {
             quarantine();
             return ReleaseResult::quarantined;
         }
@@ -477,8 +566,7 @@ ReleaseResult release_context(hbfsim_context* context,
             if (mapping) {
                 if (!mapping->logical_range.release()) {
                     if (retire_token != 0) {
-                        (void)context->launch_gate_api->quarantine_retire(
-                            retire_token);
+                        launch_gate_quarantine(context, retire_token);
                         retire_token = 0;
                     }
                     return ReleaseResult::quarantined;
@@ -488,8 +576,7 @@ ReleaseResult release_context(hbfsim_context* context,
                 if (context->capacity->router().deactivate(
                         mapping->range_id) != RequestStatus::Ready) {
                     if (retire_token != 0) {
-                        (void)context->launch_gate_api->quarantine_retire(
-                            retire_token);
+                        launch_gate_quarantine(context, retire_token);
                         retire_token = 0;
                     }
                     return ReleaseResult::quarantined;
@@ -500,8 +587,7 @@ ReleaseResult release_context(hbfsim_context* context,
         }
         if (!context->capacity->release_cuda_resources()) {
             if (retire_token != 0) {
-                (void)context->launch_gate_api->quarantine_retire(
-                    retire_token);
+                launch_gate_quarantine(context, retire_token);
                 retire_token = 0;
             }
             return ReleaseResult::quarantined;
@@ -520,14 +606,14 @@ ReleaseResult release_context(hbfsim_context* context,
     if (context->cuda_registered) {
         if (::cudaHostUnregister(context->control_mapping) != cudaSuccess) {
             if (retire_token != 0) {
-                (void)context->launch_gate_api->quarantine_retire(retire_token);
+                launch_gate_quarantine(context, retire_token);
             }
             return ReleaseResult::quarantined;
         }
         context->cuda_registered = false;
         if (context->timing_owner_active) {
-            if (context->launch_gate_api->finish_retire(retire_token) != 0) {
-                (void)context->launch_gate_api->quarantine_retire(retire_token);
+            if (launch_gate_finish(context, retire_token) != 0) {
+                launch_gate_quarantine(context, retire_token);
                 return ReleaseResult::quarantined;
             }
             retire_token = 0;
@@ -744,9 +830,13 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     control.header()->heartbeat_timeout_ns =
         std::max<std::uint64_t>(options->request_timeout_ns, 50'000'000);
     control.header()->time_scale = profile.time_scale;
-    context->ranges = std::unique_ptr<RangeTable>(
-        new (std::nothrow) RangeTable(control, profile.page_bytes,
-                                      profile.capacity_bytes));
+    try {
+        context->ranges = std::make_unique<RangeTable>(
+            control, profile.page_bytes, profile.capacity_bytes);
+    } catch (const std::bad_alloc&) {
+        release_context(context.release(), false);
+        return HBFSIM_IO_ERROR;
+    }
     if (!context->ranges) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
@@ -778,26 +868,61 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         using get_api_type = hbfsim::LaunchGateGetApi;
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
-        context->launch_gate_api =
-            get_api == nullptr
-                ? nullptr
-                : get_api(hbfsim::kLaunchGateAbiVersion);
-        const auto* api = context->launch_gate_api;
-        if (api == nullptr ||
-            api->abi_version != hbfsim::kLaunchGateAbiVersion ||
-            api->struct_bytes < sizeof(hbfsim::LaunchGateApiV2) ||
-            api->activate == nullptr || api->register_range == nullptr ||
-            api->unregister_range == nullptr ||
-            api->begin_retire == nullptr ||
-            api->invalidate_retire == nullptr ||
-            api->finish_retire == nullptr ||
-            api->quarantine_retire == nullptr ||
-            api->activate(reinterpret_cast<std::uintptr_t>(context.get()),
-                          reinterpret_cast<std::uintptr_t>(
-                              context->device_control),
-                          reinterpret_cast<std::uintptr_t>(cuda_context),
-                          static_cast<int>(device),
-                          &context->control_generation) != 0 ||
+        if (get_api != nullptr) {
+            context->launch_gate_api_v3 =
+                static_cast<const hbfsim::LaunchGateApiV3*>(
+                    get_api(hbfsim::kLaunchGateAbiVersion));
+            if (context->launch_gate_api_v3 == nullptr) {
+                context->launch_gate_api_v2 =
+                    static_cast<const hbfsim::LaunchGateApiV2*>(
+                        get_api(hbfsim::kLaunchGateAbiVersionV2));
+            }
+        }
+        const auto valid_v3 = context->launch_gate_api_v3 != nullptr &&
+                              context->launch_gate_api_v3->abi_version ==
+                                  hbfsim::kLaunchGateAbiVersion &&
+                              context->launch_gate_api_v3->struct_bytes >=
+                                  sizeof(hbfsim::LaunchGateApiV3) &&
+                              context->launch_gate_api_v3->activate != nullptr &&
+                              context->launch_gate_api_v3->register_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v3->unregister_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v3->begin_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v3->invalidate_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v3->finish_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v3->quarantine_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v3
+                                      ->register_range_with_policy != nullptr;
+        const auto valid_v2 = context->launch_gate_api_v3 == nullptr &&
+                              context->launch_gate_api_v2 != nullptr &&
+                              context->launch_gate_api_v2->abi_version ==
+                                  hbfsim::kLaunchGateAbiVersionV2 &&
+                              context->launch_gate_api_v2->struct_bytes >=
+                                  sizeof(hbfsim::LaunchGateApiV2) &&
+                              context->launch_gate_api_v2->activate != nullptr &&
+                              context->launch_gate_api_v2->register_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v2->unregister_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v2->begin_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v2->invalidate_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v2->finish_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v2->quarantine_retire !=
+                                  nullptr;
+        if ((!valid_v3 && !valid_v2) ||
+            launch_gate_activate(
+                context.get(), reinterpret_cast<std::uintptr_t>(context.get()),
+                reinterpret_cast<std::uintptr_t>(context->device_control),
+                reinterpret_cast<std::uintptr_t>(cuda_context),
+                static_cast<int>(device), &context->control_generation) != 0 ||
             context->control_generation == 0) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
@@ -1317,7 +1442,8 @@ extern "C" int hbfsim_register_device(
     if (validation != HBFSIM_OK) {
         return validation;
     }
-    if (!context->timing_owner_active || context->launch_gate_api == nullptr ||
+    if (!context->timing_owner_active ||
+        !hbfsim::runtime::launch_gate_available(context) ||
         context->control_generation == 0) {
         return HBFSIM_IO_ERROR;
     }
@@ -1336,11 +1462,10 @@ extern "C" int hbfsim_register_device(
             item.publish(item.state);
             return 0;
         };
-        const auto gate_status =
-            context.launch_gate_api->register_range(
-            reinterpret_cast<std::uintptr_t>(owner),
-            context.control_generation, begin, end, acknowledge,
-            &publication);
+        (void)owner;
+        const auto gate_status = hbfsim::runtime::launch_gate_register(
+            &context, hbfsim::LaunchGateRangePolicy::TimingBacked, begin, end,
+            acknowledge, &publication);
         return hbfsim::runtime::normalize_launch_gate_status(gate_status);
     };
     return hbfsim::runtime::register_device_with_gate(
@@ -1395,7 +1520,8 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
     }
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (!context->cuda_registered || context->device_control == nullptr ||
-        !context->timing_owner_active || context->launch_gate_api == nullptr ||
+        !context->timing_owner_active ||
+        !hbfsim::runtime::launch_gate_available(context) ||
         context->control_generation == 0 || !context->profile ||
         !context->ranges ||
         !hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
@@ -1501,11 +1627,10 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
                 staged.publish(staged.publish_state);
                 return 0;
             };
-            const auto gate_status =
-                item.context->launch_gate_api->register_range(
-                    reinterpret_cast<std::uintptr_t>(item.context),
-                    item.context->control_generation, record.base,
-                    record.base + record.length, acknowledge, &publication);
+            const auto gate_status = hbfsim::runtime::launch_gate_register(
+                item.context,
+                hbfsim::LaunchGateRangePolicy::CapacityUnbacked, record.base,
+                record.base + record.length, acknowledge, &publication);
             if (!mapped.active) {
                 runtime.router().cancel(token);
             }
@@ -1593,7 +1718,7 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (!hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
                                                  context->device_ordinal) ||
-        context->launch_gate_api == nullptr ||
+        !hbfsim::runtime::launch_gate_available(context) ||
         context->control_generation == 0) {
         return HBFSIM_CUDA_ERROR;
     }
@@ -1658,11 +1783,9 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
             transaction.failure = HBFSIM_OK;
             return 0;
         };
-        const auto gate_status =
-            item.context->launch_gate_api->unregister_range(
-                reinterpret_cast<std::uintptr_t>(item.context),
-                item.context->control_generation, record.base,
-                record.base + record.length, acknowledge, &removal);
+        const auto gate_status = hbfsim::runtime::launch_gate_unregister(
+            item.context, record.base, record.base + record.length,
+            acknowledge, &removal);
         return gate_status == 0 ? HBFSIM_OK : item.failure;
     };
     const auto status = context->ranges->remove(base, remove, &transaction);

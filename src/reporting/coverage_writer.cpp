@@ -20,6 +20,9 @@ nlohmann::json to_json(const GateDecision& decision)
         {"parameter_index", decision.parameter_index},
         {"parameter_offset", decision.parameter_offset},
         {"address", decision.address},
+        {"range_policy", range_policy_name(decision.range_policy)},
+        {"modeled", decision.modeled},
+        {"opaque_unmodeled", decision.opaque_unmodeled},
     };
 }
 

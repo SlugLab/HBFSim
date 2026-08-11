@@ -546,6 +546,40 @@ if(HBFSIM_ENABLE_CUDA)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
     )
 
+    add_library(
+        hbfsim_vllm_extension SHARED adapters/vllm/hbfsim_extension.cpp
+    )
+    target_include_directories(
+        hbfsim_vllm_extension PRIVATE adapters/vllm
+    )
+    target_link_libraries(hbfsim_vllm_extension PRIVATE hbfsim_core)
+    set_target_properties(
+        hbfsim_vllm_extension PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+
+    if(BUILD_TESTING AND TARGET fake_cuda_lookup AND TARGET hbfsim_launch_gate)
+        add_executable(
+            vllm_extension_test tests/integration/vllm_extension_test.cpp
+        )
+    target_link_libraries(
+            vllm_extension_test
+            PRIVATE hbfsim_vllm_extension fake_cuda_lookup
+        )
+        target_include_directories(
+            vllm_extension_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        )
+        add_test(
+            NAME vllm_extension
+            COMMAND
+                "${CMAKE_COMMAND}" -E env
+                "LD_PRELOAD=$<TARGET_FILE:hbfsim_launch_gate>"
+                "$<TARGET_FILE:vllm_extension_test>"
+                "$<TARGET_FILE:hbfsimd>"
+                "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/nominal.json"
+        )
+    endif()
+
     add_executable(
         capacity_runtime_live_test EXCLUDE_FROM_ALL
         tests/gpu/capacity_runtime_live_test.cu

@@ -73,8 +73,11 @@ def main() -> int:
     require("hbfsim_coverage_add_range" not in source,
             "launch gate source retains a range-registration bypass")
     context_source = pathlib.Path(sys.argv[4]).read_text()
-    require("api->quarantine_retire == nullptr" in context_source,
+    require("launch_gate_api_v3->quarantine_retire !=" in context_source and
+            "launch_gate_api_v2->quarantine_retire !=" in context_source,
             "context accepts a launch-gate API without quarantine_retire")
+    require("register_range_with_policy != nullptr" in context_source,
+            "context accepts v3 without policy-aware range registration")
     require("hbfsim_expect_module_identity" not in source and
             "discard_expectations" not in source and
             "expected_" not in source,
@@ -157,6 +160,12 @@ def main() -> int:
             "live_domain->context != cuda_context" in activation and
             "live_domain->device != device_ordinal" in activation,
             "owner activation does not revalidate its exact live CUDA domain")
+    require("activation_guard" in activation and
+            "finish_activation" in activation and
+            activation.find("activation_guard") <
+            activation.find("timing_bindings().activate") <
+            activation.find("finish_activation"),
+            "owner activation does not establish a fresh range epoch")
     runtime_multi = function_body(
         source, "cudaLaunchCooperativeKernelMultiDevice(")
     require("RuntimeLaunchScope scope;" in runtime_multi,

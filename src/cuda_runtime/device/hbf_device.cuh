@@ -13,7 +13,7 @@ namespace hbfsim::device {
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
 inline constexpr std::uint32_t kControlAbiVersion = 2;
-inline constexpr std::uint32_t kRangeCapacity = 64;
+inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;

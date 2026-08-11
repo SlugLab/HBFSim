@@ -60,7 +60,7 @@ def main() -> int:
             "set -eu\n"
             "printf '%s\\n%s\\n%s\\n' \"$BPFTIME_PTXPASS_LIBRARIES\" \"$BPFTIME_CUDA_ROOT\" \"$LD_PRELOAD\" > \"$1\"\n"
             "printf '%s\\n' '{\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"instrumented\":true}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
-            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\"}' > \"$HBFSIM_COVERAGE_PATH\"\n",
+            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n",
         )
 
         env = os.environ.copy()
@@ -141,6 +141,20 @@ def main() -> int:
             f"wrapper exported wrong preload order: {lines[2]}",
         )
 
+        default_timeout = env.copy()
+        default_timeout.pop("HBFSIM_ATTACH_TIMEOUT_MS")
+        completed_with_default = subprocess.run(
+            [str(wrapper), "--", str(command), str(output)],
+            env=default_timeout,
+            text=True,
+            capture_output=True,
+        )
+        require(
+            completed_with_default.returncode == 0,
+            "wrapper failed with its default attach timeout: "
+            f"{completed_with_default.stderr}",
+        )
+
         no_activation = env.copy()
         no_activation["HBFSIM_PASS_MANIFEST_PATH"] = str(root / "missing-manifest.jsonl")
         no_activation["HBFSIM_COVERAGE_PATH"] = str(root / "missing-coverage.json")
@@ -155,6 +169,21 @@ def main() -> int:
             in inactive.stderr,
             f"wrapper reported wrong activation failure: {inactive.stderr}",
         )
+
+        opaque_command = root / "opaque-command"
+        executable(
+            opaque_command,
+            "#!/usr/bin/env bash\n"
+            "set -eu\n"
+            "printf '%s\\n' '{\"module_id\":\"cubin:test\",\"kernel\":\"k\",\"instrumented\":false}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
+            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"opaque_unmodeled_timing\",\"module_id\":\"cubin:test\",\"kernel\":\"k\",\"modeled\":false}' > \"$HBFSIM_COVERAGE_PATH\"\n",
+        )
+        opaque = subprocess.run(
+            [str(wrapper), "--", str(opaque_command)], env=env,
+            text=True, capture_output=True
+        )
+        require(opaque.returncode == 70,
+                "wrapper accepted opaque-only timing as modeled access")
 
         invalid = env.copy()
         invalid["HBFSIM_BUILD_DIR"] = "relative-build"

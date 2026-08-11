@@ -4,10 +4,10 @@
 
 #include <hbfsim/api.h>
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <vector>
 
 namespace hbfsim::runtime {
 
@@ -49,9 +49,7 @@ class RangeTable {
     std::uint32_t next_range_id_{1};
     std::size_t count_{0};
     mutable std::mutex mutex_;
-    std::array<host_service::SharedRangeRecord,
-               host_service::kRangeCapacity>
-        records_{};
+    std::vector<host_service::SharedRangeRecord> records_;
 };
 
 }  // namespace hbfsim::runtime

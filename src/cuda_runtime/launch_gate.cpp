@@ -65,6 +65,7 @@ class RuntimeGate {
     }
     int register_range(std::uintptr_t owner, std::uint64_t generation,
                        std::uintptr_t begin, std::uintptr_t end,
+                       hbfsim::RangePolicy policy,
                        hbfsim::LaunchGatePublishRange publish,
                        void* publish_state) noexcept
     {
@@ -76,7 +77,7 @@ class RuntimeGate {
             if (!timing_bindings().owns(owner, generation)) {
                 return -1;
             }
-            gate_.add_range(begin, end);
+            gate_.add_range(begin, end, policy);
             if (publish(publish_state) != 0) {
                 gate_.remove_range(begin, end);
                 return -1;
@@ -124,6 +125,14 @@ class RuntimeGate {
     std::unique_lock<std::shared_mutex> retirement_guard()
     {
         return range_launch_sync_.retirement_guard();
+    }
+    std::unique_lock<std::shared_mutex> activation_guard()
+    {
+        return range_launch_sync_.mutation_guard();
+    }
+    void finish_activation() noexcept
+    {
+        range_launch_sync_.reset_launch_seen();
     }
     void finish_retirement() noexcept
     {
@@ -367,7 +376,7 @@ bool timing_binding_ready(CUfunction function) noexcept
 hbfsim::GateDecision require_timing_binding(hbfsim::GateDecision decision,
                                             CUfunction function)
 {
-    if (decision.allowed && decision.address != 0 &&
+    if (decision.allowed && decision.modeled && decision.address != 0 &&
         !timing_binding_ready(function)) {
         decision.allowed = false;
         decision.reason = "control_binding_unavailable";
@@ -397,6 +406,11 @@ int activate_timing_owner(std::uintptr_t owner,
         *generation_out = 0;
         return -1;
     }
+    if (!timing_bindings().can_activate()) {
+        *generation_out = 0;
+        return -1;
+    }
+    auto range_transition = runtime_gate().activation_guard();
     std::uint64_t generation = 0;
     if (!timing_bindings().activate(owner, control_alias, cuda_context,
                                     device_ordinal,
@@ -405,6 +419,7 @@ int activate_timing_owner(std::uintptr_t owner,
         *generation_out = 0;
         return -1;
     }
+    runtime_gate().finish_activation();
     *generation_out = generation;
     return 0;
 }
@@ -418,7 +433,35 @@ int register_range(std::uintptr_t owner, std::uint64_t generation,
         return -1;
     }
     return runtime_gate().register_range(
-        owner, generation, begin, end, publish, publish_state);
+        owner, generation, begin, end, hbfsim::RangePolicy::LegacyStrict,
+        publish, publish_state);
+}
+
+int register_range_with_policy(
+    std::uintptr_t owner, std::uint64_t generation, std::uintptr_t begin,
+    std::uintptr_t end, hbfsim::LaunchGateRangePolicy policy,
+    hbfsim::LaunchGatePublishRange publish, void* publish_state) noexcept
+{
+    if (owner == 0 || generation == 0 || begin >= end) {
+        return -1;
+    }
+    hbfsim::RangePolicy coverage_policy;
+    switch (policy) {
+    case hbfsim::LaunchGateRangePolicy::LegacyStrict:
+        coverage_policy = hbfsim::RangePolicy::LegacyStrict;
+        break;
+    case hbfsim::LaunchGateRangePolicy::TimingBacked:
+        coverage_policy = hbfsim::RangePolicy::TimingBacked;
+        break;
+    case hbfsim::LaunchGateRangePolicy::CapacityUnbacked:
+        coverage_policy = hbfsim::RangePolicy::CapacityUnbacked;
+        break;
+    default:
+        return -1;
+    }
+    return runtime_gate().register_range(owner, generation, begin, end,
+                                         coverage_policy, publish,
+                                         publish_state);
 }
 
 int unregister_range(std::uintptr_t owner, std::uint64_t generation,
@@ -500,8 +543,8 @@ int quarantine_retire(std::uintptr_t raw_token) noexcept
     return 0;
 }
 
-const hbfsim::LaunchGateApiV2 launch_gate_api{
-    .abi_version = hbfsim::kLaunchGateAbiVersion,
+const hbfsim::LaunchGateApiV2 launch_gate_api_v2{
+    .abi_version = hbfsim::kLaunchGateAbiVersionV2,
     .struct_bytes = sizeof(hbfsim::LaunchGateApiV2),
     .activate = activate_timing_owner,
     .register_range = register_range,
@@ -510,6 +553,19 @@ const hbfsim::LaunchGateApiV2 launch_gate_api{
     .invalidate_retire = invalidate_retire,
     .finish_retire = finish_retire,
     .quarantine_retire = quarantine_retire,
+};
+
+const hbfsim::LaunchGateApiV3 launch_gate_api_v3{
+    .abi_version = hbfsim::kLaunchGateAbiVersion,
+    .struct_bytes = sizeof(hbfsim::LaunchGateApiV3),
+    .activate = activate_timing_owner,
+    .register_range = register_range,
+    .unregister_range = unregister_range,
+    .begin_retire = begin_retire,
+    .invalidate_retire = invalidate_retire,
+    .finish_retire = finish_retire,
+    .quarantine_retire = quarantine_retire,
+    .register_range_with_policy = register_range_with_policy,
 };
 
 std::string handle_id(CUfunction function)
@@ -553,13 +609,25 @@ CUfunction kernel_function(cudaKernel_t kernel)
 
 hbfsim::GateDecision unavailable(std::string module_id, std::string kernel)
 {
-    return {
-        .allowed = false,
-        .module_id = std::move(module_id),
-        .kernel = std::move(kernel),
-        .reason = "launch_metadata_unavailable",
-        .operation = "opaque_pointer_access",
-    };
+    auto& gate = runtime_gate().gate();
+    if (!gate.has_ranges()) {
+        return {.allowed = true,
+                .module_id = std::move(module_id),
+                .kernel = std::move(kernel)};
+    }
+    if (!gate.has_strict_ranges()) {
+        auto decision = hbfsim::uninspectable_launch_decision(
+            true, false, "opaque_pointer_access");
+        decision.module_id = std::move(module_id);
+        decision.kernel = std::move(kernel);
+        return decision;
+    }
+    return {.allowed = false,
+            .module_id = std::move(module_id),
+            .kernel = std::move(kernel),
+            .reason = "launch_metadata_unavailable",
+            .operation = "opaque_pointer_access",
+            .range_policy = hbfsim::RangePolicy::LegacyStrict};
 }
 
 template <typename Handle, typename GetInfo>
@@ -801,12 +869,16 @@ extern "C" int hbfsim_test_wait_activation_attempt() noexcept
 }
 #endif
 
-extern "C" const hbfsim::LaunchGateApiV2*
+extern "C" const void*
 hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
 {
-    return requested_version == hbfsim::kLaunchGateAbiVersion
-               ? &launch_gate_api
-               : nullptr;
+    if (requested_version == hbfsim::kLaunchGateAbiVersion) {
+        return &launch_gate_api_v3;
+    }
+    if (requested_version == hbfsim::kLaunchGateAbiVersionV2) {
+        return &launch_gate_api_v2;
+    }
+    return nullptr;
 }
 
 #define HBFSIM_DRIVER_LAUNCH(name)                                             \
@@ -920,8 +992,9 @@ HBFSIM_RUNTIME_EX(cudaLaunchKernelExC_ptsz)
 
 hbfsim::GateDecision opaque_launch(const char* kind)
 {
+    auto& gate = runtime_gate().gate();
     return hbfsim::uninspectable_launch_decision(
-        runtime_gate().gate().has_ranges(), kind);
+        gate.has_ranges(), gate.has_strict_ranges(), kind);
 }
 
 extern "C" CUresult cuLaunch(CUfunction function)

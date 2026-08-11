@@ -31,6 +31,9 @@ Activate = ctypes.CFUNCTYPE(
 Register = ctypes.CFUNCTYPE(
     ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64, ctypes.c_size_t,
     ctypes.c_size_t, Publish, ctypes.c_void_p)
+RegisterWithPolicy = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64, ctypes.c_size_t,
+    ctypes.c_size_t, ctypes.c_uint32, Publish, ctypes.c_void_p)
 BeginRetire = ctypes.CFUNCTYPE(
     ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64,
     ctypes.POINTER(ctypes.c_size_t))
@@ -48,6 +51,12 @@ class GateApi(ctypes.Structure):
         ("invalidate_retire", FinishRetire),
         ("finish_retire", FinishRetire),
         ("quarantine_retire", FinishRetire),
+    ]
+
+
+class GateApiV3(ctypes.Structure):
+    _fields_ = GateApi._fields_ + [
+        ("register_range_with_policy", RegisterWithPolicy),
     ]
 
 
@@ -90,6 +99,15 @@ def main() -> int:
                 env=rollback_environment, check=False)
             if rollback.returncode != 0:
                 return rollback.returncode
+            for variable in ("HBFSIM_V3_TIMING_OPAQUE",
+                             "HBFSIM_V3_CAPACITY_OPAQUE"):
+                policy_environment = environment.copy()
+                policy_environment[variable] = "1"
+                policy = subprocess.run(
+                    [sys.executable, __file__, gate, fake],
+                    env=policy_environment, check=False)
+                if policy.returncode != 0:
+                    return policy.returncode
             lifecycle_environment = environment.copy()
             lifecycle_environment["HBFSIM_LIFECYCLE_ACTIVATE_RACE"] = "1"
             lifecycle = subprocess.run(
@@ -140,6 +158,14 @@ def main() -> int:
     api = api_pointer.contents
     require(api.abi_version == 2 and api.struct_bytes == ctypes.sizeof(GateApi),
             "launch gate returned malformed v2 API")
+    getter.restype = ctypes.POINTER(GateApiV3)
+    api_v3_pointer = getter(3)
+    require(bool(api_v3_pointer), "launch gate v3 API unavailable")
+    api_v3 = api_v3_pointer.contents
+    require(api_v3.abi_version == 3 and
+            api_v3.struct_bytes == ctypes.sizeof(GateApiV3),
+            "launch gate returned malformed v3 API")
+    getter.restype = ctypes.POINTER(GateApi)
     require(not bool(getter(1)), "launch gate accepted an obsolete API version")
 
     fake_library.fakeCudaSetModuleIdentity.argtypes = [
@@ -258,6 +284,56 @@ def main() -> int:
     def launch_kernel() -> int:
         return launch(ctypes.c_void_p(0x9000), 1, 1, 1, 1, 1, 1, 0,
                       None, parameters, None)
+
+    if (os.environ.get("HBFSIM_V3_TIMING_OPAQUE") == "1" or
+            os.environ.get("HBFSIM_V3_CAPACITY_OPAQUE") == "1"):
+        opaque_module = ctypes.c_void_p()
+        opaque_image = ctypes.create_string_buffer(b"opaque-v3-module")
+        require(load(ctypes.byref(opaque_module), opaque_image, 0, None,
+                     None) == 0,
+                "failed to load opaque v3 module")
+        generation = ctypes.c_uint64()
+        require(api_v3.activate(0xA000, 0xFEED0000, 0xCA00, 3,
+                                ctypes.byref(generation)) == 0,
+                "v3 policy phase activation failed")
+
+        @Publish
+        def publish_policy(_state: ctypes.c_void_p) -> int:
+            return 0
+
+        timing = os.environ.get("HBFSIM_V3_TIMING_OPAQUE") == "1"
+        policy = 1 if timing else 2
+        require(api_v3.register_range_with_policy(
+                    0xA000, generation.value, 0x1000, 0x2000, policy,
+                    publish_policy, None) == 0,
+                "v3 policy range registration failed")
+        status = launch_kernel()
+        require((status == 0) == timing,
+                "opaque v3 launch did not follow timing/capacity policy")
+        decisions = [
+            json.loads(line) for line in pathlib.Path(
+                os.environ["HBFSIM_COVERAGE_PATH"]).read_text().splitlines()
+            if line.strip()
+        ]
+        require(decisions, "v3 policy launch emitted no coverage decision")
+        if timing:
+            require(decisions[-1]["reason"] == "opaque_unmodeled_timing" and
+                    decisions[-1]["range_policy"] == "timing_backed" and
+                    decisions[-1]["opaque_unmodeled"],
+                    "timing-backed opaque launch was misreported")
+        else:
+            require(not decisions[-1]["allowed"] and
+                    decisions[-1]["range_policy"] == "capacity_unbacked",
+                    "capacity opaque rejection was misreported")
+        token = ctypes.c_size_t()
+        require(api_v3.begin_retire(0xA000, generation.value,
+                                    ctypes.byref(token)) == 0 and
+                api_v3.invalidate_retire(token.value) == 0 and
+                api_v3.finish_retire(token.value) == 0,
+                "v3 policy owner did not retire cleanly")
+        require(unload(opaque_module) == 0,
+                "failed to unload opaque v3 module")
+        return 0
 
     if os.environ.get("HBFSIM_UNBOUND_NO_RANGE") == "1":
         fake_library.fakeCudaSetControlSymbolsAvailable(0)

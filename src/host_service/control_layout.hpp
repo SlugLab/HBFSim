@@ -13,7 +13,7 @@
 namespace hbfsim::host_service {
 
 inline constexpr std::uint32_t kControlAbiVersion = 2;
-inline constexpr std::uint32_t kRangeCapacity = 64;
+inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;

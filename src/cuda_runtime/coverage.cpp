@@ -12,6 +12,29 @@
 namespace hbfsim {
 namespace {
 
+bool strict_policy(RangePolicy policy)
+{
+    return policy == RangePolicy::LegacyStrict ||
+           policy == RangePolicy::CapacityUnbacked;
+}
+
+RangePolicy stricter_policy(RangePolicy left, RangePolicy right)
+{
+    if (left == RangePolicy::CapacityUnbacked ||
+        right == RangePolicy::CapacityUnbacked) {
+        return RangePolicy::CapacityUnbacked;
+    }
+    if (left == RangePolicy::LegacyStrict ||
+        right == RangePolicy::LegacyStrict) {
+        return RangePolicy::LegacyStrict;
+    }
+    if (left == RangePolicy::TimingBacked ||
+        right == RangePolicy::TimingBacked) {
+        return RangePolicy::TimingBacked;
+    }
+    return RangePolicy::None;
+}
+
 std::string module_key(const std::string& module_id, const std::string& kernel)
 {
     return module_id + '\n' + kernel;
@@ -42,7 +65,46 @@ GateDecision rejected(const KernelLaunch& launch, const std::string& reason)
     };
 }
 
+GateDecision rejected(const KernelLaunch& launch, const std::string& reason,
+                      RangePolicy policy)
+{
+    auto decision = rejected(launch, reason);
+    decision.range_policy = policy;
+    return decision;
+}
+
+GateDecision unmodeled_timing(const KernelLaunch& launch,
+                              std::string operation)
+{
+    return {
+        .allowed = true,
+        .module_id = launch.module_id,
+        .kernel = launch.kernel,
+        .reason = "opaque_unmodeled_timing",
+        .operation = std::move(operation),
+        .inspected_parameters = launch.parameters.size(),
+        .range_policy = RangePolicy::TimingBacked,
+        .modeled = false,
+        .opaque_unmodeled = true,
+    };
+}
+
 }  // namespace
+
+const char* range_policy_name(RangePolicy policy) noexcept
+{
+    switch (policy) {
+    case RangePolicy::None:
+        return "none";
+    case RangePolicy::LegacyStrict:
+        return "legacy_strict";
+    case RangePolicy::TimingBacked:
+        return "timing_backed";
+    case RangePolicy::CapacityUnbacked:
+        return "capacity_unbacked";
+    }
+    return "unknown";
+}
 
 std::string
 module_id_from_identity(const std::array<std::uint8_t, 32>& identity)
@@ -65,6 +127,26 @@ GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
                           : GateDecision{.allowed = true,
                                          .kernel = std::move(kind),
                                          .reason = "allowed"};
+}
+
+GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
+                                           bool has_capacity_ranges,
+                                           std::string kind)
+{
+    if (!has_hbf_ranges) {
+        return {.allowed = true,
+                .kernel = std::move(kind),
+                .reason = "allowed"};
+    }
+    if (has_capacity_ranges) {
+        return {.allowed = false,
+                .kernel = kind,
+                .reason = "uninspectable_launch_path",
+                .operation = std::move(kind),
+                .range_policy = RangePolicy::CapacityUnbacked};
+    }
+    KernelLaunch launch{.kernel = kind};
+    return unmodeled_timing(launch, std::move(kind));
 }
 
 ModuleManifest module_manifest_from_json(const std::string& text)
@@ -121,11 +203,17 @@ void CoverageGate::add_module(ModuleManifest manifest)
 
 void CoverageGate::add_range(std::uintptr_t begin, std::uintptr_t end)
 {
-    if (begin >= end) {
+    add_range(begin, end, RangePolicy::LegacyStrict);
+}
+
+void CoverageGate::add_range(std::uintptr_t begin, std::uintptr_t end,
+                             RangePolicy policy)
+{
+    if (begin >= end || policy == RangePolicy::None) {
         throw std::invalid_argument("coverage range must be non-empty");
     }
     std::unique_lock lock(mutex_);
-    ranges_.push_back({begin, end});
+    ranges_.push_back({begin, end, policy});
 }
 
 void CoverageGate::remove_range(std::uintptr_t begin,
@@ -154,11 +242,31 @@ bool CoverageGate::has_ranges() const
     return !ranges_.empty();
 }
 
-bool CoverageGate::contains(std::uintptr_t address) const
+bool CoverageGate::has_capacity_ranges() const
 {
-    return std::ranges::any_of(ranges_, [address](const AddressRange& range) {
-        return address >= range.begin && address < range.end;
+    std::shared_lock lock(mutex_);
+    return std::ranges::any_of(ranges_, [](const AddressRange& range) {
+        return range.policy == RangePolicy::CapacityUnbacked;
     });
+}
+
+bool CoverageGate::has_strict_ranges() const
+{
+    std::shared_lock lock(mutex_);
+    return std::ranges::any_of(ranges_, [](const AddressRange& range) {
+        return strict_policy(range.policy);
+    });
+}
+
+RangePolicy CoverageGate::policy_for(std::uintptr_t address) const
+{
+    RangePolicy result = RangePolicy::None;
+    for (const auto& range : ranges_) {
+        if (address >= range.begin && address < range.end) {
+            result = stricter_policy(result, range.policy);
+        }
+    }
+    return result;
 }
 
 GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
@@ -168,13 +276,24 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         launch.parameters, [](const LaunchParameter& parameter) {
             return parameter.opaque_aggregate;
         });
-    const bool has_hbf = std::ranges::any_of(
-        launch.parameters, [this](const LaunchParameter& parameter) {
-            return std::ranges::any_of(parameter.slots,
-                                       [this](const ArgumentSlot& slot) {
-                                           return contains(slot.value);
-                                       });
-        });
+    RangePolicy launch_policy = RangePolicy::None;
+    for (const auto& parameter : launch.parameters) {
+        for (const auto& slot : parameter.slots) {
+            launch_policy =
+                stricter_policy(launch_policy, policy_for(slot.value));
+        }
+    }
+    const bool has_hbf = launch_policy != RangePolicy::None;
+    RangePolicy aggregate_policy = RangePolicy::None;
+    if (opaque_aggregate && !ranges_.empty()) {
+        aggregate_policy = std::ranges::any_of(
+                               ranges_, [](const AddressRange& range) {
+                                   return strict_policy(range.policy);
+                               })
+                               ? RangePolicy::CapacityUnbacked
+                               : RangePolicy::TimingBacked;
+        launch_policy = stricter_policy(launch_policy, aggregate_policy);
+    }
     if (!has_hbf && !(opaque_aggregate && !ranges_.empty())) {
         return {.allowed = true,
                 .module_id = launch.module_id,
@@ -183,7 +302,10 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     }
 
     if (launch.module_id.empty()) {
-        return rejected(launch, "exact_module_identity_required");
+        return launch_policy == RangePolicy::TimingBacked
+                   ? unmodeled_timing(launch, "opaque_pointer_access")
+                   : rejected(launch, "exact_module_identity_required",
+                              launch_policy);
     }
     const ModuleManifest* manifest = nullptr;
     const auto found =
@@ -192,7 +314,9 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         manifest = &found->second;
     }
     if (manifest == nullptr) {
-        return rejected(launch, "uninstrumented_module");
+        return launch_policy == RangePolicy::TimingBacked
+                   ? unmodeled_timing(launch, "opaque_pointer_access")
+                   : rejected(launch, "uninstrumented_module", launch_policy);
     }
 
     GateDecision decision{
@@ -202,6 +326,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         .ptx_target = manifest->ptx_target,
         .cubin_only = manifest->cubin_only,
         .inspected_parameters = launch.parameters.size(),
+        .range_policy = launch_policy,
     };
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
@@ -227,6 +352,14 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     }
     for (const auto& parameter : launch.parameters) {
         if (parameter.opaque_aggregate && !ranges_.empty()) {
+            if (aggregate_policy == RangePolicy::TimingBacked &&
+                !strict_policy(launch_policy)) {
+                auto fallback = unmodeled_timing(
+                    launch, "unproven_aggregate_pointer_slots");
+                fallback.parameter_index = parameter.index;
+                fallback.parameter_offset = parameter.offset;
+                return fallback;
+            }
             decision.allowed = false;
             decision.reason = "opaque_aggregate_parameter";
             decision.operation = "unproven_aggregate_pointer_slots";
@@ -235,7 +368,8 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
             return decision;
         }
         for (const auto& slot : parameter.slots) {
-            if (!contains(slot.value)) {
+            const auto slot_policy = policy_for(slot.value);
+            if (slot_policy == RangePolicy::None) {
                 continue;
             }
             decision.parameter_index = parameter.index;
@@ -248,18 +382,46 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                     return item.index == parameter.index;
                 });
             if (unsupported != manifest->unsupported_parameters.end()) {
+                if (slot_policy == RangePolicy::TimingBacked &&
+                    !strict_policy(launch_policy)) {
+                    auto fallback =
+                        unmodeled_timing(launch, unsupported->operation);
+                    fallback.parameter_index = parameter.index;
+                    fallback.parameter_offset = parameter.offset + slot.offset;
+                    fallback.address = slot.value;
+                    return fallback;
+                }
                 decision.allowed = false;
                 decision.reason = "unsupported_operation";
                 decision.operation = unsupported->operation;
                 return decision;
             }
             if (manifest->cubin_only) {
+                if (slot_policy == RangePolicy::TimingBacked &&
+                    !strict_policy(launch_policy)) {
+                    auto fallback =
+                        unmodeled_timing(launch, "opaque_pointer_access");
+                    fallback.cubin_only = true;
+                    fallback.parameter_index = parameter.index;
+                    fallback.parameter_offset = parameter.offset + slot.offset;
+                    fallback.address = slot.value;
+                    return fallback;
+                }
                 decision.allowed = false;
                 decision.reason = "cubin_only_module";
                 decision.operation = "opaque_pointer_access";
                 return decision;
             }
             if (!manifest->instrumented) {
+                if (slot_policy == RangePolicy::TimingBacked &&
+                    !strict_policy(launch_policy)) {
+                    auto fallback =
+                        unmodeled_timing(launch, "opaque_pointer_access");
+                    fallback.parameter_index = parameter.index;
+                    fallback.parameter_offset = parameter.offset + slot.offset;
+                    fallback.address = slot.value;
+                    return fallback;
+                }
                 decision.allowed = false;
                 decision.reason = "uninstrumented_module";
                 decision.operation = "opaque_pointer_access";
@@ -272,6 +434,15 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 });
             if (metadata == manifest->parameters.end() ||
                 metadata->kind != ParameterKind::Pointer) {
+                if (slot_policy == RangePolicy::TimingBacked &&
+                    !strict_policy(launch_policy)) {
+                    auto fallback =
+                        unmodeled_timing(launch, "unrecognized_pointer_access");
+                    fallback.parameter_index = parameter.index;
+                    fallback.parameter_offset = parameter.offset + slot.offset;
+                    fallback.address = slot.value;
+                    return fallback;
+                }
                 decision.allowed = false;
                 decision.reason =
                     metadata != manifest->parameters.end() &&
@@ -283,6 +454,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
             }
         }
     }
+    decision.modeled = has_hbf;
     return decision;
 }
 

@@ -55,6 +55,15 @@ class LaunchRangeSynchronizer {
 
 enum class ParameterKind { Scalar, Pointer, OpaqueAggregate };
 
+enum class RangePolicy : std::uint32_t {
+    None = 0,
+    LegacyStrict = 1,
+    TimingBacked = 2,
+    CapacityUnbacked = 3,
+};
+
+[[nodiscard]] const char* range_policy_name(RangePolicy policy) noexcept;
+
 struct ParameterMetadata {
     std::size_t index{0};
     std::size_t offset{0};
@@ -108,6 +117,9 @@ struct GateDecision {
     std::size_t parameter_index{0};
     std::size_t parameter_offset{0};
     std::uintptr_t address{0};
+    RangePolicy range_policy{RangePolicy::None};
+    bool modeled{false};
+    bool opaque_unmodeled{false};
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);
@@ -115,23 +127,31 @@ struct GateDecision {
 module_id_from_identity(const std::array<std::uint8_t, 32>& identity);
 [[nodiscard]] GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
                                                          std::string kind);
+[[nodiscard]] GateDecision
+uninspectable_launch_decision(bool has_hbf_ranges, bool has_capacity_ranges,
+                              std::string kind);
 
 class CoverageGate {
   public:
     void add_module(ModuleManifest manifest);
     void add_range(std::uintptr_t begin, std::uintptr_t end);
+    void add_range(std::uintptr_t begin, std::uintptr_t end,
+                   RangePolicy policy);
     void remove_range(std::uintptr_t begin, std::uintptr_t end) noexcept;
     void clear_ranges();
     [[nodiscard]] bool has_ranges() const;
+    [[nodiscard]] bool has_capacity_ranges() const;
+    [[nodiscard]] bool has_strict_ranges() const;
     [[nodiscard]] GateDecision check_launch(const KernelLaunch& launch) const;
 
   private:
     struct AddressRange {
         std::uintptr_t begin;
         std::uintptr_t end;
+        RangePolicy policy;
     };
 
-    [[nodiscard]] bool contains(std::uintptr_t address) const;
+    [[nodiscard]] RangePolicy policy_for(std::uintptr_t address) const;
 
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, ModuleManifest> modules_;

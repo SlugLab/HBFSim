@@ -129,6 +129,13 @@ bool TimingBindingRegistry::activate(
     return true;
 }
 
+bool TimingBindingRegistry::can_activate() const noexcept
+{
+    std::scoped_lock lock(mutex_);
+    return !quarantined_ && !retiring_ && owner_ == 0 &&
+           next_generation_ != 0;
+}
+
 bool TimingBindingRegistry::quiesce(std::uintptr_t owner,
                                     std::uint64_t generation) noexcept
 {

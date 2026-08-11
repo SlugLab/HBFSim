@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-08-11",
+  "branch": "hybrid",
+  "hardware": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "driver": "595.84",
+    "compute_capability": "12.0"
+  },
+  "workload": {
+    "model": "/home/victoryang00/Qwen3-30B-A3B",
+    "architecture": "Qwen3MoeForCausalLM",
+    "num_prompts": 4,
+    "input_tokens_per_prompt": 32,
+    "output_tokens_per_prompt": 32,
+    "seed": 0,
+    "vllm": "0.15.1",
+    "torch": "2.9.1+cu128",
+    "triton": "3.5.1",
+    "flashinfer_python": "0.6.1"
+  },
+  "registration": {
+    "parameter_count": 435,
+    "unique_storage_count": 435,
+    "registered_bytes": 61064245248
+  },
+  "baseline": {
+    "generation_seconds": 0.8897674699546769,
+    "requests_per_second": 4.495556575251905,
+    "total_tokens_per_second": 287.71562081612194,
+    "output_tokens_per_second": 143.85781040806097
+  },
+  "timing_adapter_runs": [
+    {
+      "generation_seconds": 1.41562059300486,
+      "requests_per_second": 2.8256158604682486,
+      "total_tokens_per_second": 180.8394150699679,
+      "output_tokens_per_second": 90.41970753498396,
+      "output_tokens_exact_match": true
+    },
+    {
+      "generation_seconds": 1.8269018559949473,
+      "requests_per_second": 2.189499116700806,
+      "total_tokens_per_second": 140.12794346885158,
+      "output_tokens_per_second": 70.06397173442579,
+      "output_tokens_exact_match": true
+    }
+  ],
+  "coverage": {
+    "decisions": 23210,
+    "ordinary_allowed": 12626,
+    "opaque_unmodeled_timing": 10584,
+    "modeled": 0,
+    "pass_manifests": 0
+  },
+  "proof": {
+    "adapter_execution": "passed",
+    "live_hbf_delay_injection": "not_proven",
+    "wrapper_exit_code": 70,
+    "reason": "vLLM production kernels were cubin-only in this run"
+  }
+}

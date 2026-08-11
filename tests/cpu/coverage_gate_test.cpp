@@ -64,6 +64,15 @@ int main()
           "1200000000000000000000000000000000000000000000000000000000000034");
     CHECK(!hbfsim::uninspectable_launch_decision(true, "graph_launch").allowed);
     CHECK(hbfsim::uninspectable_launch_decision(false, "graph_launch").allowed);
+    const auto timing_graph = hbfsim::uninspectable_launch_decision(
+        true, false, "graph_launch");
+    CHECK(timing_graph.allowed);
+    CHECK(timing_graph.reason == "opaque_unmodeled_timing");
+    CHECK(timing_graph.opaque_unmodeled);
+    const auto capacity_graph = hbfsim::uninspectable_launch_decision(
+        true, true, "graph_launch");
+    CHECK(!capacity_graph.allowed);
+    CHECK(capacity_graph.reason == "uninspectable_launch_path");
     hbfsim::LaunchRangeSynchronizer synchronizer;
     auto launch_lock = synchronizer.launch_guard();
     std::promise<void> registration_started;
@@ -236,6 +245,109 @@ int main()
     CHECK(opaque.cubin_only);
     CHECK(opaque.reason == "cubin_only_module");
 
+    hbfsim::CoverageGate timing_gate;
+    timing_gate.add_module(manifest(
+        "ptx:timing", "timing_kernel",
+        {{.index = 0,
+          .offset = 0,
+          .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}}));
+    timing_gate.add_module(manifest(
+        "ptx:timing-scalar", "timing_scalar",
+        {{.index = 0,
+          .offset = 0,
+          .width = 8,
+          .kind = hbfsim::ParameterKind::Scalar}}));
+    timing_gate.add_module(manifest(
+        "ptx:timing-aggregate", "timing_aggregate",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .kind = hbfsim::ParameterKind::OpaqueAggregate}}));
+    auto timing_atomic = manifest(
+        "ptx:timing-atomic", "timing_atomic",
+        {{.index = 0,
+          .offset = 0,
+          .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}});
+    timing_atomic.instrumented = false;
+    timing_atomic.unsupported_parameters.push_back(
+        {.index = 0, .operation = "atom.global"});
+    timing_gate.add_module(std::move(timing_atomic));
+    timing_gate.add_module({
+        .module_id = "cubin:timing",
+        .kernel = "timing_opaque",
+        .instrumented = false,
+        .cubin_only = true,
+    });
+    timing_gate.add_range(0x300000, 0x400000,
+                          hbfsim::RangePolicy::TimingBacked);
+    CHECK(!timing_gate.has_capacity_ranges());
+
+    const auto timing_modeled = timing_gate.check_launch(
+        launch("ptx:timing", "timing_kernel", {pointer(0, 0x300100)}));
+    CHECK(timing_modeled.allowed);
+    CHECK(timing_modeled.modeled);
+    CHECK(!timing_modeled.opaque_unmodeled);
+    CHECK(timing_modeled.range_policy == hbfsim::RangePolicy::TimingBacked);
+
+    const auto timing_missing_identity = timing_gate.check_launch(
+        launch("", "timing_kernel", {pointer(0, 0x300100)}));
+    CHECK(timing_missing_identity.allowed);
+    CHECK(!timing_missing_identity.modeled);
+    CHECK(timing_missing_identity.opaque_unmodeled);
+    CHECK(timing_missing_identity.reason == "opaque_unmodeled_timing");
+
+    const auto timing_missing_module = timing_gate.check_launch(
+        launch("cubin:missing", "missing", {pointer(0, 0x300100)}));
+    CHECK(timing_missing_module.allowed);
+    CHECK(timing_missing_module.opaque_unmodeled);
+    CHECK(timing_missing_module.operation == "opaque_pointer_access");
+
+    const auto timing_cubin = timing_gate.check_launch(
+        launch("cubin:timing", "timing_opaque", {pointer(0, 0x300100)}));
+    CHECK(timing_cubin.allowed);
+    CHECK(timing_cubin.opaque_unmodeled);
+    CHECK(timing_cubin.cubin_only);
+
+    const auto timing_unsupported = timing_gate.check_launch(launch(
+        "ptx:timing-atomic", "timing_atomic", {pointer(0, 0x300100)}));
+    CHECK(timing_unsupported.allowed);
+    CHECK(timing_unsupported.opaque_unmodeled);
+    CHECK(timing_unsupported.operation == "atom.global");
+
+    const auto timing_scalar = timing_gate.check_launch(launch(
+        "ptx:timing-scalar", "timing_scalar", {pointer(0, 0x300100)}));
+    CHECK(timing_scalar.allowed);
+    CHECK(timing_scalar.opaque_unmodeled);
+
+    const auto timing_aggregate = timing_gate.check_launch(launch(
+        "ptx:timing-aggregate", "timing_aggregate",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .opaque_aggregate = true}}));
+    CHECK(timing_aggregate.allowed);
+    CHECK(timing_aggregate.opaque_unmodeled);
+
+    hbfsim::CoverageGate capacity_gate;
+    capacity_gate.add_module({
+        .module_id = "cubin:capacity",
+        .kernel = "capacity_opaque",
+        .instrumented = false,
+        .cubin_only = true,
+    });
+    capacity_gate.add_range(0x500000, 0x600000,
+                            hbfsim::RangePolicy::CapacityUnbacked);
+    CHECK(capacity_gate.has_capacity_ranges());
+    const auto capacity_opaque = capacity_gate.check_launch(launch(
+        "cubin:capacity", "capacity_opaque", {pointer(0, 0x500100)}));
+    CHECK(!capacity_opaque.allowed);
+    CHECK(!capacity_opaque.opaque_unmodeled);
+    CHECK(capacity_opaque.reason == "cubin_only_module");
+    CHECK(capacity_opaque.range_policy ==
+          hbfsim::RangePolicy::CapacityUnbacked);
+
     const auto hbm = gate.check_launch(
         launch("missing", "opaque_kernel", {pointer(0, 0x900000)}));
     CHECK(hbm.allowed);
@@ -255,10 +367,14 @@ int main()
     std::filesystem::remove(report);
     hbfsim::CoverageWriter writer(report);
     writer.append(unsupported);
+    writer.append(timing_cubin);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
     CHECK(json.find("ptx:atom") != std::string::npos);
     CHECK(json.find("atom.global") != std::string::npos);
+    CHECK(json.find("opaque_unmodeled_timing") != std::string::npos);
+    CHECK(json.find("timing_backed") != std::string::npos);
+    CHECK(json.find("\"modeled\":false") != std::string::npos);
     std::filesystem::remove(report);
 
     bool write_failed = false;

@@ -33,6 +33,10 @@ def main() -> int:
         "partial callback pair",
         "zero begin token",
         "matching begin and end",
+        "original_ptx.empty()",
+        "Skipping fatbin without extractable PTX",
+        "fatbin_scan_disabled",
+        "Skipping CUDA fatbin registration scan",
     ):
         require(required in text,
                 f"bpftime provenance patch lacks contract evidence: {required}")
@@ -42,6 +46,23 @@ def main() -> int:
     load = text.find("cuModuleLoadDataEx", cache_miss)
     require(cache_hit >= 0 and cache_miss > cache_hit and load > cache_miss,
             "bpftime bridge is not confined to the cache-miss load path")
+    empty_guard = text.find("if (original_ptx.empty())")
+    shared_memory_guard = text.find(
+        "if (impl.shared_mem_ptr == 0)", empty_guard
+    )
+    require(
+        empty_guard >= 0 and shared_memory_guard > empty_guard,
+        "PTX-less fatbins are not skipped before shared-memory validation",
+    )
+    disabled_guard = text.find("if (fatbin_scan_disabled())")
+    disabled_return = text.find("return;", disabled_guard)
+    next_hunk = text.find("@@", disabled_guard)
+    require(
+        disabled_guard >= 0
+        and disabled_return > disabled_guard
+        and next_hunk > disabled_return,
+        "disabled static fatbin scan does not bypass the host copy",
+    )
     return 0
 
 

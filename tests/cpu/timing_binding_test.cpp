@@ -44,6 +44,7 @@ bool initialize(hbfsim::ModuleHandle module, std::uintptr_t control_alias,
 int main()
 {
     hbfsim::TimingBindingRegistry bindings;
+    CHECK(bindings.can_activate());
     Initializer initializer;
     constexpr hbfsim::ModuleHandle before_context = 0x1000;
     constexpr hbfsim::ModuleHandle after_context = 0x2000;
@@ -59,6 +60,7 @@ int main()
     std::uint64_t generation_a = 0;
     CHECK(bindings.activate(owner_a, 0xfeed'0000, context_a, 3, initialize,
                              &initializer, generation_a));
+    CHECK(!bindings.can_activate());
     CHECK(generation_a != 0);
     CHECK(bindings.owns(owner_a, generation_a));
     CHECK(!bindings.owns(0xb000, generation_a));
@@ -90,6 +92,7 @@ int main()
                                &initializer));
     CHECK(bindings.invalidate(owner_a, generation_a, initialize, &initializer));
     CHECK(bindings.finish_retire(owner_a, generation_a));
+    CHECK(bindings.can_activate());
     CHECK(!bindings.owns(owner_a, generation_a));
     CHECK((initializer.values.at(before_context) ==
             std::pair<std::uintptr_t, std::uint64_t>{0, 0}));

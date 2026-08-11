@@ -427,6 +427,63 @@ HBFSIM_HOST_DEVICE constexpr EmpiricalBurstUpdate update_empirical_burst(
     return {.packed = packed, .run_pages = run_pages, .valid = true};
 }
 
+struct EmpiricalRequestService {
+    std::uint64_t service_ns;
+    std::uint64_t packed_state;
+    std::uint32_t run_pages;
+    bool valid;
+};
+
+HBFSIM_HOST_DEVICE constexpr bool empirical_control_valid(
+    const SharedControlHeader& header) noexcept
+{
+    if (header.empirical_flags != 1 || header.empirical_point_count != 6 ||
+        header.program_latency_ns == 0) {
+        return false;
+    }
+    for (std::uint32_t index = 0; index < 6; ++index) {
+        if (header.empirical_breakpoint_pages[index] == 0 ||
+            header.empirical_cumulative_ns[index] == 0 ||
+            (index != 0 &&
+             header.empirical_breakpoint_pages[index] <=
+                 header.empirical_breakpoint_pages[index - 1]) ||
+            (index != 0 &&
+             header.empirical_cumulative_ns[index] <=
+                 header.empirical_cumulative_ns[index - 1])) {
+            return false;
+        }
+    }
+    return header.empirical_breakpoint_pages[5] <=
+           kEmpiricalBurstRunMask;
+}
+
+HBFSIM_HOST_DEVICE constexpr EmpiricalRequestService
+empirical_request_service(const SharedControlHeader& header,
+                          std::uint64_t previous_state,
+                          std::uint64_t page,
+                          std::uint32_t operation) noexcept
+{
+    if (!empirical_control_valid(header)) {
+        return {};
+    }
+    const auto burst =
+        update_empirical_burst(previous_state, page, operation);
+    if (!burst.valid) {
+        return {};
+    }
+    const auto service = operation == 0
+                             ? empirical_service_ns(
+                                   header.empirical_breakpoint_pages,
+                                   header.empirical_cumulative_ns,
+                                   header.empirical_point_count,
+                                   burst.run_pages)
+                             : header.program_latency_ns;
+    return {.service_ns = service,
+            .packed_state = burst.packed,
+            .run_pages = burst.run_pages,
+            .valid = true};
+}
+
 #undef HBFSIM_HOST_DEVICE
 
 }  // namespace hbfsim::device

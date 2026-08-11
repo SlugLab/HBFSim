@@ -169,5 +169,51 @@ int main()
     CHECK(update_empirical_burst(0, maximum_empirical_page, 1).valid);
     CHECK(!update_empirical_burst(0, maximum_empirical_page + 1, 0).valid);
     CHECK(!update_empirical_burst(0, 0, 2).valid);
+
+    hbfsim::device::SharedControlHeader empirical{};
+    empirical.empirical_flags = 1;
+    empirical.empirical_point_count = 6;
+    empirical.program_latency_ns = 408'305;
+    for (std::size_t index = 0; index < 6; ++index) {
+        empirical.empirical_breakpoint_pages[index] = pages[index];
+        empirical.empirical_cumulative_ns[index] = cumulative[index];
+    }
+    const auto first = empirical_request_service(empirical, 0, 0, 0);
+    CHECK(first.valid);
+    CHECK(first.run_pages == 1);
+    CHECK(first.service_ns == 11'133);
+
+    std::uint64_t packed = 0;
+    std::uint64_t cumulative_ns = 0;
+    for (std::uint64_t page = 0; page < 4; ++page) {
+        const auto request =
+            empirical_request_service(empirical, packed, page, 0);
+        CHECK(request.valid);
+        packed = request.packed_state;
+        cumulative_ns += request.service_ns;
+    }
+    CHECK(cumulative_ns == 41'495);
+    const auto random = empirical_request_service(empirical, packed, 99, 0);
+    CHECK(random.valid);
+    CHECK(random.run_pages == 1);
+    CHECK(random.service_ns == 11'133);
+    const auto write =
+        empirical_request_service(empirical, random.packed_state, 100, 1);
+    CHECK(write.valid);
+    CHECK(write.run_pages == 1);
+    CHECK(write.service_ns == 408'305);
+
+    auto malformed_empirical = empirical;
+    malformed_empirical.empirical_point_count = 5;
+    CHECK(!empirical_request_service(malformed_empirical, 0, 0, 0).valid);
+    malformed_empirical = empirical;
+    malformed_empirical.empirical_breakpoint_pages[2] = 4;
+    CHECK(!empirical_request_service(malformed_empirical, 0, 0, 0).valid);
+    malformed_empirical = empirical;
+    malformed_empirical.empirical_cumulative_ns[2] = 41'495;
+    CHECK(!empirical_request_service(malformed_empirical, 0, 0, 0).valid);
+    malformed_empirical = empirical;
+    malformed_empirical.empirical_flags = 2;
+    CHECK(!empirical_request_service(malformed_empirical, 0, 0, 0).valid);
     return 0;
 }

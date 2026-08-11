@@ -298,6 +298,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
 {
     constexpr std::uint32_t kFast = 1;
     constexpr std::uint32_t kHybrid = 2;
+    const auto empirical_enabled = header->empirical_flags != 0;
+    if (empirical_enabled &&
+        !hbfsim::device::empirical_control_valid(*header)) {
+        return {.status = RequestStatus::Unsupported};
+    }
     const auto sequence = system_fetch_add(&header->fast_request_sequence, 1);
     const auto sample_key = media.logical_address ^
                             (static_cast<std::uint64_t>(range.range_id) << 32) ^
@@ -311,6 +316,66 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     }
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
         return {.status = RequestStatus::Unsupported};
+    }
+
+    if (empirical_enabled) {
+        if (media.bytes != 4096 || range.page_bytes != 4096 ||
+            media.logical_address % media.bytes != 0 ||
+            header->time_scale == 0 || header->request_timeout_ns == 0) {
+            return {.status = RequestStatus::Unsupported};
+        }
+        const auto page = media.logical_address / media.bytes;
+        auto previous_state =
+            system_acquire(&header->empirical_burst_state);
+        hbfsim::device::EmpiricalRequestService request{};
+        for (;;) {
+            request = hbfsim::device::empirical_request_service(
+                *header, previous_state, page, operation);
+            if (!request.valid) {
+                return {.status = RequestStatus::Unsupported};
+            }
+            auto expected = previous_state;
+            if (system_compare_exchange(&header->empirical_burst_state,
+                                        expected,
+                                        request.packed_state)) {
+                break;
+            }
+            previous_state = expected;
+        }
+
+        const auto arrival = gpu_time_ns();
+        const auto scaled_service = hbfsim::device::saturating_multiply(
+            request.service_ns, header->time_scale);
+        auto tail = system_acquire(&header->fast_channel_tail_ns);
+        std::uint64_t target = 0;
+        for (;;) {
+            const auto start = tail > arrival ? tail : arrival;
+            target = hbfsim::device::saturating_add(start, scaled_service);
+            auto expected = tail;
+            if (system_compare_exchange(&header->fast_channel_tail_ns,
+                                        expected, target)) {
+                break;
+            }
+            tail = expected;
+        }
+        const auto deadline = hbfsim::device::saturating_add(
+            arrival, header->request_timeout_ns);
+        std::uint32_t sleep_ns = 64;
+        while (gpu_time_ns() < target) {
+            const auto now = gpu_time_ns();
+            if (now >= deadline) {
+                return {.status = RequestStatus::Timeout};
+            }
+            if (system_acquire(&header->shutdown) != 0 ||
+                system_acquire(&header->fault) != 0) {
+                return {.status = RequestStatus::DaemonLost};
+            }
+            bounded_sleep(sleep_ns);
+        }
+        (void)system_fetch_add(&header->fast_requests, 1);
+        (void)system_fetch_add(&header->fast_modeled_ns,
+                               request.service_ns);
+        return {.status = RequestStatus::Ready};
     }
 
     const auto base_latency = operation == 0 ? header->read_latency_ns

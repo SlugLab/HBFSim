@@ -277,6 +277,12 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_thermal_logp.py"
     )
     add_test(
+        NAME vmem_tuning
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_vmem_tuning.py"
+    )
+    add_test(
         NAME bpftime_patch
         COMMAND
             "${HBFSIM_PYTHON3_EXECUTABLE}"

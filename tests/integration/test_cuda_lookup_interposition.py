@@ -57,6 +57,16 @@ def main() -> int:
 
     process = ctypes.CDLL(None)
     gate_library = ctypes.CDLL(gate)
+    fake_library = ctypes.CDLL(fake, mode=os.RTLD_LOCAL)
+    process.dlsym.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    process.dlsym.restype = ctypes.c_void_p
+    for symbol in ("cuLaunchKernelEx", "cuLaunchKernelEx_ptsz"):
+        output = process.dlsym(fake_library._handle, symbol.encode())
+        require(output == address(gate_library, symbol),
+                f"handle-specific dlsym bypassed gated wrapper {symbol}")
+    output = process.dlsym(fake_library._handle, b"cuFuncGetName")
+    require(output == address(fake_library, "cuFuncGetName"),
+            "handle-specific dlsym substituted a non-launch symbol")
     launch_symbols = (
         ("cuLaunch", "cuLaunch", "cuLaunch"),
         ("cuLaunchGrid", "cuLaunchGrid", "cuLaunchGrid"),

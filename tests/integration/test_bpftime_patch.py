@@ -35,8 +35,22 @@ def main() -> int:
         "matching begin and end",
         "original_ptx.empty()",
         "Skipping fatbin without extractable PTX",
+	"BPFTIME_CUDA_LATE_PTX_PREPATCHED",
+	"Using prepatched external PTX",
+	"original PTX digest from staged filename",
         "fatbin_scan_disabled",
         "Skipping CUDA fatbin registration scan",
+        "bpftime_nv_bind_ptx_variant",
+        "runtime/agent/agent.version",
+        "hook_entries_snapshot",
+	"pass_execution_mutex",
+	"cuLaunchKernelEx",
+	"hbfsim_approve_original_cuda_function",
+        "patched_kernel_by_ptx_variant",
+        "patched_kernel_by_original_function",
+        "find_patched_kernel_function_for_original",
+        "ambiguous patched CUDA kernel name",
+        "sha256(original_ptx.data(), original_ptx.size())",
     ):
         require(required in text,
                 f"bpftime provenance patch lacks contract evidence: {required}")
@@ -63,6 +77,11 @@ def main() -> int:
         and next_hunk > disabled_return,
         "disabled static fatbin scan does not bypass the host copy",
     )
+    exact_lookup = text.find("find_patched_kernel_function_for_original")
+    legacy_lookup = text.find("find_patched_kernel_function(*kernel_name)",
+                              exact_lookup)
+    require(exact_lookup >= 0 and legacy_lookup > exact_lookup,
+            "driver launch does not prefer exact CUfunction binding")
     return 0
 
 

@@ -39,8 +39,8 @@ def main() -> int:
         require(instruction in helper,
                 f"device helper lacks required PTX instruction {instruction}")
 
-    ptx = """.version 8.7
-.target sm_120
+    ptx_template = """.version 8.7
+.target {target}
 .address_size 64
 
 .visible .entry timing_kernel(
@@ -54,15 +54,6 @@ def main() -> int:
     ret;
 }
 """
-    request = json.dumps({
-        "input": {
-            "full_ptx": ptx,
-            "to_patch_kernel": "timing_kernel",
-            "global_ebpf_map_info_symbol": "map_info",
-            "ebpf_communication_data_symbol": "constData",
-        },
-        "ebpf_instructions": [],
-    }).encode()
     plugin = ctypes.CDLL(str(plugin_path))
     plugin.process_input.argtypes = [ctypes.c_char_p, ctypes.c_int,
                                      ctypes.c_char_p]
@@ -73,30 +64,45 @@ def main() -> int:
         manifest = work_path / "manifest.jsonl"
         import os
         os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest)
-        status = plugin.process_input(request, len(output), output)
-        require(status == 0, f"device-helper pass failed with status {status}")
-        response = json.loads(output.value)
-        transformed = response["output_ptx"]
-        require(response["modified"] is True, "timing kernel was not rewritten")
-        require(transformed.count("__hbfsim_device_helper_marker") == 1,
-                "embedded helper was missing or duplicated")
-        require(transformed.count(
-                    ".visible .global .align 8 .u64 "
-                    "__hbfsim_control_generation;") == 1,
-                "control generation declaration was missing or duplicated")
-        require("call.uni" in transformed and "__hbfsim_resolve" in transformed,
-                "rewritten access does not call the embedded resolver")
-        source = work_path / "self_contained.ptx"
-        cubin = work_path / "self_contained.cubin"
-        source.write_text(transformed)
-        assembled = subprocess.run(
-            [str(ptxas), "-arch=sm_120", str(source), "-o", str(cubin)],
-            text=True, capture_output=True,
-        )
-        require(assembled.returncode == 0,
-                f"self-contained transformed PTX did not assemble: "
-                f"{assembled.stderr}")
-        require(cubin.stat().st_size > 0, "ptxas produced an empty cubin")
+        for target in ("sm_120", "sm_120a"):
+            request = json.dumps({
+                "input": {
+                    "full_ptx": ptx_template.replace("{target}", target),
+                    "to_patch_kernel": "timing_kernel",
+                    "global_ebpf_map_info_symbol": "map_info",
+                    "ebpf_communication_data_symbol": "constData",
+                },
+                "ebpf_instructions": [],
+            }).encode()
+            output.value = b""
+            status = plugin.process_input(request, len(output), output)
+            require(status == 0,
+                    f"device-helper pass failed for {target} with status {status}")
+            response = json.loads(output.value)
+            transformed = response["output_ptx"]
+            require(response["modified"] is True,
+                    f"{target} timing kernel was not rewritten")
+            require(transformed.count("__hbfsim_device_helper_marker") == 1,
+                    "embedded helper was missing or duplicated")
+            require(transformed.count(
+                        ".visible .global .align 8 .u64 "
+                        "__hbfsim_control_generation;") == 1,
+                    "control generation declaration was missing or duplicated")
+            require("call.uni" in transformed and
+                    "__hbfsim_resolve" in transformed,
+                    "rewritten access does not call the embedded resolver")
+            source = work_path / f"self_contained_{target}.ptx"
+            cubin = work_path / f"self_contained_{target}.cubin"
+            source.write_text(transformed)
+            assembled = subprocess.run(
+                [str(ptxas), f"-arch={target}", str(source), "-o", str(cubin)],
+                text=True, capture_output=True,
+            )
+            require(assembled.returncode == 0,
+                    f"self-contained {target} PTX did not assemble: "
+                    f"{assembled.stderr}")
+            require(cubin.stat().st_size > 0,
+                    f"ptxas produced an empty {target} cubin")
     return 0
 
 

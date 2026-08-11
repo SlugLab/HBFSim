@@ -47,15 +47,24 @@ python3 adapters/vllm/run.py \
 mkdir -p /dev/shm/hbfsim-vllm-timing
 HBFSIM_COVERAGE_PATH=/dev/shm/hbfsim-vllm-timing/coverage.jsonl \
 HBFSIM_PASS_MANIFEST_PATH=/dev/shm/hbfsim-vllm-timing/pass-manifests.jsonl \
-scripts/run_with_bpftime.sh -- \
-  python3 adapters/vllm/run.py \
-    --mode timing \
+adapters/vllm/run_timing.sh \
     --model /home/victoryang00/Qwen3-30B-A3B \
     --profile configs/profiles/nominal.json \
     --report-dir /dev/shm/hbfsim-vllm-timing \
-    --num-prompts 4 --input-len 32 --output-len 32 \
-    --max-model-len 256 --seed 0
+    --num-prompts 1 --input-len 32 --output-len 8 \
+    --max-model-len 64 --max-num-batched-tokens 64 \
+    --hbf-parameter-regex \
+      '^model\.layers\.0\.mlp\.experts\.w13_weight$' \
+    --hbf-range-bytes 16384 --seed 0
 ```
+
+The baseline is also the Triton compilation warmup. `run_timing.sh` recursively
+stages every unique cached PTX variant by SHA256, exports the flat late-PTX
+directory expected by bpftime, and installs Triton's load hook before the vLLM
+engine is created. Four same-name `fused_moe_kernel` specializations therefore
+remain distinct and are bound by `(original CUfunction, PTX SHA256, name)`.
+The timing wrapper uses a dedicated one-program fused-MoE BPF object so the
+late bootstrap sees its complete attach set before traversing PTX variants.
 
 The wrapper exits `70` if the workload completes but produces no modeled
 instrumented access. This is an evidence gate, not a workload failure. The
@@ -65,13 +74,12 @@ the report directory for diagnosis.
 ## Current real-GPU result
 
 On an NVIDIA RTX PRO 6000 Blackwell Server Edition, Qwen3-30B-A3B completed in
-both modes with identical output token IDs. All 435 unique model storages
-(61,064,245,248 bytes) were registered. The timing run observed 23,210 launch
-decisions, including 10,584 launches touching registered timing ranges, but
-all were opaque and unmodeled because this workload loaded cubins rather than
-rewritable PTX. Two timing runs measured a 37.15% to 51.30% throughput
-reduction. This is variable adapter, interposition, and coverage overhead; it
-is not HBF media latency.
+both modes with identical output token IDs. The bounded run selected one 16 KiB
+prefix of a layer-0 MoE weight from 435 discovered storages. It produced 10,339
+launch decisions, 2,304 fused-MoE launches, and 24 exact modeled launches.
+Generation took 0.270 s in the matched baseline and 44.469 s with the nominal
+reference path. This 164.70x end-to-end slowdown includes the current
+per-warp GPU/host emulator overhead; it is not a prediction of HBF hardware.
 
-See the [live proof](../../docs/proofs/2026-08-11-vllm-timing-adapter.md) for
-the benchmark table and exact claim boundary.
+See the [exact live-delay proof](../../docs/proofs/2026-08-11-vllm-exact-live-delay.md)
+for the benchmark, CD8P comparison, durable artifacts, and claim boundary.

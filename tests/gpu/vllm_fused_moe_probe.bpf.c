@@ -1,12 +1,5 @@
 #define SEC(name) __attribute__((section(name), used))
 
-SEC("kprobe/unsupported_hbf_kernel")
-int cuda__hbf_cov(void* context)
-{
-    (void)context;
-    return 0;
-}
-
 SEC("kprobe/fused_moe_kernel")
 int cuda__hbf_moe(void* context)
 {

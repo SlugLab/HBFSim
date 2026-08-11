@@ -97,6 +97,65 @@ def test_discovers_full_storages_and_deduplicates_aliases(tmp_path):
     assert persisted == manifest
 
 
+def test_registers_explicit_parameter_subset_and_range_prefix(tmp_path):
+    model = FakeModel([
+        ("model.layers.0.mlp.experts.w13_weight",
+         FakeParameter(FakeStorage(0x1000, 0x20000))),
+        ("model.layers.1.mlp.experts.w13_weight",
+         FakeParameter(FakeStorage(0x40000, 0x20000))),
+        ("lm_head.weight", FakeParameter(FakeStorage(0x80000, 0x10000))),
+    ])
+    session = FakeSession()
+
+    manifest = loader_module.register_model_storages(
+        model,
+        config(
+            tmp_path,
+            parameter_regex=r"^model\.layers\.0\.mlp\.experts\.w13_weight$",
+            max_bytes_per_storage=16384,
+        ),
+        session_factory=lambda _: session,
+    )
+
+    assert session.registered == [(0x1000, 16384)]
+    assert manifest["discovered_storage_count"] == 3
+    assert manifest["unique_storage_count"] == 1
+    assert manifest["registered_bytes"] == 16384
+    assert manifest["selection"] == {
+        "parameter_regex": r"^model\.layers\.0\.mlp\.experts\.w13_weight$",
+        "max_bytes_per_storage": 16384,
+    }
+    assert manifest["storages"] == [{
+        "address": 0x1000,
+        "bytes": 16384,
+        "storage_bytes": 0x20000,
+        "aliases": ["model.layers.0.mlp.experts.w13_weight"],
+    }]
+
+
+def test_rejects_empty_explicit_parameter_selection(tmp_path):
+    model = FakeModel([
+        ("lm_head.weight", FakeParameter(FakeStorage(0x1000, 0x1000))),
+    ])
+    session = FakeSession()
+
+    with pytest.raises(loader_module.HbfSimError,
+                       match="parameter_regex matched no CUDA storages"):
+        loader_module.register_model_storages(
+            model, config(tmp_path, parameter_regex=r"^model\.layers\.0\."),
+            session_factory=lambda _: session,
+        )
+
+    assert session.closed
+
+
+def test_rejects_invalid_parameter_selection_configuration(tmp_path):
+    with pytest.raises(ValueError, match="invalid parameter_regex"):
+        config(tmp_path, parameter_regex="[")
+    with pytest.raises(ValueError, match="max_bytes_per_storage"):
+        config(tmp_path, max_bytes_per_storage=-1)
+
+
 @pytest.mark.parametrize(
     "parameters, message",
     [

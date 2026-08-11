@@ -321,6 +321,17 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
         VERBATIM
     )
     add_custom_target(hbfsim_coverage_probe ALL DEPENDS "${HBFSIM_COVERAGE_PROBE}")
+    set(HBFSIM_VLLM_PROBE "${CMAKE_BINARY_DIR}/vllm_fused_moe_probe.bpf.o")
+    add_custom_command(
+        OUTPUT "${HBFSIM_VLLM_PROBE}"
+        COMMAND
+            "${HBFSIM_CLANG_EXECUTABLE}" -target bpf -O2 -g -c
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/vllm_fused_moe_probe.bpf.c"
+            -o "${HBFSIM_VLLM_PROBE}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/vllm_fused_moe_probe.bpf.c"
+        VERBATIM
+    )
+    add_custom_target(hbfsim_vllm_probe ALL DEPENDS "${HBFSIM_VLLM_PROBE}")
     if(BUILD_TESTING AND HBFSIM_LLVM_OBJDUMP_EXECUTABLE)
         add_test(
             NAME bpftime_coverage_probe
@@ -328,6 +339,14 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
                 "${HBFSIM_PYTHON3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_probe.py"
                 "${HBFSIM_COVERAGE_PROBE}"
+                "${HBFSIM_LLVM_OBJDUMP_EXECUTABLE}"
+        )
+        add_test(
+            NAME bpftime_vllm_probe
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_vllm_probe.py"
+                "${HBFSIM_VLLM_PROBE}"
                 "${HBFSIM_LLVM_OBJDUMP_EXECUTABLE}"
         )
     endif()

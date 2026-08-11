@@ -117,7 +117,10 @@ std::vector<PassParameter> parameter_metadata(const std::string& ptx,
     const std::string body =
         ptx.substr(body_begin + 1, body_end - body_begin - 1);
     static const std::regex parameter(
-        R"(\.param(?:\s+\.align\s+(\d+))?\s+\.([A-Za-z0-9]+)\s+([A-Za-z0-9_$.]+)(?:\[(\d+)\])?)");
+        R"(\.param((?:\s+\.[A-Za-z][A-Za-z0-9_]*(?:\s+\d+)?)*)\s+([A-Za-z0-9_$.]+)(?:\[(\d+)\])?)");
+    static const std::regex type_qualifier(
+        R"(\.(pred|[A-Za-z]+[0-9]+)(?:\s|$))");
+    static const std::regex alignment_qualifier(R"(\.align\s+(\d+))");
     const std::string declarations = ptx.substr(begin + 1, end - begin - 1);
     std::vector<PassParameter> parameters;
     std::size_t index = 0;
@@ -126,24 +129,36 @@ std::vector<PassParameter> parameter_metadata(const std::string& ptx,
              it(declarations.begin(), declarations.end(), parameter),
          last;
          it != last; ++it, ++index) {
-        const auto type = (*it)[2].str();
-        const auto name = (*it)[3].str();
-        const bool aggregate = (*it)[4].matched;
+        const auto qualifiers = (*it)[1].str();
+        std::smatch type_match;
+        if (!std::regex_search(qualifiers, type_match, type_qualifier)) {
+            continue;
+        }
+        const auto type = type_match[1].str();
+        const auto name = (*it)[2].str();
+        const bool aggregate = (*it)[3].matched;
         const std::size_t element_width = scalar_width(type);
         const std::size_t width =
             aggregate ? element_width *
-                            static_cast<std::size_t>(std::stoul((*it)[4].str()))
+                            static_cast<std::size_t>(std::stoul((*it)[3].str()))
                       : element_width;
+        const bool pointer_qualified =
+            qualifiers.find(".ptr") != std::string::npos;
+        std::smatch alignment_match;
         const std::size_t alignment =
-            (*it)[1].matched
-                ? static_cast<std::size_t>(std::stoul((*it)[1].str()))
+            !pointer_qualified &&
+                    std::regex_search(qualifiers, alignment_match,
+                                      alignment_qualifier)
+                ? static_cast<std::size_t>(
+                      std::stoul(alignment_match[1].str()))
                 : std::min<std::size_t>(width, 8);
         offset = align_up(offset, alignment);
         std::string kind = "scalar";
         if (aggregate) {
             kind = "opaque_aggregate";
         } else if ((type == "u64" || type == "b64") &&
-                   parameter_feeds_memory_address(body, name)) {
+                   (pointer_qualified ||
+                    parameter_feeds_memory_address(body, name))) {
             kind = "pointer";
         }
         parameters.push_back({index, offset, width, name, std::move(kind)});

@@ -25,14 +25,16 @@
     "capacity_supported": false,
     "opaque_timing_is_modeled": false,
     "real_workload_adapter_execution": true,
-    "live_hbf_delay_injection": false
+    "live_hbf_delay_injection": true
   },
   "validated_workload": {
-    "unique_storage_count": 435,
-    "registered_bytes": 61064245248,
+    "discovered_storage_count": 435,
+    "registered_storage_count": 1,
+    "registered_bytes": 16384,
+    "parameter_regex": "^model\\.layers\\.0\\.mlp\\.experts\\.w13_weight$",
     "output_tokens_exact_match": true,
-    "coverage_decisions": 23210,
-    "opaque_unmodeled_timing": 10584,
-    "modeled_accesses": 0
+    "coverage_decisions": 10339,
+    "fused_moe_launches": 2304,
+    "modeled_accesses": 24
   }
 }

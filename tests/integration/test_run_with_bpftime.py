@@ -54,6 +54,16 @@ def main() -> int:
         )
         command = root / "command"
         output = root / "environment"
+        validation_preload = root / "validation-preload"
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        executable(
+            bin_dir / "python3",
+            "#!/usr/bin/env bash\n"
+            "set -eu\n"
+            f"printf '%s\\n' \"${{LD_PRELOAD:-}}\" >> {validation_preload}\n"
+            "exec /usr/bin/python3 \"$@\"\n",
+        )
         executable(
             command,
             "#!/usr/bin/env bash\n"
@@ -74,6 +84,7 @@ def main() -> int:
                 "HBFSIM_PASS_MANIFEST_PATH": str(root / "manifest.jsonl"),
                 "HBFSIM_COVERAGE_PATH": str(root / "coverage.json"),
                 "LD_PRELOAD": str(preload),
+                "PATH": f"{bin_dir}:{env['PATH']}",
             }
         )
         missing_stamp = subprocess.run(
@@ -101,9 +112,9 @@ def main() -> int:
             )
 
         for label, stamp_commit, stamp_digest, version in (
-            ("commit", "0" * 40, digest, "1"),
-            ("digest", commit, "0" * 64, "1"),
-            ("version", commit, digest, "2"),
+            ("commit", "0" * 40, digest, "2"),
+            ("digest", commit, "0" * 64, "2"),
+            ("version", commit, digest, "1"),
         ):
             write_stamp(stamp_commit, stamp_digest, version)
             rejected_stamp = subprocess.run(
@@ -118,7 +129,7 @@ def main() -> int:
             require(not loader_started.exists(),
                     f"wrapper started loader before rejecting wrong {label}")
 
-        write_stamp(commit, digest, "1")
+        write_stamp(commit, digest, "2")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,
@@ -139,6 +150,41 @@ def main() -> int:
                 str(preload),
             ],
             f"wrapper exported wrong preload order: {lines[2]}",
+        )
+        require(validation_preload.read_text().splitlines()[-1] == str(preload),
+                "wrapper kept the bpftime agent preloaded for artifact validation")
+
+        prestaged = root / "prestaged-manifest.jsonl"
+        prestaged.write_text(
+            '{"module_id":"ptx:sha256:prestage","kernel":"k",'
+            '"instrumented":true}\n'
+        )
+        coverage_only = root / "coverage-only-command"
+        executable(
+            coverage_only,
+            "#!/usr/bin/env bash\n"
+            "set -eu\n"
+            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\","
+            "\"module_id\":\"ptx:test\",\"kernel\":\"k\","
+            "\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n",
+        )
+        prestaged_env = env.copy()
+        prestaged_env.update({
+            "HBFSIM_PRESTAGED_PASS_MANIFEST_PATH": str(prestaged),
+            "HBFSIM_PASS_MANIFEST_PATH": str(root / "copied-manifest.jsonl"),
+            "HBFSIM_COVERAGE_PATH": str(root / "prestaged-coverage.jsonl"),
+        })
+        prestaged_run = subprocess.run(
+            [str(wrapper), "--", str(coverage_only)], env=prestaged_env,
+            text=True, capture_output=True,
+        )
+        require(prestaged_run.returncode == 0,
+                f"wrapper rejected prestaged pass manifest: "
+                f"{prestaged_run.stderr}")
+        require(
+            pathlib.Path(prestaged_env["HBFSIM_PASS_MANIFEST_PATH"])
+            .read_text() == prestaged.read_text(),
+            "wrapper did not preserve the prestaged pass manifest",
         )
 
         default_timeout = env.copy()

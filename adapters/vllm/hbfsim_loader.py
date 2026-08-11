@@ -8,6 +8,7 @@ import dataclasses
 import json
 import os
 import pathlib
+import re
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -40,6 +41,8 @@ class TimingConfig:
     )
     require_modeled_accesses: bool = True
     allow_opaque_timing: bool = True
+    parameter_regex: str = ""
+    max_bytes_per_storage: int = 0
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "TimingConfig":
@@ -56,6 +59,8 @@ class TimingConfig:
         timeout = int(raw.get("request_timeout_ns", 1_000_000_000))
         underlying = str(raw.get("underlying_load_format", "safetensors"))
         delegate_extra = raw.get("default_loader_extra_config", {})
+        parameter_regex = str(raw.get("parameter_regex", ""))
+        max_bytes = int(raw.get("max_bytes_per_storage", 0))
         if not profile or not report:
             raise ValueError("profile_path and report_dir are required")
         if ring <= 0 or timeout <= 0:
@@ -66,6 +71,12 @@ class TimingConfig:
             raise ValueError("underlying_load_format must not be hbfsim")
         if not isinstance(delegate_extra, dict):
             raise ValueError("default_loader_extra_config must be a mapping")
+        try:
+            re.compile(parameter_regex)
+        except re.error as error:
+            raise ValueError(f"invalid parameter_regex: {error}") from error
+        if max_bytes < 0:
+            raise ValueError("max_bytes_per_storage must be nonnegative")
         return cls(
             profile_path=profile,
             report_dir=report,
@@ -77,6 +88,8 @@ class TimingConfig:
                 raw.get("require_modeled_accesses", True)
             ),
             allow_opaque_timing=bool(raw.get("allow_opaque_timing", True)),
+            parameter_regex=parameter_regex,
+            max_bytes_per_storage=max_bytes,
         )
 
 
@@ -253,23 +266,42 @@ def register_model_storages(
     pathlib.Path(config.report_dir).mkdir(parents=True, exist_ok=True)
     session = session_factory(config)
     try:
-        for storage in storages:
-            session.register_storage(storage.address, storage.size)
+        matcher = re.compile(config.parameter_regex)
+        selected = [
+            storage for storage in storages
+            if not config.parameter_regex or
+            any(matcher.search(alias) for alias in storage.aliases)
+        ]
+        if not selected:
+            raise HbfSimError("parameter_regex matched no CUDA storages")
+        registered = [
+            (storage, min(storage.size, config.max_bytes_per_storage)
+             if config.max_bytes_per_storage else storage.size)
+            for storage in selected
+        ]
+        for storage, bytes_to_register in registered:
+            session.register_storage(storage.address, bytes_to_register)
         manifest = {
             "schema_version": 1,
             "mode": "timing_backed",
             "device": storages[0].device,
             "parameter_count": parameter_count,
-            "unique_storage_count": len(storages),
-            "registered_bytes": sum(item.size for item in storages),
+            "discovered_storage_count": len(storages),
+            "unique_storage_count": len(registered),
+            "registered_bytes": sum(size for _, size in registered),
             "profile_path": config.profile_path,
+            "selection": {
+                "parameter_regex": config.parameter_regex,
+                "max_bytes_per_storage": config.max_bytes_per_storage,
+            },
             "storages": [
                 {
                     "address": item.address,
-                    "bytes": item.size,
+                    "bytes": registered_bytes,
+                    "storage_bytes": item.size,
                     "aliases": item.aliases,
                 }
-                for item in storages
+                for item, registered_bytes in registered
             ],
         }
         _write_manifest(pathlib.Path(config.report_dir) / "registration.json",

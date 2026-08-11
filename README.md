@@ -115,24 +115,24 @@ not evidence that a CUDA kernel has used the path on a real GPU.
 | Reproducible MQSim media benchmark | Implemented and tested |
 | PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
-| Live bpftime + GPU interception proof | Passed for vLLM launch observation; modeled PTX access pending |
+| Live bpftime + GPU interception proof | Passed on real vLLM Triton `cuLaunchKernelEx` variants |
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
-| vLLM timing-only adapter | Real Qwen3-30B-A3B execution passed; 435 storages registered and tokens bit-exact |
-| Live timing-only GPU delay proof | Blocked: production vLLM kernels were cubin-only, yielding 0 modeled accesses |
+| vLLM timing-only adapter | Real Qwen3-30B-A3B execution passed with selective named ranges and bit-exact tokens |
+| Live timing-only GPU delay proof | Passed: 24 modeled fused-MoE launches on an explicit 16 KiB weight range |
 | File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
 | Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
 | Hybrid fast model | Planned |
 | Public/PTX real-GPU capacity and over-VRAM proof | Pending |
-| Live delay injection, CUDA fault matrix, and llama.cpp proof runs | Pending |
+| CUDA fault matrix and llama.cpp proof runs | Pending |
 | GPU and Dell CD8P thermal baseline | Real hardware checkpoint recorded; calibrated HBF thermal validation remains pending |
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
-GPU proof. The repository does not yet claim working live delay injection,
-public/PTX end-to-end or over-VRAM capacity emulation, llama.cpp execution,
-vLLM modeled HBF accesses, or calibrated HBF thermal validation. The vLLM
-adapter execution is documented separately and is not presented as a
-live-delay result. The complete non-live
+GPU proof. Live timing injection is now proven for a bounded, explicit 16 KiB
+range consumed by vLLM's Triton fused-MoE kernel. The repository does not yet
+claim full-model timing scalability, public/PTX end-to-end or over-VRAM
+capacity emulation, llama.cpp execution, or a calibrated LogP thermal model.
+The complete non-live
 checkpoint and exact commands are recorded
 in [the 2026-08-10 non-live proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
 A separate [live hardware checkpoint](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)
@@ -141,6 +141,23 @@ CD8P media baseline without treating them as end-to-end HBF workload proof.
 The [real-GPU vLLM adapter proof](docs/proofs/2026-08-11-vllm-timing-adapter.md)
 records bit-exact Qwen execution, registration coverage, performance, and the
 cubin-only instrumentation blocker.
+The [exact Triton live-delay proof](docs/proofs/2026-08-11-vllm-exact-live-delay.md)
+supersedes that blocker with automatic variant rewriting, nonzero modeled
+coverage, a matched baseline, and a read-only Dell CD8P comparison.
+
+### Latest live benchmark
+
+The validated Qwen3-30B-A3B smoke used one 32-token prompt and generated eight
+tokens. A matched baseline took 0.270 s; the nominal HBF reference path took
+44.469 s and preserved the exact token IDs. The measured 164.70x slowdown is a
+software-emulator result, dominated by the current synchronous per-warp
+reference path, not a hardware projection.
+
+A concurrent, read-only Dell CD8P run sustained 7.515 GB/s and 57.34k IOPS with
+zero writes. Its temperature rose from 36 to 40 degrees C, while vLLM's 0.240 s
+generation time showed no measurable contention loss relative to the isolated
+baseline. The CD8P is PCIe NVMe rather than a CXL endpoint; it is used here as
+the requested storage and thermal validation device.
 
 ## Requirements
 
@@ -335,9 +352,9 @@ The design contract and implementation plan are in:
 
 ## Roadmap
 
-1. Complete the safe live-GPU delay proof and validate modeled time separately
-   from emulator overhead.
-2. Validate the file-backed cache with real CUDA copies and an over-VRAM
+1. Calibrate a sampled GPU-local LogP path against MQSim so modeled delay can
+   be separated from current request-path overhead.
+2. Validate the file-backed cache with public automatic PTX and an over-VRAM
    workload, then add the calibrated GPU-local hybrid model.
-3. Run the deterministic CUDA/fault matrix, TinyLlama through llama.cpp and
-   vLLM with bit-exact output gates, and GPU/CXL-SSD thermal validation.
+3. Run the deterministic CUDA fault matrix and TinyLlama through llama.cpp,
+   then extend the existing GPU/CD8P thermal checkpoint to the calibrated path.

@@ -1,0 +1,24 @@
+{
+  "device": 0,
+  "discovered_storage_count": 435,
+  "mode": "timing_backed",
+  "parameter_count": 435,
+  "profile_path": "/root/hbfsim/HBFSim/.worktrees/hybrid/configs/profiles/nominal.json",
+  "registered_bytes": 16384,
+  "schema_version": 1,
+  "selection": {
+    "max_bytes_per_storage": 16384,
+    "parameter_regex": "^model\\.layers\\.0\\.mlp\\.experts\\.w13_weight$"
+  },
+  "storages": [
+    {
+      "address": 128878513225728,
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "bytes": 16384,
+      "storage_bytes": 805306368
+    }
+  ],
+  "unique_storage_count": 1
+}

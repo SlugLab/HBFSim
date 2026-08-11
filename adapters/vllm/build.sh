@@ -30,7 +30,7 @@ cmake -S "$HBFSIM_ROOT" -B "$HBFSIM_VLLM_BUILD" \
 cmake --build "$HBFSIM_VLLM_BUILD" \
     --target hbfsimd hbfsim_launch_gate hbfsim_vllm_extension \
              ptxpass_hbf_plugin hbfsim_bpftime_attach_loader \
-             hbfsim_coverage_probe -j2
+             hbfsim_coverage_probe hbfsim_vllm_probe -j2
 
 TMPDIR=${TMPDIR:-/dev/shm} python3 -m pip install --no-deps --upgrade \
     --target "$HBFSIM_VLLM_PLUGIN_SITE" "$HBFSIM_ROOT/adapters/vllm"

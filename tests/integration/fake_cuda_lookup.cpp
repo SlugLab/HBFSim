@@ -810,6 +810,18 @@ int cuLaunchKernel(void*, unsigned int, unsigned int, unsigned int,
     return 0;
 }
 
+int cuLaunchKernelEx(const void*, void*, void**, void**)
+{
+    ++launch_count;
+    return 0;
+}
+
+int cuLaunchKernelEx_ptsz(const void* config, void* function,
+                          void** parameters, void** extra)
+{
+    return cuLaunchKernelEx(config, function, parameters, extra);
+}
+
 void fakeCudaSetUnloadFailure(int fail)
 {
     unload_fails = fail != 0;

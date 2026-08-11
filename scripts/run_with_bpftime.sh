@@ -48,7 +48,7 @@ expected_digest=$(sha256sum "$BPFTIME_PATCH" | awk '{print $1}')
 if [[ ${#provenance[@]} -ne 3 ||
       ${provenance[0]:-} != bpftime_commit=ec26daecc8e787fb80fd95dd596a576404a5e36e ||
       ${provenance[1]:-} != patch_sha256="$expected_digest" ||
-      ${provenance[2]:-} != bridge_version=1 ]]; then
+      ${provenance[2]:-} != bridge_version=2 ]]; then
     echo "run_with_bpftime: bpftime build provenance mismatch: $BPFTIME_PROVENANCE" >&2
     exit 66
 fi
@@ -78,6 +78,8 @@ export BPFTIME_PTXPASS_LIBRARIES="$HBFSIM_PASS"
 export BPFTIME_CUDA_ROOT="$HBFSIM_CUDA_ROOT"
 export HBFSIM_COVERAGE_PATH="${HBFSIM_COVERAGE_PATH:-$PWD/coverage.json}"
 export HBFSIM_PASS_MANIFEST_PATH="${HBFSIM_PASS_MANIFEST_PATH:-$PWD/hbfsim-pass-manifests.jsonl}"
+mkdir -p -- "$(dirname -- "$HBFSIM_COVERAGE_PATH")" \
+    "$(dirname -- "$HBFSIM_PASS_MANIFEST_PATH")"
 
 original_preload=${LD_PRELOAD:-}
 ready_file=$(mktemp "${TMPDIR:-/tmp}/hbfsim-bpftime-ready.XXXXXX")
@@ -94,6 +96,15 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 rm -f -- "$HBFSIM_COVERAGE_PATH" "$HBFSIM_PASS_MANIFEST_PATH"
+if [[ -n ${HBFSIM_PRESTAGED_PASS_MANIFEST_PATH:-} ]]; then
+    if [[ $HBFSIM_PRESTAGED_PASS_MANIFEST_PATH != /* ||
+          ! -r $HBFSIM_PRESTAGED_PASS_MANIFEST_PATH ]]; then
+        echo "run_with_bpftime: prestaged pass manifest must be a readable absolute path: $HBFSIM_PRESTAGED_PASS_MANIFEST_PATH" >&2
+        exit 66
+    fi
+    cp -- "$HBFSIM_PRESTAGED_PASS_MANIFEST_PATH" \
+        "$HBFSIM_PASS_MANIFEST_PATH"
+fi
 LD_PRELOAD="$BPFTIME_SERVER${original_preload:+:$original_preload}" \
     "$HBFSIM_BPFTIME_LOADER" "$HBFSIM_BPFTIME_PROBE" "$ready_file" &
 loader_pid=$!
@@ -119,11 +130,16 @@ if ! grep -qx 'shm=bpftime' "$ready_file" ||
     exit 69
 fi
 
+export HBFSIM_TARGET_ORIGINAL_LD_PRELOAD="$original_preload"
 export LD_PRELOAD="$BPFTIME_AGENT:$HBFSIM_GATE${original_preload:+:$original_preload}"
 set +e
 "$@"
 status=$?
 set -e
+# The instrumented target is the only process that should load the agent and
+# launch gate. Restore the caller's preload before validation and cleanup so
+# wrapper-owned Python/rm/kill processes do not recursively bootstrap bpftime.
+export LD_PRELOAD="$original_preload"
 if (( status != 0 )); then
     exit "$status"
 fi

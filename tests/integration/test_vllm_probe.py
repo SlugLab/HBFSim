@@ -14,10 +14,9 @@ def main() -> int:
         capture_output=True,
         check=True,
     )
-    assert "kprobe/unsupported_hbf_kernel" in completed.stdout
     assert "kprobe/fused_moe_kernel" in completed.stdout
-    assert "cuda__hbf_cov" in completed.stdout
     assert "cuda__hbf_moe" in completed.stdout
+    assert "kprobe/unsupported_hbf_kernel" not in completed.stdout
     assert "license" in completed.stdout
     return 0
 

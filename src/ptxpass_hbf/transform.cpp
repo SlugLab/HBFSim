@@ -70,10 +70,10 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
             "PTX module collides with the reserved HBFSim device ABI");
     }
     static const std::regex target(
-        R"(^\s*\.target\s+sm_120(?:\s|,|$))", std::regex::multiline);
+        R"(^\s*\.target\s+sm_120a?(?:\s|,|$))", std::regex::multiline);
     if (!std::regex_search(ptx, target)) {
         throw std::runtime_error(
-            "HBFSim device helper requires a .target sm_120 PTX module");
+            "HBFSim device helper requires a .target sm_120 or sm_120a PTX module");
     }
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
     const auto address_size = ptx.find(".address_size");

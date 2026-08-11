@@ -91,6 +91,49 @@ def main() -> int:
         )
         require(manifest["unsupported_parameters"] == [],
                 "supported kernel has unsupported parameters")
+        qualified_ptx = ptx.replace(
+            ".param .u64 kernel_ptr",
+            ".param .u64 .ptr .global .align 1 kernel_ptr",
+        )
+        qualified_manifest = pathlib.Path(directory) / "qualified.jsonl"
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(qualified_manifest)
+        qualified_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        qualified_status = plugin.process_input(
+            request_for(qualified_ptx, "kernel"), len(qualified_output),
+            qualified_output,
+        )
+        require(qualified_status == 0,
+                f"qualified pointer pass failed with status {qualified_status}")
+        qualified_record = json.loads(qualified_manifest.read_text())
+        require(qualified_record["parameters"][0]["kind"] == "pointer",
+                "PTX .ptr .global parameter was not classified as a pointer")
+        pointer_alignment_ptx = qualified_ptx.replace(
+            ".param .u64 .ptr .global .align 1 kernel_ptr",
+            ".param .u32 kernel_scalar,\n"
+            "    .param .u64 .ptr .global .align 1 kernel_ptr",
+        )
+        pointer_alignment_manifest = (
+            pathlib.Path(directory) / "pointer-alignment.jsonl"
+        )
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(
+            pointer_alignment_manifest
+        )
+        pointer_alignment_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        pointer_alignment_status = plugin.process_input(
+            request_for(pointer_alignment_ptx, "kernel"),
+            len(pointer_alignment_output), pointer_alignment_output,
+        )
+        require(pointer_alignment_status == 0,
+                "qualified pointer ABI pass failed")
+        pointer_alignment_record = json.loads(
+            pointer_alignment_manifest.read_text()
+        )
+        require(pointer_alignment_record["parameters"] == [
+            {"index": 0, "offset": 0, "width": 4, "kind": "scalar"},
+            {"index": 1, "offset": 8, "width": 8, "kind": "pointer"},
+        ], ".ptr .align describes pointee alignment, not parameter ABI "
+           f"alignment: {pointer_alignment_record['parameters']}")
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest_path)
         identity = manifest["module_id"].removeprefix("ptx:sha256:")
         identity_bytes = ", ".join(
             f"0x{identity[index:index + 2]}" for index in range(0, 64, 2)

@@ -12,6 +12,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -191,6 +192,25 @@ hbfsim::ModuleIdentityRegistry& module_identities()
     return registry;
 }
 
+std::mutex& function_alias_mutex()
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::map<CUfunction, CUfunction>& function_aliases()
+{
+    static std::map<CUfunction, CUfunction> aliases;
+    return aliases;
+}
+
+CUfunction canonical_function(CUfunction function)
+{
+    std::lock_guard lock(function_alias_mutex());
+    const auto found = function_aliases().find(function);
+    return found == function_aliases().end() ? function : found->second;
+}
+
 hbfsim::TimingBindingRegistry& timing_bindings()
 {
     static hbfsim::TimingBindingRegistry registry;
@@ -362,6 +382,7 @@ void erase_unbound_device_state(int device_ordinal) noexcept
 
 bool timing_binding_ready(CUfunction function) noexcept
 {
+    function = canonical_function(function);
     using get_module_type = CUresult (*)(CUmodule*, CUfunction);
     static auto get_module =
         reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
@@ -570,6 +591,7 @@ const hbfsim::LaunchGateApiV3 launch_gate_api_v3{
 
 std::string handle_id(CUfunction function)
 {
+    function = canonical_function(function);
     using get_module_type = CUresult (*)(CUmodule*, CUfunction);
     static auto get_module =
         reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
@@ -964,9 +986,10 @@ HBFSIM_KERNEL_LAUNCH(__cudaLaunchKernel_ptsz)
         auto guard = runtime_gate().launch_guard();                            \
         const auto decision =                                                  \
             inspect_function_launch(function, parameters, extra);              \
-        return approve(decision)                                               \
-                   ? original(config, function, parameters, extra)             \
-                   : CUDA_ERROR_NOT_SUPPORTED;                                 \
+        if (!approve(decision))                                                \
+            return CUDA_ERROR_NOT_SUPPORTED;                                   \
+        RuntimeLaunchScope scope;                                              \
+        return original(config, function, parameters, extra);                  \
     }
 HBFSIM_DRIVER_EX(cuLaunchKernelEx)
 HBFSIM_DRIVER_EX(cuLaunchKernelEx_ptsz)
@@ -1138,6 +1161,32 @@ hbfsim_begin_module_load_from_ptx(const char* ptx, std::size_t size) noexcept
 extern "C" void hbfsim_end_module_load(std::uint64_t token) noexcept
 {
     module_load_transactions().end(token);
+}
+
+extern "C" int hbfsim_bind_original_cuda_function(
+    CUfunction original, CUfunction patched) noexcept
+{
+    if (original == nullptr || patched == nullptr ||
+        handle_id(patched).empty() || !timing_binding_ready(patched)) {
+        return -1;
+    }
+    std::lock_guard lock(function_alias_mutex());
+    const auto [found, inserted] = function_aliases().emplace(original, patched);
+    return inserted || found->second == patched ? 0 : -1;
+}
+
+extern "C" int hbfsim_approve_original_cuda_function(
+    CUfunction function, void** parameters, void** extra) noexcept
+{
+    if (function == nullptr) {
+        return 0;
+    }
+    if (runtime_launch_in_progress) {
+        return 1;
+    }
+    auto guard = runtime_gate().launch_guard();
+    return approve(inspect_function_launch(function, parameters, extra)) ? 1
+                                                                         : 0;
 }
 
 extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
@@ -1577,3 +1626,27 @@ HBFSIM_RUNTIME_DRIVER_ENTRY(cudaGetDriverEntryPoint_ptsz)
 
 HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion)
 HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion_ptsz)
+
+// Triton 3.5 resolves cuLaunchKernelEx from a private libcuda handle. A normal
+// LD_PRELOAD export and CUDA's cuGetProcAddress interposition cannot see that
+// handle-specific lookup, so substitute only these launch entry points. Calls
+// made by this gate use RTLD_NEXT and continue to resolve the real driver.
+extern "C" void* dlsym(void* handle, const char* symbol)
+{
+    using type = void* (*)(void*, const char*);
+    static auto original = reinterpret_cast<type>(
+        dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5"));
+    if (original == nullptr) {
+        return nullptr;
+    }
+    void* resolved = original(handle, symbol);
+    if (handle != RTLD_NEXT && resolved != nullptr) {
+        if (std::strcmp(symbol, "cuLaunchKernelEx") == 0) {
+            return wrapper_address(&cuLaunchKernelEx);
+        }
+        if (std::strcmp(symbol, "cuLaunchKernelEx_ptsz") == 0) {
+            return wrapper_address(&cuLaunchKernelEx_ptsz);
+        }
+    }
+    return resolved;
+}

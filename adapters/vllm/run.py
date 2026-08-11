@@ -45,7 +45,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-len", type=int, default=32)
     parser.add_argument("--output-len", type=int, default=32)
     parser.add_argument("--max-model-len", type=int, default=256)
+    parser.add_argument("--max-num-batched-tokens", type=int, default=256)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.85)
+    parser.add_argument("--hbf-parameter-regex", default="")
+    parser.add_argument("--hbf-range-bytes", type=int, default=0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -75,6 +78,12 @@ def configure_environment(report: pathlib.Path) -> pathlib.Path:
     # engine core after that state exists is unsupported by the CUDA runtime.
     os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
     os.environ["VLLM_NO_USAGE_STATS"] = "1"
+    # The agent is already resident in this process. Do not inject it again
+    # into Triton/FlashInfer compiler subprocesses spawned by vLLM.
+    if "HBFSIM_TARGET_ORIGINAL_LD_PRELOAD" in os.environ:
+        os.environ["LD_PRELOAD"] = os.environ[
+            "HBFSIM_TARGET_ORIGINAL_LD_PRELOAD"
+        ]
     build_dir = os.environ.get("HBFSIM_BUILD_DIR")
     if build_dir:
         os.environ.setdefault(
@@ -137,12 +146,18 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
         "num_prompts": args.num_prompts,
         "input_len": args.input_len,
         "output_len": args.output_len,
+        "max_model_len": args.max_model_len,
+        "max_num_batched_tokens": args.max_num_batched_tokens,
         "seed": args.seed,
         "attention_backend": "FLASHINFER",
         "cache_root": str(cache),
         "versions": runtime_versions(),
         "git_commit": repository_commit(),
         "compiler": {"CC": os.environ["CC"], "CXX": os.environ["CXX"]},
+        "hbf_selection": {
+            "parameter_regex": args.hbf_parameter_regex,
+            "max_bytes_per_storage": args.hbf_range_bytes,
+        },
     }
 
 
@@ -152,6 +167,11 @@ def validate_args(args: argparse.Namespace) -> None:
     if min(args.num_prompts, args.input_len, args.output_len,
            args.max_model_len) <= 0:
         raise SystemExit("prompt counts and lengths must be positive")
+    if args.max_num_batched_tokens <= 0 or args.hbf_range_bytes < 0:
+        raise SystemExit(
+            "max-num-batched-tokens must be positive and hbf-range-bytes "
+            "must be nonnegative"
+        )
     if args.input_len + args.output_len > args.max_model_len:
         raise SystemExit("input plus output exceeds max model length")
 
@@ -172,11 +192,16 @@ def main() -> int:
     )
     load_format = "safetensors"
     loader_extra = None
+    triton_binder = None
     with suppress_static_fatbin_scan(enabled=args.mode == "timing"):
         if args.mode == "timing":
             import hbfsim_loader
+            import triton_binding
 
             hbfsim_loader.register()
+            triton_binder = triton_binding.install_triton_binding(
+                report, required=True
+            )
             load_format = "hbfsim"
             loader_extra = {
                 "profile_path": str(pathlib.Path(args.profile).resolve()),
@@ -184,6 +209,8 @@ def main() -> int:
                 "underlying_load_format": "safetensors",
                 "require_modeled_accesses": True,
                 "allow_opaque_timing": True,
+                "parameter_regex": args.hbf_parameter_regex,
+                "max_bytes_per_storage": args.hbf_range_bytes,
             }
 
         from vllm import LLM, SamplingParams
@@ -193,6 +220,7 @@ def main() -> int:
         "tokenizer": str(pathlib.Path(args.tokenizer or args.model).resolve()),
         "dtype": "bfloat16",
         "max_model_len": args.max_model_len,
+        "max_num_batched_tokens": args.max_num_batched_tokens,
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "enforce_eager": True,
         "seed": args.seed,
@@ -230,6 +258,9 @@ def main() -> int:
         "output_tokens_per_second": output_tokens / generation_seconds,
         "prompt_token_ids": [prompt["prompt_token_ids"] for prompt in prompts],
         "output_token_ids": token_ids,
+        "triton_exact_bindings": (
+            triton_binder.bound_count if triton_binder is not None else 0
+        ),
     })
     output_path = report / "result.json"
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")

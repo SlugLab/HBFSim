@@ -257,3 +257,57 @@ tool HBFSim complements with live execution, measured calibration, and a
 thermal/reliability loop; (c) a concrete experiment hook -- its
 retention-relaxation endurance assumption can be re-examined under HBFSim's
 temperature-dependent retention model.
+
+---
+
+## `luo2018-heatwatch-nand-temperature.pdf`
+
+The primary source for "NAND is temperature-sensitive." Grounds this project's
+thermal model; read it before writing any retention or reliability claim.
+
+> Yixin Luo, Saugata Ghose, Yu Cai, Erich F. Haratsch, and Onur Mutlu.
+> "HeatWatch: Improving 3D NAND Flash Memory Device Reliability by Exploiting
+> Self-Recovery and Temperature Awareness." In *2018 IEEE International
+> Symposium on High Performance Computer Architecture (HPCA)*, pages 504--517.
+
+- Affiliations: Carnegie Mellon University; Seagate Technology; ETH Zurich.
+- Open access: <https://www.cs.cmu.edu/~yixinluo/index_files/heatwatch_hpca18.pdf>
+- SHA-256: `a1d2140c3c9c0ae2fedf7741f1e9d2af2fe777742509fc19875a5c559cc2f608`
+- 14 pages.
+
+Verified from the full text (pdftotext). Equation 1, quoted:
+
+```text
+AF(T1, T2) = t1 / t2 = exp[ (Ea / kB) * (1/T1 - 1/T2) ]
+```
+
+"AF is the acceleration factor between t1 and t2, where t1 is the retention or
+dwell time under temperature T1, and t2 is the retention or dwell time under
+temperature T2. kB is the Boltzmann constant, which is 8.62 x 10^-5 eV/K. Ea is
+the activation energy, which is a manufacturing-process-dependent constant. For
+a planar NAND flash memory device, Ea = 1.1 eV. **To our knowledge, there is no
+public literature that reports the value of Ea for 3D NAND flash memory.**"
+
+Three facts this project relies on:
+
+1. Time at high temperature is equivalent to a longer time at room temperature
+   -- the paper calls this the *effective retention time*, and the same
+   equivalence holds for *dwell time* (idle time between program/erase
+   operations, during which some damage is repaired: the *self-recovery*
+   effect).
+2. Scale of the effect, quoted: "Based on Arrhenius' Law, the same experiment
+   would take more than 11 years to finish had we performed it at room
+   temperature (20 degrees C)."
+3. The direction is not uniform: "higher temperature increases retention errors
+   but reduces program variation errors."
+
+Result reported: 3.85x flash lifetime improvement over a fixed read reference
+voltage baseline, averaged across 28 real storage workload traces, within 0.9%
+of an ideal read-reference-voltage selection mechanism.
+
+**Correction this source forces on our earlier notes.** An earlier web-search
+summary put NAND retention activation energy at "1.05--1.2 eV". The primary
+source states Ea = 1.1 eV *for planar NAND* and says explicitly that no public
+value exists for 3D NAND. Since HBF stacks 3D NAND, Ea is an unknown parameter
+for our device, not a constant we may assume. The paper is also the reason to
+run Ea as a sensitivity sweep rather than a fixed input.

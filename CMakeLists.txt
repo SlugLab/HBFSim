@@ -6,6 +6,41 @@ option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
 option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF)
 
+if(HBFSIM_ENABLE_CUDA)
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        set(
+            CMAKE_CUDA_ARCHITECTURES 120 CACHE STRING
+            "Single CUDA architecture supported by the embedded HBFSim helper"
+        )
+    endif()
+    if(NOT "${CMAKE_CUDA_ARCHITECTURES}" MATCHES "^[1-9][0-9]*$")
+        message(
+            FATAL_ERROR
+            "HBFSim requires one numeric baseline CUDA architecture because "
+            "the device helper PTX is embedded into instrumented modules; "
+            "found '${CMAKE_CUDA_ARCHITECTURES}'"
+        )
+    endif()
+    set(HBFSIM_CUDA_ARCHITECTURE "${CMAKE_CUDA_ARCHITECTURES}")
+    if(HBFSIM_CUDA_ARCHITECTURE LESS 70)
+        message(
+            FATAL_ERROR
+            "HBFSim requires compute capability 7.0 or newer for "
+            "__match_any_sync, __nanosleep, and acquire/release system atomics; "
+            "found sm_${HBFSIM_CUDA_ARCHITECTURE}"
+        )
+    endif()
+    set(HBFSIM_CUDA_PTX_TARGET "sm_${HBFSIM_CUDA_ARCHITECTURE}")
+    if(NOT HBFSIM_CUDA_ARCHITECTURE STREQUAL "120")
+        message(
+            WARNING
+            "sm_${HBFSIM_CUDA_ARCHITECTURE} is a non-reference HBFSim target. "
+            "A successful build does not establish live host/GPU control "
+            "protocol validation on that platform."
+        )
+    endif()
+endif()
+
 include(CTest)
 include(cmake/Dependencies.cmake)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
@@ -249,20 +284,6 @@ if(BUILD_TESTING)
     find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
 endif()
 
-if(BUILD_TESTING AND HBFSIM_ENABLE_CUDA)
-    add_test(
-        NAME ptxpass_plugin
-        COMMAND
-            "${HBFSIM_PYTHON3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_ptxpass_plugin.py"
-            "$<TARGET_FILE:ptxpass_hbf_plugin>"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf/plugin.cpp"
-    )
-    set_tests_properties(
-        ptxpass_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    )
-endif()
-
 if(BUILD_TESTING)
     add_test(
         NAME llama_cpp_adapter
@@ -399,7 +420,7 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
         COMMAND
             "${CMAKE_CUDA_COMPILER}" --ptx
             "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
-            -std=c++17 "--gpu-architecture=compute_${CMAKE_CUDA_ARCHITECTURES}"
+            -std=c++17 "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
             -o "${HBFSIM_LLAMA_PROBE_PTX}"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
@@ -415,7 +436,7 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
     set_target_properties(
         hbfsim_llama_probe_module PROPERTIES
         OUTPUT_NAME hbfsim_llama_probe
-        CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}"
+        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}"
         POSITION_INDEPENDENT_CODE ON
     )
     set(HBFSIM_VLLM_PROBE "${CMAKE_BINARY_DIR}/vllm_fused_moe_probe.bpf.o")
@@ -480,7 +501,7 @@ if(CUDAToolkit_FOUND)
                     "${CMAKE_BINARY_DIR}/generated"
             COMMAND
                 "${CUDAToolkit_NVCC_EXECUTABLE}" --ptx --std=c++20
-                --gpu-architecture=compute_120
+                "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
                 --relocatable-device-code=true --keep-device-functions
                 "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
                 "-I${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device"
@@ -504,10 +525,16 @@ if(CUDAToolkit_FOUND)
             hbfsim_core PRIVATE "${CMAKE_BINARY_DIR}/generated"
         )
         target_compile_definitions(
-            hbfsim_core PRIVATE HBFSIM_HAVE_DEVICE_HELPER_PTX=1
+            hbfsim_core
+            PRIVATE
+                HBFSIM_HAVE_DEVICE_HELPER_PTX=1
+                "HBFSIM_DEVICE_PTX_ARCHITECTURE=${HBFSIM_CUDA_ARCHITECTURE}"
         )
         target_compile_definitions(
-            ptx_transform_test PRIVATE HBFSIM_TEST_DEVICE_HELPER_PTX=1
+            ptx_transform_test
+            PRIVATE
+                HBFSIM_TEST_DEVICE_HELPER_PTX=1
+                "HBFSIM_TEST_DEVICE_PTX_ARCHITECTURE=${HBFSIM_CUDA_ARCHITECTURE}"
         )
     endif()
 
@@ -632,6 +659,7 @@ if(CUDAToolkit_FOUND)
                         "$<TARGET_FILE:ptxpass_hbf_plugin>"
                         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/supported.ptx"
                         "${CUDAToolkit_VERSION}"
+                        "${HBFSIM_CUDA_PTX_TARGET}"
             )
         endif()
         add_test(
@@ -659,7 +687,8 @@ if(HBFSIM_ENABLE_CUDA)
     )
     set_target_properties(
         unsupported_kernel PROPERTIES
-        CUDA_ARCHITECTURES "120-real;120-virtual"
+        CUDA_ARCHITECTURES
+            "${HBFSIM_CUDA_ARCHITECTURE}-real;${HBFSIM_CUDA_ARCHITECTURE}-virtual"
         CUDA_RUNTIME_LIBRARY Shared
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
     )
@@ -709,7 +738,8 @@ if(HBFSIM_ENABLE_CUDA)
     )
     set_target_properties(
         capacity_runtime_live_test PROPERTIES
-        CUDA_ARCHITECTURES "75-real;75-virtual"
+        CUDA_ARCHITECTURES
+            "${HBFSIM_CUDA_ARCHITECTURE}-real;${HBFSIM_CUDA_ARCHITECTURE}-virtual"
         CUDA_RUNTIME_LIBRARY Shared
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
     )
@@ -728,12 +758,27 @@ if(HBFSIM_ENABLE_CUDA)
             REQUIRED
         )
         add_test(
+            NAME ptxpass_plugin
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_ptxpass_plugin.py"
+                "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf/plugin.cpp"
+                "${HBFSIM_PTXAS_EXECUTABLE}"
+                "${HBFSIM_CUDA_PTX_TARGET}"
+        )
+        set_tests_properties(
+            ptxpass_plugin PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+        add_test(
             NAME unsupported_kernel_ptx
             COMMAND
                 "${HBFSIM_PYTHON3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_cuda_ptx.py"
                 "$<TARGET_FILE:unsupported_kernel>"
                 "${CUDAToolkit_BIN_DIR}/cuobjdump"
+                "${HBFSIM_CUDA_PTX_TARGET}"
         )
         add_test(
             NAME device_helper_ptx
@@ -743,6 +788,7 @@ if(HBFSIM_ENABLE_CUDA)
                 "$<TARGET_FILE:ptxpass_hbf_plugin>"
                 "${HBFSIM_DEVICE_PTX}"
                 "${HBFSIM_PTXAS_EXECUTABLE}"
+                "${HBFSIM_CUDA_PTX_TARGET}"
         )
         set_tests_properties(
             device_helper_ptx PROPERTIES

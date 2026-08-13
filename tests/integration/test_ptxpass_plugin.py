@@ -31,6 +31,17 @@ def request_for(ptx: str, kernel: str) -> bytes:
 
 def main() -> int:
     source = pathlib.Path(sys.argv[2]).read_text()
+    ptxas = pathlib.Path(sys.argv[3]).resolve()
+    configured_target = sys.argv[4]
+
+    def configured_fixture(path: str) -> str:
+        ptx = pathlib.Path(path).read_text().replace(
+            ".target sm_120", f".target {configured_target}", 1
+        )
+        if int(configured_target.removeprefix("sm_")) < 75:
+            ptx = ptx.replace(".nc.L2::128B", ".nc")
+        return ptx
+
     for forbidden in ("hbfsim_expect_module_identity",
                       "publish_module_expectation", "dlsym(RTLD_DEFAULT"):
         require(forbidden not in source,
@@ -46,7 +57,7 @@ def main() -> int:
     config = json.loads(config_buffer.value)
     require(config["name"] == "hbf_memory", "unexpected plugin name")
 
-    ptx = pathlib.Path("tests/fixtures/ptx/supported.ptx").read_text()
+    ptx = configured_fixture("tests/fixtures/ptx/supported.ptx")
     request = request_for(ptx, "kernel")
     output = ctypes.create_string_buffer(16 * 1024 * 1024)
     with tempfile.TemporaryDirectory(prefix="hbfsim-pass-") as directory:
@@ -78,7 +89,8 @@ def main() -> int:
                              manifest["module_id"]) is not None,
                 f"manifest lacks SHA-256 module identity: {manifest['module_id']}")
         require(manifest["kernel"] == "kernel", "manifest kernel mismatch")
-        require(manifest["ptx_target"] == "sm_120", "manifest target mismatch")
+        require(manifest["ptx_target"] == configured_target,
+                "manifest target mismatch")
         require(manifest["instrumented"] is True,
                 "supported kernel not marked instrumented")
         require(manifest["cubin_only"] is False,
@@ -143,10 +155,10 @@ def main() -> int:
         ptx_file = pathlib.Path(directory) / "marked.ptx"
         cubin_file = pathlib.Path(directory) / "marked.cubin"
         ptx_file.write_text(response["output_ptx"])
-        ptxas = pathlib.Path("/usr/local/cuda-12.8/bin/ptxas")
         if ptxas.exists():
             assembled = subprocess.run(
-                [str(ptxas), "-arch=sm_120", str(ptx_file), "-o", str(cubin_file)],
+                [str(ptxas), f"-arch={configured_target}", str(ptx_file),
+                 "-o", str(cubin_file)],
                 text=True, capture_output=True
             )
             require(assembled.returncode == 0,
@@ -218,7 +230,8 @@ def main() -> int:
         if ptxas.exists():
             ptx_file.write_text(second_response["output_ptx"])
             assembled = subprocess.run(
-                [str(ptxas), "-arch=sm_120", str(ptx_file), "-o", str(cubin_file)],
+                [str(ptxas), f"-arch={configured_target}", str(ptx_file),
+                 "-o", str(cubin_file)],
                 text=True, capture_output=True,
             )
             require(assembled.returncode == 0,
@@ -241,9 +254,9 @@ def main() -> int:
                 "plugin accepted a mutated trusted module state")
         manifest_path.unlink()
 
-        aggregate_ptx = pathlib.Path(
+        aggregate_ptx = configured_fixture(
             "tests/fixtures/ptx/aggregate_parameter.ptx"
-        ).read_text()
+        )
         aggregate_request = json.dumps(
             {
                 "input": {

@@ -300,6 +300,35 @@ Build options:
 | `HBFSIM_ENABLE_MQSIM` | `ON` | Build the online MQSim backend and media benchmark |
 | `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable environment-dependent llama.cpp and vLLM integration tests |
 
+### Selecting a CUDA architecture
+
+The CUDA device helper does not use Blackwell-only instructions. A build can
+therefore select one numeric baseline architecture of compute capability 7.0
+or newer through `CMAKE_CUDA_ARCHITECTURES`; `120` remains the default and the
+reference target. A single architecture is required because HBFSim embeds the
+helper PTX into each instrumented module. Compiling and assembling another
+target is not proof that the live host/GPU control protocol is portable to that
+platform: CUDA does not guarantee that GPU atomics to mapped page-locked host
+memory are atomic from the host's point of view. See
+[`docs/cuda-architecture-compatibility.md`](docs/cuda-architecture-compatibility.md)
+for the feature audit, support levels, and validation requirements.
+
+CUDA Toolkit can be kept in a user directory without installing a Linux driver
+or changing the shell environment. For example:
+
+```bash
+env \
+  CUDAToolkit_ROOT="$HOME/opt/cuda-12.8" \
+  CUDACXX="$HOME/opt/cuda-12.8/bin/nvcc" \
+  PATH="$HOME/opt/cuda-12.8/bin:$PATH" \
+  cmake -S . -B build-sm89 -G Ninja \
+    -DHBFSIM_ENABLE_CUDA=ON \
+    -DHBFSIM_ENABLE_MQSIM=ON \
+    -DCMAKE_CUDA_ARCHITECTURES=89 \
+    -DCUDAToolkit_ROOT="$HOME/opt/cuda-12.8" \
+    -DCMAKE_CUDA_COMPILER="$HOME/opt/cuda-12.8/bin/nvcc"
+```
+
 ## Run the MQSim media benchmark
 
 The current benchmark submits deterministic sequential requests through
@@ -385,11 +414,12 @@ Run its integration check with:
 
 ```bash
 python3 tests/integration/run_ptxpass_json.py \
-  build/src/ptxpass_hbf/ptxpass_hbf
+  build/src/ptxpass_hbf/ptxpass_hbf sm_120 "$(command -v ptxas)"
 ```
 
-When CUDA 12.8 is installed, the check assembles the rewritten PTX for
-`sm_120` with `ptxas`. The initial pass recognizes selected scalar/vector,
+When CUDA 12.8 is installed, the check assembles rewritten PTX for the
+single architecture selected at configure time with `ptxas`. The initial pass
+recognizes selected scalar/vector,
 predicated, offset, and cache-qualified global loads and stores. Atomics,
 generic-space operations, texture/surface operations, malformed addresses, and
 inline SASS remain outside the supported HBF path. The runtime coverage gate
@@ -428,7 +458,8 @@ cmake -S . -B build-gpu-static -G Ninja \
 cmake --build build-gpu-static -j
 ctest --test-dir build-gpu-static --output-on-failure
 python3 tests/integration/run_ptxpass_json.py \
-  build-gpu-static/src/ptxpass_hbf/ptxpass_hbf
+  build-gpu-static/src/ptxpass_hbf/ptxpass_hbf sm_120 \
+  /usr/local/cuda-12.8/bin/ptxas
 ```
 
 The design contract and implementation plan are in:

@@ -17,6 +17,7 @@ def main() -> int:
     plugin_path = pathlib.Path(sys.argv[1]).resolve()
     helper_path = pathlib.Path(sys.argv[2]).resolve()
     ptxas = pathlib.Path(sys.argv[3]).resolve()
+    configured_target = sys.argv[4]
     helper = helper_path.read_text()
     for symbol in (
         "__hbfsim_control",
@@ -64,7 +65,10 @@ def main() -> int:
         manifest = work_path / "manifest.jsonl"
         import os
         os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest)
-        for target in ("sm_120", "sm_120a"):
+        targets = [configured_target]
+        if int(configured_target.removeprefix("sm_")) in {90, 100, 101, 120}:
+            targets.append(f"{configured_target}a")
+        for target in targets:
             request = json.dumps({
                 "input": {
                     "full_ptx": ptx_template.replace("{target}", target),
@@ -103,6 +107,28 @@ def main() -> int:
                     f"{assembled.stderr}")
             require(cubin.stat().st_size > 0,
                     f"ptxas produced an empty {target} cubin")
+
+        configured_architecture = int(configured_target.removeprefix("sm_"))
+        mismatched_target = (
+            "sm_75" if configured_architecture == 70 else "sm_70"
+        )
+        for rejected_target in (mismatched_target, f"{configured_target}x"):
+            request = json.dumps({
+                "input": {
+                    "full_ptx": ptx_template.replace(
+                        "{target}", rejected_target
+                    ),
+                    "to_patch_kernel": "timing_kernel",
+                    "global_ebpf_map_info_symbol": "map_info",
+                    "ebpf_communication_data_symbol": "constData",
+                },
+                "ebpf_instructions": [],
+            }).encode()
+            output.value = b""
+            status = plugin.process_input(request, len(output), output)
+            require(status != 0,
+                    f"device-helper pass accepted incompatible target "
+                    f"{rejected_target}")
     return 0
 
 

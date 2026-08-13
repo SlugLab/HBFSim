@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -9,7 +10,14 @@ import tempfile
 
 def main() -> int:
     executable = pathlib.Path(sys.argv[1])
-    fixture = pathlib.Path("tests/fixtures/ptx/supported.ptx").read_text()
+    target = sys.argv[2] if len(sys.argv) > 2 else "sm_120"
+    if not target.removeprefix("sm_").isdigit():
+        raise ValueError(f"expected a baseline sm_XX target, got {target!r}")
+    fixture = pathlib.Path(
+        "tests/fixtures/ptx/supported.ptx"
+    ).read_text().replace(".target sm_120", f".target {target}", 1)
+    if int(target.removeprefix("sm_")) < 75:
+        fixture = fixture.replace(".nc.L2::128B", ".nc")
     request = {
         "input": {
             "full_ptx": fixture,
@@ -31,14 +39,16 @@ def main() -> int:
     assert response["coverage"]["rewritten_instructions"] == 3
     assert "__hbfsim_resolve" in response["output_ptx"]
 
-    ptxas = pathlib.Path("/usr/local/cuda-12.8/bin/ptxas")
-    if ptxas.is_file():
+    ptxas_name = sys.argv[3] if len(sys.argv) > 3 else shutil.which("ptxas")
+    if ptxas_name is not None and pathlib.Path(ptxas_name).is_file():
+        ptxas = pathlib.Path(ptxas_name)
         with tempfile.TemporaryDirectory(prefix="hbfsim-ptx-") as directory:
             ptx_path = pathlib.Path(directory) / "transformed.ptx"
             cubin_path = pathlib.Path(directory) / "transformed.cubin"
             ptx_path.write_text(response["output_ptx"])
             subprocess.run(
-                [str(ptxas), "-arch=sm_120", str(ptx_path), "-o", str(cubin_path)],
+                [str(ptxas), f"-arch={target}", str(ptx_path), "-o",
+                 str(cubin_path)],
                 check=True,
             )
 

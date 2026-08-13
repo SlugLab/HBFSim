@@ -7,6 +7,13 @@
 #include <sstream>
 #include <string>
 
+#define HBFSIM_STRINGIFY_DETAIL(value) #value
+#define HBFSIM_STRINGIFY(value) HBFSIM_STRINGIFY_DETAIL(value)
+
+#if !defined(HBFSIM_TEST_DEVICE_PTX_ARCHITECTURE)
+#define HBFSIM_TEST_DEVICE_PTX_ARCHITECTURE 120
+#endif
+
 #define CHECK(condition)                                                       \
     do {                                                                       \
         if (!(condition)) {                                                    \
@@ -16,11 +23,27 @@
 
 namespace {
 
+std::string configured_ptx(std::string ptx)
+{
+    const std::string default_target = ".target sm_120";
+    const std::string configured_target =
+        ".target sm_" +
+        std::string{HBFSIM_STRINGIFY(HBFSIM_TEST_DEVICE_PTX_ARCHITECTURE)};
+    if (const auto position = ptx.find(default_target);
+        position != std::string::npos) {
+        ptx.replace(position, default_target.size(), configured_target);
+    }
+    return ptx;
+}
+
 std::string read_fixture(const std::string& name)
 {
     std::ifstream input("tests/fixtures/ptx/" + name);
     assert(input);
-    return {std::istreambuf_iterator<char>(input), {}};
+    return configured_ptx(std::string{
+        std::istreambuf_iterator<char>{input},
+        std::istreambuf_iterator<char>{},
+    });
 }
 
 }  // namespace
@@ -64,7 +87,7 @@ int main()
     assert(!hbfsim::ptx::parse_memory_op("ld.u32 %r1, [%rd2];"));
     assert(!hbfsim::ptx::parse_memory_op("ld.global.u32 %r1, [%r2+%r3];"));
 
-    const std::string spoofed_helper = R"ptx(.version 8.7
+    const std::string spoofed_helper = configured_ptx(R"ptx(.version 8.7
 .target sm_120
 .address_size 64
 .visible .const .align 4 .u32 __hbfsim_device_helper_marker = 0x48424632;
@@ -85,7 +108,7 @@ int main()
     ld.global.u32 %r1, [%rd1];
     ret;
 }
-)ptx";
+)ptx");
     bool spoof_rejected = false;
     try {
         (void)hbfsim::ptx::transform_ptx({
@@ -110,7 +133,7 @@ int main()
            std::string::npos);
     assert(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
 
-    const std::string production_ptx = R"ptx(.version 8.7
+    const std::string production_ptx = configured_ptx(R"ptx(.version 8.7
 .target sm_120
 .address_size 64
 // __hbfsim_device_helper_marker is not a declaration.
@@ -125,7 +148,7 @@ int main()
     ld.global.u32 %r1, [%rd1];
     ret;
 }
-)ptx";
+)ptx");
     const auto self_contained = hbfsim::ptx::transform_ptx({
         .full_ptx = production_ptx,
         .to_patch_kernel = "production_kernel",

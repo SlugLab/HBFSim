@@ -10,9 +10,42 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace hbfsim::ptx {
 namespace {
+
+#define HBFSIM_STRINGIFY_DETAIL(value) #value
+#define HBFSIM_STRINGIFY(value) HBFSIM_STRINGIFY_DETAIL(value)
+
+#if !defined(HBFSIM_DEVICE_PTX_ARCHITECTURE)
+#define HBFSIM_DEVICE_PTX_ARCHITECTURE 120
+#endif
+
+constexpr std::string_view kDevicePtxArchitecture =
+    HBFSIM_STRINGIFY(HBFSIM_DEVICE_PTX_ARCHITECTURE);
+constexpr unsigned kDevicePtxArchitectureNumber =
+    HBFSIM_DEVICE_PTX_ARCHITECTURE;
+
+std::string device_ptx_target()
+{
+    return "sm_" + std::string{kDevicePtxArchitecture};
+}
+
+bool has_compatible_device_target(const std::string& ptx)
+{
+    static const std::regex target(
+        R"(^\s*\.target\s+sm_([0-9]+)(a?)(?:\s|,|$))",
+        std::regex::multiline);
+    std::smatch match;
+    if (!std::regex_search(ptx, match, target) ||
+        match[1].str() != kDevicePtxArchitecture) {
+        return false;
+    }
+    const auto suffix = match[2].str();
+    return suffix.empty() ||
+           (suffix == "a" && kDevicePtxArchitectureNumber >= 90);
+}
 
 bool unsupported_memory_instruction(const std::string& line,
                                     std::string& opcode)
@@ -69,11 +102,11 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
         throw std::runtime_error(
             "PTX module collides with the reserved HBFSim device ABI");
     }
-    static const std::regex target(
-        R"(^\s*\.target\s+sm_120a?(?:\s|,|$))", std::regex::multiline);
-    if (!std::regex_search(ptx, target)) {
+    const auto expected_target = device_ptx_target();
+    if (!has_compatible_device_target(ptx)) {
         throw std::runtime_error(
-            "HBFSim device helper requires a .target sm_120 or sm_120a PTX module");
+            "HBFSim device helper built for " + expected_target +
+            " cannot instrument a PTX module with a different baseline target");
     }
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
     const auto address_size = ptx.find(".address_size");

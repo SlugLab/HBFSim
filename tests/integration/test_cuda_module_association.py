@@ -42,20 +42,20 @@ class GateApi(ctypes.Structure):
     ]
 
 
-def canonical_ptx(identity: bytes) -> str:
+def canonical_ptx(identity: bytes, ptx_target: str) -> str:
     values = ", ".join(f"0x{byte:02x}" for byte in identity)
     return (
-        ".version 8.7\n.target sm_120\n.address_size 64\n"
+        f".version 8.7\n.target {ptx_target}\n.address_size 64\n"
         ".visible .const .align 8 .b8 __hbfsim_module_identity[32] = {"
         f"{values}}};\n.visible .entry kernel() {{ ret; }}\n"
     )
 
 
-def manifest(identity: bytes) -> dict:
+def manifest(identity: bytes, ptx_target: str) -> dict:
     return {
         "module_id": "ptx:sha256:" + identity.hex(),
         "kernel": "kernel",
-        "ptx_target": "sm_120",
+        "ptx_target": ptx_target,
         "instrumented": True,
         "cubin_only": False,
         "parameters": [
@@ -71,6 +71,7 @@ def main() -> int:
     plugin = str(pathlib.Path(sys.argv[3]).resolve())
     fixture = str(pathlib.Path(sys.argv[4]).resolve())
     toolkit_version = tuple(int(part) for part in sys.argv[5].split(".")[:2])
+    ptx_target = sys.argv[6]
     if os.environ.get("HBFSIM_FAKE_MODULE_ACTIVE") != "1":
         with tempfile.TemporaryDirectory(prefix="hbfsim-module-association-") as root:
             environment = os.environ.copy()
@@ -92,12 +93,14 @@ def main() -> int:
                 ) if item
             )
             return subprocess.run([sys.executable, __file__, gate, fake,
-                                   plugin, fixture, sys.argv[5]],
+                                   plugin, fixture, sys.argv[5], ptx_target],
                                   env=environment, check=False).returncode
 
     manifest_path = pathlib.Path(os.environ["HBFSIM_PASS_MANIFEST_PATH"])
     initial_identity = bytes([0x42]) + bytes(31)
-    manifest_path.write_text(json.dumps(manifest(initial_identity)) + "\n")
+    manifest_path.write_text(
+        json.dumps(manifest(initial_identity, ptx_target)) + "\n"
+    )
 
     process = ctypes.CDLL(None)
     fake_library = ctypes.CDLL(fake)
@@ -190,7 +193,9 @@ def main() -> int:
     pass_library.process_input.restype = ctypes.c_int
     request = json.dumps({
         "input": {
-            "full_ptx": pathlib.Path(fixture).read_text(),
+            "full_ptx": pathlib.Path(fixture).read_text().replace(
+                ".target sm_120", f".target {ptx_target}", 1
+            ),
             "to_patch_kernel": "kernel",
             "global_ebpf_map_info_symbol": "map_info",
             "ebpf_communication_data_symbol": "constData",
@@ -278,13 +283,13 @@ def main() -> int:
     identity_a = bytes([0xA1]) + bytes(31)
     identity_b = bytes([0xB2]) + bytes(31)
     with manifest_path.open("a") as output:
-        output.write(json.dumps(manifest(identity_b)) + "\n")
+        output.write(json.dumps(manifest(identity_b, ptx_target)) + "\n")
     set_live_identity(identity_b)
     results: dict[str, tuple[int, ctypes.c_void_p]] = {}
     transactions_ready = threading.Barrier(2)
 
     def concurrent_load(name: str, identity: bytes, image: bytes) -> None:
-        require(begin_ptx(canonical_ptx(identity)) != 0,
+        require(begin_ptx(canonical_ptx(identity, ptx_target)) != 0,
                 f"failed to begin concurrent {name} transaction")
         transactions_ready.wait()
         results[name] = load_image(image)

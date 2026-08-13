@@ -5,7 +5,7 @@ to the value it holds, whether a constraint is deliberate, whether a document ca
 be obtained through a channel we do not have. Nothing here can be settled by
 running a program or by reading a source we already hold.
 
-**Which of the four files holds what.**
+**Which file or directory holds what.**
 
 - **This file** — questions only you can answer.
 - **`docs/EXPERIMENTS-NEEDED.md`** — the work order, and the list to work from.
@@ -19,6 +19,10 @@ running a program or by reading a source we already hold.
   those items, kept as reference rather than as a second list.
 - **`todo/facts-to-verify.md`** — nine facts that must be checked before they
   enter the paper.
+- **`docs/可能潜在代码实现问题请求审查/`** — six points raised by reading the
+  code. Each one states what the code does, where we may have read it wrong, and
+  what we would like you to confirm. These are review requests, not defect
+  reports: a point may well turn out to be our misreading.
 
 Where an item below depends on something in those three files, the item names the
 file and the item number rather than repeating the text.
@@ -201,3 +205,51 @@ likely an OCP account.
 **What we need from you.** Does your institution have an OCP membership route to
 the specification? If the specification cannot be obtained that way, can the
 SK hynix or SanDisk presentation material from FMS 2026 serve as a second source?
+
+## 7. Whether the injector stays at the `PTX` layer or moves to the `SASS` layer
+
+**What we found.** The injector writes the delay into `PTX`, the intermediate text
+the compiler emits before the driver turns it into machine code for a particular
+architecture. Line 32 of
+`/root/hbfsim/HBFSim/docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md`
+lists `Rewriting SASS in cubin-only kernels.` among the things this project does
+not do, and gives no reason for the boundary. `SASS` is the machine code the
+driver finally executes; a `cubin` is the compiled form a kernel arrives in when
+no `PTX` text ships with it.
+
+**Why we are asking now.** NVBit (MICRO-52, 2019, DOI `10.1145/3352460.3358307`)
+works at the `SASS` layer and can instrument a module that reaches it as an
+already-compiled binary, with no source and no intermediate text required.
+Section 6.1 of the NVBit paper measures precompiled libraries at 74% to 96% of
+executed instructions on machine-learning workloads, 88% on average. On our side,
+one real vLLM run made 23,210 coverage decisions — one before every kernel launch,
+deciding whether that launch touches memory registered as `HBF` and whether its
+accesses can be timed — and 10,584 of them fell on modules that reached us as
+already-compiled binaries, with 0 accesses successfully timed. A reviewer will ask
+why we did not use the official tool that already solves this.
+
+**The facts on both sides, each checked first-hand.** The `SASS` layer is strictly
+better on information availability: of the four quantities the timing model needs,
+the distance between the issue of a load and the use of its result is visible only
+there. It is also better on the addresses of bulk tensor transfers — the NVBit
+v1.8 release package carries `core/nvbit.h` lines 82 and 83, line 402, lines 477
+and 497, and a compilable `tools/mem_trace_tma` example. Against that: moving over
+fixes only the smallest of the four error terms we currently carry; NVBit saves
+registers to memory for every thread before each instrumentation call, which costs
+cycles and disturbs cache locality; NVBit does not guarantee the application keeps
+working correctly when original instructions are deleted; and line 44 of the v1.8
+`README.md` states `CUDA driver version: <= 575.xx`, while our validation platform
+runs driver 595.84. That last point has never been tested on our machine.
+
+**What we need from you.** Three questions. First, what was behind the boundary on
+line 32 — was `SASS` rewriting excluded for cost, for tool-chain reasons, or for
+something else? Second, do you accept keeping the injector at the `PTX` layer and
+using `SASS` only as a measuring instrument, that is, using NVBit's read-only
+interface to measure how large the coverage gap is without moving the injector?
+Third, is it worth half a day to run one NVBit smoke test, so that whether driver
+595.84 works becomes a footnote backed by a measurement rather than an open
+question?
+
+The full comparison is in `/root/hbfsim/49-PTX还是SASS与NVBit对照实验.md`, and the
+same decision is listed as discussion item three in
+`/root/hbfsim/HBFSim/paper/35-FAST27论文大纲与逻辑线.md`.

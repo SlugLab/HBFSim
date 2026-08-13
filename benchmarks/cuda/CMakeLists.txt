@@ -73,6 +73,46 @@ target_compile_definitions(
     "HBFSIM_SM120_FUTURE_PTX_PATH=\"${HBFSIM_SM120_FUTURE_PTX}\""
 )
 
+set(
+    HBFSIM_SM120_TMA_PTX
+    "${CMAKE_CURRENT_BINARY_DIR}/sm120_tma_correctness.ptx"
+)
+add_custom_command(
+    OUTPUT "${HBFSIM_SM120_TMA_PTX}"
+    COMMAND
+        "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20
+        "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+        "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/gpu/sm120_tma_correctness.cu"
+        -o "${HBFSIM_SM120_TMA_PTX}"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/gpu/sm120_tma_correctness.cu"
+    VERBATIM
+)
+add_custom_target(sm120_tma_correctness DEPENDS "${HBFSIM_SM120_TMA_PTX}")
+add_executable(sm120_tma_bench sm120_tma_bench.cu)
+target_link_libraries(
+    sm120_tma_bench
+    PRIVATE hbfsim_core ptxpass_hbf_plugin CUDA::cudart CUDA::cuda_driver
+)
+target_include_directories(
+    sm120_tma_bench PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party"
+)
+set_target_properties(
+    sm120_tma_bench PROPERTIES
+    CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
+    CUDA_RUNTIME_LIBRARY Shared
+    ENABLE_EXPORTS ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda"
+)
+add_dependencies(sm120_tma_bench sm120_tma_correctness)
+target_compile_definitions(
+    sm120_tma_bench PRIVATE
+    "HBFSIM_SM120_TMA_PTX_PATH=\"${HBFSIM_SM120_TMA_PTX}\""
+)
+
 add_executable(hbf_vmem_tuning_bench hbf_vmem_tuning_bench.cu)
 target_link_libraries(
     hbf_vmem_tuning_bench PRIVATE hbfsim_core CUDA::cudart CUDA::cuda_driver

@@ -24,6 +24,7 @@ int main()
     static_assert(std::is_standard_layout_v<hbfsim_options_v2>);
     require(hbfsim_abi_version() == 2u);
     require(hbfsim_get_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
+    require(hbfsim_get_tma_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
 
     hbfsim_context* context = reinterpret_cast<hbfsim_context*>(1);
     hbfsim_options_v2 options{};

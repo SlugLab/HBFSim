@@ -48,6 +48,19 @@ std::vector<std::string> registers(std::string_view input)
     return result;
 }
 
+std::vector<std::string> register_occurrences(std::string_view input)
+{
+    static const std::regex expression(
+        R"((?:%[A-Za-z][A-Za-z0-9_$]*|[A-Za-z_$][A-Za-z0-9_$.]*))");
+    std::string text(input);
+    std::vector<std::string> result;
+    for (std::sregex_iterator it(text.begin(), text.end(), expression), end;
+         it != end; ++it) {
+        if (it->str() != "_") result.push_back(it->str());
+    }
+    return result;
+}
+
 std::optional<std::uint32_t> unsigned_immediate(std::string_view value)
 {
     std::uint64_t parsed = 0;
@@ -162,7 +175,8 @@ std::optional<AsyncInstruction> parse_tma(
     const std::size_t minimum =
         result.direction == TmaDirection::GlobalToShared ? 3 : 2;
     if (operands.size() < minimum) throw ParseError("TMA has too few operands");
-    const auto descriptor_fields = registers(operands[descriptor_operand]);
+    const auto descriptor_fields =
+        register_occurrences(operands[descriptor_operand]);
     if (descriptor_fields.size() < result.dimensions + 1) {
         throw ParseError("TMA descriptor/coordinate operand is malformed");
     }

@@ -59,6 +59,8 @@ std::string emit_issue(const Instruction& instruction,
     const auto direction =
         tma.direction == TmaDirection::SharedToGlobal ? 1U : 0U;
     const auto barrier = tma.barrier.empty() ? "0" : tma.barrier;
+    const bool narrow_barrier = barrier.starts_with("%r") &&
+                                !barrier.starts_with("%rd");
     const auto mask = tma.multicast ? tma.multicast_mask : "0";
     std::ostringstream output;
     output << "    // HBFSim TMA issue " << id << "\n"
@@ -69,6 +71,11 @@ std::string emit_issue(const Instruction& instruction,
            << "    .param .b64 %hbfsim_tma_" << id << "_barrier;\n"
            << "    .param .b32 %hbfsim_tma_" << id << "_mask;\n"
            << "    .param .b64 %hbfsim_tma_" << id << "_return;\n"
+           << (narrow_barrier
+                   ? "    .reg .b64 %hbfsim_tma_" + std::to_string(id) +
+                         "_barrier64;\n    cvt.u64.u32 %hbfsim_tma_" +
+                         std::to_string(id) + "_barrier64, " + barrier + ";\n"
+                   : "")
            << "    st.param.b64 [%hbfsim_tma_" << id << "_descriptor], "
            << tma.descriptor << ";\n"
            << "    st.param.b32 [%hbfsim_tma_" << id << "_instruction], "
@@ -76,7 +83,10 @@ std::string emit_issue(const Instruction& instruction,
            << "    st.param.b32 [%hbfsim_tma_" << id << "_direction], "
            << direction << ";\n"
            << "    st.param.b64 [%hbfsim_tma_" << id << "_barrier], "
-           << barrier << ";\n"
+           << (narrow_barrier ? "%hbfsim_tma_" + std::to_string(id) +
+                                    "_barrier64"
+                              : barrier)
+           << ";\n"
            << "    st.param.b32 [%hbfsim_tma_" << id << "_mask], "
            << mask << ";\n"
            << "    call.uni (%hbfsim_tma_" << id
@@ -99,7 +109,9 @@ std::string emit_barrier_poll(const Instruction& wait,
 {
     const auto predicate = wait.operands.empty() ? std::string{}
                                                   : wait.operands.front();
-    if (!predicate.starts_with('%')) {
+    static const std::regex predicate_name(
+        R"(^%?[A-Za-z_$][A-Za-z0-9_$]*$)");
+    if (!std::regex_match(predicate, predicate_name)) {
         throw std::runtime_error("TMA barrier wait predicate is not a register");
     }
     const auto id = wait.instruction_id;

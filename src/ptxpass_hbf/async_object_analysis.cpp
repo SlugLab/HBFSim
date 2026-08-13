@@ -115,6 +115,18 @@ AsyncObjectPlan analyze_async_objects(const Function& function,
                 current_generation[object] = 1;
             }
         }
+        // A by-value __grid_constant__ CUtensorMap is materialized with
+        // cvta.param rather than ld.param.  The kernel parameter snapshot is
+        // immutable for the launch, so this path starts fenced.
+        if (instruction.opcode.starts_with("cvta.param.") &&
+            !instruction.operands.empty()) {
+            const auto destination = registers(instruction.operands[0]);
+            if (destination.size() == 1) {
+                const auto object = next_descriptor_object++;
+                descriptors[destination[0]] = {object, 1, true};
+                current_generation[object] = 1;
+            }
+        }
         if (instruction.opcode.starts_with("mov.") &&
             instruction.operands.size() == 2) {
             const auto destination = registers(instruction.operands[0]);

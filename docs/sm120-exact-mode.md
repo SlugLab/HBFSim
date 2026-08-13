@@ -223,6 +223,20 @@ NVIDIA driver ahead of the build-tree fake CUDA test library.
 
 ## Remaining Stage 3/4 limit
 
+The Stage 3 live TMA smoke proof can be reproduced on a CC 12.0 GPU with:
+
+```bash
+cmake --build build-sm120-exact --target sm120_tma_bench \
+  hbfsim_launch_gate hbfsimd -j2
+python3 tests/integration/test_sm120_tma_live.py \
+  --build-dir build-sm120-exact --output /tmp/sm120-tma-live.json
+```
+
+It requires byte-identical native/instrumented 2D tiled-load output, a schema-v4
+TensorMap/TMA manifest, nonzero issue-to-wait overlap, one modeled HBF TMA, and
+zero faults, leaks, stale generations, and OOB bytes. This smoke proof is not a
+substitute for the Stage 4 independent calibration/holdout gate.
+
 Stages 1–2 do **not** yet implement or validate TMA load/store or
 unicast/multicast completion semantics, TensorMap runtime address-space
 splitting, GPCARB's two contention-equivalent queues, GNIC2TEX's four

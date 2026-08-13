@@ -85,6 +85,19 @@ typedef struct hbfsim_future_stats {
     uint64_t faults;
 } hbfsim_future_stats;
 
+typedef struct hbfsim_tma_stats {
+    uint64_t issued;
+    uint64_t hbm_bytes;
+    uint64_t hbf_bytes;
+    uint64_t oob_bytes;
+    uint64_t fanout_targets;
+    uint64_t barrier_wait_ns;
+    uint64_t group_wait_ns;
+    uint64_t stale_generations;
+    uint64_t faults;
+    uint64_t leaked;
+} hbfsim_tma_stats;
+
 uint32_t hbfsim_abi_version(void);
 int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
@@ -101,6 +114,7 @@ int hbfsim_flush(hbfsim_context* context);
 int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
 int hbfsim_get_future_stats(hbfsim_context* context,
                             hbfsim_future_stats* out);
+int hbfsim_get_tma_stats(hbfsim_context* context, hbfsim_tma_stats* out);
 int hbfsim_unregister(hbfsim_context* context, void* range_base);
 void hbfsim_context_destroy(hbfsim_context* context);
 

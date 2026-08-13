@@ -492,15 +492,45 @@ TmaPassEvidence tma_pass_evidence(
                       << generation << '\n';
         }
     }
-    for (const auto& parameter : parameters) {
-        const std::regex load(
-            R"(ld\.param\.(?:u64|b64)\s+(%[A-Za-z0-9_$]+)\s*,\s*\[\s*)" +
-            parameter.name + R"((?:\s*\+\s*0)?\s*\])");
+    std::unordered_map<std::string, std::size_t> parameter_registers;
+    const auto one_register = [](std::string_view operand) {
+        static const std::regex expression(R"(%[A-Za-z][A-Za-z0-9_$]*)");
         std::smatch match;
-        if (std::regex_search(selected, match, load) &&
-            descriptor_registers.contains(match[1].str())) {
-            result.tensormap_parameters.push_back(parameter.index);
+        const std::string text(operand);
+        return std::regex_search(text, match, expression) ? match.str()
+                                                          : std::string{};
+    };
+    for (const auto& instruction : function.instructions) {
+        if (instruction.operands.size() != 2) continue;
+        const auto destination = one_register(instruction.operands[0]);
+        if (destination.empty()) continue;
+        if (instruction.opcode.starts_with("ld.param.") ||
+            instruction.opcode.starts_with("mov.")) {
+            for (const auto& parameter : parameters) {
+                if (instruction.operands[1].find(parameter.name) !=
+                    std::string::npos) {
+                    parameter_registers[destination] = parameter.index;
+                }
+            }
         }
+        if (instruction.opcode.starts_with("mov.") ||
+            instruction.opcode.starts_with("cvta.param.")) {
+            const auto source = one_register(instruction.operands[1]);
+            const auto found = parameter_registers.find(source);
+            if (found != parameter_registers.end()) {
+                parameter_registers[destination] = found->second;
+            }
+        }
+    }
+    std::set<std::size_t> provenance_parameters;
+    for (const auto& descriptor : descriptor_registers) {
+        const auto found = parameter_registers.find(descriptor);
+        if (found != parameter_registers.end()) {
+            provenance_parameters.insert(found->second);
+        }
+    }
+    for (const auto index : provenance_parameters) {
+        result.tensormap_parameters.push_back(index);
     }
     for (const auto id : plan.descriptor_instruction_ids)
         result.descriptor_instruction_ids.push_back(id);

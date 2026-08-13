@@ -1928,6 +1928,43 @@ extern "C" int hbfsim_get_future_stats(hbfsim_context* context,
     return HBFSIM_OK;
 }
 
+extern "C" int hbfsim_get_tma_stats(hbfsim_context* context,
+                                      hbfsim_tma_stats* out)
+{
+    if (context == nullptr || out == nullptr) return HBFSIM_INVALID_ARGUMENT;
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation || context->control_mapping == MAP_FAILED) {
+        return HBFSIM_IO_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) return HBFSIM_IO_ERROR;
+    const auto* header = control.header();
+    *out = {
+        .issued = hbfsim::host_service::atomic_load(
+            header->tma_issued, std::memory_order_acquire),
+        .hbm_bytes = hbfsim::host_service::atomic_load(
+            header->tma_hbm_bytes, std::memory_order_acquire),
+        .hbf_bytes = hbfsim::host_service::atomic_load(
+            header->tma_hbf_bytes, std::memory_order_acquire),
+        .oob_bytes = hbfsim::host_service::atomic_load(
+            header->tma_oob_bytes, std::memory_order_acquire),
+        .fanout_targets = hbfsim::host_service::atomic_load(
+            header->tma_fanout_targets, std::memory_order_acquire),
+        .barrier_wait_ns = hbfsim::host_service::atomic_load(
+            header->tma_barrier_wait_ns, std::memory_order_acquire),
+        .group_wait_ns = hbfsim::host_service::atomic_load(
+            header->tma_group_wait_ns, std::memory_order_acquire),
+        .stale_generations = hbfsim::host_service::atomic_load(
+            header->tma_stale_generations, std::memory_order_acquire),
+        .faults = hbfsim::host_service::atomic_load(
+            header->tma_faults, std::memory_order_acquire),
+        .leaked = hbfsim::host_service::atomic_load(
+            header->tma_leaked, std::memory_order_acquire),
+    };
+    return HBFSIM_OK;
+}
+
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 {
     if (context == nullptr || range_base == nullptr) {

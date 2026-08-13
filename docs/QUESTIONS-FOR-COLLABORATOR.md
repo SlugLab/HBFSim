@@ -8,12 +8,15 @@ running a program or by reading a source we already hold.
 **Which of the four files holds what.**
 
 - **This file** — questions only you can answer.
-- **`todo/experiments-to-run.md`** — eight experiments to run before submission,
-  in priority order, each with what to run, the reviewer question it answers,
-  what it needs, and what counts as done.
-- **`docs/EXPERIMENTS-NEEDED.md`** — the same work written as assigned tasks,
-  with the MoE expert-routing experiment placed first; the remaining experiments
-  appear there as one-line pointers into `todo/experiments-to-run.md`.
+- **`docs/EXPERIMENTS-NEEDED.md`** — the work order, and the list to work from.
+  Sixteen items in six groups, ordered by which contribution claim each one
+  supports: the thermal-throttling claim first, then coverage accounting, then
+  the timing model, then shared foundation work, then items a reviewer will ask
+  about, then work already moved to future work. Each item names the claim it
+  supports, the number it must produce, how to run it, what it depends on, and
+  what happens if it is skipped.
+- **`todo/experiments-to-run.md`** — the longer method notes behind eight of
+  those items, kept as reference rather than as a second list.
 - **`todo/facts-to-verify.md`** — nine facts that must be checked before they
   enter the paper.
 

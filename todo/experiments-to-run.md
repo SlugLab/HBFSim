@@ -1,5 +1,11 @@
 # Experiments to run before submission
 
+**The single list ordered by the paper's contribution claims is now
+`docs/EXPERIMENTS-NEEDED.md`.** Work from that file. This file is kept as the longer
+record of how to run the eight items below, and `docs/EXPERIMENTS-NEEDED.md` names the
+item number here for every item that came from this file. Nothing in this file has
+been removed.
+
 Target: FAST '27 fall round, 2026-09-15 23:59 AoE.
 
 Items are ordered by priority. Items 1 to 3 are required: without them the

@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hbfsim.local/schema/sm120-exact-profile.schema.json",
+  "title": "HBFSim SM120 exact calibration profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "target", "toolchain", "conditions", "thresholds", "limits", "modules", "validation"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "profile_id": {"type": "string", "minLength": 1},
+    "target": {"$ref": "#/$defs/target"},
+    "toolchain": {"$ref": "#/$defs/toolchain"},
+    "conditions": {"$ref": "#/$defs/conditions"},
+    "thresholds": {"$ref": "#/$defs/thresholds"},
+    "limits": {"$ref": "#/$defs/limits"},
+    "modules": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/module"}},
+    "validation": {"$ref": "#/$defs/validation"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "positiveInteger": {"type": "integer", "minimum": 1},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu_name", "gpu_uuid", "pci_vendor_id", "pci_device_id", "compute_capability_major", "compute_capability_minor", "driver_version"],
+      "properties": {
+        "gpu_name": {"type": "string", "minLength": 1},
+        "gpu_uuid": {"type": "string", "minLength": 1},
+        "pci_vendor_id": {"$ref": "#/$defs/positiveInteger"},
+        "pci_device_id": {"$ref": "#/$defs/positiveInteger"},
+        "compute_capability_major": {"const": 12},
+        "compute_capability_minor": {"const": 0},
+        "driver_version": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cuda_version", "ptxas_version", "nvdisasm_version", "cuobjdump_version", "ncu_version"],
+      "properties": {
+        "cuda_version": {"type": "string", "minLength": 1},
+        "ptxas_version": {"type": "string", "minLength": 1},
+        "nvdisasm_version": {"type": "string", "minLength": 1},
+        "cuobjdump_version": {"type": "string", "minLength": 1},
+        "ncu_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "clusterShape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"$ref": "#/$defs/positiveInteger"},
+        "y": {"$ref": "#/$defs/positiveInteger"},
+        "z": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sm_clock_mhz", "memory_clock_mhz", "power_limit_mw", "temperature_min_c", "temperature_max_c", "cache_condition", "concurrency_condition", "cluster_shape"],
+      "properties": {
+        "sm_clock_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "memory_clock_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "power_limit_mw": {"$ref": "#/$defs/positiveInteger"},
+        "temperature_min_c": {"type": "integer", "minimum": 0},
+        "temperature_max_c": {"type": "integer", "minimum": 0},
+        "cache_condition": {"type": "string", "minLength": 1},
+        "concurrency_condition": {"type": "string", "minLength": 1},
+        "cluster_shape": {"$ref": "#/$defs/clusterShape"}
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p50_percent", "p95_percent", "counter_percent"],
+      "properties": {
+        "p50_percent": {"type": "number", "minimum": 0, "maximum": 5},
+        "p95_percent": {"type": "number", "minimum": 0, "maximum": 10},
+        "counter_percent": {"type": "number", "minimum": 0, "maximum": 10}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_thread_futures", "max_warp_futures", "max_cta_futures", "max_cluster_futures", "max_thread_async_objects", "max_warp_async_objects", "max_cta_async_objects", "max_cluster_async_objects"],
+      "properties": {
+        "max_thread_futures": {"$ref": "#/$defs/positiveInteger"},
+        "max_warp_futures": {"$ref": "#/$defs/positiveInteger"},
+        "max_cta_futures": {"$ref": "#/$defs/positiveInteger"},
+        "max_cluster_futures": {"$ref": "#/$defs/positiveInteger"},
+        "max_thread_async_objects": {"$ref": "#/$defs/positiveInteger"},
+        "max_warp_async_objects": {"$ref": "#/$defs/positiveInteger"},
+        "max_cta_async_objects": {"$ref": "#/$defs/positiveInteger"},
+        "max_cluster_async_objects": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "kernel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "registers", "spill_store_bytes", "spill_load_bytes", "static_shared_bytes", "max_dynamic_shared_bytes", "occupancy_blocks_per_sm"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "registers": {"$ref": "#/$defs/positiveInteger"},
+        "spill_store_bytes": {"type": "integer", "minimum": 0},
+        "spill_load_bytes": {"type": "integer", "minimum": 0},
+        "static_shared_bytes": {"type": "integer", "minimum": 0},
+        "max_dynamic_shared_bytes": {"type": "integer", "minimum": 0},
+        "occupancy_blocks_per_sm": {"$ref": "#/$defs/positiveInteger"}
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_id", "ptx_target", "original_ptx_sha256", "transformed_ptx_sha256", "cubin_sha256", "sass_sha256", "kernels"],
+      "properties": {
+        "module_id": {"type": "string", "pattern": "^ptx:sha256:[0-9a-f]{64}$"},
+        "ptx_target": {"enum": ["sm_120", "sm_120a", "sm_120f"]},
+        "original_ptx_sha256": {"$ref": "#/$defs/sha256"},
+        "transformed_ptx_sha256": {"$ref": "#/$defs/sha256"},
+        "cubin_sha256": {"$ref": "#/$defs/sha256"},
+        "sass_sha256": {"$ref": "#/$defs/sha256"},
+        "kernels": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/kernel"}}
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_sha256", "case_ids"],
+      "properties": {
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "case_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "validationClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_class", "passed", "p50_error_percent", "p95_error_percent", "counter_error_percent"],
+      "properties": {
+        "operation_class": {"enum": ["ordinary_load", "ordinary_store", "tma_load", "tma_store", "unicast", "multicast", "mixed_hbm_hbf"]},
+        "passed": {"type": "boolean"},
+        "p50_error_percent": {"type": "number", "minimum": 0},
+        "p95_error_percent": {"type": "number", "minimum": 0},
+        "counter_error_percent": {"type": "number", "minimum": 0}
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "training", "holdout", "classes"],
+      "properties": {
+        "status": {"enum": ["pending", "passed", "failed"]},
+        "training": {"$ref": "#/$defs/dataset"},
+        "holdout": {"$ref": "#/$defs/dataset"},
+        "classes": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/validationClass"}}
+      }
+    }
+  }
+}

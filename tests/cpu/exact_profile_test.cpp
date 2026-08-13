@@ -1,0 +1,115 @@
+#include <hbfsim/exact_profile.hpp>
+
+#include <json.hpp>
+
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+namespace {
+
+void require(bool condition, std::string_view message)
+{
+    if (!condition) {
+        throw std::runtime_error(std::string(message));
+    }
+}
+
+#define CHECK(expression) require(static_cast<bool>(expression), #expression)
+
+nlohmann::json fixture()
+{
+    std::ifstream input("tests/fixtures/exact/sm120-valid.json");
+    require(input.good(), "unable to open exact profile fixture");
+    return nlohmann::json::parse(input);
+}
+
+template <class Mutator>
+void expect_error(Mutator mutate, std::string_view expected_reason)
+{
+    auto document = fixture();
+    mutate(document);
+    try {
+        (void)hbfsim::parse_exact_profile(document.dump());
+    } catch (const hbfsim::ExactProfileError& error) {
+        CHECK(error.reason() == expected_reason);
+        return;
+    }
+    throw std::runtime_error("exact profile unexpectedly parsed");
+}
+
+}  // namespace
+
+int main()
+{
+    const auto profile = hbfsim::load_exact_profile(
+        "tests/fixtures/exact/sm120-valid.json");
+    CHECK(profile.schema_version == 1);
+    CHECK(profile.target.compute_capability_major == 12);
+    CHECK(profile.target.compute_capability_minor == 0);
+    CHECK(profile.modules.at(0).kernels.at(0).registers == 48);
+    CHECK(profile.validation.status == hbfsim::ValidationStatus::Passed);
+
+    expect_error(
+        [](auto& value) {
+            value["target"]["compute_capability_minor"] = 1;
+        },
+        "target_not_sm120");
+    expect_error(
+        [](auto& value) {
+            value["modules"][0]["cubin_sha256"] =
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        },
+        "invalid_sha256");
+    expect_error(
+        [](auto& value) {
+            value["modules"].push_back(value["modules"][0]);
+        },
+        "duplicate_module_id");
+    expect_error(
+        [](auto& value) {
+            value["modules"][0]["kernels"].push_back(
+                value["modules"][0]["kernels"][0]);
+        },
+        "duplicate_kernel");
+    expect_error(
+        [](auto& value) { value["thresholds"]["p50_percent"] = 5.01; },
+        "threshold_exceeds_exact_limit");
+    expect_error(
+        [](auto& value) { value["validation"]["classes"].erase(0); },
+        "validation_class_missing");
+    expect_error(
+        [](auto& value) {
+            value["validation"]["holdout"]["case_ids"].push_back(
+                "train-load");
+        },
+        "training_validation_overlap");
+    expect_error(
+        [](auto& value) {
+            value["conditions"]["temperature_min_c"] = 80;
+        },
+        "invalid_temperature_interval");
+    expect_error(
+        [](auto& value) { value["unexpected"] = true; },
+        "unknown_field");
+
+    auto pending = fixture();
+    pending["validation"]["status"] = "pending";
+    CHECK(hbfsim::parse_exact_profile(pending.dump()).validation.status ==
+          hbfsim::ValidationStatus::Pending);
+
+    auto failed = fixture();
+    failed["validation"]["status"] = "failed";
+    failed["validation"]["classes"][0]["passed"] = false;
+    CHECK(hbfsim::parse_exact_profile(failed.dump()).validation.status ==
+          hbfsim::ValidationStatus::Failed);
+
+    expect_error(
+        [](auto& value) {
+            value["validation"]["classes"][0]["passed"] = false;
+        },
+        "validation_not_passed");
+
+    return 0;
+}

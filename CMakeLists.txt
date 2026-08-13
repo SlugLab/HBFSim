@@ -57,6 +57,7 @@ add_library(
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
+    src/profile/exact_profile.cpp
     src/profile/profile.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
@@ -107,6 +108,17 @@ target_link_libraries(hbfsim_profile_tests PRIVATE hbfsim_core)
 
 add_test(NAME profile COMMAND hbfsim_profile_tests)
 set_tests_properties(profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
+target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
+target_include_directories(
+    exact_profile_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+)
+add_test(NAME exact_profile COMMAND exact_profile_test)
+set_tests_properties(
+    exact_profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
 target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)

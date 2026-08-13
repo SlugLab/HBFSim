@@ -1,0 +1,469 @@
+#include <hbfsim/exact_profile.hpp>
+
+#include <json.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <fstream>
+#include <iterator>
+#include <set>
+#include <unordered_set>
+
+namespace hbfsim {
+namespace {
+
+using json = nlohmann::json;
+
+[[noreturn]] void fail(std::string reason, std::string message)
+{
+    throw ExactProfileError(std::move(reason), std::move(message));
+}
+
+void object_with_keys(const json& value,
+                      std::initializer_list<std::string_view> required,
+                      std::initializer_list<std::string_view> optional = {})
+{
+    if (!value.is_object()) {
+        fail("invalid_field", "expected an object");
+    }
+    std::set<std::string_view> allowed(required.begin(), required.end());
+    allowed.insert(optional.begin(), optional.end());
+    for (const auto& [key, unused] : value.items()) {
+        (void)unused;
+        if (!allowed.contains(key)) {
+            fail("unknown_field", "unknown exact profile field: " + key);
+        }
+    }
+    for (const auto key : required) {
+        if (!value.contains(std::string(key))) {
+            fail("missing_field", "missing exact profile field: " +
+                                      std::string(key));
+        }
+    }
+}
+
+template <class T>
+T field(const json& value, std::string_view key)
+{
+    try {
+        return value.at(std::string(key)).get<T>();
+    } catch (const json::exception&) {
+        fail("invalid_field", "invalid exact profile field: " +
+                                  std::string(key));
+    }
+}
+
+std::string nonempty_string(const json& value, std::string_view key)
+{
+    auto result = field<std::string>(value, key);
+    if (result.empty()) {
+        fail("invalid_field", "empty exact profile field: " +
+                                  std::string(key));
+    }
+    return result;
+}
+
+std::uint32_t positive_u32(const json& value, std::string_view key)
+{
+    const auto result = field<std::uint32_t>(value, key);
+    if (result == 0) {
+        fail("invalid_field", "zero exact profile field: " +
+                                  std::string(key));
+    }
+    return result;
+}
+
+bool valid_sha256(std::string_view value)
+{
+    return value.size() == 64 &&
+           std::all_of(value.begin(), value.end(), [](char character) {
+               return (character >= '0' && character <= '9') ||
+                      (character >= 'a' && character <= 'f');
+           });
+}
+
+std::string sha256_field(const json& value, std::string_view key)
+{
+    auto result = nonempty_string(value, key);
+    if (!valid_sha256(result)) {
+        fail("invalid_sha256", "invalid SHA-256 field: " +
+                                   std::string(key));
+    }
+    return result;
+}
+
+double nonnegative_number(const json& value, std::string_view key)
+{
+    const auto result = field<double>(value, key);
+    if (!std::isfinite(result) || result < 0.0) {
+        fail("invalid_field", "invalid nonnegative field: " +
+                                  std::string(key));
+    }
+    return result;
+}
+
+ExactTarget parse_target(const json& value)
+{
+    object_with_keys(value,
+                     {"gpu_name", "gpu_uuid", "pci_vendor_id",
+                      "pci_device_id", "compute_capability_major",
+                      "compute_capability_minor", "driver_version"});
+    ExactTarget result{
+        .gpu_name = nonempty_string(value, "gpu_name"),
+        .gpu_uuid = nonempty_string(value, "gpu_uuid"),
+        .pci_vendor_id = positive_u32(value, "pci_vendor_id"),
+        .pci_device_id = positive_u32(value, "pci_device_id"),
+        .compute_capability_major =
+            positive_u32(value, "compute_capability_major"),
+        .compute_capability_minor =
+            field<std::uint32_t>(value, "compute_capability_minor"),
+        .driver_version = positive_u32(value, "driver_version"),
+    };
+    if (result.compute_capability_major != 12 ||
+        result.compute_capability_minor != 0) {
+        fail("target_not_sm120", "exact profile target must be CC 12.0");
+    }
+    return result;
+}
+
+ExactToolchain parse_toolchain(const json& value)
+{
+    object_with_keys(value,
+                     {"cuda_version", "ptxas_version", "nvdisasm_version",
+                      "cuobjdump_version", "ncu_version"});
+    return {
+        .cuda_version = nonempty_string(value, "cuda_version"),
+        .ptxas_version = nonempty_string(value, "ptxas_version"),
+        .nvdisasm_version = nonempty_string(value, "nvdisasm_version"),
+        .cuobjdump_version = nonempty_string(value, "cuobjdump_version"),
+        .ncu_version = nonempty_string(value, "ncu_version"),
+    };
+}
+
+ExactConditions parse_conditions(const json& value)
+{
+    object_with_keys(value,
+                     {"sm_clock_mhz", "memory_clock_mhz", "power_limit_mw",
+                      "temperature_min_c", "temperature_max_c",
+                      "cache_condition", "concurrency_condition",
+                      "cluster_shape"});
+    const auto& shape = value.at("cluster_shape");
+    object_with_keys(shape, {"x", "y", "z"});
+    ExactConditions result{
+        .sm_clock_mhz = positive_u32(value, "sm_clock_mhz"),
+        .memory_clock_mhz = positive_u32(value, "memory_clock_mhz"),
+        .power_limit_mw = positive_u32(value, "power_limit_mw"),
+        .temperature_min_c = field<std::uint32_t>(value, "temperature_min_c"),
+        .temperature_max_c = field<std::uint32_t>(value, "temperature_max_c"),
+        .cache_condition = nonempty_string(value, "cache_condition"),
+        .concurrency_condition =
+            nonempty_string(value, "concurrency_condition"),
+        .cluster_shape = {.x = positive_u32(shape, "x"),
+                          .y = positive_u32(shape, "y"),
+                          .z = positive_u32(shape, "z")},
+    };
+    if (result.temperature_min_c > result.temperature_max_c) {
+        fail("invalid_temperature_interval",
+             "temperature_min_c exceeds temperature_max_c");
+    }
+    return result;
+}
+
+ExactThresholds parse_thresholds(const json& value)
+{
+    object_with_keys(value,
+                     {"p50_percent", "p95_percent", "counter_percent"});
+    ExactThresholds result{
+        .p50_percent = nonnegative_number(value, "p50_percent"),
+        .p95_percent = nonnegative_number(value, "p95_percent"),
+        .counter_percent = nonnegative_number(value, "counter_percent"),
+    };
+    if (result.p50_percent > 5.0 || result.p95_percent > 10.0 ||
+        result.counter_percent > 10.0) {
+        fail("threshold_exceeds_exact_limit",
+             "exact threshold exceeds the declared acceptance limit");
+    }
+    return result;
+}
+
+ExactFutureLimits parse_limits(const json& value)
+{
+    object_with_keys(value,
+                     {"max_thread_futures", "max_warp_futures",
+                      "max_cta_futures", "max_cluster_futures",
+                      "max_thread_async_objects", "max_warp_async_objects",
+                      "max_cta_async_objects", "max_cluster_async_objects"});
+    ExactFutureLimits result{
+        .max_thread_futures = positive_u32(value, "max_thread_futures"),
+        .max_warp_futures = positive_u32(value, "max_warp_futures"),
+        .max_cta_futures = positive_u32(value, "max_cta_futures"),
+        .max_cluster_futures = positive_u32(value, "max_cluster_futures"),
+        .max_thread_async_objects =
+            positive_u32(value, "max_thread_async_objects"),
+        .max_warp_async_objects =
+            positive_u32(value, "max_warp_async_objects"),
+        .max_cta_async_objects =
+            positive_u32(value, "max_cta_async_objects"),
+        .max_cluster_async_objects =
+            positive_u32(value, "max_cluster_async_objects"),
+    };
+    if (result.max_thread_futures > result.max_warp_futures ||
+        result.max_warp_futures > result.max_cta_futures ||
+        result.max_cta_futures > result.max_cluster_futures ||
+        result.max_thread_async_objects > result.max_warp_async_objects ||
+        result.max_warp_async_objects > result.max_cta_async_objects ||
+        result.max_cta_async_objects > result.max_cluster_async_objects) {
+        fail("invalid_limit_order", "exact limits must be nondecreasing");
+    }
+    return result;
+}
+
+ExactKernelArtifact parse_kernel(const json& value)
+{
+    object_with_keys(value,
+                     {"name", "registers", "spill_store_bytes",
+                      "spill_load_bytes", "static_shared_bytes",
+                      "max_dynamic_shared_bytes",
+                      "occupancy_blocks_per_sm"});
+    return {
+        .name = nonempty_string(value, "name"),
+        .registers = positive_u32(value, "registers"),
+        .spill_store_bytes = field<std::uint64_t>(value, "spill_store_bytes"),
+        .spill_load_bytes = field<std::uint64_t>(value, "spill_load_bytes"),
+        .static_shared_bytes =
+            field<std::uint64_t>(value, "static_shared_bytes"),
+        .max_dynamic_shared_bytes =
+            field<std::uint64_t>(value, "max_dynamic_shared_bytes"),
+        .occupancy_blocks_per_sm =
+            positive_u32(value, "occupancy_blocks_per_sm"),
+    };
+}
+
+ExactModuleArtifact parse_module(const json& value)
+{
+    object_with_keys(value,
+                     {"module_id", "ptx_target", "original_ptx_sha256",
+                      "transformed_ptx_sha256", "cubin_sha256",
+                      "sass_sha256", "kernels"});
+    const auto module_id = nonempty_string(value, "module_id");
+    constexpr std::string_view prefix = "ptx:sha256:";
+    if (!module_id.starts_with(prefix) ||
+        !valid_sha256(std::string_view(module_id).substr(prefix.size()))) {
+        fail("invalid_module_id", "invalid exact module ID");
+    }
+    const auto target = nonempty_string(value, "ptx_target");
+    if (target != "sm_120" && target != "sm_120a" && target != "sm_120f") {
+        fail("target_not_sm120", "unsupported exact PTX target");
+    }
+    const auto& kernels = value.at("kernels");
+    if (!kernels.is_array() || kernels.empty()) {
+        fail("invalid_field", "exact module requires kernels");
+    }
+    ExactModuleArtifact result{
+        .module_id = module_id,
+        .ptx_target = target,
+        .original_ptx_sha256 = sha256_field(value, "original_ptx_sha256"),
+        .transformed_ptx_sha256 =
+            sha256_field(value, "transformed_ptx_sha256"),
+        .cubin_sha256 = sha256_field(value, "cubin_sha256"),
+        .sass_sha256 = sha256_field(value, "sass_sha256"),
+    };
+    std::unordered_set<std::string> names;
+    for (const auto& item : kernels) {
+        auto kernel = parse_kernel(item);
+        if (!names.insert(kernel.name).second) {
+            fail("duplicate_kernel", "duplicate kernel in exact module");
+        }
+        result.kernels.push_back(std::move(kernel));
+    }
+    return result;
+}
+
+ExactDataset parse_dataset(const json& value)
+{
+    object_with_keys(value, {"manifest_sha256", "case_ids"});
+    const auto& cases = value.at("case_ids");
+    if (!cases.is_array() || cases.empty()) {
+        fail("invalid_field", "exact dataset requires case IDs");
+    }
+    ExactDataset result{.manifest_sha256 =
+                            sha256_field(value, "manifest_sha256")};
+    std::unordered_set<std::string> unique;
+    for (const auto& item : cases) {
+        if (!item.is_string() || item.get_ref<const std::string&>().empty()) {
+            fail("invalid_field", "invalid exact dataset case ID");
+        }
+        auto id = item.get<std::string>();
+        if (!unique.insert(id).second) {
+            fail("duplicate_case_id", "duplicate exact dataset case ID");
+        }
+        result.case_ids.push_back(std::move(id));
+    }
+    return result;
+}
+
+ValidationStatus parse_status(const json& value)
+{
+    const auto text = nonempty_string(value, "status");
+    if (text == "pending") {
+        return ValidationStatus::Pending;
+    }
+    if (text == "passed") {
+        return ValidationStatus::Passed;
+    }
+    if (text == "failed") {
+        return ValidationStatus::Failed;
+    }
+    fail("invalid_validation_status", "invalid exact validation status");
+}
+
+ExactValidationClass parse_validation_class(const json& value)
+{
+    object_with_keys(value,
+                     {"operation_class", "passed", "p50_error_percent",
+                      "p95_error_percent", "counter_error_percent"});
+    return {
+        .operation_class = nonempty_string(value, "operation_class"),
+        .passed = field<bool>(value, "passed"),
+        .p50_error_percent =
+            nonnegative_number(value, "p50_error_percent"),
+        .p95_error_percent =
+            nonnegative_number(value, "p95_error_percent"),
+        .counter_error_percent =
+            nonnegative_number(value, "counter_error_percent"),
+    };
+}
+
+ExactValidation parse_validation(const json& value,
+                                 const ExactThresholds& thresholds)
+{
+    object_with_keys(value, {"status", "training", "holdout", "classes"});
+    ExactValidation result{
+        .status = parse_status(value),
+        .training = parse_dataset(value.at("training")),
+        .holdout = parse_dataset(value.at("holdout")),
+    };
+    if (result.training.manifest_sha256 == result.holdout.manifest_sha256) {
+        fail("training_validation_overlap",
+             "training and holdout manifests must differ");
+    }
+    std::unordered_set<std::string> training_cases(
+        result.training.case_ids.begin(), result.training.case_ids.end());
+    for (const auto& id : result.holdout.case_ids) {
+        if (training_cases.contains(id)) {
+            fail("training_validation_overlap",
+                 "training and holdout case IDs overlap");
+        }
+    }
+    static constexpr std::array required_classes{
+        "ordinary_load", "ordinary_store", "tma_load", "tma_store",
+        "unicast",       "multicast",      "mixed_hbm_hbf"};
+    const auto& classes = value.at("classes");
+    if (!classes.is_array()) {
+        fail("invalid_field", "validation classes must be an array");
+    }
+    std::unordered_set<std::string> names;
+    bool all_passed = true;
+    for (const auto& item : classes) {
+        auto record = parse_validation_class(item);
+        if (!names.insert(record.operation_class).second) {
+            fail("duplicate_validation_class",
+                 "duplicate exact validation class");
+        }
+        all_passed = all_passed && record.passed &&
+                     record.p50_error_percent <= thresholds.p50_percent &&
+                     record.p95_error_percent <= thresholds.p95_percent &&
+                     record.counter_error_percent <=
+                         thresholds.counter_percent;
+        result.classes.push_back(std::move(record));
+    }
+    for (const auto* name : required_classes) {
+        if (!names.contains(name)) {
+            fail("validation_class_missing",
+                 "required exact validation class is missing");
+        }
+    }
+    if (names.size() != required_classes.size()) {
+        fail("unknown_validation_class", "unknown exact validation class");
+    }
+    if (result.status == ValidationStatus::Passed && !all_passed) {
+        fail("validation_not_passed",
+             "passed validation contains a failing class");
+    }
+    if (result.status == ValidationStatus::Failed && all_passed) {
+        fail("validation_status_inconsistent",
+             "failed validation contains no failing class");
+    }
+    return result;
+}
+
+}  // namespace
+
+ExactProfileError::ExactProfileError(std::string reason, std::string message)
+    : std::runtime_error(std::move(message)), reason_(std::move(reason))
+{
+}
+
+const std::string& ExactProfileError::reason() const noexcept
+{
+    return reason_;
+}
+
+ExactProfile parse_exact_profile(std::string_view text)
+{
+    try {
+        const auto root = json::parse(text);
+        object_with_keys(root,
+                         {"schema_version", "profile_id", "target",
+                          "toolchain", "conditions", "thresholds", "limits",
+                          "modules", "validation"});
+        ExactProfile result;
+        result.schema_version = field<std::uint32_t>(root, "schema_version");
+        if (result.schema_version != 1) {
+            fail("unsupported_schema_version",
+                 "unsupported exact profile schema version");
+        }
+        result.profile_id = nonempty_string(root, "profile_id");
+        result.target = parse_target(root.at("target"));
+        result.toolchain = parse_toolchain(root.at("toolchain"));
+        result.conditions = parse_conditions(root.at("conditions"));
+        result.thresholds = parse_thresholds(root.at("thresholds"));
+        result.limits = parse_limits(root.at("limits"));
+        const auto& modules = root.at("modules");
+        if (!modules.is_array() || modules.empty()) {
+            fail("invalid_field", "exact profile requires modules");
+        }
+        std::unordered_set<std::string> module_ids;
+        for (const auto& item : modules) {
+            auto module = parse_module(item);
+            if (!module_ids.insert(module.module_id).second) {
+                fail("duplicate_module_id", "duplicate exact module ID");
+            }
+            result.modules.push_back(std::move(module));
+        }
+        result.validation =
+            parse_validation(root.at("validation"), result.thresholds);
+        return result;
+    } catch (const ExactProfileError&) {
+        throw;
+    } catch (const json::exception& error) {
+        fail("invalid_json", error.what());
+    }
+}
+
+ExactProfile load_exact_profile(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        fail("profile_io_error", "unable to open exact profile");
+    }
+    const std::string contents((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+    if (!input.eof() && input.fail()) {
+        fail("profile_io_error", "unable to read exact profile");
+    }
+    return parse_exact_profile(contents);
+}
+
+}  // namespace hbfsim

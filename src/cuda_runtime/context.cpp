@@ -1,6 +1,7 @@
 #include "context.hpp"
 
 #include "capacity_runtime.hpp"
+#include "device_tensormap.hpp"
 #include "range_table.hpp"
 
 #include "../host_service/control_layout.hpp"
@@ -634,6 +635,8 @@ ReleaseResult release_context(hbfsim_context* context,
     reap_or_terminate(context);
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (context->cuda_registered) {
+        unbind_device_tensormap_domain(context->cuda_context,
+                                       context->device_ordinal);
         if (::cudaHostUnregister(context->control_mapping) != cudaSuccess) {
             if (retire_token != 0) {
                 launch_gate_quarantine(context, retire_token);
@@ -1031,6 +1034,12 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         context->device_ordinal = static_cast<int>(device);
         context->timing_owner_active = true;
         control.header()->control_generation = context->control_generation;
+        if (!bind_device_tensormap_domain(context->cuda_context,
+                                          context->device_ordinal,
+                                          control)) {
+            release_context(context.release(), false);
+            return HBFSIM_IO_ERROR;
+        }
         if (exact_requested &&
             context->launch_gate_api_v4->configure_exact(
                 reinterpret_cast<std::uintptr_t>(context.get()),

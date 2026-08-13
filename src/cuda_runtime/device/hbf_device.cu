@@ -483,6 +483,10 @@ __device__ bool valid_control(const SharedControlHeader* header,
     const auto expected_page_offset =
         expected_completion_offset + sizeof(SharedCompletionSlot) * capacity;
     const auto expected_region_bytes =
+        expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity +
+        sizeof(hbfsim::device::SharedTensorMapSlot) *
+            hbfsim::device::kTensorMapCapacity;
+    const auto expected_tensormap_offset =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity;
     return expected_generation != 0 &&
            header->magic == hbfsim::device::kControlMagic &&
@@ -491,10 +495,13 @@ __device__ bool valid_control(const SharedControlHeader* header,
            header->range_capacity == hbfsim::device::kRangeCapacity &&
            hbfsim::device::valid_ring_capacity(capacity) &&
            header->page_capacity == capacity &&
+           header->tensormap_capacity ==
+               hbfsim::device::kTensorMapCapacity &&
            header->range_offset == expected_range_offset &&
            header->request_offset == expected_request_offset &&
            header->completion_offset == expected_completion_offset &&
            header->page_offset == expected_page_offset &&
+           header->tensormap_offset == expected_tensormap_offset &&
            header->region_bytes == expected_region_bytes &&
            header->timing_model <= 2 && header->read_latency_ns != 0 &&
            header->program_latency_ns != 0 &&
@@ -745,6 +752,10 @@ __device__ hbfsim::device::ResolveResult resolve_sync_legacy(
     const auto expected_page_offset =
         expected_completion_offset + sizeof(SharedCompletionSlot) * capacity;
     const auto expected_region_bytes =
+        expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity +
+        sizeof(hbfsim::device::SharedTensorMapSlot) *
+            hbfsim::device::kTensorMapCapacity;
+    const auto expected_tensormap_offset =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity;
     if (header->magic != hbfsim::device::kControlMagic ||
         header->abi_version != hbfsim::device::kControlAbiVersion ||
@@ -752,10 +763,12 @@ __device__ hbfsim::device::ResolveResult resolve_sync_legacy(
         header->range_capacity != hbfsim::device::kRangeCapacity ||
         !hbfsim::device::valid_ring_capacity(capacity) ||
         header->page_capacity != capacity ||
+        header->tensormap_capacity != hbfsim::device::kTensorMapCapacity ||
         header->range_offset != expected_range_offset ||
         header->request_offset != expected_request_offset ||
         header->completion_offset != expected_completion_offset ||
         header->page_offset != expected_page_offset ||
+        header->tensormap_offset != expected_tensormap_offset ||
         header->region_bytes != expected_region_bytes ||
         header->timing_model > 2 || header->read_latency_ns == 0 ||
         header->program_latency_ns == 0 ||
@@ -921,6 +934,45 @@ extern "C" __device__ std::uint32_t __hbfsim_future_poll(
     const auto target = hbfsim::device::saturating_add(
         future.ready_ns, scaled);
     return now >= target ? 1U : 0U;
+}
+
+extern "C" __device__ std::uint32_t __hbfsim_tensormap_lookup(
+    const std::byte* descriptor_sha256, std::uint64_t descriptor_generation,
+    std::uint64_t* base_address)
+{
+    const auto control_address =
+        system_acquire(reinterpret_cast<const unsigned long long*>(
+            &__hbfsim_control));
+    const auto expected_generation =
+        system_acquire(reinterpret_cast<const unsigned long long*>(
+            &__hbfsim_control_generation));
+    if (control_address == 0 || descriptor_sha256 == nullptr ||
+        base_address == nullptr) {
+        return UINT32_MAX;
+    }
+    const auto* header = reinterpret_cast<const SharedControlHeader*>(
+        static_cast<std::uintptr_t>(control_address));
+    if (!valid_control(header, expected_generation)) return UINT32_MAX;
+    const auto count = system_acquire(&header->tensormap_count);
+    if (count > hbfsim::device::kTensorMapCapacity) return UINT32_MAX;
+    const auto* slots =
+        reinterpret_cast<const hbfsim::device::SharedTensorMapSlot*>(
+            reinterpret_cast<const std::byte*>(header) +
+            header->tensormap_offset);
+    for (std::uint32_t index = count; index != 0; --index) {
+        const auto& slot = slots[index - 1];
+        if (system_acquire(&slot.publication_generation) == 0 ||
+            slot.descriptor_generation != descriptor_generation ||
+            !hbfsim::device::tensormap_sha_equal(
+                slot.descriptor_sha256, descriptor_sha256)) {
+            continue;
+        }
+        *base_address = slot.base_address;
+        return index - 1;
+    }
+    (void)system_fetch_add(
+        const_cast<std::uint64_t*>(&header->tma_stale_generations), 1);
+    return UINT32_MAX;
 }
 
 extern "C" __device__ hbfsim::device::DeviceFuture

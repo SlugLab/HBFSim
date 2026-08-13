@@ -16,13 +16,15 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 6);
-    static_assert(host_service::kControlAbiVersion == 6);
-    static_assert(sizeof(SharedControlHeader) == 448);
+    static_assert(device::kControlAbiVersion == 7);
+    static_assert(host_service::kControlAbiVersion == 7);
+    static_assert(sizeof(SharedControlHeader) == 512);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
     static_assert(sizeof(SharedRangeRecord) ==
                   sizeof(host_service::SharedRangeRecord));
+    static_assert(sizeof(SharedTensorMapSlot) ==
+                  sizeof(host_service::SharedTensorMapSlot));
     static_assert(sizeof(hbfsim::device::HbfRequest) ==
                   sizeof(hbfsim::HbfRequest));
     static_assert(sizeof(hbfsim::device::HbfCompletion) ==
@@ -74,6 +76,9 @@ int main()
     static_assert(offsetof(SharedControlHeader, future_drained) ==
                   offsetof(host_service::SharedControlHeader,
                            future_drained));
+    static_assert(offsetof(SharedControlHeader, tensormap_offset) ==
+                  offsetof(host_service::SharedControlHeader,
+                           tensormap_offset));
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));

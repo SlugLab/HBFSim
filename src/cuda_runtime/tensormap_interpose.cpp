@@ -78,6 +78,25 @@ bool valid_inputs(CUtensorMap* map, cuuint32_t rank, void* address,
            (rank == 1 || strides != nullptr);
 }
 
+void publish_record(const Domain& domain, hbfsim::TensorMapRecord record)
+{
+    const auto descriptor = record.descriptor;
+    if (!hbfsim::global_tensormap_registry().publish(
+            domain.context, domain.device, std::move(record))) {
+        return;
+    }
+    const auto published = hbfsim::global_tensormap_registry().lookup(
+        domain.context, domain.device, descriptor);
+    if (!published) return;
+    using publish_type = int (*)(std::uintptr_t, int,
+                                 const hbfsim::TensorMapRecord*) noexcept;
+    static auto publish_device = reinterpret_cast<publish_type>(
+        dlsym(RTLD_DEFAULT, "hbfsim_publish_tensormap_device_v1"));
+    if (publish_device != nullptr) {
+        (void)publish_device(domain.context, domain.device, &*published);
+    }
+}
+
 }  // namespace
 
 extern "C" CUresult cuTensorMapEncodeTiled(
@@ -109,8 +128,7 @@ extern "C" CUresult cuTensorMapEncodeTiled(
     for (std::uint32_t index = 0; index < rank; ++index) {
         record.shape.box_dim[index] = box[index];
     }
-    (void)hbfsim::global_tensormap_registry().publish(
-        domain.context, domain.device, std::move(record));
+    publish_record(domain, std::move(record));
     return result;
 }
 
@@ -149,8 +167,7 @@ extern "C" CUresult cuTensorMapEncodeIm2col(
     }
     record.shape.channels_per_pixel = channels;
     record.shape.pixels_per_column = pixels;
-    (void)hbfsim::global_tensormap_registry().publish(
-        domain.context, domain.device, std::move(record));
+    publish_record(domain, std::move(record));
     return result;
 }
 
@@ -187,8 +204,7 @@ extern "C" CUresult cuTensorMapEncodeIm2colWide(
     record.shape.channels_per_pixel = channels;
     record.shape.pixels_per_column = pixels;
     record.shape.wide_mode = static_cast<std::uint32_t>(mode);
-    (void)hbfsim::global_tensormap_registry().publish(
-        domain.context, domain.device, std::move(record));
+    publish_record(domain, std::move(record));
     return result;
 }
 
@@ -208,9 +224,23 @@ extern "C" CUresult cuTensorMapReplaceAddress(CUtensorMap* map,
     const auto domain = current_domain();
     if (domain.valid()) {
         const auto after = descriptor_bytes(*map);
-        (void)hbfsim::global_tensormap_registry().replace_address(
+        const auto replaced =
+            hbfsim::global_tensormap_registry().replace_address(
             domain.context, domain.device, before, after,
             reinterpret_cast<std::uintptr_t>(address));
+        if (replaced) {
+            const auto record = hbfsim::global_tensormap_registry().lookup(
+                domain.context, domain.device, after);
+            using publish_type = int (*)(
+                std::uintptr_t, int,
+                const hbfsim::TensorMapRecord*) noexcept;
+            static auto publish_device = reinterpret_cast<publish_type>(
+                dlsym(RTLD_DEFAULT,
+                      "hbfsim_publish_tensormap_device_v1"));
+            if (record && publish_device != nullptr) {
+                (void)publish_device(domain.context, domain.device, &*record);
+            }
+        }
     }
     return result;
 }

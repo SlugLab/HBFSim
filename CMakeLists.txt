@@ -62,6 +62,7 @@ add_library(
     src/cuda_runtime/tensormap.cpp
     src/cuda_runtime/tma_tile.cpp
     src/cuda_runtime/tma_async.cpp
+    src/cuda_runtime/device_tensormap.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
     src/profile/exact_profile.cpp
@@ -188,6 +189,13 @@ add_executable(
 )
 target_link_libraries(device_future_reference_test PRIVATE hbfsim_core)
 add_test(NAME device_future_reference COMMAND device_future_reference_test)
+
+add_executable(
+    device_tensormap_reference_test
+    tests/cpu/device_tensormap_reference_test.cpp
+)
+target_link_libraries(device_tensormap_reference_test PRIVATE hbfsim_core)
+add_test(NAME device_tensormap_reference COMMAND device_tensormap_reference_test)
 
 add_executable(hbfsim_backing_store_tests tests/cpu/backing_store_test.cpp)
 target_link_libraries(hbfsim_backing_store_tests PRIVATE hbfsim_core)

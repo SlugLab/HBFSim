@@ -12,8 +12,9 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 6;
+inline constexpr std::uint32_t kControlAbiVersion = 7;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
+inline constexpr std::uint32_t kTensorMapCapacity = 256;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -127,6 +128,20 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t future_ordering_wait_ns;
     alignas(8) std::uint64_t future_faults;
     alignas(8) std::uint64_t future_drained;
+    std::uint32_t tensormap_capacity;
+    alignas(4) std::uint32_t tensormap_count;
+    std::uint64_t tensormap_offset;
+    alignas(8) std::uint64_t tensormap_publication_generation;
+    alignas(8) std::uint64_t tma_issued;
+    alignas(8) std::uint64_t tma_hbm_bytes;
+    alignas(8) std::uint64_t tma_hbf_bytes;
+    alignas(8) std::uint64_t tma_oob_bytes;
+    alignas(8) std::uint64_t tma_fanout_targets;
+    alignas(8) std::uint64_t tma_barrier_wait_ns;
+    alignas(8) std::uint64_t tma_group_wait_ns;
+    alignas(8) std::uint64_t tma_stale_generations;
+    alignas(8) std::uint64_t tma_faults;
+    alignas(8) std::uint64_t tma_leaked;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -141,6 +156,26 @@ struct alignas(64) SharedRangeRecord {
     std::uint32_t flags;
     std::uint64_t page_bytes;
     std::uint64_t reserved1;
+};
+
+struct alignas(64) SharedTensorMapSlot {
+    alignas(8) std::uint64_t publication_generation;
+    std::uint64_t descriptor_generation;
+    std::byte descriptor_sha256[32];
+    std::byte descriptor[128];
+    std::uint64_t base_address;
+    std::uint64_t global_dim[5];
+    std::uint64_t global_stride[5];
+    std::uint32_t box_dim[5];
+    std::uint32_t element_stride[5];
+    std::uint32_t rank;
+    std::uint32_t mode;
+    std::uint32_t element_type;
+    std::uint32_t interleave;
+    std::uint32_t swizzle;
+    std::uint32_t l2_promotion;
+    std::uint32_t oob_fill;
+    std::uint32_t fenced;
 };
 
 template <typename T>
@@ -160,10 +195,12 @@ static_assert(std::atomic<std::uint32_t>::is_always_lock_free,
 static_assert(std::is_standard_layout_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
+static_assert(std::is_trivially_copyable_v<SharedTensorMapSlot>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
-static_assert(sizeof(SharedControlHeader) == 448);
+static_assert(sizeof(SharedControlHeader) == 512);
 static_assert(sizeof(SharedRangeRecord) == 64);
+static_assert(sizeof(SharedTensorMapSlot) == 384);
 static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 
@@ -189,6 +226,8 @@ inline std::size_t control_region_bytes(std::uint32_t capacity) noexcept
     bytes = align_control(bytes) + sizeof(SharedRequestSlot) * capacity;
     bytes = align_control(bytes) + sizeof(SharedCompletionSlot) * capacity;
     bytes = align_control(bytes) + sizeof(PageEntry) * capacity;
+    bytes = align_control(bytes) +
+            sizeof(SharedTensorMapSlot) * kTensorMapCapacity;
     return align_control(bytes);
 }
 
@@ -271,6 +310,7 @@ public:
             h->header_bytes != sizeof(SharedControlHeader) ||
             !valid_ring_capacity(h->ring_capacity) ||
             h->range_capacity != kRangeCapacity ||
+            h->tensormap_capacity != kTensorMapCapacity ||
             h->page_capacity != h->ring_capacity ||
             h->region_bytes != bytes_ ||
             control_region_bytes(h->ring_capacity) != bytes_) {
@@ -286,7 +326,12 @@ public:
                h->page_offset == h->completion_offset +
                                       sizeof(SharedCompletionSlot) *
                                           h->ring_capacity &&
-               h->page_offset + sizeof(PageEntry) * h->page_capacity <= bytes_;
+               h->tensormap_offset ==
+                   align_control(h->page_offset +
+                                 sizeof(PageEntry) * h->page_capacity) &&
+               h->tensormap_offset +
+                       sizeof(SharedTensorMapSlot) * kTensorMapCapacity ==
+                   bytes_;
     }
 
     bool initialize(std::uint32_t capacity) noexcept
@@ -304,6 +349,7 @@ public:
         h->ring_capacity = capacity;
         h->range_capacity = kRangeCapacity;
         h->page_capacity = capacity;
+        h->tensormap_capacity = kTensorMapCapacity;
         h->range_offset = sizeof(SharedControlHeader);
         h->request_offset =
             h->range_offset + sizeof(SharedRangeRecord) * kRangeCapacity;
@@ -311,6 +357,8 @@ public:
             h->request_offset + sizeof(SharedRequestSlot) * capacity;
         h->page_offset =
             h->completion_offset + sizeof(SharedCompletionSlot) * capacity;
+        h->tensormap_offset =
+            align_control(h->page_offset + sizeof(PageEntry) * capacity);
         for (std::uint64_t index = 0; index < capacity; ++index) {
             request_slots()[index].sequence = index;
             completion_slots()[index].sequence = index;
@@ -336,6 +384,11 @@ public:
     [[nodiscard]] PageEntry* pages() const noexcept
     {
         return reinterpret_cast<PageEntry*>(base_ + header()->page_offset);
+    }
+    [[nodiscard]] SharedTensorMapSlot* tensormap_slots() const noexcept
+    {
+        return reinterpret_cast<SharedTensorMapSlot*>(
+            base_ + header()->tensormap_offset);
     }
 
     bool try_push_request(const HbfRequest& request,

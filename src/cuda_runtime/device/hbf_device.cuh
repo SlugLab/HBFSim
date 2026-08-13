@@ -12,8 +12,9 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 6;
+inline constexpr std::uint32_t kControlAbiVersion = 7;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
+inline constexpr std::uint32_t kTensorMapCapacity = 256;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;
@@ -79,6 +80,20 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t future_ordering_wait_ns;
     alignas(8) std::uint64_t future_faults;
     alignas(8) std::uint64_t future_drained;
+    std::uint32_t tensormap_capacity;
+    alignas(4) std::uint32_t tensormap_count;
+    std::uint64_t tensormap_offset;
+    alignas(8) std::uint64_t tensormap_publication_generation;
+    alignas(8) std::uint64_t tma_issued;
+    alignas(8) std::uint64_t tma_hbm_bytes;
+    alignas(8) std::uint64_t tma_hbf_bytes;
+    alignas(8) std::uint64_t tma_oob_bytes;
+    alignas(8) std::uint64_t tma_fanout_targets;
+    alignas(8) std::uint64_t tma_barrier_wait_ns;
+    alignas(8) std::uint64_t tma_group_wait_ns;
+    alignas(8) std::uint64_t tma_stale_generations;
+    alignas(8) std::uint64_t tma_faults;
+    alignas(8) std::uint64_t tma_leaked;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -93,6 +108,26 @@ struct alignas(64) SharedRangeRecord {
     std::uint32_t flags;
     std::uint64_t page_bytes;
     std::uint64_t reserved1;
+};
+
+struct alignas(64) SharedTensorMapSlot {
+    alignas(8) std::uint64_t publication_generation;
+    std::uint64_t descriptor_generation;
+    std::byte descriptor_sha256[32];
+    std::byte descriptor[128];
+    std::uint64_t base_address;
+    std::uint64_t global_dim[5];
+    std::uint64_t global_stride[5];
+    std::uint32_t box_dim[5];
+    std::uint32_t element_stride[5];
+    std::uint32_t rank;
+    std::uint32_t mode;
+    std::uint32_t element_type;
+    std::uint32_t interleave;
+    std::uint32_t swizzle;
+    std::uint32_t l2_promotion;
+    std::uint32_t oob_fill;
+    std::uint32_t fenced;
 };
 
 struct alignas(64) HbfRequest {
@@ -189,8 +224,38 @@ struct MediaDescriptor {
     bool valid;
 };
 
-static_assert(sizeof(SharedControlHeader) == 448);
+HBFSIM_HOST_DEVICE constexpr bool tensormap_sha_equal(
+    const std::byte* left, const std::byte* right) noexcept
+{
+    if (left == nullptr || right == nullptr) return false;
+    for (std::uint32_t index = 0; index < 32; ++index) {
+        if (left[index] != right[index]) return false;
+    }
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t find_tensormap_slot(
+    const SharedTensorMapSlot* slots, std::uint32_t count,
+    const std::byte* sha, std::uint64_t descriptor_generation) noexcept
+{
+    if (slots == nullptr || sha == nullptr || descriptor_generation == 0 ||
+        count > kTensorMapCapacity) {
+        return count;
+    }
+    for (std::uint32_t index = count; index != 0; --index) {
+        const auto& slot = slots[index - 1];
+        if (slot.publication_generation != 0 &&
+            slot.descriptor_generation == descriptor_generation &&
+            tensormap_sha_equal(slot.descriptor_sha256, sha)) {
+            return index - 1;
+        }
+    }
+    return count;
+}
+
+static_assert(sizeof(SharedControlHeader) == 512);
 static_assert(sizeof(SharedRangeRecord) == 64);
+static_assert(sizeof(SharedTensorMapSlot) == 384);
 static_assert(sizeof(HbfRequest) == 128);
 static_assert(sizeof(HbfCompletion) == 64);
 static_assert(sizeof(PageEntry) == 64);

@@ -320,6 +320,22 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_build_sm120_artifact.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
     )
+    add_test(
+        NAME exact_prepare_sm120
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_prepare_sm120_exact.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/prepare_sm120_exact.py"
+            "$<TARGET_FILE:ptxpass_hbf_plugin>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
+    )
+    add_test(
+        NAME exact_sm120_admission
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_exact_admission.py"
+            "$<TARGET_FILE:hbfsim_launch_gate>"
+    )
 endif()
 
 if(BUILD_TESTING)

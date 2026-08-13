@@ -122,6 +122,21 @@ device delay it is trying to model.
 
 ## Project status
 
+### SM120 exact-mode foundation
+
+The branch includes a fail-closed Stage 1 workflow for one RTX PRO 6000
+Blackwell Server Edition / `sm_120` calibration target. It binds offline PTX
+pass evidence to a fixed CUDA 13 AOT cubin/SASS bundle, per-kernel resources, a
+validated profile, and a fresh read-only GPU/NVML snapshot before permitting an
+`exact` label. The preparation command always emits `validation.status:
+"pending"`; only the later independent validation stage may produce a passed
+profile.
+
+See [SM120 exact mode](docs/sm120-exact-mode.md) for the offline preparation,
+read-only admission check, stamped-bpftime launch path, rejection/remediation
+table, and precise proof boundary. Stage 1 does not yet model asynchronous
+LDG/STG, TMA/TensorMap, or the GNIC2TEX/GPCARB 4+2 channel topology.
+
 The `hybrid` branch now has real-GPU proof for automatic timing injection,
 public file-backed capacity beyond physical VRAM, deterministic vLLM and
 llama.cpp workloads, and GPU/CD8P thermal calibration. The table distinguishes

@@ -61,6 +61,7 @@ add_library(
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/tensormap.cpp
     src/cuda_runtime/tma_tile.cpp
+    src/cuda_runtime/tma_async.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
     src/profile/exact_profile.cpp
@@ -155,6 +156,14 @@ add_test(NAME tma_tile COMMAND tma_tile_test)
 add_executable(tma_tile_property_test tests/cpu/tma_tile_property_test.cpp)
 target_link_libraries(tma_tile_property_test PRIVATE hbfsim_core)
 add_test(NAME tma_tile_property COMMAND tma_tile_property_test)
+
+add_executable(tma_async_test tests/cpu/tma_async_test.cpp)
+target_link_libraries(tma_async_test PRIVATE hbfsim_core)
+add_test(NAME tma_async COMMAND tma_async_test)
+
+add_executable(tma_multicast_test tests/cpu/tma_multicast_test.cpp)
+target_link_libraries(tma_multicast_test PRIVATE hbfsim_core)
+add_test(NAME tma_multicast COMMAND tma_multicast_test)
 
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)

@@ -1,0 +1,690 @@
+diff --git a/attach/nv_attach_impl/CMakeLists.txt b/attach/nv_attach_impl/CMakeLists.txt
+index b7b591d..a5ef59a 100644
+--- a/attach/nv_attach_impl/CMakeLists.txt
++++ b/attach/nv_attach_impl/CMakeLists.txt
+@@ -28,6 +28,8 @@ add_library(
+     nv_attach_impl_patcher.cpp
+     nv_attach_utils.cpp
+     nv_attach_fatbin_record.cpp
++    nv_attach_aot_bundle.cpp
++    nv_attach_aot_load_provenance.cpp
+     nv_attach_module_load_provenance.cpp
+     nv_elf_introspect.cpp
+ )
+diff --git a/attach/nv_attach_impl/nv_attach_aot_bundle.cpp b/attach/nv_attach_impl/nv_attach_aot_bundle.cpp
+new file mode 100644
+index 0000000..161cf45
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_aot_bundle.cpp
+@@ -0,0 +1,167 @@
++#include "nv_attach_aot_bundle.hpp"
++
++#include "nv_attach_utils.hpp"
++
++#include <algorithm>
++#include <cstdlib>
++#include <filesystem>
++#include <fstream>
++#include <regex>
++#include <stdexcept>
++
++namespace bpftime::attach
++{
++namespace
++{
++
++namespace fs = std::filesystem;
++constexpr std::uintmax_t kMaxCubinBytes = 1024ULL * 1024 * 1024;
++constexpr std::uintmax_t kMaxArtifactBytes = 16ULL * 1024 * 1024;
++
++bool lowercase_sha256(std::string_view value)
++{
++	return value.size() == 64 &&
++	       std::all_of(value.begin(), value.end(), [](char character) {
++		       return (character >= '0' && character <= '9') ||
++			      (character >= 'a' && character <= 'f');
++	       });
++}
++
++bool supported_target(std::string_view value)
++{
++	return value == "sm_120" || value == "sm_120a" ||
++	       value == "sm_120f";
++}
++
++std::string unique_json_string(std::string_view document,
++			       std::string_view key)
++{
++	const std::regex expression(
++		"\\\"" + std::string(key) +
++		"\\\"[[:space:]]*:[[:space:]]*\\\"([^\\\"]+)\\\"");
++	std::cmatch match;
++	const std::string text(document);
++	if (!std::regex_search(text.c_str(), match, expression))
++		throw std::runtime_error("AOT artifact field is missing: " +
++					 std::string(key));
++	const auto first = match[1].str();
++	const auto suffix = match.suffix().first;
++	if (std::regex_search(suffix, text.c_str() + text.size(), match,
++			      expression))
++		throw std::runtime_error("AOT artifact field is duplicated: " +
++					 std::string(key));
++	return first;
++}
++
++std::vector<uint8_t> read_binary(const fs::path &path,
++				 std::uintmax_t maximum)
++{
++	const auto bytes = fs::file_size(path);
++	if (bytes == 0 || bytes > maximum)
++		throw std::runtime_error("AOT bundle file size is invalid: " +
++					 path.string());
++	std::ifstream input(path, std::ios::binary);
++	if (!input)
++		throw std::runtime_error("Unable to open AOT bundle file: " +
++					 path.string());
++	std::vector<uint8_t> result(static_cast<std::size_t>(bytes));
++	input.read(reinterpret_cast<char *>(result.data()),
++		   static_cast<std::streamsize>(result.size()));
++	if (input.bad() || input.gcount() !=
++				 static_cast<std::streamsize>(result.size()) ||
++	    input.peek() != std::char_traits<char>::eof())
++		throw std::runtime_error("Unable to read complete AOT bundle file: " +
++					 path.string());
++	return result;
++}
++
++void require_bounded_regular_file(const fs::path &path,
++				  std::uintmax_t maximum)
++{
++	if (fs::is_symlink(fs::symlink_status(path)) ||
++	    !fs::is_regular_file(path) || fs::file_size(path) == 0 ||
++	    fs::file_size(path) > maximum)
++		throw std::runtime_error("AOT bundle member is unsafe: " +
++					 path.string());
++}
++
++} // namespace
++
++bool exact_aot_enabled()
++{
++	return std::getenv("HBFSIM_EXACT_BUNDLE_DIR") != nullptr;
++}
++
++exact_aot_bundle
++load_exact_aot_bundle(std::string_view original_ptx_sha256)
++{
++	if (!lowercase_sha256(original_ptx_sha256))
++		throw std::runtime_error("Original PTX digest is not lowercase SHA256");
++	const char *root_text = std::getenv("HBFSIM_EXACT_BUNDLE_DIR");
++	if (root_text == nullptr || root_text[0] == '\0')
++		throw std::runtime_error("HBFSIM_EXACT_BUNDLE_DIR is empty");
++	fs::path requested_root(root_text);
++	if (fs::is_symlink(fs::symlink_status(requested_root)))
++		throw std::runtime_error("AOT bundle root must not be a symlink");
++	const auto root = fs::canonical(requested_root);
++	if (!fs::is_directory(root))
++		throw std::runtime_error("AOT bundle root is not a directory");
++	const auto digest_directory =
++		root / std::string(original_ptx_sha256);
++	if (fs::is_symlink(fs::symlink_status(digest_directory)) ||
++	    !fs::is_directory(digest_directory) ||
++	    fs::canonical(digest_directory).parent_path() != root)
++		throw std::runtime_error("AOT digest directory is unsafe");
++
++	std::vector<fs::path> candidates;
++	for (const auto &entry : fs::directory_iterator(digest_directory)) {
++		if (fs::is_symlink(entry.symlink_status()))
++			throw std::runtime_error("AOT target directory is a symlink");
++		if (entry.is_directory() &&
++		    supported_target(entry.path().filename().string()))
++			candidates.push_back(entry.path());
++	}
++	if (candidates.size() != 1)
++		throw std::runtime_error(
++			"Expected exactly one SM120 AOT target bundle");
++	const auto target_directory = fs::canonical(candidates.front());
++	if (target_directory.parent_path() !=
++	    fs::canonical(digest_directory))
++		throw std::runtime_error("AOT target escaped digest directory");
++
++	const auto cubin_path = target_directory / "module.cubin";
++	const auto artifact_path = target_directory / "artifact.json";
++	require_bounded_regular_file(cubin_path, kMaxCubinBytes);
++	require_bounded_regular_file(artifact_path, kMaxArtifactBytes);
++	if (fs::canonical(cubin_path).parent_path() != target_directory ||
++	    fs::canonical(artifact_path).parent_path() != target_directory)
++		throw std::runtime_error("AOT bundle member escaped target directory");
++
++	auto cubin = read_binary(cubin_path, kMaxCubinBytes);
++	auto artifact_bytes = read_binary(artifact_path, kMaxArtifactBytes);
++	std::string artifact_json(artifact_bytes.begin(), artifact_bytes.end());
++	const auto artifact_original =
++		unique_json_string(artifact_json, "original_ptx_sha256");
++	const auto artifact_transformed =
++		unique_json_string(artifact_json, "transformed_ptx_sha256");
++	const auto artifact_cubin =
++		unique_json_string(artifact_json, "cubin_sha256");
++	const auto artifact_target =
++		unique_json_string(artifact_json, "ptx_target");
++	if (artifact_original != original_ptx_sha256 ||
++	    artifact_target != target_directory.filename() ||
++	    !supported_target(artifact_target) ||
++	    !lowercase_sha256(artifact_transformed) ||
++	    !lowercase_sha256(artifact_cubin) ||
++	    sha256(cubin.data(), cubin.size()) != artifact_cubin)
++		throw std::runtime_error("AOT artifact identity mismatch");
++	return {
++		.cubin = std::move(cubin),
++		.artifact_json = std::move(artifact_json),
++		.ptx_target = artifact_target,
++		.transformed_ptx_sha256 = artifact_transformed,
++		.cubin_sha256 = artifact_cubin,
++	};
++}
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_aot_bundle.hpp b/attach/nv_attach_impl/nv_attach_aot_bundle.hpp
+new file mode 100644
+index 0000000..f97402f
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_aot_bundle.hpp
+@@ -0,0 +1,23 @@
++#pragma once
++
++#include <cstdint>
++#include <string>
++#include <string_view>
++#include <vector>
++
++namespace bpftime::attach
++{
++
++struct exact_aot_bundle {
++	std::vector<uint8_t> cubin;
++	std::string artifact_json;
++	std::string ptx_target;
++	std::string transformed_ptx_sha256;
++	std::string cubin_sha256;
++};
++
++[[nodiscard]] bool exact_aot_enabled();
++[[nodiscard]] exact_aot_bundle
++load_exact_aot_bundle(std::string_view original_ptx_sha256);
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_aot_load_provenance.cpp b/attach/nv_attach_impl/nv_attach_aot_load_provenance.cpp
+new file mode 100644
+index 0000000..55c75eb
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_aot_load_provenance.cpp
+@@ -0,0 +1,44 @@
++#include "nv_attach_aot_load_provenance.hpp"
++
++#include <dlfcn.h>
++
++namespace bpftime::attach
++{
++
++aot_module_load_hooks find_aot_module_load_hooks()
++{
++	return {
++		.begin = reinterpret_cast<begin_aot_module_load_fn>(dlsym(
++			RTLD_DEFAULT, "hbfsim_begin_module_load_from_aot")),
++		.end = reinterpret_cast<end_aot_module_load_fn>(
++			dlsym(RTLD_DEFAULT, "hbfsim_end_module_load")),
++	};
++}
++
++aot_module_load_scope::aot_module_load_scope(
++	const void *cubin, size_t cubin_bytes, std::string_view artifact_json,
++	aot_module_load_hooks hooks)
++{
++	if (cubin == nullptr || cubin_bytes == 0 || artifact_json.empty() ||
++	    hooks.begin == nullptr || hooks.end == nullptr)
++		return;
++	token_ = hooks.begin(cubin, cubin_bytes, artifact_json.data(),
++			     artifact_json.size());
++	if (token_ == 0)
++		return;
++	end_ = hooks.end;
++	permitted_ = true;
++}
++
++aot_module_load_scope::~aot_module_load_scope()
++{
++	if (token_ != 0 && end_ != nullptr)
++		end_(token_);
++}
++
++bool aot_module_load_scope::permits_load() const
++{
++	return permitted_;
++}
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_aot_load_provenance.hpp b/attach/nv_attach_impl/nv_attach_aot_load_provenance.hpp
+new file mode 100644
+index 0000000..40cd45d
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_aot_load_provenance.hpp
+@@ -0,0 +1,40 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++namespace bpftime::attach
++{
++
++using begin_aot_module_load_fn =
++	uint64_t (*)(const void *, size_t, const char *, size_t);
++using end_aot_module_load_fn = void (*)(uint64_t);
++
++struct aot_module_load_hooks {
++	begin_aot_module_load_fn begin = nullptr;
++	end_aot_module_load_fn end = nullptr;
++};
++
++[[nodiscard]] aot_module_load_hooks find_aot_module_load_hooks();
++
++class aot_module_load_scope {
++    public:
++	aot_module_load_scope(const void *cubin, size_t cubin_bytes,
++			      std::string_view artifact_json,
++			      aot_module_load_hooks hooks);
++	~aot_module_load_scope();
++
++	aot_module_load_scope(const aot_module_load_scope &) = delete;
++	aot_module_load_scope &
++	operator=(const aot_module_load_scope &) = delete;
++
++	[[nodiscard]] bool permits_load() const;
++
++    private:
++	end_aot_module_load_fn end_ = nullptr;
++	uint64_t token_ = 0;
++	bool permitted_ = false;
++};
++
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+index 9d700c8..fd63df8 100644
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+@@ -1,4 +1,6 @@
+ #include "nv_attach_fatbin_record.hpp"
++#include "nv_attach_aot_bundle.hpp"
++#include "nv_attach_aot_load_provenance.hpp"
+ #include "nv_attach_module_load_provenance.hpp"
+ #include "cuda.h"
+ #include "nvPTXCompiler.h"
+@@ -218,12 +220,16 @@ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ 	} else {
+ 		patched_ptx = *impl.hack_fatbin(original_ptx);
+ 	}
+-	auto compiled_ptx = compile_ptxs(impl, patched_ptx);
++	std::map<std::string, std::vector<uint8_t>> compiled_ptx;
++	if (!exact_aot_enabled())
++		compiled_ptx = compile_ptxs(impl, patched_ptx);
++	else if (!prepatched)
++		throw std::runtime_error(
++			"Exact AOT mode requires prepatched external PTX");
+ 
+ 	for (const auto &[name, ptx_and_trampoline_flag] : patched_ptx) {
+ 		const auto &ptx = std::get<0>(ptx_and_trampoline_flag);
+ 		bool added_trampoline = std::get<1>(ptx_and_trampoline_flag);
+-		const auto &compiled_elf = compiled_ptx.at(name);
+ 		const std::string patched_prefix = "patched.";
+ 		const auto original_name = name.rfind(patched_prefix, 0) == 0 ?
+ 			name.substr(patched_prefix.size()) : name;
+@@ -249,7 +255,22 @@ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ 				throw std::runtime_error(
+ 					"Prepatched PTX filename must be a lowercase SHA256 digest");
+ 		}
++		std::optional<exact_aot_bundle> aot_bundle;
++		const std::vector<uint8_t> *compiled_elf_ptr = nullptr;
++		if (exact_aot_enabled()) {
++			aot_bundle =
++				load_exact_aot_bundle(original_ptx_sha256);
++			if (sha256(ptx.data(), ptx.size()) !=
++			    aot_bundle->transformed_ptx_sha256)
++				throw std::runtime_error(
++					"Prepatched PTX does not match AOT artifact");
++			compiled_elf_ptr = &aot_bundle->cubin;
++		} else {
++			compiled_elf_ptr = &compiled_ptx.at(name);
++		}
++		const auto &compiled_elf = *compiled_elf_ptr;
+ 		auto sha256_string =
++			std::string(aot_bundle ? "aot:" : "jit:") +
+ 			sha256(compiled_elf.data(), compiled_elf.size());
+ 		if (auto itr = module_pool->find(sha256_string);
+ 		    itr != module_pool->end()) {
+@@ -273,7 +294,22 @@ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ 				(void *)error_buf, (void *)std::size(error_buf)
+ 			};
+ 			CUresult load_result;
+-			{
++			if (aot_bundle) {
++				aot_module_load_scope provenance(
++					compiled_elf.data(), compiled_elf.size(),
++					aot_bundle->artifact_json,
++					find_aot_module_load_hooks());
++				if (!provenance.permits_load()) {
++					SPDLOG_ERROR(
++						"Module {} AOT provenance rejected",
++						name);
++					throw std::runtime_error(
++						"AOT module load provenance rejected");
++				}
++				load_result = cuModuleLoadDataEx(
++					&module, compiled_elf.data(),
++					std::size(options), options, option_values);
++			} else {
+ 				module_load_provenance_scope provenance(
+ 					ptx, find_module_load_provenance_hooks());
+ 				if (!provenance.permits_load()) {
+diff --git a/attach/nv_attach_impl/test/CMakeLists.txt b/attach/nv_attach_impl/test/CMakeLists.txt
+index 5227ff2..284ed47 100644
+--- a/attach/nv_attach_impl/test/CMakeLists.txt
++++ b/attach/nv_attach_impl/test/CMakeLists.txt
+@@ -2,6 +2,8 @@ set(TEST_SOURCES
+     nv_attach_impl_tests.cpp
+     test_register_guard.cpp
+     test_ptxpass.cpp
++    test_aot_bundle.cpp
++    test_aot_load_provenance.cpp
+     test_module_load_provenance.cpp
+     # test_kernel_finder.cpp
+ )
+diff --git a/attach/nv_attach_impl/test/test_aot_bundle.cpp b/attach/nv_attach_impl/test/test_aot_bundle.cpp
+new file mode 100644
+index 0000000..66217c2
+--- /dev/null
++++ b/attach/nv_attach_impl/test/test_aot_bundle.cpp
+@@ -0,0 +1,175 @@
++#include "nv_attach_aot_bundle.hpp"
++#include "nv_attach_utils.hpp"
++
++#include <catch2/catch_test_macros.hpp>
++
++#include <array>
++#include <cstdlib>
++#include <filesystem>
++#include <fstream>
++#include <string>
++#include <unistd.h>
++#include <vector>
++
++using namespace bpftime::attach;
++namespace fs = std::filesystem;
++
++namespace
++{
++
++constexpr std::uintmax_t kOversizedCubinBytes =
++	1024ULL * 1024 * 1024 + 1;
++const std::string kOriginalDigest(64, 'a');
++const std::string kTransformedDigest(64, 'c');
++
++class bundle_fixture {
++    public:
++	bundle_fixture()
++	{
++		static unsigned sequence;
++		root = fs::temp_directory_path() /
++		       ("hbfsim-aot-bundle-" + std::to_string(getpid()) + "-" +
++			std::to_string(sequence++));
++		fs::remove_all(root);
++		fs::create_directories(root / kOriginalDigest);
++		REQUIRE(setenv("HBFSIM_EXACT_BUNDLE_DIR", root.c_str(), 1) == 0);
++	}
++
++	~bundle_fixture()
++	{
++		unsetenv("HBFSIM_EXACT_BUNDLE_DIR");
++		std::error_code error;
++		fs::remove_all(root, error);
++	}
++
++	fs::path create_target(std::string_view target = "sm_120") const
++	{
++		auto path = root / kOriginalDigest / target;
++		fs::create_directories(path);
++		return path;
++	}
++
++	void write_cubin(const fs::path &target) const
++	{
++		std::ofstream output(target / "module.cubin", std::ios::binary);
++		output.write(reinterpret_cast<const char *>(cubin.data()),
++			     cubin.size());
++		REQUIRE(output.good());
++	}
++
++	void write_artifact(const fs::path &target,
++			    std::string_view original = kOriginalDigest,
++			    std::string_view cubin_digest = {}) const
++	{
++		const auto resolved_digest = cubin_digest.empty() ?
++			sha256(cubin.data(), cubin.size()) : std::string(cubin_digest);
++		std::ofstream output(target / "artifact.json");
++		output << "{\"original_ptx_sha256\":\"" << original
++		       << "\",\"transformed_ptx_sha256\":\""
++		       << kTransformedDigest
++		       << "\",\"cubin_sha256\":\"" << resolved_digest
++		       << "\",\"ptx_target\":\"" << target.filename().string()
++		       << "\"}";
++		REQUIRE(output.good());
++	}
++
++	void write_valid(const fs::path &target) const
++	{
++		write_cubin(target);
++		write_artifact(target);
++	}
++
++	fs::path root;
++	const std::array<unsigned char, 4> cubin{ 0x7f, 'E', 'L', 'F' };
++};
++
++} // namespace
++
++TEST_CASE("valid exact AOT bundle loads", "[aot_bundle]")
++{
++	bundle_fixture fixture;
++	const auto target = fixture.create_target();
++	fixture.write_valid(target);
++	REQUIRE(exact_aot_enabled());
++	const auto bundle = load_exact_aot_bundle(kOriginalDigest);
++	REQUIRE(bundle.cubin ==
++		std::vector<uint8_t>(fixture.cubin.begin(), fixture.cubin.end()));
++	REQUIRE(bundle.ptx_target == "sm_120");
++	REQUIRE(bundle.transformed_ptx_sha256 == kTransformedDigest);
++	REQUIRE(bundle.cubin_sha256 ==
++		sha256(fixture.cubin.data(), fixture.cubin.size()));
++}
++
++TEST_CASE("missing and duplicate targets reject", "[aot_bundle]")
++{
++	bundle_fixture fixture;
++	REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++	fixture.write_valid(fixture.create_target("sm_120"));
++	fixture.write_valid(fixture.create_target("sm_120a"));
++	REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++}
++
++TEST_CASE("symlink bundle members reject", "[aot_bundle]")
++{
++	bundle_fixture fixture;
++	const auto target = fixture.create_target();
++	const auto outside = fixture.root / "outside.cubin";
++	{
++		std::ofstream output(outside, std::ios::binary);
++		output.write(reinterpret_cast<const char *>(fixture.cubin.data()),
++			     fixture.cubin.size());
++	}
++	fs::create_symlink(outside, target / "module.cubin");
++	fixture.write_artifact(target);
++	REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++}
++
++TEST_CASE("oversized bundle members reject", "[aot_bundle]")
++{
++	bundle_fixture fixture;
++	const auto target = fixture.create_target();
++	{
++		std::ofstream output(target / "module.cubin", std::ios::binary);
++		output.put('\0');
++	}
++	fs::resize_file(target / "module.cubin", kOversizedCubinBytes);
++	fixture.write_artifact(target);
++	REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++}
++
++TEST_CASE("malformed and mismatched artifacts reject", "[aot_bundle]")
++{
++	bundle_fixture fixture;
++	const auto target = fixture.create_target();
++	fixture.write_cubin(target);
++
++	SECTION("malformed")
++	{
++		std::ofstream(target / "artifact.json") << "{}";
++		REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++	}
++	SECTION("wrong original digest")
++	{
++		fixture.write_artifact(target, std::string(64, 'b'));
++		REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++	}
++	SECTION("wrong cubin digest")
++	{
++		fixture.write_artifact(target, kOriginalDigest,
++				       std::string(64, 'b'));
++		REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++	}
++	SECTION("duplicated identity field")
++	{
++		std::ofstream output(target / "artifact.json");
++		output << "{\"original_ptx_sha256\":\"" << kOriginalDigest
++		       << "\",\"original_ptx_sha256\":\"" << kOriginalDigest
++		       << "\",\"transformed_ptx_sha256\":\""
++		       << kTransformedDigest
++		       << "\",\"cubin_sha256\":\""
++		       << sha256(fixture.cubin.data(), fixture.cubin.size())
++		       << "\",\"ptx_target\":\"sm_120\"}";
++		output.close();
++		REQUIRE_THROWS(load_exact_aot_bundle(kOriginalDigest));
++	}
++}
+diff --git a/attach/nv_attach_impl/test/test_aot_load_provenance.cpp b/attach/nv_attach_impl/test/test_aot_load_provenance.cpp
+new file mode 100644
+index 0000000..7da7e16
+--- /dev/null
++++ b/attach/nv_attach_impl/test/test_aot_load_provenance.cpp
+@@ -0,0 +1,102 @@
++#include "nv_attach_aot_load_provenance.hpp"
++
++#include <catch2/catch_test_macros.hpp>
++
++#include <array>
++
++using namespace bpftime::attach;
++
++namespace
++{
++
++int begin_calls;
++int end_calls;
++uint64_t ended_token;
++
++uint64_t begin_matching(const void *cubin, size_t bytes,
++			const char *artifact, size_t artifact_bytes)
++{
++	REQUIRE(cubin != nullptr);
++	REQUIRE(bytes == 4);
++	REQUIRE(std::string_view(artifact, artifact_bytes) == "{}");
++	begin_calls++;
++	return 0x4321;
++}
++
++uint64_t begin_zero(const void *, size_t, const char *, size_t)
++{
++	begin_calls++;
++	return 0;
++}
++
++void end_matching(uint64_t token)
++{
++	end_calls++;
++	ended_token = token;
++}
++
++void reset_calls()
++{
++	begin_calls = 0;
++	end_calls = 0;
++	ended_token = 0;
++}
++
++} // namespace
++
++TEST_CASE("missing hooks reject AOT module load", "[aot_load_provenance]")
++{
++	const std::array<unsigned char, 4> cubin{};
++	aot_module_load_scope scope(cubin.data(), cubin.size(), "{}", {});
++	REQUIRE_FALSE(scope.permits_load());
++}
++
++TEST_CASE("partial hooks reject AOT module load", "[aot_load_provenance]")
++{
++	const std::array<unsigned char, 4> cubin{};
++	SECTION("begin only")
++	{
++		aot_module_load_scope scope(
++			cubin.data(), cubin.size(), "{}",
++			{ .begin = begin_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	SECTION("end only")
++	{
++		aot_module_load_scope scope(
++			cubin.data(), cubin.size(), "{}",
++			{ .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++}
++
++TEST_CASE("zero begin token rejects AOT module load",
++	  "[aot_load_provenance]")
++{
++	reset_calls();
++	const std::array<unsigned char, 4> cubin{};
++	{
++		aot_module_load_scope scope(
++			cubin.data(), cubin.size(), "{}",
++			{ .begin = begin_zero, .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	REQUIRE(begin_calls == 1);
++	REQUIRE(end_calls == 0);
++}
++
++TEST_CASE("successful begin ends once", "[aot_load_provenance]")
++{
++	reset_calls();
++	const std::array<unsigned char, 4> cubin{};
++	{
++		aot_module_load_scope scope(
++			cubin.data(), cubin.size(), "{}",
++			{ .begin = begin_matching, .end = end_matching });
++		REQUIRE(scope.permits_load());
++		REQUIRE(begin_calls == 1);
++		REQUIRE(end_calls == 0);
++	}
++	REQUIRE(end_calls == 1);
++	REQUIRE(ended_token == 0x4321);
++}

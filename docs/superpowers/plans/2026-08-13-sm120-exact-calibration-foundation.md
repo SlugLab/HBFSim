@@ -368,20 +368,26 @@ git commit -m "feat: bind module loads to exact cubin bytes"
 
 **Files:**
 - Create: `patches/bpftime/0002-sm120-aot-bundle-load.patch`
+- Create: `patches/bpftime/0003-libbpf-modern-libc-const.patch`
+- Create: `patches/bpftime/0004-honor-llvm-aot-cli-option.patch`
+- Create: `patches/bpftime/0005-cuda13-context-create.patch`
 - Modify: `cmake/PreparePatchedBpftime.cmake`
 - Modify: `scripts/build_patched_bpftime.sh`
 - Modify: `scripts/run_with_bpftime.sh`
 - Create: `tests/integration/test_bpftime_aot_patch.py`
+- Create: `tests/integration/test_bpftime_host_compiler_patch.py`
+- Create: `tests/integration/test_bpftime_cuda13_patch.py`
 - Modify: `tests/integration/test_build_patched_bpftime.py`
 - Modify: `tests/integration/test_run_with_bpftime.py`
 - Modify: `CMakeLists.txt`
 
 - [ ] **Step 1: Write the failing two-patch and loader-contract tests**
 
-The test must copy pinned bpftime, apply `0001-exact-module-load-provenance.patch`, then run `git apply --check` and apply `0002-sm120-aot-bundle-load.patch`. It must inspect the resulting source and prove:
+The test must copy pinned bpftime, apply the ordered patch series, and run `git apply --check` before each patch. The AOT patch and its compiled Catch2 tests must prove:
 
 - `HBFSIM_EXACT_BUNDLE_DIR` selects a bundle by original PTX SHA-256 and PTX target;
 - exact mode reads `module.cubin` and `artifact.json` as bounded binary/text buffers;
+- staged transformed PTX bytes match the artifact `transformed_ptx_sha256` before any load hook or CUDA call;
 - the AOT hook receives the same cubin buffer later passed to `cuModuleLoadDataEx`;
 - cache keys use cubin SHA-256, not original PTX or a prior JIT output;
 - missing, duplicate, symlink-escaping, oversized, or malformed bundle files fail before CUDA;
@@ -423,33 +429,41 @@ Update copied-source preparation and stamp content to include:
 bpftime_commit=<pinned commit>
 patch_0001_sha256=<digest>
 patch_0002_sha256=<digest>
+patch_0003_sha256=<digest>
+patch_0004_sha256=<digest>
+patch_0005_sha256=<digest>
 aot_bridge_version=1
 ```
 
-When the exact bundle path is enabled, require `HBFSIM_CUDA_ROOT=/usr/local/cuda-13.0` (or the identical canonical toolkit path recorded by the profile), record that path and version in the stamp, and reject the current CUDA 12.8 default. Emulation-only builds may retain the existing configurable toolkit behavior.
+Require CUDA 13.0 for this pinned exact bridge build. Pin the BPF compiler, `llvm-strip`, and LLVM CMake package to the validated LLVM 19.1.7 toolchain so bpftool, generated BPF test assets, and llvmbpf cannot resolve an unrelated compiler through `PATH`. Record the canonical CUDA path and release in the stamp. Remove any prior stamp before preparing or rebuilding so a failed rebuild cannot leave stale provenance beside changed outputs.
 
-Add `--exact-profile` and `--exact-bundle-dir` options to `run_with_bpftime.sh`. The wrapper must export canonical paths only after verifying the profile file, bundle root, and matching patch stamp.
+Add `--exact-profile`, `--exact-bundle-dir`, and `--prepatched-ptx-dir` options to `run_with_bpftime.sh`. Exact mode requires all three. The wrapper must export canonical, non-symlink paths only after verifying the profile file, bundle root, lowercase-SHA256-named PTX inputs, and matching patch-series stamp.
 
 - [ ] **Step 4: Build the patched copy and verify GREEN**
 
 ```bash
 cmake --build build-sm120-exact -j2
 ctest --test-dir build-sm120-exact \
-  -R '^(bpftime_patch|bpftime_aot_patch|build_patched_bpftime|run_with_bpftime)$' \
+  -R '^(bpftime_patch|bpftime_aot_patch|bpftime_host_compiler_patch|bpftime_cuda13_patch|build_patched_bpftime|run_with_bpftime)$' \
   --output-on-failure
 git submodule foreach --recursive 'test -z "$(git status --porcelain)"'
 ```
 
-Expected: both patches apply in order, stamps bind both digests, exact wrapper tests pass, and submodules remain clean.
+Expected: all five patches apply in order, stamps bind all five digests, the real patched copy and its nv-attach tests pass, exact wrapper tests pass, and submodules remain clean.
 
 - [ ] **Step 5: Commit the AOT bpftime bridge**
 
 ```bash
 git add patches/bpftime/0002-sm120-aot-bundle-load.patch \
+  patches/bpftime/0003-libbpf-modern-libc-const.patch \
+  patches/bpftime/0004-honor-llvm-aot-cli-option.patch \
+  patches/bpftime/0005-cuda13-context-create.patch \
   cmake/PreparePatchedBpftime.cmake scripts/build_patched_bpftime.sh \
   scripts/run_with_bpftime.sh tests/integration/test_bpftime_aot_patch.py \
   tests/integration/test_build_patched_bpftime.py \
-  tests/integration/test_run_with_bpftime.py CMakeLists.txt
+  tests/integration/test_run_with_bpftime.py \
+  tests/integration/test_bpftime_host_compiler_patch.py \
+  tests/integration/test_bpftime_cuda13_patch.py CMakeLists.txt
 git commit -m "feat: load calibrated cubins through bpftime"
 ```
 

@@ -1,0 +1,44 @@
+diff --git a/attach/nv_attach_impl/nv_attach_impl.cpp b/attach/nv_attach_impl/nv_attach_impl.cpp
+index 48182f3..5a5dd0b 100644
+--- a/attach/nv_attach_impl/nv_attach_impl.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl.cpp
+@@ -1339,7 +1339,11 @@ int nv_attach_impl::run_attach_entry_on_gpu(int attach_id, int run_count,
+ 		CUDA_SAFE_CALL(cuInit(0));
+ 		CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, 0));
+ 
++#if CUDA_VERSION >= 13000
++		CUDA_SAFE_CALL(cuCtxCreate(&context, nullptr, 0, cuDevice));
++#else
+ 		CUDA_SAFE_CALL(cuCtxCreate(&context, 0, cuDevice));
++#endif
+ 		CUDA_SAFE_CALL(cuModuleLoadDataEx(&module, output_elf.data(), 0,
+ 						  0, 0));
+ 		// fill data into it
+diff --git a/runtime/src/handler/map_handler.cpp b/runtime/src/handler/map_handler.cpp
+index 7cc5f7a..f42a450 100644
+--- a/runtime/src/handler/map_handler.cpp
++++ b/runtime/src/handler/map_handler.cpp
+@@ -1005,7 +1005,11 @@ int bpf_map_handler::map_init(managed_shared_memory &memory)
+ 		shm_holder.global_shared_memory.set_enable_mock(false);
+ 		if (!device) {
+ 			cuDeviceGet(&device, 0);
++#if CUDA_VERSION >= 13000
++			cuCtxCreate(&context, nullptr, 0, device);
++#else
+ 			cuCtxCreate(&context, 0, device);
++#endif
+ 			SPDLOG_INFO(
+ 				"CUDA context for thread {} has been set to {:x}",
+ 				gettid(), (uintptr_t)context);
+@@ -1024,7 +1028,11 @@ int bpf_map_handler::map_init(managed_shared_memory &memory)
+ 		shm_holder.global_shared_memory.set_enable_mock(false);
+ 		if (!device) {
+ 			cuDeviceGet(&device, 0);
++#if CUDA_VERSION >= 13000
++			cuCtxCreate(&context, nullptr, 0, device);
++#else
+ 			cuCtxCreate(&context, 0, device);
++#endif
+ 			SPDLOG_INFO(
+ 				"CUDA context for thread {} has been set to {:x}",
+ 				gettid(), (uintptr_t)context);

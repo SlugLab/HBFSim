@@ -1,11 +1,46 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+exact_profile=
+exact_bundle_dir=
+prepatched_ptx_dir=
+while [[ $# -gt 0 && $1 != "--" ]]; do
+    case $1 in
+        --exact-profile)
+            [[ $# -ge 2 ]] || { echo "run_with_bpftime: --exact-profile requires a path" >&2; exit 64; }
+            exact_profile=$2
+            shift 2
+            ;;
+        --exact-bundle-dir)
+            [[ $# -ge 2 ]] || { echo "run_with_bpftime: --exact-bundle-dir requires a path" >&2; exit 64; }
+            exact_bundle_dir=$2
+            shift 2
+            ;;
+        --prepatched-ptx-dir)
+            [[ $# -ge 2 ]] || { echo "run_with_bpftime: --prepatched-ptx-dir requires a path" >&2; exit 64; }
+            prepatched_ptx_dir=$2
+            shift 2
+            ;;
+        *)
+            echo "run_with_bpftime: unknown option: $1" >&2
+            exit 64
+            ;;
+    esac
+done
 if [[ $# -lt 2 || $1 != "--" ]]; then
-    echo "usage: $0 -- command [args ...]" >&2
+    echo "usage: $0 [--exact-profile FILE --exact-bundle-dir DIR --prepatched-ptx-dir DIR] -- command [args ...]" >&2
     exit 64
 fi
 shift
+
+exact_values=0
+[[ -n $exact_profile ]] && exact_values=$((exact_values + 1))
+[[ -n $exact_bundle_dir ]] && exact_values=$((exact_values + 1))
+[[ -n $prepatched_ptx_dir ]] && exact_values=$((exact_values + 1))
+if (( exact_values != 0 && exact_values != 3 )); then
+    echo "run_with_bpftime: exact mode requires profile, bundle directory, and prepatched PTX directory" >&2
+    exit 64
+fi
 
 HBFSIM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
@@ -23,7 +58,7 @@ HBFSIM_BUILD_DIR=$(canonical_build_dir HBFSIM_BUILD_DIR \
     "${HBFSIM_BUILD_DIR:-$HBFSIM_ROOT/build}")
 HBFSIM_BPFTIME_BUILD_DIR=$(canonical_build_dir HBFSIM_BPFTIME_BUILD_DIR \
     "${HBFSIM_BPFTIME_BUILD_DIR:-$HBFSIM_ROOT/build-bpftime-hbfsim}")
-HBFSIM_CUDA_ROOT=${HBFSIM_CUDA_ROOT:-/usr/local/cuda-12.8}
+HBFSIM_CUDA_ROOT=${HBFSIM_CUDA_ROOT:-/usr/local/cuda-13.0}
 if [[ $HBFSIM_CUDA_ROOT != /* || ! -d $HBFSIM_CUDA_ROOT ]]; then
     echo "run_with_bpftime: HBFSIM_CUDA_ROOT must be an existing absolute directory: $HBFSIM_CUDA_ROOT" >&2
     exit 64
@@ -38,19 +73,75 @@ HBFSIM_BPFTIME_LOADER=${HBFSIM_BPFTIME_LOADER:-$HBFSIM_BUILD_DIR/hbfsim_bpftime_
 HBFSIM_BPFTIME_PROBE=${HBFSIM_BPFTIME_PROBE:-$HBFSIM_BUILD_DIR/coverage_probe.bpf.o}
 
 BPFTIME_PROVENANCE="$HBFSIM_BPFTIME_BUILD_DIR/hbfsim-bpftime.provenance"
-BPFTIME_PATCH="$HBFSIM_ROOT/patches/bpftime/0001-exact-module-load-provenance.patch"
+BPFTIME_PATCH1="$HBFSIM_ROOT/patches/bpftime/0001-exact-module-load-provenance.patch"
+BPFTIME_PATCH2="$HBFSIM_ROOT/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+BPFTIME_PATCH3="$HBFSIM_ROOT/patches/bpftime/0003-libbpf-modern-libc-const.patch"
+BPFTIME_PATCH4="$HBFSIM_ROOT/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
+BPFTIME_PATCH5="$HBFSIM_ROOT/patches/bpftime/0005-cuda13-context-create.patch"
 if [[ ! -r $BPFTIME_PROVENANCE ]]; then
     echo "run_with_bpftime: bpftime build provenance is missing: $BPFTIME_PROVENANCE" >&2
     exit 66
 fi
 mapfile -t provenance < "$BPFTIME_PROVENANCE"
-expected_digest=$(sha256sum "$BPFTIME_PATCH" | awk '{print $1}')
-if [[ ${#provenance[@]} -ne 3 ||
+expected_digest1=$(sha256sum "$BPFTIME_PATCH1" | awk '{print $1}')
+expected_digest2=$(sha256sum "$BPFTIME_PATCH2" | awk '{print $1}')
+expected_digest3=$(sha256sum "$BPFTIME_PATCH3" | awk '{print $1}')
+expected_digest4=$(sha256sum "$BPFTIME_PATCH4" | awk '{print $1}')
+expected_digest5=$(sha256sum "$BPFTIME_PATCH5" | awk '{print $1}')
+if [[ ${#provenance[@]} -ne 9 ||
       ${provenance[0]:-} != bpftime_commit=ec26daecc8e787fb80fd95dd596a576404a5e36e ||
-      ${provenance[1]:-} != patch_sha256="$expected_digest" ||
-      ${provenance[2]:-} != bridge_version=2 ]]; then
+      ${provenance[1]:-} != patch_0001_sha256="$expected_digest1" ||
+      ${provenance[2]:-} != patch_0002_sha256="$expected_digest2" ||
+      ${provenance[3]:-} != patch_0003_sha256="$expected_digest3" ||
+      ${provenance[4]:-} != patch_0004_sha256="$expected_digest4" ||
+      ${provenance[5]:-} != patch_0005_sha256="$expected_digest5" ||
+      ${provenance[6]:-} != aot_bridge_version=1 ||
+      ${provenance[7]:-} != cuda_root="$HBFSIM_CUDA_ROOT" ||
+      ${provenance[8]:-} != cuda_release=13.0 ]]; then
     echo "run_with_bpftime: bpftime build provenance mismatch: $BPFTIME_PROVENANCE" >&2
     exit 66
+fi
+
+unset HBFSIM_EXACT_PROFILE_PATH HBFSIM_EXACT_BUNDLE_DIR
+unset BPFTIME_CUDA_LATE_PTX_DIR BPFTIME_CUDA_LATE_PTX_PREPATCHED
+if (( exact_values == 3 )); then
+    if [[ $exact_profile != /* || -L $exact_profile ||
+          ! -f $exact_profile || ! -r $exact_profile ]]; then
+        echo "run_with_bpftime: exact profile must be a readable non-symlink absolute file: $exact_profile" >&2
+        exit 66
+    fi
+    if [[ $exact_bundle_dir != /* || -L $exact_bundle_dir ||
+          ! -d $exact_bundle_dir ]]; then
+        echo "run_with_bpftime: exact bundle root must be a non-symlink absolute directory: $exact_bundle_dir" >&2
+        exit 66
+    fi
+    if [[ $prepatched_ptx_dir != /* || -L $prepatched_ptx_dir ||
+          ! -d $prepatched_ptx_dir ]]; then
+        echo "run_with_bpftime: prepatched PTX root must be a non-symlink absolute directory: $prepatched_ptx_dir" >&2
+        exit 66
+    fi
+    exact_profile=$(cd "$(dirname -- "$exact_profile")" && pwd -P)/$(basename -- "$exact_profile")
+    exact_bundle_dir=$(cd "$exact_bundle_dir" && pwd -P)
+    prepatched_ptx_dir=$(cd "$prepatched_ptx_dir" && pwd -P)
+    shopt -s nullglob
+    prepatched_files=("$prepatched_ptx_dir"/*.ptx)
+    shopt -u nullglob
+    if (( ${#prepatched_files[@]} == 0 )); then
+        echo "run_with_bpftime: prepatched PTX root contains no PTX files" >&2
+        exit 66
+    fi
+    for ptx in "${prepatched_files[@]}"; do
+        name=$(basename -- "$ptx")
+        if [[ -L $ptx || ! -f $ptx || ! -r $ptx ||
+              ! $name =~ ^[0-9a-f]{64}\.ptx$ ]]; then
+            echo "run_with_bpftime: unsafe prepatched PTX member: $ptx" >&2
+            exit 66
+        fi
+    done
+    export HBFSIM_EXACT_PROFILE_PATH="$exact_profile"
+    export HBFSIM_EXACT_BUNDLE_DIR="$exact_bundle_dir"
+    export BPFTIME_CUDA_LATE_PTX_DIR="$prepatched_ptx_dir"
+    export BPFTIME_CUDA_LATE_PTX_PREPATCHED=1
 fi
 
 for library in "$BPFTIME_AGENT" "$BPFTIME_SERVER" "$HBFSIM_GATE" "$HBFSIM_PASS"; do

@@ -69,12 +69,18 @@ def require_dirty_refusal(
             f"build helper stamped {label} bpftime state")
 
     output_source = scratch / f"prepare-{label}" / "bpftime-hbfsim-src"
-    patch = helper.parent.parent / "patches/bpftime/0001-exact-module-load-provenance.patch"
+    patches = [
+        helper.parent.parent / "patches/bpftime/0001-exact-module-load-provenance.patch",
+        helper.parent.parent / "patches/bpftime/0002-sm120-aot-bundle-load.patch",
+        helper.parent.parent / "patches/bpftime/0003-libbpf-modern-libc-const.patch",
+        helper.parent.parent / "patches/bpftime/0004-honor-llvm-aot-cli-option.patch",
+        helper.parent.parent / "patches/bpftime/0005-cuda13-context-create.patch",
+    ]
     prepared = subprocess.run(
         [
             real_cmake,
             f"-DBPFTIME_SOURCE={bpftime}",
-            f"-DPATCH={patch}",
+            f"-DPATCHES={';'.join(str(patch) for patch in patches)}",
             f"-DOUTPUT_SOURCE={output_source}",
             "-P", str(prepare),
         ],
@@ -97,21 +103,21 @@ def copy_test_layout(
     root = scratch / "hbfsim"
     isolated_helper = root / "scripts/build_patched_bpftime.sh"
     isolated_prepare = root / "cmake/PreparePatchedBpftime.cmake"
-    isolated_patch = (
-        root / "patches/bpftime/0001-exact-module-load-provenance.patch"
-    )
+    isolated_patch_dir = root / "patches/bpftime"
     isolated_bpftime = root / "third_party/bpftime"
     isolated_helper.parent.mkdir(parents=True)
     isolated_prepare.parent.mkdir(parents=True)
-    isolated_patch.parent.mkdir(parents=True)
+    isolated_patch_dir.mkdir(parents=True)
     isolated_bpftime.parent.mkdir(parents=True)
     shutil.copy2(helper, isolated_helper)
     shutil.copy2(prepare, isolated_prepare)
-    shutil.copy2(
-        helper.parent.parent
-        / "patches/bpftime/0001-exact-module-load-provenance.patch",
-        isolated_patch,
-    )
+    for name in ("0001-exact-module-load-provenance.patch",
+                 "0002-sm120-aot-bundle-load.patch",
+                 "0003-libbpf-modern-libc-const.patch",
+                 "0004-honor-llvm-aot-cli-option.patch",
+                 "0005-cuda13-context-create.patch"):
+        shutil.copy2(helper.parent.parent / "patches/bpftime" / name,
+                     isolated_patch_dir / name)
     revision = subprocess.run(
         ["git", "-C", str(bpftime), "rev-parse", "HEAD"],
         check=True,
@@ -129,6 +135,42 @@ def copy_test_layout(
         ["git", "-C", str(isolated_bpftime), "checkout", "--quiet",
          "--detach", revision],
         check=True,
+    )
+    source_bpftool = bpftime / "third_party/bpftool"
+    isolated_bpftool = isolated_bpftime / "third_party/bpftool"
+    subprocess.run(
+        [
+            "git", "-c", "protocol.file.allow=always", "-c",
+            f"submodule.third_party/bpftool.url={source_bpftool}",
+            "-C", str(isolated_bpftime), "submodule", "update", "--init",
+            "third_party/bpftool",
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        [
+            "git", "-c", "protocol.file.allow=always", "-c",
+            f"submodule.libbpf.url={source_bpftool / 'libbpf'}",
+            "-C", str(isolated_bpftool), "submodule", "update", "--init",
+            "libbpf",
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    source_llvm_jit = bpftime / "vm/llvm-jit"
+    subprocess.run(
+        [
+            "git", "-c", "protocol.file.allow=always", "-c",
+            f"submodule.vm/llvm-jit.url={source_llvm_jit}",
+            "-C", str(isolated_bpftime), "submodule", "update", "--init",
+            "vm/llvm-jit",
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     require(git_status(isolated_bpftime) == "",
             "isolated bpftime copy is not clean")
@@ -152,8 +194,26 @@ def run_isolated_worker(
         )
         require(checked.returncode == 0,
                 f"isolated helper check failed: {checked.stderr}")
-        require("bpftime patch applies to pinned source" in checked.stdout,
+        require("bpftime patch series applies to pinned source" in checked.stdout,
                 f"isolated helper reported wrong result: {checked.stdout}")
+
+        stale_build = scratch / "build-stale-stamp"
+        stale_build.mkdir()
+        stale_stamp = stale_build / "hbfsim-bpftime.provenance"
+        stale_stamp.write_text("stale\n")
+        fake_bin = scratch / "fake-bin-stale-stamp"
+        fake_bin.mkdir()
+        executable(fake_bin / "cmake", "#!/usr/bin/env bash\nexit 91\n")
+        environment = os.environ.copy()
+        environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
+        failed = subprocess.run(
+            [str(isolated_helper), str(stale_build)], env=environment,
+            text=True, capture_output=True
+        )
+        require(failed.returncode != 0,
+                "simulated failed build unexpectedly succeeded")
+        require(not stale_stamp.exists(),
+                "failed build preserved a stale provenance stamp")
 
         tracked = isolated_bpftime / "CMakeLists.txt"
         original = tracked.read_bytes()
@@ -209,12 +269,37 @@ def main() -> int:
     before = git_status(bpftime)
     require(before == "",
             "bpftime must be clean before the isolated dirty regression")
+    require("0003-libbpf-modern-libc-const.patch" in helper.read_text(),
+            "build helper omitted the pinned host-compiler compatibility patch")
+    require("0004-honor-llvm-aot-cli-option.patch" in helper.read_text(),
+            "build helper omitted the LLVM AOT CLI option patch")
+    require("0005-cuda13-context-create.patch" in helper.read_text(),
+            "build helper omitted the CUDA 13 context API patch")
+    helper_text = helper.read_text()
+    stamp_assignment = helper_text.find(
+        'stamp="$build_dir/hbfsim-bpftime.provenance"')
+    stamp_removal = helper_text.find('rm -f -- "$stamp"')
+    configure = helper_text.find('cmake -S "$source_copy"')
+    require(0 <= stamp_assignment < stamp_removal < configure,
+            "build helper can preserve a stale provenance stamp")
+    require("HBFSIM_BPF_CLANG" in helper_text and
+            "CLANG=\"$bpf_clang\"" in helper_text,
+            "build helper does not pin bpftool's BPF compiler")
+    require("HBFSIM_BPF_LLVM_STRIP" in helper_text and
+            "LLVM_STRIP=\"$bpf_llvm_strip\"" in helper_text,
+            "build helper does not pin bpftool's LLVM strip tool")
+    require("HBFSIM_LLVM_DIR" in helper_text and
+            "-DLLVM_DIR=\"$llvm_dir\"" in helper_text,
+            "build helper does not pin the LLVM package used by llvmbpf")
+    require("bpf_tool_bin=$(dirname" in helper_text and
+            "PATH=\"$bpf_tool_bin:$PATH\"" in helper_text,
+            "build helper leaves hard-coded clang commands on the caller PATH")
     checked = subprocess.run(
         [str(helper), "--check"], text=True, capture_output=True
     )
     require(checked.returncode == 0,
             f"patched bpftime helper check failed: {checked.stderr}")
-    require("bpftime patch applies to pinned source" in checked.stdout,
+    require("bpftime patch series applies to pinned source" in checked.stdout,
             f"helper did not report exact applicability: {checked.stdout}")
 
     command = [

@@ -1,0 +1,27 @@
+diff --git a/vm/llvm-jit/CMakeLists.txt b/vm/llvm-jit/CMakeLists.txt
+index 1534649..a699c43 100644
+--- a/vm/llvm-jit/CMakeLists.txt
++++ b/vm/llvm-jit/CMakeLists.txt
+@@ -125,16 +125,15 @@ if(NOT DEFINED SPDLOG_INCLUDE)
+     FetchContent_MakeAvailable(spdlog)
+ endif()
+ 
+-# if BPFTIME_LLVM_JIT is set, then it's built in the bpftime project.
+-# If not, it's built as a standalone library.
+-if(${BPFTIME_LLVM_JIT})
++# The CLI is optional both when embedded in bpftime and when this project is
++# built standalone.  It downloads and links libbpf, while the JIT library does
++# not require that dependency.
++if(${BUILD_LLVM_AOT_CLI})
+     add_subdirectory(cli)
+-else()
+-    if(${BUILD_LLVM_AOT_CLI})
+-        add_subdirectory(cli)
+-    endif()
++endif()
+ 
+ 
++if(NOT ${BPFTIME_LLVM_JIT})
+     if(${BPFTIME_ENABLE_UNIT_TESTING})
+         if(NOT TARGET Catch2)
+             message(STATUS "Adding Catch2 by FetchContent at llvmbpf")

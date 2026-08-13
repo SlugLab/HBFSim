@@ -340,6 +340,38 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
     )
     add_test(
+        NAME bpftime_aot_patch
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_aot_patch.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+    )
+    add_test(
+        NAME bpftime_host_compiler_patch
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_host_compiler_patch.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0003-libbpf-modern-libc-const.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
+    )
+    add_test(
+        NAME bpftime_cuda13_patch
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_cuda13_patch.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0003-libbpf-modern-libc-const.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0005-cuda13-context-create.patch"
+    )
+    add_test(
         NAME build_patched_bpftime
         COMMAND
             "${HBFSIM_PYTHON3_EXECUTABLE}"
@@ -375,6 +407,10 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_run_with_bpftime.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_with_bpftime.sh"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0003-libbpf-modern-libc-const.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0005-cuda13-context-create.patch"
     )
 endif()
 

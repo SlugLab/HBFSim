@@ -1,7 +1,18 @@
+if(NOT DEFINED PATCHES AND DEFINED PATCH)
+    set(PATCHES "${PATCH}")
+endif()
 if(NOT IS_ABSOLUTE "${BPFTIME_SOURCE}" OR
-   NOT IS_ABSOLUTE "${PATCH}" OR
-   NOT IS_ABSOLUTE "${OUTPUT_SOURCE}")
-    message(FATAL_ERROR "bpftime source, patch, and output must be absolute")
+   NOT IS_ABSOLUTE "${OUTPUT_SOURCE}" OR NOT DEFINED PATCHES)
+    message(FATAL_ERROR "bpftime source, patches, and output must be absolute")
+endif()
+foreach(patch IN LISTS PATCHES)
+    if(NOT IS_ABSOLUTE "${patch}" OR NOT EXISTS "${patch}")
+        message(FATAL_ERROR "bpftime patch must be an existing absolute path: ${patch}")
+    endif()
+endforeach()
+list(LENGTH PATCHES patch_count)
+if(patch_count LESS 1)
+    message(FATAL_ERROR "at least one bpftime patch is required")
 endif()
 
 get_filename_component(output_name "${OUTPUT_SOURCE}" NAME)
@@ -55,29 +66,30 @@ file(
 )
 
 get_filename_component(output_parent "${OUTPUT_SOURCE}" DIRECTORY)
-execute_process(
-    COMMAND
-        "${CMAKE_COMMAND}" -E env
-        "GIT_CEILING_DIRECTORIES=${output_parent}"
-        git apply --check "${PATCH}"
-    WORKING_DIRECTORY "${OUTPUT_SOURCE}"
-    RESULT_VARIABLE check_result
-    ERROR_VARIABLE check_error
-)
-if(NOT check_result EQUAL 0)
-    message(FATAL_ERROR "bpftime patch check failed: ${check_error}")
-endif()
-
-execute_process(
-    COMMAND
-        "${CMAKE_COMMAND}" -E env
-        "GIT_CEILING_DIRECTORIES=${output_parent}"
-        git apply "${PATCH}"
-    WORKING_DIRECTORY "${OUTPUT_SOURCE}"
-    RESULT_VARIABLE apply_result
-    ERROR_VARIABLE apply_error
-)
-if(NOT apply_result EQUAL 0)
-    message(FATAL_ERROR "bpftime patch application failed: ${apply_error}")
-endif()
-message(STATUS "bpftime exact-load patch applied to clean source copy")
+foreach(patch IN LISTS PATCHES)
+    execute_process(
+        COMMAND
+            "${CMAKE_COMMAND}" -E env
+            "GIT_CEILING_DIRECTORIES=${output_parent}"
+            git apply --check "${patch}"
+        WORKING_DIRECTORY "${OUTPUT_SOURCE}"
+        RESULT_VARIABLE check_result
+        ERROR_VARIABLE check_error
+    )
+    if(NOT check_result EQUAL 0)
+        message(FATAL_ERROR "bpftime patch check failed for ${patch}: ${check_error}")
+    endif()
+    execute_process(
+        COMMAND
+            "${CMAKE_COMMAND}" -E env
+            "GIT_CEILING_DIRECTORIES=${output_parent}"
+            git apply "${patch}"
+        WORKING_DIRECTORY "${OUTPUT_SOURCE}"
+        RESULT_VARIABLE apply_result
+        ERROR_VARIABLE apply_error
+    )
+    if(NOT apply_result EQUAL 0)
+        message(FATAL_ERROR "bpftime patch application failed for ${patch}: ${apply_error}")
+    endif()
+endforeach()
+message(STATUS "bpftime exact-load patch series applied to clean source copy")

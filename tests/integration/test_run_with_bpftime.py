@@ -21,7 +21,11 @@ def executable(path: pathlib.Path, text: str) -> None:
 
 def main() -> int:
     wrapper = pathlib.Path(sys.argv[1]).resolve()
-    patch = pathlib.Path(sys.argv[2]).resolve()
+    patch1 = pathlib.Path(sys.argv[2]).resolve()
+    patch2 = pathlib.Path(sys.argv[3]).resolve()
+    patch3 = pathlib.Path(sys.argv[4]).resolve()
+    patch4 = pathlib.Path(sys.argv[5]).resolve()
+    patch5 = pathlib.Path(sys.argv[6]).resolve()
     with tempfile.TemporaryDirectory(prefix="hbfsim-wrapper-") as directory:
         root = pathlib.Path(directory)
         hbfsim_build = root / "hbfsim-build"
@@ -68,7 +72,7 @@ def main() -> int:
             command,
             "#!/usr/bin/env bash\n"
             "set -eu\n"
-            "printf '%s\\n%s\\n%s\\n' \"$BPFTIME_PTXPASS_LIBRARIES\" \"$BPFTIME_CUDA_ROOT\" \"$LD_PRELOAD\" > \"$1\"\n"
+            "printf '%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n' \"$BPFTIME_PTXPASS_LIBRARIES\" \"$BPFTIME_CUDA_ROOT\" \"$LD_PRELOAD\" \"${HBFSIM_EXACT_PROFILE_PATH:-}\" \"${HBFSIM_EXACT_BUNDLE_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_PREPATCHED:-}\" > \"$1\"\n"
             "printf '%s\\n' '{\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"instrumented\":true}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
             "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n",
         )
@@ -100,23 +104,42 @@ def main() -> int:
                 "wrapper started loader before checking missing provenance")
 
         commit = "ec26daecc8e787fb80fd95dd596a576404a5e36e"
-        digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+        digest1 = hashlib.sha256(patch1.read_bytes()).hexdigest()
+        digest2 = hashlib.sha256(patch2.read_bytes()).hexdigest()
+        digest3 = hashlib.sha256(patch3.read_bytes()).hexdigest()
+        digest4 = hashlib.sha256(patch4.read_bytes()).hexdigest()
+        digest5 = hashlib.sha256(patch5.read_bytes()).hexdigest()
         stamp = bpftime_build / "hbfsim-bpftime.provenance"
 
-        def write_stamp(stamp_commit: str, stamp_digest: str,
-                        version: str) -> None:
+        def write_stamp(stamp_commit: str, stamp_digest1: str,
+                        stamp_digest2: str, stamp_digest3: str,
+                        stamp_digest4: str, stamp_digest5: str, version: str,
+                        cuda_root: str = "/usr/local/cuda-13.0",
+                        cuda_release: str = "13.0") -> None:
             stamp.write_text(
                 f"bpftime_commit={stamp_commit}\n"
-                f"patch_sha256={stamp_digest}\n"
-                f"bridge_version={version}\n"
+                f"patch_0001_sha256={stamp_digest1}\n"
+                f"patch_0002_sha256={stamp_digest2}\n"
+                f"patch_0003_sha256={stamp_digest3}\n"
+                f"patch_0004_sha256={stamp_digest4}\n"
+                f"patch_0005_sha256={stamp_digest5}\n"
+                f"aot_bridge_version={version}\n"
+                f"cuda_root={cuda_root}\n"
+                f"cuda_release={cuda_release}\n"
             )
 
-        for label, stamp_commit, stamp_digest, version in (
-            ("commit", "0" * 40, digest, "2"),
-            ("digest", commit, "0" * 64, "2"),
-            ("version", commit, digest, "1"),
+        for (label, stamp_commit, stamp_digest1, stamp_digest2,
+             stamp_digest3, stamp_digest4, stamp_digest5, version) in (
+            ("commit", "0" * 40, digest1, digest2, digest3, digest4, digest5, "1"),
+            ("digest1", commit, "0" * 64, digest2, digest3, digest4, digest5, "1"),
+            ("digest2", commit, digest1, "0" * 64, digest3, digest4, digest5, "1"),
+            ("digest3", commit, digest1, digest2, "0" * 64, digest4, digest5, "1"),
+            ("digest4", commit, digest1, digest2, digest3, "0" * 64, digest5, "1"),
+            ("digest5", commit, digest1, digest2, digest3, digest4, "0" * 64, "1"),
+            ("version", commit, digest1, digest2, digest3, digest4, digest5, "0"),
         ):
-            write_stamp(stamp_commit, stamp_digest, version)
+            write_stamp(stamp_commit, stamp_digest1, stamp_digest2,
+                        stamp_digest3, stamp_digest4, stamp_digest5, version)
             rejected_stamp = subprocess.run(
                 [str(wrapper), "--", str(command), str(output)],
                 env=env,
@@ -129,7 +152,7 @@ def main() -> int:
             require(not loader_started.exists(),
                     f"wrapper started loader before rejecting wrong {label}")
 
-        write_stamp(commit, digest, "2")
+        write_stamp(commit, digest1, digest2, digest3, digest4, digest5, "1")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,
@@ -141,7 +164,7 @@ def main() -> int:
         lines = output.read_text().splitlines()
         require(lines[0] == str(hbfsim_build / "libptxpass_hbf.so"),
                 "wrapper exported wrong PTX pass library")
-        require(lines[1] == "/usr/local/cuda-12.8",
+        require(lines[1] == "/usr/local/cuda-13.0",
                 "wrapper exported wrong CUDA root")
         require(
             lines[2].split(":") == [
@@ -153,6 +176,39 @@ def main() -> int:
         )
         require(validation_preload.read_text().splitlines()[-1] == str(preload),
                 "wrapper kept the bpftime agent preloaded for artifact validation")
+        require(lines[3:] == ["", "", "", ""],
+                "emulation run unexpectedly exported exact AOT state")
+
+        exact_profile = root / "exact-profile.json"
+        exact_profile.write_text('{"schema_version":1}\n')
+        exact_bundles = root / "exact-bundles"
+        exact_bundles.mkdir()
+        prepatched = root / "prepatched-ptx"
+        prepatched.mkdir()
+        (prepatched / ("a" * 64 + ".ptx")).write_text(
+            ".version 9.0\n.target sm_120\n.address_size 64\n")
+        exact_run = subprocess.run(
+            [str(wrapper), "--exact-profile", str(exact_profile),
+             "--exact-bundle-dir", str(exact_bundles),
+             "--prepatched-ptx-dir", str(prepatched),
+             "--", str(command), str(output)],
+            env=env, text=True, capture_output=True,
+        )
+        require(exact_run.returncode == 0,
+                f"wrapper rejected valid exact inputs: {exact_run.stderr}")
+        exact_lines = output.read_text().splitlines()
+        require(exact_lines[3:] == [str(exact_profile), str(exact_bundles),
+                                    str(prepatched), "1"],
+                f"wrapper exported wrong exact state: {exact_lines[3:]}")
+
+        incomplete_exact = subprocess.run(
+            [str(wrapper), "--exact-profile", str(exact_profile),
+             "--", str(command), str(output)],
+            env=env, text=True, capture_output=True,
+        )
+        require(incomplete_exact.returncode == 64 and
+                "exact mode requires" in incomplete_exact.stderr,
+                "wrapper accepted an incomplete exact configuration")
 
         prestaged = root / "prestaged-manifest.jsonl"
         prestaged.write_text(

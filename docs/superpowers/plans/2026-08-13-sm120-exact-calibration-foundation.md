@@ -153,6 +153,7 @@ git commit -m "feat: define sm120 exact profile contract"
 - Create: `scripts/calibration/build_sm120_artifact.py`
 - Create: `tests/integration/test_build_sm120_artifact.py`
 - Create: `tests/fixtures/exact/minimal-sm120.ptx`
+- Create: `tests/fixtures/exact/kernel-contract.json`
 - Modify: `CMakeLists.txt`
 
 - [ ] **Step 1: Write deterministic fake-tool tests**
@@ -204,6 +205,7 @@ Expose this CLI:
 ```text
 build_sm120_artifact.py \
   --original-ptx FILE --transformed-ptx FILE --pass-manifest FILE \
+  --kernel-contract FILE \
   --target sm_120 --bundle-root DIR \
   --ptxas /usr/local/cuda-13.0/bin/ptxas \
   --nvdisasm /usr/local/cuda-13.0/bin/nvdisasm \
@@ -222,6 +224,9 @@ Implementation rules:
    ```
 
 4. Generate SASS from the cubin with `nvdisasm --print-code --print-raw` and collect per-kernel resource usage with `cuobjdump --dump-resource-usage`.
+   Require the calibration-produced kernel contract to supply block threads,
+   maximum dynamic shared memory, and occupancy blocks per SM; cubin metadata
+   alone cannot determine occupancy. Missing contract fields are errors.
 5. Hash exact file bytes with SHA-256. Never hash paths, mtimes, or formatted JSON.
 6. Write into a temporary sibling directory, fsync files and directory, then rename only when every check passes. Refuse to overwrite an existing bundle.
 7. Re-open and re-hash the installed bundle before returning success.

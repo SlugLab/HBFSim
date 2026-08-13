@@ -1,0 +1,8 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry kernel()
+{
+    ret;
+}

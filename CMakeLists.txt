@@ -294,6 +294,13 @@ set_target_properties(
 
 if(BUILD_TESTING)
     find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
+    add_test(
+        NAME build_sm120_artifact
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_build_sm120_artifact.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
+    )
 endif()
 
 if(BUILD_TESTING)

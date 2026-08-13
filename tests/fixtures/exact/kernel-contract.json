@@ -1,0 +1,7 @@
+{
+  "kernel": {
+    "block_threads": 256,
+    "max_dynamic_shared_bytes": 49152,
+    "occupancy_blocks_per_sm": 2
+  }
+}

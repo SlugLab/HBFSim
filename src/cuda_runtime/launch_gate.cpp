@@ -1,5 +1,6 @@
 #include "hbfsim/coverage.hpp"
 #include "hbfsim/exact_artifact.hpp"
+#include "hbfsim/exact_environment.hpp"
 #include "hbfsim/launch_gate_abi.hpp"
 #include "hbfsim/module_identity.hpp"
 #include "hbfsim/timing_binding.hpp"
@@ -8,6 +9,7 @@
 #include <cuda_runtime_api.h>
 #include <dlfcn.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
@@ -18,6 +20,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <unistd.h>
 #include <utility>
 
 #ifdef cuGetProcAddress
@@ -932,6 +935,48 @@ hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
         return &launch_gate_api_v2;
     }
     return nullptr;
+}
+
+extern "C" int hbfsim_collect_exact_environment_v1(
+    hbfsim::ExactEnvironmentSnapshotV1* output,
+    std::size_t output_bytes) noexcept
+{
+    if (output == nullptr || output_bytes != sizeof(*output)) {
+        return -1;
+    }
+    *output = {};
+    output->abi_version = hbfsim::kExactEnvironmentSnapshotAbiVersion;
+    output->struct_bytes = sizeof(*output);
+    const auto result = hbfsim::collect_live_exact_environment(
+        static_cast<std::uint32_t>(getpid()));
+    output->error_code = static_cast<std::uint32_t>(result.error);
+    output->native_status = result.native_status;
+    const auto copy_string = [](auto& destination, std::string_view source) {
+        const auto bytes = std::min(source.size(), sizeof(destination) - 1);
+        std::memcpy(destination, source.data(), bytes);
+        destination[bytes] = '\0';
+    };
+    copy_string(output->operation, result.operation);
+    if (!result.environment) {
+        return 1;
+    }
+    const auto& live = *result.environment;
+    output->captured_unix_ns = live.captured_unix_ns;
+    output->pci_vendor_id = live.pci_vendor_id;
+    output->pci_device_id = live.pci_device_id;
+    output->compute_capability_major = live.compute_capability_major;
+    output->compute_capability_minor = live.compute_capability_minor;
+    output->cuda_driver_version = live.cuda_driver_version;
+    output->sm_clock_mhz = live.sm_clock_mhz;
+    output->memory_clock_mhz = live.memory_clock_mhz;
+    output->power_limit_mw = live.power_limit_mw;
+    output->temperature_c = live.temperature_c;
+    output->current_process_is_exclusive =
+        live.current_process_is_exclusive ? 1U : 0U;
+    copy_string(output->gpu_name, live.gpu_name);
+    copy_string(output->gpu_uuid, live.gpu_uuid);
+    copy_string(output->pci_bus_id, live.pci_bus_id);
+    return 0;
 }
 
 #define HBFSIM_DRIVER_LAUNCH(name)                                             \

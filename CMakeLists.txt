@@ -52,6 +52,7 @@ add_library(
     src/cuda_runtime/capacity_runtime.cpp
     src/cuda_runtime/coverage.cpp
     src/cuda_runtime/exact_artifact.cpp
+    src/cuda_runtime/exact_environment.cpp
     src/cuda_runtime/hbm_cache.cpp
     src/cuda_runtime/module_identity.cpp
     src/cuda_runtime/range_table.cpp
@@ -261,6 +262,10 @@ target_include_directories(
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
 )
 add_test(NAME exact_artifact COMMAND exact_artifact_test)
+
+add_executable(exact_environment_test tests/cpu/exact_environment_test.cpp)
+target_link_libraries(exact_environment_test PRIVATE hbfsim_core)
+add_test(NAME exact_environment COMMAND exact_environment_test)
 
 add_executable(ptx_transform_test tests/cpu/ptx_transform_test.cpp)
 target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)
@@ -732,6 +737,15 @@ if(CUDAToolkit_FOUND)
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_gate_binding.py"
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
+        )
+        add_test(
+            NAME live_sm120_environment
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_live_sm120_environment.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+        )
+        set_tests_properties(
+            live_sm120_environment PROPERTIES SKIP_RETURN_CODE 77
         )
     endif()
 elseif(HBFSIM_ENABLE_CUDA)

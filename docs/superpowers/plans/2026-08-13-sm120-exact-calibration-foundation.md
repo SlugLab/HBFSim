@@ -474,6 +474,8 @@ git commit -m "feat: load calibrated cubins through bpftime"
 - Create: `src/cuda_runtime/exact_environment.cpp`
 - Create: `tests/cpu/exact_environment_test.cpp`
 - Create: `tests/integration/test_live_sm120_environment.py`
+- Modify: `src/cuda_runtime/launch_gate.cpp`
+- Modify: `tests/integration/test_launch_gate_symbols.py`
 - Modify: `CMakeLists.txt`
 
 - [ ] **Step 1: Write fake CUDA/NVML environment tests**
@@ -522,6 +524,8 @@ struct ExactLiveEnvironment {
 
 No function in this task may set clocks, power, compute mode, persistence mode, MIG state, or process state. Return structured probe errors; never substitute zero or a remembered host value.
 
+Expose the result from the launch-gate library through the size-checked `hbfsim_collect_exact_environment_v1` C ABI. The ABI returns the structured error code, native status, operation, and a fixed-layout snapshot so live tests and later admission code do not scrape `nvidia-smi` text.
+
 - [ ] **Step 4: Run unit and live read-only checks GREEN**
 
 The Python live test loads the built launch-gate library, requests one snapshot, and skips only when no CC 12.0 GPU is present. On the target host it must assert the product contains `RTX PRO 6000`, CC is 12.0, PCI IDs and clocks are nonzero, and the snapshot has a timestamp.
@@ -540,7 +544,9 @@ python3 tests/integration/test_live_sm120_environment.py \
 git add include/hbfsim/exact_environment.hpp \
   src/cuda_runtime/exact_environment.cpp \
   tests/cpu/exact_environment_test.cpp \
-  tests/integration/test_live_sm120_environment.py CMakeLists.txt
+  tests/integration/test_live_sm120_environment.py \
+  src/cuda_runtime/launch_gate.cpp \
+  tests/integration/test_launch_gate_symbols.py CMakeLists.txt
 git commit -m "feat: probe live sm120 exact environment"
 ```
 

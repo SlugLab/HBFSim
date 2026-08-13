@@ -1,0 +1,2029 @@
+arXiv:2607.10186v1 [cs.AR] 11 Jul 2026
+
+FlashAccel: Leveraging High-Bandwidth Flash for
+High-Throughput LLM Inference
+Xinyu Wang
+
+Yalong Xue
+
+Xiaotian Sun
+
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+University of Chinese Academy of
+Sciences
+Beijing, China
+wangxinyu22s@ict.ac.cn
+
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+School of Advanced Interdisciplinary
+Sciences, University of Chinese
+Academy of Sciences
+Beijing, China
+xueyalong22@mails.ucas.ac.cn
+
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+University of Chinese Academy of
+Sciences
+Beijing, China
+sunxiaotian21s@ict.ac.cn
+
+Xiaoyu Zhang
+
+Chunmeng Dou
+
+Xueqi Li
+
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+zhangxiaoyu@ict.ac.cn
+
+Institute of Microelectronics, Chinese
+Academy of Sciences
+Beijing, China
+douchunmeng@ime.ac.cn
+
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+lixueqi@ict.ac.cn
+
+Xiaoming Chen∗
+Institute of Computing Technology,
+Chinese Academy of Sciences
+Beijing, China
+chenxiaoming@ict.ac.cn
+
+Abstract
+
+1
+
+Large language model (LLM) inference is increasingly limited by the capacity of High-Bandwidth Memory (HBM) in
+GPUs, as model weights and KV cache grow rapidly. HighBandwidth Flash (HBF) provides higher capacity than HBM
+while retaining comparable bandwidth, making it a promising substrate for capacity-constrained LLM inference. However, its inherently high access latency, low bandwidth utilization, and lack of support for heterogeneous resource management make it difficult to integrate HBF into GPUs for LLM
+inference. We present FlashAccel, a co-designed system that
+enables efficient LLM inference using HBF. FlashAccel integrates HBF into HBM-based GPUs, providing architectural
+support to mitigate access latency. It improves bandwidth
+utilization through specialized data layouts for both model
+weights and KV cache, and introduces an HBF-aware storage
+management layer together with a programming model to organize persistent data in HBF and coordinate heterogeneous
+memory resources at the system level. Experimental results
+demonstrate that integrating six HBF stacks into the GPU
+enables FlashAccel to deliver an average improvement of
+2.54× and 1.93× in throughput per GPU and energy efficiency
+over the HBM-only GPU under 100ms latency constraint,
+respectively.
+
+The rapid advancement of large language models (LLMs)
+is driving inference workloads toward multi-turn interactions [17, 66, 70], agents [43, 56, 64], and long-context processing [7, 8, 36]. Two key trends emerge in this evolution.
+First, model sizes continue to grow following the scaling
+law [29], at the cost of drastically increased parameter scale.
+Second, new workloads increasingly rely on long context
+lengths, leading to substantial growth in KV cache footprints
+during inference [9]. These trends fundamentally increase
+the memory capacity requirements of inference systems.
+However, the capacity of High-Bandwidth Memory (HBM)
+in GPUs has not kept pace with the rapid growth of model
+size. Figure 1 shows that, although GPU memory capacity
+has increased steadily over time, the memory footprint of
+popular models has grown much faster. Today, models can
+exceed terabytes in size, far surpassing the capacity of a
+single GPU, which is at most a few hundred gigabytes. Meanwhile, as the context length has grown by 4× on average over
+the past two years [5], the storage overhead of KV cache has
+increased proportionally by 4×.
+The limited HBM capacity introduces several critical challenges in LLM inference. First, during the memory-bound decode phase, insufficient memory capacity restricts the batch
+size, leading to low compute utilization and throughput. Second, the memory pressure often forces early eviction of KV
+
+Keywords: High Bandwidth Flash, LLM Inference
+∗ Corresponding author.
+
+Introduction
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+GLM5
+Llama
+3.1-405B
+PaLM2
+
+Kimi-K2
+DeepSeek-V3
+
+DeepSeek-V2 Qwen3-235B
+GPT-3
+
+GPT-3.5
+
+Mixtral 8×22B
+
+Rubin
+
+B200
+
+A100
+
+Claude
+
+Qwen 72B
+Llama 65B
+H200 Mixtral 8×7B
+H100
+
+data layout level, FlashAccel addresses the low bandwidth
+utilization challenge of HBF by designing specialized layouts
+for weights and KV cache, enabling high parallelism during
+inference. At the system level, FlashAccel provides an HBFaware storage management layer to organize persistent data
+in HBF and a programming model that allows applications
+to efficiently utilize heterogeneous memory resources.
+In summary, we make the following contributions.
+• We identify the key challenges of employing HBF for
+LLM inference, including high access latency that affects the end-to-end latency, the gap between peak
+read bandwidth and effective bandwidth under LLM
+workloads, and the lack of management for heterogeneous memory resources.
+• We introduce FlashAccel, an HBF-based accelerator
+for high-throughput LLM serving. FlashAccel combines hardware–software co-design techniques that
+hide high access latency, enable near-peak bandwidth
+for weights and KV cache, and efficiently manage heterogeneous resources.
+• Experimental results show that FlashAccel significantly improves throughput and energy efficiency by
+2.54× and 1.93×, respectively, compared with HBMonly GPU implementations.
+
+Figure 1. Trends in HBM memory capacity and model size.
+cache, preventing reuse opportunities in multi-turn interactions and increasing recomputation overhead [33]. Third,
+due to the limited capacity of a single GPU, storing large
+models requires multi-GPU systems, which incur significant
+hardware cost and introduce additional complexity in interGPU communication, task scheduling, and fault tolerance.
+Prior works [35, 52, 68] have leveraged Flash memories
+to address the capacity bottleneck. They typically store the
+model weights in Flash and use in-storage computation to
+exploit internal parallelism. However, these works are primarily designed for edge scenarios. Their limited bandwidth
+and computational capacity are insufficient to meet the requirements of high-throughput scenarios that require powerful compute devices (i.e., GPUs) and memory devices with
+both large capacity and high bandwidth. To provide both
+high bandwidth and large capacity, High-Bandwidth Flash
+(HBF) has been proposed. HBF is a specialized Flash memory
+that delivers bandwidth comparable to HBM while retaining the high density and non-volatility of Flash [23, 25]. By
+integrating HBF into the GPU alongside HBM, we can significantly expand memory capacity to achieve potentially
+higher decode throughput. However, this capacity advantage
+does not automatically translate into throughput gains.
+Several critical challenges prevent leveraging HBF for
+high-throughput inference. First, Flash suffers from inherently high access latency [10], which can hurt the endto-end latency. Second, although HBF provides high peak
+bandwidth, it requires a high degree of parallelism to reach
+the peak bandwidth. Inefficient data layout can limit parallel
+access opportunities and result in low bandwidth utilization. Third, integrating HBF introduces heterogeneous memory resources, raising the challenge of managing these
+resources and exposing efficient abstractions to software.
+Addressing these challenges requires hardware–software
+co-design. FlashAccel addresses these challenges through
+co-design across architecture, data layout, and system software. Architecturally, FlashAccel mitigates Flash access latency with SRAM buffers distributed across HBF dies for data
+prefetching. It also integrates HBF, HBM, and GPU cores into
+a unified accelerator to relieve the capacity bottleneck. At the
+
+2
+
+Background & Motivation
+
+2.1
+
+LLM Workload
+
+LLMs consist of multiple stacked transformer layers [55],
+each requiring storage for static model weights (shared across
+all requests) and dynamic KV cache (isolated per request) [55].
+LLM inference consists of prefill and decode phases with distinct computational characteristics [33, 67]. Prefill processes
+all input tokens together, making it predominantly computebound. In decode, each request provides one token per step,
+leading to frequent access to the model weights and KV
+cache, which makes it memory-bound.
+As KV cache grows over inference steps, most frameworks [33, 71] adopt PagedAttention-style mechanisms [33]
+that partition KV cache into fixed-size blocks for fine-grained
+memory allocation, reducing fragmentation and improving
+memory utilization. Frameworks also manage KV cache eviction. Upon request completion, the computed KV cache is
+retained in memory for potential reuse by future requests.
+When memory is exhausted, the framework evicts history
+KV cache to serve new requests.
+2.2
+
+Memory Capacity Bottleneck
+
+The rapid growth of model weights and KV cache has made
+GPUs’ HBM capacity a fundamental bottleneck for LLM
+inference. This bottleneck directly limits the batch size in the
+decode phase. Consider running Qwen3-32B [63] on an H100
+GPU [40] with 80GB HBM. After reserving approximately
+64GB for model weights, only 16GB remains available for KV
+
+Q2
+
+A2
+
+Figure 2. (a) Benefits of batching. All results are obtained
+using an 8-layer configuration of Qwen3-32B due to capacity
+limits (For the full model, H100 only supports batch size less
+than 8). (b) Benefits of KV cache reuse.
+cache. For an 8K context length, each request requires about
+2GB KV cache, meaning the GPU can support a batch size
+of at most 8. According to the Roofline model [60], larger
+batch sizes increase the arithmetic intensity of weight-related
+operations and thus improve GPU utilization. Figure 2(a)
+shows that a small batch size limits throughput, whereas
+larger batch sizes significantly improve throughput with
+only marginal impact on latency.
+HBM capacity further limits the reuse opportunities of KV
+cache. Figure 2(b) illustrates the reuse opportunity in multiturn interactions. KV cache generated in previous turns can
+be reused during the prefill phase for future turns, avoiding
+recomputation of this KV cache. However, reuse requires
+retaining KV caches in memory. In the example above, each
+request requires 2GB of KV cache, meaning a single GPU
+can store KV caches for only eight requests. When serving
+more requests, KV caches are frequently evicted, leading to
+low cache hit rates and additional recomputation overhead.
+Prior work [57] shows that achieving high reuse efficiency
+may require up to 4× more memory capacity for KV cache.
+Current LLM inference systems mitigate memory capacity
+limitations by interconnecting multiple GPUs, at the expense
+of increased deployment cost and system complexity [53].
+The aggravated inter-GPU communication significantly impacts performance, with collective communication accounting for up to 20% of total latency [20]. In addition, system
+reliability degrades as scale increases. [31] reveals that in a
+1024-GPU system, failures occur on average every 7.9 hours.
+2.3
+
+Flash for LLM Inference
+
+Flash memory is attractive for alleviating the capacity bottleneck due to its high storage density. As shown in Figure 3(a),
+a Flash die comprises an array die stacked over a circuit
+die via hybrid bonding [34, 73]. The array die stores data
+using vertically stacked NAND cells, while the circuit die
+integrates peripheral circuits. Figure 3(b) shows the Flash
+hierarchy of channel-die-plane-block-page. A Flash device
+consists of multiple channels, each of which serves as an independent interface and is shared by one or more dies. Each
+die contains multiple planes with independent read/write
+circuits in the circuit die, enabling parallel data exchange between the NAND array and the page buffer. Within a plane,
+
+Peripheral
+Circuit
+R/W Circuit
+Page Buffer
+
+Word Line
+Layers
+Bonding
+
+A1
+
+The KV Cache of Turn-2
+
+···
+
+Peripheral
+Circuit
+
+Q1 Reuse
+(b)
+
+(b)
+
+Bit Lines
+
+Peripheral
+Circuit
+
+Batch size
+
+(a)
+
+Flash Die
+Circuit Die
+Array Die
+NAND
+cells
+
+Throughput
+(tokens/s)
+
+(a)
+
+Q1:Where will ASPLOS 27 be held?
+A1: Grace
+Turn-1
+Q2:What language is spoken there?
+A2: Greek
+Turn-2
+The KV Cache of Turn-1
+
+Controller/Host
+CH 0
+CH 1
+··· CH X
+Flash Die 0 Flash Die 1 ··· Flash Die X
+Plane 0
+Block 0
+Block 1
+···
+Block M
+
+Plane 1
+
+··· Plane Y
+Page 0
+Page 1
+···
+Page N
+
+Figure 3. Architecture of Flash memory. (a) Physical structure. (b) Logical structure.
+blocks are the units of erase operation, while pages are the
+units of read and program operations.
+Recent works such as AiF [35], Lincoln [52], and CambriconLLM [68] use Flash for LLM inference. They store model
+weights in Flash and place compute units within Flash to
+exploit plane-level parallelism. These designs enable edge
+inference, but are not suitable for high-throughput inference.
+These designs provide only hundreds of GB/s bandwidth and
+few TFLOPS of computational capacity, far below modern
+GPUs. These limitations in both bandwidth and compute
+capacity directly restrict inference throughput. Moreover,
+they store only model weights in Flash but ignore the large
+KV cache footprint.
+A more promising approach to accelerating LLM inference
+with Flash is to integrate a Flash device of high bandwidth
+with the GPU, alleviating its capacity bottleneck. The key
+to achieving high bandwidth is exploiting plane-level parallelism. An HBF can be realized by increasing the number
+of planes per die (e.g., partitioning a die into 16 planes [46]),
+adopting HBM-like 3D stacking [28] to enable parallelism
+across multiple Flash dies, and leveraging TSVs to provide
+high-bandwidth interconnects between Flash and GPUs.
+The main concern with storing KV cache in Flash is endurance. For example, single-level cell (SLC) Flash typically
+provides about 100K P/E cycles [30, 39, 59]. Prior works [35,
+52, 68] avoid storing frequently updated KV caches in Flash
+to circumvent endurance limits. However, recent advances
+in attention mechanisms make storing KV cache in Flash
+feasible. According to the DeepSeek report [15], the prefill
+cluster (approximately 764 GPUs) writes 266 billion new
+tokens per day 1 . Building upon these inputs, the decode
+cluster (approximately 1,051 GPUs) generates an additional
+168 billion tokens. Based on these statistics, each GPU in the
+prefill cluster writes 22.7TB of KV cache per day, while each
+GPU in the decode cluster writes 26.9TB of KV cache per
+day. SLC Flash can provide about 55 P/E cycles per day over
+a 5-year lifetime. Thus, a 1TB HBF device can sustain about
+55TB of data writes per day, which is sufficient for the inference workloads. In addition, relaxing retention guarantees
+1 The prefill cluster processes 608 billion tokens in total, but 342 billion
+
+tokens are served via KV cache hits and do not require additional writes.
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+3
+
+Challenges
+
+3.1
+
+High Access Latency
+
+Compared with HBM, Flash exhibits significantly higher
+access latency. Even with high read bandwidth comparable to
+HBM, the high read latency of HBF severely degrades end-toend performance. Using HBF, the GPU receives the first batch
+of data roughly 4 𝜇𝑠 (tR) after issuing an access request [32],
+whereas HBM requires only about 100 𝑛𝑠 [27], which is a
+40× gap. For example, a 4k × 4k FP8 GEMV operation can be
+completed on H200 in approximately 4 𝜇𝑠. When using HBF
+instead, it incurs an additional 4 𝜇𝑠 access latency, leading
+to a 50% end-to-end latency increase.
+3.2
+
+(a)
+
+Plane-0
+Plane-1
+Plane-3071 Plane-3072 Plane-4915
+Page
+Page
+··· Page
+Page
+··· Page
+···
+···
+···
+···
+···
+Hyper Page A weight tensor only occupies 2/3 of a hyper page
+(b)
+② Plane … Plane … Plane
+① Plane … Plane … Plane
+D was
+Weight-A
+WeiWeight-A
+Weideclared
+Hyper
+ght-D
+Weight-B
+between
+ght-B
+Weight-C
+Page
+A and B
+Weight-C Unused
+
+Figure 4. Low bandwidth utilization of accessing weights
+in HBF. (a) Accessing one weight. (b) Accessing multiple
+weights.
+Req-1 #1 The 1st KV block of request-1 For clarity, only 4 planes are shown
+Plane-0
+Plane-1
+Plane-2
+Plane-3
+Loading #1 of
+Req-1 and Req-3
+Req-1 #1
+Req-1 #2
+Req-1 #3
+Req-2 #1
+encounters
+Req-2 #5
+Req-2 #2
+Req-2 #3
+Req-2 #4
+plane conflict
+Req-3 #1
+Req-4 #1
+Req-4 #2
+Req-4 #3
+
+Next
+Inference
+Step
+
+can extend endurance by up to 50× [12, 37], making Flash a
+practical medium for KV cache storage.
+
+Low Bandwidth Utilization
+
+Due to the inherent high read latency, Flash exhibits low
+per-plane bandwidth (e.g., a plane reads a 4KB page in 4
+𝜇𝑠, 1 GB/s). Achieving high aggregate bandwidth requires
+exploiting parallelism across thousands of planes. For example, matching the 4.8 TB/s bandwidth of H200 requires 4,916
+planes to read concurrently.
+We define a hyper page as a logical access unit that aggregates one page from every plane. Accessing multiple hyper
+pages sequentially can maximize inter-plane parallelism and
+approach the peak bandwidth. When accessing data in HBF,
+we define plane load as the number of pages that need to
+be read from a plane. Since a plane serves page reads serially, the overall read latency is determined by the maximum
+plane load across all planes. If data is unevenly distributed
+across planes, some planes become idle earlier while others continue reading, reducing plane-level parallelism and
+bandwidth utilization. The resulting bandwidth loss directly
+prolongs memory-bound decode.
+This issue is particularly evident in weight access. For
+an HBF of 4.8 TB/s bandwidth, its hyper page size is about
+19MB. However, Figure 4(a) shows that a weight matrix in
+Qwen3-235B is only 12MB. As a result, accessing a single
+weight tensor activates only a subset of planes, leading to
+insufficient parallelism and bandwidth utilization. Although
+accessing multiple weight tensors consecutively increases
+data size beyond a hyper page, its benefit still strongly depends on data layout. Existing inference frameworks usually
+store weights in the order of variable initialization in the
+source code, rather than the order they are actually accessed
+during inference. In case ① of Figure 4(b), when weights A,
+B, and C are accessed consecutively, the source-code declaration order places D between A and B, yielding a maximum
+plane load of 3. In contrast, case ② of Figure 4(b) achieves a
+maximum plane load of 2. Therefore, reorganizing weights
+by execution order reduces the maximum plane load by 33%
+and correspondingly lowers access latency.
+
+Figure 5. Imbalance of accessing KV cache in HBF.
+
+The problem is even more complicated for KV cache because its data layout changes at runtime. At each inference
+step, the system accesses a unified KV cache constructed
+from the KV caches of all active requests. Since active requests change over steps, even if the unified KV cache is
+evenly distributed across planes at one step, the balance does
+not persist. As requests complete and new ones arrive, the
+KV cache distribution becomes imbalanced in subsequent
+steps. As shown in Figure 5, requests 1–4 are processed in
+the first step, and their KV cache is evenly distributed across
+planes2 . In a later step, if requests 1 and 3 complete, only requests 2 and 4 remain active. The unified KV cache becomes
+imbalanced across planes, yielding a maximum plane load of
+3 versus an average load of 2, resulting in a 33% bandwidth
+loss. This imbalance becomes worse over time. Due to the
+paging mechanism and eviction process, the KV cache of a
+single request becomes fragmented across multiple planes.
+Meanwhile, the active request set at each step evolves in
+a near-random manner, resulting in an imbalanced distribution of unified KV cache across planes. Assuming each
+partitioned KV block of the unified KV cache is uniformly assigned to planes, the load can be modeled as a balls-into-bins
+problem [44, 51]. Under this model, distributing 100GB KV
+cache of Qwen3-235B across 4,916 planes causes the maximum plane load to exceed the average load by 52%, leading to
+52% bandwidth loss. Furthermore, existing attention kernels
+parallelize across requests, resulting in simultaneous reads
+of all requests’ KV cache. This strategy fails to align accesses
+at hyper-page granularity. As shown in Figure 5, attention
+kernels may simultaneously access two requests’ KV cache
+2 For clarity, we assume the size of each KV block in KV cache is the same
+
+as the page size of the plane in figures.
+
+HBM HBF
+
+HBF GPU HBM
+
+HBF HBM GPU HBM HBF
+
+Co-located Integration
+
+Cascaded Integration
+
+···
+
+···
+
+···
+
+···
+
+TSV
+
+Plane Plane
+
+···
+···
+
+Plane
+
+···
+···
+
+···
+
+···
+
+Plane
+
+Circuit Die
+
+Plane Plane
+
+Base Die
+Silicon Interposer
+
+NAND
+PHY
+Controller
+TSV
+SRAM Cache
+
+R/W. Circuit
+of plane
+
+HBF HBM
+
+HBM
+
+Array Die
+
+HBF
+
+Base Die
+
+GPU
+HBF HBM
+HBM HBF
+Die
+
+(c)
+
+R/W R/W
+···
+
+···
+
+···
+
+···
+
+TSV
+
+R/W R/W
+
+···
+···
+
+R/W
+
+···
+···
+
+···
+
+···
+
+R/W
+
+···
+
+GPU
+HBF
+HBF
+Die
+
+(b) TSV HBF Stack
+
+···
+
+HBM HBF
+
+···
+
+HBF HBM
+
+···
+
+HBF
+
+···
+
+HBF
+
+Flash Die
+
+Top View
+
+(a)
+
+Decoder
+Program
+Erase
+Read Circuit
+SRAM Cache
+
+Figure 6. Architecture of FlashAccel. (a) Two options for integrating HBF. (b) Architecture of an HBF stack. (c) Design of
+array die, circuit die, and base die inside HBF.
+in the same plane, leading to contention analogous to bank
+conflicts, which further degrades bandwidth utilization.
+3.3
+
+System Resource Management
+
+The third challenge is system-level support for HBF. Unlike
+HBM, HBF is non-volatile, so the system must support persistent data organization inside HBF for objects such as model
+weights and KV cache. It also has to coordinate HBF, HBM,
+and SRAM during execution. Existing approaches do not fit
+the management of HBF well. Using an HBM-style paging
+mechanism for data stored in HBF provides direct and lowlatency access, but it does not support persistence, because
+page table mappings are discarded when the program terminates. Conventional Flash stacks support persistence but
+incur metadata and latency overhead from layered address
+translation [1, 10]. Moreover, as HBF bandwidth approaches
+that of HBM, treating Flash as a lower tier behind HBM becomes increasingly inefficient because it forces unnecessary
+staging through HBM. Instead, HBF should be exposed as a
+directly accessible resource for GPUs, while SRAM is used
+to hide Flash access latency. This requires a storage management layer for persistent data in HBF and a programming
+abstraction for accessing heterogeneous memory resources.
+
+4
+
+Hardware Design
+
+FlashAccel combines HBF, HBM, and GPU cores into a heterogeneous accelerator for LLM inference. FlashAccel can
+be realized using either co-located integration (CLI) [46] or
+cascaded integration (CSI) [23], as illustrated in Figure 6(a).
+CLI places HBF alongside the GPU, partially replacing HBM
+to increase overall capacity and lower HBM cost. CSI connects HBF to the GPU in a daisy-chain manner through the
+HBM base die, preserving more HBM stacks and thereby
+maximizing HBM capacity and bandwidth. In this heterogeneous memory system, HBM and HBF serve complementary
+roles. HBM handles small, frequently updated intermediate data for its low access latency, while HBF stores large,
+read-dominated data such as model weights and KV cache.
+Figure 6(b) shows the HBF stack architecture. Each stack
+contains 8 Flash dies above a base die, interconnected by
+TSVs. Each Flash die integrates an array die and a circuit die
+
+through hybrid bonding. Following [52] and [46], FlashAccel
+increases plane-level parallelism by scaling each Flash die
+to 96 planes. Figure 6(c) shows that HBF integrates SRAM
+buffers in different dies as caches for data prefetch to mitigate Flash latency. According to [52], the circuit die contains
+substantial unused silicon area. FlashAccel places SRAM in
+this unused area, providing each plane with an SRAM cache.
+For the base die, in addition to the NAND controller and PHY,
+we also integrate SRAM cache, increasing the overall SRAM
+capacity. Each stack has a total SRAM capacity greater than
+2 × 𝑃𝑒𝑎𝑘_𝐵𝑎𝑛𝑑𝑤𝑖𝑑𝑡ℎ × 𝑅𝑒𝑎𝑑_𝐿𝑎𝑡𝑒𝑛𝑐𝑦 to support the Flash
+data prefetch mechanism described in Section 6.2.3, ensuring the basic double-buffered pipeline. We target SLC-based
+HBF for its lower read latency and higher write endurance.
+Although SLC Flash provides lower bit density than multilevel cell (MLC) and triple-level cell (TLC), HBF still retains
+a substantial capacity advantage over HBM.
+
+5
+
+Data Layout Design
+
+Data layout design is the core of FlashAccel co-design, because achieving high HBF bandwidth utilization depends
+not only on hardware capability, but also on whether data
+accesses can be arranged to match Flash parallelism. Efficient
+data layout enables data accesses in HBF to approach peak
+bandwidth.
+5.1
+
+Weights in HBF
+
+To expose HBF parallelism, FlashAccel places static weights
+across all planes in execution order, balancing load and approaching peak bandwidth. Figure 7 illustrates the weight
+layout strategy. For a given model architecture, the computation graph of each inference step is fixed, which enables
+offline determination of the execution order. FlashAccel partitions each operator’s static weights into page-sized units
+(e.g., A0, A1, and A2) and maps them across all planes and
+channels in round-robin order. After mapping the current
+operator, the system continues with subsequent operators
+according to the execution order, starting from the plane
+immediately following the last assigned plane of the current operator. As a result, the entire weight set is approximately balanced across planes from a global perspective.
+
+Execution
+Order
+
+A0
+
+Static data
+split into 3 pages
+
+Op A
+A1 A2
+
+A0
+B1
+Plane
+
+Op B
+B0 B1
+A1
+C0
+Plane
+
+Op C
+···
+C1 C2
+Round Robin
+Layout
+B0
+All planes of
+C2
+all channels
+Plane
+C0
+
+A2
+C1
+Plane
+
+Figure 7. Data layout for weights in HBF.
+
+KV Block Size (KB)
+
+#1 Reused KV Blocks in HBF
+#11 New generated KV Blocks
+#6 KV Blocks to be written, #6 means the 6th KV Blocks of all KV cache
+KV Blocks of non-active
+requests in current step
+Plane
+Plane
+Plane
+Plane
+#1
+#2
+#3
+#4
+Nonresident
+Already
+#5
+KV Blocks
+in HBF
+(Outside HBF)
+#6
+#7
+#8
+#9
+#10
+❶ Write KV Cache
+HBF
+to HBF
+❷ Offloading
+
+HBM
+#7
+#11
+#12
+#10
+#13
+#14
+
+Plane
+#1
+
+Plane
+#2
+#5
+#7
+
+#6
+
+Plane
+#3
+
+Plane
+#4
+
+#8
+#10
+
+#9
+
+HBF
+
+#10
+
+#6
+
+#5
+
+#8
+
+#9
+
+Hyper Page
+
+#7
+
+#1
+
+#2
+
+#3
+
+#4
+
+Hyper Page
+
+❹ Write KV Cache
+to HBM
+
+❸ Load KV Cache to GPU
+
+GPU
+
+❺ Write Back to HBF
+
+Figure 8. Data layout of KV cache in HBF and optimizations
+for achieving peak bandwidth.
+Combined with the prefetch mechanism described in Section 6.2.3, which loads these weights sequentially, this data
+layout enables high HBF bandwidth utilization.
+5.2
+
+Maximum Plane Load
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+KV Cache in HBF
+
+The layout of the KV cache is more complicated than that of
+static weights because the active request set changes at every
+inference step. FlashAccel organizes per-request KV blocks
+as a unified KV cache. This abstraction enables write, offload,
+and read policies that balance plane load and preserve HBF
+bandwidth.
+At the beginning of a decode step, the unified KV cache can
+be divided into two types of KV blocks. Resident KV blocks
+are already stored in HBF from previous steps and have not
+been evicted. Nonresident KV blocks must be written into
+HBF from a remote KV cache pool or from newly generated
+prefill outputs produced on prefill GPUs. As shown in Figure 8 ❶, FlashAccel aggregates nonresident KV blocks into as
+many full hyper pages as possible and writes them to HBF to
+improve inter-plane balance. Residual blocks that do not fill a
+hyper page are placed randomly to avoid hotspots. Balancing
+incoming writes is insufficient because resident KV blocks
+may already be skewed across planes. This imbalance reduces
+bandwidth utilization in the memory-bound decode phase.
+To address this issue, FlashAccel rebalances plane load after
+
+Figure 9. Maximum plane load across different block sizes.
+the write phase through selective offloading. We first compute the average plane load of the unified KV cache and then
+offload excess pages from overloaded planes to HBM until no
+plane exceeds the average load (Figure 8 ❷). Benefiting from
+HBM’s low read latency, the offloaded data can effectively
+utilize HBM bandwidth. This selective offloading avoids extra HBF writes and thereby preserves Flash endurance. Since
+the same unified KV cache is typically reused across multiple
+subsequent decoding steps, the extra offloading overhead
+can be amortized.
+During attention computation, conventional kernels load
+KV cache in parallel across requests. This may trigger concurrent reads to different requests whose KV blocks happen to
+reside in the same plane, causing plane conflicts that reduce
+parallelism. Figure 8 ❸ illustrates the proposed HBF-friendly
+loading scheme. The GPU performs accesses to HBF at hyperpage granularity to maximize effective bandwidth, and then
+processes all KV blocks within each hyper page in parallel. A
+small fraction of KV blocks offloaded to HBM is fetched from
+HBM in the same step. Using FlashAttention [14], we compute partial attention results per KV block and then reduce
+them by request to obtain the final result.
+Each decode step also produces new KV cache for every
+request. We temporarily buffer them in HBM (Figure 8 ❹).
+At the end of each step, once the filled blocks are sufficient
+to form one or more full hyper pages, we flush them back
+to HBF using the same hyper-page-based write policy (Figure 8 ❺). Since the KV cache generated at each decode step
+is too small to form a hyper page, directly flushing it to
+HBF would underutilize bandwidth. The proposed strategy
+avoids inefficiency and improves bandwidth utilization for
+KV cache writes and future reads.
+Besides the above strategies, increasing the KV block size,
+i.e., storing more tokens in every KV block, can further mitigate inter-plane load imbalance. Under random plane mapping, increasing the KV block size significantly reduces the
+maximum plane load, as shown in Figure 9. A larger KV block
+spans multiple NAND pages and is therefore distributed
+across a group of adjacent planes rather than confined to a
+single plane. This spreads load over multiple planes, weakens local hotspots and reduces the amount of rebalancing
+required.
+However, the KV block size cannot be arbitrarily large.
+Since a KV block is typically written to HBF only after
+
+Logical Address
+
+it is filled, a larger block size leaves more partially filled
+data buffered in HBM and increases HBM pressure. For the
+Qwen3-235B model, a KV block size of 512KB with batch
+size 256 requires at least 8GB of HBM, imposing high HBM
+pressure on the CLI architecture. Larger block sizes also increase internal fragmentation. FlashAccel uses 256KB KV
+blocks to balance plane-level skew and HBM pressure.
+
+(a)
+
+6
+
+Figure 10. Page table mapping (a) after NandMmap, and (b)
+further after SramPrefetch.
+
+System Design
+
+The above data layout and access optimizations require system support at two levels. First, the system has to coordinate
+HBM, HBF, and SRAM during inference. Second, it must organize persistent data stored in HBF. Accordingly, FlashAccel
+provides a programming model for heterogeneous resource
+coordination and an HBF-aware storage management layer
+for persistent data organization. The programming model exposes a unified virtual address space to programs, while the
+storage management layer maintains the metadata needed
+to locate persistent objects in HBF.
+
+Runtime
+Indexing
+Metadata
+0xFF...01
+0xFF...02
+
+0
+0
+The address of data unit 0
+
+Physical Address
+
+0xFF...01
+0xFF...02
+-
+
+···
+-
+
+KV Cache Objects from
+different requests
+Object-1
+Object-2
+#1 #2 #3
+#4
+#5
+
+(b)
+
+Page Table
+V.
+1
+1
+0
+0
+1
+1
+
+Physical Address
+
+0xFF...01
+0xFF...02
+-
+
+···
+0xAA...11
+0xFF...02
+
+Update to
+SRAM address
+
+NandMmap
+
+Page Table
+
+V.
+1
+1
+0
+
+Initialized to
+HBF address
+
+Program
+
+V. Physical Address
+1 HBF Addr - #1 GroupMmap
+1 HBF Addr - #4 Hyper page in
+contiguous
+1 HBF Addr - #5 logical address
+space
+1 HBF Addr - #3
+1 HBF Addr - #2 HBM Addr - #2
+0
+GroupArrange
+
+Plane Plane Plane Plane
+#1
+Hyper
+#4 Page
+#5
+#3
+#2
+Plane Distribution #2 maps to an overloaded plane->offload to HBM
+
+Figure 11. Page table mapping after GroupMmap and
+GroupArrange.
+6.1
+
+HBF-aware Storage Management
+
+FlashAccel uses a lightweight HBF-aware storage layer for
+persistent data placement. It treats model weights and perrequest KV cache as persistent objects, partitions them into
+data units, and maintains per-object indexing metadata to
+locate them. In conventional Flash storage stacks, locating
+data typically requires two levels of indirection. The program
+first uses file-system metadata to obtain a logical address,
+which is then translated by the Flash translation layer (FTL)
+in hardware (e.g., SSD controller) into a physical Flash address. Since Flash does not support in-place updates, the
+two-level indirection is necessary. When data is modified,
+the new data must be written to a different physical address,
+and the FTL is responsible for tracking these remapped addresses. However, the FTL is costly for HBF, as it demands
+a GB-scale logical-to-physical mapping table [22] stored in
+low latency SRAM or DRAM, and incurs extra address translation overhead [1]. Our key observation is that both model
+weights and KV cache follow append-only write patterns.
+FlashAccel therefore eliminates the FTL and directly records
+the physical address of each data unit in the object’s indexing metadata. As a result, locating data in HBF requires only
+the indexing metadata, avoiding the overheads of FTL. By
+storing the metadata in Flash, we ensure data persistence.
+To match the block-level erase semantics of Flash, the storage layer adopts an isolated block allocation policy. Weight
+objects and each request’s KV cache object are placed in
+separate blocks. Because KV cache eviction occurs at request
+granularity, erasing the KV cache of one request does not
+affect weight objects or the KV cache objects of other requests, thereby avoiding write amplification and reducing
+Flash wear [11].
+
+6.2
+
+Programming Model
+
+FlashAccel exposes HBF through a programming model comprising an interface set and a runtime. After the program
+invokes these interfaces, the runtime maintains page table
+mappings from logical addresses to the physical addresses
+of HBM, HBF, or SRAM. This design exposes heterogeneous
+memory through a unified virtual address space. The programming model provides different interfaces for accessing
+weights and KV cache stored in HBF, accounting for distinct
+access characteristics. To address the HBF access latency
+challenge, it also provides interfaces that leverage SRAM to
+hide data access latency.
+6.2.1 Weight Access Interface. Weights are the simplest
+object in the model because they are static and read-only.
+FlashAccel introduces a primitive NandMmap interface to expose weight objects stored in HBF to the virtual address
+space. NandMmap maps a weight object in HBF into the virtual address space and returns a logical base address. The
+program can subsequently access the mapped weights using
+ordinary load operations on the returned logical address.
+Upon a NandMmap call, the runtime first reserves a contiguous free range in the virtual address space, as shown in Figure 10(a). It then retrieves the metadata of the target object
+from the storage management layer to obtain the physical
+page addresses of the mapped data in HBF. Finally, it updates
+the page table to associate the returned logical address range
+with the corresponding physical addresses in HBF. Since
+weights are static, these mappings can be established once
+during model initialization and reused throughout inference.
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+6.2.2 KV Cache Access Interface. Unlike model weights,
+the KV cache is maintained separately for each request rather
+than shared across requests. FlashAccel stores each request’s
+KV cache as an independent persistent object in the HBF
+storage management layer. However, during each inference
+step, the system must jointly read and write the KV caches
+of all active requests. To support this access pattern, we introduce a group object abstraction. GroupCreate logically
+combines the KV-cache objects of active requests in the same
+inference step into a single group object. Based on this abstraction, FlashAccel introduces three interfaces: GroupMmap,
+GroupWrite, and GroupArrange, to support grouped reads,
+append-only writes, and offloading, respectively.
+GroupMmap maps a group object into a contiguous logical
+address space and returns the base address and a read table.
+The runtime first reserves a contiguous virtual address region, and then builds a plane-distribution table (Figure 11)
+for all objects in the group and uses it to pack data from
+different objects into hyper pages whenever possible. These
+hyper pages are mapped contiguously into the virtual region
+at hyper-page granularity. The runtime also returns the read
+table to resolve each offset of the logical base address to
+its corresponding object identifier. This design allows the
+program to access the group object through one logical address range, while transparently serving HBF accesses at
+hyper-page granularity for high bandwidth utilization.
+GroupArrange performs the offloading mechanism described in Section 5.2. The runtime computes the load of
+the group object across different planes and derives the average load. It then migrates data from overloaded planes in HBF
+to HBM. Finally, it updates the page table so that the physical
+addresses of the offloaded data point to their new addresses
+in HBM (Figure 11). This interface alleviates load imbalance
+across planes and improves overall read bandwidth.
+GroupWrite handles append-only writes to the KV cache,
+flushing data from HBM to Flash. GroupWrite takes a pointer
+to data in HBM together with a write table that specifies
+which object each portion of the data belongs to. Following the write policy described in Section 5.2, the runtime
+splits data in HBM into hyper pages whenever possible and
+distributes them across HBF in a plane-balanced manner.
+For data smaller than a hyper page, the runtime randomly
+selects planes for placement. The runtime updates the object
+metadata in the storage management layer, the page table,
+and the read table of GroupMmap according to the write table
+and the plane addresses determined during placement, so
+that the newly written data remains accessible.
+6.2.3 Data Prefetch. FlashAccel incorporate a data prefetch
+mechanism into the programming model to leverage the
+SRAM resources to hide the high read latency of Flash. Specifically, FlashAccel introduces SramPrefetch, which takes a
+logical address (e.g., the returned address of NandMmap and
+GroupMmap for weights and KV cache, respectively) referring
+
+(a)
+
+Operations in feed-forward
+network (FFN)
+Gate
+UP
+
+Up Matrix
+
+Split into 3 tiles
+
+Computation
+Prefetch
+split into
+Partial GEMM
+#0/#1/#2
+Release
+#2
+three parts
+Down
+#0 #1
+(b)
+Prefetch Queue
+Kernel Launch Order
+Gate GEMM Up GEMM ··· Gate Prefetch Up Prefetch ···
+#0 #1 #2 #0 #1 #2 ···
+#0 #1 #2 #0 #1 #2 ···
+(c) Prefetch
+Operation Gate #0 Gate #1 Gate #2 Up #0 Up #1 ... Other Time
+Compute Other Gate #0 Gate #1 Gate #2 Up #0 ... Down #2
+Kernel
+SiLU
+
+Dot
+
+Figure 12. Proposed prefetch mechanism. (a) Modification to
+original compute kernels after introducing prefetch. (b) Kernel launch order and prefetch queue. (c) Overlap of prefetch
+and computation.
+to data in HBF and a prefetch size as input, and returns an output logical address referring to prefetched data in SRAM for
+subsequent accesses. FlashAccel also provides SramRelease
+to release the allocated SRAM space after the last consumer
+finishes. A kernel therefore follows a simple pattern: prefetch
+to SRAM, compute on the returned address, and release the
+SRAM resources. For data objects larger than the SRAM capacity, the runtime split them into multiple smaller tiles that
+fit in SRAM and execute them sequentially. Figure 12(a) illustrates how a large weight matrix is split into three tiles,
+each of which is prefetched into SRAM, multiplied with the
+activation, and discarded before processing the next tile.
+To overlap prefetch with computation, the runtime employs prefetch-aware scheduling. Figure 12(b) shows how
+SramPrefetch operations are extracted from the compute
+graph, organized into a queue following the topological order
+of the computational graph, and executed asynchronously
+from the compute kernels. This design allows Flash access
+latency to be overlapped with computation, as depicted in
+Figure 12(c).
+When the runtime encounters a prefetch request, it first
+creates page table mappings for the returned logical address
+and initially points them to the original Flash addresses,
+ensuring that the data remains accessible. The runtime then
+attempts to migrate data in Flash to SRAM in the background
+at the hyper-page granularity. It first tries to allocate space in
+the SRAM of the plane. If that fails, it falls back to the SRAM
+on the base die. When allocation succeeds, the data is read
+from Flash into SRAM and the corresponding mappings in
+the page table are updated to the SRAM location. Otherwise,
+if no SRAM space is available, the original Flash mapping is
+retained. Figure 10(b) shows the page table after prefetching
+weights data from HBF.
+SramPrefetch does not stall the execution of dependent
+compute kernels. If a compute kernel begins execution before
+data prefetch completes, the unprefetched portions retain
+their original Flash addresses in the page table, allowing the
+kernel to access the correct data. After the last consumer
+
+Table 1. Model configuration
+
+Table 2. HBF configuration.
+
+Models
+
+Attention
+
+FFN
+
+Qwen3-235B [63]
+Qwen3-Coder-480B [63]
+LLaMA3.1-405B [18]
+DeepseekV3-671B [16]
+
+GQA / DP @ 188KB/token
+GQA / DP @ 248KB/token
+GQA / TP @ 502KB/token
+MLA / DP @ 70KB/token
+
+MoE / EP
+MoE / EP
+Dense / TP
+MoE / EP
+
+SLC 96 wordline-layers, 4KB / page
+256 pages / 256 blocks / 96 planes, 192 Gb / die
+Array
+Die
+
+Circuit
+Die
+
+compute kernel completes, SramRelease reclaims the associated SRAM space for future prefetches.
+
+7
+
+Evaluation
+
+7.1
+
+Evaluation Setup
+
+Workloads: Table 1 summarizes the four representative
+models used in our evaluation. These models cover popular attention mechanisms including group-query attention
+(GQA) [2], multi-head latent attention (MLA) [48], and feedforward network (FFN) variants, including dense FFNs and
+mixture-of-experts (MoE) [49] FFNs. We apply different parallelism strategies for these models including tensor parallelism (TP), data parallelism (DP) and expert parallelism
+(EP). FP16 is used for all models, except that the weights of
+DeepSeekV3 [16] are in FP8. We set two sequence length configurations for different workloads. For long-context workloads, we derive the average sequence lengths of all tasks in
+the LongProc benchmark [65], setting the input and output
+sequence lengths to 8.11K and 2.53K, respectively. The second configuration targets agentic workloads with multi-turn
+interactions. Based on statistics reported in [58], we set the
+average input and output sequence lengths to 15K and 6K,
+respectively.
+Baseline and Configuration: The baseline is a DGX-H200
+node [41]. A DGX-H200 node contains 8 H200 GPUs within
+the same NVLink domain, each with 900 GB/s NVLink bandwidth. Each H200 GPU is equipped with 6 HBM3e stacks [38],
+delivering a total of 141GB DRAM capacity and 4.8 TB/s
+memory bandwidth. This baseline configuration is denoted
+as 8×H200.
+We model an HBF stack designed to deliver HBM3e-level
+bandwidth while providing 8× higher capacity. Table 2 summarizes its configuration. Following Lincoln [52], we design
+the Flash die based on XL-Flash [32]. Each Flash die contains 96 planes, and each plane has a capacity of 256MB.
+We derive area parameters from the die-shot in [32]. For a
+conservative evaluation, 𝑡𝑅 and 𝑡𝑃𝑟𝑜𝑔 are kept the same as
+in [32] even though the capacity of each plane is reduced
+by 4×. We integrate HBF into the GPU and evaluate two
+FlashAccel configurations: CSI and CLI. CSI places 6 HBF
+stacks alongside the 6 HBM stacks in H200. Since FlashAccel
+does not require large HBM capacity for data storage, each
+HBM stack is reduced to 2 DRAM layers to minimize cost
+in CSI design. CLI replaces 5 of 6 HBM stacks with HBF and
+
+Plane area= 1.43 mm2 , TSV area = 12 mm2 ,
+total area = 149 mm2
+𝑡𝑅 = 4 𝜇𝑠, 𝑡𝑃𝑟𝑜𝑔 = 75 𝜇𝑠
+Plane peripheral circuit area = 1.21 mm2 ,
+32KB SRAM per plane ( 0.050mm2 )
+Total area = 143 mm2 (including TSV 12 mm2
+and Other Peripheral area 10.17 mm2 )
+
+Base
+Die
+
+SRAM capacity = 8MB
+
+HBF
+stack
+
+8 × Flash Die + 1 × Base Die @ 768GB/s
+Total Flash/SRAM capacity = 192GB / 32MB
+
+retains 1 HBM stack. Since HBF offers higher capacity, fewer
+GPUs are needed to store model weights. Therefore, beyond
+8×CSI and 8×CLI configurations, we also evaluate 4×CSI
+and 4×CLI.
+Simulation: We build an event-driven simulator on top of
+LLMCompass [69] to model the latency of LLM inference
+on both FlashAccel and conventional GPUs. LLMCompass
+searches tiling strategies to find efficient GEMM mappings
+on GPU hardware and uses ScaleSim [45] to estimate latency.
+We extend it with a NAND simulator that models page access
+latency at plane granularity. We modify the memory model of
+LLMCompass to simulate the access of data residing in Flash
+and SRAM cache by providing the corresponding latencies.
+7.2
+
+Evaluation Results
+
+Figure 13 shows the throughput per GPU in the decode phase
+across five hardware configurations under varying models
+and sequence lengths. We use two decode latency servicelevel objectives (SLOs) [72], 50ms (∼20 tokens/s/user) and
+100ms (∼10 tokens/s/user). FlashAccel removes the capacity
+bottleneck of HBM on batching, shifting the limiting factor
+for throughput from memory capacity to latency budget.
+Since larger batch sizes increase the arithmetic intensity of
+memory-bound FFN operations, this shift directly improves
+decode throughput. For each configuration, we therefore
+use the largest batch size that satisfies both the SLO and
+HBM capacity constraints, and report throughput per GPU
+normalized to the baseline. For example, for LLaMA3.1-405B
+with 15K/6K context length, each request requires 10GB of
+KV cache, limiting the maximum batch size of 8×H200 to 30,
+whereas under a 50ms SLO, 8×CSI can support a theoretical
+batch size of 110 after accounting for the memory footprint
+of model weights.
+Across all models, sequence lengths, and SLOs, 8×CSI
+consistently outperforms the baseline, delivering a 2.15×
+average throughput gain by supporting substantially larger
+
+Normalized
+Throughput/GPU
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+Lin
+Lout
+
+Lin
+Lout
+
+Normalized
+Throughput / GPU
+
+Figure 13. Throughput per GPU comparison among the baseline, CLI, and CSI.
+
+Figure 14. Throughput per GPU comparison after extending
+to 16 GPUs.
+
+batch sizes. 8×CLI shows lower throughput than 8×CSI, as
+the CLI architecture has only 5 HBF stacks, resulting in 16.7%
+lower bandwidth compared to CSI. Under the strict 50ms SLO,
+this bandwidth limitation causes it to slightly underperform
+the baseline on DeepSeek-V3 model and Qwen3-235B model.
+Under a 100ms SLO, CLI can load more KV cache per step,
+enabling larger batch sizes and a 2.04× overall throughput
+improvement.
+We further investigate configurations with fewer GPUs.
+For HBM-based GPUs, a 4×H200 setup cannot fit model
+weights and is not evaluated. Both 4×CLI and 4×CSI suffer
+from reduced aggregate bandwidth. For LLaMA3.1-405B and
+Qwen3-Coder-480B, loading weights alone takes close to
+50ms, leaving insufficient time for KV cache loading and
+computation under a 50ms SLO. Thus, these models cannot
+be served under this constraint. For other models, the limited bandwidth and strict SLO restrict batch size, resulting
+in lower throughput than the 8×H200 baseline. When the
+SLO is relaxed to 100ms, more KV cache can be loaded per
+step, enabling larger batch sizes. Despite using fewer GPUs,
+FlashAccel still outperforms the baseline on LLaMA-405B,
+Qwen3-235B, and Qwen3-480B in throughput per GPU.
+Figure 14 shows throughput per GPU when scaling to 16
+GPUs. For HBM-based GPUs, the additional memory capacity allows larger batch sizes. However, scaling to 16 GPUs
+moves communication from NVLink to RDMA [41], reducing
+bandwidth by about 9× and making all-to-all communication
+in EP much more expensive. As a result, the baseline shows
+little throughput improvement, and in some cases even degrades. Although 16×CSI and 16×CLI still achieve higher
+throughput per GPU than 16×H200, their performance is
+
+Figure 15. (a) Latency breakdown of different configurations.
+(b) Throughput comparison among different configurations.
+
+also limited by communication overhead. Compared with
+8×CSI and 8×CLI, both show lower throughput per GPU. We
+also find that, for both CSI and CLI, an 8× HBF-based GPU
+system delivers higher throughput per GPU than a 16× HBMbased GPU system. Because each HBF-based GPU provides
+more capacity, a smaller system within a high interconnect
+bandwidth domain can sustain the workload, improving both
+cost efficiency and throughput per GPU.
+7.3
+
+Ablation Study
+
+We ablate each optimization in FlashAccel. Figure 15 presents
+the latency breakdown of 6 accelerator configurations executing a Qwen3-235B model with a batch size of 256. Plain
+HBF denotes an HBF-based GPU without any optimizations.
+We further construct three ablated variants by disabling an
+optimization from the full CSI FlashAccel design at a time,
+namely prefetching, weight layout, and KV cache layout.
+With all optimizations enabled, FlashAccel matches HBMbased latency within ∼4%, including 2% offloading overhead.
+Figure 15 reports throughput under a 100ms SLO. Disabling
+prefetching, weight layout, and KV cache layout degrades
+throughput by 55%, 7%, and 15%, respectively, relative to
+FlashAccel. Plain HBF suffers a 65% throughput loss and
+falls below the HBM-based GPU. Overall, these results show
+that all three optimizations are necessary to close the performance gap of HBF. Prefetching plays a dominant role in
+mitigating access latency, while layout optimizations further
+improve bandwidth utilization.
+
+Normalized tokens/J to 8×H200
+
+Normalized Tokens
+requiring computation
+
+KV Cache Hit Rate
+
+Figure 16. KV cache hit rate and normalized tokens requiring computation (normalized to 8×H200).
+
+Qwen3 235B
+
+Qwen3 480B
+
+DeepseekV3 Llama3.1 405B
+
+Figure 17. Energy efficiency comparison.
+7.4
+
+Write Issues
+
+Flash suffers from write-side limitations in both bandwidth
+and endurance. Table 2 shows that the write latency of program operation (𝑡𝑃𝑟𝑜𝑔 ) is significantly higher than the latency
+of read (𝑡𝑅 ), which limits HBF write bandwidth. While the
+read bandwidth reaches 4.6 TB/s for CSI, the peak write bandwidth is only 245.8 GB/s. The endurance is another concern.
+Prior works [12, 37] demonstrate that reducing retention
+time from 3 years to 3 days can extend P/E cycles by up to
+50×. Conservatively, we assume that reducing the retention
+time can extend the endurance by up to 10×, increasing the
+P/E cycles from 100K to 1M. Even so, it still cannot match
+the nearly unlimited write endurance of DRAM. However,
+the wide adoption of new attention mechanisms, like GQA
+and MLA, reduces write volume compared to multi-head
+attention (MHA), making it possible to store KV cache in
+Flash. Across all evaluated configurations, each HBF-based
+GPU generates and writes at most 276MB of new KV cache
+per second in the decode node (8×CSI running Qwen3-480B
+under a 100ms SLO, 1138 tokens/s). In addition, based on
+the input/output length ratio (i.e., ∼2.58:1) in agent workloads [58], each HBF-based GPU writes another 712MB of
+KV cache per second from the prefill node. In total, each
+HBF-based GPU writes 988MB of KV cache per second, taking only 3.9ms and incurring an additional overhead of 4%.
+Over a 5-year deployment period, this amounts to 148,570TB
+of total KV cache writes. With 1152GB capacity and 1M P/E
+cycles, CSI provides 1,125,000 TBW, sufficient for KV cache
+storage.
+7.5
+
+Prefill and KV Cache Reuse
+
+During the prefill phase, each request usually contains enough
+tokens to achieve high compute intensity, even without constructing a large batch size. In this case, both HBM-based
+GPUs and HBF-based GPUs can process the prefill requests
+efficiently. In multi-turn interactions, however, the GPU for
+prefill needs to store the KV cache of previous turns for each
+session for future turns in the same session to reuse it, avoiding the recomputation for these cached tokens. Larger capacity allows the system to reduces KV cache eviction. Figure 16
+reports the KV cache hit rate measured using multi-turn
+interaction traces [6] on different numbers of HBM-based
+
+GPUs and HBF-based GPUs. Due to the large memory capacity, both 8×CLI and 8×CSI can store the KV cache for all
+sessions and achieve the ideal hit rate. In comparison, even
+when we scale the HBM-based GPU system to 16 GPUs, its
+hit rate is still 50% lower than that of the HBF-based GPU
+system. Figure 16 also shows that the higher hit rates of
+8×CSI and 8×CLI reduce the number of tokens that require
+computation by up to 89% compared with 8×H200, thereby
+providing additional speedup.
+7.6
+
+Energy and Area Analysis
+
+Flash memory suffers from high read energy consumption.
+While hybrid bonding can reduce read power, measurements
+from a real hybrid-bonded Flash prototype still show a read
+energy of 8 pJ/bit [62], which is 2.7× higher than that of
+HBM3e (2.99 pJ/bit [4]). After integrating HBF, the overall
+TDP of CSI and CLI architectures increases 1.31× and 1.23×,
+respectively. Nevertheless, thanks to the throughput advantages of HBF, we observe improvements in tokens per Joule.
+Figure 17 illustrates the energy efficiency (tokens/J) of different accelerators under a 100ms SLO. On average, 8×CSI
+and 8×CLI deliver 1.93× and 1.66× higher energy efficiency
+than 8×H200, respectively.
+Our evaluation shows that HBF occupies an area of 149mm2 ,
+which is 1.23× larger than that of standard HBM3e (121mm2 ).
+This overhead stems from our conservative assumptions
+based on the design in [32], which uses only 96 wordline
+layers. Recent technologies [13, 54, 61] have achieved over
+300 wordline layers, significantly improving storage density
+and reducing area overhead for a given capacity. Using array
+dies with more wordline layers allows HBF to achieve area
+parity with the HBM stack. Even with only 96 wordline layers, our HBF design still achieves 6.5× higher density than
+HBM3e.
+
+8
+
+Related Works
+
+Flash Offloading Strategy: Prior works [3, 21, 26, 50] offload model weights or KV cache to SSDs to mitigate the
+DRAM capacity bottleneck, enabling LLM execution without
+out-of-memory failures. However, these designs are fundamentally constrained by the low SSD bandwidth, leading to
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+extremely high decode latency, which limits their practicality in datacenter deployment. FlashAccel addresses this issue
+by increasing plane-level parallelism in Flash and employing
+dedicated layout optimizations to achieve high bandwidth.
+In-storage Processing Accelerators: These accelerators [35, 52, 68] place compute units inside Flash to exploit
+its internal bandwidth for on-device inference. However, the
+limited silicon area inside Flash restricts computational capacity, resulting in low throughput. Moreover, they do not
+support storing KV cache in Flash, leaving capacity challenges unaddressed. FlashAccel instead integrates HBF with
+GPUs to provide high computational capacity, and enables
+KV cache storage via SLC Flash and system support for
+append-only KV cache writes.
+Processing-in-memory Accelerators: Some works [19,
+24, 42, 47] accelerate attention execution using DRAM-based
+processing-in-memory (PIM) which provides high internal
+bandwidth but limited computational capacity. They mainly
+target MHA that has low arithmetic intensity. Recent MLA
+and GQA impose higher computational demands that are
+difficult for PIM to sustain. In addition, PIM does not address
+the inherent low density of DRAM which leads to high cost.
+By contrast, FlashAccel improves density with Flash and,
+through GPU integration, supports attention mechanisms
+requiring more computation.
+
+9
+
+Conclusion
+
+This work points out the key obstacles that prevent HBF
+from translating its capacity advantages into LLM-serving
+performance, and addresses them through co-design across
+architecture, data layout, and system software. FlashAccel
+introduces an SRAM cache at the architectural level and a
+prefetch interface at the system level to mitigate the high
+access latency of Flash. A specialized data layout fully leverages plane-level parallelism for weights and KV cache to
+improve bandwidth utilization. An HBF management layer
+and a programming model address the management and
+usage of heterogeneous memory resources. Experimental results show that FlashAccel achieves 2.54× higher throughput
+than HBM-based GPU.
+
+References
+[1] Nitin Agrawal, Vijayan Prabhakaran, Ted Wobber, John D Davis, Mark
+Manasse, and Rina Panigrahy. 2008. Design tradeoffs for {SSD} performance. In 2008 USENIX Annual Technical Conference (USENIX ATC
+08).
+[2] Joshua Ainslie, James Lee-Thorp, Michiel De Jong, Yury Zemlyanskiy,
+Federico Lebrón, and Sumit Sanghai. 2023. Gqa: Training generalized multi-query transformer models from multi-head checkpoints.
+In Proceedings of the 2023 Conference on Empirical Methods in Natural
+Language Processing. 4895–4901.
+[3] Keivan Alizadeh, Seyed Iman Mirzadeh, Dmitry Belenko, S Khatamifard, Minsik Cho, Carlo C Del Mundo, Mohammad Rastegari, and
+Mehrdad Farajtabar. 2024. Llm in a flash: Efficient large language
+model inference with limited memory. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume
+1: Long Papers). 12562–12584.
+[4] Oscar Antepara, Zhengji Zhao, Brian Austin, Nan Ding, Leonid Oliker,
+Nicholas J Wright, and Samuel Williams. 2025. Benchmark-driven
+Models for Energy Analysis and Attribution of GPU-Accelerated Supercomputing. In Proceedings of the International Conference for High
+Performance Computing, Networking, Storage and Analysis. 888–904.
+[5] Malika Aubakirova, Alex Atallah, Chris Clark, Justin Summerville,
+and Anjney Midha. 2026. State of AI: An Empirical 100 Trillion Token
+Study with OpenRouter. arXiv preprint arXiv:2601.10088 (2026).
+[6] badlogic. 2026. pi-mono. https://github.com/badlogic/pi-mono. Version: main branch, accessed 2026-04-15.
+[7] Yushi Bai, Xin Lv, Jiajie Zhang, Hong Lyu, Jiankai Tang, Zhidian
+Huang, Zhengxiao Du, Xiao Liu, Aohan Zeng, Lei Hou, Yuxiao Dong,
+Jie Tang, and Juanzi Li. 2024. Longbench: A bilingual, multitask benchmark for long context understanding. In Proceedings of the 62nd annual
+meeting of the association for computational linguistics (volume 1: Long
+papers). 3119–3137.
+[8] Iz Beltagy, Matthew E Peters, and Arman Cohan. 2020. Longformer:
+The long-document transformer. arXiv preprint arXiv:2004.05150
+(2020).
+[9] Adithya Bhaskar, Alexander Wettig, Tianyu Gao, Yihe Dong, and
+Danqi Chen. 2025. Cache Me If You Can: How Many KVs Do You
+Need for Effective Long-Context LMs? arXiv preprint arXiv:2506.17121
+(2025).
+[10] Jalil Boukhobza, Pierre Olivier, Wen Sheng Lim, Liang-Chi Chen, YunShan Hsieh, Shin-Ting Wu, Chien-Chung Ho, Po-Chun Huang, and
+Yuan-Hao Chang. 2025. A survey on flash-memory storage systems: A
+host-side perspective. ACM Transactions on Storage 21, 3 (2025), 1–59.
+[11] Yu Cai, Saugata Ghose, Erich F Haratsch, Yixin Luo, and Onur Mutlu.
+2017. Error characterization, mitigation, and recovery in flashmemory-based solid-state drives. Proc. IEEE 105, 9 (2017), 1666–1704.
+[12] Yu Cai, Gulay Yalcin, Onur Mutlu, Erich F Haratsch, Adrian Cristal, Osman S Unsal, and Ken Mai. 2012. Flash correct-and-refresh: Retentionaware error management for increased flash memory lifetime. In 2012
+IEEE 30th International Conference on Computer Design (ICCD). IEEE,
+94–101.
+[13] Wanik Cho, Chanhui Jeong, Jongwoo Kim, Jongseok Jung, Keunseon
+Ahn, Jayoon Goo, Sangkyu Lee, Kayoung Cho, Tei Cho, Dauni Kim,
+Gwan Park, Yushin Ahn, Sooyeol Chai, Gwihan Ko, Sunyoung Jung,
+Eunwoo Jo, Taehun Park, Jinhyun Ban, Cheoljoong Park, Jae Hyun
+Park, Sanghoon Oh, Sojin Jeong, Youngjun Kwak, Kyungsoo Jeong,
+Jinyeop Kim, Minchol Shin, Eunho Yang, Taisik Shin, Youngil Kim,
+Jiseong Mun, Chanyang Ryu, Huihyeon Park, Changwan Ha, Jong Tai
+Park, Peng Zhang, Sooyong Park, Rezaul Haque, Hang Tian, Sunghwa
+Ok, Wonbeom Choi, Junyoun Lim, Dongkyu Yoon, Sechun Park, Wonsun Park, Kichang Gwon, Seungpil Lee, Hwang Huh, Woopyo Jeong,
+and Jungdal Choi. 2025. A 321-layer 2Tb 4b/cell 3D-NAND-flash memory with a 75MB/s program throughput. In 2025 IEEE International
+Solid-State Circuits Conference (ISSCC), Vol. 68. IEEE, 512–514.
+
+[14] Tri Dao, Dan Fu, Stefano Ermon, Atri Rudra, and Christopher Ré.
+2022. Flashattention: Fast and memory-efficient exact attention with
+io-awareness. Advances in neural information processing systems 35
+(2022), 16344–16359.
+[15] DeepSeek-AI. 2025. Day 6: One More Thing, DeepSeek-V3/R1 Inference
+System Overview.
+https://github.com/deepseek-ai/open-infraindex/blob/main/202502OpenSourceWeek/day_6_one_more_thing_
+deepseekV3R1_inference_system_overview.md GitHub repository.
+[16] DeepSeek-AI, Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang, Bochao
+Wu, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang,
+Chong Ruan, Damai Dai, Daya Guo, Dejian Yang, Deli Chen, Dongjie Ji,
+Erhang Li, Fangyun Lin, Fucong Dai, Fuli Luo, Guangbo Hao, Guanting
+Chen, Guowei Li, H. Zhang, Han Bao, Hanwei Xu, Haocheng Wang,
+Haowei Zhang, Honghui Ding, Huajian Xin, Huazuo Gao, Hui Li,
+Hui Qu, J. L. Cai, Jian Liang, Jianzhong Guo, Jiaqi Ni, Jiashi Li, Jiawei
+Wang, Jin Chen, Jingchang Chen, Jingyang Yuan, Junjie Qiu, Junlong
+Li, Junxiao Song, Kai Dong, Kai Hu, Kaige Gao, Kang Guan, Kexin
+Huang, Kuai Yu, Lean Wang, Lecong Zhang, Lei Xu, Leyi Xia, Liang
+Zhao, Litong Wang, Liyue Zhang, Meng Li, Miaojun Wang, Mingchuan
+Zhang, Minghua Zhang, Minghui Tang, Mingming Li, Ning Tian,
+Panpan Huang, Peiyi Wang, Peng Zhang, Qiancheng Wang, Qihao
+Zhu, Qinyu Chen, Qiushi Du, R. J. Chen, R. L. Jin, Ruiqi Ge, Ruisong
+Zhang, Ruizhe Pan, Runji Wang, Runxin Xu, Ruoyu Zhang, Ruyi Chen,
+S. S. Li, Shanghao Lu, Shangyan Zhou, Shanhuang Chen, Shaoqing
+Wu, Shengfeng Ye, Shengfeng Ye, Shirong Ma, Shiyu Wang, Shuang
+Zhou, Shuiping Yu, Shunfeng Zhou, Shuting Pan, T. Wang, Tao Yun,
+Tian Pei, Tianyu Sun, W. L. Xiao, Wangding Zeng, Wanjia Zhao, Wei
+An, Wen Liu, Wenfeng Liang, Wenjun Gao, Wenqin Yu, Wentao Zhang,
+X. Q. Li, Xiangyue Jin, Xianzu Wang, Xiao Bi, Xiaodong Liu, Xiaohan
+Wang, Xiaojin Shen, Xiaokang Chen, Xiaokang Zhang, Xiaosha Chen,
+Xiaotao Nie, Xiaowen Sun, Xiaoxiang Wang, Xin Cheng, Xin Liu, Xin
+Xie, Xingchao Liu, Xingkai Yu, Xinnan Song, Xinxia Shan, Xinyi Zhou,
+Xinyu Yang, Xinyuan Li, Xuecheng Su, Xuheng Lin, Y. K. Li, Y. Q.
+Wang, Y. X. Wei, Y. X. Zhu, Yang Zhang, Yanhong Xu, Yanhong Xu,
+Yanping Huang, Yao Li, Yao Zhao, Yaofeng Sun, Yaohui Li, Yaohui
+Wang, Yi Yu, Yi Zheng, Yichao Zhang, Yifan Shi, Yiliang Xiong, Ying
+He, Ying Tang, Yishi Piao, Yisong Wang, Yixuan Tan, Yiyang Ma,
+Yiyuan Liu, Yongqiang Guo, Yu Wu, Yuan Ou, Yuchen Zhu, Yuduan
+Wang, Yue Gong, Yuheng Zou, Yujia He, Yukun Zha, Yunfan Xiong,
+Yunxian Ma, Yuting Yan, Yuxiang Luo, Yuxiang You, Yuxuan Liu,
+Yuyang Zhou, Z. F. Wu, Z. Z. Ren, Zehui Ren, Zhangli Sha, Zhe Fu,
+Zhean Xu, Zhen Huang, Zhen Zhang, Zhenda Xie, Zhengyan Zhang,
+Zhewen Hao, Zhibin Gou, Zhicheng Ma, Zhigang Yan, Zhihong Shao,
+Zhipeng Xu, Zhiyu Wu, Zhongyu Zhang, Zhuoshu Li, Zihui Gu, Zijia
+Zhu, Zijun Liu, Zilin Li, Ziwei Xie, Ziyang Song, Ziyi Gao, and Zizheng
+Pan. 2025. DeepSeek-V3 Technical Report. arXiv:2412.19437 [cs.CL]
+https://arxiv.org/abs/2412.19437
+[17] Kaustubh Deshpande, Ved Sirdeshmukh, Johannes Baptist Mols, Lifeng
+Jin, Ed-Yeremai Hernandez-Cardona, Dean Lee, Jeremy Kritz, Willow E
+Primack, Summer Yue, and Chen Xing. 2025. Multichallenge: A realistic multi-turn conversation evaluation benchmark challenging to
+frontier llms. In Findings of the Association for Computational Linguistics: ACL 2025. 18632–18702.
+[18] Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, Abhishek Kadian, Ahmad Al-Dahle, Aiesha Letman, Akhil Mathur, Alan Schelten, Amy Yang, Angela Fan, Anirudh Goyal, Anthony S. Hartshorn,
+Aobo Yang, Archi Mitra, Archie Sravankumar, Artem Korenev, Arthur
+Hinsvark, Arun Rao, Aston Zhang, Aur’elien Rodriguez, Austen
+Gregerson, Ava Spataru, Baptiste Rozière, Bethany M. Biron, Binh
+Tang, Bobbie Chern, Charlotte Caucheteux, Chaya Nayak, Chloe Bi,
+Chris Marra, Chris McConnell, Christian Keller, Christophe Touret,
+Chunyang Wu, Corinne Wong, Cristian Canton Ferrer, Cyrus Nikolaidis, Damien Allonsius, Daniel J. Song, Danielle Pintz, Danny
+Livshits, David Esiobu, Dhruv Choudhary, Dhruv Mahajan, Diego
+
+Garcia-Olano, Diego Perino, Dieuwke Hupkes, Egor Lakomkin,
+Ehab A. AlBadawy, E I Lobanova, Emily Dinan, Eric Michael Smith,
+Filip Radenovic, Frank Zhang, Gabriel Synnaeve, Gabrielle Lee, Georgia Lewis Anderson, Graeme Nail, Grégoire Mialon, Guanglong Pang,
+Guillem Cucurell, Hailey Nguyen, Hannah Korevaar, Hu Xu, Hugo
+Touvron, Iliyan Zarov, Imanol Arrieta Ibarra, Isabel M. Kloumann,
+Ishan Misra, Ivan Evtimov, Jade Copet, Jaewon Lee, Jan Geffert, Jana
+Vranes, Jason Park, Jay Mahadeokar, Jeet Shah, Jelmer van der Linde,
+Jennifer Billock, Jenny Hong, Jenya Lee, Jeremy Fu, Jianfeng Chi,
+Jianyu Huang, Jiawen Liu, Jie Wang, Jiecao Yu, Joanna Bitton, Joe
+Spisak, Jongsoo Park, Joseph Rocca, Joshua Johnstun, Joshua Saxe,
+Ju-Qing Jia, Kalyan Vasuden Alwala, K. Upasani, Kate Plawiak, Keqian Li, Kenneth Heafield, Kevin R. Stone, Khalid El-Arini, Krithika
+Iyer, Kshitiz Malik, Kuen ley Chiu, Kunal Bhalla, Lauren RantalaYeary, Laurens van der Maaten, Lawrence Chen, Liang Tan, Liz Jenkins, Louis Martin, Lovish Madaan, Lubo Malo, Lukas Blecher, Lukas
+Landzaat, Luke de Oliveira, Madeline Muzzi, Ma hesh Pasupuleti, Mannat Singh, Manohar Paluri, Marcin Kardas, Mathew Oldham, Mathieu
+Rita, Maya Pavlova, Melissa Hall Melanie Kambadur, Mike Lewis,
+Min Si, Mitesh Kumar Singh, Mona Hassan, Naman Goyal, Narjes
+Torabi, Niko lay Bashlykov, Nikolay Bogoychev, Niladri S. Chatterji,
+Olivier Duchenne, Onur cCelebi, Patrick Alrassy, Pengchuan Zhang,
+Pengwei Li, Petar Vasić, Peter Weng, Prajjwal Bhargava, Pratik Dubal,
+Praveen Krishnan, Punit Singh Koura, Puxin Xu, Qing He, Qingxiao Dong, Ragavan Srinivasan, Raj Ganapathy, Ramon Calderer, Ricardo Silveira Cabral, Robert Stojnic, Roberta Raileanu, Rohit Girdhar,
+Rohit Patel, Romain Sauvestre, Ron nie Polidoro, Roshan Sumbaly,
+Ross Taylor, Ruan Silva, Rui Hou, Rui Wang, Saghar Hosseini, Sa
+hana Chennabasappa, Sanjay Singh, Sean Bell, Seohyun Sonia Kim,
+Sergey Edunov, Shaoliang Nie, Sharan Narang, Sharath Chandra Raparthy, Sheng Shen, Shengye Wan, Shruti Bhosale, Shun Zhang, Simon Vandenhende, Soumya Batra, Spencer Whitman, Sten Sootla,
+Stéphane Collot, Suchin Gururangan, Sydney Borodinsky, Tamar Herman, Tara Fowler, Tarek Sheasha, Thomas Georgiou, Thomas Scialom,
+Tobias Speckbacher, Todor Mihaylov, Tong Xiao, Ujjwal Karn, Vedanuj
+Goswami, Vibhor Gupta, Vignesh Ramanathan, Viktor Kerkez, Vincent Gonguet, Virginie Do, Vish Vogeti, Vladan Petrovic, Weiwei Chu,
+Wenhan Xiong, Wenyin Fu, Whit ney Meers, Xavier Martinet, Xiaodong Wang, Xiaoqing Ellen Tan, Xinfeng Xie, Xuchao Jia, Xuewei
+Wang, Yaelle Goldschlag, Yashesh Gaur, Yasmine Babaei, Yiqian Wen,
+Yiwen Song, Yuchen Zhang, Yue Li, Yuning Mao, Zacharie Delpierre
+Coudert, Zhengxu Yan, Zhengxing Chen, Zoe Papakipos, Aaditya K.
+Singh, Aaron Grattafiori, Abha Jain, Adam Kelsey, Adam Shajnfeld,
+Adi Gangidi, Adolfo Victoria, Ahuva Goldstand, Ajay Menon, Ajay
+Sharma, Alex Boesenberg, Alex Vaughan, Alexei Baevski, Allie Feinstein, Amanda Kallet, Amit Sangani, Anam Yunus, Andrei Lupu,
+Andres Alvarado, Andrew Caples, Andrew Gu, Andrew Ho, Andrew
+Poulton, Andrew Ryan, Ankit Ramchandani, Annie Franco, Aparajita
+Saraf, Arkabandhu Chowdhury, Ashley Gabriel, Ashwin Bharambe,
+Assaf Eisenman, Azadeh Yazdan, Beau James, Ben Maurer, Benjamin
+Leonhardi, Po-Yao (Bernie) Huang, Beth Loyd, Beto de Paola, Bhargavi Paranjape, Bing Liu, Bo Wu, Boyu Ni, Braden Hancock, Bram
+Wasti, Brandon Spence, Brani Stojkovic, Brian Gamido, Britt Montalvo, Carl Parker, Carly Burton, Catalina Mejia, Changhan Wang,
+Changkyu Kim, Chao Zhou, Chester Hu, Ching-Hsiang Chu, Chris
+Cai, Chris Tindal, Christoph Feichtenhofer, Damon Civin, Dana Beaty,
+Daniel Kreymer, Shang-Wen Li, Danny Wyatt, David Adkins, David
+Xu, Davide Testuggine, Delia David, Devi Parikh, Diana Liskovich, Didem Foss, Dingkang Wang, Duc Le, Dustin Holland, Edward Dowling,
+Eissa Jamil, Elaine Montgomery, Eleonora Presani, Emily Hahn, Emily
+Wood, Erik Brinkman, Esteban Arcaute, Evan Dunbar, Evan Smothers,
+Fei Sun, Felix Kreuk, Feng Tian, Firat Ozgenel, Francesco Caggioni,
+Francisco (Paco) Guzmán, Frank J. Kanayet, Frank Seide, Gabriela Medina Florez, Gabriella Schwarz, Gada Badeer, Georgia Swee, Gil Halpern,
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+Govind Thattai, Grant Herman, Grigory Sizov, Guangyi Zhang, Guna
+Lakshminarayanan, Hamid Shojanazeri, Han Zou, Hannah Wang, Han
+Zha, Haroun Habeeb, Harrison Rudolph, Helen Suk, Henry Aspegren,
+Hunter Goldman, Igor Molybog, Igor Tufanov, Irina-Elena Veliche,
+Itai Gat, Jake Weissman, James Geboski, James Kohli, Japhet Asher,
+Jean-Baptiste Gaya, Jeff Marcus, Jeff Tang, Jennifer Chan, Jenny Zhen,
+Jeremy Reizenstein, Jeremy Teboul, Jessica Zhong, Jian Jin, Jingyi Yang,
+Joe Cummings, Jon Carvill, Jon Shepard, Jonathan McPhie, Jonathan
+Torres, Josh Ginsburg, Junjie Wang, Kaixing(Kai) Wu, U KamHou,
+Karan Saxena, Karthik Prasad, Kartikay Khandelwal, Katayoun Zand,
+Kathy Matosich, Kaushik Veeraraghavan, Kelly Michelena, Keqian Li,
+Kun Huang, Kunal Chawla, Kushal Lakhotia, Kyle Huang, Lailin Chen,
+Lakshya Garg, A Lavender, Leandro Silva, Lee Bell, Lei Zhang, Liangpeng Guo, Licheng Yu, Liron Moshkovich, Luca Wehrstedt, Madian
+Khabsa, Manav Avalani, Manish Bhatt, Maria Tsimpoukelli, Martynas Mankus, Matan Hasson, Matthias Lennie, Matthias Reso, Maxim
+Groshev, Maxim Naumov, Maya Lathi, Meghan Keneally, Michael L.
+Seltzer, Michal Valko, Michelle Restrepo, Mihir Patel, Mik Vyatskov,
+Mikayel Samvelyan, Mike Clark, Mike Macey, Mike Wang, Miquel Jubert Hermoso, Mo Metanat, Mohammad Rastegari, Mun ish Bansal,
+Nandhini Santhanam, Natascha Parks, Natasha White, Navy ata Bawa,
+Nayan Singhal, Nick Egebo, Nicolas Usunier, Nikolay Pavlovich Laptev,
+Ning Dong, Ning Zhang, Norman Cheng, Oleg Chernoguz, Olivia Hart,
+Omkar Salpekar, Ozlem Kalinli, Parkin Kent, Parth Parekh, Paul Saab,
+Pavan Balaji, Pe dro Rittner, Philip Bontrager, Pierre Roux, Piotr Dollár,
+Polina Zvyagina, Prashant Ratanchandani, Pritish Yuvraj, Qian Liang,
+Rachad Alao, Rachel Rodriguez, Rafi Ayub, Raghotham Murthy, Raghu
+Nayani, Rahul Mitra, Raymond Li, Rebekkah Hogan, Robin Battey,
+Rocky Wang, Ro han Maheswari, Russ Howes, Ruty Rinott, Sai Jayesh
+Bondu, Samyak Datta, Sara Chugh, Sara Hunt, Sargun Dhillon, S. Yu.
+Sidorov, Satadru Pan, Saurabh Verma, Seiji Yamamoto, Sharadh Ramaswamy, Shaun Lindsay, Sheng Feng, Shenghao Lin, Shengxin Zha,
+Shiva Shankar, Shuqiang Zhang, Sinong Wang, Sneha Agarwal, Soji
+Sajuyigbe, Soumith Chintala, Stephanie Max, Stephen Chen, Steve Kehoe, Steve Satterfield, Sudarshan Govindaprasad, Sumit Kumar Gupta,
+Sung-Bae Cho, Sunny Virk, Suraj Subramanian, Sy Choudhury, Sydney Goldman, Tal Remez, Tamar Glaser, Tamara Best, Thilo Kohler,
+Thomas Robinson, Tianhe Li, Tianjun Zhang, Tim Matthews, Timothy
+Chou, Tzook Shaked, Varun Vontimitta, Victoria O Ajayi, Victoria
+Montanez, Vijai Mohan, Vinay Kumar, Vishal Mangla, Vlad Ionescu,
+Vlad Andrei Poenaru, Vlad T. Mihailescu, Vladimir Ivanov, Wei Li,
+Wenchen Wang, Wenwen Jiang, Wes Bouaziz, Will Constable, Xia
+Tang, Xiaofang Wang, Xiaojian Wu, Xiaolan Wang, Xide Xia, Xilun
+Wu, Xinbo Gao, Yanjun Chen, Ye Hu, Ye Jia, Ye Qi, Yenda Li, Yilin
+Zhang, Ying Zhang, Yossi Adi, Youngjin Nam, Yu Wang, Yuchen Hao,
+Yundi Qian, Yuzi He, Zach Rait, Zachary DeVito, Zef Rosnbrick, Zhaoduo Wen, Zhenyu Yang, and Zhiwei Zhao. 2024. The llama 3 herd of
+models. arXiv preprint arXiv:2407.21783 (2024).
+[19] Zehao Fan, Garrett Gagnon, Zhenyu Liu, and Liu Liu. 2025. Sparse
+Attention Remapping with Clustering for Efficient LLM Decoding on
+PIM. arXiv:2505.05772 [cs.CL] https://arxiv.org/abs/2505.05772
+[20] Raja Gond, Nipun Kwatra, and Ramachandran Ramjee. 2025. TokenWeave: Efficient Compute-Communication Overlap for Distributed
+LLM Inference. https://arxiv.org/abs/2505.11329
+[21] Sylvain Gugger, Lysandre Debut, Thomas Wolf, Philipp Schmid,
+Zachary Mueller, Sourab Mangrulkar, Marc Sun, and Benjamin Bossan.
+2022. Accelerate: Training and inference at scale made simple, efficient
+and adaptable. https://github.com/huggingface/accelerate.
+[22] Aayush Gupta, Youngjae Kim, and Bhuvan Urgaonkar. 2009. DFTL:
+a flash translation layer employing demand-based selective caching
+of page-level address mappings. Acm Sigplan Notices 44, 3 (2009),
+229–240.
+[23] Minho Ha, Euiseok Kim, and Hoshik Kim. 2026. H 3: Hybrid Architecture Using High Bandwidth Memory and High Bandwidth Flash
+
+for Cost-Efficient LLM Inference. IEEE Computer Architecture Letters
+(2026).
+[24] Guseul Heo, Sangyeop Lee, Jaehong Cho, Hyunmin Choi, Sanghyeon
+Lee, Hyungkyu Ham, Gwangsun Kim, Divya Mahajan, and Jongse
+Park. 2024. Neupims: Npu-pim heterogeneous acceleration for batched
+llm inferencing. In Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 3. 722–737.
+[25] Po-Kai Hsu, Weihong Xu, Qunyou Liu, Tajana Rosing, and Shimeng
+Yu. 2026. HAVEN: High-Bandwidth Flash Augmented Vector Engine
+for Large-Scale Approximate Nearest-Neighbor Search Acceleration.
+arXiv preprint arXiv:2603.01175 (2026).
+[26] Yitao Hu, Xiulong Liu, Guotao Yang, Linxuan Li, Kai Zeng, Zhixin
+Zhao, Sheng Chen, Laiping Zhao, Wenxin Li, and Keqiu Li. 2025.
+TightLLM: Maximizing throughput for LLM inference via adaptive
+offloading policy. IEEE Trans. Comput. (2025).
+[27] Hongjing Huang, Zeke Wang, Jie Zhang, Zhenhao He, Chao Wu, Jun
+Xiao, and Gustavo Alonso. 2021. Shuhai: A tool for benchmarking
+high bandwidth memory on FPGAs. IEEE Trans. Comput. 71, 5 (2021),
+1133–1144.
+[28] Hongshin Jun, Jinhee Cho, Kangseol Lee, Ho-Young Son, Kwiwook
+Kim, Hanho Jin, and Keith Kim. 2017. Hbm (high bandwidth memory)
+dram technology and architecture. In 2017 IEEE International Memory
+Workshop (IMW). IEEE, 1–4.
+[29] Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu, and
+Dario Amodei. 2020. Scaling laws for neural language models. arXiv
+preprint arXiv:2001.08361 (2020).
+[30] KIOXIA Corporation. 2022. New Storage Class Memory Solution
+Accelerates Non-Relational Database Performance: Aerospike®
+NoSQL Databases Using KIOXIA FL6 Series Enterprise NVMe®
+SCM SSDs Deliver Heightened Performance Gains versus
+TLC SSDs.
+Application Brief Rev. 1.0. KIOXIA Corporation.
+https://americas.kioxia.com/content/dam/kioxia/en-us/business/
+ssd/enterprise-ssd/asset/KIOXIA_FL6_Application_Brief.pdf
+[31] Apostolos Kokolis, Michael Kuchnik, John Hoffman, Adithya Kumar,
+Parth Malani, Faye Ma, Zachary DeVito, Shubho Sengupta, Kalyan
+Saladi, and Carole-Jean Wu. 2025. Revisiting reliability in large-scale
+machine learning research clusters. In 2025 IEEE International Symposium on High Performance Computer Architecture (HPCA). IEEE,
+1259–1274.
+[32] Toshiyuki Kouchi, Mami Kakoi, Noriyasu Kumazaki, Akio Sugahara,
+Akihiro Imamoto, Yasufumi Kajiyama, Yuri Terada, Bushnaq Sanad,
+Naoaki Kanagawa, Takuyo Kodama, Ryo Fukuda, Hiromitsu Komai, Norichika Asaoka, Hidekazu Ohnishi, Ryosuke Isomura, Takaya
+Handa, Kensuke Yamamoto, Yuki Ishizaki, Yoko Deguchi, Atsushi
+Okuyama, Junichi Sato, Hiroki Yabe, Hua-Ling Cynthia Hsu, and
+Masahiro Yoshihara. 2020. A 128gb 1-bit/cell 96-word-line-layer 3d
+flash memory to improve the random read latency with tprog= 75 𝜇s
+and tr= 4 𝜇s. IEEE Journal of Solid-State Circuits 56, 1 (2020), 225–234.
+[33] Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin
+Zheng, Cody Yu, Joey Gonzalez, Hao Zhang, and Ion Stoica. 2023. vllm:
+Easy, fast, and cheap llm serving with pagedattention. See https://vllm.
+ai/(accessed 9 August 2023) (2023).
+[34] Chae Yeon Lee, Chae Ho Won, Seyeon Jung, Eun Su Jung, Tae Min
+Choi, Hwa Rim Lee, JinUk Yoo, Songhun Yoon, and Sung Gyu Pyo.
+2025. 3D integrated process and hybrid bonding of high bandwidth
+memory (HBM). Electronic Materials Letters 21, 3 (2025), 395–419.
+[35] Jaeyong Lee, Hyeunjoo Kim, Sanghun Oh, Myoungjun Chun, Myungsuk Kim, and Jihong Kim. 2025. Aif: Accelerating on-device llm inference using in-flash processing. In Proceedings of the 52nd Annual
+International Symposium on Computer Architecture. 529–543.
+[36] Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele
+Bevilacqua, Fabio Petroni, and Percy Liang. 2024. Lost in the middle:
+
+How language models use long contexts. Transactions of the association
+for computational linguistics 12 (2024), 157–173.
+[37] Yixin Luo, Yu Cai, Saugata Ghose, Jongmoo Choi, and Onur Mutlu.
+2015. WARM: Improving NAND flash memory lifetime with writehotness aware retention management. In 2015 31st Symposium on Mass
+Storage Systems and Technologies (MSST). IEEE, 1–14.
+[38] Micron Technology. 2024. HBM3E: Powering the future of AI with
+high-bandwidth memory.
+https://www.micron.com/about/blog/
+applications/ai/microns-hbm3e-powering-the-future-of-ai-withhigh-bandwidth-memory Accessed: 2026-04-16.
+[39] Vidyabhushan Mohan, Taniya Siddiqua, Sudhanva Gurumurthi, and
+Mircea R Stan. 2010. How I learned to stop worrying and love flash
+endurance. In 2nd Workshop on Hot Topics in Storage and File Systems
+(HotStorage 10).
+[40] NVIDIA Corporation. 2022. NVIDIA H100 GPU. https://resources.
+nvidia.com/en-us-gpu-resources/h100-datasheet-24306. Accessed:
+2026-04-14.
+[41] NVIDIA Corporation. 2024. NVIDIA DGX H200 System Architecture. https://www.nvidia.com/en-us/data-center/dgx-h200/. Includes
+ConnectX-7 InfiniBand networking, implying RDMA capability.
+[42] Jaehyun Park, Jaewan Choi, Kwanhee Kyung, Michael Jaemin Kim,
+Yongsuk Kwon, Nam Sung Kim, and Jung Ho Ahn. 2024. Attacc!
+unleashing the power of pim for batched transformer-based generative model inference. In Proceedings of the 29th ACM International
+Conference on Architectural Support for Programming Languages and
+Operating Systems, Volume 2. 103–119.
+[43] Joon Sung Park, Joseph O’Brien, Carrie Jun Cai, Meredith Ringel
+Morris, Percy Liang, and Michael S Bernstein. 2023. Generative agents:
+Interactive simulacra of human behavior. In Proceedings of the 36th
+annual acm symposium on user interface software and technology. 1–22.
+[44] Martin Raab and Angelika Steger. 1998. “Balls into bins”—A simple
+and tight analysis. In International Workshop on Randomization and
+Approximation Techniques in Computer Science. Springer, 159–170.
+[45] Ananda Samajdar, Yuhao Zhu, Paul Whatmough, Matthew Mattina,
+and Tushar Krishna. 2018. Scale-sim: Systolic cnn accelerator simulator. arXiv preprint arXiv:1811.02883 (2018).
+[46] SanDisk. 2025. Memory-Centric AI: Sandisk’s High Bandwidth
+Flash Will Redefine AI Infrastructure. https://www.sandisk.com/
+company/newsroom/blogs/2025/memory-centric-ai-sandisks-highbandwidth-flash-will-redefine-ai-infrastructure [Online].
+[47] Minseok Seo, Xuan Truong Nguyen, Seok Joong Hwang, Yongkee
+Kwon, Guhyun Kim, Chanwook Park, Ilkon Kim, Jaehan Park, Jeongbin Kim, Woojae Shin, Jongsoon Won, Haerang Choi, Kyuyoung
+Kim, Daehan Kwon, Chunseok Jeong, Sangheon Lee, Yongseok Choi,
+Wooseok Byun, Seungcheol Baek, Hyuk-Jae Lee, and John Kim. 2024.
+Ianus: Integrated accelerator based on npu-pim unified memory system. In Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems,
+Volume 3. 545–560.
+[48] Zhihong Shao, Damai Dai, Daya Guo, Bo Liu (Benjamin Liu), Zihan
+Wang, and Huajian Xin. 2024. Deepseek-v2: A strong, economical, and efficient mixture-of-experts language model. arXiv preprint
+arXiv:2405.04434 (2024).
+[49] Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, Andy Davis,
+Quoc Le, Geoffrey Hinton, and Jeff Dean. 2017. Outrageously large
+neural networks: The sparsely-gated mixture-of-experts layer. arXiv
+preprint arXiv:1701.06538 (2017).
+[50] Ying Sheng, Lianmin Zheng, Binhang Yuan, Zhuohan Li, Max
+Ryabinin, Beidi Chen, Percy Liang, Christopher Ré, Ion Stoica, and
+Ce Zhang. 2023. Flexgen: High-throughput generative inference of
+large language models with a single gpu. In International Conference
+on Machine Learning. PMLR, 31094–31116.
+[51] Ramesh Sitaraman. 2001. The power of two random choices: A survey
+of techniques and results. (2001).
+
+[52] Weiyi Sun, Mingyu Gao, Zhaoshi Li, Aoyang Zhang, Iris Ying Chou,
+Jianfeng Zhu, Shaojun Wei, and Leibo Liu. 2025. Lincoln: Real-Time 50˜
+100B LLM Inference on Consumer Devices with LPDDR-Interfaced,
+Compute-Enabled Flash Memory. In 2025 IEEE International Symposium on High Performance Computer Architecture (HPCA). IEEE,
+1734–1750.
+[53] Yifan Sun, Trinayan Baruah, Saiful A. Mojumder, Shi Dong, Rafael
+Ubal, Xiang Gong, Shane Treadway, Yuhui Bao, Vincent Zhao,
+José L. Abellán, John Kim, Ajay Joshi, and David Kaeli. 2018.
+MGSim + MGMark: A Framework for Multi-GPU System Research.
+arXiv:1811.02884 [cs.DC] https://arxiv.org/abs/1811.02884
+[54] Jayanth M. Thimmaiah, Ryuji Yamashita, In-Soo Yoon, Jason Li,
+Cynthia Hsu, Takuya Ariki, Naoki Ookuma, Yosuke Kato, Koichiro
+Hayashi, Kazuki Yamauchi, Indra K V, Masahiro Kano, Sirisha Bhamidipati, Sneha Bhatia, Seema Malhotra, Naoki Ojima, Ella Wu, Zhiyong
+Yang, Frank W. Tsai, Mathias Bayle, Naoyuki Minami, Yasuyuki Fujihara, Kei Kitamura, Tomofumi Kitani, Takuyo Kodama, Takaya Handa,
+Naoaki Kanagawa, Yuki Ishizaki, Susumu Fujimura, Yoshinao Suzuki,
+Mario Sako, Yumi Higashi, Yoshihisa Watanabe, Toshiyuki Kouchi, Aravinth V, Chin-Yi Chen, Xiang Yang, Guirong Liang, and Jenny Wang.
+2026. A 2Tb 4b/Cell 6-Plane 3D-Flash Memory with 37.6 Gb/mm 2 Bit
+Density and> 85MB/s Write Throughput. In 2026 IEEE International
+Solid-State Circuits Conference (ISSCC), Vol. 69. IEEE, 254–256.
+[55] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion
+Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017.
+Attention is all you need. Advances in neural information processing
+systems 30 (2017).
+[56] Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei
+Xiao, Yuke Zhu, Linxi Fan, and Anima Anandkumar. 2023. Voyager:
+An open-ended embodied agent with large language models. arXiv
+preprint arXiv:2305.16291 (2023).
+[57] Jiahao Wang, Jinbo Han, Xingda Wei, Sijie Shen, Dingyan Zhang,
+Chenguang Fang, Rong Chen, Wenyuan Yu, and Haibo Chen. 2025.
+{KVCache} Cache in the Wild: Characterizing and Optimizing
+{KVCache} Cache at a Large Cloud Provider. In 2025 USENIX Annual Technical Conference (USENIX ATC 25). 465–482.
+[58] Qian Wang, Zhenheng Tang, Zichen Jiang, Nuo Chen, Tianyu Wang,
+and Bingsheng He. 2025. Agenttaxo: Dissecting and benchmarking
+token distribution of llm multi-agent systems. In ICLR 2025 Workshop
+on Foundation Models in the Wild.
+[59] Wei Wang, Wen Pan, Tao Xie, and Deng Zhou. 2016. How many
+MLCs should impersonate SLCs to optimize SSD performance?. In
+Proceedings of the Second International Symposium on Memory Systems.
+238–247.
+[60] Samuel Williams, Andrew Waterman, and David Patterson. 2009.
+Roofline: an insightful visual performance model for multicore architectures. Commun. ACM 52, 4 (2009), 65–76.
+[61] Kosuke Yanagidaira, Mario Sako, Yasuhiro Hirashima, Yumi Higashi,
+Yutaka Shimizu, Takeshi Nakano, Yusuke Ochi, Hiroaki Yamada,
+Nobushi Matsuura, Akihiro Imamoto, Kazuaki Kawaguchi, Koji Tabata,
+Hiroaki Hoshino, Takeshi Hioka, Shigehito Saigusa, Hiroki Date,
+Masaki Unno, Jumpei Sato, You Kamata, Takahiro Shimizu, Akio Sugahara, Taira Shibuya, Atsushi Okuyama, Junji Yamada, Takatoshi
+Minamoto, Hardwell Chibvongodze, Naoki Ojima, Hiroshi Sugawara,
+Masahiro Kano, Jang-Woo Lee, Hiroyuki Mizukoshi, Ryuji Yamashita,
+Kensaku Abe, Naohito Morozumi, In-Soo Yoon, Takuya Ariki, Jong
+Hak Yuh, Khin Htoo, Yosuke Kato, Yoshihiro Oyama, Yen-Lung Jason Li, Yoshihisa Watanabe, Toshiyuki Kouchi, and Koji Hosono. 2025.
+A 29-Gb/mm 2 1-Tb 3-b/Cell 3-D Flash Memory With CMOS Direct
+Bonded Array (CBA) Technology. IEEE Journal of Solid-State Circuits
+(2025).
+[62] Kosuke Yanagidaira, Mario Sako, Yasuhiro Hirashima, Junya Matsuno,
+Yumi Higashi, Yutaka Shimizu, Akihiro Imamoto, Kazuaki Kawaguchi,
+Koji Tabata, Takeshi Nakano, Yusuke Ochi, Hiroaki Hoshino, Takeshi
+
+, Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi Li, and Xiaoming Chen
+
+Hioka, Shigehito Saigusa, Hiroki Date, Masaki Unno, Jumpei Sato,
+You Kamata, Hardwell Chibvongodze, Naoki Ojima, Hiroshi Sugawara, Masahiro Kano, Jang-woo Lee, Hiroyuki Mizukoshi, Ryuji
+Yamashita, Kensaku Abe, Naohito Morozumi, In-Soo Yoon, Takuya
+Ariki, Jong Hak Yuh, Khin Htoo, Yosuke Kato, Yoshihisa Watanabe,
+and Toshiyuki Kouchi. 2025. A 1Tb 3b/Cell 3D-Flash Memory with a
+29%-Improved-Energy-Efficiency Read Operation and 4.8 Gb/S PowerIsolated Low-Tapped-Termination I/Os. In 2025 IEEE International
+Solid-State Circuits Conference (ISSCC), Vol. 68. IEEE, 1–3.
+[63] An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo
+Zheng, Bowen Yu, Chang Gao, Chengen Huang, Chenxu Lv, Chujie
+Zheng, Dayiheng Liu, Fan Zhou, Fei Huang, Feng Hu, Hao Ge, Haoran
+Wei, Huan Lin, Jialong Tang, Jian Yang, Jianhong Tu, Jianwei Zhang,
+Jianxin Yang, Jiaxin Yang, Jingren Zhou, Jingren Zhou, Junyan Lin,
+Kai Dang, Keqin Bao, Ke-Pei Yang, Le Yu, Li-Chun Deng, Mei Li, Min
+Xue, Mingze Li, Pei Zhang, Peng Wang, Qin Zhu, Rui Men, Ruize Gao,
+Shi-Qiang Liu, Shuang Luo, Tianhao Li, Tianyi Tang, Wenbiao Yin,
+Xingzhang Ren, Xinyu Wang, Xinyu Zhang, Xuancheng Ren, Yang
+Fan, Yang Su, Yi-Chao Zhang, Yinger Zhang, Yu Wan, Yuqiong Liu,
+Zekun Wang, Zeyu Cui, Zhenru Zhang, Zhipeng Zhou, and Zihan Qiu.
+2025. Qwen3 technical report. arXiv preprint arXiv:2505.09388 (2025).
+[64] Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik R
+Narasimhan, and Yuan Cao. 2022. React: Synergizing reasoning and
+acting in language models. In The eleventh international conference on
+learning representations.
+[65] Xi Ye, Fangcong Yin, Yinghui He, Joie Zhang, Howard Yen, Tianyu
+Gao, Greg Durrett, and Danqi Chen. 2025. LongProc: Benchmarking
+Long-Context Language Models on Long Procedural Generation. In
+Second Conference on Language Modeling. https://openreview.net/
+forum?id=ruWC5LIMSo
+[66] Zihao Yi, Jiarui Ouyang, Zhe Xu, Yuwen Liu, Tianhao Liao, Haohao
+Luo, and Ying Shen. 2025. A survey on recent advances in llm-based
+multi-turn dialogue systems. Comput. Surveys 58, 6 (2025), 1–38.
+[67] Gyeong-In Yu, Joo Seong Jeong, Geon-Woo Kim, Soojeong Kim, and
+Byung-Gon Chun. 2022. Orca: A distributed serving system for
+{Transformer-Based} generative models. In 16th USENIX symposium
+on operating systems design and implementation (OSDI 22). 521–538.
+[68] Zhongkai Yu, Shengwen Liang, Tianyun Ma, Yunke Cai, Ziyuan Nan,
+Di Huang, Xinkai Song, Yifan Hao, Jie Zhang, Tian Zhi, Yongwei Zhao,
+Zidong Du, Xing Hu, Qi Guo, and Tianshi Chen. 2024. Cambricon-llm:
+A chiplet-based hybrid architecture for on-device inference of 70b llm.
+In 2024 57th IEEE/ACM International Symposium on Microarchitecture
+(MICRO). IEEE, 1474–1488.
+[69] Hengrui Zhang, August Ning, Rohan Baskar Prabhakar, and David
+Wentzlaff. 2024. Llmcompass: Enabling efficient hardware design
+for large language model inference. In 2024 ACM/IEEE 51st Annual
+International Symposium on Computer Architecture (ISCA). IEEE, 1080–
+1096.
+[70] Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric P.
+Xing, Haotong Zhang, Joseph E. Gonzalez, and Ion Stoica. 2023. Judging llm-as-a-judge with mt-bench and chatbot arena. Advances in
+neural information processing systems 36 (2023), 46595–46623.
+[71] Lianmin Zheng, Liangsheng Yin, Zhiqiang Xie, Chuyue Sun, Jeff
+Huang, Cody Hao Yu, Shiyi Cao, Christos Kozyrakis, Ion Stoica,
+Joseph E. Gonzalez, Clark W. Barrett, and Ying Sheng. 2024. Sglang:
+Efficient execution of structured language model programs. Advances
+in neural information processing systems 37 (2024), 62557–62583.
+[72] Yinmin Zhong, Shengyu Liu, Junda Chen, Jianbo Hu, Yibo Zhu, Xuanzhe Liu, Xin Jin, and Hao Zhang. 2024. {DistServe}: Disaggregating
+prefill and decoding for goodput-optimized large language model
+serving. In 18th USENIX Symposium on Operating Systems Design and
+Implementation (OSDI 24). 193–210.
+
+[73] Anqi Zhou, Yu Zhang, Fei Ding, Ziqi Lian, Renxi Jin, Yudong Yang,
+Qidong Wang, and Liqiang Cao. 2024. Research progress of hybrid
+bonding technology for three-dimensional integration. Microelectronics Reliability 155 (2024), 115372.
+
+

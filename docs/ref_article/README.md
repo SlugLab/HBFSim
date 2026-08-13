@@ -14,8 +14,48 @@ surname, and end the name with `-cn` when the source is Chinese.
 Record every file below with its full citation, a stable link, its SHA-256, its
 page count, and what this project actually uses from it.
 
-Web captures are stored as PDF plus a `.txt` of the same name, so the body text
-stays greppable without opening a viewer.
+## Text extractions
+
+Every PDF in this directory has a `.txt` file of the same name beside the PDF:
+the plain text of that PDF, extracted with `pdftotext`. The words are the same
+as in the PDF; only the layout is gone. Seven files, with sizes:
+
+- `luo2018-heatwatch-nand-temperature.txt`, 91 KB
+- `wang2026-flashaccel-hbf-llm-inference.txt`, 88 KB
+- `yoon2026-cylon-cxl-ssd-emulation.txt`, 78 KB
+- `semiinsights2026-hbf-standard-release-cn.txt`, 77 KB
+- `yang2023-cxlmemsim.txt`, 71 KB
+- `yang2025-egpu-ebpf-ptx-injection.txt`, 39 KB
+- `zhihu2026-hbf-protocol-and-market-analysis-cn.txt`, 7 KB
+
+Web pages captured into this directory follow the same rule: the capture is
+stored as a PDF, and the same-name `.txt` beside the capture keeps the body text
+searchable with `grep` without opening a viewer.
+
+The `.txt` files are committed rather than regenerated on demand because
+documentation in this repository and the paper outline cite line numbers inside
+the `.txt` files. Two examples: the Cylon sentence `Every guest access undergoes
+address translation through Intel's Extended Page Tables (EPT)` is at lines
+498--500 of `yoon2026-cylon-cxl-ssd-emulation.txt`, and the CXLMemSim sentence
+`it's always a sampled model which may lose a lot of data` is at lines 340--343
+of `yang2023-cxlmemsim.txt`. Different versions of `pdftotext` break lines
+differently, so a regenerated file can shift every line number and leave those
+citations pointing at the wrong text. Freezing the extraction keeps the
+citations valid.
+
+To produce one, run in this directory:
+
+```text
+pdftotext -q <name>.pdf <name>.txt
+```
+
+When adding a PDF, produce the same-name `.txt` and commit both files together.
+
+The `.txt` files are not the primary source. To check whether a sentence really
+appears in a source, the PDF settles the question; the `.txt` exists so the text
+can be searched directly and cited by line. Extraction can also put text from a
+multi-column page out of order, so read the PDF wherever a passage does not read
+as coherent prose.
 
 ---
 

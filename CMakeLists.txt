@@ -157,6 +157,12 @@ add_executable(
 target_link_libraries(hbfsim_device_helper_abi_tests PRIVATE hbfsim_core)
 add_test(NAME device_helper_abi COMMAND hbfsim_device_helper_abi_tests)
 
+add_executable(
+    device_future_reference_test tests/cpu/device_future_reference_test.cpp
+)
+target_link_libraries(device_future_reference_test PRIVATE hbfsim_core)
+add_test(NAME device_future_reference COMMAND device_future_reference_test)
+
 add_executable(hbfsim_backing_store_tests tests/cpu/backing_store_test.cpp)
 target_link_libraries(hbfsim_backing_store_tests PRIVATE hbfsim_core)
 add_test(NAME backing_store COMMAND hbfsim_backing_store_tests)

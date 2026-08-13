@@ -3,6 +3,7 @@
 import ctypes
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,10 @@ def main() -> int:
         "__hbfsim_control",
         "__hbfsim_control_generation",
         "__hbfsim_device_helper_marker",
+        "__hbfsim_future_issue",
+        "__hbfsim_future_poll",
+        "__hbfsim_future_wait",
+        "__hbfsim_future_fault",
         "__hbfsim_resolve",
         "__hbfsim_fault",
     ):
@@ -39,6 +44,18 @@ def main() -> int:
     ):
         require(instruction in helper,
                 f"device helper lacks required PTX instruction {instruction}")
+    require(re.search(
+        r"\.visible\s+\.func\s+\(\.param\s+\.align\s+16\s+\.b8\s+"
+        r"func_retval0\[64\]\)\s+__hbfsim_future_issue\(", helper),
+        "future issue has the wrong 64-byte return ABI")
+    require(re.search(
+        r"__hbfsim_future_poll\(\s*\.param\s+\.align\s+16\s+\.b8\s+"
+        r"__hbfsim_future_poll_param_0\[64\]", helper),
+        "future poll has the wrong 64-byte parameter ABI")
+    require(re.search(
+        r"\.visible\s+\.func\s+\(\.param\s+\.align\s+16\s+\.b8\s+"
+        r"func_retval0\[64\]\)\s+__hbfsim_future_wait\(", helper),
+        "future wait has the wrong 64-byte return ABI")
 
     ptx_template = """.version 8.7
 .target {target}
@@ -95,6 +112,9 @@ def main() -> int:
             require("call.uni" in transformed and
                     "__hbfsim_resolve" in transformed,
                     "rewritten access does not call the embedded resolver")
+            require("__hbfsim_future_issue" in transformed and
+                    "__hbfsim_future_wait" in transformed,
+                    "embedded helper lacks split future entry points")
             source = work_path / f"self_contained_{target}.ptx"
             cubin = work_path / f"self_contained_{target}.cubin"
             source.write_text(transformed)

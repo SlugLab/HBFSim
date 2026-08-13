@@ -73,6 +73,11 @@ struct alignas(64) SharedControlHeader {
     std::uint32_t empirical_breakpoint_pages[6];
     std::uint32_t empirical_point_count;
     std::uint32_t empirical_flags;
+    alignas(8) std::uint64_t future_issued;
+    alignas(8) std::uint64_t future_issue_throttle_ns;
+    alignas(8) std::uint64_t future_dependency_wait_ns;
+    alignas(8) std::uint64_t future_ordering_wait_ns;
+    alignas(8) std::uint64_t future_faults;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -146,6 +151,37 @@ struct alignas(8) ResolveResult {
     std::uint32_t reserved;
 };
 
+enum class DeviceFutureState : std::uint32_t {
+    Native = 0,
+    Issued = 1,
+    Ready = 2,
+    DeferredMaterialization = 3,
+    TerminalError = 4,
+    Consumed = 5,
+};
+
+enum DeviceFutureFlags : std::uint32_t {
+    DeviceFutureNone = 0,
+    DeviceFutureNative = 1U << 0,
+    DeviceFutureTiming = 1U << 1,
+    DeviceFutureCapacity = 1U << 2,
+    DeviceFutureAtomic = 1U << 3,
+    DeviceFutureReference = 1U << 4,
+};
+
+struct alignas(16) DeviceFuture {
+    std::uint64_t ticket;
+    std::uint64_t original_address;
+    std::uint64_t resolved_address;
+    std::uint64_t ready_ns;
+    std::uint32_t bytes;
+    std::uint32_t instruction_id;
+    std::uint32_t channel;
+    std::uint32_t flags;
+    DeviceFutureState state;
+    RequestStatus status;
+};
+
 struct MediaDescriptor {
     std::uint64_t logical_address;
     std::uint32_t bytes;
@@ -160,6 +196,7 @@ static_assert(sizeof(PageEntry) == 64);
 static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 static_assert(sizeof(ResolveResult) == 16);
+static_assert(sizeof(DeviceFuture) == 64);
 static_assert(offsetof(SharedControlHeader, range_count) == 36);
 static_assert(offsetof(SharedControlHeader, range_offset) == 40);
 static_assert(offsetof(SharedControlHeader, heartbeat_ns) == 104);
@@ -172,6 +209,8 @@ static_assert(offsetof(SharedControlHeader, empirical_cumulative_ns) == 264);
 static_assert(offsetof(SharedControlHeader, empirical_breakpoint_pages) == 312);
 static_assert(offsetof(SharedControlHeader, empirical_point_count) == 336);
 static_assert(offsetof(SharedControlHeader, empirical_flags) == 340);
+static_assert(offsetof(SharedControlHeader, future_issued) == 344);
+static_assert(offsetof(SharedControlHeader, future_faults) == 376);
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
     std::uint64_t value) noexcept
@@ -302,6 +341,32 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t saturating_multiply(
 {
     return right != 0 && left > UINT64_MAX / right ? UINT64_MAX
                                                     : left * right;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_future_ready_ns(
+    std::uint64_t arrival_ns, std::uint64_t previous_tail_ns,
+    std::uint64_t latency_ns, std::uint64_t transfer_ns) noexcept
+{
+    const auto transfer_start = previous_tail_ns > arrival_ns
+                                    ? previous_tail_ns
+                                    : arrival_ns;
+    const auto transfer_target = saturating_add(transfer_start, transfer_ns);
+    const auto latency_target = saturating_add(arrival_ns, latency_ns);
+    return transfer_target > latency_target ? transfer_target
+                                             : latency_target;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool future_ring_slot_available(
+    std::uint64_t position, std::uint64_t request_sequence,
+    std::uint64_t completion_sequence) noexcept
+{
+    return request_sequence == position && completion_sequence == position;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool future_deadline_expired(
+    std::uint64_t now_ns, std::uint64_t deadline_ns) noexcept
+{
+    return deadline_ns != 0 && now_ns >= deadline_ns;
 }
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t ceiling_scaled_delta(

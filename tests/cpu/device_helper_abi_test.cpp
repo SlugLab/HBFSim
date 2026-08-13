@@ -65,6 +65,12 @@ int main()
     static_assert(offsetof(SharedControlHeader, empirical_flags) ==
                   offsetof(host_service::SharedControlHeader,
                            empirical_flags));
+    static_assert(offsetof(SharedControlHeader, future_issued) ==
+                  offsetof(host_service::SharedControlHeader,
+                           future_issued));
+    static_assert(offsetof(SharedControlHeader, future_faults) ==
+                  offsetof(host_service::SharedControlHeader,
+                           future_faults));
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));

@@ -121,6 +121,11 @@ struct alignas(64) SharedControlHeader {
     std::uint32_t empirical_breakpoint_pages[6];
     std::uint32_t empirical_point_count;
     std::uint32_t empirical_flags;
+    alignas(8) std::uint64_t future_issued;
+    alignas(8) std::uint64_t future_issue_throttle_ns;
+    alignas(8) std::uint64_t future_dependency_wait_ns;
+    alignas(8) std::uint64_t future_ordering_wait_ns;
+    alignas(8) std::uint64_t future_faults;
 };
 
 struct alignas(64) SharedRangeRecord {

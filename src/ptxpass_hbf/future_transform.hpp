@@ -19,4 +19,7 @@ struct FutureTransformResult {
 [[nodiscard]] FutureTransformResult transform_load_futures(
     std::string_view ptx, std::string_view kernel);
 
+[[nodiscard]] FutureTransformResult transform_futures(
+    std::string_view ptx, std::string_view kernel);
+
 }  // namespace hbfsim::ptx

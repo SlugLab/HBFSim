@@ -109,12 +109,10 @@ def main() -> int:
                         ".visible .global .align 8 .u64 "
                         "__hbfsim_control_generation;") == 1,
                     "control generation declaration was missing or duplicated")
-            require("call.uni" in transformed and
-                    "__hbfsim_resolve" in transformed,
-                    "rewritten access does not call the embedded resolver")
-            require("__hbfsim_future_issue" in transformed and
+            require("call" in transformed and
+                    "__hbfsim_future_issue" in transformed and
                     "__hbfsim_future_wait" in transformed,
-                    "embedded helper lacks split future entry points")
+                    "rewritten access does not call split future entry points")
             source = work_path / f"self_contained_{target}.ptx"
             cubin = work_path / f"self_contained_{target}.cubin"
             source.write_text(transformed)

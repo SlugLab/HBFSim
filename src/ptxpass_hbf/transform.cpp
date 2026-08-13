@@ -1,5 +1,6 @@
 #include "transform.hpp"
 
+#include "future_transform.hpp"
 #include "ptx_memory_op.hpp"
 
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
@@ -90,10 +91,16 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
     const bool marker = defines_device_helper_marker(ptx);
     const bool resolver = defines_function(ptx, "__hbfsim_resolve");
     const bool fault = defines_function(ptx, "__hbfsim_fault");
-    if (marker || resolver || fault) {
+    const bool issue = defines_function(ptx, "__hbfsim_future_issue");
+    const bool poll = defines_function(ptx, "__hbfsim_future_poll");
+    const bool wait = defines_function(ptx, "__hbfsim_future_wait");
+    const bool future_fault =
+        defines_function(ptx, "__hbfsim_future_fault");
+    if (marker || resolver || fault || issue || poll || wait || future_fault) {
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
         const bool exact_helper =
-            trusted_existing_helper && marker && resolver && fault &&
+            trusted_existing_helper && marker && resolver && fault && issue &&
+            poll && wait && future_fault &&
             ptx.find(kEmbeddedDevicePtx) != std::string::npos;
         if (exact_helper) {
             return;
@@ -129,6 +136,62 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
 TransformResult transform_ptx(const TransformRequest& request)
 {
     TransformResult result{.output_ptx = {}, .coverage = {}, .modified = false};
+    if (request.async_futures && !request.to_patch_kernel.empty()) {
+        const auto future = transform_futures(request.full_ptx,
+                                              request.to_patch_kernel);
+        if (!future.rejection_reason.empty()) {
+            throw std::runtime_error(future.rejection_reason);
+        }
+        result.output_ptx = future.output_ptx;
+        result.modified = future.modified;
+        result.coverage.rewritten_instructions = future.rewritten_futures;
+
+        std::istringstream scan(request.full_ptx);
+        std::string scan_line;
+        std::string function_name;
+        bool excluded = false;
+        bool selected = false;
+        int depth = 0;
+        static const std::regex function_expression(
+            R"(\.(?:visible\s+)?(?:entry|func)\s+([A-Za-z0-9_$.]+))");
+        while (std::getline(scan, scan_line)) {
+            std::smatch function_match;
+            if (std::regex_search(scan_line, function_match,
+                                  function_expression)) {
+                function_name = function_match[1].str();
+                excluded = function_name.starts_with("__hbfsim_") ||
+                           function_name.starts_with("__bpftime_");
+                selected = function_name == request.to_patch_kernel;
+                if (excluded) {
+                    ++result.coverage.excluded_functions;
+                }
+            }
+            if (!function_name.empty() && depth > 0 && selected &&
+                !excluded && !parse_memory_op(scan_line).has_value()) {
+                std::string opcode;
+                if (unsupported_memory_instruction(scan_line, opcode) &&
+                    !opcode.starts_with("atom.global")) {
+                    ++result.coverage.unsupported_instructions;
+                    result.coverage.unsupported_opcodes.push_back(opcode);
+                }
+            }
+            for (const auto character : scan_line) {
+                if (character == '{') {
+                    ++depth;
+                } else if (character == '}') {
+                    --depth;
+                    if (depth == 0) {
+                        function_name.clear();
+                    }
+                }
+            }
+        }
+        if (result.modified) {
+            append_device_helper(result.output_ptx,
+                                 request.trusted_existing_helper);
+        }
+        return result;
+    }
     std::istringstream input(request.full_ptx);
     std::ostringstream output;
     std::string line;

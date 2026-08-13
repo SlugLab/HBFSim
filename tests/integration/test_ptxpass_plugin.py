@@ -68,8 +68,9 @@ def main() -> int:
         require(status == 0, f"plugin failed with status {status}")
         response = json.loads(output.value)
         require(response["modified"] is True, "supported PTX was not modified")
-        require("__hbfsim_resolve" in response["output_ptx"],
-                "transformed PTX lacks resolver call")
+        require("__hbfsim_future_issue" in response["output_ptx"] and
+                "__hbfsim_future_wait" in response["output_ptx"],
+                "transformed PTX lacks split future calls")
         require(
             response["coverage"] == {
                 "rewritten_instructions": 3,
@@ -178,6 +179,41 @@ def main() -> int:
             )
             require(assembled.returncode == 0,
                     f"marked PTX failed to assemble: {assembled.stderr}")
+
+        store_ptx = configured_fixture(
+            "tests/fixtures/ptx/future_stores.ptx"
+        )
+        store_manifest = pathlib.Path(directory) / "store-manifest.jsonl"
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(store_manifest)
+        store_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        store_status = plugin.process_input(
+            request_for(store_ptx, "future_stores"),
+            len(store_output), store_output,
+        )
+        require(store_status == 0,
+                f"store/atomic pass failed with status {store_status}")
+        store_response = json.loads(store_output.value)
+        require(store_response["modified"] is True and
+                store_response["coverage"]["rewritten_instructions"] == 4,
+                "store/atomic futures were not all rewritten")
+        require("mov.b32 %hbfsim_f3_snapshot_0, %r1;" in
+                store_response["output_ptx"] and
+                "st.param.b32 [%hbfsim_issue_7_operation], 2;" in
+                store_response["output_ptx"],
+                "store snapshot or atomic future operation is missing")
+        if ptxas.exists():
+            store_ptx_file = pathlib.Path(directory) / "future-stores.ptx"
+            store_cubin_file = pathlib.Path(directory) / "future-stores.cubin"
+            store_ptx_file.write_text(store_response["output_ptx"])
+            store_assembled = subprocess.run(
+                [str(ptxas), f"-arch={configured_target}",
+                 str(store_ptx_file), "-o", str(store_cubin_file)],
+                text=True, capture_output=True,
+            )
+            require(store_assembled.returncode == 0,
+                    "store/atomic transformed PTX failed to assemble: "
+                    f"{store_assembled.stderr}")
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest_path)
 
         malicious_ptx = ptx.replace(
             ".address_size 64\n",

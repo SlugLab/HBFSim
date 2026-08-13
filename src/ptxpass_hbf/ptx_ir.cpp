@@ -261,6 +261,13 @@ Instruction parse_instruction(std::string text, SourceLocation location,
         remainder = trim(remainder.substr(space));
         append_unique(result.uses, registers(result.predicate));
     }
+    if (remainder.starts_with("asm(") ||
+        remainder.starts_with("asm volatile(")) {
+        result.opcode = "asm";
+        result.operands.push_back(remainder);
+        append_unique(result.uses, registers(remainder));
+        return result;
+    }
     const auto space = remainder.find_first_of(" \t\r\n");
     result.opcode = remainder.substr(0, space);
     const auto operand_text =

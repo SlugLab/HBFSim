@@ -127,11 +127,15 @@ int main()
     });
     assert(result.modified);
     assert(result.coverage.rewritten_instructions == 3);
-    assert(result.output_ptx.find("__hbfsim_resolve") != std::string::npos);
-    assert(result.output_ptx.find("__hbfsim_fault") != std::string::npos);
-    assert(result.output_ptx.find("@!%p1 bra $L__hbfsim_skip_") !=
+    assert(result.output_ptx.find("__hbfsim_future_issue") !=
            std::string::npos);
-    assert(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
+    assert(result.output_ptx.find("__hbfsim_future_wait") !=
+           std::string::npos);
+    assert(result.output_ptx.find("__hbfsim_future_fault") !=
+           std::string::npos);
+    assert(result.output_ptx.find("@!%p1 bra $L__hbfsim_f") !=
+           std::string::npos);
+    assert(result.output_ptx.find("_resolved]") != std::string::npos);
 
     const std::string production_ptx = configured_ptx(R"ptx(.version 8.7
 .target sm_120
@@ -216,8 +220,9 @@ int main()
         .full_ptx = read_fixture("unsupported.ptx"),
         .to_patch_kernel = "unsupported_kernel",
     });
-    assert(!rejected.modified);
-    assert(rejected.coverage.unsupported_instructions == 5);
+    assert(rejected.modified);
+    assert(rejected.coverage.rewritten_instructions == 1);
+    assert(rejected.coverage.unsupported_instructions == 4);
 
     const auto excluded = hbfsim::ptx::transform_ptx({
         .full_ptx = read_fixture("helper_exclusion.ptx"),

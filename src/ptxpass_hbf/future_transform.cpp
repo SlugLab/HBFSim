@@ -29,14 +29,15 @@ std::vector<std::string> source_lines(std::string_view ptx)
     return lines;
 }
 
-std::string sanitized(std::string_view value)
+std::string regex_escaped(std::string_view value)
 {
+    static constexpr std::string_view special = R"(\.^$|()[]{}*+?)";
     std::string result;
-    result.reserve(value.size());
     for (const auto character : value) {
-        result.push_back(std::isalnum(static_cast<unsigned char>(character))
-                             ? character
-                             : '_');
+        if (special.find(character) != std::string_view::npos) {
+            result.push_back('\\');
+        }
+        result.push_back(character);
     }
     return result;
 }
@@ -67,8 +68,98 @@ std::string inverse_predicate(std::string_view predicate)
                : "@!" + std::string{predicate.substr(1)};
 }
 
+std::vector<std::string> register_tokens(std::string_view input)
+{
+    static const std::regex expression(R"(%[A-Za-z][A-Za-z0-9_$]*)");
+    const std::string text(input);
+    std::vector<std::string> result;
+    for (std::sregex_iterator it(text.begin(), text.end(), expression), end;
+         it != end; ++it) {
+        if (std::find(result.begin(), result.end(), it->str()) ==
+            result.end()) {
+            result.push_back(it->str());
+        }
+    }
+    return result;
+}
+
+std::uint32_t value_bits(const Instruction& instruction)
+{
+    static const std::regex type(
+        R"(\.(?:[subf])(8|16|32|64)|\.f16x2|\.b(8|16|32|64)(?:\.|$))");
+    std::smatch match;
+    if (!std::regex_search(instruction.opcode, match, type)) {
+        return 0;
+    }
+    if (match.str().find("f16x2") != std::string::npos) {
+        return 32;
+    }
+    for (std::size_t index = 1; index < match.size(); ++index) {
+        if (match[index].matched) {
+            return static_cast<std::uint32_t>(
+                std::stoul(match[index].str()));
+        }
+    }
+    return 0;
+}
+
+std::vector<std::string> snapshot_sources(const Instruction& instruction)
+{
+    std::vector<std::string> result;
+    if (!instruction.memory.has_value()) {
+        return result;
+    }
+    const auto begin = instruction.memory->kind == MemoryKind::Store
+                           ? std::size_t{1}
+                           : instruction.memory->kind == MemoryKind::AtomicRmw
+                                 ? std::size_t{2}
+                                 : instruction.operands.size();
+    for (auto index = begin; index < instruction.operands.size(); ++index) {
+        for (const auto& token : register_tokens(instruction.operands[index])) {
+            if (std::find(result.begin(), result.end(), token) == result.end()) {
+                result.push_back(token);
+            }
+        }
+    }
+    return result;
+}
+
+std::map<std::string, std::string> snapshot_map(
+    const Instruction& instruction)
+{
+    std::map<std::string, std::string> result;
+    const auto sources = snapshot_sources(instruction);
+    for (std::size_t index = 0; index < sources.size(); ++index) {
+        result.emplace(sources[index],
+                       reg(instruction.instruction_id,
+                           "snapshot_" + std::to_string(index)));
+    }
+    return result;
+}
+
+std::string replace_snapshot_registers(
+    std::string_view operand,
+    const std::map<std::string, std::string>& snapshots)
+{
+    static const std::regex expression(R"(%[A-Za-z][A-Za-z0-9_$]*)");
+    const std::string text(operand);
+    std::ostringstream output;
+    std::size_t cursor = 0;
+    for (std::sregex_iterator it(text.begin(), text.end(), expression), end;
+         it != end; ++it) {
+        const auto position = static_cast<std::size_t>(it->position());
+        output << text.substr(cursor, position - cursor);
+        const auto replacement = snapshots.find(it->str());
+        output << (replacement == snapshots.end() ? it->str()
+                                                   : replacement->second);
+        cursor = position + static_cast<std::size_t>(it->length());
+    }
+    output << text.substr(cursor);
+    return output.str();
+}
+
 std::string instruction_text(const Instruction& instruction,
-                             bool resolved_address)
+                             bool resolved_address, bool snapshots)
 {
     auto operands = instruction.operands;
     if (resolved_address && instruction.memory.has_value()) {
@@ -76,6 +167,19 @@ std::string instruction_text(const Instruction& instruction,
             instruction.memory->kind == MemoryKind::Store ? 0U : 1U;
         operands.at(address_index) =
             "[" + reg(instruction.instruction_id, "resolved") + "]";
+    }
+    if (snapshots) {
+        const auto replacements = snapshot_map(instruction);
+        const auto begin = instruction.memory->kind == MemoryKind::Store
+                               ? std::size_t{1}
+                               : instruction.memory->kind ==
+                                         MemoryKind::AtomicRmw
+                                     ? std::size_t{2}
+                                     : operands.size();
+        for (auto index = begin; index < operands.size(); ++index) {
+            operands[index] =
+                replace_snapshot_registers(operands[index], replacements);
+        }
     }
     std::ostringstream output;
     output << "    " << instruction.opcode;
@@ -130,6 +234,12 @@ std::string future_declarations(const Instruction& instruction)
            << "    .reg .pred " << reg(id, "consumed") << ";\n"
            << "    .reg .pred " << reg(id, "deferred") << ";\n"
            << "    .reg .pred " << reg(id, "fault") << ";\n";
+    const auto bits = value_bits(instruction);
+    const auto sources = snapshot_sources(instruction);
+    for (std::size_t index = 0; index < sources.size(); ++index) {
+        output << "    .reg .b" << bits << ' '
+               << reg(id, "snapshot_" + std::to_string(index)) << ";\n";
+    }
     return output.str();
 }
 
@@ -199,6 +309,16 @@ std::string emit_issue(const Instruction& instruction)
         output << "    " << inverse_predicate(instruction.predicate)
                << " bra " << false_label << ";\n";
     }
+    const auto bits = value_bits(instruction);
+    const auto snapshots = snapshot_map(instruction);
+    for (const auto& [source, destination] : snapshots) {
+        output << "    mov.b" << bits << ' ' << destination << ", "
+               << source << ";\n";
+    }
+    const auto operation =
+        instruction.memory->kind == MemoryKind::Load
+            ? 0U
+            : instruction.memory->kind == MemoryKind::Store ? 1U : 2U;
     output << "    {\n"
            << "    .param .b64 " << prefix << "_address;\n"
            << "    .param .b32 " << prefix << "_bytes;\n"
@@ -216,7 +336,8 @@ std::string emit_issue(const Instruction& instruction)
            << reg(id, "original") << ";\n"
            << "    st.param.b32 [" << prefix << "_bytes], "
            << instruction.memory->bytes << ";\n"
-           << "    st.param.b32 [" << prefix << "_operation], 0;\n"
+           << "    st.param.b32 [" << prefix << "_operation], "
+           << operation << ";\n"
            << "    st.param.b32 [" << prefix << "_instruction], " << id
            << ";\n"
            << "    call (" << prefix
@@ -235,7 +356,7 @@ std::string emit_issue(const Instruction& instruction)
            << reg(id, "capacity") << ", " << reg(id, "terminal") << ";\n"
            << "    @" << reg(id, "skip") << " bra "
            << skip_native << ";\n"
-           << instruction_text(instruction, false)
+           << instruction_text(instruction, true, true)
            << "    and.b32 " << reg(id, "temporary") << ", "
            << reg(id, "flags") << ", 1;\n"
            << "    setp.ne.u32 " << reg(id, "native") << ", "
@@ -299,7 +420,7 @@ std::string emit_wait(const Instruction& future,
            << reg(id, "state") << ", 3;\n"
            << "    @!" << reg(id, "deferred") << " bra "
            << materialized << ";\n"
-           << instruction_text(future, true)
+           << instruction_text(future, true, true)
            << materialized << ":\n"
            << "    mov.u32 " << reg(id, "state") << ", 5;\n"
            << done << ":\n";
@@ -314,7 +435,7 @@ std::size_t function_body_line(const std::vector<std::string>& lines,
                                std::string_view kernel)
 {
     const std::regex entry(
-        R"(\.(?:visible\s+)?(?:entry|func)\s+)" + sanitized(kernel) +
+        R"(\.(?:visible\s+)?(?:entry|func)\s+)" + regex_escaped(kernel) +
         R"(\s*\()",
         std::regex::ECMAScript);
     bool found = false;
@@ -329,13 +450,75 @@ std::size_t function_body_line(const std::vector<std::string>& lines,
     throw ParseError("selected PTX function body was not found");
 }
 
+std::string selected_function_source(const std::vector<std::string>& lines,
+                                     std::string_view kernel)
+{
+    const std::regex entry(
+        R"(\.(?:visible\s+)?(?:entry|func)\s+)" + regex_escaped(kernel) +
+        R"(\s*\()",
+        std::regex::ECMAScript);
+    std::size_t begin = lines.size();
+    std::size_t end = lines.size();
+    int depth = 0;
+    bool body = false;
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (begin == lines.size() && std::regex_search(lines[index], entry)) {
+            begin = index;
+        }
+        if (begin == lines.size() || index < begin) {
+            continue;
+        }
+        for (const auto character : lines[index]) {
+            if (character == '{') {
+                ++depth;
+                body = true;
+            } else if (character == '}' && body) {
+                --depth;
+            }
+        }
+        if (body && depth == 0) {
+            end = index;
+            break;
+        }
+    }
+    if (begin == lines.size() || end == lines.size()) {
+        throw ParseError("selected PTX function extent was not found");
+    }
+    std::ostringstream output;
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (index >= begin && index <= end) {
+            output << lines[index];
+        }
+        output << '\n';
+    }
+    return output.str();
+}
+
+bool supported_atomic(const Instruction& instruction)
+{
+    if (!instruction.memory.has_value() ||
+        instruction.memory->kind != MemoryKind::AtomicRmw) {
+        return true;
+    }
+    static const std::regex type(R"(\.(?:[usb](?:32|64))(?:\.|$))");
+    return std::regex_search(instruction.opcode, type);
+}
+
 }  // namespace
 
-FutureTransformResult transform_load_futures(std::string_view ptx,
-                                             std::string_view kernel)
+FutureTransformResult transform_futures(std::string_view ptx,
+                                        std::string_view kernel)
 {
     FutureTransformResult result;
-    const auto module = parse_module(ptx);
+    auto lines = source_lines(ptx);
+    const auto body_line = function_body_line(lines, kernel);
+    const auto marker = "// HBFSim async kernel " + std::string{kernel};
+    if (body_line < lines.size() && lines[body_line].find(marker) !=
+                                        std::string::npos) {
+        result.output_ptx = std::string{ptx};
+        return result;
+    }
+    const auto module = parse_module(selected_function_source(lines, kernel));
     const auto& function = module.function(kernel);
     result.plan = analyze_futures(function);
     if (!result.plan.exact_safe()) {
@@ -351,8 +534,14 @@ FutureTransformResult transform_load_futures(std::string_view ptx,
         if (!instruction.memory.has_value()) {
             continue;
         }
-        if (instruction.memory->kind != MemoryKind::Load) {
-            result.rejection_reason = "non_load_future_in_load_transform";
+        if (!supported_atomic(instruction)) {
+            result.rejection_reason = "unsupported_atomic_type";
+            result.output_ptx.clear();
+            return result;
+        }
+        if (!snapshot_sources(instruction).empty() &&
+            (value_bits(instruction) == 0 || value_bits(instruction) > 64)) {
+            result.rejection_reason = "unsupported_snapshot_width";
             result.output_ptx.clear();
             return result;
         }
@@ -363,8 +552,6 @@ FutureTransformResult transform_load_futures(std::string_view ptx,
         return result;
     }
 
-    auto lines = source_lines(ptx);
-    const auto body_line = function_body_line(lines, kernel);
     std::map<std::size_t, std::string> before;
     std::map<std::size_t, std::string> replacement;
     std::set<std::size_t> skipped;
@@ -407,8 +594,7 @@ FutureTransformResult transform_load_futures(std::string_view ptx,
         }
     }
     for (const auto& [future_id, drains] : result.plan.drain_points) {
-        if (result.plan.first_consumers.contains(future_id) ||
-            immediate_load_wait(*by_id.at(future_id))) {
+        if (immediate_load_wait(*by_id.at(future_id))) {
             continue;
         }
         for (const auto drain_id : drains) {
@@ -437,6 +623,12 @@ FutureTransformResult transform_load_futures(std::string_view ptx,
     result.rewritten_futures = futures.size();
     result.modified = true;
     return result;
+}
+
+FutureTransformResult transform_load_futures(std::string_view ptx,
+                                             std::string_view kernel)
+{
+    return transform_futures(ptx, kernel);
 }
 
 }  // namespace hbfsim::ptx

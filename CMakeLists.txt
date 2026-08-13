@@ -60,6 +60,7 @@ add_library(
     src/cuda_runtime/shadow_future.cpp
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/tensormap.cpp
+    src/cuda_runtime/tma_tile.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
     src/profile/exact_profile.cpp
@@ -146,6 +147,14 @@ add_test(NAME shadow_future COMMAND shadow_future_test)
 add_executable(tensormap_registry_test tests/cpu/tensormap_registry_test.cpp)
 target_link_libraries(tensormap_registry_test PRIVATE hbfsim_core)
 add_test(NAME tensormap_registry COMMAND tensormap_registry_test)
+
+add_executable(tma_tile_test tests/cpu/tma_tile_test.cpp)
+target_link_libraries(tma_tile_test PRIVATE hbfsim_core)
+add_test(NAME tma_tile COMMAND tma_tile_test)
+
+add_executable(tma_tile_property_test tests/cpu/tma_tile_property_test.cpp)
+target_link_libraries(tma_tile_property_test PRIVATE hbfsim_core)
+add_test(NAME tma_tile_property COMMAND tma_tile_property_test)
 
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)

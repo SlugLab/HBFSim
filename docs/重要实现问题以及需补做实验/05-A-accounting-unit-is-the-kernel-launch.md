@@ -225,7 +225,8 @@ Four things to know before starting.
   HBFSim in the same process, because the range base addresses only exist inside an
   HBFSim run. Then the `cuModuleLoadDataEx` wrapper of the launch gate, the PTX
   rewriting through bpftime, and NVBit's own module interception all sit on the module
-  load path at once. `/root/hbfsim/49-PTX还是SASS与NVBit对照实验.md` section 4.3 puts
+  load path at once. Part three, section 4.3 of
+  `docs/36-三条挑战的一手核实证据.md` puts
   that at 1.5 to 3 weeks, with hangs rather than clean errors as the failure mode. **We
   do not recommend opening this before 2026-09-15.**
 - **Overhead.** The NVBit paper section 6.2 measures 36.4x on average and 112x worst

@@ -250,6 +250,91 @@ Third, is it worth half a day to run one NVBit smoke test, so that whether drive
 595.84 works becomes a footnote backed by a measurement rather than an open
 question?
 
-The full comparison is in `/root/hbfsim/49-PTX还是SASS与NVBit对照实验.md`, and the
+The full comparison is part three of `docs/36-三条挑战的一手核实证据.md`, and the
 same decision is listed as discussion item three in
-`/root/hbfsim/HBFSim/paper/35-FAST27论文大纲与逻辑线.md`.
+`docs/35-FAST27论文大纲与逻辑线.md`.
+
+## 8. Two thermal throughput measurements disagree, and only one can go in the paper
+
+**What we found.** Two measurements in this repository report the same quantity:
+how much BF16 general matrix multiply throughput this GPU loses once the GPU's own
+compute chip lowers its clock as the chip heats up. The two results differ by more
+than a factor of two.
+
+The first measurement records 387.7606615946093 TFLOPS falling to
+373.31763045574144 TFLOPS, a drop of 3.7247283103636675%, and appears in two
+files: `/root/hbfsim/HBFSim/configs/thermal/gpu-cd8p-logp-live.json` line 22,
+field `change_pct`, value `-3.7247283103636675`; and
+`/root/hbfsim/HBFSim/docs/proofs/2026-08-11-hybrid-complete.md` line 77, which
+reads `GPU BF16 sampled performance change: -3.72%, exact scalar checksum.`
+
+The second measurement records 379.117 TFLOP/s falling to 348.427 TFLOP/s, a drop
+of 8.10%, in `/root/hbfsim/HBFSim/docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md`
+lines 182 to 188, where line 184 reads `| Warm isolated GPU | 61 to 85 degrees C |
+348.427 TFLOP/s | -8.10% | 66.5 |`. The same percentage appears in
+`/root/hbfsim/HBFSim/docs/proofs/2026-08-11-vllm-exact-live-delay.md` line 105,
+which reads `slowdown asserted, and BF16 GEMM throughput 8.10% below the cold run.`
+TFLOPS and TFLOP/s are the same unit written two ways in the two files. Below, the
+two measurements are called the 3.72% measurement and the 8.10% measurement.
+
+The 8.10% measurement covers three modes, and the scalar checksum is 66.5 in all
+three modes, so the workload itself did not change between modes. The cold
+isolated GPU, 35 to 70 degrees C, reaches 379.117 TFLOP/s and serves as the
+baseline. The GPU reading concurrently with the Dell CD8P solid-state drive, 51 to
+83 degrees C, reaches 371.601 TFLOP/s, 1.98% below the baseline. The warm isolated
+GPU, 61 to 85 degrees C, reaches 348.427 TFLOP/s, 8.10% below the baseline. The
+8.10% measurement also carries two readings taken from outside the throughput
+figure itself: the sampled streaming multiprocessor clock falls from about 2,062
+MHz to 1,642 MHz, and the driver's accumulated software thermal slowdown counter
+goes from 0 to 8,279,678 microseconds.
+
+**What neither measurement is.** Both numbers describe the GPU compute chip
+slowing itself down as temperature rises. Neither number is the change in `HBF`
+service rate with temperature. `HBF` does not exist yet, so the change in `HBF`
+service rate with temperature has to come from a separate controlled experiment.
+That boundary has to be stated in both places where a thermal throughput number
+appears, otherwise a reader takes the number as evidence about the `HBF` side.
+
+**Why it is a problem.** The paper body can carry only one figure for the loss,
+and the two percentages differ by more than a factor of two. Neither document
+records the conditions under which the measurement was taken: the temperature
+range, whether another workload shared the same card, how long the sampling window
+was, which run the number was taken from. The only conditions on record anywhere
+are the three temperature ranges of the three modes of the 8.10% measurement; for
+the 3.72% measurement not one condition is written down. Only the person who ran
+both measurements can say what differed between them.
+
+**What we suggest.** Three decisions, with what each one costs.
+
+1. Which measurement goes in the paper body. The case for the 8.10% measurement:
+   the streaming multiprocessor clock falling from about 2,062 MHz to 1,642 MHz
+   and the software thermal slowdown counter going from 0 to 8,279,678
+   microseconds are two readings independent of the throughput figure, the three
+   modes can be compared against one another, and the scalar checksum is 66.5 in
+   all three modes, so an outside reader can re-check the 8.10% measurement. The
+   cost: the calibration file
+   `/root/hbfsim/HBFSim/configs/thermal/gpu-cd8p-logp-live.json` stores the other
+   value, so if the paper reports only 8.10% while the calibration file stores
+   `-3.7247283103636675`, the relation between the two values has to be explained
+   in the paper. The case for the 3.72% measurement: 3.7247283103636675% is the
+   value the calibration file actually holds, and therefore the value the
+   simulator runs with. The cost: the 3.72% measurement carries no independent
+   reading and no record of the conditions.
+
+2. What becomes of whichever measurement does not go in the paper body. One way:
+   let the unused measurement appear only in a figure caption, as the parameter of
+   the fitted thermal response curve. Another way: report both measurements and
+   label each one with the run it came from.
+
+3. What differed between the two runs, and whether that can be written into the
+   corresponding proof documents —
+   `/root/hbfsim/HBFSim/docs/proofs/2026-08-11-hybrid-complete.md` for the 3.72%
+   measurement, `/root/hbfsim/HBFSim/docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md`
+   for the 8.10% measurement. If the conditions cannot be reconstructed, then at
+   least one of the two numbers cannot be re-checked by a third party, and that has
+   to be written into the limitations section of the paper.
+
+**What we need from you.** Which of the two measurements do you want in the paper
+body, how should the unused measurement be presented, and what were the conditions
+of each run — temperature range, other work on the same card, sampling window, and
+which run each number came from?

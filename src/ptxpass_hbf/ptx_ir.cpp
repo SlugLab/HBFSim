@@ -277,6 +277,7 @@ Instruction parse_instruction(std::string text, SourceLocation location,
         result.operands.clear();
     }
     result.memory = parse_memory(result.opcode, result.operands);
+    result.async = parse_async_instruction(result.opcode, result.operands);
     if (result.memory.has_value()) {
         const auto& memory = *result.memory;
         if (memory.kind == MemoryKind::Load) {

@@ -71,6 +71,7 @@ add_library(
     src/host_service/capacity_worker.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_analysis.cpp
+    src/ptxpass_hbf/ptx_async_op.cpp
     src/ptxpass_hbf/future_transform.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/ptx_ir.cpp
@@ -308,6 +309,13 @@ target_include_directories(
     ptx_ir_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
 )
 add_test(NAME ptx_ir COMMAND ptx_ir_test)
+
+add_executable(ptx_async_op_test tests/cpu/ptx_async_op_test.cpp)
+target_link_libraries(ptx_async_op_test PRIVATE hbfsim_core)
+target_include_directories(
+    ptx_async_op_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+)
+add_test(NAME ptx_async_op COMMAND ptx_async_op_test)
 set_tests_properties(
     ptx_ir PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )

@@ -1,0 +1,20 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry tma_sm120(
+    .param .u64 tmap,
+    .param .u64 dst,
+    .param .u64 barrier
+)
+{
+    .reg .b64 %rd<4>;
+    .reg .b32 %r<2>;
+    ld.param.u64 %rd1, [tmap];
+    ld.param.u64 %rd2, [dst];
+    ld.param.u64 %rd3, [barrier];
+    mov.u32 %r1, 0;
+    cp.async.bulk.tensor.1d.shared::cta.global.tile.mbarrier::complete_tx::bytes
+        [%rd2], [%rd1, {%r1}], [%rd3];
+    ret;
+}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ptx_async_op.hpp"
+
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -38,6 +40,7 @@ struct Instruction {
     std::vector<std::string> uses;
     std::vector<std::string> branch_targets;
     std::optional<MemoryInstruction> memory;
+    std::optional<AsyncInstruction> async;
 };
 
 struct BasicBlock {

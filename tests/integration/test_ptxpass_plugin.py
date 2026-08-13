@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import ctypes
+import hashlib
 import json
 import os
 import pathlib
@@ -85,6 +86,8 @@ def main() -> int:
                 "module identity must use immutable PTX constant storage")
 
         manifest = json.loads(manifest_path.read_text())
+        require(manifest["manifest_schema_version"] == 2,
+                "PTX pass manifest schema was not upgraded")
         require(re.fullmatch(r"ptx:sha256:[0-9a-f]{64}",
                              manifest["module_id"]) is not None,
                 f"manifest lacks SHA-256 module identity: {manifest['module_id']}")
@@ -95,6 +98,18 @@ def main() -> int:
                 "supported kernel not marked instrumented")
         require(manifest["cubin_only"] is False,
                 "PTX manifest incorrectly marked cubin-only")
+        require(manifest["original_ptx_sha256"] == hashlib.sha256(
+                    ptx.encode()).hexdigest(),
+                "manifest original PTX digest mismatch")
+        require(manifest["transformed_ptx_sha256"] == hashlib.sha256(
+                    response["output_ptx"].encode()).hexdigest(),
+                "manifest transformed PTX digest mismatch")
+        require(manifest["aot_required_for_exact"] is True,
+                "PTX pass did not require AOT evidence for exact mode")
+        for forbidden in ("cubin_sha256", "sass_sha256", "kernels",
+                          "registers", "spill_store_bytes"):
+            require(forbidden not in manifest,
+                    f"PTX pass invented post-ptxas evidence: {forbidden}")
         require(
             manifest["parameters"] == [
                 {"index": 0, "offset": 0, "width": 8, "kind": "pointer"}

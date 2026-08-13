@@ -352,7 +352,12 @@ extern "C" int process_input(const char* input, int length, char* output)
             });
         }
         append_manifest({
+            {"manifest_schema_version", 2},
             {"module_id", "ptx:sha256:" + identity},
+            {"original_ptx_sha256", identity},
+            {"transformed_ptx_sha256",
+             hex_identity(sha256(transformed.output_ptx))},
+            {"aot_required_for_exact", true},
             {"kernel", request.to_patch_kernel},
             {"ptx_target", ptx_target(request.full_ptx)},
             {"instrumented",

@@ -3,11 +3,21 @@
 
 #include <json.hpp>
 
+#include <stdexcept>
+
 namespace hbfsim {
 namespace {
 
 nlohmann::json to_json(const GateDecision& decision)
 {
+    if (decision.admitted_fidelity == "exact" &&
+        (!decision.allowed || decision.requested_fidelity != "exact" ||
+         !decision.aot_verified || !decision.validation_passed ||
+         decision.exact_profile_id.empty() || decision.cubin_sha256.empty() ||
+         decision.sass_sha256.empty() ||
+         !decision.exact_rejection_reasons.empty())) {
+        throw std::logic_error("invalid exact coverage decision");
+    }
     return {
         {"allowed", decision.allowed},
         {"module_id", decision.module_id},
@@ -23,6 +33,18 @@ nlohmann::json to_json(const GateDecision& decision)
         {"range_policy", range_policy_name(decision.range_policy)},
         {"modeled", decision.modeled},
         {"opaque_unmodeled", decision.opaque_unmodeled},
+        {"manifest_schema_version", decision.manifest_schema_version},
+        {"original_ptx_sha256", decision.original_ptx_sha256},
+        {"transformed_ptx_sha256", decision.transformed_ptx_sha256},
+        {"aot_required_for_exact", decision.aot_required_for_exact},
+        {"requested_fidelity", decision.requested_fidelity},
+        {"admitted_fidelity", decision.admitted_fidelity},
+        {"exact_profile_id", decision.exact_profile_id},
+        {"cubin_sha256", decision.cubin_sha256},
+        {"sass_sha256", decision.sass_sha256},
+        {"exact_rejection_reasons", decision.exact_rejection_reasons},
+        {"aot_verified", decision.aot_verified},
+        {"validation_passed", decision.validation_passed},
     };
 }
 

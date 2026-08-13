@@ -949,6 +949,8 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
     if (!exact.required) {
         return decision;
     }
+    decision.requested_fidelity = "exact";
+    decision.admitted_fidelity = "calibrated_emulation";
 
     // A live snapshot is deliberately refreshed for each HBF-relevant launch.
     // Exact mode never reuses context-creation observations.
@@ -957,8 +959,10 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
     if (!exact.profile.has_value()) {
         decision.allowed = false;
         decision.reason = "exact_admission_failed";
+        decision.exact_rejection_reasons = {"exact_configuration_missing"};
         return decision;
     }
+    decision.exact_profile_id = exact.profile->profile_id;
 
     hbfsim::LoadedModuleEvidence evidence;
     evidence.module_id = decision.module_id;
@@ -968,19 +972,49 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
             evidence = *loaded;
         }
     }
+    decision.cubin_sha256 = evidence.cubin_sha256;
+    decision.sass_sha256 = evidence.sass_sha256;
+    decision.aot_verified = evidence.aot_verified;
     const auto live = environment.environment.value_or(
         hbfsim::ExactLiveEnvironment{});
     const auto contract = exact.contract.value_or(hbfsim::ExactRunContract{});
     try {
         const auto admission = hbfsim::ExactAdmissionEvaluator{}.evaluate(
             *exact.profile, evidence, live, contract, decision.kernel);
-        if (!admission.allowed) {
+        decision.exact_rejection_reasons = admission.reasons;
+        const bool pass_manifest_present =
+            decision.manifest_schema_version == 2 &&
+            !decision.original_ptx_sha256.empty() &&
+            !decision.transformed_ptx_sha256.empty() &&
+            decision.aot_required_for_exact;
+        if (!pass_manifest_present) {
+            decision.exact_rejection_reasons.emplace_back(
+                "pass_manifest_exact_evidence_missing");
+        } else if (evidence.module_id != decision.module_id ||
+                   evidence.transformed_ptx_sha256 !=
+                       decision.transformed_ptx_sha256) {
+            decision.exact_rejection_reasons.emplace_back(
+                "pass_artifact_identity_mismatch");
+        }
+        decision.validation_passed =
+            std::find(decision.exact_rejection_reasons.begin(),
+                      decision.exact_rejection_reasons.end(),
+                      "profile_not_validated") ==
+                decision.exact_rejection_reasons.end() &&
+            std::find(decision.exact_rejection_reasons.begin(),
+                      decision.exact_rejection_reasons.end(),
+                      "validation_class_missing") ==
+                decision.exact_rejection_reasons.end();
+        if (decision.exact_rejection_reasons.empty() && decision.allowed) {
+            decision.admitted_fidelity = "exact";
+        } else if (!decision.exact_rejection_reasons.empty()) {
             decision.allowed = false;
             decision.reason = "exact_admission_failed";
         }
     } catch (...) {
         decision.allowed = false;
         decision.reason = "exact_admission_failed";
+        decision.exact_rejection_reasons = {"exact_evaluator_exception"};
     }
     return decision;
 }

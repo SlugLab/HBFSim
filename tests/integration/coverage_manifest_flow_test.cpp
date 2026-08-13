@@ -56,10 +56,14 @@ int main(int argc, char** argv)
     const std::string manifest_json{
         std::istreambuf_iterator<char>(manifest_input), {}};
     const auto manifest = hbfsim::module_manifest_from_json(manifest_json);
+    CHECK(manifest.manifest_schema_version == 2);
     CHECK(manifest.module_id.starts_with("ptx:"));
     CHECK(manifest.kernel == "unsupported_pointer");
     CHECK(manifest.ptx_target == "sm_120");
     CHECK(!manifest.instrumented);
+    CHECK(manifest.original_ptx_sha256.size() == 64);
+    CHECK(manifest.transformed_ptx_sha256.size() == 64);
+    CHECK(manifest.aot_required_for_exact);
     CHECK(manifest.parameters.size() == 1);
     CHECK(manifest.parameters[0].kind == hbfsim::ParameterKind::Pointer);
 

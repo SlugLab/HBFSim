@@ -3,6 +3,7 @@
 #include <json.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <ranges>
 #include <sstream>
@@ -38,6 +39,14 @@ RangePolicy stricter_policy(RangePolicy left, RangePolicy right)
 std::string module_key(const std::string& module_id, const std::string& kernel)
 {
     return module_id + '\n' + kernel;
+}
+
+bool sha256_hex(std::string_view value)
+{
+    return value.size() == 64 &&
+           std::ranges::all_of(value, [](unsigned char character) {
+               return std::isxdigit(character) != 0;
+           });
 }
 
 ParameterKind parameter_kind(const std::string& kind)
@@ -159,6 +168,23 @@ ModuleManifest module_manifest_from_json(const std::string& text)
         .instrumented = json.value("instrumented", false),
         .cubin_only = json.value("cubin_only", false),
     };
+    manifest.manifest_schema_version =
+        json.value("manifest_schema_version", 1U);
+    if (manifest.manifest_schema_version == 2) {
+        manifest.original_ptx_sha256 =
+            json.at("original_ptx_sha256").get<std::string>();
+        manifest.transformed_ptx_sha256 =
+            json.at("transformed_ptx_sha256").get<std::string>();
+        manifest.aot_required_for_exact =
+            json.at("aot_required_for_exact").get<bool>();
+        if (!sha256_hex(manifest.original_ptx_sha256) ||
+            !sha256_hex(manifest.transformed_ptx_sha256) ||
+            !manifest.aot_required_for_exact) {
+            throw std::invalid_argument("invalid exact pass manifest evidence");
+        }
+    } else if (manifest.manifest_schema_version != 1) {
+        throw std::invalid_argument("unsupported coverage manifest schema");
+    }
     for (const auto& parameter :
          json.value("parameters", nlohmann::json::array())) {
         manifest.parameters.push_back({
@@ -328,6 +354,10 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         .inspected_parameters = launch.parameters.size(),
         .range_policy = launch_policy,
     };
+    decision.manifest_schema_version = manifest->manifest_schema_version;
+    decision.original_ptx_sha256 = manifest->original_ptx_sha256;
+    decision.transformed_ptx_sha256 = manifest->transformed_ptx_sha256;
+    decision.aot_required_for_exact = manifest->aot_required_for_exact;
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
         std::ranges::all_of(

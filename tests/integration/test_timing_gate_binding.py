@@ -390,6 +390,21 @@ def main() -> int:
         require(decisions and
                 decisions[-1]["reason"] == "exact_admission_failed",
                 "exact rejection was not recorded before CUDA launch")
+        exact_decision = decisions[-1]
+        require(exact_decision["requested_fidelity"] == "exact" and
+                exact_decision["admitted_fidelity"] ==
+                "calibrated_emulation",
+                "rejected exact launch was falsely labeled exact")
+        require(exact_decision["aot_verified"] is False and
+                "aot_evidence_missing" in
+                exact_decision["exact_rejection_reasons"],
+                "PTX/JIT rejection omitted its AOT provenance failure")
+        require("live_environment_missing" in
+                exact_decision["exact_rejection_reasons"],
+                "exact rejection omitted the missing live snapshot")
+        require("pass_manifest_exact_evidence_missing" in
+                exact_decision["exact_rejection_reasons"],
+                "exact rejection did not enforce the v2 pass manifest join")
         require(unload(exact_module) == 0,
                 "failed to unload exact rejection module")
         token = ctypes.c_size_t()

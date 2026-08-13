@@ -353,12 +353,20 @@ int main()
     CHECK(hbm.allowed);
 
     const auto parsed = hbfsim::module_manifest_from_json(R"({
+      "manifest_schema_version":2,
       "module_id":"ptx:json", "kernel":"json_kernel", "ptx_target":"sm_120",
+      "original_ptx_sha256":"2222222222222222222222222222222222222222222222222222222222222222",
+      "transformed_ptx_sha256":"3333333333333333333333333333333333333333333333333333333333333333",
+      "aot_required_for_exact":true,
       "instrumented":false, "cubin_only":false,
       "parameters":[{"index":0,"offset":0,"width":8,"kind":"pointer"}],
       "unsupported_parameters":[{"index":0,"operation":"atom.global"}]
     })");
     CHECK(parsed.module_id == "ptx:json");
+    CHECK(parsed.manifest_schema_version == 2);
+    CHECK(parsed.original_ptx_sha256 == std::string(64, '2'));
+    CHECK(parsed.transformed_ptx_sha256 == std::string(64, '3'));
+    CHECK(parsed.aot_required_for_exact);
     CHECK(parsed.parameters.front().kind == hbfsim::ParameterKind::Pointer);
 
     const auto test_id = std::to_string(getpid());
@@ -368,6 +376,15 @@ int main()
     hbfsim::CoverageWriter writer(report);
     writer.append(unsupported);
     writer.append(timing_cubin);
+    auto admitted_exact = safe;
+    admitted_exact.requested_fidelity = "exact";
+    admitted_exact.admitted_fidelity = "exact";
+    admitted_exact.exact_profile_id = "profile";
+    admitted_exact.cubin_sha256 = std::string(64, '4');
+    admitted_exact.sass_sha256 = std::string(64, '5');
+    admitted_exact.aot_verified = true;
+    admitted_exact.validation_passed = true;
+    writer.append(admitted_exact);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
     CHECK(json.find("ptx:atom") != std::string::npos);
@@ -375,6 +392,44 @@ int main()
     CHECK(json.find("opaque_unmodeled_timing") != std::string::npos);
     CHECK(json.find("timing_backed") != std::string::npos);
     CHECK(json.find("\"modeled\":false") != std::string::npos);
+    CHECK(json.find("\"requested_fidelity\":\"exact\"") !=
+          std::string::npos);
+    CHECK(json.find("\"admitted_fidelity\":\"exact\"") !=
+          std::string::npos);
+    CHECK(json.find("\"exact_profile_id\":\"profile\"") !=
+          std::string::npos);
+    CHECK(json.find("\"exact_rejection_reasons\":[]") !=
+          std::string::npos);
+    std::filesystem::remove(report);
+
+    auto false_exact = admitted_exact;
+    false_exact.aot_verified = false;
+    bool false_exact_rejected = false;
+    try {
+        hbfsim::CoverageWriter invariant_writer(report);
+        invariant_writer.append(false_exact);
+    } catch (const std::logic_error&) {
+        false_exact_rejected = true;
+    }
+    CHECK(false_exact_rejected);
+
+    auto pending = safe;
+    pending.allowed = false;
+    pending.reason = "exact_admission_failed";
+    pending.requested_fidelity = "exact";
+    pending.admitted_fidelity = "calibrated_emulation";
+    pending.exact_profile_id = "pending-profile";
+    pending.exact_rejection_reasons = {"profile_not_validated"};
+    pending.validation_passed = false;
+    hbfsim::CoverageWriter pending_writer(report);
+    pending_writer.append(pending);
+    std::ifstream pending_input(report);
+    const std::string pending_json{std::istreambuf_iterator<char>(pending_input),
+                                   {}};
+    CHECK(pending_json.find("\"admitted_fidelity\":\"calibrated_emulation\"") !=
+          std::string::npos);
+    CHECK(pending_json.find("\"exact_rejection_reasons\":[\"profile_not_validated\"]") !=
+          std::string::npos);
     std::filesystem::remove(report);
 
     bool write_failed = false;

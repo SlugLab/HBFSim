@@ -84,6 +84,10 @@ struct ModuleManifest {
     bool cubin_only{false};
     std::vector<ParameterMetadata> parameters;
     std::vector<UnsupportedParameter> unsupported_parameters;
+    std::uint32_t manifest_schema_version{1};
+    std::string original_ptx_sha256;
+    std::string transformed_ptx_sha256;
+    bool aot_required_for_exact{false};
 };
 
 struct ArgumentSlot {
@@ -120,6 +124,18 @@ struct GateDecision {
     RangePolicy range_policy{RangePolicy::None};
     bool modeled{false};
     bool opaque_unmodeled{false};
+    std::uint32_t manifest_schema_version{1};
+    std::string original_ptx_sha256;
+    std::string transformed_ptx_sha256;
+    bool aot_required_for_exact{false};
+    std::string requested_fidelity{"emulation"};
+    std::string admitted_fidelity{"emulation"};
+    std::string exact_profile_id;
+    std::string cubin_sha256;
+    std::string sass_sha256;
+    std::vector<std::string> exact_rejection_reasons;
+    bool aot_verified{false};
+    bool validation_passed{false};
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);

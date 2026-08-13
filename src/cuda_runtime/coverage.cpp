@@ -172,7 +172,8 @@ ModuleManifest module_manifest_from_json(const std::string& text)
     manifest.manifest_schema_version =
         json.value("manifest_schema_version", 1U);
     if (manifest.manifest_schema_version == 2 ||
-        manifest.manifest_schema_version == 3) {
+        manifest.manifest_schema_version == 3 ||
+        manifest.manifest_schema_version == 4) {
         manifest.original_ptx_sha256 =
             json.at("original_ptx_sha256").get<std::string>();
         manifest.transformed_ptx_sha256 =
@@ -184,7 +185,7 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             !manifest.aot_required_for_exact) {
             throw std::invalid_argument("invalid exact pass manifest evidence");
         }
-        if (manifest.manifest_schema_version == 3) {
+        if (manifest.manifest_schema_version >= 3) {
             manifest.future_manifest.manifest_schema_version = 3;
             manifest.future_manifest.async_transform_version =
                 json.at("async_transform_version").get<std::string>();
@@ -229,13 +230,88 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             };
             manifest.future_manifest.ambiguities =
                 json.at("ambiguities").get<std::vector<std::string>>();
-            if (manifest.future_manifest.instructions.empty() ||
-                manifest.future_manifest.maximum_live.thread_futures == 0 ||
-                manifest.future_manifest.maximum_live.warp_futures == 0 ||
-                manifest.future_manifest.maximum_live.cta_futures == 0 ||
-                manifest.future_manifest.maximum_live.cluster_futures == 0) {
+            const bool empty_future_plan =
+                manifest.future_manifest.instructions.empty();
+            if ((manifest.manifest_schema_version == 3 && empty_future_plan) ||
+                (!empty_future_plan &&
+                 (manifest.future_manifest.maximum_live.thread_futures == 0 ||
+                  manifest.future_manifest.maximum_live.warp_futures == 0 ||
+                  manifest.future_manifest.maximum_live.cta_futures == 0 ||
+                  manifest.future_manifest.maximum_live.cluster_futures == 0))) {
                 throw std::invalid_argument(
                     "empty async transform manifest evidence");
+            }
+        }
+        if (manifest.manifest_schema_version == 4) {
+            auto& tma = manifest.tma_manifest;
+            tma.manifest_schema_version = 4;
+            tma.async_transform_version =
+                json.at("tma_transform_version").get<std::string>();
+            tma.ir_sha256 = json.at("tma_ir_sha256").get<std::string>();
+            tma.tensormap_parameters =
+                json.at("tensormap_parameters")
+                    .get<std::vector<std::uint32_t>>();
+            tma.descriptor_instruction_ids =
+                json.at("descriptor_instruction_ids")
+                    .get<std::vector<std::uint32_t>>();
+            tma.barrier_instruction_ids =
+                json.at("barrier_instruction_ids")
+                    .get<std::vector<std::uint32_t>>();
+            tma.bulk_group_instruction_ids =
+                json.at("bulk_group_instruction_ids")
+                    .get<std::vector<std::uint32_t>>();
+            tma.maximum_live_async_objects =
+                json.at("maximum_live_async_objects").get<std::uint32_t>();
+            tma.ambiguities =
+                json.at("tma_ambiguities").get<std::vector<std::string>>();
+            tma.provenance_required =
+                json.at("tensormap_provenance_required").get<bool>();
+            std::set<std::uint32_t> tma_ids;
+            for (const auto& instruction : json.at("tma_instruction_table")) {
+                TmaInstructionEvidence record{
+                    .instruction_id =
+                        instruction.at("instruction_id").get<std::uint32_t>(),
+                    .source_line =
+                        instruction.at("source_line").get<std::uint32_t>(),
+                    .direction = instruction.at("direction").get<std::string>(),
+                    .mode = instruction.at("mode").get<std::string>(),
+                    .dimensions =
+                        instruction.at("dimensions").get<std::uint32_t>(),
+                    .completion =
+                        instruction.at("completion").get<std::string>(),
+                    .multicast_mask =
+                        instruction.at("multicast_mask").get<std::uint32_t>(),
+                    .descriptor_generation =
+                        instruction.at("descriptor_generation")
+                            .get<std::uint64_t>(),
+                };
+                const bool valid_direction =
+                    record.direction == "global_to_shared" ||
+                    record.direction == "shared_to_global" ||
+                    record.direction == "prefetch";
+                const bool valid_mode =
+                    record.mode == "tile" || record.mode == "gather4" ||
+                    record.mode == "scatter4" || record.mode == "im2col" ||
+                    record.mode == "im2col_wide";
+                const bool valid_completion =
+                    record.completion == "mbarrier" ||
+                    record.completion == "bulk_group" ||
+                    record.completion == "none";
+                if (record.instruction_id == 0 || record.source_line == 0 ||
+                    record.dimensions == 0 || record.dimensions > 5 ||
+                    record.descriptor_generation == 0 || !valid_direction ||
+                    !valid_mode || !valid_completion ||
+                    !tma_ids.insert(record.instruction_id).second) {
+                    throw std::invalid_argument("invalid TMA instruction table");
+                }
+                tma.instructions.push_back(std::move(record));
+            }
+            if (tma.async_transform_version != "sm120-tma-v1" ||
+                !sha256_hex(tma.ir_sha256) || tma.instructions.empty() ||
+                tma.tensormap_parameters.empty() ||
+                tma.maximum_live_async_objects == 0 ||
+                !tma.provenance_required) {
+                throw std::invalid_argument("invalid TMA transform evidence");
             }
         }
     } else if (manifest.manifest_schema_version != 1) {
@@ -415,6 +491,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     decision.transformed_ptx_sha256 = manifest->transformed_ptx_sha256;
     decision.aot_required_for_exact = manifest->aot_required_for_exact;
     decision.future_manifest = manifest->future_manifest;
+    decision.tma_manifest = manifest->tma_manifest;
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
         std::ranges::all_of(

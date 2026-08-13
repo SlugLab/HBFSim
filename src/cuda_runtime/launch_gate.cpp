@@ -977,6 +977,8 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
     }
     evidence.future_manifest = decision.future_manifest;
     evidence.future_runtime = decision.future_runtime;
+    evidence.tma_manifest = decision.tma_manifest;
+    evidence.tma_runtime = decision.tma_runtime;
     decision.cubin_sha256 = evidence.cubin_sha256;
     decision.sass_sha256 = evidence.sass_sha256;
     decision.aot_verified = evidence.aot_verified;
@@ -988,7 +990,8 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
             *exact.profile, evidence, live, contract, decision.kernel);
         decision.exact_rejection_reasons = admission.reasons;
         const bool pass_manifest_present =
-            decision.manifest_schema_version == 3 &&
+            (decision.manifest_schema_version == 3 ||
+             decision.manifest_schema_version == 4) &&
             !decision.original_ptx_sha256.empty() &&
             !decision.transformed_ptx_sha256.empty() &&
             decision.aot_required_for_exact;

@@ -110,6 +110,48 @@ struct FutureRuntimeEvidence {
     bool observed{false};
 };
 
+struct TmaInstructionEvidence {
+    std::uint32_t instruction_id{0};
+    std::uint32_t source_line{0};
+    std::string direction;
+    std::string mode;
+    std::uint32_t dimensions{0};
+    std::string completion;
+    std::uint32_t multicast_mask{0};
+    std::uint64_t descriptor_generation{0};
+};
+
+struct TmaManifestEvidence {
+    std::uint32_t manifest_schema_version{0};
+    std::string async_transform_version;
+    std::string ir_sha256;
+    std::vector<std::uint32_t> tensormap_parameters;
+    std::vector<std::uint32_t> descriptor_instruction_ids;
+    std::vector<std::uint32_t> barrier_instruction_ids;
+    std::vector<std::uint32_t> bulk_group_instruction_ids;
+    std::vector<TmaInstructionEvidence> instructions;
+    std::uint32_t maximum_live_async_objects{0};
+    std::vector<std::string> ambiguities;
+    bool provenance_required{false};
+};
+
+struct TmaRuntimeEvidence {
+    std::uint64_t issued{0};
+    std::uint64_t hbm_bytes{0};
+    std::uint64_t hbf_bytes{0};
+    std::uint64_t oob_bytes{0};
+    std::uint64_t mixed_bytes{0};
+    std::uint64_t fanout_targets{0};
+    std::uint64_t barrier_waits{0};
+    std::uint64_t group_read_waits{0};
+    std::uint64_t group_full_waits{0};
+    std::uint64_t stale_generations{0};
+    std::uint64_t faults{0};
+    std::uint64_t leaked{0};
+    bool mixed_tiles_proved{false};
+    bool observed{false};
+};
+
 struct ModuleManifest {
     std::string module_id;
     std::string kernel;
@@ -123,6 +165,7 @@ struct ModuleManifest {
     std::string transformed_ptx_sha256;
     bool aot_required_for_exact{false};
     FutureManifestEvidence future_manifest;
+    TmaManifestEvidence tma_manifest;
 };
 
 struct ArgumentSlot {
@@ -173,6 +216,8 @@ struct GateDecision {
     bool validation_passed{false};
     FutureManifestEvidence future_manifest;
     FutureRuntimeEvidence future_runtime;
+    TmaManifestEvidence tma_manifest;
+    TmaRuntimeEvidence tma_runtime;
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);

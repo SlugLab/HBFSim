@@ -392,6 +392,42 @@ int main()
     CHECK(parsed_v3.future_manifest.maximum_live.thread_futures == 2);
     CHECK(parsed_v3.future_manifest.ambiguities.empty());
 
+    const auto parsed_v4 = hbfsim::module_manifest_from_json(R"({
+      "manifest_schema_version":4,
+      "module_id":"ptx:v4", "kernel":"v4_kernel", "ptx_target":"sm_120",
+      "original_ptx_sha256":"2222222222222222222222222222222222222222222222222222222222222222",
+      "transformed_ptx_sha256":"3333333333333333333333333333333333333333333333333333333333333333",
+      "aot_required_for_exact":true,
+      "instrumented":true, "cubin_only":false,
+      "async_transform_version":"sm120-future-v1",
+      "ir_sha256":"6666666666666666666666666666666666666666666666666666666666666666",
+      "instruction_table":[{"instruction_id":1,"source_line":8,"bytes":4,
+        "opcode":"ld.global.u32","memory_kind":"load"}],
+      "maximum_live_futures":{"thread":2,"warp":64,"cta":256,"cluster":2048},
+      "ambiguities":[],
+      "tma_transform_version":"sm120-tma-v1",
+      "tma_ir_sha256":"7777777777777777777777777777777777777777777777777777777777777777",
+      "tensormap_parameters":[0],
+      "descriptor_instruction_ids":[5],
+      "barrier_instruction_ids":[6,8,9],
+      "bulk_group_instruction_ids":[11,12],
+      "tma_instruction_table":[{"instruction_id":7,"source_line":20,
+        "direction":"global_to_shared","mode":"tile","dimensions":1,
+        "completion":"mbarrier","multicast_mask":0,
+        "descriptor_generation":1}],
+      "maximum_live_async_objects":1,
+      "tma_ambiguities":[], "tensormap_provenance_required":true,
+      "parameters":[{"index":0,"offset":0,"width":8,"kind":"pointer"}],
+      "unsupported_parameters":[]
+    })");
+    CHECK(parsed_v4.manifest_schema_version == 4);
+    CHECK(parsed_v4.tma_manifest.async_transform_version == "sm120-tma-v1");
+    CHECK(parsed_v4.tma_manifest.tensormap_parameters ==
+          std::vector<std::uint32_t>{0});
+    CHECK(parsed_v4.tma_manifest.instructions.size() == 1);
+    CHECK(parsed_v4.tma_manifest.maximum_live_async_objects == 1);
+    CHECK(parsed_v4.tma_manifest.ambiguities.empty());
+
     const auto test_id = std::to_string(getpid());
     const auto report = std::filesystem::temp_directory_path() /
                         ("hbfsim-coverage-gate-test-" + test_id + ".json");
@@ -407,8 +443,8 @@ int main()
     admitted_exact.sass_sha256 = std::string(64, '5');
     admitted_exact.aot_verified = true;
     admitted_exact.validation_passed = true;
-    admitted_exact.manifest_schema_version = 3;
-    admitted_exact.future_manifest = parsed_v3.future_manifest;
+    admitted_exact.manifest_schema_version = 4;
+    admitted_exact.future_manifest = parsed_v4.future_manifest;
     admitted_exact.future_runtime = {
         .issued = 9,
         .issue_throttle_ns = 10,
@@ -416,6 +452,23 @@ int main()
         .ordering_wait_ns = 12,
         .drained = 9,
         .leaked = 0,
+        .observed = true,
+    };
+    admitted_exact.tma_manifest = parsed_v4.tma_manifest;
+    admitted_exact.tma_runtime = {
+        .issued = 4,
+        .hbm_bytes = 32,
+        .hbf_bytes = 64,
+        .oob_bytes = 8,
+        .mixed_bytes = 16,
+        .fanout_targets = 7,
+        .barrier_waits = 3,
+        .group_read_waits = 2,
+        .group_full_waits = 1,
+        .stale_generations = 0,
+        .faults = 0,
+        .leaked = 0,
+        .mixed_tiles_proved = true,
         .observed = true,
     };
     writer.append(admitted_exact);
@@ -443,6 +496,14 @@ int main()
           std::string::npos);
     CHECK(json.find("\"future_drained\":9") != std::string::npos);
     CHECK(json.find("\"future_leaked\":0") != std::string::npos);
+    CHECK(json.find("\"tma_hbm_bytes\":32") != std::string::npos);
+    CHECK(json.find("\"tma_hbf_bytes\":64") != std::string::npos);
+    CHECK(json.find("\"tma_oob_bytes\":8") != std::string::npos);
+    CHECK(json.find("\"tma_fanout_targets\":7") != std::string::npos);
+    CHECK(json.find("\"tma_barrier_waits\":3") != std::string::npos);
+    CHECK(json.find("\"tma_group_read_waits\":2") != std::string::npos);
+    CHECK(json.find("\"tma_group_full_waits\":1") != std::string::npos);
+    CHECK(json.find("\"tma_stale_generations\":0") != std::string::npos);
     std::filesystem::remove(report);
 
     auto false_exact = admitted_exact;

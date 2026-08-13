@@ -143,6 +143,31 @@ Case matching_case()
         .future_runtime = {.issued = 1,
                            .drained = 1,
                            .observed = true},
+        .tma_manifest = {
+            .manifest_schema_version = 4,
+            .async_transform_version = "sm120-tma-v1",
+            .ir_sha256 = std::string(64, '7'),
+            .tensormap_parameters = {0},
+            .descriptor_instruction_ids = {5},
+            .barrier_instruction_ids = {6, 8, 9},
+            .bulk_group_instruction_ids = {11, 12},
+            .instructions = {{.instruction_id = 7,
+                              .source_line = 20,
+                              .direction = "global_to_shared",
+                              .mode = "tile",
+                              .dimensions = 1,
+                              .completion = "mbarrier",
+                              .multicast_mask = 0,
+                              .descriptor_generation = 1}},
+            .maximum_live_async_objects = 1,
+            .provenance_required = true,
+        },
+        .tma_runtime = {.issued = 1,
+                        .hbf_bytes = 64,
+                        .fanout_targets = 1,
+                        .barrier_waits = 1,
+                        .mixed_tiles_proved = true,
+                        .observed = true},
         .aot_verified = true,
     };
     value.live = {
@@ -221,6 +246,21 @@ std::vector<Mutation> mutations()
          }},
         {"future_leak_detected",
          [](Case& value) { value.evidence.future_runtime.leaked = 1; }},
+        {"tma_transform_missing",
+         [](Case& value) {
+             value.evidence.tma_manifest.async_transform_version.clear();
+         }},
+        {"tensormap_provenance_missing",
+         [](Case& value) {
+             value.evidence.tma_manifest.tensormap_parameters.clear();
+         }},
+        {"tma_async_object_leak",
+         [](Case& value) { value.evidence.tma_runtime.leaked = 1; }},
+        {"mixed_tile_unproven",
+         [](Case& value) {
+             value.evidence.tma_runtime.mixed_bytes = 64;
+             value.evidence.tma_runtime.mixed_tiles_proved = false;
+         }},
         {"original_ptx_sha256_mismatch",
          [](Case& value) { value.evidence.original_ptx_sha256[0] = 'a'; }},
         {"transformed_ptx_sha256_mismatch",

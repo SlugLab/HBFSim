@@ -1,4 +1,5 @@
 #include "hbfsim/durable_append.hpp"
+#include "async_object_analysis.hpp"
 #include "ptx_analysis.hpp"
 #include "ptx_ir.hpp"
 #include "transform.hpp"
@@ -297,6 +298,18 @@ struct FuturePassEvidence {
     nlohmann::json ambiguities = nlohmann::json::array();
 };
 
+struct TmaPassEvidence {
+    bool present{false};
+    std::string ir_sha256;
+    nlohmann::json tensormap_parameters = nlohmann::json::array();
+    nlohmann::json descriptor_instruction_ids = nlohmann::json::array();
+    nlohmann::json barrier_instruction_ids = nlohmann::json::array();
+    nlohmann::json bulk_group_instruction_ids = nlohmann::json::array();
+    nlohmann::json instruction_table = nlohmann::json::array();
+    std::uint32_t maximum_live_async_objects{0};
+    nlohmann::json ambiguities = nlohmann::json::array();
+};
+
 std::string selected_kernel_ptx(const std::string& ptx,
                                 const std::string& kernel)
 {
@@ -387,6 +400,125 @@ FuturePassEvidence future_pass_evidence(const std::string& ptx,
     return result;
 }
 
+const char* tma_direction(hbfsim::ptx::TmaDirection value)
+{
+    switch (value) {
+    case hbfsim::ptx::TmaDirection::GlobalToShared:
+        return "global_to_shared";
+    case hbfsim::ptx::TmaDirection::SharedToGlobal:
+        return "shared_to_global";
+    case hbfsim::ptx::TmaDirection::Prefetch: return "prefetch";
+    }
+    return "unknown";
+}
+
+const char* tensor_mode(hbfsim::ptx::TensorMode value)
+{
+    switch (value) {
+    case hbfsim::ptx::TensorMode::Tile: return "tile";
+    case hbfsim::ptx::TensorMode::Gather4: return "gather4";
+    case hbfsim::ptx::TensorMode::Scatter4: return "scatter4";
+    case hbfsim::ptx::TensorMode::Im2col: return "im2col";
+    case hbfsim::ptx::TensorMode::Im2colWide: return "im2col_wide";
+    }
+    return "unknown";
+}
+
+const char* completion_kind(hbfsim::ptx::CompletionKind value)
+{
+    switch (value) {
+    case hbfsim::ptx::CompletionKind::Mbarrier: return "mbarrier";
+    case hbfsim::ptx::CompletionKind::BulkGroup: return "bulk_group";
+    case hbfsim::ptx::CompletionKind::None: return "none";
+    }
+    return "unknown";
+}
+
+std::uint32_t immediate_mask(const hbfsim::ptx::TmaInstruction& tma)
+{
+    if (!tma.multicast) return 0;
+    try {
+        std::size_t consumed = 0;
+        const auto value = std::stoul(tma.multicast_mask, &consumed, 0);
+        return consumed == tma.multicast_mask.size() && value <= 0xffff
+                   ? static_cast<std::uint32_t>(value)
+                   : 0;
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+TmaPassEvidence tma_pass_evidence(
+    const std::string& ptx, const std::string& kernel,
+    const std::vector<PassParameter>& parameters)
+{
+    const auto selected = selected_kernel_ptx(ptx, kernel);
+    const auto module = hbfsim::ptx::parse_module(selected);
+    const auto& function = module.function(kernel);
+    const auto plan = hbfsim::ptx::analyze_async_objects(function);
+    TmaPassEvidence result;
+    result.present = !plan.tma_instruction_ids.empty();
+    if (!result.present) return result;
+
+    std::set<std::string> descriptor_registers;
+    std::ostringstream canonical;
+    canonical << "sm120-tma-v1\n" << function.name << '\n';
+    for (const auto& instruction : function.instructions) {
+        if (!instruction.async.has_value()) continue;
+        if (const auto* tma =
+                std::get_if<hbfsim::ptx::TmaInstruction>(
+                    &*instruction.async)) {
+            descriptor_registers.insert(tma->descriptor);
+            const auto generation =
+                plan.descriptor_generations.contains(instruction.instruction_id)
+                    ? plan.descriptor_generations.at(instruction.instruction_id)
+                    : 0;
+            const auto mask = immediate_mask(*tma);
+            result.instruction_table.push_back({
+                {"instruction_id", instruction.instruction_id},
+                {"source_line", instruction.location.line},
+                {"direction", tma_direction(tma->direction)},
+                {"mode", tensor_mode(tma->mode)},
+                {"dimensions", tma->dimensions},
+                {"completion", completion_kind(tma->completion)},
+                {"multicast_mask", mask},
+                {"descriptor_generation", generation},
+            });
+            canonical << instruction.instruction_id << '|'
+                      << instruction.location.line << '|'
+                      << tma_direction(tma->direction) << '|'
+                      << tensor_mode(tma->mode) << '|' << tma->dimensions << '|'
+                      << completion_kind(tma->completion) << '|' << mask << '|'
+                      << generation << '\n';
+        }
+    }
+    for (const auto& parameter : parameters) {
+        const std::regex load(
+            R"(ld\.param\.(?:u64|b64)\s+(%[A-Za-z0-9_$]+)\s*,\s*\[\s*)" +
+            parameter.name + R"((?:\s*\+\s*0)?\s*\])");
+        std::smatch match;
+        if (std::regex_search(selected, match, load) &&
+            descriptor_registers.contains(match[1].str())) {
+            result.tensormap_parameters.push_back(parameter.index);
+        }
+    }
+    for (const auto id : plan.descriptor_instruction_ids)
+        result.descriptor_instruction_ids.push_back(id);
+    for (const auto id : plan.barrier_instruction_ids)
+        result.barrier_instruction_ids.push_back(id);
+    for (const auto id : plan.bulk_group_instruction_ids)
+        result.bulk_group_instruction_ids.push_back(id);
+    result.maximum_live_async_objects = plan.maximum_live_objects;
+    std::set<std::string> reasons;
+    for (const auto& [instruction, reason] : plan.rejection_reasons) {
+        (void)instruction;
+        reasons.insert(reason);
+    }
+    for (const auto& reason : reasons) result.ambiguities.push_back(reason);
+    result.ir_sha256 = hex_identity(sha256(canonical.str()));
+    return result;
+}
+
 }  // namespace
 
 extern "C" void print_config(int length, char* output)
@@ -427,6 +559,8 @@ extern "C" int process_input(const char* input, int length, char* output)
             inject_module_identity(std::move(transformed.output_ptx), identity);
         const auto parameters =
             parameter_metadata(request.full_ptx, request.to_patch_kernel);
+        const auto tma_evidence = tma_pass_evidence(
+            request.full_ptx, request.to_patch_kernel, parameters);
 
         std::vector<std::string> relevant_unsupported;
         for (const auto& opcode : transformed.coverage.unsupported_opcodes) {
@@ -454,8 +588,8 @@ extern "C" int process_input(const char* input, int length, char* output)
                 {"kind", parameter.kind},
             });
         }
-        append_manifest({
-            {"manifest_schema_version", 3},
+        nlohmann::json manifest{
+            {"manifest_schema_version", tma_evidence.present ? 4 : 3},
             {"module_id", "ptx:sha256:" + identity},
             {"original_ptx_sha256", identity},
             {"transformed_ptx_sha256",
@@ -478,7 +612,26 @@ extern "C" int process_input(const char* input, int length, char* output)
             {"instruction_table", future_evidence.instruction_table},
             {"maximum_live_futures", future_evidence.maximum_live},
             {"ambiguities", future_evidence.ambiguities},
-        });
+        };
+        if (tma_evidence.present) {
+            manifest["tma_transform_version"] = "sm120-tma-v1";
+            manifest["tma_ir_sha256"] = tma_evidence.ir_sha256;
+            manifest["tensormap_parameters"] =
+                tma_evidence.tensormap_parameters;
+            manifest["descriptor_instruction_ids"] =
+                tma_evidence.descriptor_instruction_ids;
+            manifest["barrier_instruction_ids"] =
+                tma_evidence.barrier_instruction_ids;
+            manifest["bulk_group_instruction_ids"] =
+                tma_evidence.bulk_group_instruction_ids;
+            manifest["tma_instruction_table"] =
+                tma_evidence.instruction_table;
+            manifest["maximum_live_async_objects"] =
+                tma_evidence.maximum_live_async_objects;
+            manifest["tma_ambiguities"] = tma_evidence.ambiguities;
+            manifest["tensormap_provenance_required"] = true;
+        }
+        append_manifest(manifest);
 
         const auto response =
             nlohmann::json{

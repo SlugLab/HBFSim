@@ -69,15 +69,47 @@ bool sha256_hex(std::string_view value)
            });
 }
 
-bool future_manifest_complete(const FutureManifestEvidence& evidence)
+bool future_manifest_complete(const FutureManifestEvidence& evidence,
+                              bool empty_plan_allowed = false)
 {
     return evidence.manifest_schema_version == 3 &&
            evidence.async_transform_version == "sm120-future-v1" &&
-           sha256_hex(evidence.ir_sha256) && !evidence.instructions.empty() &&
-           evidence.maximum_live.thread_futures != 0 &&
-           evidence.maximum_live.warp_futures != 0 &&
-           evidence.maximum_live.cta_futures != 0 &&
-           evidence.maximum_live.cluster_futures != 0;
+           sha256_hex(evidence.ir_sha256) &&
+           (empty_plan_allowed ||
+            (!evidence.instructions.empty() &&
+             evidence.maximum_live.thread_futures != 0 &&
+             evidence.maximum_live.warp_futures != 0 &&
+             evidence.maximum_live.cta_futures != 0 &&
+             evidence.maximum_live.cluster_futures != 0));
+}
+
+bool tma_manifest_complete(const TmaManifestEvidence& evidence)
+{
+    if (evidence.manifest_schema_version != 4 ||
+        evidence.async_transform_version != "sm120-tma-v1" ||
+        !sha256_hex(evidence.ir_sha256) || evidence.instructions.empty() ||
+        evidence.maximum_live_async_objects == 0 ||
+        !evidence.ambiguities.empty()) {
+        return false;
+    }
+    return std::all_of(
+        evidence.instructions.begin(), evidence.instructions.end(),
+        [](const TmaInstructionEvidence& instruction) {
+            return instruction.instruction_id != 0 &&
+                   instruction.source_line != 0 &&
+                   instruction.dimensions >= 1 && instruction.dimensions <= 5;
+        });
+}
+
+bool tensormap_provenance_complete(const TmaManifestEvidence& evidence)
+{
+    return evidence.provenance_required &&
+           !evidence.tensormap_parameters.empty() &&
+           std::all_of(evidence.instructions.begin(),
+                       evidence.instructions.end(),
+                       [](const TmaInstructionEvidence& instruction) {
+                           return instruction.descriptor_generation != 0;
+                       });
 }
 
 bool future_budget_exceeded(const FutureManifestEvidence& evidence,
@@ -143,11 +175,15 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
                    evidence.toolchain.cuobjdump_version,
            "toolchain_mismatch");
     reject(!evidence.aot_verified, "aot_evidence_missing");
-    reject(!future_manifest_complete(evidence.future_manifest),
+    const bool tma_required =
+        evidence.tma_manifest.manifest_schema_version != 0 ||
+        !evidence.tma_manifest.instructions.empty() ||
+        evidence.tma_runtime.observed;
+    reject(!future_manifest_complete(evidence.future_manifest, tma_required),
            "async_transform_missing");
     reject(!evidence.future_manifest.ambiguities.empty(),
            "async_transform_ambiguous");
-    reject(future_manifest_complete(evidence.future_manifest) &&
+    reject(future_manifest_complete(evidence.future_manifest, tma_required) &&
                future_budget_exceeded(evidence.future_manifest,
                                       profile.limits),
            "future_budget_exceeded");
@@ -159,6 +195,19 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
                          evidence.future_runtime.leaked !=
                      evidence.future_runtime.issued)),
            "future_leak_detected");
+    reject(tma_required && !tma_manifest_complete(evidence.tma_manifest),
+           "tma_transform_missing");
+    reject(tma_required &&
+               !tensormap_provenance_complete(evidence.tma_manifest),
+           "tensormap_provenance_missing");
+    reject(tma_required &&
+               (evidence.tma_runtime.leaked != 0 ||
+                evidence.tma_manifest.maximum_live_async_objects >
+                    profile.limits.max_cluster_async_objects),
+           "tma_async_object_leak");
+    reject(tma_required && evidence.tma_runtime.mixed_bytes != 0 &&
+               !evidence.tma_runtime.mixed_tiles_proved,
+           "mixed_tile_unproven");
     if (module != nullptr) {
         reject(evidence.original_ptx_sha256 != module->original_ptx_sha256,
                "original_ptx_sha256_mismatch");

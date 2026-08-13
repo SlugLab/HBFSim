@@ -36,6 +36,8 @@ struct LoadedModuleEvidence {
     std::vector<ExactKernelArtifact> kernels;
     FutureManifestEvidence future_manifest;
     FutureRuntimeEvidence future_runtime;
+    TmaManifestEvidence tma_manifest;
+    TmaRuntimeEvidence tma_runtime;
     bool aot_verified{false};
 };
 

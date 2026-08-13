@@ -129,6 +129,45 @@ def main() -> int:
         )
         require(manifest["unsupported_parameters"] == [],
                 "supported kernel has unsupported parameters")
+
+        tma_manifest_path = pathlib.Path(directory) / "tma-manifest.jsonl"
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(tma_manifest_path)
+        tma_ptx = configured_fixture("tests/fixtures/ptx/tma_sm120.ptx")
+        tma_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        tma_status = plugin.process_input(
+            request_for(tma_ptx, "tma_sm120"), len(tma_output), tma_output
+        )
+        require(tma_status == 0, f"TMA pass failed with status {tma_status}")
+        tma_manifest = json.loads(tma_manifest_path.read_text())
+        require(tma_manifest["manifest_schema_version"] == 4,
+                "TMA manifest did not use schema v4")
+        require(tma_manifest["tma_transform_version"] == "sm120-tma-v1",
+                "TMA transform version is missing")
+        require(tma_manifest["tensormap_parameters"] == [0],
+                "TensorMap parameter provenance is missing")
+        require(tma_manifest["descriptor_instruction_ids"] == [5],
+                "descriptor instruction IDs differ")
+        require(tma_manifest["barrier_instruction_ids"] == [6, 8, 9],
+                "barrier instruction IDs differ")
+        require(tma_manifest["bulk_group_instruction_ids"] == [],
+                "unexpected bulk-group instruction IDs")
+        require(tma_manifest["maximum_live_async_objects"] == 1,
+                "TMA maximum-live analysis differs")
+        require(tma_manifest["tma_ambiguities"] == [],
+                "supported TMA flow has ambiguity")
+        require(tma_manifest["tma_instruction_table"] == [{
+            "instruction_id": 7,
+            "source_line": 19,
+            "direction": "global_to_shared",
+            "mode": "tile",
+            "dimensions": 1,
+            "completion": "mbarrier",
+            "multicast_mask": 0,
+            "descriptor_generation": 1,
+        }], f"unexpected TMA table: {tma_manifest['tma_instruction_table']}")
+        require(tma_manifest["tensormap_provenance_required"] is True,
+                "TMA exact manifest did not require TensorMap provenance")
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest_path)
         qualified_ptx = ptx.replace(
             ".param .u64 kernel_ptr",
             ".param .u64 .ptr .global .align 1 kernel_ptr",

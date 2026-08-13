@@ -59,6 +59,7 @@ add_library(
     src/cuda_runtime/range_table.cpp
     src/cuda_runtime/shadow_future.cpp
     src/cuda_runtime/timing_binding.cpp
+    src/cuda_runtime/tensormap.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
     src/profile/exact_profile.cpp
@@ -139,6 +140,10 @@ add_test(NAME protocol_layout COMMAND hbfsim_protocol_tests)
 add_executable(shadow_future_test tests/cpu/shadow_future_test.cpp)
 target_link_libraries(shadow_future_test PRIVATE hbfsim_core)
 add_test(NAME shadow_future COMMAND shadow_future_test)
+
+add_executable(tensormap_registry_test tests/cpu/tensormap_registry_test.cpp)
+target_link_libraries(tensormap_registry_test PRIVATE hbfsim_core)
+add_test(NAME tensormap_registry COMMAND tensormap_registry_test)
 
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)

@@ -327,7 +327,8 @@ bool declaration(std::string_view line)
 {
     const auto value = trim(line);
     return value.starts_with(".reg ") || value.starts_with(".shared ") ||
-           value.starts_with(".local ") || value.starts_with(".pragma ") ||
+           value.starts_with(".local ") || value.starts_with(".param ") ||
+           value.starts_with(".pragma ") ||
            value.starts_with(".maxntid ") || value.starts_with(".minnctapersm ");
 }
 
@@ -353,6 +354,7 @@ Module parse_module(std::string_view ptx)
     bool waiting_for_body = false;
     bool body_open = false;
     bool pending_fallthrough = false;
+    std::uint32_t nested_scope = 0;
     std::string instruction_text;
     SourceLocation instruction_location;
     std::uint32_t line_number = 0;
@@ -399,10 +401,19 @@ Module parse_module(std::string_view ptx)
         if (!body_open) {
             throw ParseError("invalid PTX function state");
         }
+        if (instruction_text.empty() && clean.starts_with("{")) {
+            ++nested_scope;
+            continue;
+        }
+        if (instruction_text.empty() && clean == "}" && nested_scope != 0) {
+            --nested_scope;
+            continue;
+        }
         if (instruction_text.empty() && clean == "}") {
             body_open = false;
             function = nullptr;
             pending_fallthrough = false;
+            nested_scope = 0;
             continue;
         }
         if (instruction_text.empty()) {

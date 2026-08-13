@@ -2,6 +2,7 @@
 
 #include "future_transform.hpp"
 #include "ptx_memory_op.hpp"
+#include "tma_transform.hpp"
 
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
 #include "hbf_device_ptx.hpp"
@@ -96,11 +97,23 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
     const bool wait = defines_function(ptx, "__hbfsim_future_wait");
     const bool future_fault =
         defines_function(ptx, "__hbfsim_future_fault");
-    if (marker || resolver || fault || issue || poll || wait || future_fault) {
+    const bool tma_issue = defines_function(ptx, "__hbfsim_tma_issue");
+    const bool tma_poll =
+        defines_function(ptx, "__hbfsim_tma_barrier_poll");
+    const bool tma_wait =
+        defines_function(ptx, "__hbfsim_tma_wait_group");
+    const bool tma_barrier_wait =
+        defines_function(ptx, "__hbfsim_tma_barrier_wait");
+    const bool tma_commit =
+        defines_function(ptx, "__hbfsim_tma_commit_group");
+    if (marker || resolver || fault || issue || poll || wait || future_fault ||
+        tma_issue || tma_poll || tma_wait || tma_barrier_wait || tma_commit) {
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
         const bool exact_helper =
             trusted_existing_helper && marker && resolver && fault && issue &&
             poll && wait && future_fault &&
+            tma_issue && tma_poll && tma_wait && tma_barrier_wait &&
+            tma_commit &&
             ptx.find(kEmbeddedDevicePtx) != std::string::npos;
         if (exact_helper) {
             return;
@@ -137,14 +150,22 @@ TransformResult transform_ptx(const TransformRequest& request)
 {
     TransformResult result{.output_ptx = {}, .coverage = {}, .modified = false};
     if (request.async_futures && !request.to_patch_kernel.empty()) {
-        const auto future = transform_futures(request.full_ptx,
+        const auto tma = transform_tma(request.full_ptx,
+                                       request.to_patch_kernel);
+        if (!tma.rejection_reason.empty()) {
+            throw std::runtime_error(tma.rejection_reason);
+        }
+        const auto& future_input = tma.modified ? tma.output_ptx
+                                                : request.full_ptx;
+        const auto future = transform_futures(future_input,
                                               request.to_patch_kernel);
         if (!future.rejection_reason.empty()) {
             throw std::runtime_error(future.rejection_reason);
         }
         result.output_ptx = future.output_ptx;
-        result.modified = future.modified;
-        result.coverage.rewritten_instructions = future.rewritten_futures;
+        result.modified = future.modified || tma.modified;
+        result.coverage.rewritten_instructions =
+            future.rewritten_futures + tma.rewritten_instructions;
 
         std::istringstream scan(request.full_ptx);
         std::string scan_line;

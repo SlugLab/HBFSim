@@ -8,13 +8,18 @@
     .param .u64 barrier
 )
 {
-    .reg .b64 %rd<4>;
+    .reg .b64 %rd<5>;
     .reg .b32 %r<2>;
+    .reg .pred %p<2>;
     ld.param.u64 %rd1, [tmap];
     ld.param.u64 %rd2, [dst];
     ld.param.u64 %rd3, [barrier];
     mov.u32 %r1, 0;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    mbarrier.init.shared::cta.b64 [%rd3], 1;
     cp.async.bulk.tensor.1d.shared::cta.global.tile.mbarrier::complete_tx::bytes
         [%rd2], [%rd1, {%r1}], [%rd3];
+    mbarrier.arrive.shared::cta.b64 %rd4, [%rd3];
+    mbarrier.test_wait.shared::cta.b64 %p1, [%rd3], %rd4;
     ret;
 }

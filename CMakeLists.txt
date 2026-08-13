@@ -80,6 +80,7 @@ add_library(
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/ptx_ir.cpp
     src/ptxpass_hbf/transform.cpp
+    src/ptxpass_hbf/tma_transform.cpp
     src/reporting/coverage_writer.cpp
     src/reporting/durable_append.cpp
 )
@@ -343,6 +344,21 @@ target_include_directories(
     ptx_async_op_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
 )
 add_test(NAME ptx_async_op COMMAND ptx_async_op_test)
+
+add_executable(ptx_tma_transform_test tests/cpu/ptx_tma_transform_test.cpp)
+target_link_libraries(ptx_tma_transform_test PRIVATE hbfsim_core)
+target_include_directories(
+    ptx_tma_transform_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+)
+target_compile_definitions(
+    ptx_tma_transform_test PRIVATE HBFSIM_TEST_DEVICE_HELPER_PTX=1
+)
+add_test(NAME ptx_tma_transform COMMAND ptx_tma_transform_test)
+set_tests_properties(
+    ptx_tma_transform
+    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 add_executable(
     async_object_analysis_test tests/cpu/async_object_analysis_test.cpp
@@ -994,6 +1010,26 @@ if(HBFSIM_ENABLE_CUDA)
             ptxpass_plugin PROPERTIES
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         )
+        find_program(
+            HBFSIM_TMA_PTXAS_EXECUTABLE NAMES ptxas
+            HINTS "/usr/local/cuda-13.0/bin" "/usr/local/cuda-13/bin"
+            NO_DEFAULT_PATH
+        )
+        if(HBFSIM_TMA_PTXAS_EXECUTABLE)
+            add_test(
+                NAME tma_ptxpass
+                COMMAND
+                    "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_tma_ptxpass.py"
+                    "$<TARGET_FILE:ptxpass_hbf>"
+                    "${HBFSIM_TMA_PTXAS_EXECUTABLE}"
+                    "${HBFSIM_CUDA_PTX_TARGET}"
+            )
+            set_tests_properties(
+                tma_ptxpass PROPERTIES
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            )
+        endif()
         add_test(
             NAME unsupported_kernel_ptx
             COMMAND

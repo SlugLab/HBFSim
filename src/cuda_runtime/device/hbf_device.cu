@@ -975,6 +975,169 @@ extern "C" __device__ std::uint32_t __hbfsim_tensormap_lookup(
     return UINT32_MAX;
 }
 
+extern "C" __device__ std::uint64_t __hbfsim_tma_issue(
+    std::uint64_t descriptor_address, std::uint32_t instruction_id,
+    std::uint32_t direction, std::uint64_t barrier,
+    std::uint32_t multicast_mask)
+{
+    (void)barrier;
+    const auto control_address =
+        system_acquire(reinterpret_cast<const unsigned long long*>(
+            &__hbfsim_control));
+    const auto expected_generation =
+        system_acquire(reinterpret_cast<const unsigned long long*>(
+            &__hbfsim_control_generation));
+    if (control_address == 0 || descriptor_address == 0 || direction > 1) {
+        return 0;
+    }
+    auto* header = reinterpret_cast<SharedControlHeader*>(
+        static_cast<std::uintptr_t>(control_address));
+    if (!valid_control(header, expected_generation)) return 0;
+    const auto count = system_acquire(&header->tensormap_count);
+    if (count > hbfsim::device::kTensorMapCapacity) return 0;
+    const auto* descriptor = reinterpret_cast<const std::byte*>(
+        static_cast<std::uintptr_t>(descriptor_address));
+    const auto* slots =
+        reinterpret_cast<const hbfsim::device::SharedTensorMapSlot*>(
+            reinterpret_cast<const std::byte*>(header) +
+            header->tensormap_offset);
+    const hbfsim::device::SharedTensorMapSlot* selected = nullptr;
+    for (std::uint32_t index = count; index != 0 && selected == nullptr;
+         --index) {
+        const auto& slot = slots[index - 1];
+        if (system_acquire(&slot.publication_generation) == 0) continue;
+        bool equal = true;
+        for (std::uint32_t byte = 0; byte < 128; ++byte) {
+            if (slot.descriptor[byte] != descriptor[byte]) {
+                equal = false;
+                break;
+            }
+        }
+        if (equal) selected = &slot;
+    }
+    if (selected == nullptr || selected->rank == 0 || selected->rank > 5) {
+        (void)system_fetch_add(&header->tma_stale_generations, 1);
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    const std::uint32_t element_sizes[13]{
+        1, 2, 4, 4, 8, 8, 2, 4, 8, 2, 4, 4, 4};
+    if (selected->element_type >= 13) {
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    std::uint64_t tile_bytes = element_sizes[selected->element_type];
+    for (std::uint32_t dimension = 0; dimension < selected->rank;
+         ++dimension) {
+        const auto extent = selected->box_dim[dimension] == 0
+                                ? 1U
+                                : selected->box_dim[dimension];
+        if (tile_bytes > UINT32_MAX / extent) {
+            (void)system_fetch_add(&header->tma_faults, 1);
+            return 0;
+        }
+        tile_bytes *= extent;
+    }
+    (void)system_fetch_add(&header->tma_issued, 1);
+    (void)system_fetch_add(&header->tma_fanout_targets,
+                           multicast_mask == 0 ? 1 : __popc(multicast_mask));
+    if (selected->base_address > UINT64_MAX - tile_bytes) {
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    const auto tile_end = selected->base_address + tile_bytes;
+    const auto range_count = system_acquire(&header->range_count);
+    const auto* ranges = reinterpret_cast<const SharedRangeRecord*>(
+        reinterpret_cast<const std::byte*>(header) + header->range_offset);
+    const auto* range = range_count <= hbfsim::device::kRangeCapacity
+                            ? find_range(ranges, range_count,
+                                         selected->base_address)
+                            : nullptr;
+    if (range == nullptr) {
+        for (std::uint32_t index = 0;
+             index < range_count && index < hbfsim::device::kRangeCapacity;
+             ++index) {
+            const auto& candidate = ranges[index];
+            if (candidate.length == 0 ||
+                candidate.base > UINT64_MAX - candidate.length) {
+                (void)system_fetch_add(&header->tma_faults, 1);
+                return 0;
+            }
+            const auto candidate_end = candidate.base + candidate.length;
+            if (selected->base_address < candidate_end &&
+                tile_end > candidate.base) {
+                // The descriptor begins in native HBM but its tile crosses an
+                // HBF range.  Native TMA cannot be partially redirected.
+                (void)system_fetch_add(&header->tma_faults, 1);
+                return 0;
+            }
+        }
+        (void)system_fetch_add(&header->tma_hbm_bytes, tile_bytes);
+        return 1;
+    }
+    const auto offset = selected->base_address - range->base;
+    if (range->mode != 1 || offset > range->length ||
+        tile_bytes > range->length - offset) {
+        // Capacity descriptors and mixed tiles are never allowed to execute
+        // natively until software materialization has proved every segment.
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    (void)system_fetch_add(&header->tma_hbf_bytes, tile_bytes);
+    const auto arrival = gpu_time_ns();
+    const auto latency = direction == 0 ? header->read_latency_ns
+                                        : header->program_latency_ns;
+    const auto transfer = hbfsim::device::fast_transfer_ns(
+        static_cast<std::uint32_t>(tile_bytes),
+        header->aggregate_bandwidth_bytes_per_s);
+    if (latency == 0 || transfer == 0 || header->time_scale == 0) {
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    const auto scaled_latency = hbfsim::device::saturating_multiply(
+        latency, header->time_scale);
+    const auto scaled_transfer = hbfsim::device::saturating_multiply(
+        transfer, header->time_scale);
+    auto tail = system_acquire(&header->fast_channel_tail_ns);
+    std::uint64_t ready = 0;
+    for (;;) {
+        ready = hbfsim::device::fast_future_ready_ns(
+            arrival, tail, scaled_latency, scaled_transfer);
+        auto expected = tail;
+        const auto next_tail = hbfsim::device::saturating_add(
+            tail > arrival ? tail : arrival, scaled_transfer);
+        if (system_compare_exchange(&header->fast_channel_tail_ns,
+                                    expected, next_tail)) {
+            break;
+        }
+        tail = expected;
+    }
+    return ready < 2 ? 2 : ready;
+}
+
+extern "C" __device__ std::uint32_t __hbfsim_tma_barrier_poll(
+    std::uint64_t token)
+{
+    return token == 1 || (token >= 2 && gpu_time_ns() >= token) ? 1U : 0U;
+}
+
+extern "C" __device__ void __hbfsim_tma_barrier_wait(std::uint64_t token)
+{
+    std::uint32_t delay = 64;
+    while (__hbfsim_tma_barrier_poll(token) == 0) bounded_sleep(delay);
+}
+
+extern "C" __device__ void __hbfsim_tma_commit_group()
+{
+}
+
+extern "C" __device__ void __hbfsim_tma_wait_group(
+    std::uint64_t token, std::uint32_t read_only)
+{
+    (void)read_only;
+    __hbfsim_tma_barrier_wait(token);
+}
+
 extern "C" __device__ hbfsim::device::DeviceFuture
 __hbfsim_future_wait(hbfsim::device::DeviceFuture future,
                      std::uint32_t wait_kind)

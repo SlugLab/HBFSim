@@ -51,6 +51,7 @@ add_library(
     src/cuda_runtime/context.cpp
     src/cuda_runtime/capacity_runtime.cpp
     src/cuda_runtime/coverage.cpp
+    src/cuda_runtime/exact_admission.cpp
     src/cuda_runtime/exact_artifact.cpp
     src/cuda_runtime/exact_environment.cpp
     src/cuda_runtime/hbm_cache.cpp
@@ -266,6 +267,10 @@ add_test(NAME exact_artifact COMMAND exact_artifact_test)
 add_executable(exact_environment_test tests/cpu/exact_environment_test.cpp)
 target_link_libraries(exact_environment_test PRIVATE hbfsim_core)
 add_test(NAME exact_environment COMMAND exact_environment_test)
+
+add_executable(exact_admission_test tests/cpu/exact_admission_test.cpp)
+target_link_libraries(exact_admission_test PRIVATE hbfsim_core)
+add_test(NAME exact_admission COMMAND exact_admission_test)
 
 add_executable(ptx_transform_test tests/cpu/ptx_transform_test.cpp)
 target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)

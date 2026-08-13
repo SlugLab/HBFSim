@@ -603,6 +603,8 @@ concurrency_condition_unproven
 cluster_shape_mismatch
 ```
 
+The evaluator also rejects `module_artifact_missing`, `live_environment_missing`, `aot_evidence_missing`, `original_ptx_sha256_mismatch`, and `transformed_ptx_sha256_mismatch`; these are required to keep JIT, stale/missing snapshots, and PTX provenance swaps out of exact admission.
+
 Also test that multiple mismatches are all returned in deterministic order; the evaluator must not stop after the first comparison.
 
 - [ ] **Step 2: Run and verify RED**
@@ -621,6 +623,7 @@ struct ExactRunContract {
     std::string concurrency_condition;
     Dim3 cluster_shape;
     std::uint64_t cache_condition_epoch;
+    std::uint64_t latest_relevant_mutation_epoch;
 };
 
 struct ExactAdmissionDecision {

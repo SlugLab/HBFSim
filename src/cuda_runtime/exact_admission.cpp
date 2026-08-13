@@ -1,0 +1,179 @@
+#include <hbfsim/exact_admission.hpp>
+
+#include <algorithm>
+#include <array>
+#include <set>
+
+namespace hbfsim {
+namespace {
+
+constexpr std::array<std::string_view, 7> kRequiredValidationClasses{
+    "ordinary_load", "ordinary_store", "tma_load", "tma_store",
+    "unicast", "multicast", "mixed_hbm_hbf"};
+
+bool validation_classes_complete(const ExactProfile& profile)
+{
+    if (profile.validation.classes.size() !=
+        kRequiredValidationClasses.size()) {
+        return false;
+    }
+    std::set<std::string_view> names;
+    for (const auto& record : profile.validation.classes) {
+        if (!names.insert(record.operation_class).second || !record.passed ||
+            record.p50_error_percent > profile.thresholds.p50_percent ||
+            record.p95_error_percent > profile.thresholds.p95_percent ||
+            record.counter_error_percent >
+                profile.thresholds.counter_percent) {
+            return false;
+        }
+    }
+    return std::all_of(
+        kRequiredValidationClasses.begin(),
+        kRequiredValidationClasses.end(),
+        [&](std::string_view name) { return names.contains(name); });
+}
+
+template <class Record>
+const Record* find_named(const std::vector<Record>& records,
+                         std::string_view name)
+{
+    const auto found = std::find_if(
+        records.begin(), records.end(),
+        [&](const Record& record) { return record.name == name; });
+    return found == records.end() ? nullptr : &*found;
+}
+
+const ExactModuleArtifact* find_module(const ExactProfile& profile,
+                                       std::string_view module_id)
+{
+    const auto found = std::find_if(
+        profile.modules.begin(), profile.modules.end(),
+        [&](const ExactModuleArtifact& module) {
+            return module.module_id == module_id;
+        });
+    return found == profile.modules.end() ? nullptr : &*found;
+}
+
+bool same_shape(const ExactClusterShape& left,
+                const ExactClusterShape& right)
+{
+    return left.x == right.x && left.y == right.y && left.z == right.z;
+}
+
+}  // namespace
+
+ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
+    const ExactProfile& profile, const LoadedModuleEvidence& evidence,
+    const ExactLiveEnvironment& live, const ExactRunContract& contract,
+    std::string_view kernel) const
+{
+    ExactAdmissionDecision decision{
+        .profile_id = profile.profile_id,
+        .module_id = evidence.module_id,
+        .kernel = std::string(kernel),
+    };
+    const auto reject = [&](bool mismatch, std::string_view reason) {
+        if (mismatch) {
+            decision.reasons.emplace_back(reason);
+        }
+    };
+
+    reject(profile.validation.status != ValidationStatus::Passed,
+           "profile_not_validated");
+    reject(!validation_classes_complete(profile),
+           "validation_class_missing");
+    reject(live.gpu_name != profile.target.gpu_name, "gpu_name_mismatch");
+    reject(live.gpu_uuid != profile.target.gpu_uuid, "gpu_uuid_mismatch");
+    reject(live.pci_vendor_id != profile.target.pci_vendor_id ||
+               live.pci_device_id != profile.target.pci_device_id,
+           "pci_device_mismatch");
+    reject(live.compute_capability_major !=
+                   profile.target.compute_capability_major ||
+               live.compute_capability_minor !=
+                   profile.target.compute_capability_minor,
+           "compute_capability_mismatch");
+    reject(live.cuda_driver_version != profile.target.driver_version,
+           "driver_version_mismatch");
+    reject(live.captured_unix_ns == 0, "live_environment_missing");
+
+    const auto* module = find_module(profile, evidence.module_id);
+    reject(module == nullptr, "module_artifact_missing");
+    if (module != nullptr) {
+        reject(evidence.ptx_target != module->ptx_target,
+               "ptx_target_mismatch");
+    }
+    reject(profile.toolchain.cuda_version !=
+                   evidence.toolchain.cuda_release ||
+               profile.toolchain.ptxas_version !=
+                   evidence.toolchain.ptxas_version ||
+               profile.toolchain.nvdisasm_version !=
+                   evidence.toolchain.nvdisasm_version ||
+               profile.toolchain.cuobjdump_version !=
+                   evidence.toolchain.cuobjdump_version,
+           "toolchain_mismatch");
+    reject(!evidence.aot_verified, "aot_evidence_missing");
+    if (module != nullptr) {
+        reject(evidence.original_ptx_sha256 != module->original_ptx_sha256,
+               "original_ptx_sha256_mismatch");
+        reject(evidence.transformed_ptx_sha256 !=
+                   module->transformed_ptx_sha256,
+               "transformed_ptx_sha256_mismatch");
+        reject(evidence.cubin_sha256 != module->cubin_sha256,
+               "cubin_sha256_mismatch");
+        reject(evidence.sass_sha256 != module->sass_sha256,
+               "sass_sha256_mismatch");
+
+        const auto* expected_kernel = find_named(module->kernels, kernel);
+        const auto* loaded_kernel = find_named(evidence.kernels, kernel);
+        reject(expected_kernel == nullptr || loaded_kernel == nullptr,
+               "kernel_resource_missing");
+        if (expected_kernel != nullptr && loaded_kernel != nullptr) {
+            reject(expected_kernel->registers != loaded_kernel->registers,
+                   "register_count_mismatch");
+            reject(expected_kernel->spill_store_bytes !=
+                           loaded_kernel->spill_store_bytes ||
+                       expected_kernel->spill_load_bytes !=
+                           loaded_kernel->spill_load_bytes,
+                   "spill_bytes_mismatch");
+            reject(expected_kernel->static_shared_bytes !=
+                           loaded_kernel->static_shared_bytes ||
+                       expected_kernel->max_dynamic_shared_bytes !=
+                           loaded_kernel->max_dynamic_shared_bytes,
+                   "shared_memory_mismatch");
+            reject(expected_kernel->block_threads !=
+                           loaded_kernel->block_threads ||
+                       expected_kernel->occupancy_blocks_per_sm !=
+                           loaded_kernel->occupancy_blocks_per_sm,
+                   "occupancy_tier_mismatch");
+        }
+    }
+
+    reject(live.sm_clock_mhz != profile.conditions.sm_clock_mhz,
+           "sm_clock_mismatch");
+    reject(live.memory_clock_mhz != profile.conditions.memory_clock_mhz,
+           "memory_clock_mismatch");
+    reject(live.power_limit_mw != profile.conditions.power_limit_mw,
+           "power_limit_mismatch");
+    reject(live.temperature_c < profile.conditions.temperature_min_c ||
+               live.temperature_c > profile.conditions.temperature_max_c,
+           "temperature_out_of_range");
+    reject(contract.cache_condition != profile.conditions.cache_condition ||
+               contract.cache_condition_epoch == 0 ||
+               contract.cache_condition_epoch <=
+                   contract.latest_relevant_mutation_epoch,
+           "cache_condition_unproven");
+    reject(contract.concurrency_condition !=
+                   profile.conditions.concurrency_condition ||
+               (profile.conditions.concurrency_condition ==
+                    "exclusive_process" &&
+                !live.current_process_is_exclusive),
+           "concurrency_condition_unproven");
+    reject(!same_shape(contract.cluster_shape,
+                       profile.conditions.cluster_shape),
+           "cluster_shape_mismatch");
+
+    decision.allowed = decision.reasons.empty();
+    return decision;
+}
+
+}  // namespace hbfsim

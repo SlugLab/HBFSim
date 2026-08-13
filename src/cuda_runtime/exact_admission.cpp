@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <set>
 
 namespace hbfsim {
@@ -60,6 +61,36 @@ bool same_shape(const ExactClusterShape& left,
     return left.x == right.x && left.y == right.y && left.z == right.z;
 }
 
+bool sha256_hex(std::string_view value)
+{
+    return value.size() == 64 &&
+           std::all_of(value.begin(), value.end(), [](unsigned char byte) {
+               return std::isxdigit(byte) != 0;
+           });
+}
+
+bool future_manifest_complete(const FutureManifestEvidence& evidence)
+{
+    return evidence.manifest_schema_version == 3 &&
+           evidence.async_transform_version == "sm120-future-v1" &&
+           sha256_hex(evidence.ir_sha256) && !evidence.instructions.empty() &&
+           evidence.maximum_live.thread_futures != 0 &&
+           evidence.maximum_live.warp_futures != 0 &&
+           evidence.maximum_live.cta_futures != 0 &&
+           evidence.maximum_live.cluster_futures != 0;
+}
+
+bool future_budget_exceeded(const FutureManifestEvidence& evidence,
+                            const ExactFutureLimits& limits)
+{
+    return evidence.maximum_live.thread_futures >
+               limits.max_thread_futures ||
+           evidence.maximum_live.warp_futures > limits.max_warp_futures ||
+           evidence.maximum_live.cta_futures > limits.max_cta_futures ||
+           evidence.maximum_live.cluster_futures >
+               limits.max_cluster_futures;
+}
+
 }  // namespace
 
 ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
@@ -112,6 +143,22 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
                    evidence.toolchain.cuobjdump_version,
            "toolchain_mismatch");
     reject(!evidence.aot_verified, "aot_evidence_missing");
+    reject(!future_manifest_complete(evidence.future_manifest),
+           "async_transform_missing");
+    reject(!evidence.future_manifest.ambiguities.empty(),
+           "async_transform_ambiguous");
+    reject(future_manifest_complete(evidence.future_manifest) &&
+               future_budget_exceeded(evidence.future_manifest,
+                                      profile.limits),
+           "future_budget_exceeded");
+    reject(evidence.future_runtime.leaked != 0 ||
+               (evidence.future_runtime.observed &&
+                (evidence.future_runtime.drained >
+                     evidence.future_runtime.issued ||
+                 evidence.future_runtime.drained +
+                         evidence.future_runtime.leaked !=
+                     evidence.future_runtime.issued)),
+           "future_leak_detected");
     if (module != nullptr) {
         reject(evidence.original_ptx_sha256 != module->original_ptx_sha256,
                "original_ptx_sha256_mismatch");

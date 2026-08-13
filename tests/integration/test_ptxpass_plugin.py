@@ -87,8 +87,18 @@ def main() -> int:
                 "module identity must use immutable PTX constant storage")
 
         manifest = json.loads(manifest_path.read_text())
-        require(manifest["manifest_schema_version"] == 2,
+        require(manifest["manifest_schema_version"] == 3,
                 "PTX pass manifest schema was not upgraded")
+        require(manifest["async_transform_version"] == "sm120-future-v1",
+                "manifest lacks the async transform version")
+        require(re.fullmatch(r"[0-9a-f]{64}", manifest["ir_sha256"]),
+                "manifest lacks the stable IR digest")
+        require(len(manifest["instruction_table"]) == 3,
+                "manifest instruction table is incomplete")
+        require(manifest["maximum_live_futures"]["thread"] >= 1,
+                "manifest future liveness is empty")
+        require(manifest["ambiguities"] == [],
+                "supported kernel has future ambiguities")
         require(re.fullmatch(r"ptx:sha256:[0-9a-f]{64}",
                              manifest["module_id"]) is not None,
                 f"manifest lacks SHA-256 module identity: {manifest['module_id']}")

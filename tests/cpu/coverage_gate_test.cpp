@@ -369,6 +369,29 @@ int main()
     CHECK(parsed.aot_required_for_exact);
     CHECK(parsed.parameters.front().kind == hbfsim::ParameterKind::Pointer);
 
+    const auto parsed_v3 = hbfsim::module_manifest_from_json(R"({
+      "manifest_schema_version":3,
+      "module_id":"ptx:v3", "kernel":"v3_kernel", "ptx_target":"sm_120",
+      "original_ptx_sha256":"2222222222222222222222222222222222222222222222222222222222222222",
+      "transformed_ptx_sha256":"3333333333333333333333333333333333333333333333333333333333333333",
+      "aot_required_for_exact":true,
+      "instrumented":true, "cubin_only":false,
+      "async_transform_version":"sm120-future-v1",
+      "ir_sha256":"6666666666666666666666666666666666666666666666666666666666666666",
+      "instruction_table":[{"instruction_id":1,"source_line":8,"bytes":4,
+        "opcode":"ld.global.u32","memory_kind":"load"}],
+      "maximum_live_futures":{"thread":2,"warp":64,"cta":256,"cluster":2048},
+      "ambiguities":[],
+      "parameters":[{"index":0,"offset":0,"width":8,"kind":"pointer"}],
+      "unsupported_parameters":[]
+    })");
+    CHECK(parsed_v3.future_manifest.manifest_schema_version == 3);
+    CHECK(parsed_v3.future_manifest.async_transform_version ==
+          "sm120-future-v1");
+    CHECK(parsed_v3.future_manifest.instructions.size() == 1);
+    CHECK(parsed_v3.future_manifest.maximum_live.thread_futures == 2);
+    CHECK(parsed_v3.future_manifest.ambiguities.empty());
+
     const auto test_id = std::to_string(getpid());
     const auto report = std::filesystem::temp_directory_path() /
                         ("hbfsim-coverage-gate-test-" + test_id + ".json");
@@ -384,6 +407,17 @@ int main()
     admitted_exact.sass_sha256 = std::string(64, '5');
     admitted_exact.aot_verified = true;
     admitted_exact.validation_passed = true;
+    admitted_exact.manifest_schema_version = 3;
+    admitted_exact.future_manifest = parsed_v3.future_manifest;
+    admitted_exact.future_runtime = {
+        .issued = 9,
+        .issue_throttle_ns = 10,
+        .dependency_wait_ns = 11,
+        .ordering_wait_ns = 12,
+        .drained = 9,
+        .leaked = 0,
+        .observed = true,
+    };
     writer.append(admitted_exact);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
@@ -400,6 +434,15 @@ int main()
           std::string::npos);
     CHECK(json.find("\"exact_rejection_reasons\":[]") !=
           std::string::npos);
+    CHECK(json.find("\"future_issued\":9") != std::string::npos);
+    CHECK(json.find("\"future_issue_throttle_ns\":10") !=
+          std::string::npos);
+    CHECK(json.find("\"future_dependency_wait_ns\":11") !=
+          std::string::npos);
+    CHECK(json.find("\"future_ordering_wait_ns\":12") !=
+          std::string::npos);
+    CHECK(json.find("\"future_drained\":9") != std::string::npos);
+    CHECK(json.find("\"future_leaked\":0") != std::string::npos);
     std::filesystem::remove(report);
 
     auto false_exact = admitted_exact;

@@ -76,6 +76,40 @@ struct UnsupportedParameter {
     std::string operation;
 };
 
+struct FutureBudgetEvidence {
+    std::uint32_t thread_futures{0};
+    std::uint32_t warp_futures{0};
+    std::uint32_t cta_futures{0};
+    std::uint32_t cluster_futures{0};
+};
+
+struct FutureInstructionEvidence {
+    std::uint32_t instruction_id{0};
+    std::uint32_t source_line{0};
+    std::uint32_t bytes{0};
+    std::string opcode;
+    std::string memory_kind;
+};
+
+struct FutureManifestEvidence {
+    std::uint32_t manifest_schema_version{0};
+    std::string async_transform_version;
+    std::string ir_sha256;
+    std::vector<FutureInstructionEvidence> instructions;
+    FutureBudgetEvidence maximum_live;
+    std::vector<std::string> ambiguities;
+};
+
+struct FutureRuntimeEvidence {
+    std::uint64_t issued{0};
+    std::uint64_t issue_throttle_ns{0};
+    std::uint64_t dependency_wait_ns{0};
+    std::uint64_t ordering_wait_ns{0};
+    std::uint64_t drained{0};
+    std::uint64_t leaked{0};
+    bool observed{false};
+};
+
 struct ModuleManifest {
     std::string module_id;
     std::string kernel;
@@ -88,6 +122,7 @@ struct ModuleManifest {
     std::string original_ptx_sha256;
     std::string transformed_ptx_sha256;
     bool aot_required_for_exact{false};
+    FutureManifestEvidence future_manifest;
 };
 
 struct ArgumentSlot {
@@ -136,6 +171,8 @@ struct GateDecision {
     std::vector<std::string> exact_rejection_reasons;
     bool aot_verified{false};
     bool validation_passed{false};
+    FutureManifestEvidence future_manifest;
+    FutureRuntimeEvidence future_runtime;
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <hbfsim/exact_profile.hpp>
+#include <hbfsim/coverage.hpp>
 
 #include <array>
 #include <atomic>
@@ -33,6 +34,8 @@ struct LoadedModuleEvidence {
     std::string sass_sha256;
     ExactArtifactToolchain toolchain;
     std::vector<ExactKernelArtifact> kernels;
+    FutureManifestEvidence future_manifest;
+    FutureRuntimeEvidence future_runtime;
     bool aot_verified{false};
 };
 

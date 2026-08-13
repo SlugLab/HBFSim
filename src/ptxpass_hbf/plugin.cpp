@@ -1,4 +1,6 @@
 #include "hbfsim/durable_append.hpp"
+#include "ptx_analysis.hpp"
+#include "ptx_ir.hpp"
 #include "transform.hpp"
 
 #include <json.hpp>
@@ -11,6 +13,7 @@
 #include <iomanip>
 #include <mutex>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -287,6 +290,103 @@ bool hbf_relevant_unsupported_opcode(const std::string& opcode)
     return !std::regex_search(opcode, non_hbf_space);
 }
 
+struct FuturePassEvidence {
+    std::string ir_sha256;
+    nlohmann::json instruction_table = nlohmann::json::array();
+    nlohmann::json maximum_live;
+    nlohmann::json ambiguities = nlohmann::json::array();
+};
+
+std::string selected_kernel_ptx(const std::string& ptx,
+                                const std::string& kernel)
+{
+    const std::regex entry(
+        R"(\.(?:visible\s+)?entry\s+)" + kernel + R"(\s*\()",
+        std::regex::ECMAScript);
+    std::smatch match;
+    if (!std::regex_search(ptx, match, entry)) {
+        throw std::invalid_argument("selected PTX kernel was not found");
+    }
+    const auto begin = static_cast<std::size_t>(match.position());
+    const auto body_begin = ptx.find('{', begin);
+    if (body_begin == std::string::npos) {
+        throw std::invalid_argument("selected PTX kernel has no body");
+    }
+    int depth = 0;
+    std::size_t end = std::string::npos;
+    for (auto cursor = body_begin; cursor < ptx.size(); ++cursor) {
+        if (ptx[cursor] == '{') {
+            ++depth;
+        } else if (ptx[cursor] == '}' && --depth == 0) {
+            end = cursor + 1;
+            break;
+        }
+    }
+    if (end == std::string::npos) {
+        throw std::invalid_argument("selected PTX kernel is unterminated");
+    }
+    std::ostringstream output;
+    for (const auto directive : {".version", ".target", ".address_size"}) {
+        const auto position = ptx.find(directive);
+        if (position != std::string::npos) {
+            const auto newline = ptx.find('\n', position);
+            output << ptx.substr(position, newline - position) << '\n';
+        }
+    }
+    output << ptx.substr(begin, end - begin) << '\n';
+    return output.str();
+}
+
+FuturePassEvidence future_pass_evidence(const std::string& ptx,
+                                        const std::string& kernel)
+{
+    const auto module = hbfsim::ptx::parse_module(
+        selected_kernel_ptx(ptx, kernel));
+    const auto& function = module.function(kernel);
+    const auto plan = hbfsim::ptx::analyze_futures(function);
+    FuturePassEvidence result;
+    std::ostringstream canonical;
+    canonical << "sm120-future-v1\n" << function.name << '\n';
+    for (const auto& instruction : function.instructions) {
+        if (!instruction.memory.has_value()) {
+            continue;
+        }
+        const char* kind = "none";
+        switch (instruction.memory->kind) {
+        case hbfsim::ptx::MemoryKind::Load: kind = "load"; break;
+        case hbfsim::ptx::MemoryKind::Store: kind = "store"; break;
+        case hbfsim::ptx::MemoryKind::AtomicRmw: kind = "atomic_rmw"; break;
+        case hbfsim::ptx::MemoryKind::None: break;
+        }
+        result.instruction_table.push_back({
+            {"instruction_id", instruction.instruction_id},
+            {"source_line", instruction.location.line},
+            {"bytes", instruction.memory->bytes},
+            {"opcode", instruction.opcode},
+            {"memory_kind", kind},
+        });
+        canonical << instruction.instruction_id << '|' << instruction.location.line
+                  << '|' << instruction.opcode << '|'
+                  << instruction.memory->bytes << '|' << kind << '\n';
+    }
+    result.ir_sha256 = hex_identity(sha256(canonical.str()));
+    result.maximum_live = {
+        {"thread", plan.maximum_live.thread_futures},
+        {"warp", plan.maximum_live.warp_futures},
+        {"cta", plan.maximum_live.cta_futures},
+        {"cluster", plan.maximum_live.cluster_futures},
+    };
+    std::set<std::string> reasons;
+    for (const auto& [instruction, reason] : plan.rejection_reasons) {
+        (void)instruction;
+        reasons.insert(reason);
+    }
+    for (const auto& reason : reasons) {
+        result.ambiguities.push_back(reason);
+    }
+    return result;
+}
+
 }  // namespace
 
 extern "C" void print_config(int length, char* output)
@@ -319,6 +419,8 @@ extern "C" int process_input(const char* input, int length, char* output)
         request.trusted_existing_helper =
             trusted_identity.previously_emitted;
         auto transformed = hbfsim::ptx::transform_ptx(request);
+        const auto future_evidence =
+            future_pass_evidence(request.full_ptx, request.to_patch_kernel);
         const auto& identity = trusted_identity.value;
         transformed.output_ptx =
             inject_module_identity(std::move(transformed.output_ptx), identity);
@@ -352,7 +454,7 @@ extern "C" int process_input(const char* input, int length, char* output)
             });
         }
         append_manifest({
-            {"manifest_schema_version", 2},
+            {"manifest_schema_version", 3},
             {"module_id", "ptx:sha256:" + identity},
             {"original_ptx_sha256", identity},
             {"transformed_ptx_sha256",
@@ -369,6 +471,11 @@ extern "C" int process_input(const char* input, int length, char* output)
              transformed.coverage.rewritten_instructions},
             {"unsupported_instructions", relevant_unsupported.size()},
             {"unsupported_opcodes", relevant_unsupported},
+            {"async_transform_version", "sm120-future-v1"},
+            {"ir_sha256", future_evidence.ir_sha256},
+            {"instruction_table", future_evidence.instruction_table},
+            {"maximum_live_futures", future_evidence.maximum_live},
+            {"ambiguities", future_evidence.ambiguities},
         });
 
         const auto response =

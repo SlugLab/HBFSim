@@ -115,8 +115,11 @@ print("NVIDIA Nsight Compute CLI version 2025.4.1.0")
         require(transformed.is_file() and manifest_path.is_file() and
                 fragment_path.is_file(), "preparation outputs are incomplete")
         manifests = [json.loads(line) for line in manifest_path.read_text().splitlines()]
-        require(len(manifests) == 1 and manifests[0]["manifest_schema_version"] == 2,
-                "preparation did not preserve schema-v2 pass evidence")
+        require(len(manifests) == 1 and manifests[0]["manifest_schema_version"] == 3,
+                "preparation did not preserve schema-v3 pass evidence")
+        require(manifests[0]["async_transform_version"] == "sm120-future-v1" and
+                manifests[0]["ambiguities"] == [],
+                "preparation lost async-future pass evidence")
         require(manifests[0]["aot_required_for_exact"] is True,
                 "pass evidence did not require AOT")
 

@@ -56,14 +56,17 @@ int main(int argc, char** argv)
     const std::string manifest_json{
         std::istreambuf_iterator<char>(manifest_input), {}};
     const auto manifest = hbfsim::module_manifest_from_json(manifest_json);
-    CHECK(manifest.manifest_schema_version == 2);
+    CHECK(manifest.manifest_schema_version == 3);
     CHECK(manifest.module_id.starts_with("ptx:"));
     CHECK(manifest.kernel == "unsupported_pointer");
     CHECK(manifest.ptx_target == "sm_120");
-    CHECK(!manifest.instrumented);
+    CHECK(manifest.instrumented);
     CHECK(manifest.original_ptx_sha256.size() == 64);
     CHECK(manifest.transformed_ptx_sha256.size() == 64);
     CHECK(manifest.aot_required_for_exact);
+    CHECK(manifest.future_manifest.async_transform_version ==
+          "sm120-future-v1");
+    CHECK(manifest.future_manifest.instructions.size() == 1);
     CHECK(manifest.parameters.size() == 1);
     CHECK(manifest.parameters[0].kind == hbfsim::ParameterKind::Pointer);
 
@@ -78,9 +81,8 @@ int main(int argc, char** argv)
                         .width = 8,
                         .slots = {{.offset = 0, .value = 0x100100}}}},
     });
-    CHECK(!decision.allowed);
-    CHECK(decision.reason == "unsupported_operation");
-    CHECK(decision.operation.starts_with("atom.global"));
+    CHECK(decision.allowed);
+    CHECK(decision.modeled);
 
     std::filesystem::remove(path);
     dlclose(plugin);

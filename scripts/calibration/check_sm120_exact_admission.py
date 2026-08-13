@@ -745,14 +745,36 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
         "cluster_shape_mismatch")
 
     manifest = pass_record(manifest_path, module_id, args.kernel)
+    maximum_live = (manifest or {}).get("maximum_live_futures", {})
+    async_complete = (
+        manifest is not None and
+        manifest.get("manifest_schema_version") == 3 and
+        manifest.get("async_transform_version") == "sm120-future-v1" and
+        SHA256_RE.fullmatch(str(manifest.get("ir_sha256", ""))) is not None and
+        isinstance(manifest.get("instruction_table"), list) and
+        bool(manifest.get("instruction_table")) and
+        isinstance(maximum_live, dict) and
+        all(isinstance(maximum_live.get(name), int) and
+            maximum_live[name] > 0
+            for name in ("thread", "warp", "cta", "cluster"))
+    )
     pass_evidence = (
-        manifest is not None and manifest.get("manifest_schema_version") == 2 and
+        async_complete and
         manifest.get("aot_required_for_exact") is True and
         manifest.get("instrumented") is True and
         manifest.get("cubin_only") is False
     )
     add(reasons, not pass_evidence, "pass_manifest_exact_evidence_missing")
     if pass_evidence:
+        add(reasons, bool(manifest.get("ambiguities")),
+            "async_transform_ambiguous")
+        limits = profile["limits"]
+        add(reasons, any((
+            maximum_live["thread"] > limits["max_thread_futures"],
+            maximum_live["warp"] > limits["max_warp_futures"],
+            maximum_live["cta"] > limits["max_cta_futures"],
+            maximum_live["cluster"] > limits["max_cluster_futures"],
+        )), "future_budget_exceeded")
         add(reasons, (
             manifest.get("original_ptx_sha256") !=
             declared_hashes["original_ptx_sha256"] or

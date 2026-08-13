@@ -81,6 +81,16 @@ Case matching_case()
         .p95_percent = 10.0,
         .counter_percent = 10.0,
     };
+    value.profile.limits = {
+        .max_thread_futures = 4,
+        .max_warp_futures = 128,
+        .max_cta_futures = 512,
+        .max_cluster_futures = 4096,
+        .max_thread_async_objects = 4,
+        .max_warp_async_objects = 128,
+        .max_cta_async_objects = 512,
+        .max_cluster_async_objects = 4096,
+    };
     const std::string module_id = "ptx:sha256:" + std::string(64, '1');
     value.profile.modules.push_back({
         .module_id = module_id,
@@ -116,6 +126,23 @@ Case matching_case()
              .cuobjdump_version =
                  "cuobjdump release 13.0, V13.0.85"},
         .kernels = {kernel()},
+        .future_manifest = {
+            .manifest_schema_version = 3,
+            .async_transform_version = "sm120-future-v1",
+            .ir_sha256 = std::string(64, '6'),
+            .instructions = {{.instruction_id = 1,
+                              .source_line = 10,
+                              .bytes = 4,
+                              .opcode = "ld.global.u32",
+                              .memory_kind = "load"}},
+            .maximum_live = {.thread_futures = 2,
+                             .warp_futures = 64,
+                             .cta_futures = 256,
+                             .cluster_futures = 2048},
+        },
+        .future_runtime = {.issued = 1,
+                           .drained = 1,
+                           .observed = true},
         .aot_verified = true,
     };
     value.live = {
@@ -179,6 +206,21 @@ std::vector<Mutation> mutations()
          [](Case& value) { value.evidence.toolchain.ptxas_version += "x"; }},
         {"aot_evidence_missing",
          [](Case& value) { value.evidence.aot_verified = false; }},
+        {"async_transform_missing",
+         [](Case& value) {
+             value.evidence.future_manifest.async_transform_version.clear();
+         }},
+        {"async_transform_ambiguous",
+         [](Case& value) {
+             value.evidence.future_manifest.ambiguities.push_back(
+                 "ambiguous_future_definition");
+         }},
+        {"future_budget_exceeded",
+         [](Case& value) {
+             value.evidence.future_manifest.maximum_live.thread_futures = 5;
+         }},
+        {"future_leak_detected",
+         [](Case& value) { value.evidence.future_runtime.leaked = 1; }},
         {"original_ptx_sha256_mismatch",
          [](Case& value) { value.evidence.original_ptx_sha256[0] = 'a'; }},
         {"transformed_ptx_sha256_mismatch",

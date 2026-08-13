@@ -6,6 +6,7 @@
 #include <cctype>
 #include <iomanip>
 #include <ranges>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -170,7 +171,8 @@ ModuleManifest module_manifest_from_json(const std::string& text)
     };
     manifest.manifest_schema_version =
         json.value("manifest_schema_version", 1U);
-    if (manifest.manifest_schema_version == 2) {
+    if (manifest.manifest_schema_version == 2 ||
+        manifest.manifest_schema_version == 3) {
         manifest.original_ptx_sha256 =
             json.at("original_ptx_sha256").get<std::string>();
         manifest.transformed_ptx_sha256 =
@@ -181,6 +183,60 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             !sha256_hex(manifest.transformed_ptx_sha256) ||
             !manifest.aot_required_for_exact) {
             throw std::invalid_argument("invalid exact pass manifest evidence");
+        }
+        if (manifest.manifest_schema_version == 3) {
+            manifest.future_manifest.manifest_schema_version = 3;
+            manifest.future_manifest.async_transform_version =
+                json.at("async_transform_version").get<std::string>();
+            manifest.future_manifest.ir_sha256 =
+                json.at("ir_sha256").get<std::string>();
+            if (manifest.future_manifest.async_transform_version !=
+                    "sm120-future-v1" ||
+                !sha256_hex(manifest.future_manifest.ir_sha256)) {
+                throw std::invalid_argument(
+                    "invalid async transform manifest evidence");
+            }
+            std::set<std::uint32_t> instruction_ids;
+            for (const auto& instruction : json.at("instruction_table")) {
+                FutureInstructionEvidence record{
+                    .instruction_id =
+                        instruction.at("instruction_id").get<std::uint32_t>(),
+                    .source_line =
+                        instruction.at("source_line").get<std::uint32_t>(),
+                    .bytes = instruction.at("bytes").get<std::uint32_t>(),
+                    .opcode = instruction.at("opcode").get<std::string>(),
+                    .memory_kind =
+                        instruction.at("memory_kind").get<std::string>(),
+                };
+                if (record.instruction_id == 0 || record.source_line == 0 ||
+                    record.bytes == 0 || record.opcode.empty() ||
+                    (record.memory_kind != "load" &&
+                     record.memory_kind != "store" &&
+                     record.memory_kind != "atomic_rmw") ||
+                    !instruction_ids.insert(record.instruction_id).second) {
+                    throw std::invalid_argument(
+                        "invalid async instruction table");
+                }
+                manifest.future_manifest.instructions.push_back(
+                    std::move(record));
+            }
+            const auto& maximum = json.at("maximum_live_futures");
+            manifest.future_manifest.maximum_live = {
+                .thread_futures = maximum.at("thread").get<std::uint32_t>(),
+                .warp_futures = maximum.at("warp").get<std::uint32_t>(),
+                .cta_futures = maximum.at("cta").get<std::uint32_t>(),
+                .cluster_futures = maximum.at("cluster").get<std::uint32_t>(),
+            };
+            manifest.future_manifest.ambiguities =
+                json.at("ambiguities").get<std::vector<std::string>>();
+            if (manifest.future_manifest.instructions.empty() ||
+                manifest.future_manifest.maximum_live.thread_futures == 0 ||
+                manifest.future_manifest.maximum_live.warp_futures == 0 ||
+                manifest.future_manifest.maximum_live.cta_futures == 0 ||
+                manifest.future_manifest.maximum_live.cluster_futures == 0) {
+                throw std::invalid_argument(
+                    "empty async transform manifest evidence");
+            }
         }
     } else if (manifest.manifest_schema_version != 1) {
         throw std::invalid_argument("unsupported coverage manifest schema");
@@ -358,6 +414,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     decision.original_ptx_sha256 = manifest->original_ptx_sha256;
     decision.transformed_ptx_sha256 = manifest->transformed_ptx_sha256;
     decision.aot_required_for_exact = manifest->aot_required_for_exact;
+    decision.future_manifest = manifest->future_manifest;
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
         std::ranges::all_of(

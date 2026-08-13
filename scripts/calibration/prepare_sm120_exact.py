@@ -169,7 +169,7 @@ def validate_manifest(path: pathlib.Path, original_hash: str,
         fail(70, "PTX pass must emit exactly one manifest record")
     record = records[0]
     expected = {
-        "manifest_schema_version": 2,
+        "manifest_schema_version": 3,
         "module_id": "ptx:sha256:" + original_hash,
         "original_ptx_sha256": original_hash,
         "transformed_ptx_sha256": transformed_hash,
@@ -182,6 +182,19 @@ def validate_manifest(path: pathlib.Path, original_hash: str,
     for key, value in expected.items():
         if record.get(key) != value:
             fail(70, f"PTX pass manifest has invalid {key}")
+    if (record.get("async_transform_version") != "sm120-future-v1" or
+            not isinstance(record.get("ir_sha256"), str) or
+            len(record["ir_sha256"]) != 64 or
+            not isinstance(record.get("instruction_table"), list) or
+            not record["instruction_table"] or
+            record.get("ambiguities") != []):
+        fail(70, "PTX pass manifest has invalid async future evidence")
+    maximum = record.get("maximum_live_futures")
+    if (not isinstance(maximum, dict) or
+            set(maximum) != {"thread", "warp", "cta", "cluster"} or
+            any(not isinstance(maximum[name], int) or maximum[name] <= 0
+                for name in maximum)):
+        fail(70, "PTX pass manifest has invalid future liveness evidence")
 
 
 def invoke_builder(args: argparse.Namespace, original: pathlib.Path,

@@ -75,13 +75,23 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
 
     pass_manifest = root / "pass-manifest.jsonl"
     pass_manifest.write_text(json.dumps({
-        "manifest_schema_version": 2,
+        "manifest_schema_version": 3,
         "module_id": module_id,
         "original_ptx_sha256": hashes["original_ptx_sha256"],
         "transformed_ptx_sha256": hashes["transformed_ptx_sha256"],
         "aot_required_for_exact": True,
         "kernel": "kernel", "ptx_target": "sm_120",
         "instrumented": True, "cubin_only": False,
+        "async_transform_version": "sm120-future-v1",
+        "ir_sha256": "6" * 64,
+        "instruction_table": [{
+            "instruction_id": 1, "source_line": 4, "bytes": 4,
+            "opcode": "ld.global.u32", "memory_kind": "load",
+        }],
+        "maximum_live_futures": {
+            "thread": 1, "warp": 32, "cta": 128, "cluster": 1024,
+        },
+        "ambiguities": [],
     }) + "\n")
 
     training = root / "training.json"

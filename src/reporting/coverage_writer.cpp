@@ -15,7 +15,12 @@ nlohmann::json to_json(const GateDecision& decision)
          !decision.aot_verified || !decision.validation_passed ||
          decision.exact_profile_id.empty() || decision.cubin_sha256.empty() ||
          decision.sass_sha256.empty() ||
-         !decision.exact_rejection_reasons.empty())) {
+         !decision.exact_rejection_reasons.empty() ||
+         decision.manifest_schema_version != 3 ||
+         decision.future_manifest.async_transform_version !=
+             "sm120-future-v1" ||
+         !decision.future_manifest.ambiguities.empty() ||
+         decision.future_runtime.leaked != 0)) {
         throw std::logic_error("invalid exact coverage decision");
     }
     return {
@@ -45,6 +50,19 @@ nlohmann::json to_json(const GateDecision& decision)
         {"exact_rejection_reasons", decision.exact_rejection_reasons},
         {"aot_verified", decision.aot_verified},
         {"validation_passed", decision.validation_passed},
+        {"async_transform_version",
+         decision.future_manifest.async_transform_version},
+        {"ir_sha256", decision.future_manifest.ir_sha256},
+        {"future_issued", decision.future_runtime.issued},
+        {"future_issue_throttle_ns",
+         decision.future_runtime.issue_throttle_ns},
+        {"future_dependency_wait_ns",
+         decision.future_runtime.dependency_wait_ns},
+        {"future_ordering_wait_ns",
+         decision.future_runtime.ordering_wait_ns},
+        {"future_drained", decision.future_runtime.drained},
+        {"future_leaked", decision.future_runtime.leaked},
+        {"future_runtime_observed", decision.future_runtime.observed},
     };
 }
 

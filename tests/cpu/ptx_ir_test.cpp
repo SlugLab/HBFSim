@@ -97,6 +97,25 @@ int main()
                 branch.branch_targets == std::vector<std::string>({"load_path"}),
             "conditional branch metadata is wrong");
 
+    const auto qualified = hbfsim::ptx::parse_module(R"PTX(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry qualified_branch() {
+    @%p1 bra.uni done;
+done:
+    ret.uni;
+}
+)PTX");
+    const auto& qualified_kernel = qualified.function("qualified_branch");
+    require(qualified_kernel.blocks.size() == 2,
+            "qualified branch did not terminate its basic block");
+    const auto& qualified_branch = qualified_kernel.instructions.front();
+    require(qualified_branch.opcode == "bra.uni" &&
+                qualified_branch.branch_targets ==
+                    std::vector<std::string>({"done"}),
+            "qualified branch target metadata is wrong");
+
     bool missing_rejected = false;
     try {
         (void)module.function("missing");

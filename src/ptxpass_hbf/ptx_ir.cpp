@@ -294,7 +294,8 @@ Instruction parse_instruction(std::string text, SourceLocation location,
                 append_unique(result.uses, registers(result.operands[index]));
             }
         }
-    } else if (result.opcode == "bra") {
+    } else if (result.opcode == "bra" ||
+               result.opcode.starts_with("bra.")) {
         if (result.operands.size() != 1 || result.operands.front().empty()) {
             throw ParseError("branch requires one target");
         }
@@ -437,8 +438,11 @@ Module parse_module(std::string_view ptx)
         instruction_text.clear();
         const auto index = function->instructions.size();
         const bool terminator = instruction.opcode == "bra" ||
+                                instruction.opcode.starts_with("bra.") ||
                                 instruction.opcode == "ret" ||
-                                instruction.opcode == "exit";
+                                instruction.opcode.starts_with("ret.") ||
+                                instruction.opcode == "exit" ||
+                                instruction.opcode.starts_with("exit.");
         function->instructions.push_back(std::move(instruction));
         if (function->blocks.empty()) {
             new_block(*function, function->name + "$entry");

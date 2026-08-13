@@ -61,6 +61,19 @@ int main()
     require(count(result.output_ptx, "__hbfsim_future_issue") == 3,
             "each load must issue exactly once");
 
+    const auto original_registers = require_find(
+        result.output_ptx, ".reg .pred %p<");
+    const auto initial_state = require_find(
+        result.output_ptx, "// HBFSim initialize unissued futures");
+    const auto first_original_instruction = require_find(
+        result.output_ptx, "ld.param.u64");
+    require(original_registers < initial_state &&
+                initial_state < first_original_instruction &&
+                result.output_ptx.find(
+                    "mov.u32 %hbfsim_f2_state, 5;", initial_state) !=
+                    std::string::npos,
+            "unissued paths do not start in the consumed state");
+
     const auto first_issue = require_find(
         result.output_ptx, "// HBFSim future issue 2");
     const auto independent = require_find(

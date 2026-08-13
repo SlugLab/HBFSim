@@ -191,14 +191,42 @@ Malformed contracts and unsafe paths are input errors rather than admission
 reasons. Repair the reported shape/path; symlinks and existing preparation
 output directories are intentionally refused.
 
-## Stage 1 limit
+## Stage 2 ordinary asynchronous futures
 
-Stage 1 alone does **not** implement or validate asynchronous ordinary
-`LDG`/`STG` issue-to-consume futures, TMA load/store or unicast/multicast
-completion semantics, TensorMap runtime address-space splitting, GPCARB's two
-channels, GNIC2TEX's four channels, or their SMSP/CGA-relative arbitration.
-Those require the planned PTX IR/runtime future model (Stage 2), TensorMap/TMA
-model (Stage 3), and independent CUDA/Nsight calibration plus holdout validation
-(Stage 4). Until those stages pass, an `exact` Stage 1 record means only that
-the fail-closed foundation matched; it is not a claim of complete Blackwell
-instruction timing fidelity.
+Stage 2 is implemented for ordinary global loads, stores, and supported atomic
+RMW operations. The PTX pass builds a CFG/def-use IR, emits a nonblocking
+shadow issue at the original memory instruction, waits at the first proven
+consumer or ordering drain, snapshots store operands, and rejects ambiguous
+control/data flow. Manifest schema v3 binds the IR hash, instruction table,
+maximum-live future budgets, and ambiguity list to admission evidence.
+
+The live proof is intentionally separate from exact Stage 4 admission:
+
+```bash
+cmake -S . -B build-sm120-exact \
+  -DHBFSIM_ENABLE_CUDA=ON -DHBFSIM_ENABLE_MQSIM=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=120
+cmake --build build-sm120-exact --target \
+  sm120_future_bench sm120_future_correctness -j2
+python3 tests/integration/test_sm120_future_live.py \
+  --build-dir build-sm120-exact --output /tmp/sm120-future-live.json
+```
+
+The harness returns `77` only if no CC 12.0 GPU exists. Otherwise it compares
+native, legacy synchronous negative-control, and asynchronous-future runs for
+ordinary load/store/atomic, vector and branched paths, source reuse, system
+fence draining, timing-backed HBF, and capacity cold/warm accesses. Passing
+requires byte-identical outputs, strict `issue < independent_end < wait_end`
+timestamps, delayed waits relative to the synchronous control, zero unsafe
+launches/faults/leaks, and `issued == drained`. It also forces the real system
+NVIDIA driver ahead of the build-tree fake CUDA test library.
+
+## Remaining Stage 3/4 limit
+
+Stages 1–2 do **not** yet implement or validate TMA load/store or
+unicast/multicast completion semantics, TensorMap runtime address-space
+splitting, GPCARB's two contention-equivalent queues, GNIC2TEX's four
+contention-equivalent queues, or their SMSP/CGA-relative routing model. Those
+require the TensorMap/TMA model (Stage 3) and independent CUDA/Nsight
+calibration plus holdout validation (Stage 4). Until those gates pass, the
+runtime remains fail-closed for complete Blackwell instruction timing fidelity.

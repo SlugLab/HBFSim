@@ -826,6 +826,23 @@ if(HBFSIM_ENABLE_CUDA)
 
     add_subdirectory(benchmarks/cuda)
 
+    if(BUILD_TESTING AND TARGET sm120_future_bench)
+        add_test(
+            NAME sm120_future_live
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_future_live.py"
+                --build-dir "${CMAKE_BINARY_DIR}"
+        )
+        set_tests_properties(
+            sm120_future_live PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            SKIP_RETURN_CODE 77
+            TIMEOUT 300
+            LABELS "live;sm120"
+        )
+    endif()
+
     add_executable(unsupported_kernel tests/gpu/unsupported_kernel.cu)
     target_link_libraries(
         unsupported_kernel PRIVATE hbfsim_core CUDA::cudart ${CMAKE_DL_LIBS}

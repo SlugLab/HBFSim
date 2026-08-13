@@ -12,7 +12,7 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 5;
+inline constexpr std::uint32_t kControlAbiVersion = 6;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -78,6 +78,7 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t future_dependency_wait_ns;
     alignas(8) std::uint64_t future_ordering_wait_ns;
     alignas(8) std::uint64_t future_faults;
+    alignas(8) std::uint64_t future_drained;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -188,7 +189,7 @@ struct MediaDescriptor {
     bool valid;
 };
 
-static_assert(sizeof(SharedControlHeader) == 384);
+static_assert(sizeof(SharedControlHeader) == 448);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(HbfRequest) == 128);
 static_assert(sizeof(HbfCompletion) == 64);
@@ -211,6 +212,7 @@ static_assert(offsetof(SharedControlHeader, empirical_point_count) == 336);
 static_assert(offsetof(SharedControlHeader, empirical_flags) == 340);
 static_assert(offsetof(SharedControlHeader, future_issued) == 344);
 static_assert(offsetof(SharedControlHeader, future_faults) == 376);
+static_assert(offsetof(SharedControlHeader, future_drained) == 384);
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
     std::uint64_t value) noexcept

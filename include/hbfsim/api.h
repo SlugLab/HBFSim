@@ -75,6 +75,16 @@ typedef struct hbfsim_stats {
     uint64_t fast_modeled_ns;
 } hbfsim_stats;
 
+typedef struct hbfsim_future_stats {
+    uint64_t issued;
+    uint64_t issue_throttle_ns;
+    uint64_t dependency_wait_ns;
+    uint64_t ordering_wait_ns;
+    uint64_t drained;
+    uint64_t leaked;
+    uint64_t faults;
+} hbfsim_future_stats;
+
 uint32_t hbfsim_abi_version(void);
 int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
@@ -89,6 +99,8 @@ int hbfsim_map_file(hbfsim_context* context, const char* path,
                     void** logical_device_ptr_out);
 int hbfsim_flush(hbfsim_context* context);
 int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
+int hbfsim_get_future_stats(hbfsim_context* context,
+                            hbfsim_future_stats* out);
 int hbfsim_unregister(hbfsim_context* context, void* range_base);
 void hbfsim_context_destroy(hbfsim_context* context);
 

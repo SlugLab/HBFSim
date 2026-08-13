@@ -16,9 +16,9 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 5);
-    static_assert(host_service::kControlAbiVersion == 5);
-    static_assert(sizeof(SharedControlHeader) == 384);
+    static_assert(device::kControlAbiVersion == 6);
+    static_assert(host_service::kControlAbiVersion == 6);
+    static_assert(sizeof(SharedControlHeader) == 448);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
     static_assert(sizeof(SharedRangeRecord) ==
@@ -71,6 +71,9 @@ int main()
     static_assert(offsetof(SharedControlHeader, future_faults) ==
                   offsetof(host_service::SharedControlHeader,
                            future_faults));
+    static_assert(offsetof(SharedControlHeader, future_drained) ==
+                  offsetof(host_service::SharedControlHeader,
+                           future_drained));
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));

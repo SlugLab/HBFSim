@@ -933,6 +933,7 @@ __hbfsim_future_wait(hbfsim::device::DeviceFuture future,
         future.state == DeviceFutureState::Consumed) {
         return future;
     }
+    const bool counted_issue = future.state == DeviceFutureState::Issued;
     const auto wait_begin = gpu_time_ns();
     const auto control_address =
         system_acquire(reinterpret_cast<const unsigned long long*>(
@@ -1022,6 +1023,9 @@ __hbfsim_future_wait(hbfsim::device::DeviceFuture future,
                             ? &header->future_dependency_wait_ns
                             : &header->future_ordering_wait_ns;
         (void)system_fetch_add(counter, future.ready_ns - wait_begin);
+        if (counted_issue) {
+            (void)system_fetch_add(&header->future_drained, 1);
+        }
     }
     return future;
 }

@@ -413,6 +413,7 @@ extern "C" int process_input(const char* input, int length, char* output)
                 request_json.value("global_ebpf_map_info_symbol", "map_info"),
             .ebpf_communication_data_symbol = request_json.value(
                 "ebpf_communication_data_symbol", "constData"),
+            .async_futures = request_json.value("async_futures", true),
         };
         const auto trusted_identity =
             trusted_modules().identity_for(request.full_ptx);
@@ -471,7 +472,8 @@ extern "C" int process_input(const char* input, int length, char* output)
              transformed.coverage.rewritten_instructions},
             {"unsupported_instructions", relevant_unsupported.size()},
             {"unsupported_opcodes", relevant_unsupported},
-            {"async_transform_version", "sm120-future-v1"},
+            {"async_transform_version",
+             request.async_futures ? "sm120-future-v1" : "legacy-sync-v1"},
             {"ir_sha256", future_evidence.ir_sha256},
             {"instruction_table", future_evidence.instruction_table},
             {"maximum_live_futures", future_evidence.maximum_live},

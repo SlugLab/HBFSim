@@ -34,6 +34,7 @@ int main()
                 input.value("global_ebpf_map_info_symbol", "map_info"),
             .ebpf_communication_data_symbol =
                 input.value("ebpf_communication_data_symbol", "constData"),
+            .async_futures = input.value("async_futures", true),
         };
         const auto transformed = hbfsim::ptx::transform_ptx(request);
         const nlohmann::json response{

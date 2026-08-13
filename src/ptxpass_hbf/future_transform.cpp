@@ -557,8 +557,13 @@ FutureTransformResult transform_futures(std::string_view ptx,
     std::set<std::size_t> skipped;
     std::ostringstream declarations;
     declarations << "    // HBFSim async kernel " << kernel << "\n";
+    std::ostringstream initializers;
+    initializers << "    // HBFSim initialize unissued futures\n";
     for (const auto* future : futures) {
         declarations << future_declarations(*future);
+        initializers << "    mov.u32 "
+                     << reg(future->instruction_id, "state")
+                     << ", 5;\n";
         auto issue = emit_issue(*future);
         if (immediate_load_wait(*future)) {
             issue += emit_wait(*future, nullptr, 1, 0);
@@ -579,6 +584,7 @@ FutureTransformResult transform_futures(std::string_view ptx,
         }
     }
     before[body_line + 1] = declarations.str();
+    before[function.instructions.front().location.line] += initializers.str();
 
     std::map<std::uint32_t, std::uint32_t> occurrences;
     for (const auto& [future_id, consumers] : result.plan.first_consumers) {

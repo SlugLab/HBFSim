@@ -116,7 +116,7 @@ void verify_empirical_publication(hbfsim_context* context,
     CHECK(mapping != MAP_FAILED);
     const auto* header =
         static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
-    CHECK(header->abi_version == 5);
+    CHECK(header->abi_version == 6);
     CHECK(header->empirical_burst_state == 0);
     if (expected_empirical) {
         CHECK(header->empirical_flags == 1);

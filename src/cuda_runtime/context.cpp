@@ -200,7 +200,10 @@ void launch_gate_quarantine(hbfsim_context* context,
 // Startup readiness is distinct from per-request timeout. The MQSim engine is
 // constructed before hbfsimd publishes its first heartbeat and can require
 // several seconds on a loaded host.
-constexpr auto kDaemonStartupTimeout = std::chrono::seconds(10);
+// MQSim construction can exceed ten seconds on a cold filesystem or a busy
+// validation host. This timeout covers startup only; per-request deadlines
+// remain governed by request_timeout_ns.
+constexpr auto kDaemonStartupTimeout = std::chrono::seconds(30);
 
 struct ContextAdmission {
     std::mutex mutex;
@@ -1876,6 +1879,42 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
             header->reference_requests, std::memory_order_acquire),
         .fast_modeled_ns = hbfsim::host_service::atomic_load(
             header->fast_modeled_ns, std::memory_order_acquire),
+    };
+    return HBFSIM_OK;
+}
+
+extern "C" int hbfsim_get_future_stats(hbfsim_context* context,
+                                         hbfsim_future_stats* out)
+{
+    if (context == nullptr || out == nullptr) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation || context->control_mapping == MAP_FAILED) {
+        return HBFSIM_IO_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) {
+        return HBFSIM_IO_ERROR;
+    }
+    const auto* header = control.header();
+    const auto issued = hbfsim::host_service::atomic_load(
+        header->future_issued, std::memory_order_acquire);
+    const auto drained = hbfsim::host_service::atomic_load(
+        header->future_drained, std::memory_order_acquire);
+    *out = {
+        .issued = issued,
+        .issue_throttle_ns = hbfsim::host_service::atomic_load(
+            header->future_issue_throttle_ns, std::memory_order_acquire),
+        .dependency_wait_ns = hbfsim::host_service::atomic_load(
+            header->future_dependency_wait_ns, std::memory_order_acquire),
+        .ordering_wait_ns = hbfsim::host_service::atomic_load(
+            header->future_ordering_wait_ns, std::memory_order_acquire),
+        .drained = drained,
+        .leaked = issued > drained ? issued - drained : 0,
+        .faults = hbfsim::host_service::atomic_load(
+            header->future_faults, std::memory_order_acquire),
     };
     return HBFSIM_OK;
 }

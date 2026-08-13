@@ -12,7 +12,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 5;
+inline constexpr std::uint32_t kControlAbiVersion = 6;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
@@ -126,6 +126,7 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t future_dependency_wait_ns;
     alignas(8) std::uint64_t future_ordering_wait_ns;
     alignas(8) std::uint64_t future_faults;
+    alignas(8) std::uint64_t future_drained;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -161,7 +162,7 @@ static_assert(std::is_trivially_copyable_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
-static_assert(sizeof(SharedControlHeader) == 384);
+static_assert(sizeof(SharedControlHeader) == 448);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);

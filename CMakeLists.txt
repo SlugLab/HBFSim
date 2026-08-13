@@ -57,6 +57,7 @@ add_library(
     src/cuda_runtime/hbm_cache.cpp
     src/cuda_runtime/module_identity.cpp
     src/cuda_runtime/range_table.cpp
+    src/cuda_runtime/shadow_future.cpp
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
@@ -132,6 +133,11 @@ add_test(NAME calibrator COMMAND hbfsim_calibrator_tests)
 add_executable(hbfsim_protocol_tests tests/cpu/protocol_layout_test.cpp)
 target_link_libraries(hbfsim_protocol_tests PRIVATE hbfsim_core)
 add_test(NAME protocol COMMAND hbfsim_protocol_tests)
+add_test(NAME protocol_layout COMMAND hbfsim_protocol_tests)
+
+add_executable(shadow_future_test tests/cpu/shadow_future_test.cpp)
+target_link_libraries(shadow_future_test PRIVATE hbfsim_core)
+add_test(NAME shadow_future COMMAND shadow_future_test)
 
 add_executable(hbfsim_page_directory_tests tests/cpu/page_directory_test.cpp)
 target_link_libraries(hbfsim_page_directory_tests PRIVATE hbfsim_core)

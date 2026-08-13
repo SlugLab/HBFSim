@@ -12,7 +12,7 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 4;
+inline constexpr std::uint32_t kControlAbiVersion = 5;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -101,6 +101,9 @@ struct alignas(64) HbfRequest {
     std::uint32_t operation;
     std::uint32_t page_generation;
     std::uint32_t flags;
+    std::uint32_t instruction_id;
+    std::uint32_t future_flags;
+    std::uint64_t issue_timestamp_ns;
 };
 
 struct alignas(64) HbfCompletion {
@@ -151,10 +154,10 @@ struct MediaDescriptor {
 
 static_assert(sizeof(SharedControlHeader) == 384);
 static_assert(sizeof(SharedRangeRecord) == 64);
-static_assert(sizeof(HbfRequest) == 64);
+static_assert(sizeof(HbfRequest) == 128);
 static_assert(sizeof(HbfCompletion) == 64);
 static_assert(sizeof(PageEntry) == 64);
-static_assert(sizeof(SharedRequestSlot) == 128);
+static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 static_assert(sizeof(ResolveResult) == 16);
 static_assert(offsetof(SharedControlHeader, range_count) == 36);

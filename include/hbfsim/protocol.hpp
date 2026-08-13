@@ -47,6 +47,9 @@ struct alignas(64) HbfRequest {
     std::uint32_t operation;
     std::uint32_t page_generation;
     std::uint32_t flags;
+    std::uint32_t instruction_id;
+    std::uint32_t future_flags;
+    std::uint64_t issue_timestamp_ns;
 };
 
 struct alignas(64) HbfCompletion {
@@ -172,7 +175,7 @@ private:
     std::array<Slot, Capacity> slots_{};
 };
 
-static_assert(sizeof(HbfRequest) == 64);
+static_assert(sizeof(HbfRequest) == 128);
 static_assert(sizeof(HbfCompletion) == 64);
 static_assert(sizeof(ControlHeader) == 64);
 static_assert(sizeof(PageEntry) == 64);

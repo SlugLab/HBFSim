@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-static_assert(sizeof(hbfsim::HbfRequest) == 64);
+static_assert(sizeof(hbfsim::HbfRequest) == 128);
 static_assert(sizeof(hbfsim::HbfCompletion) == 64);
 static_assert(sizeof(hbfsim::ControlHeader) == 64);
 static_assert(sizeof(hbfsim::PageEntry) == 64);

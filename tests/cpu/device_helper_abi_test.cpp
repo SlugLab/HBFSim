@@ -16,8 +16,8 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 4);
-    static_assert(host_service::kControlAbiVersion == 4);
+    static_assert(device::kControlAbiVersion == 5);
+    static_assert(host_service::kControlAbiVersion == 5);
     static_assert(sizeof(SharedControlHeader) == 384);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
@@ -73,6 +73,10 @@ int main()
                   10'032);
     static_assert(offsetof(hbfsim::device::HbfRequest, logical_address) ==
                   offsetof(hbfsim::HbfRequest, logical_address));
+    static_assert(offsetof(hbfsim::device::HbfRequest, instruction_id) ==
+                  offsetof(hbfsim::HbfRequest, instruction_id));
+    static_assert(offsetof(hbfsim::device::HbfRequest, issue_timestamp_ns) ==
+                  offsetof(hbfsim::HbfRequest, issue_timestamp_ns));
     static_assert(offsetof(hbfsim::device::HbfCompletion, status) ==
                   offsetof(hbfsim::HbfCompletion, status));
 

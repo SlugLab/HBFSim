@@ -12,7 +12,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 4;
+inline constexpr std::uint32_t kControlAbiVersion = 5;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
@@ -158,7 +158,7 @@ static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
 static_assert(sizeof(SharedControlHeader) == 384);
 static_assert(sizeof(SharedRangeRecord) == 64);
-static_assert(sizeof(SharedRequestSlot) == 128);
+static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 
 inline bool valid_ring_capacity(std::uint32_t capacity) noexcept

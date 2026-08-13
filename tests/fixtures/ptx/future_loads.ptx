@@ -1,0 +1,61 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry future_loads(
+    .param .u64 input
+)
+{
+    .reg .pred %p<4>;
+    .reg .b32 %r<32>;
+    .reg .b64 %rd<8>;
+    ld.param.u64 %rd1, [input];
+    ld.global.v2.u32 {%r1, %r2}, [%rd1-16];
+    add.u32 %r20, %r10, 1;
+    add.u32 %r3, %r1, %r2;
+    @%p1 ld.global.u32 %r4, [%rd1+4];
+    add.u32 %r21, %r11, 1;
+    @%p1 add.u32 %r5, %r4, 1;
+    ld.global.acquire.gpu.u32 %r6, [%rd1+8];
+    add.u32 %r22, %r12, 1;
+    add.u32 %r7, %r6, 1;
+    ret;
+}
+
+.visible .entry future_diamond(
+    .param .u64 input
+)
+{
+    .reg .pred %p<4>;
+    .reg .b32 %r<16>;
+    .reg .b64 %rd<8>;
+    ld.param.u64 %rd1, [input];
+    ld.global.u32 %r1, [%rd1];
+    @%p1 bra right;
+left:
+    add.u32 %r2, %r1, 1;
+    bra done;
+right:
+    sub.u32 %r3, %r1, 1;
+done:
+    ret;
+}
+
+.visible .entry future_ambiguous(
+    .param .u64 input
+)
+{
+    .reg .pred %p<4>;
+    .reg .b32 %r<16>;
+    .reg .b64 %rd<8>;
+    ld.param.u64 %rd1, [input];
+    @%p1 bra second;
+first:
+    ld.global.u32 %r1, [%rd1];
+    bra join;
+second:
+    ld.global.u32 %r1, [%rd1+4];
+join:
+    add.u32 %r2, %r1, 1;
+    ret;
+}

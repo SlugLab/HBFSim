@@ -70,6 +70,7 @@ add_library(
     src/host_service/capacity_worker.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_analysis.cpp
+    src/ptxpass_hbf/future_transform.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
     src/ptxpass_hbf/ptx_ir.cpp
     src/ptxpass_hbf/transform.cpp
@@ -312,6 +313,20 @@ target_include_directories(
     ptx_analysis_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
 )
 add_test(NAME ptx_analysis COMMAND ptx_analysis_test)
+
+add_executable(
+    ptx_future_transform_test tests/cpu/ptx_future_transform_test.cpp
+)
+target_link_libraries(ptx_future_transform_test PRIVATE hbfsim_core)
+target_include_directories(
+    ptx_future_transform_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+)
+add_test(NAME ptx_future_transform COMMAND ptx_future_transform_test)
+set_tests_properties(
+    ptx_future_transform
+    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 add_executable(ptxpass_hbf src/ptxpass_hbf/main.cpp)
 target_link_libraries(ptxpass_hbf PRIVATE hbfsim_core)

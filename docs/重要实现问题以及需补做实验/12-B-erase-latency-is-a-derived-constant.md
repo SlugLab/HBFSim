@@ -3,7 +3,7 @@
 **Severity: B.** The direction of the error is unknown and no result reported so far
 depends on the constant. The severity is B rather than C because of what happens next:
 if the write path is changed as asked in entry
-`11-write-charged-per-instruction-not-per-4kib-unit.md`, and if the automatic erase
+`03-A-write-charged-per-instruction-not-per-4kib.md`, and if the automatic erase
 that the OCP specification attaches to a page-0 write is modeled, then this constant
 becomes one of the largest single terms in the cost of writing.
 
@@ -73,7 +73,7 @@ Three readings under which the line is fine as written.
 1. Where does the factor of ten come from?
 2. If no source exists, do you want the erase time exposed as a swept parameter with
    the range stated in the paper, in the same way activation energy is handled in item
-   16 of `docs/EXPERIMENTS-NEEDED.md`, rather than fixed at one unsourced value?
+   16 of `15-experiments-we-must-add-before-submission.md`, rather than fixed at one unsourced value?
 3. Has the detailed MQSim path contributed to any number in `docs/proofs/`? If it has,
    we need to know which document, so the constant can be disclosed there.
 

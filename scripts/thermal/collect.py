@@ -71,7 +71,7 @@ def main() -> int:
     initial_smart = smart(cd8p["path"])
     initial_gpu = gpu_sample()
     hardware = {"gpu": initial_gpu, "ssd": cd8p, "initial_smart": initial_smart,
-                "read_only": True, "paper": "2333660.2333670.pdf"}
+                "read_only": True, "paper": "docs/ref_article/ardestani2012-thermal-aware-sampling.pdf"}
     (args.output / "hardware.json").write_text(json.dumps(hardware, indent=2) + "\n")
 
     gpu_trace = args.output / "gpu-performance.jsonl"

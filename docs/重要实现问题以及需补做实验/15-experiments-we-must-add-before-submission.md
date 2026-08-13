@@ -49,7 +49,7 @@ three decide whether the claim can be made at all.
 - `todo/experiments-to-run.md` holds the longer write-up of how to run eight of the
   items below. Each item that came from `todo/experiments-to-run.md` names the item
   number there. Ordering by contribution claim now lives in this file only.
-- `docs/QUESTIONS-FOR-COLLABORATOR.md` holds six questions that only the collaborator
+- `16-questions-only-you-can-answer.md` holds six questions that only the collaborator
   can settle. Items below that wait on one of the six name the question by number.
 - `todo/facts-to-verify.md` holds nine facts that have to be checked before entering
   the paper.
@@ -103,14 +103,14 @@ reference path — cannot follow temperature at all. `src/mqsim_adapter/mqsim_on
 sets the media parameters once, in `configure_mqsim` at lines 35 to 77; the parameters
 take effect when `SSD_Device` is constructed at line 126, and there is no route to
 change any of the parameters afterwards. Which of the three ways out to take is a
-decision for the collaborator: see item 3 of `docs/QUESTIONS-FOR-COLLABORATOR.md`,
+decision for the collaborator: see item 3 of `16-questions-only-you-can-answer.md`,
 which lists the three options with their costs, and item 4 of the same file, which
 records that no consistency check between the fast path and the detailed MQSim path
 exists in the code today.
 
 **If not done.** C3, the core claim, has no mechanism behind it: temperature is
 asserted to change the answer, and nothing in the code lets temperature change the
-answer. Item 5 of `docs/QUESTIONS-FOR-COLLABORATOR.md` asks the collaborator who
+answer. Item 5 of `16-questions-only-you-can-answer.md` asks the collaborator who
 writes the code and by what date, and asks what weaker statement C3 becomes if the
 date passes.
 
@@ -135,12 +135,12 @@ plus a thermal trace. The measured first-order fit is already available: time
 constants 13.1 s for the GPU and 12.4 s for the CD8P
 (`docs/proofs/2026-08-11-hybrid-complete.md`). Two of the values that define the
 scenarios are still waiting on the collaborator: the two temperature thresholds in
-the `simulated-warning` scenario (item 1 of `docs/QUESTIONS-FOR-COLLABORATOR.md`,
+the `simulated-warning` scenario (item 1 of `16-questions-only-you-can-answer.md`,
 where the GPU-side threshold 83.0 is the CD8P SSD's own critical temperature) and the
 SSD-side extrapolation multiplier of 14.0 (item 2 of the same file). The thresholds
 themselves currently rest on one Chinese-language secondary article, so every
 threshold would have to be marked second-hand in the paper until item 6 of
-`docs/QUESTIONS-FOR-COLLABORATOR.md` is closed.
+`16-questions-only-you-can-answer.md` is closed.
 
 **If not done.** The reviewer question "what conclusion actually changes once
 temperature is in the model?" has no answer, and temperature is only asserted to
@@ -424,7 +424,7 @@ Re-anchor the three profiles to those figures and re-run the sensitivity experim
 on the re-anchored profiles.
 
 **Depends on.** The specification numbers are currently second-hand; see item 1 of
-`todo/facts-to-verify.md` and item 6 of `docs/QUESTIONS-FOR-COLLABORATOR.md`.
+`todo/facts-to-verify.md` and item 6 of `16-questions-only-you-can-answer.md`.
 Re-anchoring can proceed with the second-hand values, but the paper must not present
 the values as verified against the primary source until that item is closed.
 

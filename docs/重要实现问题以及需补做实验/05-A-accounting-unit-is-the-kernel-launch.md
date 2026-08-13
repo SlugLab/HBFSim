@@ -183,7 +183,7 @@ wrapper macros. One to two working days, writable without a GPU, one GPU run to 
 already rewritten. It cannot see inside a module available only as a compiled binary —
 which is all 10,584 launches of the first live run — and it cannot see the `cp.async`
 and bulk tensor copy forms described in entry
-`01-cp-async-and-bulk-tensor-copy-unmatched.md`, which match neither regular expression.
+`07-B-cp-async-and-bulk-tensor-copy-unmatched.md`, which match neither regular expression.
 Route 1 measures the known half more finely and says nothing about the unknown half.
 
 ### Route 3 — the vendor's own performance counters
@@ -280,7 +280,7 @@ device memory access:
   385 to 389: **each charge is 10,000 × 100 = 1,000,000 ns, one millisecond. Under that
   profile, 1,000 skipped accesses is 1 s of missing time.** The run that reported 164.70x
   used the `nominal` profile; that is its own entry,
-  `13-nominal-profile-time-scale-100.md`.
+  `02-A-headline-164x-came-from-a-100x-time-scale.md`.
 
 ### Do we know how far off we are
 
@@ -300,7 +300,7 @@ than the one before.
      sets `bytes` to `range.page_bytes`), while on hardware only a last-level cache miss
      reaches the media — **reported time too high**, by an upper bound we put at about
      128 times, which is our own inference and not a measurement. See entry
-     `03-no-page-residency-filter-across-warps.md`.
+     `09-B-no-page-residency-filter-across-warps.md`.
 
    **Added together, today's output is neither an upper bound nor a lower bound on the
    real cost. The sign is unknown.**
@@ -308,7 +308,7 @@ than the one before.
    The 164.70x figure compares an instrumented run with delay injected against a clean
    uninstrumented run. The baseline that would isolate the device is an instrumented run
    with the delay set to zero, and that run has not been made. This is item 8 of
-   `docs/EXPERIMENTS-NEEDED.md`.
+   `15-experiments-we-must-add-before-submission.md`.
 
 ### What the paper can claim while the denominator is missing
 
@@ -351,7 +351,7 @@ disclosed can go into the paper, a gap that is half closed by an unknown amount 
 ## Where we may have read it wrong
 
 1. **The per-launch unit may be exactly the intended contract.** Claim C1 as written in
-   `docs/EXPERIMENTS-NEEDED.md` says the coverage decision is taken one launch at a time
+   `15-experiments-we-must-add-before-submission.md` says the coverage decision is taken one launch at a time
    and put on the record. Under that reading, the unit is deliberate and what is missing
    is only the disclosure of how much each record covers — which is a smaller change than
    anything in question two.

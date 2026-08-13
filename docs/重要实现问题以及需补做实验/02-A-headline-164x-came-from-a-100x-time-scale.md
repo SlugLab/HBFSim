@@ -10,7 +10,7 @@ confirmation:** that the run reporting 164.70x used `configs/profiles/nominal.js
 read that binding from the run configuration, and you know the run.
 
 **Does this conflict with the OCP specification? No.** But it does interact with item 11
-of `docs/EXPERIMENTS-NEEDED.md`, which asks for the timing profiles to be re-anchored to
+of `15-experiments-we-must-add-before-submission.md`, which asks for the timing profiles to be re-anchored to
 the three bandwidth points of the specification, 0.384, 1.536 and 3.072 TB/s (Table 4,
 page 16). A profile with a scaling factor of 100 does not correspond to any of the
 three.
@@ -49,8 +49,8 @@ The reported slowdown is larger than the calibrated media parameters alone would
 by whatever share of the 44.2 s of extra time came from charged accesses. We cannot
 divide the 44.2 s between charged delay and the overhead of the instrumentation itself,
 because the three request counters were not exported for that run — see entry
-`10-accounting-unit-is-the-kernel-launch.md` — and because no zero-delay baseline run
-exists, which is item 8 of `docs/EXPERIMENTS-NEEDED.md`.
+`05-A-accounting-unit-is-the-kernel-launch.md` — and because no zero-delay baseline run
+exists, which is item 8 of `15-experiments-we-must-add-before-submission.md`.
 
 ## Where we may have read it wrong
 

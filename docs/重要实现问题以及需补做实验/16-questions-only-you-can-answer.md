@@ -8,7 +8,7 @@ running a program or by reading a source we already hold.
 **Which file or directory holds what.**
 
 - **This file** — questions only you can answer.
-- **`docs/EXPERIMENTS-NEEDED.md`** — the work order, and the list to work from.
+- **`15-experiments-we-must-add-before-submission.md`** — the work order, and the list to work from.
   Sixteen items in six groups, ordered by which contribution claim each one
   supports: the thermal-throttling claim first, then coverage accounting, then
   the timing model, then shared foundation work, then items a reviewer will ask
@@ -19,7 +19,7 @@ running a program or by reading a source we already hold.
   those items, kept as reference rather than as a second list.
 - **`todo/facts-to-verify.md`** — nine facts that must be checked before they
   enter the paper.
-- **`docs/可能潜在代码实现问题请求审查/`** — six points raised by reading the
+- **`docs/重要实现问题以及需补做实验/`** — six points raised by reading the
   code. Each one states what the code does, where we may have read it wrong, and
   what we would like you to confirm. These are review requests, not defect
   reports: a point may well turn out to be our misreading.

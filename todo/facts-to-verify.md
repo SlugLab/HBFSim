@@ -133,14 +133,16 @@ motivation.
 **What would close it, if it is to enter the body as more than an observation.**
 Either redo the arithmetic independently, or find a citable source for it.
 
-## 8. Two references still use the old filename `2333660.2333670.pdf`
+## 8. Old ACM filename references — DONE
 
-**Where.** `docs/proofs/2026-08-11-hybrid-complete.md` line 79, and
-`scripts/thermal/collect.py` line 74. Both cite the paper by its ACM identifier.
-The file is now `docs/ref_article/ardestani2012-thermal-aware-sampling.pdf`.
+**What it was.** `docs/proofs/2026-08-11-hybrid-complete.md` line 79 and
+`scripts/thermal/collect.py` line 74 cited the thermal-sampling paper by its ACM
+identifier `2333660.2333670.pdf`, which says nothing about what the file holds.
 
-**Decision needed.** Whether to update these two references is for the
-repository author to decide; both are in the code repository, not in the paper.
+**Resolved.** Both now point at
+`docs/ref_article/ardestani2012-thermal-aware-sampling.pdf`, where the PDF lives
+with a full citation in `docs/ref_article/README.md`. The DOI
+`10.1145/2333660.2333670` still appears where it belongs, in citations.
 
 ## 9. The name `LogP` collides with an existing model
 

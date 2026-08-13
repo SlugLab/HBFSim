@@ -2,7 +2,7 @@
 
 **Severity: C.** No number produced so far is wrong because of this point. What the
 point costs is the ability to settle the question in entry
-`07-same-page-reread-charged-as-a-new-page.md` by comparison: the detailed path,
+`06-A-same-page-reread-charged-as-a-new-page.md` by comparison: the detailed path,
 which is the one we would normally appeal to when the fast path is in doubt, gives
 the same answer as the fast path for the same reason.
 
@@ -13,7 +13,7 @@ out here, so please confirm the two line numbers against the revision your build
 actually compiles.
 
 **Does this conflict with the OCP specification? Indirectly, through the same clauses
-as entry 07** — sections 5.3.1 items 5a, 7 and 8, pages 56 to 57, and the BUCCAP
+as entry 06** — sections 5.3.1 items 5a, 7 and 8, pages 56 to 57, and the BUCCAP
 register field `NCBB` on page 70.
 
 All code quoted from this repository was read from the remote branch `origin/hybrid`.
@@ -48,7 +48,7 @@ such reuse the workload has, and we have not measured it on either path.
 There is a second effect with no direction attached: the fast path and the detailed
 path cannot disagree on this behaviour, so agreement between the two paths is not
 evidence that either path is right on this behaviour. That matters for entry
-`05-no-consistency-check-between-paths.md`, which asks for the comparison to be built
+`14-C-no-consistency-check-between-paths.md`, which asks for the comparison to be built
 — the comparison, once built, will pass here without telling anyone anything.
 
 ## Where we may have read it wrong
@@ -64,7 +64,7 @@ It is also possible that this was a deliberate scoping decision matching the one
 `docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md` line 30, which lists
 modeling the cache hierarchy cycle by cycle as a non-goal. Whether a page-register hit
 falls inside that non-goal is the same open question raised in entry
-`03-no-page-residency-filter-across-warps.md`.
+`09-B-no-page-residency-filter-across-warps.md`.
 
 ## What we would like you to confirm
 
@@ -73,7 +73,7 @@ falls inside that non-goal is the same open question raised in entry
 2. Does MQSim have a cache-read or page-register path we did not find?
 3. If neither path is going to model a cache-buffer hit before the deadline, do you
    agree that the consistency check asked for in entry
-   `05-no-consistency-check-between-paths.md` should carry a written note saying that
+   `14-C-no-consistency-check-between-paths.md` should carry a written note saying that
    this particular behaviour is common to both paths and is therefore not covered by
    the check?
 

@@ -168,7 +168,7 @@ concurrently with mission mode and has nothing to do with access.
 This is the fact behind our claim that the effect can only be written into the compiled
 artifact of the program under test, and it is also the reason no external counter can
 tell us how many accesses were skipped. See entry
-`10-accounting-unit-is-the-kernel-launch.md`.
+`05-A-accounting-unit-is-the-kernel-launch.md`.
 
 ## 5. The specification contains no read latency figure of any kind
 
@@ -190,7 +190,7 @@ assumption.
   0.384 / 1.536 / 3.072 TB/s, following Table 4, and flag the discrepancy rather than
   choosing silently.
 - **Capacity per stack: 512 GiB or higher**, with the binary definition on page 14 above.
-  Item 11 of `docs/EXPERIMENTS-NEEDED.md` currently says "512 GB per stack"; that should
+  Item 11 of `15-experiments-we-must-add-before-submission.md` currently says "512 GB per stack"; that should
   become GiB.
 - **Second internal disagreement.** Page 15 gives the write burst length as 4 KiB, while
   section 5.4.1 item 6 on page 58 describes the host issuing 64-byte write requests that
@@ -293,13 +293,13 @@ configurable parameter; we must not claim it is bound to a named register.
 
 Four of the findings above are the reason four entries exist in this directory:
 
-- Finding 3, read side, cache buffers → `07-same-page-reread-charged-as-a-new-page.md`
-  and `08-reference-path-has-no-cache-read-either.md`.
+- Finding 3, read side, cache buffers → `06-A-same-page-reread-charged-as-a-new-page.md`
+  and `13-C-reference-path-has-no-cache-read-either.md`.
 - Finding 3, write side, 4 KiB accumulation →
-  `11-write-charged-per-instruction-not-per-4kib-unit.md`.
+  `03-A-write-charged-per-instruction-not-per-4kib.md`.
 - Finding 3, sequential writing within a block →
-  `12-capacity-mode-rewrites-a-page-in-place.md`.
-- Finding 4, no per-access event → `10-accounting-unit-is-the-kernel-launch.md`.
+  `04-A-capacity-mode-rewrites-a-page-in-place.md`.
+- Finding 4, no per-access event → `05-A-accounting-unit-is-the-kernel-launch.md`.
 
 ## 15. One broken pointer we found while checking
 

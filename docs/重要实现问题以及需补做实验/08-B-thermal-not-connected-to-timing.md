@@ -1,7 +1,7 @@
 # The thermal work is not connected to the timing path
 
 All code quoted here was read from the remote branch `origin/hybrid`. This point
-covers the same subject as item 5 of `docs/QUESTIONS-FOR-COLLABORATOR.md`;
+covers the same subject as item 5 of `16-questions-only-you-can-answer.md`;
 answering either place answers both.
 
 ## What we read in the code
@@ -37,7 +37,7 @@ temperature as the code stands. `src/mqsim_adapter/mqsim_online.cpp` sets the me
 parameters once, in `configure_mqsim` at lines 35 to 77; the parameters take effect
 when `SSD_Device` is constructed at line 126, and there is no route to change any
 of them afterwards. Three ways around that, with their costs, are written out as
-item 3 of `docs/QUESTIONS-FOR-COLLABORATOR.md`.
+item 3 of `16-questions-only-you-can-answer.md`.
 
 ## Which direction the effect goes
 

@@ -76,7 +76,7 @@ health log was read through `nvme smart-log -o json`.
 - critical warnings/media-error delta: 0/0;
 - GPU BF16 sampled performance change: -3.72%, exact scalar checksum.
 
-Following Equation 1 of `2333660.2333670.pdf`, the fitter uses seven samples
+Following Equation 1 of `docs/ref_article/ardestani2012-thermal-aware-sampling.pdf`, the fitter uses seven samples
 with weights `1/2^k`. It then minimizes log-temperature-rise error for a
 first-order response. The fitted time constants are 13.1 s for the GPU and
 12.4 s for the CD8P. The named calibration is

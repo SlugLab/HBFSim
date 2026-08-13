@@ -1,7 +1,7 @@
 # Nothing compares the fast path against the detailed MQSim path
 
 All code quoted here was read from the remote branch `origin/hybrid`. This point
-covers the same subject as item 4 of `docs/QUESTIONS-FOR-COLLABORATOR.md`;
+covers the same subject as item 4 of `16-questions-only-you-can-answer.md`;
 answering either place answers both.
 
 The two routes have fixed names in this project. The fast path is the timing model

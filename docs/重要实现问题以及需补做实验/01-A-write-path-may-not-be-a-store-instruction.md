@@ -138,7 +138,7 @@ the operation we model exists on the device. If the write path on real hardware 
 maintained by a runtime rather than issued as a store instruction, then rewriting
 `st.global` models a path that the real device does not have, and the error is in the
 layer rather than in the number: the charge is applied in a place where no write command
-is produced on real hardware. That is a different question from entry 11 in this
+is produced on real hardware. That is a different question from entry 03 in this
 directory, which is about how much a kernel-issued write is charged; this point asks
 whether a kernel-issued write is the right thing to charge at all.
 

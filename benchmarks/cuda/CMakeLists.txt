@@ -7,7 +7,7 @@ target_include_directories(
 )
 set_target_properties(
     hbf_microbench PROPERTIES
-    CUDA_ARCHITECTURES "120-virtual"
+    CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
     CUDA_RUNTIME_LIBRARY Shared
     ENABLE_EXPORTS ON
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda"
@@ -17,7 +17,7 @@ add_custom_command(
     OUTPUT "${HBFSIM_MICROBENCH_PTX}"
     COMMAND
         "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20
-        --gpu-architecture=compute_120
+        "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
         "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
         "${CMAKE_CURRENT_SOURCE_DIR}/hbf_microbench_kernel.cu"
         -o "${HBFSIM_MICROBENCH_PTX}"
@@ -40,7 +40,7 @@ target_include_directories(
 )
 set_target_properties(
     hbf_vmem_tuning_bench PROPERTIES
-    CUDA_ARCHITECTURES "120-virtual"
+    CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
     CUDA_RUNTIME_LIBRARY Shared
     ENABLE_EXPORTS ON
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda"
@@ -53,7 +53,7 @@ add_custom_command(
     OUTPUT "${HBFSIM_VMEM_TUNING_PTX}"
     COMMAND
         "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20
-        --gpu-architecture=compute_120
+        "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
         "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
         -DHBFSIM_VMEM_KERNEL_ONLY=1
         "${CMAKE_CURRENT_SOURCE_DIR}/hbf_vmem_tuning_bench.cu"

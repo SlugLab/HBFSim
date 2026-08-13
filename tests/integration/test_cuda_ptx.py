@@ -8,13 +8,14 @@ import sys
 def main() -> int:
     executable = pathlib.Path(sys.argv[1])
     cuobjdump = pathlib.Path(sys.argv[2])
+    expected_target = sys.argv[3]
     completed = subprocess.run(
         [str(cuobjdump), "--dump-ptx", str(executable)],
         text=True,
         capture_output=True,
         check=True,
     )
-    assert ".target sm_120" in completed.stdout
+    assert f".target {expected_target}" in completed.stdout
     assert ".entry unsupported_hbf_kernel" in completed.stdout
     return 0
 

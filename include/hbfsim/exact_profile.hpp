@@ -70,6 +70,7 @@ struct ExactKernelArtifact {
     std::uint64_t spill_load_bytes{0};
     std::uint64_t static_shared_bytes{0};
     std::uint64_t max_dynamic_shared_bytes{0};
+    std::uint32_t block_threads{0};
     std::uint32_t occupancy_blocks_per_sm{0};
 };
 

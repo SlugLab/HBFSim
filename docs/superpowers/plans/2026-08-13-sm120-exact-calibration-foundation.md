@@ -316,7 +316,8 @@ class AotLoadTransactionStore {
   public:
     ModuleLoadToken begin(std::span<const std::byte> cubin,
                           std::string_view artifact_json) noexcept;
-    std::optional<LoadedModuleEvidence> take() noexcept;
+    std::optional<LoadedModuleEvidence>
+    take_for_image(const void* image) noexcept;
     void end(ModuleLoadToken token) noexcept;
 };
 ```
@@ -329,7 +330,7 @@ extern "C" std::uint64_t hbfsim_begin_module_load_from_aot(
     const char* artifact_json, std::size_t artifact_bytes) noexcept;
 ```
 
-`cuModuleLoadDataEx` consumes at most one PTX or AOT transaction before calling CUDA. After a successful driver load, it reads `__hbfsim_module_identity` from the live module. Association succeeds only when the live identity equals the transaction identity. A failed CUDA load, missing marker, mismatch, duplicate handle, or exception clears the transaction and stores no evidence. Preserve the current PTX transaction only for emulation; mark its evidence `aot_verified=false` so exact admission rejects it.
+`cuModuleLoadDataEx` consumes at most one PTX or AOT transaction before calling CUDA. AOT consumption requires the same image pointer and re-hashes its recorded byte length immediately before the driver call, closing pointer-swap and between-hook mutation paths. After a successful driver load, it reads `__hbfsim_module_identity` from the live module. Association succeeds only when the live identity equals the transaction identity. A failed CUDA load, missing marker, mismatch, duplicate handle, or exception clears the transaction and stores no evidence. Preserve the current PTX transaction only for emulation; mark its evidence `aot_verified=false` so exact admission rejects it.
 
 - [ ] **Step 4: Prove spoof/tamper rejection GREEN**
 

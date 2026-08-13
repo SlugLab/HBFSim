@@ -99,11 +99,19 @@ void ModuleLoadTransactionStore::end(ModuleLoadToken token) noexcept
 bool ModuleIdentityRegistry::associate(ModuleHandle module,
                                        const ModuleIdentity& identity)
 {
+    LoadedModuleEvidence evidence{.identity = identity,
+                                  .aot_verified = false};
+    return associate(module, evidence);
+}
+
+bool ModuleIdentityRegistry::associate(ModuleHandle module,
+                                       const LoadedModuleEvidence& evidence)
+{
     std::scoped_lock lock(mutex_);
     if (associations_.contains(module)) {
         return false;
     }
-    associations_.emplace(module, identity);
+    associations_.emplace(module, evidence);
     return true;
 }
 
@@ -114,7 +122,17 @@ ModuleIdentityRegistry::lookup(ModuleHandle module) const
     const auto found = associations_.find(module);
     return found == associations_.end()
                ? std::nullopt
-               : std::optional<ModuleIdentity>{found->second};
+               : std::optional<ModuleIdentity>{found->second.identity};
+}
+
+std::optional<LoadedModuleEvidence>
+ModuleIdentityRegistry::lookup_evidence(ModuleHandle module) const
+{
+    std::scoped_lock lock(mutex_);
+    const auto found = associations_.find(module);
+    return found == associations_.end()
+               ? std::nullopt
+               : std::optional<LoadedModuleEvidence>{found->second};
 }
 
 void ModuleIdentityRegistry::erase(ModuleHandle module)

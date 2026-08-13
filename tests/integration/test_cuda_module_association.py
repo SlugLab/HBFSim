@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import ctypes
+import hashlib
 import json
 import os
 import pathlib
@@ -129,6 +130,10 @@ def main() -> int:
     begin = process.hbfsim_begin_module_load_from_ptx
     begin.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
     begin.restype = ctypes.c_uint64
+    begin_aot = process.hbfsim_begin_module_load_from_aot
+    begin_aot.argtypes = [ctypes.c_void_p, ctypes.c_size_t,
+                          ctypes.c_char_p, ctypes.c_size_t]
+    begin_aot.restype = ctypes.c_uint64
     end = process.hbfsim_end_module_load
     end.argtypes = [ctypes.c_uint64]
     load = process.cuModuleLoadDataEx
@@ -153,6 +158,9 @@ def main() -> int:
         ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,
     ]
     fake_library.fakeCudaSetModuleIdentity.restype = ctypes.c_int
+    aot_verified = process.hbfsim_test_module_aot_verified
+    aot_verified.argtypes = [ctypes.c_void_p]
+    aot_verified.restype = ctypes.c_int
 
     function = ctypes.c_void_p(0x9000)
     pointer = ctypes.c_size_t(0x1008)
@@ -171,11 +179,46 @@ def main() -> int:
         return begin(encoded, len(encoded))
 
     def load_image(image: bytes) -> tuple[int, ctypes.c_void_p]:
-        module = ctypes.c_void_p()
         storage = ctypes.create_string_buffer(image)
+        return load_storage(storage)
+
+    def load_storage(storage: ctypes.Array) -> tuple[int, ctypes.c_void_p]:
+        module = ctypes.c_void_p()
         result = load(ctypes.byref(module), ctypes.cast(storage, ctypes.c_void_p),
                       0, None, None)
         return result, module
+
+    def artifact_for(image: bytes, identity: bytes) -> bytes:
+        return json.dumps({
+            "schema_version": 1,
+            "module_id": "ptx:sha256:" + identity.hex(),
+            "ptx_target": ptx_target,
+            "toolchain": {
+                "cuda_release": "13.0",
+                "ptxas_version": "ptxas release 13.0, V13.0.88",
+                "nvdisasm_version": "nvdisasm release 13.0, V13.0.85",
+                "cuobjdump_version": "cuobjdump release 13.0, V13.0.85",
+            },
+            "hashes": {
+                "original_ptx_sha256": "22" * 32,
+                "transformed_ptx_sha256": "33" * 32,
+                "cubin_sha256": hashlib.sha256(image).hexdigest(),
+                "sass_sha256": "55" * 32,
+            },
+            "kernels": [{
+                "name": "kernel", "registers": 48,
+                "spill_store_bytes": 0, "spill_load_bytes": 0,
+                "static_shared_bytes": 1024,
+                "max_dynamic_shared_bytes": 49152,
+                "block_threads": 256, "occupancy_blocks_per_sm": 2,
+            }],
+        }).encode()
+
+    def begin_aot_storage(storage: ctypes.Array, image: bytes,
+                          identity: bytes, artifact: bytes | None = None) -> int:
+        record = artifact if artifact is not None else artifact_for(image, identity)
+        return begin_aot(ctypes.cast(storage, ctypes.c_void_p), len(image),
+                         record, len(record))
 
     def launch_kernel() -> int:
         return launch(function, 1, 1, 1, 1, 1, 1, 0, None,
@@ -211,6 +254,59 @@ def main() -> int:
         json.loads(manifest_path.read_text().splitlines()[-1])["module_id"]
         .removeprefix("ptx:sha256:")
     )
+    set_live_identity(trusted_identity)
+
+    aot_image = b"\x7fELF-trusted-aot"
+    aot_storage = ctypes.create_string_buffer(aot_image)
+    require(begin_aot_storage(aot_storage, aot_image, trusted_identity) != 0,
+            "failed to begin trusted AOT load")
+    result, trusted_aot = load_storage(aot_storage)
+    require(result == 0 and launch_kernel() == 0,
+            "byte-exact AOT module was not associated")
+    require(aot_verified(trusted_aot) == 1,
+            "AOT association lost verified artifact evidence")
+    require(unload(trusted_aot) == 0, "failed to unload trusted AOT module")
+
+    pointer_image = b"\x7fELF-pointer-aot"
+    authorized_storage = ctypes.create_string_buffer(pointer_image)
+    require(begin_aot_storage(authorized_storage, pointer_image,
+                              trusted_identity) != 0,
+            "failed to begin pointer mismatch test")
+    result, pointer_mismatch = load_image(pointer_image)
+    require(result == 0 and launch_kernel() != 0,
+            "different cubin pointer consumed AOT authorization")
+    require(unload(pointer_mismatch) == 0,
+            "failed to unload pointer mismatch module")
+
+    tamper_image = b"\x7fELF-tamper-aot"
+    tamper_storage = ctypes.create_string_buffer(tamper_image)
+    require(begin_aot_storage(tamper_storage, tamper_image,
+                              trusted_identity) != 0,
+            "failed to begin AOT tamper test")
+    tamper_storage[0] = b"X"
+    result, tampered_aot = load_storage(tamper_storage)
+    require(result == 0 and launch_kernel() != 0,
+            "mutated cubin consumed AOT authorization")
+    require(unload(tampered_aot) == 0, "failed to unload tampered AOT module")
+
+    wrong_record = json.loads(artifact_for(aot_image, trusted_identity))
+    wrong_record["hashes"]["cubin_sha256"] = "00" * 32
+    wrong_bytes = json.dumps(wrong_record).encode()
+    rejected_storage = ctypes.create_string_buffer(aot_image)
+    require(begin_aot_storage(rejected_storage, aot_image, trusted_identity,
+                              wrong_bytes) == 0,
+            "AOT begin accepted a wrong cubin digest")
+
+    wrong_marker_storage = ctypes.create_string_buffer(aot_image)
+    require(begin_aot_storage(wrong_marker_storage, aot_image,
+                              trusted_identity) != 0,
+            "failed to begin wrong marker AOT test")
+    set_live_identity(bytes([0x7B]) + bytes(31))
+    result, wrong_marker_aot = load_storage(wrong_marker_storage)
+    require(result == 0 and launch_kernel() != 0,
+            "AOT load with wrong live marker was associated")
+    require(unload(wrong_marker_aot) == 0,
+            "failed to unload wrong-marker AOT module")
     set_live_identity(trusted_identity)
 
     require(begin_ptx(".visible .entry kernel() { ret; }") == 0,

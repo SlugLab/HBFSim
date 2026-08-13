@@ -224,7 +224,7 @@ ExactKernelArtifact parse_kernel(const json& value)
     object_with_keys(value,
                      {"name", "registers", "spill_store_bytes",
                       "spill_load_bytes", "static_shared_bytes",
-                      "max_dynamic_shared_bytes",
+                      "max_dynamic_shared_bytes", "block_threads",
                       "occupancy_blocks_per_sm"});
     return {
         .name = nonempty_string(value, "name"),
@@ -235,6 +235,7 @@ ExactKernelArtifact parse_kernel(const json& value)
             field<std::uint64_t>(value, "static_shared_bytes"),
         .max_dynamic_shared_bytes =
             field<std::uint64_t>(value, "max_dynamic_shared_bytes"),
+        .block_threads = positive_u32(value, "block_threads"),
         .occupancy_blocks_per_sm =
             positive_u32(value, "occupancy_blocks_per_sm"),
     };

@@ -52,7 +52,8 @@ def main() -> int:
         "cudaGetDriverEntryPointByVersion",
         "cudaGetDriverEntryPointByVersion_ptsz",
         "cuModuleLoadDataEx", "cuModuleUnload",
-        "hbfsim_begin_module_load_from_ptx", "hbfsim_end_module_load",
+        "hbfsim_begin_module_load_from_ptx",
+        "hbfsim_begin_module_load_from_aot", "hbfsim_end_module_load",
         "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
@@ -116,6 +117,7 @@ def main() -> int:
             "launch authorization still trusts an embedded identity directly")
     module_load = function_body(source, "cuModuleLoadDataEx(")
     require("module_load_transactions().take" in module_load and
+            "aot_load_transactions().take_for_image(image)" in module_load and
             module_load.find("module_load_transactions().take") <
             module_load.find("dlsym(RTLD_NEXT") and
             "live_module_identity" in module_load and

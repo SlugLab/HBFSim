@@ -51,6 +51,7 @@ add_library(
     src/cuda_runtime/context.cpp
     src/cuda_runtime/capacity_runtime.cpp
     src/cuda_runtime/coverage.cpp
+    src/cuda_runtime/exact_artifact.cpp
     src/cuda_runtime/hbm_cache.cpp
     src/cuda_runtime/module_identity.cpp
     src/cuda_runtime/range_table.cpp
@@ -82,7 +83,7 @@ target_include_directories(
     hbfsimd PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/host_service"
 )
 target_compile_features(hbfsim_core PUBLIC cxx_std_20)
-target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS})
+target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS} OpenSSL::Crypto)
 set_target_properties(hbfsim_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
     hbfsim_core
@@ -252,6 +253,14 @@ add_test(NAME durable_append COMMAND durable_append_test)
 add_executable(module_identity_test tests/cpu/module_identity_test.cpp)
 target_link_libraries(module_identity_test PRIVATE hbfsim_core)
 add_test(NAME module_identity COMMAND module_identity_test)
+
+add_executable(exact_artifact_test tests/cpu/exact_artifact_test.cpp)
+target_link_libraries(exact_artifact_test PRIVATE hbfsim_core)
+target_include_directories(
+    exact_artifact_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+)
+add_test(NAME exact_artifact COMMAND exact_artifact_test)
 
 add_executable(ptx_transform_test tests/cpu/ptx_transform_test.cpp)
 target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)

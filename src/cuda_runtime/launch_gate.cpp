@@ -1,4 +1,5 @@
 #include "hbfsim/coverage.hpp"
+#include "hbfsim/exact_artifact.hpp"
 #include "hbfsim/launch_gate_abi.hpp"
 #include "hbfsim/module_identity.hpp"
 #include "hbfsim/timing_binding.hpp"
@@ -255,6 +256,36 @@ hbfsim::ModuleLoadTransactionStore& module_load_transactions()
 {
     static hbfsim::ModuleLoadTransactionStore transactions;
     return transactions;
+}
+
+hbfsim::AotLoadTransactionStore& aot_load_transactions()
+{
+    static hbfsim::AotLoadTransactionStore transactions;
+    return transactions;
+}
+
+enum class ModuleLoadProvenanceKind { None, Ptx, Aot };
+
+struct ActiveModuleLoadProvenance {
+    ModuleLoadProvenanceKind kind{ModuleLoadProvenanceKind::None};
+    hbfsim::ModuleLoadToken token{0};
+};
+
+thread_local ActiveModuleLoadProvenance active_module_load;
+
+void clear_active_module_load() noexcept
+{
+    switch (active_module_load.kind) {
+    case ModuleLoadProvenanceKind::Ptx:
+        module_load_transactions().end(active_module_load.token);
+        break;
+    case ModuleLoadProvenanceKind::Aot:
+        aot_load_transactions().end(active_module_load.token);
+        break;
+    case ModuleLoadProvenanceKind::None:
+        break;
+    }
+    active_module_load = {};
 }
 
 void* driver_symbol(const char* name)
@@ -1155,13 +1186,61 @@ hbfsim_begin_module_load_from_ptx(const char* ptx, std::size_t size) noexcept
     if (ptx == nullptr) {
         return 0;
     }
-    return module_load_transactions().begin(std::string_view(ptx, size));
+    if (active_module_load.kind != ModuleLoadProvenanceKind::None) {
+        clear_active_module_load();
+        return 0;
+    }
+    const auto token =
+        module_load_transactions().begin(std::string_view(ptx, size));
+    if (token != 0) {
+        active_module_load = {.kind = ModuleLoadProvenanceKind::Ptx,
+                              .token = token};
+    }
+    return token;
+}
+
+extern "C" std::uint64_t hbfsim_begin_module_load_from_aot(
+    const void* cubin, std::size_t cubin_bytes, const char* artifact_json,
+    std::size_t artifact_bytes) noexcept
+{
+    if (cubin == nullptr || cubin_bytes == 0 || artifact_json == nullptr ||
+        artifact_bytes == 0) {
+        return 0;
+    }
+    if (active_module_load.kind != ModuleLoadProvenanceKind::None) {
+        clear_active_module_load();
+        return 0;
+    }
+    const auto bytes = std::span(
+        static_cast<const std::byte*>(cubin), cubin_bytes);
+    const auto token = aot_load_transactions().begin(
+        bytes, std::string_view(artifact_json, artifact_bytes));
+    if (token != 0) {
+        active_module_load = {.kind = ModuleLoadProvenanceKind::Aot,
+                              .token = token};
+    }
+    return token;
 }
 
 extern "C" void hbfsim_end_module_load(std::uint64_t token) noexcept
 {
-    module_load_transactions().end(token);
+    if (token != 0 && active_module_load.token == token) {
+        clear_active_module_load();
+    }
 }
+
+#if defined(HBFSIM_ENABLE_TEST_HOOKS)
+extern "C" int
+hbfsim_test_module_aot_verified(CUmodule module) noexcept
+{
+    if (module == nullptr) {
+        return 0;
+    }
+    const auto evidence =
+        module_identities().lookup_evidence(module_handle(module));
+    return evidence.has_value() && evidence->aot_verified ? 1 : 0;
+}
+#endif
 
 extern "C" int hbfsim_bind_original_cuda_function(
     CUfunction original, CUfunction patched) noexcept
@@ -1197,7 +1276,24 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
                                        CUjit_option* options,
                                        void** option_values)
 {
-    const auto trusted_identity = module_load_transactions().take();
+    std::optional<hbfsim::LoadedModuleEvidence> trusted_evidence;
+    switch (active_module_load.kind) {
+    case ModuleLoadProvenanceKind::Ptx:
+        if (const auto identity = module_load_transactions().take()) {
+            trusted_evidence = hbfsim::LoadedModuleEvidence{
+                .identity = *identity,
+                .module_id = hbfsim::module_id_from_identity(*identity),
+                .aot_verified = false,
+            };
+        }
+        break;
+    case ModuleLoadProvenanceKind::Aot:
+        trusted_evidence = aot_load_transactions().take_for_image(image);
+        break;
+    case ModuleLoadProvenanceKind::None:
+        break;
+    }
+    active_module_load = {};
     using type = CUresult (*)(CUmodule*, const void*, unsigned int,
                               CUjit_option*, void**);
     auto original =
@@ -1211,16 +1307,17 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     if (result != CUDA_SUCCESS) {
         return result;
     }
-    if (trusted_identity.has_value() && module != nullptr &&
+    if (trusted_evidence.has_value() && module != nullptr &&
         *module != nullptr) {
         if (const auto identity = live_module_identity(*module)) {
             const auto domain = current_cuda_domain();
-            if (*identity == *trusted_identity && domain.has_value()) {
+            if (*identity == trusted_evidence->identity &&
+                domain.has_value()) {
                 (void)timing_bindings().add_module(
                     module_handle(*module), domain->context, domain->device,
                     initialize_module_control, nullptr);
                 (void)module_identities().associate(module_handle(*module),
-                                                    *identity);
+                                                    *trusted_evidence);
             }
         }
     }

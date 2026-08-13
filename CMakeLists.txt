@@ -69,6 +69,7 @@ add_library(
     src/host_service/capacity_worker.cpp
     src/protocol/page_directory.cpp
     src/ptxpass_hbf/ptx_memory_op.cpp
+    src/ptxpass_hbf/ptx_ir.cpp
     src/ptxpass_hbf/transform.cpp
     src/reporting/coverage_writer.cpp
     src/reporting/durable_append.cpp
@@ -280,6 +281,16 @@ target_include_directories(
 add_test(NAME ptx_transform COMMAND ptx_transform_test)
 set_tests_properties(
     ptx_transform PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(ptx_ir_test tests/cpu/ptx_ir_test.cpp)
+target_link_libraries(ptx_ir_test PRIVATE hbfsim_core)
+target_include_directories(
+    ptx_ir_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+)
+add_test(NAME ptx_ir COMMAND ptx_ir_test)
+set_tests_properties(
+    ptx_ir PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 add_executable(ptxpass_hbf src/ptxpass_hbf/main.cpp)

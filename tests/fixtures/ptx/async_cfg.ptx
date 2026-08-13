@@ -1,0 +1,32 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry async_cfg(
+    .param .u64 async_cfg_ptr,
+    .param .u64 async_cfg_out
+)
+{
+    .reg .pred %p<2>;
+    .reg .b32 %r<16>;
+    .reg .b64 %rd<8>;
+
+    ld.param.u64 %rd1, [async_cfg_ptr];
+    ld.param.u64 %rd2, [async_cfg_out];
+    setp.ne.u64 %p1, %rd1, 0;
+    @%p1 bra load_path;
+
+    mov.u32 %r4, 0;
+    mov.u32 %r5, 0;
+    bra join;
+
+load_path:
+    @%p1 ld.global.acquire.gpu.L2::128B.v2.u32
+        {%r4, %r5}, [%rd1-16];
+    atom.global.acq_rel.gpu.add.u32 %r6, [%rd1+0x20], %r4;
+
+join:
+    st.volatile.global.release.gpu.v2.u32 [%rd2+8], {%r4, %r5};
+    fence.acq_rel.gpu;
+    ret;
+}

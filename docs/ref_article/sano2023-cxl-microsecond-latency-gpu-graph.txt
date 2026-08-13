@@ -1,0 +1,1592 @@
+GPU Graph Processing on CXL-Based
+Microsecond-Latency External Memory
+Shintaro Sano, Yosuke Bando, Kazuhiro Hiwada, Hirotsugu Kajihara, Tomoya Suzuki,
+Yu Nakanishi, Daisuke Taki, Akiyuki Kaneko, Tatsuo Shiozawa
+
+arXiv:2312.03113v1 [cs.PF] 5 Dec 2023
+
+{shintarou.sano,yosuke1.bando,kazuhiro.hiwada,hirotsugu.kajihara,tomoya.suzuki}@kioxia.com
+{yu.nakanishi,daisuke.taki,akiyuki.kaneko,tatsuo.shiozawa}@kioxia.com
+Kioxia Corporation
+Japan
+
+ABSTRACT
+In GPU graph analytics, the use of external memory such as the
+host DRAM and solid-state drives is a cost-effective approach to
+processing large graphs beyond the capacity of the GPU onboard
+memory. This paper studies the use of Compute Express Link (CXL)
+memory as alternative external memory for GPU graph processing
+in order to see if this emerging memory expansion technology
+enables graph processing that is as fast as using the host DRAM.
+Through analysis and evaluation using FPGA prototypes, we show
+that representative GPU graph traversal algorithms involving finegrained random access can tolerate an external memory latency of
+up to a few microseconds introduced by the CXL interface as well
+as by the underlying memory devices. This insight indicates that
+microsecond-latency flash memory may be used as CXL memory
+devices to realize even more cost-effective GPU graph processing
+while still achieving performance close to using the host DRAM.
+
+CCS CONCEPTS
+• Hardware → Analysis and design of emerging devices and
+systems; Memory and dense storage.
+
+KEYWORDS
+CXL, memory, flash, GPU, graph, latency
+ACM Reference Format:
+Shintaro Sano, Yosuke Bando, Kazuhiro Hiwada, Hirotsugu Kajihara, Tomoya Suzuki,, Yu Nakanishi, Daisuke Taki, Akiyuki Kaneko, Tatsuo Shiozawa. 2023. GPU Graph Processing on CXL-Based Microsecond-Latency
+External Memory. In Workshops of The International Conference on High
+Performance Computing, Network, Storage, and Analysis (SC-W 2023), November 12–17, 2023, Denver, CO, USA. ACM, New York, NY, USA, 11 pages.
+https://doi.org/10.1145/3624062.3624173
+
+1
+
+INTRODUCTION
+
+Graphics processing units (GPUs) have become one of the most
+commonly-used accelerators in high-performance computing and
+machine learning. In order to handle ever-growing data sizes in
+these applications beyond the relatively limited capacity (tens of
+GBs) of GPU onboard memory, the use of external memory such as
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+© 2023 Copyright held by the owner/author(s). Publication rights licensed to ACM.
+This is the author’s version of the work. It is posted here for your personal use. Not
+for redistribution. The definitive Version of Record was published in Workshops of
+The International Conference on High Performance Computing, Network, Storage, and
+Analysis (SC-W 2023), November 12–17, 2023, Denver, CO, USA, https://doi.org/10.1145/
+3624062.3624173.
+
+the host DRAM and solid-state drives (SSDs) can be a cost-effective
+approach compared with pooling multiple GPUs’ memory together
+[9–11, 18, 22, 28, 31, 33, 37, 39, 40, 43]. In particular, GPU-centric
+external memory access methods have been shown to yield the stateof-the-art runtime performance in workloads involving on-demand,
+fine-grained random access such as graph analytics [31, 33]. That
+is, when small pieces of data to be read next depend on the current
+processing results and cannot be a priori determined, it is more
+efficient to have the GPU initiate data requests than to have the
+CPU control the data flow between the GPU and external memory.
+In GPU-initiated data access in graph analytics, the use of the
+host DRAM generally leads to faster processing speeds than SSDs
+(see Sections 2.2 and 4.1.2 for details). However, increasing the host
+DRAM capacity to accommodate large graph data can be costly.
+Memory expansion via Compute Express Link (CXL) [4] is a promising alternative, as it allows load/store access to pooled memory in
+a cache-coherent manner over more expandable PCIe links. That
+being said, CXL memory introduces additional latency to the underlying memory devices (e.g., DRAM), and an added latency of one
+or two hundred nanoseconds is shown to already have an adverse
+performance impact on some of CPU-based workloads [23].
+In this paper, we are concerned about the use of CXL memory
+as external memory for GPU graph processing in order to see if
+this emerging memory expansion technology enables graph processing that is as fast as using the host DRAM. The question we are
+interested in is whether GPU graph processing is tolerant to longer
+latency CXL introduces, and, if so, how much longer. The latter part
+of the question is because, if the allowable latency is longer than
+the DRAM-based CXL memory latency, less expensive memory
+devices including low-latency flash memory may be used in place
+of DRAM. In fact, our analysis indicates that, as opposed to the case
+of CPU workloads mentioned above, representative GPU graph
+traversal algorithms are latency-tolerant thanks to their massive
+parallelism. The bottleneck comes from the PCIe link, which still
+leaves a permissible latency of a few microseconds.
+In order to back up our analysis at this early stage of CXL deployment when supporting devices are limited in availability, we
+use two FPGA prototypes. The first prototype is equipped with
+microsecond-latency flash memory, and works as a PCIe-attached
+storage device [38]. While it does not support the CXL interface, it
+nonetheless supports access at a smaller address alignment size than
+the standard minimum unit of 512 bytes in Non-Volatile Memory
+Express (NVMe) SSDs, in order to serve fine-grained random read
+requests in graph workloads. The second prototype is DRAM-based
+CXL memory, which we implement based on Intel Agilex®7 FPGA
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+supporting the CXL interface. Our FPGA design features adjustable
+latency for the onboard DRAM, allowing us to evaluate CXL memory with longer latency. Using the first prototype, we show that
+external memory having high random read performance backed
+by low-latency flash memory allows us to approach host DRAMbased GPU graph processing speeds, if it supports a small address
+alignment size. This also confirms that the address alignment size
+is the primary performance factor that sets the host DRAM-based
+method apart from the SSD-based method, supporting the potential
+of CXL-based external memory that can be accessed in the same
+way as the host DRAM. Using the second prototype supporting
+the CXL interface and allowing the same GPU code to work with
+the host DRAM and CXL memory, we show that the runtimes on
+the host DRAM and CXL memory are almost identical as long as
+the CXL memory latency is under a certain allowable value. To the
+best of our knowledge, evaluation of GPU graph processing on CXL
+memory has not been reported before.
+In summary, our contributions are:
+• We show that the performance of GPU graph processing is
+lenient to external memory latency, and a few microseconds
+may be tolerated in achieving processing speeds comparable
+to using the host DRAM.
+• Using an FPGA-based external memory device equipped with
+microsecond-latency flash memory, we demonstrate GPU
+graph processing speeds close to using the host DRAM, confirming the importance of small address alignments, which
+also applies to when the GPU accesses CXL memory.
+• Using another FPGA device implementing CXL memory
+with adjustable latency, we evaluate GPU graph processing
+on CXL memory for the first time, and confirm that the same
+GPU code runs as fast as when using the host DRAM as long
+as the CXL memory latency is up to a few microseconds.
+
+2
+
+PRELIMINARIES
+
+This section provides background information by explaining graph
+traversal on external memory, defining our performance metric,
+and then briefly reviewing how CPU graph traversal on low-latency
+flash memory was made as fast as that on the host DRAM.
+
+2.1
+
+Graph Traversal on External Memory
+
+A graph is represented in the commonly-used compressed sparse
+row (CSR) format consisting of a vertex list and an edge list as shown
+in Figure 1. Suppose Vertex 1 points to five vertices as shown in
+the right-hand side of the figure. The IDs of those five vertices
+appear in a contiguous subset of the edge list (called a sublist in this
+paper). The start and end (exclusive) indices of this sublist is stored
+at Vertices 1 and 2 in the vertex list. Since the number of edges is an
+order of magnitude larger than that of vertices as in Table 1, the edge
+list is stored on the external memory. When a graph is traversed,
+an edge sublist is read from external memory, whose size depends
+on the vertex’s degree, which is typically a few hundred bytes on
+average [31] as observed in Table 1. Since vertices in this sublist
+determines next edge sublists to be read, access is fine-grained,
+random, and on-demand (cannot be determined beforehand).
+
+Sano et al.
+
+Vertex list
+
+0
+
+1
+
+2
+
+3
+
+0
+
+3
+
+8
+
+14 22 24
+
+4
+
+5
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+4
+
+1
+
+9
+
+35 13
+
+2
+
+25
+
+7
+
+6
+
+18
+
+3
+
+start
+
+Edge list
+
+35
+
+1
+
+13
+
+end
+
+7
+25
+
+2
+
+Sublist
+
+Figure 1: Compressed Sparse Row (CSR) format example.
+Table 1: Graph datasets.
+
+Dataset
+
+Num. of
+vertices
+
+Num. of edges
+(edge list size)
+
+Ave. degrees*
+(sublist size)
+
+urand27 [2]
+kron27 [2]
+Friendster [45]
+
+134 mil.
+134 mil.
+125 mil.
+
+4.4 bil. (35.2 GB)
+4.2 bil. (33.6 GB)
+3.6 bil. (28.8 GB)
+
+32.0 (256.0 B)
+67.0 (536.0 B)
+55.1 (440.8 B)
+
+* 8 bytes per vertex ID. 0-degree vertices are excluded from the average.
+
+2.2
+
+Processing Time as Performance Metric
+
+As mentioned in Section 1, the host DRAM-based method EMOGI
+[31] is generally faster than the SSD-based method BaM [33] in
+terms of graph processing time. If EMOGI’s runtime includes the
+time for loading graph data onto the host DRAM from the SSDs (data
+loading time) in addition to the time for running the algorithm on
+the GPU (graph processing time), BaM is shown to be competitive
+for some benchmark workloads. However, in real-world applications where one might perform more complex graph analytics, the
+data loading time can be negligible, making the graph processing
+time dominant. Moreover, since we are interested in the use of
+non-volatile memory, graph data may be stored on CXL memory
+from the beginning without loading from SSDs. Thus, we use graph
+processing time alone as a performance metric in this paper.
+
+2.3
+
+Review of CPU Graph Processing Case
+
+In CPU graph processing, it has previously been shown that, using
+microsecond-latency flash memory as external memory, processing
+speeds can be close to when using the host DRAM [42]. As multiple
+dies of microsecond-latency flash memory can support sufficient
+random read performance required for in-memory-class graph processing, naive external memory execution slows down not due to
+random read performance (in input/output operations per second,
+or IOPS) of the external memory, but due to the longer latency of
+external memory and the CPU overhead of issuing a large number
+of read requests. These issues are overcome by using lightweight
+context switching to hide the latency and a lightweight storage
+access method to reduce the CPU overhead.
+
+3
+
+ANALYSIS
+
+This section characterizes the performance of GPU graph processing in terms of how the GPU accesses edge data.
+The performance characteristics of GPU graph processing is
+different from the CPU case reviewed in Section 2.3. The difference
+comes from massively parallel compute resources available on the
+GPU and the relatively limited bandwidth of the PCIe link to the
+
+GPU Graph Processing on CXL-Based Microsecond-Latency External Memory
+
+GPU. This puts the bottleneck on the PCIe link. In fact, both of
+the state-of-the-art GPU graph processing methods EMOGI (based
+on the host DRAM) and BaM (SSDs) achieve a data transfer rate
+close to the peak PCIe bandwidth. Therefore, the performance is
+primarily determined by how the PCIe bandwidth to the GPU is
+utilized effectively.
+To examine this, we look at the runtime 𝑡 of a given graph
+traversal task for a given graph dataset in terms of how fast the
+GPU consumes data through the PCIe link, as
+𝐷
+(1)
+𝑇
+where 𝐷 is the total data size to be read from external memory to
+complete the task, and 𝑇 is the average data throughput (in MB/sec)
+to the GPU. Obviously, we would like to decrease 𝐷 and increase 𝑇
+for faster execution.
+Using this equation, our analysis proceeds as follows. Ideally, the
+best performance is obtained when 𝐷 is equal to the sum 𝐸 of the
+edge sublist sizes needed to be accessed to complete the task, and
+when 𝑇 hits the PCIe bandwidth 𝑊 . However, external memory
+access is done in units of a certain address alignment size coming
+from hardware and cache implementations, which amplifies the
+total data size 𝐷. We will see how this amplification behaves as
+a function of address alignment size 𝑎 in Section 3.1, while the
+throughput 𝑇 will be modeled in Section 3.2. Once Equation 1 is
+characterized, Section 3.3 revisits existing methods EMOGI and
+BaM in light of Equation 1. As will be described in Section 3.4,
+this revisit suggests opportunities for low-latency memory devices
+to be a cost-effective alternative to the host DRAM and be more
+performant than standard SSDs when used as external memory
+for GPU graph processing. In Section 3.5, we confirm that the
+microsecond latency allowance coming from the PCIe bottleneck
+is unlikely to be limited by other factors.
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+To illustrate this, we ran representative graph traversal algorithms involving fine-grained random access, breadth first search
+(BFS) and single-source shortest path (SSSP), for varying alignment
+sizes and calculated the RAF. This is CPU simulation implementing
+a software cache to experiment with alignment sizes without hardware constraints, but we confirmed that our RAF evaluation of BFS
+with 512 B and 4 kB alignments match the BaM measurements well.
+Figure 3 shows RAF values for the three graph datasets in Table 1.
+As shown, the RAFs are increasing functions of the alignment size,
+which can be up to 4 at 4 kB.
+
+𝑡=
+
+3.1
+
+Read Amplification
+
+When edge sublists are read from external memory at a certain
+address alignment size 𝑎, fetched data may contain some unused
+part of the edge list. For example, Figure 2 shows the situation
+where 3𝑎 bytes need to be read in order to fetch Edge sublist 1.
+Suppose the current graph traversal step requires Sublists 1 and 2
+but not 3. Then, after reading the 3𝑎 bytes, Sublist 2 is likely to be
+on the GPU cache, but the 3𝑎 bytes still contain part of Sublist 3 that
+will not be used soon (and may be evicted from the cache before it
+is referenced later). Therefore, the ratio of the fetched data to the
+data actually used, 𝐷/𝐸, is generally greater than one. We refer to
+this ratio as read amplification factor, or RAF. In general, smaller
+alignments are better at reducing the RAF, given the small average
+edge sublist size of a few hundred bytes in graph processing.
+Alignment a
+
+Edge sublist 1
+
+2
+
+3
+
+4
+
+5
+
+6
+Address
+
+Read 3a to fetch Edge sublist 1
+
+Figure 2: Aligned reads of edge sublists.
+
+Read amplification factor
+
+4
+
+BFS urand27
+BFS kron27
+BFS Friendster
+SSSP urand27
+SSSP kron27
+SSSP Friendster
+
+3.5
+3
+2.5
+2
+1.5
+1
+8
+
+16
+
+32
+
+64
+
+128 256 512 1024 2048 4096
+
+Alignment size [B]
+
+Figure 3: Read amplification for varying alignment size.
+
+3.2
+
+Throughput
+
+Here we examine the denominator of Equation 1. The throughput
+can be modeled by the following equation.
+
+
+𝑁 max
+𝑇 = min 𝑆𝑑,
+𝑑, 𝑊 ,
+(2)
+𝐿
+where 𝑑 is the average data transfer size per read request, 𝑆 is the
+random read performance in IOPS of the external memory, 𝐿 is the
+average latency (including latencies of the PCIe link, CXL interface,
+and memory devices), 𝑁 max is the maximum number of outstanding
+(in other words, in-flight or concurrent) requests that can be issued
+through the PCIe link, and 𝑊 is the PCIe bandwidth. The first
+term in the min operation trivially states that the throughput is the
+product of the IOPS and the data size per IO, but it is capped by the
+PCIe bandwidth 𝑊 in the third term. The second term introduces
+an additional limit imposed by Little’s Law stating that (by adapting
+it to our case) the data size passing through the link at any given
+time instance (𝑁 concurrent data transfers of size 𝑑) is equal to the
+product of the throughput and latency:
+𝑁𝑑 = 𝑇 𝐿.
+
+(3)
+
+This means that the throughput is capped as 𝑇 = 𝑁𝑑/𝐿 ≤ 𝑁 max 𝑑/𝐿.
+Note that this limit by PCIe is imposed for memory (host DRAM
+or CXL) access but not for storage access. In the storage case, the
+limit comes from the queue depth of the storage interface, which is
+typically much larger than 𝑁 max when multiple drives are used.
+To put Equation 2 into context, consider a PCIe Gen 4.0 x16 link
+supported by modern GPUs. Then, 𝑁 max = 768 due to the PCIe
+specification, and 𝑊 = 24,000 MB/sec, for which we use an effective
+bandwidth rather than the theoretical value of 31,500 MB/sec. Now
+we suppose our external memory has 𝑆 = 100 MIOPS (collectively,
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+Sano et al.
+
+if comprised of multiple devices) and 𝐿 = 16 usec. These numbers
+are just for the sake of example. Then, Equations 2 becomes
+𝑇 = min{100 𝑑, 48 𝑑, 24,000},
+
+(4)
+
+80000
+
+5
+
+70000
+
+4
+
+60000
+50000
+
+3
+
+40000
+2
+
+30000
+20000
+10000
+
+Slope s
+
+0
+0
+
+1000
+
+Total data D
+Throughput T
+Runtime t
+2000
+
+3000
+
+Runtime [sec]
+
+Total data size to transfer [MB]
+Throughput [MB/sec]
+
+which is plotted as the bottom dotted line in Figure 4 (the other
+two lines will be explained in Section 3.3.2). We assume that the
+IOPS 𝑆 and average latency 𝐿 do not depend on the transfer size
+𝑑, which is reasonable for flash-based external memory as long
+as the transfer size is under a certain size for which the device
+is optimized. For instance, typical SSDs are optimized for 4 kB
+access, and reading smaller bytes does not significantly increase
+the random read performance due to its internal page size and
+error correction size. Similar tendency can be observed for drives
+optimized for smaller sizes. Under this assumption, the plot linearly
+increases until it hits the bandwidth limit, and its slope 𝑠 is given as
+
+
+𝑁 max
+𝑠 = min 𝑆,
+,
+(5)
+𝐿
+which is 48 in the above example.
+
+1
+0
+4000
+
+Data transfer size (average data size per read) [B]
+
+Figure 4: Runtime as a function of data transfer size.
+
+3.3
+
+Study of Existing Methods
+
+In order to have a shorter runtime 𝑡 = 𝐷/𝑇 , one wishes to decrease
+the total data size 𝐷 (or equivalently, RAF) and increase the throughput 𝑇 . The former can be done by using a smaller alignment size
+𝑎 while the latter by using a larger data transfer size 𝑑. We look
+at the state-of-the-art methods, EMOGI and BaM, in light of these
+objectives and see how they achieve optimal runtimes within their
+respective constraints. A PCIe Gen 4.0 x16 link is assumed.
+3.3.1 EMOGI. EMOGI uses the host DRAM as external memory.
+It employs zero-copy access to the host DRAM, meaning that data
+is fetched from the host DRAM without copying it to the GPU
+memory. The data access is performed in the same way as to the
+GPU memory, and requests are issued at a multiple of 32 B up to
+the GPU’s hardware cache line size of 128 B [31]. Therefore, we
+have alignment size 𝑎 = 32 B due to the GPU architecture, and
+the average data transfer size depends on the workload and how
+EMOGI cleverly issues 32 B reads so that the GPU merges them into
+a larger size when an edge sublist spans multiple of 32 B alignments
+[14]. From their evaluation [31], we assume the distribution of 32,
+64, 94, 128-B accesses to be 20%, 20%, 20%, 40%, which translates to
+the average transfer size of 𝑑 EMOGI = 0.2 × 32 + 0.2 × 64 + 0.2 × 96 +
+
+0.4 × 128 = 89.6 B. This is a conservative estimate (i.e., the worst
+case among the distributions reported in [31]), as 128-B reads are
+more dominant in many workloads.
+As for the RAF, 𝑎 = 32 B alignment is close to optimal as can be
+seen in Figure 3: smaller alignments will have a diminishing return.
+Regarding the throughput, 𝑑 EMOGI = 89.6 B is sufficient in maximizing the throughput to saturate the PCIe bandwidth. Since the
+IOPS of the host DRAM-based external memory is excessively high,
+the slope 𝑠 of the throughput in Equation 5 is limited by the latency, which is around 1.2 usec as seen from the GPU (measured
+in Section 4.2.2 as shown in Figure 9). This latency is still short
+enough because 𝑠 𝑑 EMOGI = (768/1.2) × 89.6 = 57,344 MB/s, which
+is greater than the PCIe bandwidth of 𝑊 = 24,000 MB/sec.
+3.3.2 BaM. BaM uses SSDs as external memory. As BaM implements a software cache on the GPU memory and reads data at a
+cache line granularity, we have 𝑑 = 𝑎. In this case, we can plot both
+of 𝐷 and 𝑇 , and hence 𝑡 as well, as a function of transfer size 𝑑.
+Figure 4 plots examples of them. The plot of the total data size 𝐷
+smoothly interpolates the data points taken from BFS for urand27
+dataset. Note that it shows the raw data size in bytes along the linear horizontal axis in Figure 4 as opposed to Figure 3 showing RAF
+along the log2 axis. By dividing this 𝐷 by the example throughput
+profile 𝑇 described in Section 3.2, the solid line in Figure 4 shows
+the theoretically-expected runtime 𝑡 of BFS algorithm for urand27
+dataset for varying transfer sizes 𝑑. It is clear from this plot that
+the best (shortest) runtime is obtained at the minimum transfer
+size that still fully utilizes the bandwidth 𝑊 . That is, the optimal
+transfer size 𝑑 opt satisfies 𝑠 𝑑 opt = 𝑊 . Since BaM uses four of Intel
+P5800X SSDs totaling 𝑆 = 6 MIOPS, and 𝑠 = 𝑆 as this is storage
+access, the optimal size is given as 𝑑 BaM = 𝑊 /𝑆 = 24,000/6 ≈ 4 kB,
+which is indeed the cache line size mainly used in their evaluation.
+Here, as seen from the denominator of the equation 𝑊 /𝑆, the
+IOPS is the limiting factor, requiring BaM to use a large data transfer
+size. This suggests that one might be able to achieve faster runtimes
+by using higher-IOPS memory devices and smaller transfer/alignment sizes.
+
+3.4
+
+Observations
+
+From the analyses of the two methods above, we can see that
+EMOGI’s faster runtime than BaM can be primarily explained by
+the fact that EMOGI’s alignment of 32 B is smaller than that of
+BaM (typically 4 kB). Both methods maximize the throughput as
+𝑇 = 𝑊 in Equation 1, and therefore the difference comes from the
+total data size 𝐷, which prefers smaller alignments. Of course, there
+is a good reason why BaM chooses a large alignment size for the
+storage in use as explained in Section 3.3.2, but it also suggests a
+possibility of faster processing by using a smaller alignment size
+supported by high-IOPS memory devices.
+In the meantime, Section 3.3.1 shows that EMOGI’s average
+transfer size is more than sufficient to fully utilize the PCIe bandwidth, indicating that we might be able to relax the specifications of
+external memory from those of the host DRAM. More specifically,
+in order to satisfy 𝑠 𝑑 EMOGI ≥ 𝑊 , we have
+
+
+768
+min 𝑆,
+× 89.6 ≥ 24,000.
+(6)
+𝐿
+
+GPU Graph Processing on CXL-Based Microsecond-Latency External Memory
+
+This becomes 𝑆 ≥ 268 MIOPS and 𝐿 ≤ 2.87 usec. Therefore, an
+additional latency of a few microseconds, introduced by the CXL
+interface and the underlying memory devices, may be tolerated.
+While the IOPS requirement is rather high, it is feasible by bundling
+multiple high-IOPS (tens of MIOPS) devices together.
+In summary, our observations are as follows. On the condition
+that we have sufficient random read performance,
+Observation 1: A smaller address alignment size is better.
+Observation 2: The allowable latency is a few microseconds.
+
+3.5
+
+Latency
+
+So far, our latency 𝐿 is limited by the allowable number 𝑁 max of
+outstanding requests in the PCIe specification (256 for PCIe Gen 3.0
+and 768 for Gen 4.0 and 5.0). However, there are also other factors
+having their own concurrency limits. Here we examine them and
+confirm that, currently, the strictest limit comes from PCIe.
+3.5.1 Traversal Algorithm. Typically, BFS-like graph traversal is
+massively parallelizable. Table 2 shows how many vertices are
+being visited (i.e., frontier) at each depth of the search in BFS for
+urand27 dataset. Most depths have more than tens of thousands
+of vertices that can be processed independently, indicating that
+the algorithm itself does not limit concurrency. Some depths have
+smaller frontiers, but they contribute little to the overall runtime.
+Table 2: Example numbers of vertices per traversal depth.
+Depth
+
+Number of vertices
+
+1
+2
+3
+4
+5
+6
+7
+
+31
+984
+31,252
+995,253
+28,130,066
+104,931,066
+129,075
+
+3.5.2 GPU. There is an upper limit to the GPU concurrency, but
+it is much larger than 𝑁 max = 768, and thus the GPU will not be
+a limiting factor. A group of GPU threads that execute the same
+instructions is called a warp [24], which is considered a unit of
+concurrency. The GPU we use has 3,072 warps. Fewer warps may
+actually run depending on the workload due to the limitations of
+other resources such as GPU registers. Yet, in our BFS execution, we
+find that 2,048 warps are running, which is still larger than 𝑁 max .
+3.5.3 CXL Interface. The CXL specification itself is unlikely to
+limit the number of outstanding reads, as 16 tag bits are available
+(65,536 outstanding requests) [5]. There is a possibility that CXL
+memory devices do not fully utilize them depending on their implementations, leaving a stricter latency allowance. Moreover, as the
+CXL data transfer size is 64 B, larger read requests from the GPU
+have to be split, consuming more tags. That said, our assumption is
+that CXL memory devices coming to the market in the near future
+will support a sufficient number of outstanding requests.
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+4
+
+EVALUATION
+
+As CXL-enabled flash memory devices are not available yet, we
+use two FPGA prototypes to support the analysis presented in
+Section 3. The first prototype, XLFDD, is a storage device equipped
+with low-latency flash memory reported elsewhere [38]. The second
+prototype is a DRAM-based CXL memory device with adjustable
+latency. The two prototypes respectively demonstrate Observation
+1 and Observation 2 made in Section 3.4.
+We use graph datasets listed in Table 1 including two synthetic
+graphs, uniform random graph (urand27) and Kronecker graph
+(kron27) having 227 vertices [2], and a real-world graph Friendster [45]. We run BFS and SSSP as representative graph traversals
+involving fine-grained random access.
+
+4.1
+
+Evaluation on Low-Latency Flash Memory
+
+We first show evaluation using XLFDD, a high-IOPS device supporting a small alignment of 16 B backed by low-latency flash memory.
+In support of Observation 1, we show that this small alignment
+enables much faster GPU graph processing than BaM with a 4 kB
+alignment, and demonstrate runtime performance close to using
+the host DRAM.
+4.1.1 Implementation. Our implementation is conceptually similar
+to BaM in the sense that the GPU controls the storage devices
+directly without CPU intervention, but there are some differences
+coming from the use of XLFDDs instead of NVMe SSDs.
+To explain XLFDD briefly, it is a PCIe-attached SSD equipped
+with low-latency flash chips with a latency of under 5 usec and
+with an FPGA implementing the storage controller. It implements
+a lightweight storage interface so that it can serve fine-grained
+accesses at up to 11 MIOPS. It supports a 16 B alignment, while the
+transfer size can be any multiple of 16 B up to 2 kB. This transfer
+size flexibility allows us to read a large edge sublist in one request
+without splitting it into the GPU cache line size of 128 B as would
+happen in the memory (host DRAM or CXL memory) access case.
+This makes the average transfer size 𝑑 close to the average edge
+sublist size (256 B in urand27 and more in the other datasets), further
+relaxing the requirements for the external memory as 𝑆 × 256 ≥
+24,000, leading to 𝑆 ≥ 93.75 MIOPS.
+Table 3 summarizes our evaluation environment equipped with
+XLFDDs. With 16 drives, the system well supports the required
+random read speed of 93.75 MIOPS. To evaluate BaM, we replace
+XLFDDs with NVMe SSDs that collectively offer 6-MIOPS random
+read performance to match the number used in [33].
+Table 3: System for evaluation on low-latency flash.
+Specifications
+CPU
+DRAM
+GPU
+SSD
+OS
+S/W
+
+Intel Xeon Gold 6336Y (single socket)
+DDR4 3200 MHz 128 GB (16 GB × 8 ch.)
+NVIDIA RTX A5000, GDDR6 24GB, PCIe 4.0 x16
+16 of XLFDD (PCIe 3.0 x4)
+4 of KIOXIA FL6 800 GB NVMe (PCIe 4.0 x4)
+Ubuntu 20.04.3 LTS, Linux kernel 5.4.0
+NVIDIA Driver 495.29.05, CUDA 11.5
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+Sano et al.
+
+As with BaM, we place submission queues (SQs) and data buffers
+in the base address register (BAR) section of the GPU memory in
+order to control storage devices directly from the GPU. Note that we
+do not have completion queues [42]. By memory-mapping BARs,
+the SQs and data buffers are accessible from XLFDDs.
+Our graph processing software for XLFDD is similar to BaM. The
+major difference is that we do not implement software caches on
+the GPU memory, and instead directly access XLFDDs for simplicity.
+Because we use a much smaller alignment size than BaM’s, caches
+do not reduce the RAF much, and therefore this simplification has
+a minimal impact on performance.
+4.1.2 Runtime Comparison. With this system, we show that a small
+alignment size leads to higher performance (Observation 1), and
+GPU graph processing speeds on low-latency flash memory can
+approach those on the host DRAM. We run our software on XLFDDs,
+BaM on the NVMe SSDs, and EMOGI on the host DRAM. Figure 5
+shows the runtimes of BFS for urand27 dataset on XLFDD where
+we vary the address alignment size. The runtimes are normalized
+by that of EMOGI, and the normalized runtime of BaM with a 4
+kB alignment is also shown for comparison. The plots demonstrate
+faster execution with smaller alignments, and at an alignment of
+16 or 32 B, it approaches the speed on the host DRAM.
+Figure 6 compares the normalized runtimes of XLFDD and BaM
+for all the pairs of the algorithms and datasets, where XLFDD uses
+a 16 B alignment. The runtimes of XLFDD are much closer to those
+of EMOGI (1.13 times longer on average, where the geometric mean
+is taken over all the six pairs) than those of BaM (2.76 times longer).
+
+Normalized runtime
+
+4
+3
+
+XLFDD
+BaM
+
+4.2
+
+Evaluation on CXL Memory
+
+Next, we show evaluation using a DRAM-based CXL memory prototype with adjustable latency. It implements the CXL.mem protocol,
+allowing us to evaluate the GPU graph processing on CXL memory
+for the first time, and to confirm the permissible latency imposed
+by the number 𝑁 max of outstanding requests of the PCIe link. In
+support of Observation 2, we show that GPU graph traversals on
+CXL memory with a latency of up to a few microsecond can be as
+fast as that on the host DRAM.
+4.2.1 Implementation. We execute EMOGI on latency-adjustable
+CXL memory instead of on the host DRAM. We implement CXL
+memory based on Intel Agilex®7 FPGA as also used in other existing
+works [21, 41]. Figure 7 shows the block diagram. The CXL interface
+has two instances of CXL.mem each connecting to latency bridges
+that we designed to introduce additional latency to the onboard
+DRAM (see Appendix A for details). The behaviors of the latency
+bridges can be controlled by setting registers via CXL.io. Due to
+the limitation of the current FPGA board, the onboard DRAM can
+be accessed only through a single channel by interleaving through
+the bus matrix, which limits the throughput that this CXL memory
+prototype can support per device.
+To PCIe Gen 5.0 x16
+
+CXL interface
+CXL.io
+
+CXL.mem
+
+CXL.mem
+
+Register interface
+
+Latency bridge
+
+Latency bridge
+
+Bus matrix
+
+2
+
+External memory interface (EMIF)
+
+1
+
+DRAM 64 GB (DDR4 1,333 MHz)
+
+0
+16
+
+32
+
+64
+
+128
+
+256
+
+512
+
+4096
+
+Address alignment size [B]
+
+Figure 5: Runtimes of BFS for urand27 dataset on XLFDD
+with varying alignment sizes, along with the runtime of BaM,
+normalized by that of EMOGI.
+BFS
+XLFDD
+BaM
+
+3
+2
+1
+0
+
+SSSP
+4
+Normalized runtime
+
+Normalized runtime
+
+4
+
+XLFDD
+BaM
+
+3
+2
+1
+0
+
+urand27
+
+kron27 Friendster
+
+urand27
+
+kron27 Friendster
+
+Figure 6: Runtimes of BFS (left) and SSSP (right) on XLFDD
+and BaM, normalized by those of EMOGI on the host DRAM.
+
+Figure 7: CXL memory prototype with adjustable latency.
+Table 4 summarizes our evaluation system equipped with multiple of this CXL memory devices. Figure 8 illustrates the connectivity
+between the CPUs, GPU, and CXL memory devices. In our dualsocket system, the GPU is attached to CPU 1.
+It is easy to set up CXL memory to be accessible from the GPU.
+One can use set_mempolicy() to specify the NUMA node ID corresponding to the CXL memory device. For instance, as explained
+in [31], cudaMallocManaged() can be used to allocate memory on
+the host DRAM for zero-copy access. The CXL equivalent can be
+done by calling set_mempolicy() before cudaMallocManaged().
+Once done, the graph processing code of EMOGI works on the CXL
+memory without any modification. The GPU performs zero-copy
+access in the same way as does to the host DRAM, and the CPU
+translates it into CXL access.
+4.2.2 System Performance Characterization. Before running GPU
+graph processing, we conduct some microbenchmarks to characterize the system performance in terms of latency, throughput, random
+read performance, and the number of outstanding requests.
+
+GPU Graph Processing on CXL-Based Microsecond-Latency External Memory
+
+CPU 0/1
+DRAM 0
+DRAM 1
+GPU
+CXL
+OS
+S/W
+
+Intel Sapphire Rapids* (dual socket)
+DDR5 4800 MHz 192 GB (32 GB × 6 ch.)
+DDR5 4800 MHz 32 GB (32 GB × 1 ch.)
+NVIDIA RTX A5000, GDDR6 24 GB, PCIe 4.0 x16
+5 of Intel Agilex®7 FPGA I-Series Dev. Kit
+Fedora 34, Linux kernel 5.4.0
+NVIDIA Driver 530.30.02, CUDA 12.1
+
+* Evaluation based on Intel reference designs and pre-production
+4th Gen Intel Xeon Scalable processors.
+
+CXL
+memory
+0
+
+DRAM 0
+
+DRAM 1
+
+CPU 0
+
+CPU 1
+
+CXL
+memory
+1
+
+CXL
+memory
+2
+
+CXL
+memory
+3
+
+CXL
+memory
+4
+
+GPU
+
+Figure 8: Connectivity of CPUs, GPU, and CXL memory.
+
+Observed latency [usec]
+
+First, we measure the latency introduced by the CXL memory
+by running pointer chasing on the GPU to access external memory
+(see Appendix B for details). The results are shown in Figure 9. For
+the CXL memory, we vary the additional latency as shown in the
+parentheses. The observed latency becomes longer as our FPGA latency bridge adds more latency as expected. The GPU sees a latency
+of around 1+ usec going through the PCIe link to the host DRAM as
+also reported in [31], and the CXL DRAM introduces an additional
+latency of 0.5 usec. Access to external memory devices connected
+to the same CPU as the GPU (DRAM 1 and CXL 3 as in Figure 8,
+which are solid-filled in Figure 9) sees marginally shorter latencies
+than their counterparts connected to the other CPU (DRAM 0 and
+CXL 0). Note that the latencies reported here are those observed
+from the GPU, and therefore they are longer than those reported in
+the literature studying CXL memory access from the CPU [23, 29].
+5
+4
+3
+2
+1
+0
+DRAM DRAM CXL0 CXL0 CXL0 CXL0 CXL3 CXL3 CXL3 CXL3
+0
+1
+(+0)
+(+1)
+(+2)
+(+3)
+(+0)
+(+1)
+(+2)
+(+3)
+
+External memory (additional latency [usec])
+
+Figure 9: Measured latency of host DRAM and CXL memory
+as seen from the GPU.
+Next, we have the CPU (not the GPU) issue random read requests
+to the CXL memory prototype using the CXL access size of 𝑑 CXL =
+64 B, and plot the observed throughput 𝑇CXL for varying latency
+
+6000
+
+150
+
+5000
+4000
+
+100
+Throughput
+# outstandings
+
+3000
+2000
+
+50
+
+1000
+0
+
+# outstanding reads
+
+Specifications
+
+as shown in Figure 10. We use the subscript CXL to clarify that
+we are referring to the CXL memory characteristics rather than
+the PCIe link between the CPU and GPU. From the plot we can
+see that the throughput is capped at around 5,700 MB/sec due to
+the single-channel DRAM as mentioned above. The decrease in
+the throughput for longer latency indicates it is limited by the
+maximum number of outstanding requests of the CXL prototype,
+although the CXL specification itself permits 65536 of them as
+mentioned in Section 3.5.3. From Equation 3, the number 𝑁 CXL of
+concurrent requests for a given latency 𝐿CXL can be computed as
+𝑁 CXL = 𝑇CXL 𝐿CXL /𝑑 CXL , which is also plotted in the same figure.
+This implies that the maximum number of outstanding requests that
+the current Intel Agilex®7 FPGA can handle is 128. Because a 128 B
+or 96 B read from the GPU through PCIe is split into two 64 B reads
+at the CXL level, the number of requests for the CXL memory can
+double. Thus, our CXL memory prototype can handle 64 (= 128/2)
+outstanding requests from the GPUs. While this number is a current
+limitation that we expect to be lifted in the near future, in order
+to use this prototype to test the scenario where the concurrency
+bottleneck is in the PCIe link to the GPU, we downgrade the PCIe
+link to Gen 3.0 and use five of the CXL memory devices (which
+is the maximum number of devices we are able to operate in the
+server), such that the maximum number of outstanding requests
+that the CXL memory devices can collectively handle, which is 320
+(= 64 × 5), is larger than that of PCIe Gen 3.0 (𝑁 max = 256).
+
+Throughput [MB/s]
+
+Table 4: System for evaluation on CXL memory.
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+0
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+Additional latency [usec]
+
+Figure 10: Bandwidth and the number of outstanding reads
+of the CXL memory prototype for varying additional latency.
+With PCIe Gen 3.0 x16 link for the GPU, the effective bandwidth
+is halved as 𝑊 = 12,000 MB/sec, and the requirements for external
+memory becomes 𝑆 = 𝑊 /𝑑 EMOGI = 12,000/89.6 = 134 MIOPS and
+𝐿 = 𝑁 max 𝑑 EMOGI /𝑊 = 256 × 89.6/12,000 = 1.91 usec. The halved
+bandwidth can be saturated by five CXL memory devices when
+the additional latency is less than 3 usec at which the per-device
+throughput is around 2,500 MB/sec as shown in Figure 10.
+4.2.3 Runtime Comparison. Here we show that GPU graph processing on CXL memory is as fast as that on the host DRAM, as
+long as the CXL memory latency is up to a few microseconds (Observation 2). We execute BFS and SSSP on the GPU using either
+the host DRAM or CXL memory as external memory over PCIe Gen
+3.0 x16 link to the GPU. For each algorithm, the same EMOGI code
+is used for both the host DRAM and CXL memory. We vary the
+additional latency of the CXL memory from 0 to 3 usec. For each
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+2
+
+BFS
+
+2.5
+
+urand27
+kron27
+Friendster
+
+Normalized runtime
+
+Normalized runtime
+
+2.5
+
+Sano et al.
+
+1.5
+1
+0.5
+0
+
+2
+
+SSSP
+urand27
+kron27
+Friendster
+
+1.5
+1
+0.5
+0
+
+1.6
+
+(+0)
+
+2.0
+
+(+0.5)
+
+2.5
+
+(+1.0)
+
+3.0
+
+(+1.5)
+
+3.5
+
+(+2.0)
+
+4.0
+
+(+2.5)
+
+4.5
+
+(+3.0)
+
+External memory latency [usec]
+(additional latency [usec])
+
+1.6
+
+(+0)
+
+2.0
+
+(+0.5)
+
+2.5
+
+(+1.0)
+
+3.0
+
+(+1.5)
+
+3.5
+
+(+2.0)
+
+4.0
+
+(+2.5)
+
+4.5
+
+(+3.0)
+
+External memory latency [usec]
+(additional latency [usec])
+
+Figure 11: Runtimes of BFS (left) and SSSP (right) on CXL memory with varying latency, normalized by those on host DRAM.
+graph data set, the runtimes on the CXL memory are normalized by
+that using the host DRAM, and plotted in Figure 11. The latencies
+written above the parenthesized additional latencies are those seen
+from the GPU derived according to Figure 9. As long as the CXL
+memory latency from the GPU is under around 2 usec (≈ 1.91 usec
+as calculated in Section 4.2.2), we see that the runtime on CXL
+memory is almost identical to that on the host DRAM as expected.
+
+5
+
+DISCUSSION
+
+This section discusses limitations to our work and points not considered in the paper, all of which present future research avenues.
+Prototype limitations: Our evaluation using the two prototypes
+has both demonstrated runtime performance close to using the
+host DRAM in GPU graph processing on microsecond-latency external memory. However, it has fallen short of full demonstration
+of our target: the one involving both the CXL interface and real
+microsecond-latency memory devices. The limitations of our work
+come from our preliminary CXL memory implementation. It is
+emulated memory with longer latency, which does not necessarily
+model all the aspects of real devices. Nonetheless, we believe our
+flash-based (although non-CXL) prototype complements it, so that
+our evaluation using both prototypes jointly provides insight into
+how a given system may achieve host DRAM-like performance.
+Even though the PCIe generations each double the bandwidth, the
+GPU and memory performance also increases accordingly. Thus,
+it is likely that the PCIe link to the GPU will continue to be the
+bottleneck, and our analysis will apply in the foreseeable future.
+Our analysis indicates that the full demonstration mentioned
+above would permit a latency of around 3 usec as described in
+Section 3.4. While this is still shorter than the low-latency flash
+memory currently available, we believe this requirement is within
+reach considering the technological advancements in memory devices as well as in CXL memory implementations.
+Read-only workloads: The graph processing workloads evaluated in this paper are all read-only. While CXL is a cache-coherent
+protocol, the coherency overhead should be minimal for read-only
+workloads, if any. For workloads involving write access, there will
+be a number of additional factors to be considered, including cache
+coherency mentioned above and write characteristics of flash memory, all of which may have dependencies on the address alignment
+
+size 𝑎 and data transfer size 𝑑. These factors can translate to performance impacts. Furthermore, additional care will have to be taken
+if memory persistency needs to be ensured.
+Other system configurations: The premise of our analysis and
+evaluation is that the GPU onboard memory is limited and benefits
+from external memory through the PCIe link. This does not always
+hold: one can opt to use GPUs having large memory (e.g., 80 GB
+[6]) or bundle multiple of them to create an even larger pool of
+GPU memory. Moreover, some emerging architectures integrate a
+CPU and GPU on the same chip, bringing the host DRAM closer
+to the GPU [1, 7]. In both cases, HBM (High Bandwidth Memory)
+enables a much higher throughput than what a PCIe link offers.
+If performance is more heavily weighted than cost, these system
+configurations can be compelling options. In the meantime, our
+projection is that PCIe-attached GPUs with limited memory will
+continue to constitute cost-effective options, and we believe flashbased CXL memory can make those options even more appealing.
+Currently, CXL memory access from the GPU goes through the
+CPU. The GPU does not use the CXL protocol, and issues requests
+in the same way as when accessing the host DRAM, and the CPU
+translates them into CXL access. However, future GPUs may implement the CXL interface to directly communicate with CXL memory.
+Still, our analysis will remain valid so far as the PCIe link to the
+GPU continues to be the bottleneck. As the direct communication
+will reduce the CXL memory latency seen from the GPU, it will
+likely become easier to achieve a latency of a few microseconds.
+Other graph formats and preprocessing: Our evaluation has
+used a BaM-like implementation for XLFDD, and EMOGI for CXL
+memory, both of which perform fine-grained access to external
+memory on demand. We have used them because they achieve stateof-the-art runtime performance. They are also beneficial in that the
+GPU can directly take an input graph in the standard CSR format
+without preprocessing. However, fine-grained access implies a small
+average data transfer size 𝑑 over the PCIe link. Although a larger 𝑑
+will relax the latency and IOPS requirements for external memory,
+we cannot arbitrarily increase 𝑑 as it depends on the input graph:
+increasing 𝑑 beyond the average edge sublist size will increase the
+RAF, leading to a negative performance impact. Therefore, in order
+to increase 𝑑 further, it would be interesting to consider tailored
+graph formats and preprocessing such as [13, 35, 36].
+
+GPU Graph Processing on CXL-Based Microsecond-Latency External Memory
+
+6
+
+RELATED WORK
+
+CPU graph processing: When graph data fits in the host DRAM,
+in-memory graph processing methods like Galois [32] and GAP
+[2] can be used. When it does not fit in the DRAM, one option is
+distributed processing [27], but communication overheads limit
+the performance [8, 30]. For this reason, single-node approaches
+utilizing storage devices as external memory have been proposed
+[16, 17, 20, 25, 26, 34, 47]. Graphene [25] achieves excellent performance close to in-memory solutions for algorithms mainly involving sequential access such as PageRank, but it is significantly slower
+if random access is required like in BFS. Graph algorithms involving
+random access has been shown to approach in-memory speeds if
+executed on low-latency flash-based storage by accessing it using
+lightweight context switching to hide latency [42]. In this paper we
+address random access graph workloads on the GPU using external
+memory, and find quite different requirements than the CPU case.
+GPU graph processing on the host DRAM: It is natural to consider taking advantage of massive compute resources of the GPU
+for graph processing. As the GPU onboard memory is even more
+limited, many prior works propose to place graph data on the host
+DRAM [9–11, 18, 22] (in contrast to the CPU case, the host DRAM
+is viewed as external memory from the GPU). These methods are
+based on a unified virtual memory (UVM) approach where portions
+of the host DRAM are copied to the GPU memory via paging at a
+4 kB granularity [15]. EMOGI instead uses zero-copy access and
+has shown that this fine-grained direct access significantly reduces
+the RAF compared with the UVM approach [31]. This paper has
+shown that EMOGI stays as performant even if the external memory
+latency is longer than the host DRAM, up to a few microseconds.
+GPU graph processing on storage: BaM introduced a first GPUcentric storage access method that does not involve CPU intervention [33]. While there are several prior works in GPU-centric
+approaches [28, 37, 39, 40, 43], they rely on the CPU to handle storage access and use the GPU memory as a staging buffer for their
+data transfer. BaM has shown that it achieves competitive runtimes
+with EMOGI when the EMOGI’s runtimes include the time for loading graph data from SSDs. This paper has shown that, by using
+external memory based on microsecond-latency flash memory, we
+can achieve even faster runtimes so that they are close to those of
+EMOGI even if we exclude EMOGI’s file loading time.
+CXL analysis and evaluation: CXL is an emerging standard that
+is attracting attention not only from industry but also from research communities. Analysis and evaluation of CXL-enabled systems are being conducted ranging from memory pooling in general
+[12, 23, 41, 44, 46], to more specific applications such as machine
+learning [19] and in-memory databases [21]. CXL studies involving
+accelerators such as GPU and FPGA are appearing [3, 19]. Our work
+complements these studies and deals with GPU graph processing
+on CXL memory for the first time.
+
+7
+
+CONCLUSION
+
+We have presented analysis and evaluation of GPU graph traversal
+using CXL-based external memory. Given the nature of the workload where on-demand, fine-grained random reads are bottlenecked
+by the PCIe link to the GPU, we note that a small address alignment
+of around 32 B, along with appropriately-sized data transfer close
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+to the average edge sublist size of a few hundred bytes, will lead
+to an optimal runtime. This translates into the requirements for
+external memory, which are random read performance of a few
+hundred MIOPS and a latency of a few microseconds, suggesting
+the possibility that CXL memory with longer latency, including that
+equipped with low-latency flash memory, may be used as external
+memory to achieve performance comparable to the host DRAM.
+To support these observations, we have conducted evaluation
+using two FPGA-based external memory prototypes, one is a storage
+device with low-latency flash memory and the other DRAM-based
+CXL memory with adjustable latency, and we have demonstrated
+GPU graph processing speeds close to using the host DRAM when
+the external memory latency is under a few microseconds.
+While our evaluation is limited by the current availability of CXL
+devices, we believe it provides first preliminary characterizations
+of GPU access to CXL memory, which we hope leads to insights
+into how cost-effective systems may be constructed potentially by
+incorporating flash-based CXL memory.
+
+A
+
+LATENCY BRIDGE DESIGN
+
+The latency bridge described in Section 4.2.1 is implemented as
+shown in Figure 12. We add a time stamp to an incoming read
+request, read data from the DRAM, and push it to a FIFO along with
+the time stamp. When the current time becomes greater than the
+time stamp of the FIFO head by a specified additional latency, the
+data is popped and sent to the CPU through the CXL interface. As
+the CXL interface of Intel Agilex®7 FPGA processes requests in
+order at the time of this work, a FIFO is sufficient, but a slightly
+more involved design would be required to support out-of-order
+access.
+Read
+request
+
+Latency bridge
+
++
+
+Read
+request
+
+Add time stamp
+CXL
+interface
+
+DRAM
+
+Time stamp counter
+Read
+data
+
+Compare time stamp
+
+>
+
+Read
+data
+
+Read data FIFO
+
+Figure 12: Block diagram of the latency bridge.
+
+B
+
+POINTER CHASING FROM THE GPU
+
+We perform pointer chasing to measure the latency of CXL memory
+(and the host DRAM) from the GPU as described in Section 4.2.2.
+In preparation, we allocate a 16-GB block of CXL memory and fill
+it with 134 million 128-B indices (or pointers) each pointing to the
+next address to look at. We run a single GPU warp [24] to chase
+them: it reads the first pointer, then reads the next pointer stored at
+the address pointed to by the first pointer, and so on. The pointers
+are set in such a way that the GPU has to move randomly in the
+16-GB space. The 32 GPU threads in a warp each fetch 4 B of a
+128-B pointer and synchronize before reading the next pointer. The
+runtime of this operation is determined by the memory latency as
+the next pointer is only available after reading the current pointer.
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+REFERENCES
+[1] Advanced Micro Devices, Inc. 2023.
+AMD Expands Leadership Data
+Center Portfolio with New EPYC CPUs and Shares Details on NextGeneration AMD Instinct Accelerator and Software Enablement for Generative AI. https://www.amd.com/en/newsroom/press-releases/2023-6-13-amdexpands-leadership-data-center-portfolio-with-.html.
+[2] Scott Beamer, Krste Asanović, and David Patterson. 2015. The GAP benchmark
+suite. arXiv preprint arXiv:1508.03619 (2015).
+[3] Anthony M Cabrera, Aaron R Young, and Jeffrey S Vetter. 2022. Design and Analysis of CXL Performance Models for Tightly-Coupled Heterogeneous Computing.
+In the 1st International Workshop on Extreme Heterogeneity Solutions (ExHET).
+Article 1.
+[4] The CXL Consortium. [n. d.]. Compute Express Link™ . https://www.
+computeexpresslink.org/.
+[5] Intel Corporation. 2023. Compute Express Link (CXL)-Cache/Mem Protocol
+Interface (CPI). https://cdrdv2-public.intel.com/644330/644330_CPISpecification_
+Rev1p0.pdf.
+[6] NVIDIA Corporation. 2023. NVIDIA A100 Tensor Core GPU. https://www.nvidia.
+com/en-us/data-center/a100/.
+[7] NVIDIA Corporation. 2023. NVIDIA Grace Hopper Superchip. https://www.
+nvidia.com/en-us/data-center/grace-hopper-superchip/.
+[8] Roshan Dathathri, Gurbinder Gill, Loc Hoang, Hoang-Vu Dang, Alex Brooks,
+Nikoli Dryden, Marc Snir, and Keshav Pingali. 2018. Gluon: A communicationoptimizing substrate for distributed heterogeneous graph analytics. In Proceedings
+of the 39th ACM SIGPLAN conference on programming language design and implementation. 752–768.
+[9] H Carter Edwards, Christian R Trott, and Daniel Sunderland. 2014. Kokkos:
+Enabling manycore performance portability through polymorphic memory access
+patterns. Journal of parallel and distributed computing 74, 12 (2014), 3202–3216.
+[10] Prasun Gera, Hyojong Kim, Piyush Sao, Hyesoon Kim, and David Bader. 2020.
+Traversing large graphs on GPUs with unified memory. Proceedings of the VLDB
+Endowment 13, 7 (2020), 1119–1133.
+[11] Juan Gómez-Luna, Izzat El Hajj, Li-Wen Chang, Victor García-Floreszx, Simon Garcia De Gonzalo, Thomas B Jablin, Antonio J Pena, and Wen-mei Hwu.
+2017. Chai: Collaborative heterogeneous applications for integrated-architectures.
+In 2017 IEEE International Symposium on Performance Analysis of Systems and
+Software (ISPASS). IEEE, 43–54.
+[12] Donghyun Gouk, Sangwon Lee, Miryeong Kwon, and Myoungsoo Jung. 2022.
+Direct Access, High-Performance Memory Disaggregation with DirectCXL. In
+the 2022 USENIX Annual Technical Conference. Carlsbad, CA, USA.
+[13] Wei Han, Daniel Mawhirter, Bo Wu, and Matthew Buland. 2017. Graphie: LargeScale Asynchronous Graph Traversals on Just a GPU. In 26th International Conference on Parallel Architectures and Compilation Techniques (PACT). IEEE, Portland,
+OR, USA, 31–46. https://doi.org/10.1109/PACT.2017.41
+[14] Mark Harris. 2013. How to Access Global Memory Efficiently in CUDA C/C++ Kernels. https://developer.nvidia.com/blog/how-access-global-memory-efficientlycuda-c-kernels/.
+[15] Mark Harris. 2017. Unified Memory for CUDA Beginners. https://developer.
+nvidia.com/blog/unified-memory-cuda-beginners/.
+[16] Sang-Woo Jun, Andy Wright, Sizhuo Zhang, Shuotao Xu, et al. 2017. BigSparse:
+High-performance external graph analytics. arXiv preprint arXiv:1710.07736
+(2017).
+[17] Sang-Woo Jun, Andy Wright, Sizhuo Zhang, Shuotao Xu, et al. 2018. GraFBoost:
+Using accelerated flash storage for external graph analytics. In 2018 ACM/IEEE
+45th Annual International Symposium on Computer Architecture (ISCA). IEEE,
+411–424.
+[18] Hyojong Kim, Jaewoong Sim, Prasun Gera, Ramyad Hadidi, and Hyesoon Kim.
+2020. Batch-aware unified memory management in GPUs for irregular workloads.
+In Proceedings of the Twenty-Fifth International Conference on Architectural Support
+for Programming Languages and Operating Systems. 1357–1370.
+[19] Miryeong Kwon, Junhyeok Jang, Hanjin Choi, Sangwon Lee, and Myoungsoo
+Jung. 2023. Failure Tolerant Training with Persistent Memory Disaggregation
+over CXL. IEEE Micro 43, 2 (jan 2023), 66–75. https://doi.org/10.1109/MM.2023.
+3237548
+[20] Aapo Kyrola, Guy Blelloch, and Carlos Guestrin. 2012. GraphChi:Large-Scale
+Graph Computation on Just a PC. In 10th USENIX Symposium on Operating
+Systems Design and Implementation (OSDI 12). 31–46.
+[21] Donghun Lee, Thomas Willhalm, Minseon Ahn, Suprasad Mutalik Desai, Daniel
+Booss, Navneet Singh, Daniel Ritter, Jungmin Kim, and Oliver Rebholz. 2023.
+Elastic Use of Far Memory for In-Memory Database Management Systems. In
+Proceedings of the 19th International Workshop on Data Management on New
+Hardware (DaMoN). 35–43.
+[22] Chen Li, Rachata Ausavarungnirun, Christopher J Rossbach, Youtao Zhang, Onur
+Mutlu, Yang Guo, and Jun Yang. 2019. A framework for memory oversubscription
+management in graphics processing units. In Proceedings of the Twenty-Fourth
+International Conference on Architectural Support for Programming Languages and
+Operating Systems. 49–63.
+
+Sano et al.
+
+[23] Huaicheng Li, Daniel S. Berger, Lisa Hsu, Daniel Ernst, Pantea Zardoshti, Stanko
+Novakovic, Monish Shah, Samir Rajadnya, Scott Lee, Ishwar Agarwal, Mark D.
+Hill, Marcus Fontoura, and Ricardo Bianchini. 2023. Pond: CXL-Based Memory
+Pooling Systems for Cloud Platforms. In Proceedings of the 28th ACM International
+Conference on Architectural Support for Programming Languages and Operating
+Systems (ASPLOS), Vol. 2. Vancouver, BC Canada, 574–587.
+[24] Yuan Lin and Vinod Grover. 2018. Using CUDA Warp-Level Primitives. https:
+//developer.nvidia.com/blog/using-cuda-warp-level-primitives/.
+[25] Hang Liu and H Howie Huang. 2017. Graphene:Fine-Grained IO Management
+for Graph Computing. In 15th USENIX Conference on File and Storage Technologies
+(FAST 17). 285–300.
+[26] Steffen Maass, Changwoo Min, Sanidhya Kashyap, Woonhak Kang, Mohan Kumar,
+and Taesoo Kim. 2017. Mosaic: Processing a trillion-edge graph on a single
+machine. In Proceedings of the Twelfth European Conference on Computer Systems.
+527–543.
+[27] Grzegorz Malewicz, Matthew H Austern, Aart JC Bik, James C Dehnert, Ilan
+Horn, Naty Leiser, and Grzegorz Czajkowski. 2010. Pregel: a system for largescale graph processing. In Proceedings of the 2010 ACM SIGMOD International
+Conference on Management of data. 135–146.
+[28] Pak Markthub, Mehmet E Belviranli, Seyong Lee, Jeffrey S Vetter, and Satoshi
+Matsuoka. 2018. DRAGON: breaking GPU memory capacity limits with direct
+NVM access. In SC18: International Conference for High Performance Computing,
+Networking, Storage and Analysis. IEEE, 414–426.
+[29] Hasan Al Maruf, Hao Wang, Abhishek Dhanotia, Johannes Weiner, Niket Agarwal,
+Pallab Bhattacharya, Chris Petersen, Mosharaf Chowdhury, Shobhit Kanaujia,
+and Prakash Chauhan. 2023. TPP: Transparent Page Placement for CXL-Enabled
+Tiered-Memory. In Proceedings of the 28th ACM International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS),
+Vol. 3. Vancouver, BC Canada, 742–755.
+[30] Frank McSherry, Michael Isard, and Derek G Murray. 2015. Scalability! but at
+what COST?. In 15th Workshop on Hot Topics in Operating Systems (HotOS XV).
+[31] Seung Won Min, Vikram Sharma Mailthody, Zaid Qureshi, Jinjun Xiong, Eiman
+Ebrahimi, and Wen mei W. Hwu. 2020. EMOGI: Efficient Memory-access for
+Out-of-memory Graph-traversal In GPUs. Proc. VLDB Endow. 14 (2020), 114–127.
+[32] Donald Nguyen, Andrew Lenharth, and Keshav Pingali. 2013. A lightweight
+infrastructure for graph analytics. In Proceedings of the twenty-fourth ACM symposium on operating systems principles. 456–471.
+[33] Zaid Qureshi, Vikram Sharma Mailthody, Isaac Gelado, Seung Won Min, Amna
+Masood, Jeongmin Park, Jinjun Xiong, CJ Newburn, Dmitri Vainbrand, I Chung,
+et al. 2022. GPU-Initiated On-Demand High-Throughput Storage Access in the
+BaM System Architecture. In Proceedings of the 28th ACM International Conference
+on Architectural Support for Programming Languages and Operating Systems
+(ASPLOS), Vol. 2. 325–339.
+[34] Amitabha Roy, Ivo Mihailovic, and Willy Zwaenepoel. 2013. X-stream: Edgecentric graph processing using streaming partitions. In Proceedings of the TwentyFourth ACM Symposium on Operating Systems Principles. 472–488.
+[35] Amir Hossein Nodehi Sabet, Zhijia Zhao, and Rajiv Gupta. 2020. Subway: Minimizing Data Transfer during out-of-GPU-Memory Graph Processing. In 15th
+European Conference on Computer Systems (EuroSys ’20). Heraklion, Greece, Article 12:1–16.
+[36] Dipanjan Sengupta, Shuaiwen Leon Song, Kapil Agarwal, and Karsten Schwan.
+2015. GraphReduce: Processing Large-Scale Graphs on Accelerator-Based Systems. In International Conference for High Performance Computing, Networking, Storage and Analysis (SC ’15). Austin, TX, USA, Article 28:1–12. https:
+//doi.org/10.1145/2807591.2807655
+[37] Sagi Shahar, Shai Bergman, and Mark Silberstein. 2016. ActivePointers: a case
+for software address translation on GPUs. ACM SIGARCH Computer Architecture
+News 44, 3 (2016), 596–608.
+[38] Tatsuo Shiozawa, Hirotsugu Kajihara, Tatsuro Endo, and Kazuhiro Hiwada. 2020.
+Emerging Usage and Evaluation of Low Latency FLASH. In 2020 IEEE International
+Memory Workshop (IMW). IEEE, 1–4.
+[39] Mark Silberstein, Bryan Ford, Idit Keidar, and Emmett Witchel. 2014. GPUfs:
+Integrating a file system with GPUs. ACM Transactions on Computer Systems
+(TOCS) 32, 1 (2014), 1–31.
+[40] Mark Silberstein, Sangman Kim, Seonggu Huh, Xinya Zhang, Yige Hu, Amir
+Wated, and Emmett Witchel. 2016. GPUnet: Networking abstractions for GPU
+programs. ACM Transactions on Computer Systems (TOCS) 34, 3 (2016), 1–31.
+[41] Yan Sun, Yifan Yuan, Zeduo Yu, Reese Kuper, Ipoom Jeong, and Ren Wang
+Nam Sung Kim. 2023. Demystifying CXL Memory with Genuine CXL-Ready
+Systems and Devices. arXiv preprint arXiv:2303.15375 (2023).
+[42] Tomoya Suzuki, Kazuhiro Hiwada, Hirotsugu Kajihara, Shintaro Sano, Shuou
+Nomura, and Tatsuo Shiozawa. 2021. Approaching DRAM Performance by Using
+Microsecond-Latency Flash Memory for Small-Sized Random Read Accesses: A
+New Access Method and Its Graph Applications. Proc. VLDB Endow. 14, 8 (apr
+2021), 1311–1324. https://doi.org/10.14778/3457390.3457397
+[43] Ján Veselỳ, Arkaprava Basu, Abhishek Bhattacharjee, Gabriel H Loh, Mark Oskin,
+and Steven K Reinhardt. 2018. Generic system calls for GPUs. In 2018 ACM/IEEE
+45th Annual International Symposium on Computer Architecture (ISCA). IEEE,
+
+GPU Graph Processing on CXL-Based Microsecond-Latency External Memory
+
+843–856.
+[44] Jacob Wahlgren, Maya Gokhale, and Ivy Peng. 2022. Evaluating Emerging CXLenabled Memory Pooling for HPC Systems. In SC Workshop on Memory Centric
+High Performance Computing (MCHPC’22). Dallas, TX, USA.
+[45] Jaewon Yang and Jure Leskovec. 2012. Defining and evaluating network communities based on ground-truth. In Proceedings of the ACM SIGKDD Workshop on
+Mining Data Semantics. 1–8.
+
+SC-W 2023, November 12–17, 2023, Denver, CO, USA
+
+[46] Yiwei Yang, Pooneh Safayenikoo, Jiacheng Ma, Tanvir Ahmed Khan, and Andrew
+Quinn. 2023. CXLMemSim: A pure software simulated CXL.mem for performance
+characterization. arXiv preprint arXiv:2303.06153 (2023).
+[47] Da Zheng, Disa Mhembere, Randal Burns, Joshua Vogelstein, Carey E Priebe,
+and Alexander S Szalay. 2015. FlashGraph: Processing Billion-Node Graphs on
+an Array of Commodity SSDs. In 13th USENIX Conference on File and Storage
+Technologies (FAST 15). 45–58.
+
+

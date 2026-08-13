@@ -454,3 +454,133 @@ Verified from the full text and from the NVBit repository's own README:
 - Cost: instrumenting every instruction is on average 36.4x slower than native
   execution and up to 112x in the worst case; sampling instead of full
   instrumentation brings the figure down to 2.3x.
+
+---
+
+## `ju2026-tilelens-two-dimensional-memory-layout.pdf`
+
+The closest published comparison to this project: an HBF evaluation that runs
+the same model this project's vLLM use case runs, on the same class of GPU, but
+computes its timing in an offline simulator.
+
+> Jae Hyung Ju, Euijun Chung, Hritvik Taneja, Anish Saxena, Shinnung Jeong,
+> Hyesoon Kim, and Moinuddin K. Qureshi.
+> "TileLens: Efficiently Using Large-Granularity Memory Systems with
+> Transparent Two-Dimensional Memory Layout." arXiv:2607.04031.
+
+- Affiliation: Georgia Institute of Technology.
+- Stable link: <https://arxiv.org/abs/2607.04031>
+- SHA-256: `0eb4570c8c1947617711c670ad1451edb6c0504c77ab781b150026db4d4b7670`
+- 13 pages, 1,012 KB.
+- Companion plain text: `ju2026-tilelens-two-dimensional-memory-layout.txt`
+
+Verified against the full text:
+
+- The problem it names: HBF and RoMe read at kilobyte granularity. Quoted from
+  the Figure 1 caption: `HBF and RoMe both require a minimum access granularity
+  of 4 KB, 128× coarser than HBM's 32 B sectors.` The tiled matrix
+  multiplication that dominates large language model inference computes on
+  two-dimensional tiles while memory is laid out one-dimensionally, and the two
+  do not line up. Quoted: `Under one-dimensional (row- or column-major) memory
+  layout, each 4 KB access fetches data mostly outside the compute tile,
+  wasting bandwidth and stalling CTAs that await the same memory request.` (A
+  CTA, cooperative thread array, is the group of GPU threads that NVIDIA's
+  programming model schedules as one unit.)
+- The name and the size of the effect: fetching bytes the computation does not
+  want, because the smallest readable unit is larger than the piece wanted, is
+  called *read amplification*. The abstract states that read amplification
+  slows tiled matrix multiplication `by up to an order of magnitude`.
+- Why cache does not absorb the extra bytes, quoted: `on an NVIDIA H200 GPU
+  with 132 SMs, a 32× amplification factor over 128 KB of shared memory per SM
+  produces 528 MB of amplified data per iteration, far exceeding the 50 MB L2
+  cache size.` (An SM, streaming multiprocessor, is one of the GPU's
+  independent compute units.)
+- The fix: make one contiguous block of memory hold a two-dimensional rectangle
+  of the matrix instead of a one-dimensional strip. `TileLens-SW` extends GPU
+  domain-specific languages, where CUTLASS and FlashAttention need only their
+  layout descriptors changed; `TileLens-HW` extends the batched tensor movement
+  engine, so cuBLAS and DeepGEMM get the new layout with no source change.
+- Evaluation method, quoted: `We use Macsim, a cycle-level GPU simulator,
+  extended with DRAM, RoMe, and HBF memory models. Kernel traces are collected
+  from an NVIDIA H200 GPU using a SASS-level tracer built on NVBit.`
+- HBF page read latencies swept: 1, 2, 5, 10 and 20 µs.
+
+What this project uses -- four separate things, written out in full because each
+one touches a decision already open in this repository:
+
+1. **The closest comparison work we have.** Of the four published HBF
+   evaluation papers found so far (FlashAccel, H3, HAVEN, TileLens), TileLens is
+   the only one that uses both Qwen3-30B and real H200 hardware, and Qwen3-30B
+   is the model this project's vLLM use case runs. H3 and HAVEN are not stored
+   in this directory.
+2. **Its evaluation method sits between the two options this project is
+   choosing between.** Traces are collected on a real GPU with NVBit, but the
+   timing is computed offline in Macsim and never fed back to the real machine
+   -- one variant of whole-machine simulation. The tracing tool it uses, NVBit,
+   is the same tool at issue in this project's open question of whether the
+   injector stays at the `PTX` level or moves to the `SASS` level.
+3. **The effect TileLens measures is the state this project's implementation is
+   in right now.** Every access that falls inside a registered range is charged
+   for a whole page: in `src/cuda_runtime/device/hbf_device.cuh`,
+   `media_descriptor` sets `bytes` to `range.page_bytes`. That is read
+   amplification at its most extreme. The effect TileLens measures should
+   therefore be reproducible here, which cuts two ways: the model being built
+   has a consequence that shows up in measurements, and that consequence has
+   already been measured by someone else.
+4. **A set of parameters to line up against**: HBF page read latency of 1, 2,
+   5, 10 and 20 µs.
+
+---
+
+## `sano2023-cxl-microsecond-latency-gpu-graph.pdf`
+
+The only work found so far that adds controllable, per-access latency to a real
+GPU's memory accesses while the program under test runs unmodified.
+
+> Shintaro Sano, Yosuke Bando, Kazuhiro Hiwada, Hirotsugu Kajihara,
+> Tomoya Suzuki, Yu Nakanishi, Daisuke Taki, Akiyuki Kaneko, and
+> Tatsuo Shiozawa.
+> "GPU Graph Processing on CXL-Based Microsecond-Latency External Memory."
+> In *SC-W 2023*. arXiv:2312.03113.
+
+- Affiliation: KIOXIA.
+- DOI: `10.1145/3624062.3624173` -- <https://arxiv.org/abs/2312.03113>
+- SHA-256: `99942318cffa700cbb7f7988f893724ee5eb6076653f8fd0fbba86a8a0127a43`
+- 11 pages, 953 KB.
+- Companion plain text: `sano2023-cxl-microsecond-latency-gpu-graph.txt`
+
+What it does, verified from the full text: it evaluates graph processing on a
+real GPU whose data is held in external memory with microsecond-scale latency.
+The hardware is an NVIDIA RTX A5000 together with five Intel Agilex 7 FPGA
+development boards. Three quotations, with line numbers in the companion `.txt`:
+
+- Line 822: `The CXL interface has two instances of CXL.mem each connecting to
+  latency bridges that we designed to introduce additional latency to the
+  onboard DRAM`
+- Line 824: `The behaviors of the latency bridges can be controlled by setting
+  registers via CXL.io.`
+- Line 920: `the graph processing code of EMOGI works on the CXL memory without
+  any modification. The GPU performs zero-copy access in the same way as does
+  to the host DRAM`
+
+`pdftotext` breaks each of these three sentences across two to four lines, so
+read a few lines either side of the number.
+
+The appendix gives the mechanism: an incoming read request is timestamped; when
+the data comes back from DRAM, the data and the timestamp are pushed into a
+FIFO together; the entry is popped only once the current time passes that
+timestamp plus the configured additional latency.
+
+What this project uses: a fourth way of obtaining complete coverage that this
+project's first challenge left out -- build a programmable stand-in device
+outside the program under test, and let the real accelerator access that device
+the way it normally would. The sentence in this project's argument saying there
+are only three ways to obtain complete coverage does not hold as written. The
+correction has to admit this fourth way and say why the fourth way does not
+apply to HBF: the memory emulated by the FPGA boards in this paper hangs outside
+the package, so every GPU read really does leave the chip and land on an FPGA,
+whereas HBF is connected inside the package over UCIe, and that link offers no
+socket into which a stand-in device could be inserted. This entry is also the
+most direct support for narrowing the first challenge from "there is no place to
+insert instrumentation" to "there is no place when three conditions hold at the
+same time"; this entry does not enumerate the three conditions.

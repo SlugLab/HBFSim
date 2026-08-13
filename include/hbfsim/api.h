@@ -40,6 +40,11 @@ enum hbfsim_model_mode {
     HBFSIM_MODEL_HYBRID = 2
 };
 
+enum hbfsim_fidelity {
+    HBFSIM_FIDELITY_EMULATION = 0,
+    HBFSIM_FIDELITY_EXACT_SM120 = 1
+};
+
 typedef struct hbfsim_options {
     const char* profile_path;
     const char* report_dir;
@@ -47,6 +52,13 @@ typedef struct hbfsim_options {
     uint32_t ring_capacity;
     uint64_t request_timeout_ns;
 } hbfsim_options;
+
+typedef struct hbfsim_options_v2 {
+    uint32_t struct_bytes;
+    hbfsim_options base;
+    uint32_t fidelity;
+    const char* exact_profile_path;
+} hbfsim_options_v2;
 
 typedef struct hbfsim_range_options {
     uint32_t mode;
@@ -66,6 +78,8 @@ typedef struct hbfsim_stats {
 uint32_t hbfsim_abi_version(void);
 int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
+int hbfsim_context_create_v2(const hbfsim_options_v2* options,
+                             hbfsim_context** out);
 int hbfsim_register_device(hbfsim_context* context, void* device_ptr,
                            size_t length,
                            const hbfsim_range_options* options);

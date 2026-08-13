@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 
 
 def require(condition: bool, message: str) -> None:
@@ -38,6 +39,9 @@ BeginRetire = ctypes.CFUNCTYPE(
     ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64,
     ctypes.POINTER(ctypes.c_size_t))
 FinishRetire = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_size_t)
+ConfigureExact = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64, ctypes.c_char_p,
+    ctypes.c_size_t)
 
 
 class GateApi(ctypes.Structure):
@@ -57,6 +61,31 @@ class GateApi(ctypes.Structure):
 class GateApiV3(ctypes.Structure):
     _fields_ = GateApi._fields_ + [
         ("register_range_with_policy", RegisterWithPolicy),
+    ]
+
+
+class ExactRunContract(ctypes.Structure):
+    _fields_ = [
+        ("abi_version", ctypes.c_uint32),
+        ("struct_bytes", ctypes.c_uint32),
+        ("cache_condition", ctypes.c_uint32),
+        ("concurrency_condition", ctypes.c_uint32),
+        ("cluster_x", ctypes.c_uint32),
+        ("cluster_y", ctypes.c_uint32),
+        ("cluster_z", ctypes.c_uint32),
+        ("cache_condition_epoch", ctypes.c_uint64),
+    ]
+
+
+PublishRunContract = ctypes.CFUNCTYPE(
+    ctypes.c_int, ctypes.c_size_t, ctypes.c_uint64,
+    ctypes.POINTER(ExactRunContract))
+
+
+class GateApiV4(ctypes.Structure):
+    _fields_ = GateApiV3._fields_ + [
+        ("configure_exact", ConfigureExact),
+        ("publish_run_contract", PublishRunContract),
     ]
 
 
@@ -127,6 +156,13 @@ def main() -> int:
                     from error
             if nested.returncode != 0:
                 return nested.returncode
+            exact_environment = environment.copy()
+            exact_environment["HBFSIM_V4_EXACT_FAIL_CLOSED"] = "1"
+            exact = subprocess.run(
+                [sys.executable, __file__, gate, fake],
+                env=exact_environment, check=False)
+            if exact.returncode != 0:
+                return exact.returncode
             environment.pop("HBFSIM_UNBOUND_NO_RANGE", None)
             environment.pop("HBFSIM_PRECONTEXT_UNBOUND", None)
             environment.pop("HBFSIM_GATE_ROLLBACK", None)
@@ -165,6 +201,13 @@ def main() -> int:
     require(api_v3.abi_version == 3 and
             api_v3.struct_bytes == ctypes.sizeof(GateApiV3),
             "launch gate returned malformed v3 API")
+    getter.restype = ctypes.POINTER(GateApiV4)
+    api_v4_pointer = getter(4)
+    require(bool(api_v4_pointer), "launch gate v4 API unavailable")
+    api_v4 = api_v4_pointer.contents
+    require(api_v4.abi_version == 4 and
+            api_v4.struct_bytes == ctypes.sizeof(GateApiV4),
+            "launch gate returned malformed v4 API")
     getter.restype = ctypes.POINTER(GateApi)
     require(not bool(getter(1)), "launch gate accepted an obsolete API version")
 
@@ -289,6 +332,73 @@ def main() -> int:
     def launch_kernel() -> int:
         return launch(ctypes.c_void_p(0x9000), 1, 1, 1, 1, 1, 1, 0,
                       None, parameters, None)
+
+    if os.environ.get("HBFSIM_V4_EXACT_FAIL_CLOSED") == "1":
+        generation = ctypes.c_uint64()
+        require(api_v4.activate(0xA000, 0xFEED0000, 0xCA00, 3,
+                                ctypes.byref(generation)) == 0,
+                "v4 exact owner activation failed")
+        malformed = b"{}"
+        require(api_v4.configure_exact(
+                    0xA000, generation.value, malformed, len(malformed)) != 0,
+                "v4 accepted malformed exact profile")
+        profile_path = pathlib.Path(__file__).parents[1] / \
+            "fixtures" / "exact" / "sm120-valid.json"
+        profile = profile_path.read_bytes()
+        require(api_v4.configure_exact(
+                    0xA000, generation.value, profile, len(profile)) == 0,
+                "v4 rejected a structurally valid exact profile")
+        invalid_contract = ExactRunContract()
+        invalid_contract.abi_version = 1
+        invalid_contract.struct_bytes = ctypes.sizeof(ExactRunContract) - 1
+        require(api_v4.publish_run_contract(
+                    0xA000, generation.value,
+                    ctypes.byref(invalid_contract)) != 0,
+                "v4 accepted a truncated run contract")
+        @Publish
+        def publish_exact(_state: ctypes.c_void_p) -> int:
+            return 0
+
+        require(api_v4.register_range(
+                    0xA000, generation.value, 0x1000, 0x2000,
+                    publish_exact, None) == 0,
+                "v4 exact range registration failed")
+        exact_module = load_trusted(b"exact-ptx-jit")
+        contract = ExactRunContract()
+        contract.abi_version = 1
+        contract.struct_bytes = ctypes.sizeof(ExactRunContract)
+        contract.cache_condition = 1
+        contract.concurrency_condition = 1
+        contract.cluster_x = 2
+        contract.cluster_y = 1
+        contract.cluster_z = 1
+        contract.cache_condition_epoch = (1 << 64) - 1
+        require(api_v4.publish_run_contract(
+                    0xA000, generation.value, ctypes.byref(contract)) != 0,
+                "v4 accepted a future cache-conditioning epoch")
+        contract.cache_condition_epoch = time.monotonic_ns()
+        require(api_v4.publish_run_contract(
+                    0xA000, generation.value, ctypes.byref(contract)) == 0,
+                "v4 rejected a post-mutation run contract")
+        require(launch_kernel() != 0,
+                "exact launch accepted PTX/JIT evidence or missing live state")
+        decisions = [
+            json.loads(line) for line in pathlib.Path(
+                os.environ["HBFSIM_COVERAGE_PATH"]).read_text().splitlines()
+            if line.strip()
+        ]
+        require(decisions and
+                decisions[-1]["reason"] == "exact_admission_failed",
+                "exact rejection was not recorded before CUDA launch")
+        require(unload(exact_module) == 0,
+                "failed to unload exact rejection module")
+        token = ctypes.c_size_t()
+        require(api_v4.begin_retire(0xA000, generation.value,
+                                    ctypes.byref(token)) == 0 and
+                api_v4.invalidate_retire(token.value) == 0 and
+                api_v4.finish_retire(token.value) == 0,
+                "v4 exact owner did not retire cleanly")
+        return 0
 
     if (os.environ.get("HBFSIM_V3_TIMING_OPAQUE") == "1" or
             os.environ.get("HBFSIM_V3_CAPACITY_OPAQUE") == "1"):

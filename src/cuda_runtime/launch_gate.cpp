@@ -1,4 +1,5 @@
 #include "hbfsim/coverage.hpp"
+#include "hbfsim/exact_admission.hpp"
 #include "hbfsim/exact_artifact.hpp"
 #include "hbfsim/exact_environment.hpp"
 #include "hbfsim/launch_gate_abi.hpp"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -221,6 +223,235 @@ hbfsim::TimingBindingRegistry& timing_bindings()
     return registry;
 }
 
+std::uint64_t next_exact_mutation_epoch() noexcept
+{
+    static std::atomic<std::uint64_t> last{0};
+    auto candidate = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
+            .count());
+    auto observed = last.load(std::memory_order_relaxed);
+    for (;;) {
+        if (candidate <= observed) {
+            candidate = observed == UINT64_MAX ? UINT64_MAX : observed + 1;
+        }
+        if (last.compare_exchange_weak(observed, candidate,
+                                       std::memory_order_acq_rel,
+                                       std::memory_order_relaxed)) {
+            return candidate;
+        }
+    }
+}
+
+struct ExactOwnerSnapshot {
+    bool required{false};
+    std::optional<hbfsim::ExactProfile> profile;
+    std::optional<hbfsim::ExactRunContract> contract;
+};
+
+class ExactOwnerRegistry {
+  public:
+    int configure(std::uintptr_t owner, std::uint64_t generation,
+                  const char* profile_json,
+                  std::size_t profile_bytes) noexcept
+    {
+        if (owner == 0 || generation == 0 || profile_json == nullptr ||
+            profile_bytes == 0 || !timing_bindings().owns(owner, generation)) {
+            return -1;
+        }
+        const auto domain = current_cuda_domain();
+        if (!domain.has_value() ||
+            !timing_bindings().active_domain(domain->context,
+                                             domain->device)) {
+            return -1;
+        }
+        try {
+            auto profile = hbfsim::parse_exact_profile(
+                std::string_view(profile_json, profile_bytes));
+            std::lock_guard lock(mutex_);
+            if (!timing_bindings().owns(owner, generation)) {
+                return -1;
+            }
+            state_ = State{
+                .owner = owner,
+                .generation = generation,
+                .cuda_context = domain->context,
+                .device_ordinal = domain->device,
+                .profile = std::move(profile),
+                .contract = std::nullopt,
+                .latest_relevant_mutation_epoch =
+                    next_exact_mutation_epoch(),
+            };
+            return 0;
+        } catch (...) {
+            return -1;
+        }
+    }
+
+    int publish(std::uintptr_t owner, std::uint64_t generation,
+                const hbfsim::ExactRunContractAbi* raw) noexcept
+    {
+        if (raw == nullptr ||
+            raw->abi_version != hbfsim::kExactRunContractAbiVersion ||
+            raw->struct_bytes != sizeof(*raw) || raw->cluster_x == 0 ||
+            raw->cluster_y == 0 || raw->cluster_z == 0 ||
+            raw->cache_condition_epoch == 0) {
+            return -1;
+        }
+        std::string cache_condition;
+        switch (raw->cache_condition) {
+        case hbfsim::ExactCacheConditionAbi::WarmL2:
+            cache_condition = "warm_l2";
+            break;
+        case hbfsim::ExactCacheConditionAbi::Cold:
+            cache_condition = "cold";
+            break;
+        default:
+            return -1;
+        }
+        std::string concurrency_condition;
+        switch (raw->concurrency_condition) {
+        case hbfsim::ExactConcurrencyConditionAbi::ExclusiveProcess:
+            concurrency_condition = "exclusive_process";
+            break;
+        default:
+            return -1;
+        }
+        try {
+            std::lock_guard lock(mutex_);
+            if (!state_.has_value() || state_->owner != owner ||
+                state_->generation != generation ||
+                !state_->profile.has_value() ||
+                !timing_bindings().owns(owner, generation)) {
+                return -1;
+            }
+            const auto now = static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now().time_since_epoch())
+                    .count());
+            if (raw->cache_condition_epoch <=
+                    state_->latest_relevant_mutation_epoch ||
+                raw->cache_condition_epoch > now) {
+                return -1;
+            }
+            state_->contract = hbfsim::ExactRunContract{
+                .cache_condition = std::move(cache_condition),
+                .concurrency_condition = std::move(concurrency_condition),
+                .cluster_shape = {.x = raw->cluster_x,
+                                  .y = raw->cluster_y,
+                                  .z = raw->cluster_z},
+                .cache_condition_epoch = raw->cache_condition_epoch,
+                .latest_relevant_mutation_epoch =
+                    state_->latest_relevant_mutation_epoch,
+            };
+            return 0;
+        } catch (...) {
+            return -1;
+        }
+    }
+
+    ExactOwnerSnapshot snapshot(
+        const std::optional<CudaDomain>& domain) const
+    {
+        std::lock_guard lock(mutex_);
+        if (!state_.has_value()) {
+            return {};
+        }
+        if (!domain.has_value() ||
+            state_->cuda_context != domain->context ||
+            state_->device_ordinal != domain->device) {
+            return {.required = true};
+        }
+        auto result = ExactOwnerSnapshot{
+            .required = true,
+            .profile = state_->profile,
+            .contract = state_->contract,
+        };
+        if (result.contract.has_value()) {
+            result.contract->latest_relevant_mutation_epoch =
+                state_->latest_relevant_mutation_epoch;
+        }
+        return result;
+    }
+
+    void note_owner_mutation(std::uintptr_t owner,
+                             std::uint64_t generation) noexcept
+    {
+        std::lock_guard lock(mutex_);
+        if (state_.has_value() && state_->owner == owner &&
+            state_->generation == generation) {
+            state_->latest_relevant_mutation_epoch =
+                next_exact_mutation_epoch();
+        }
+    }
+
+    void note_mutation(const std::optional<CudaDomain>& domain) noexcept
+    {
+        if (!domain.has_value()) {
+            return;
+        }
+        std::lock_guard lock(mutex_);
+        if (state_.has_value() && state_->cuda_context == domain->context &&
+            state_->device_ordinal == domain->device) {
+            state_->latest_relevant_mutation_epoch =
+                next_exact_mutation_epoch();
+        }
+    }
+
+    void invalidate_for_module_unload(
+        const std::optional<CudaDomain>& domain) noexcept
+    {
+        if (!domain.has_value()) {
+            return;
+        }
+        std::lock_guard lock(mutex_);
+        if (state_.has_value() && state_->cuda_context == domain->context &&
+            state_->device_ordinal == domain->device) {
+            state_->profile.reset();
+            state_->contract.reset();
+            state_->latest_relevant_mutation_epoch =
+                next_exact_mutation_epoch();
+        }
+    }
+
+    void erase_owner(std::uintptr_t owner, std::uint64_t generation) noexcept
+    {
+        std::lock_guard lock(mutex_);
+        if (state_.has_value() && state_->owner == owner &&
+            state_->generation == generation) {
+            state_.reset();
+        }
+    }
+
+    void erase_context(std::uintptr_t cuda_context) noexcept
+    {
+        std::lock_guard lock(mutex_);
+        if (state_.has_value() && state_->cuda_context == cuda_context) {
+            state_.reset();
+        }
+    }
+
+  private:
+    struct State {
+        std::uintptr_t owner{0};
+        std::uint64_t generation{0};
+        std::uintptr_t cuda_context{0};
+        int device_ordinal{-1};
+        std::optional<hbfsim::ExactProfile> profile;
+        std::optional<hbfsim::ExactRunContract> contract;
+        std::uint64_t latest_relevant_mutation_epoch{0};
+    };
+
+    mutable std::mutex mutex_;
+    std::optional<State> state_;
+};
+
+ExactOwnerRegistry& exact_owners()
+{
+    static ExactOwnerRegistry registry;
+    return registry;
+}
+
 std::recursive_mutex& lifecycle_transition_mutex()
 {
     static std::recursive_mutex mutex;
@@ -406,6 +637,7 @@ void erase_context_state(std::uintptr_t cuda_context) noexcept
 {
     timing_bindings().erase_context(cuda_context, erase_module_identity,
                                     nullptr);
+    exact_owners().erase_context(cuda_context);
 }
 
 void erase_unbound_device_state(int device_ordinal) noexcept
@@ -487,9 +719,13 @@ int register_range(std::uintptr_t owner, std::uint64_t generation,
     if (owner == 0 || generation == 0 || begin >= end) {
         return -1;
     }
-    return runtime_gate().register_range(
+    const auto result = runtime_gate().register_range(
         owner, generation, begin, end, hbfsim::RangePolicy::LegacyStrict,
         publish, publish_state);
+    if (result == 0) {
+        exact_owners().note_owner_mutation(owner, generation);
+    }
+    return result;
 }
 
 int register_range_with_policy(
@@ -514,9 +750,13 @@ int register_range_with_policy(
     default:
         return -1;
     }
-    return runtime_gate().register_range(owner, generation, begin, end,
-                                         coverage_policy, publish,
-                                         publish_state);
+    const auto result = runtime_gate().register_range(
+        owner, generation, begin, end, coverage_policy, publish,
+        publish_state);
+    if (result == 0) {
+        exact_owners().note_owner_mutation(owner, generation);
+    }
+    return result;
 }
 
 int unregister_range(std::uintptr_t owner, std::uint64_t generation,
@@ -527,8 +767,12 @@ int unregister_range(std::uintptr_t owner, std::uint64_t generation,
     if (owner == 0 || generation == 0 || begin >= end) {
         return -1;
     }
-    return runtime_gate().unregister_range(
+    const auto result = runtime_gate().unregister_range(
         owner, generation, begin, end, publish, publish_state);
+    if (result == 0) {
+        exact_owners().note_owner_mutation(owner, generation);
+    }
+    return result;
 }
 
 int begin_retire(std::uintptr_t owner, std::uint64_t generation,
@@ -581,6 +825,7 @@ int finish_retire(std::uintptr_t raw_token) noexcept
         !timing_bindings().finish_retire(token->owner, token->generation)) {
         return -1;
     }
+    exact_owners().erase_owner(token->owner, token->generation);
     runtime_gate().finish_retirement();
     delete token;
     return 0;
@@ -598,6 +843,21 @@ int quarantine_retire(std::uintptr_t raw_token) noexcept
     return 0;
 }
 
+int configure_exact(std::uintptr_t owner, std::uint64_t generation,
+                    const char* profile_json,
+                    std::size_t profile_bytes) noexcept
+{
+    return exact_owners().configure(owner, generation, profile_json,
+                                    profile_bytes);
+}
+
+int publish_run_contract(
+    std::uintptr_t owner, std::uint64_t generation,
+    const hbfsim::ExactRunContractAbi* contract) noexcept
+{
+    return exact_owners().publish(owner, generation, contract);
+}
+
 const hbfsim::LaunchGateApiV2 launch_gate_api_v2{
     .abi_version = hbfsim::kLaunchGateAbiVersionV2,
     .struct_bytes = sizeof(hbfsim::LaunchGateApiV2),
@@ -611,7 +871,7 @@ const hbfsim::LaunchGateApiV2 launch_gate_api_v2{
 };
 
 const hbfsim::LaunchGateApiV3 launch_gate_api_v3{
-    .abi_version = hbfsim::kLaunchGateAbiVersion,
+    .abi_version = hbfsim::kLaunchGateAbiVersionV3,
     .struct_bytes = sizeof(hbfsim::LaunchGateApiV3),
     .activate = activate_timing_owner,
     .register_range = register_range,
@@ -623,18 +883,45 @@ const hbfsim::LaunchGateApiV3 launch_gate_api_v3{
     .register_range_with_policy = register_range_with_policy,
 };
 
-std::string handle_id(CUfunction function)
+const hbfsim::LaunchGateApiV4 launch_gate_api_v4{
+    .abi_version = hbfsim::kLaunchGateAbiVersion,
+    .struct_bytes = sizeof(hbfsim::LaunchGateApiV4),
+    .activate = activate_timing_owner,
+    .register_range = register_range,
+    .unregister_range = unregister_range,
+    .begin_retire = begin_retire,
+    .invalidate_retire = invalidate_retire,
+    .finish_retire = finish_retire,
+    .quarantine_retire = quarantine_retire,
+    .register_range_with_policy = register_range_with_policy,
+    .configure_exact = configure_exact,
+    .publish_run_contract = publish_run_contract,
+};
+
+std::optional<CUmodule> function_module(CUfunction function)
 {
+    if (function == nullptr) {
+        return std::nullopt;
+    }
     function = canonical_function(function);
     using get_module_type = CUresult (*)(CUmodule*, CUfunction);
     static auto get_module =
         reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
     CUmodule module = nullptr;
     if (get_module == nullptr ||
-        get_module(&module, function) != CUDA_SUCCESS) {
+        get_module(&module, function) != CUDA_SUCCESS || module == nullptr) {
+        return std::nullopt;
+    }
+    return module;
+}
+
+std::string handle_id(CUfunction function)
+{
+    const auto module = function_module(function);
+    if (!module.has_value()) {
         return {};
     }
-    const auto identity = module_identities().lookup(module_handle(module));
+    const auto identity = module_identities().lookup(module_handle(*module));
     return identity.has_value() ? hbfsim::module_id_from_identity(*identity)
                                 : std::string{};
 }
@@ -649,6 +936,53 @@ std::string function_name(CUfunction function)
                    name != nullptr
                ? name
                : "unknown_cufunction";
+}
+
+hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
+                                           CUfunction function)
+{
+    if (decision.range_policy == hbfsim::RangePolicy::None) {
+        return decision;
+    }
+    const auto domain = current_cuda_domain();
+    const auto exact = exact_owners().snapshot(domain);
+    if (!exact.required) {
+        return decision;
+    }
+
+    // A live snapshot is deliberately refreshed for each HBF-relevant launch.
+    // Exact mode never reuses context-creation observations.
+    const auto environment = hbfsim::collect_live_exact_environment(
+        static_cast<std::uint32_t>(getpid()));
+    if (!exact.profile.has_value()) {
+        decision.allowed = false;
+        decision.reason = "exact_admission_failed";
+        return decision;
+    }
+
+    hbfsim::LoadedModuleEvidence evidence;
+    evidence.module_id = decision.module_id;
+    if (const auto module = function_module(function)) {
+        if (const auto loaded =
+                module_identities().lookup_evidence(module_handle(*module))) {
+            evidence = *loaded;
+        }
+    }
+    const auto live = environment.environment.value_or(
+        hbfsim::ExactLiveEnvironment{});
+    const auto contract = exact.contract.value_or(hbfsim::ExactRunContract{});
+    try {
+        const auto admission = hbfsim::ExactAdmissionEvaluator{}.evaluate(
+            *exact.profile, evidence, live, contract, decision.kernel);
+        if (!admission.allowed) {
+            decision.allowed = false;
+            decision.reason = "exact_admission_failed";
+        }
+    } catch (...) {
+        decision.allowed = false;
+        decision.reason = "exact_admission_failed";
+    }
+    return decision;
 }
 
 CUfunction kernel_function(cudaKernel_t kernel)
@@ -751,19 +1085,21 @@ hbfsim::GateDecision inspect_function_launch(CUfunction function,
     const auto module_id = handle_id(function);
     const auto kernel = function_name(function);
     if (extra != nullptr) {
-        return runtime_gate().gate().has_ranges()
-                   ? unavailable(module_id, kernel)
-                   : hbfsim::GateDecision{.allowed = true,
-                                          .module_id = module_id,
-                                          .kernel = kernel};
+        auto decision = runtime_gate().gate().has_ranges()
+                            ? unavailable(module_id, kernel)
+                            : hbfsim::GateDecision{.allowed = true,
+                                                   .module_id = module_id,
+                                                   .kernel = kernel};
+        return apply_exact_admission(std::move(decision), function);
     }
     using get_info_type =
         CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
     static auto get_info =
         reinterpret_cast<get_info_type>(driver_symbol("cuFuncGetParamInfo"));
-    return require_timing_binding(
+    auto decision = require_timing_binding(
         inspect_bounded(function, module_id, kernel, arguments, get_info),
         function);
+    return apply_exact_admission(std::move(decision), function);
 }
 
 hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
@@ -788,10 +1124,11 @@ hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
                 raw_name != nullptr
             ? raw_name
             : "unknown_cukernel";
-    return require_timing_binding(
+    auto decision = require_timing_binding(
         inspect_bounded(reinterpret_cast<CUkernel>(kernel),
                         "cuda-module:unknown", name, arguments, get_info),
         function);
+    return apply_exact_admission(std::move(decision), function);
 }
 
 hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
@@ -803,12 +1140,14 @@ hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
     if (get_function == nullptr ||
         get_function(&runtime_function, symbol) != cudaSuccess ||
         runtime_function == nullptr) {
-        return runtime_gate().gate().has_ranges()
-                   ? unavailable("cuda-module:unknown",
-                                 "unknown_runtime_kernel")
-                   : hbfsim::GateDecision{.allowed = true,
-                                          .module_id = "cuda-module:unknown",
-                                          .kernel = "unknown_runtime_kernel"};
+        auto decision = runtime_gate().gate().has_ranges()
+                            ? unavailable("cuda-module:unknown",
+                                          "unknown_runtime_kernel")
+                            : hbfsim::GateDecision{
+                                  .allowed = true,
+                                  .module_id = "cuda-module:unknown",
+                                  .kernel = "unknown_runtime_kernel"};
+        return apply_exact_admission(std::move(decision), nullptr);
     }
     return inspect_function_launch(
         reinterpret_cast<CUfunction>(runtime_function), arguments, nullptr);
@@ -929,6 +1268,9 @@ extern "C" const void*
 hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
 {
     if (requested_version == hbfsim::kLaunchGateAbiVersion) {
+        return &launch_gate_api_v4;
+    }
+    if (requested_version == hbfsim::kLaunchGateAbiVersionV3) {
         return &launch_gate_api_v3;
     }
     if (requested_version == hbfsim::kLaunchGateAbiVersionV2) {
@@ -1089,11 +1431,14 @@ HBFSIM_DRIVER_EX(cuLaunchKernelEx_ptsz)
 HBFSIM_RUNTIME_EX(cudaLaunchKernelExC)
 HBFSIM_RUNTIME_EX(cudaLaunchKernelExC_ptsz)
 
-hbfsim::GateDecision opaque_launch(const char* kind)
+hbfsim::GateDecision opaque_launch(const char* kind,
+                                   CUfunction function = nullptr)
 {
     auto& gate = runtime_gate().gate();
-    return hbfsim::uninspectable_launch_decision(
-        gate.has_ranges(), gate.has_strict_ranges(), kind);
+    return apply_exact_admission(
+        hbfsim::uninspectable_launch_decision(
+            gate.has_ranges(), gate.has_strict_ranges(), kind),
+        function);
 }
 
 extern "C" CUresult cuLaunch(CUfunction function)
@@ -1105,7 +1450,7 @@ extern "C" CUresult cuLaunch(CUfunction function)
     if (runtime_launch_in_progress)
         return original(function);
     auto guard = runtime_gate().launch_guard();
-    return approve(opaque_launch("legacy_driver_launch"))
+    return approve(opaque_launch("legacy_driver_launch", function))
                ? original(function)
                : CUDA_ERROR_NOT_SUPPORTED;
 }
@@ -1121,7 +1466,7 @@ extern "C" CUresult cuLaunchGrid(CUfunction function, int grid_width,
         return original(function, grid_width, grid_height);
     }
     auto guard = runtime_gate().launch_guard();
-    return approve(opaque_launch("legacy_driver_launch"))
+    return approve(opaque_launch("legacy_driver_launch", function))
                ? original(function, grid_width, grid_height)
                : CUDA_ERROR_NOT_SUPPORTED;
 }
@@ -1138,7 +1483,7 @@ extern "C" CUresult cuLaunchGridAsync(CUfunction function, int grid_width,
         return original(function, grid_width, grid_height, stream);
     }
     auto guard = runtime_gate().launch_guard();
-    return approve(opaque_launch("legacy_driver_launch"))
+    return approve(opaque_launch("legacy_driver_launch", function))
                ? original(function, grid_width, grid_height, stream)
                : CUDA_ERROR_NOT_SUPPORTED;
 }
@@ -1352,6 +1697,7 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     if (result != CUDA_SUCCESS) {
         return result;
     }
+    exact_owners().note_mutation(current_cuda_domain());
     if (trusted_evidence.has_value() && module != nullptr &&
         *module != nullptr) {
         if (const auto identity = live_module_identity(*module)) {
@@ -1381,6 +1727,7 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
     if (result == CUDA_SUCCESS) {
         module_identities().erase(module_handle(module));
         timing_bindings().erase(module_handle(module));
+        exact_owners().invalidate_for_module_unload(current_cuda_domain());
     }
     return result;
 }

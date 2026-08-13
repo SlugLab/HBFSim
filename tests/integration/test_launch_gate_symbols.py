@@ -75,6 +75,10 @@ def main() -> int:
     require("hbfsim_coverage_add_range" not in source,
             "launch gate source retains a range-registration bypass")
     context_source = pathlib.Path(sys.argv[4]).read_text()
+    require("LaunchGateApiV4" in context_source and
+            "exact_requested ? !valid_v4" in context_source and
+            "exact_profile_json == nullptr" in context_source,
+            "exact context creation can downgrade below launch-gate v4")
     require("launch_gate_api_v3->quarantine_retire !=" in context_source and
             "launch_gate_api_v2->quarantine_retire !=" in context_source,
             "context accepts a launch-gate API without quarantine_retire")

@@ -81,6 +81,21 @@ hbfsim_context* create(const hbfsim_options& configuration)
     return context;
 }
 
+hbfsim_context* create_exact(const hbfsim_options& configuration,
+                             const char* exact_profile)
+{
+    hbfsim_options_v2 options_v2{
+        .struct_bytes = sizeof(hbfsim_options_v2),
+        .base = configuration,
+        .fidelity = HBFSIM_FIDELITY_EXACT_SM120,
+        .exact_profile_path = exact_profile,
+    };
+    hbfsim_context* context = nullptr;
+    CHECK(hbfsim_context_create_v2(&options_v2, &context) == HBFSIM_OK);
+    CHECK(context != nullptr);
+    return context;
+}
+
 int register_range_status(hbfsim_context* context)
 {
     fakeCudaSetPointerMetadata(0xCA00, 3, 2, 0, 0x1000, 0x1000);
@@ -262,6 +277,46 @@ int main(int argc, char** argv)
     fakeCudaSetCurrentDomain(0xCA00, 3);
     fakeCudaResetLifecycleCounts();
     fakeCudaCapacityReset();
+    if (std::strcmp(argv[1], "clean") == 0) {
+        const auto source_root =
+            std::filesystem::path(argv[2]).parent_path().parent_path()
+                .parent_path();
+        const auto exact_profile =
+            source_root / "tests/fixtures/exact/sm120-valid.json";
+        const auto malformed = std::filesystem::path(report) /
+                               "malformed-exact-profile.json";
+        {
+            std::ofstream output(malformed);
+            CHECK(output.good());
+            output << "{}";
+        }
+        hbfsim_options_v2 malformed_options{
+            .struct_bytes = sizeof(hbfsim_options_v2),
+            .base = configuration,
+            .fidelity = HBFSIM_FIDELITY_EXACT_SM120,
+            .exact_profile_path = malformed.c_str(),
+        };
+        hbfsim_context* malformed_context =
+            reinterpret_cast<hbfsim_context*>(1);
+        CHECK(hbfsim_context_create_v2(&malformed_options,
+                                       &malformed_context) ==
+              HBFSIM_INVALID_ARGUMENT);
+        CHECK(malformed_context == nullptr);
+
+        auto* exact_context =
+            create_exact(configuration, exact_profile.c_str());
+        register_range(exact_context);
+        load_trusted_module();
+        CHECK(launch_relevant() != 0);
+        CHECK(fakeCudaLaunchCount() == 0);
+        using unload_type = int (*)(void*);
+        auto unload = reinterpret_cast<unload_type>(
+            ::dlsym(RTLD_DEFAULT, "cuModuleUnload"));
+        CHECK(unload != nullptr &&
+              unload(reinterpret_cast<void*>(0x7000)) == 0);
+        hbfsim_context_destroy(exact_context);
+        fakeCudaResetLifecycleCounts();
+    }
     auto* context = create(configuration);
     const hbfsim_range_options unsupported_capacity{
         .mode = HBFSIM_RANGE_MODE_CAPACITY,

@@ -7,6 +7,7 @@
 #include "../host_service/request_dispatcher.hpp"
 
 #include <hbfsim/profile.hpp>
+#include <hbfsim/exact_profile.hpp>
 #include <hbfsim/launch_gate_abi.hpp>
 
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
@@ -27,6 +28,7 @@
 #include <dlfcn.h>
 #include <filesystem>
 #include <fcntl.h>
+#include <fstream>
 #include <limits>
 #include <linux/memfd.h>
 #include <memory>
@@ -56,6 +58,7 @@ struct hbfsim_context {
     pid_t daemon_pid{-1};
     std::uint64_t request_timeout_ns{0};
     bool cuda_registered{false};
+    const hbfsim::LaunchGateApiV4* launch_gate_api_v4{nullptr};
     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
     std::uint64_t control_generation{0};
@@ -84,7 +87,8 @@ using host_service::ControlView;
 bool launch_gate_available(const hbfsim_context* context) noexcept
 {
     return context != nullptr &&
-           (context->launch_gate_api_v3 != nullptr ||
+           (context->launch_gate_api_v4 != nullptr ||
+            context->launch_gate_api_v3 != nullptr ||
             context->launch_gate_api_v2 != nullptr);
 }
 
@@ -93,7 +97,11 @@ int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
                          std::uintptr_t cuda_context, int device_ordinal,
                          std::uint64_t* generation) noexcept
 {
-    return context->launch_gate_api_v3 != nullptr
+    return context->launch_gate_api_v4 != nullptr
+               ? context->launch_gate_api_v4->activate(
+                     owner, control_alias, cuda_context, device_ordinal,
+                     generation)
+           : context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->activate(
                      owner, control_alias, cuda_context, device_ordinal,
                      generation)
@@ -109,6 +117,11 @@ int launch_gate_register(hbfsim_context* context,
                          void* publish_state) noexcept
 {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
+    if (context->launch_gate_api_v4 != nullptr) {
+        return context->launch_gate_api_v4->register_range_with_policy(
+            owner, context->control_generation, begin, end, policy, publish,
+            publish_state);
+    }
     if (context->launch_gate_api_v3 != nullptr) {
         return context->launch_gate_api_v3->register_range_with_policy(
             owner, context->control_generation, begin, end, policy, publish,
@@ -125,7 +138,11 @@ int launch_gate_unregister(hbfsim_context* context, std::uintptr_t begin,
                            void* publish_state) noexcept
 {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
-    return context->launch_gate_api_v3 != nullptr
+    return context->launch_gate_api_v4 != nullptr
+               ? context->launch_gate_api_v4->unregister_range(
+                     owner, context->control_generation, begin, end, publish,
+                     publish_state)
+           : context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->unregister_range(
                      owner, context->control_generation, begin, end, publish,
                      publish_state)
@@ -138,7 +155,10 @@ int launch_gate_begin_retire(hbfsim_context* context,
                              std::uintptr_t* token) noexcept
 {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
-    return context->launch_gate_api_v3 != nullptr
+    return context->launch_gate_api_v4 != nullptr
+               ? context->launch_gate_api_v4->begin_retire(
+                     owner, context->control_generation, token)
+           : context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->begin_retire(
                      owner, context->control_generation, token)
                : context->launch_gate_api_v2->begin_retire(
@@ -148,7 +168,9 @@ int launch_gate_begin_retire(hbfsim_context* context,
 int launch_gate_invalidate(hbfsim_context* context,
                            std::uintptr_t token) noexcept
 {
-    return context->launch_gate_api_v3 != nullptr
+    return context->launch_gate_api_v4 != nullptr
+               ? context->launch_gate_api_v4->invalidate_retire(token)
+           : context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->invalidate_retire(token)
                : context->launch_gate_api_v2->invalidate_retire(token);
 }
@@ -156,7 +178,9 @@ int launch_gate_invalidate(hbfsim_context* context,
 int launch_gate_finish(hbfsim_context* context,
                        std::uintptr_t token) noexcept
 {
-    return context->launch_gate_api_v3 != nullptr
+    return context->launch_gate_api_v4 != nullptr
+               ? context->launch_gate_api_v4->finish_retire(token)
+           : context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->finish_retire(token)
                : context->launch_gate_api_v2->finish_retire(token);
 }
@@ -164,7 +188,9 @@ int launch_gate_finish(hbfsim_context* context,
 void launch_gate_quarantine(hbfsim_context* context,
                             std::uintptr_t token) noexcept
 {
-    if (context->launch_gate_api_v3 != nullptr) {
+    if (context->launch_gate_api_v4 != nullptr) {
+        (void)context->launch_gate_api_v4->quarantine_retire(token);
+    } else if (context->launch_gate_api_v3 != nullptr) {
         (void)context->launch_gate_api_v3->quarantine_retire(token);
     } else {
         (void)context->launch_gate_api_v2->quarantine_retire(token);
@@ -764,7 +790,8 @@ int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
 
 int create_context(const hbfsim_options* options, const char* daemon_path,
                    bool register_with_cuda, BeforeForkHook before_fork,
-                   void* hook_state, hbfsim_context** out)
+                   void* hook_state, hbfsim_context** out,
+                   const std::string* exact_profile_json = nullptr)
 {
     if (out != nullptr) {
         *out = nullptr;
@@ -904,18 +931,50 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
         if (get_api != nullptr) {
-            context->launch_gate_api_v3 =
-                static_cast<const hbfsim::LaunchGateApiV3*>(
+            context->launch_gate_api_v4 =
+                static_cast<const hbfsim::LaunchGateApiV4*>(
                     get_api(hbfsim::kLaunchGateAbiVersion));
-            if (context->launch_gate_api_v3 == nullptr) {
+            if (exact_profile_json == nullptr &&
+                context->launch_gate_api_v4 == nullptr) {
+                context->launch_gate_api_v3 =
+                    static_cast<const hbfsim::LaunchGateApiV3*>(
+                        get_api(hbfsim::kLaunchGateAbiVersionV3));
+            }
+            if (exact_profile_json == nullptr &&
+                context->launch_gate_api_v4 == nullptr &&
+                context->launch_gate_api_v3 == nullptr) {
                 context->launch_gate_api_v2 =
                     static_cast<const hbfsim::LaunchGateApiV2*>(
                         get_api(hbfsim::kLaunchGateAbiVersionV2));
             }
         }
+        const auto valid_v4 = context->launch_gate_api_v4 != nullptr &&
+                              context->launch_gate_api_v4->abi_version ==
+                                  hbfsim::kLaunchGateAbiVersion &&
+                              context->launch_gate_api_v4->struct_bytes >=
+                                  sizeof(hbfsim::LaunchGateApiV4) &&
+                              context->launch_gate_api_v4->activate != nullptr &&
+                              context->launch_gate_api_v4->register_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v4->unregister_range !=
+                                  nullptr &&
+                              context->launch_gate_api_v4->begin_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v4->invalidate_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v4->finish_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v4->quarantine_retire !=
+                                  nullptr &&
+                              context->launch_gate_api_v4
+                                      ->register_range_with_policy != nullptr &&
+                              context->launch_gate_api_v4->configure_exact !=
+                                  nullptr &&
+                              context->launch_gate_api_v4
+                                      ->publish_run_contract != nullptr;
         const auto valid_v3 = context->launch_gate_api_v3 != nullptr &&
                               context->launch_gate_api_v3->abi_version ==
-                                  hbfsim::kLaunchGateAbiVersion &&
+                                  hbfsim::kLaunchGateAbiVersionV3 &&
                               context->launch_gate_api_v3->struct_bytes >=
                                   sizeof(hbfsim::LaunchGateApiV3) &&
                               context->launch_gate_api_v3->activate != nullptr &&
@@ -952,7 +1011,9 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
                                   nullptr &&
                               context->launch_gate_api_v2->quarantine_retire !=
                                   nullptr;
-        if ((!valid_v3 && !valid_v2) ||
+        const auto exact_requested = exact_profile_json != nullptr;
+        if ((exact_requested ? !valid_v4
+                             : (!valid_v4 && !valid_v3 && !valid_v2)) ||
             launch_gate_activate(
                 context.get(), reinterpret_cast<std::uintptr_t>(context.get()),
                 reinterpret_cast<std::uintptr_t>(context->device_control),
@@ -967,6 +1028,14 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         context->device_ordinal = static_cast<int>(device);
         context->timing_owner_active = true;
         control.header()->control_generation = context->control_generation;
+        if (exact_requested &&
+            context->launch_gate_api_v4->configure_exact(
+                reinterpret_cast<std::uintptr_t>(context.get()),
+                context->control_generation, exact_profile_json->data(),
+                exact_profile_json->size()) != 0) {
+            release_context(context.release(), false);
+            return HBFSIM_INVALID_ARGUMENT;
+        }
 #else
         release_context(context.release(), false);
         return HBFSIM_CUDA_ERROR;
@@ -1449,6 +1518,53 @@ extern "C" int hbfsim_context_create(const hbfsim_options* options,
     }
     return hbfsim::runtime::create_context(options, daemon, true, nullptr,
                                            nullptr, out);
+}
+
+extern "C" int hbfsim_context_create_v2(const hbfsim_options_v2* options,
+                                         hbfsim_context** out)
+{
+    if (out != nullptr) {
+        *out = nullptr;
+    }
+    if (out == nullptr || options == nullptr ||
+        options->struct_bytes != sizeof(hbfsim_options_v2)) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (options->fidelity != HBFSIM_FIDELITY_EMULATION &&
+        options->fidelity != HBFSIM_FIDELITY_EXACT_SM120) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+
+    std::string exact_profile_json;
+    if (options->fidelity == HBFSIM_FIDELITY_EXACT_SM120) {
+        if (options->exact_profile_path == nullptr ||
+            options->exact_profile_path[0] == '\0') {
+            return HBFSIM_INVALID_ARGUMENT;
+        }
+        std::ifstream input(options->exact_profile_path, std::ios::binary);
+        if (!input.good()) {
+            return HBFSIM_IO_ERROR;
+        }
+        exact_profile_json.assign(std::istreambuf_iterator<char>(input), {});
+        if (input.bad()) {
+            return HBFSIM_IO_ERROR;
+        }
+        try {
+            (void)hbfsim::parse_exact_profile(exact_profile_json);
+        } catch (const hbfsim::ExactProfileError&) {
+            return HBFSIM_INVALID_ARGUMENT;
+        }
+    }
+
+    const char* daemon = std::getenv("HBFSIM_DAEMON_PATH");
+    if (daemon == nullptr || daemon[0] == '\0') {
+        daemon = "hbfsimd";
+    }
+    const auto* exact = options->fidelity == HBFSIM_FIDELITY_EXACT_SM120
+                            ? &exact_profile_json
+                            : nullptr;
+    return hbfsim::runtime::create_context(&options->base, daemon, true,
+                                           nullptr, nullptr, out, exact);
 }
 
 extern "C" int hbfsim_register_device(

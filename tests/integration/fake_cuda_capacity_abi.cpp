@@ -60,6 +60,13 @@ CUresult CUDAAPI cuCtxGetDevice(CUdevice* device)
                : CUDA_ERROR_INVALID_CONTEXT;
 }
 
+CUresult CUDAAPI cuDeviceGetName(char*, int, CUdevice)
+{
+    // Exact launch tests intentionally provide no calibrated device snapshot.
+    // A normal driver error lets the runtime exercise its fail-closed path.
+    return CUDA_ERROR_NOT_SUPPORTED;
+}
+
 CUresult CUDAAPI cuMemGetAllocationGranularity(
     std::size_t* granularity, const CUmemAllocationProp* properties,
     CUmemAllocationGranularity_flags option)

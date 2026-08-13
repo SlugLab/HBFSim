@@ -311,3 +311,106 @@ source states Ea = 1.1 eV *for planar NAND* and says explicitly that no public
 value exists for 3D NAND. Since HBF stacks 3D NAND, Ea is an unknown parameter
 for our device, not a constant we may assume. The paper is also the reason to
 run Ea as a sensitivity sweep rather than a fixed input.
+
+---
+
+## `yang2025-egpu-ebpf-ptx-injection.pdf`
+
+The direct predecessor of this project's instrumentation path, and the reason
+the coverage problem is a real research challenge rather than an engineering
+detail. Same first author as this repository.
+
+> Yiwei Yang, Tong Yu, Yusheng Zheng, and Andrew Quinn.
+> "eGPU: Extending eBPF Programmability and Observability to GPUs."
+> In *4th Workshop on Heterogeneous Composable and Disaggregated Systems
+> (HCDS '25)*, March 30, 2025, Rotterdam, Netherlands. 7 pages.
+> DOI: `10.1145/3723851.3726984`
+
+- Affiliations: UC Santa Cruz; Eunomia Inc.
+- Full text: <https://asplos.dev/pdf/bpftime_super.pdf>
+- SHA-256: `8a25c18a0a6f9cd5efa1618e6b49062b12182cfcfadaad5f0074600ce96730eb`
+- 7 pages.
+- Code: <https://github.com/victoryang00/bpftime-super> (also merged into
+  <https://github.com/eunomia-bpf/bpftime>)
+
+Verified from the full text (pdftotext):
+
+- It claims to be first at this: "we introduce eGPU, the first framework and
+  eBPF runtime that dynamically offloads eBPF bytecode onto GPUs via dynamic
+  PTX injection."
+- Mechanism: eBPF bytecode is just-in-time compiled into PTX snippets and
+  injected into running GPU kernels without interrupting them; shared memory
+  registered as pinned (or pinned-like) lets the GPU and CPU sides observe the
+  same data structures without repeated copying.
+- Baseline it compares against is gpumemtrace, which instruments the `mov`
+  instruction and reroutes it to the host; the paper notes NVBit's
+  instrumentation overhead becomes a bottleneck once the hashmap value size
+  grows past 32KB, because the data no longer fits the eBPF stack and must
+  live in a global map.
+- Evaluation platform: dual-socket Intel Xeon E5-2697-v2 (48 cores, 2.7 GHz,
+  30 MB LLC), 256 GB DDR3.
+- **Its own stated limitation (Section 7.2), quoted:** "While our
+  micro-benchmark clearly demonstrates eGPU's low instrumentation overhead, we
+  acknowledge that our current evaluation scope is limited. Specifically, we
+  have not yet conducted extensive end-to-end performance evaluations on
+  complex, real-world workloads such as large-scale machine learning models or
+  HPC simulations."
+
+What this project uses: two things. First, it is prior work on the exact
+mechanism this project builds on -- rewriting PTX to instrument a running GPU
+kernel -- so Related Work must cite it. Second, its stated limitation is
+evidence for how new this path is: the step it has not taken (end-to-end
+evaluation on a large-scale machine learning model) is the step this project
+takes, and the coverage problem that follows -- production stacks ship
+compiled cubins with no rewritable intermediate code -- is not something the
+CPU-side or hypervisor-side simulators (CXLMemSim, Cylon) ever face.
+
+---
+
+## `villa2019-nvbit-gpu-binary-instrumentation.pdf`
+
+The instrumentation framework that reaches the programs this project's PTX
+route cannot reach, and the baseline the eGPU paper above compares against.
+
+> Oreste Villa, Mark Stephenson, David Nellans, and Stephen W. Keckler.
+> "NVBit: A Dynamic Binary Instrumentation Framework for NVIDIA GPUs."
+> In *Proceedings of the 52nd Annual IEEE/ACM International Symposium on
+> Microarchitecture (MICRO-52)*, 2019, pages 372--383.
+> DOI: `10.1145/3352460.3358307`
+
+- Affiliation: NVIDIA.
+- Stable link:
+  <https://d1qx31qr3h6wln.cloudfront.net/publications/MICRO_2019_NVBit.pdf>
+- SHA-256: `0d16035cea56057c5ca9e6d58bb5532ae0bcf02037dd07089aa80e2dffd33d1c`
+- 1,838,380 bytes; 73,036 characters of body text extracted with `pdftotext`.
+  Proceedings pages 372--383.
+- BibTeX key: `villa2019nvbit`, already added to `paper/refs.bib`.
+
+Why this project holds it: NVBit works at the `SASS` level. `SASS` is the
+machine instruction set the NVIDIA driver ultimately executes, and the file
+that carries `SASS` is a `cubin`. That is exactly the class of program the PTX
+rewriting route in this repository cannot modify, which is the coverage problem
+recorded in the eGPU entry above.
+
+Verified from the full text and from the NVBit repository's own README:
+
+- Source is not required, quoted from the NVBit README: `Because NVBit does not
+  require application source code, any pre-compiled GPU application should work
+  regardless of which compiler (or version) has been used`.
+- Supported hardware, quoted from the same README:
+  `SM compute capability: >= 3.5 && <= 12.1`. The verification GPU here is
+  compute capability 12.0, inside that range. The same README also states
+  `CUDA driver version: <= 575.xx`, while the verification platform runs driver
+  595.84, so the combination has not been tried here.
+- How much execution sits inside pre-compiled libraries, quoted from Section
+  6.1: `To understand the extent of this problem we have also applied an
+  optimized version of the instruction count tool in Listing 1 and measured the
+  percentage of instructions executed by these workloads inside pre-compiled
+  libraries. This percentage ranges from 74% to 96%, and averages 88% of the
+  total executed instructions across the various ML workloads.` Immediately
+  after that: `NVBit instead does not require source code and it works on any
+  application binary that makes use of these libraries, applying instrumentation
+  at run-time only on the kernels that are actually invoked.`
+- Cost: instrumenting every instruction is on average 36.4x slower than native
+  execution and up to 112x in the worst case; sampling instead of full
+  instrumentation brings the figure down to 2.3x.

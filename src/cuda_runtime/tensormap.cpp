@@ -153,6 +153,14 @@ void TensorMapRegistry::erase_context(std::uintptr_t context)
     });
 }
 
+void TensorMapRegistry::erase_device(int device)
+{
+    std::unique_lock lock(mutex_);
+    std::erase_if(domains_, [device](const auto& entry) {
+        return entry.first.device == device;
+    });
+}
+
 void TensorMapRegistry::clear()
 {
     std::unique_lock lock(mutex_);

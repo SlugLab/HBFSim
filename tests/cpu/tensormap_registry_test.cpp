@@ -96,6 +96,11 @@ int main()
     registry.erase_context(0xabc);
     require(!registry.lookup(0xabc, 0, duplicate.descriptor),
             "context invalidation retained a descriptor");
+    require(registry.publish(0xdef, 7, tiled),
+            "device-invalidation fixture publish failed");
+    registry.erase_device(7);
+    require(!registry.lookup(0xdef, 7, tiled.descriptor),
+            "device invalidation retained a descriptor");
     require(!registry.publish(0, 0, tiled) &&
                 !registry.publish(1, -1, tiled),
             "invalid domain was accepted");

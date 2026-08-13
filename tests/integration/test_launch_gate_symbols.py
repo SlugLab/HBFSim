@@ -52,6 +52,8 @@ def main() -> int:
         "cudaGetDriverEntryPointByVersion",
         "cudaGetDriverEntryPointByVersion_ptsz",
         "cuModuleLoadDataEx", "cuModuleUnload",
+        "cuTensorMapEncodeTiled", "cuTensorMapEncodeIm2col",
+        "cuTensorMapEncodeIm2colWide", "cuTensorMapReplaceAddress",
         "hbfsim_begin_module_load_from_ptx",
         "hbfsim_begin_module_load_from_aot", "hbfsim_end_module_load",
         "hbfsim_collect_exact_environment_v1",
@@ -102,11 +104,18 @@ def main() -> int:
         "cuDevicePrimaryCtxReset_v2", "cuDevicePrimaryCtxRelease",
         "cuDevicePrimaryCtxRelease_v2",
     }
+    tensormap_symbols = {
+        "cuTensorMapEncodeTiled", "cuTensorMapEncodeIm2col",
+        "cuTensorMapEncodeIm2colWide", "cuTensorMapReplaceAddress",
+    }
     if toolkit_version >= (12, 4):
         driver_lifecycle.add("cuGreenCtxDestroy")
     for symbol in driver_lifecycle:
         require(f'"{symbol}"' in lookup_map,
                 f"driver-entry lookup can bypass lifecycle hook: {symbol}")
+    for symbol in tensormap_symbols:
+        require(f'"{symbol}"' in lookup_map,
+                f"driver-entry lookup can bypass TensorMap hook: {symbol}")
     for symbol in required:
         if "Launch" in symbol:
             require(f'"{symbol}"' in source or f'({symbol})' in source,

@@ -679,7 +679,11 @@ if(CUDAToolkit_FOUND)
         )
     endif()
 
-    add_library(hbfsim_launch_gate SHARED src/cuda_runtime/launch_gate.cpp)
+    add_library(
+        hbfsim_launch_gate SHARED
+        src/cuda_runtime/launch_gate.cpp
+        src/cuda_runtime/tensormap_interpose.cpp
+    )
     target_link_libraries(hbfsim_launch_gate PRIVATE hbfsim_core ${CMAKE_DL_LIBS})
     target_include_directories(
         hbfsim_launch_gate
@@ -789,6 +793,13 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
                     "${CUDAToolkit_VERSION}"
+        )
+        add_test(
+            NAME tensormap_interposition
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_tensormap_interposition.py"
+                    "$<TARGET_FILE:hbfsim_launch_gate>"
+                    "$<TARGET_FILE:fake_cuda_lookup>"
         )
         if(HBFSIM_ENABLE_CUDA)
             add_test(

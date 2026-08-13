@@ -4,6 +4,7 @@
 #include "hbfsim/exact_environment.hpp"
 #include "hbfsim/launch_gate_abi.hpp"
 #include "hbfsim/module_identity.hpp"
+#include "hbfsim/tensormap.hpp"
 #include "hbfsim/timing_binding.hpp"
 
 #include <cuda.h>
@@ -638,12 +639,14 @@ void erase_context_state(std::uintptr_t cuda_context) noexcept
     timing_bindings().erase_context(cuda_context, erase_module_identity,
                                     nullptr);
     exact_owners().erase_context(cuda_context);
+    hbfsim::global_tensormap_registry().erase_context(cuda_context);
 }
 
 void erase_unbound_device_state(int device_ordinal) noexcept
 {
     timing_bindings().erase_unbound_device(
         device_ordinal, erase_module_identity, nullptr);
+    hbfsim::global_tensormap_registry().erase_device(device_ordinal);
 }
 
 bool timing_binding_ready(CUfunction function) noexcept
@@ -1763,7 +1766,15 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
     if (result == CUDA_SUCCESS) {
         module_identities().erase(module_handle(module));
         timing_bindings().erase(module_handle(module));
-        exact_owners().invalidate_for_module_unload(current_cuda_domain());
+        const auto domain = current_cuda_domain();
+        exact_owners().invalidate_for_module_unload(domain);
+        if (domain.has_value()) {
+            // A descriptor may have been copied into device memory owned by
+            // this module.  CUDA does not expose that ownership relation, so
+            // exact mode invalidates the whole context rather than retaining
+            // provenance that can no longer be proved live.
+            hbfsim::global_tensormap_registry().erase_context(domain->context);
+        }
     }
     return result;
 }
@@ -2016,6 +2027,14 @@ void* interposed_wrapper_address(const char* symbol, bool per_thread)
          wrapper_address(&cuGraphLaunch_ptsz)},
         {"cuModuleLoadDataEx", wrapper_address(&cuModuleLoadDataEx), nullptr},
         {"cuModuleUnload", wrapper_address(&cuModuleUnload), nullptr},
+        {"cuTensorMapEncodeTiled", wrapper_address(&cuTensorMapEncodeTiled),
+         nullptr},
+        {"cuTensorMapEncodeIm2col", wrapper_address(&cuTensorMapEncodeIm2col),
+         nullptr},
+        {"cuTensorMapEncodeIm2colWide",
+         wrapper_address(&cuTensorMapEncodeIm2colWide), nullptr},
+        {"cuTensorMapReplaceAddress",
+         wrapper_address(&cuTensorMapReplaceAddress), nullptr},
         {"cuCtxDestroy", wrapper_address(&cuCtxDestroy), nullptr},
         {"cuCtxDestroy_v2", wrapper_address(&cuCtxDestroy_v2), nullptr},
         {"cuCtxDetach", wrapper_address(&cuCtxDetach), nullptr},

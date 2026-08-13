@@ -86,6 +86,10 @@ def main() -> int:
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
     ]
+    tensormap_symbols = [
+        "cuTensorMapEncodeTiled", "cuTensorMapEncodeIm2col",
+        "cuTensorMapEncodeIm2colWide", "cuTensorMapReplaceAddress",
+    ]
     if toolkit_version >= (12, 4):
         lifecycle_symbols.append("cuGreenCtxDestroy")
     lookup_apis = (
@@ -111,6 +115,11 @@ def main() -> int:
                 result, output = lookup(process, lookup_name, symbol, flags)
                 require(result == 0 and output == address(gate_library, symbol),
                         f"{lookup_name} bypassed lifecycle hook {symbol}")
+        for symbol in tensormap_symbols:
+            for flags in (0, 2):
+                result, output = lookup(process, lookup_name, symbol, flags)
+                require(result == 0 and output == address(gate_library, symbol),
+                        f"{lookup_name} bypassed TensorMap hook {symbol}")
 
         result, output = lookup(process, lookup_name, "cuMemcpyDtoH", 0)
         require(result == 0 and output == 0x1234,

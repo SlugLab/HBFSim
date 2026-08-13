@@ -63,6 +63,7 @@ class TensorMapRegistry {
     bool fence(std::uintptr_t context, int device,
                std::span<const std::byte, 128> descriptor);
     void erase_context(std::uintptr_t context);
+    void erase_device(int device);
     void clear();
 
   private:

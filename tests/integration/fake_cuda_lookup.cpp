@@ -30,6 +30,7 @@ bool synchronize_fails = false;
 int unregister_count = 0;
 bool unregister_fails = false;
 bool nested_runtime_reset = false;
+bool tensormap_fails = false;
 thread_local std::uintptr_t current_context = 0xCA00;
 thread_local int current_device = 3;
 std::mutex domain_mutex;
@@ -822,6 +823,61 @@ int cuLaunchKernelEx_ptsz(const void* config, void* function,
     return cuLaunchKernelEx(config, function, parameters, extra);
 }
 
+int fake_tensor_map_encode(void* tensor_map, std::uint8_t tag,
+                           void* address)
+{
+    if (tensormap_fails || tensor_map == nullptr || address == nullptr) {
+        return 1;
+    }
+    auto* bytes = static_cast<std::uint8_t*>(tensor_map);
+    std::fill(bytes, bytes + 128, tag);
+    const auto encoded_address = reinterpret_cast<std::uintptr_t>(address);
+    std::memcpy(bytes + 8, &encoded_address, sizeof(encoded_address));
+    return 0;
+}
+
+int cuTensorMapEncodeTiled(
+    void* tensor_map, int, std::uint32_t rank, void* address,
+    const std::uint64_t*, const std::uint64_t*, const std::uint32_t*,
+    const std::uint32_t*, int, int, int, int)
+{
+    return rank >= 1 && rank <= 5
+               ? fake_tensor_map_encode(tensor_map, 0x11, address)
+               : 1;
+}
+
+int cuTensorMapEncodeIm2col(
+    void* tensor_map, int, std::uint32_t rank, void* address,
+    const std::uint64_t*, const std::uint64_t*, const int*, const int*,
+    std::uint32_t, std::uint32_t, const std::uint32_t*, int, int, int, int)
+{
+    return rank >= 3 && rank <= 5
+               ? fake_tensor_map_encode(tensor_map, 0x22, address)
+               : 1;
+}
+
+int cuTensorMapEncodeIm2colWide(
+    void* tensor_map, int, std::uint32_t rank, void* address,
+    const std::uint64_t*, const std::uint64_t*, int, int, std::uint32_t,
+    std::uint32_t, const std::uint32_t*, int, int, int, int, int)
+{
+    return rank >= 3 && rank <= 5
+               ? fake_tensor_map_encode(tensor_map, 0x33, address)
+               : 1;
+}
+
+int cuTensorMapReplaceAddress(void* tensor_map, void* address)
+{
+    if (tensormap_fails || tensor_map == nullptr || address == nullptr) {
+        return 1;
+    }
+    auto* bytes = static_cast<std::uint8_t*>(tensor_map);
+    bytes[0] ^= 0x80;
+    const auto encoded_address = reinterpret_cast<std::uintptr_t>(address);
+    std::memcpy(bytes + 8, &encoded_address, sizeof(encoded_address));
+    return 0;
+}
+
 void fakeCudaSetUnloadFailure(int fail)
 {
     unload_fails = fail != 0;
@@ -892,6 +948,11 @@ void fakeCudaReleaseLifecycle()
 void fakeCudaSetNestedRuntimeReset(int enabled)
 {
     nested_runtime_reset = enabled != 0;
+}
+
+void fakeCudaSetTensorMapFailure(int enabled)
+{
+    tensormap_fails = enabled != 0;
 }
 
 void fakeCudaSetPointerMetadata(std::uintptr_t context, int device,

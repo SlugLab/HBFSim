@@ -12,9 +12,13 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 7;
+inline constexpr std::uint32_t kControlAbiVersion = 8;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kTensorMapCapacity = 256;
+inline constexpr std::uint32_t kSm120StateCapacity = 256;
+inline constexpr std::uint32_t kSm120RoutingLutCapacity = 64;
+inline constexpr std::uint64_t kSm120ChannelConfigMagic =
+    0x534d313230434846ULL;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;
@@ -94,6 +98,12 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t tma_stale_generations;
     alignas(8) std::uint64_t tma_faults;
     alignas(8) std::uint64_t tma_leaked;
+    std::uint64_t sm120_channel_config_offset;
+    std::uint64_t sm120_channel_state_offset;
+    std::uint32_t sm120_channel_state_capacity;
+    alignas(4) std::uint32_t sm120_channel_state_count;
+    alignas(8) std::uint64_t sm120_channel_profile_generation;
+    alignas(8) std::uint64_t sm120_channel_saturated;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -128,6 +138,45 @@ struct alignas(64) SharedTensorMapSlot {
     std::uint32_t l2_promotion;
     std::uint32_t oob_fill;
     std::uint32_t fenced;
+};
+
+struct alignas(64) SharedSm120ChannelConfig {
+    std::uint64_t magic;
+    std::uint32_t routing_version;
+    std::uint32_t enabled;
+    std::uint32_t gnic_count;
+    std::uint32_t gpc_count;
+    std::uint32_t gnic_depth;
+    std::uint32_t gpc_depth;
+    std::uint32_t gnic_arbitration;
+    std::uint32_t gpc_arbitration;
+    std::uint32_t smsp_proxy_lut_count;
+    std::uint32_t gnic_lut_count;
+    std::uint32_t gpc_lut_count;
+    std::byte routing_program_sha256[32];
+    std::byte reserved0[44];
+    std::uint64_t gnic_service_ns_by_class[7];
+    std::uint64_t gpc_service_ns_by_class[7];
+    std::uint32_t smsp_proxy_lut[kSm120RoutingLutCapacity];
+    std::uint32_t gnic_lut[kSm120RoutingLutCapacity];
+    std::uint32_t gpc_lut[kSm120RoutingLutCapacity];
+};
+
+struct alignas(64) SharedSm120ChannelState {
+    alignas(8) std::uint64_t gnic_tail_ns[4];
+    std::uint64_t gpc_tail_ns[2];
+    std::uint64_t gnic_bytes[4];
+    std::uint64_t gpc_bytes[2];
+    std::uint64_t gnic_service_ns[4];
+    std::uint64_t gpc_service_ns[2];
+    std::uint64_t gnic_requests[4];
+    std::uint64_t gpc_requests[2];
+    alignas(4) std::uint32_t gnic_outstanding[4];
+    std::uint32_t gpc_outstanding[2];
+    alignas(8) std::uint64_t saturated_requests;
+    alignas(8) std::uint64_t gnic_round_robin;
+    std::uint64_t gpc_round_robin;
+    std::byte reserved[16];
 };
 
 struct alignas(64) HbfRequest {
@@ -224,6 +273,24 @@ struct MediaDescriptor {
     bool valid;
 };
 
+struct Sm120DeviceRoutingInput {
+    std::uint32_t smid;
+    std::uint32_t warpid;
+    std::uint32_t cta_x;
+    std::uint32_t cta_y;
+    std::uint32_t cta_z;
+    std::uint32_t resident_warps;
+    std::uint32_t cluster_ctarank;
+    std::uint32_t operation;
+};
+
+struct Sm120DeviceChannelSelection {
+    std::uint32_t smsp_proxy;
+    std::uint32_t gnic;
+    std::uint32_t gpc;
+    bool valid;
+};
+
 HBFSIM_HOST_DEVICE constexpr bool tensormap_sha_equal(
     const std::byte* left, const std::byte* right) noexcept
 {
@@ -253,9 +320,11 @@ HBFSIM_HOST_DEVICE constexpr std::uint32_t find_tensormap_slot(
     return count;
 }
 
-static_assert(sizeof(SharedControlHeader) == 512);
+static_assert(sizeof(SharedControlHeader) == 576);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedTensorMapSlot) == 384);
+static_assert(sizeof(SharedSm120ChannelConfig) == 1024);
+static_assert(sizeof(SharedSm120ChannelState) == 256);
 static_assert(sizeof(HbfRequest) == 128);
 static_assert(sizeof(HbfCompletion) == 64);
 static_assert(sizeof(PageEntry) == 64);
@@ -286,6 +355,83 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
     value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
     value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
     return value ^ (value >> 31);
+}
+
+HBFSIM_HOST_DEVICE constexpr bool sm120_channel_config_valid(
+    const SharedSm120ChannelConfig& config) noexcept
+{
+    if (config.magic != kSm120ChannelConfigMagic || config.enabled != 1 ||
+        config.routing_version == 0 || config.gnic_count != 4 ||
+        config.gpc_count != 2 || config.gnic_depth == 0 ||
+        config.gpc_depth == 0 || config.gnic_arbitration > 1 ||
+        config.gpc_arbitration > 1 || config.smsp_proxy_lut_count == 0 ||
+        config.smsp_proxy_lut_count > kSm120RoutingLutCapacity ||
+        config.gnic_lut_count == 0 ||
+        config.gnic_lut_count > kSm120RoutingLutCapacity ||
+        config.gpc_lut_count == 0 ||
+        config.gpc_lut_count > kSm120RoutingLutCapacity) return false;
+    for (std::uint32_t index = 0; index < 7; ++index) {
+        if (config.gnic_service_ns_by_class[index] == 0 ||
+            config.gpc_service_ns_by_class[index] == 0) return false;
+    }
+    for (std::uint32_t index = 0; index < config.gnic_lut_count; ++index)
+        if (config.gnic_lut[index] >= 4) return false;
+    for (std::uint32_t index = 0; index < config.gpc_lut_count; ++index)
+        if (config.gpc_lut[index] >= 2) return false;
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr Sm120DeviceChannelSelection
+route_sm120_channel(const SharedSm120ChannelConfig& config,
+                    const Sm120DeviceRoutingInput& input) noexcept
+{
+    if (!sm120_channel_config_valid(config) || input.operation >= 7 ||
+        input.cta_x == 0 || input.cta_y == 0 || input.cta_z == 0 ||
+        input.resident_warps == 0) return {};
+    auto key = fast_hash(input.smid);
+    key = fast_hash(key ^ input.warpid);
+    key = fast_hash(key ^ (std::uint64_t{input.cta_x} << 32) ^ input.cta_y);
+    key = fast_hash(key ^ (std::uint64_t{input.cta_z} << 32) ^
+                    input.resident_warps);
+    key = fast_hash(key ^ (std::uint64_t{input.cluster_ctarank} << 32) ^
+                    input.operation);
+    const auto proxy = config.smsp_proxy_lut[
+        key % config.smsp_proxy_lut_count];
+    const auto gnic_index = fast_hash(
+        key ^ proxy ^ (std::uint64_t{input.operation} << 32)) %
+        config.gnic_lut_count;
+    const auto gpc_index = fast_hash(
+        key ^ (std::uint64_t{proxy} << 32) ^ input.operation) %
+        config.gpc_lut_count;
+    return {.smsp_proxy = proxy,
+            .gnic = config.gnic_lut[gnic_index],
+            .gpc = config.gpc_lut[gpc_index],
+            .valid = true};
+}
+
+HBFSIM_HOST_DEVICE constexpr bool sm120_operation_uses_gnic(
+    std::uint32_t operation) noexcept
+{
+    return operation == 0 || operation == 2 || operation == 4 ||
+           operation == 5 || operation == 6;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool sm120_operation_uses_gpc(
+    std::uint32_t operation) noexcept
+{
+    return operation == 1 || operation == 3 || operation == 6;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t sm120_ready_max(
+    std::uint64_t base, std::uint64_t gnic, std::uint64_t gpc,
+    std::uint64_t media, std::uint64_t capacity,
+    std::uint64_t native) noexcept
+{
+    auto result = base > gnic ? base : gnic;
+    result = result > gpc ? result : gpc;
+    result = result > media ? result : media;
+    result = result > capacity ? result : capacity;
+    return result > native ? result : native;
 }
 
 HBFSIM_HOST_DEVICE constexpr bool hybrid_reference_sample(

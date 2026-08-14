@@ -16,15 +16,19 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 7);
-    static_assert(host_service::kControlAbiVersion == 7);
-    static_assert(sizeof(SharedControlHeader) == 512);
+    static_assert(device::kControlAbiVersion == 8);
+    static_assert(host_service::kControlAbiVersion == 8);
+    static_assert(sizeof(SharedControlHeader) == 576);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
     static_assert(sizeof(SharedRangeRecord) ==
                   sizeof(host_service::SharedRangeRecord));
     static_assert(sizeof(SharedTensorMapSlot) ==
                   sizeof(host_service::SharedTensorMapSlot));
+    static_assert(sizeof(SharedSm120ChannelConfig) ==
+                  sizeof(host_service::SharedSm120ChannelConfig));
+    static_assert(sizeof(SharedSm120ChannelState) ==
+                  sizeof(host_service::SharedSm120ChannelState));
     static_assert(sizeof(hbfsim::device::HbfRequest) ==
                   sizeof(hbfsim::HbfRequest));
     static_assert(sizeof(hbfsim::device::HbfCompletion) ==
@@ -79,6 +83,9 @@ int main()
     static_assert(offsetof(SharedControlHeader, tensormap_offset) ==
                   offsetof(host_service::SharedControlHeader,
                            tensormap_offset));
+    static_assert(offsetof(SharedControlHeader, sm120_channel_state_offset) ==
+                  offsetof(host_service::SharedControlHeader,
+                           sm120_channel_state_offset));
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));

@@ -44,6 +44,16 @@ __device__ bool system_compare_exchange(std::uint64_t* address,
                                        cuda::memory_order_relaxed);
 }
 
+__device__ bool system_compare_exchange(std::uint32_t* address,
+                                        std::uint32_t& expected,
+                                        std::uint32_t desired)
+{
+    cuda::atomic_ref<std::uint32_t, cuda::thread_scope_system> value(*address);
+    return value.compare_exchange_weak(expected, desired,
+                                       cuda::memory_order_acquire,
+                                       cuda::memory_order_relaxed);
+}
+
 __device__ std::uint64_t system_fetch_add(std::uint64_t* address,
                                           std::uint64_t increment)
 {
@@ -485,9 +495,19 @@ __device__ bool valid_control(const SharedControlHeader* header,
     const auto expected_region_bytes =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity +
         sizeof(hbfsim::device::SharedTensorMapSlot) *
-            hbfsim::device::kTensorMapCapacity;
+            hbfsim::device::kTensorMapCapacity +
+        sizeof(hbfsim::device::SharedSm120ChannelConfig) +
+        sizeof(hbfsim::device::SharedSm120ChannelState) *
+            hbfsim::device::kSm120StateCapacity;
     const auto expected_tensormap_offset =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity;
+    const auto expected_channel_config_offset =
+        expected_tensormap_offset +
+        sizeof(hbfsim::device::SharedTensorMapSlot) *
+            hbfsim::device::kTensorMapCapacity;
+    const auto expected_channel_state_offset =
+        expected_channel_config_offset +
+        sizeof(hbfsim::device::SharedSm120ChannelConfig);
     return expected_generation != 0 &&
            header->magic == hbfsim::device::kControlMagic &&
            header->abi_version == hbfsim::device::kControlAbiVersion &&
@@ -502,12 +522,154 @@ __device__ bool valid_control(const SharedControlHeader* header,
            header->completion_offset == expected_completion_offset &&
            header->page_offset == expected_page_offset &&
            header->tensormap_offset == expected_tensormap_offset &&
+           header->sm120_channel_config_offset ==
+               expected_channel_config_offset &&
+           header->sm120_channel_state_offset ==
+               expected_channel_state_offset &&
+           header->sm120_channel_state_capacity ==
+               hbfsim::device::kSm120StateCapacity &&
+           header->sm120_channel_state_count <=
+               hbfsim::device::kSm120StateCapacity &&
            header->region_bytes == expected_region_bytes &&
            header->timing_model <= 2 && header->read_latency_ns != 0 &&
            header->program_latency_ns != 0 &&
            header->aggregate_bandwidth_bytes_per_s != 0 &&
            system_acquire(&header->control_generation) ==
                expected_generation;
+}
+
+struct DeviceChannelReservation {
+    std::uint64_t ready_ns{0};
+    std::uint32_t packed_channels{0};
+    bool valid{false};
+    bool saturated{false};
+};
+
+__device__ DeviceChannelReservation reserve_sm120_channels(
+    SharedControlHeader* header, std::uint32_t operation,
+    std::uint32_t bytes, std::uint64_t arrival_ns,
+    std::uint64_t base_ready_ns, std::uint64_t media_ready_ns = 0,
+    std::uint64_t capacity_ready_ns = 0,
+    std::uint64_t native_ready_ns = 0)
+{
+    if (system_acquire(&header->sm120_channel_profile_generation) == 0) {
+        return {.ready_ns = hbfsim::device::sm120_ready_max(
+                    base_ready_ns, 0, 0, media_ready_ns,
+                    capacity_ready_ns, native_ready_ns),
+                .valid = true};
+    }
+    auto* base = reinterpret_cast<std::byte*>(header);
+    const auto* config =
+        reinterpret_cast<const hbfsim::device::SharedSm120ChannelConfig*>(
+            base + header->sm120_channel_config_offset);
+    std::uint32_t smid = 0;
+    std::uint32_t warpid = 0;
+    std::uint32_t cluster_ctarank = 0;
+    asm volatile("mov.u32 %0, %%smid;" : "=r"(smid));
+    asm volatile("mov.u32 %0, %%warpid;" : "=r"(warpid));
+    asm volatile("mov.u32 %0, %%cluster_ctarank;"
+                 : "=r"(cluster_ctarank));
+    const auto cta_threads = blockDim.x * blockDim.y * blockDim.z;
+    const hbfsim::device::Sm120DeviceRoutingInput input{
+        .smid = smid,
+        .warpid = warpid,
+        .cta_x = blockDim.x,
+        .cta_y = blockDim.y,
+        .cta_z = blockDim.z,
+        .resident_warps = (cta_threads + 31U) / 32U,
+        .cluster_ctarank = cluster_ctarank,
+        .operation = operation,
+    };
+    auto selection = hbfsim::device::route_sm120_channel(*config, input);
+    if (!selection.valid || bytes == 0 ||
+        smid >= system_acquire(&header->sm120_channel_state_count)) {
+        return {};
+    }
+    auto* states =
+        reinterpret_cast<hbfsim::device::SharedSm120ChannelState*>(
+            base + header->sm120_channel_state_offset);
+    auto& state = states[smid];
+    auto* lock = reinterpret_cast<std::uint32_t*>(state.reserved);
+    std::uint32_t delay = 64;
+    for (;;) {
+        std::uint32_t expected = 0;
+        if (system_compare_exchange(lock, expected, 1)) break;
+        bounded_sleep(delay);
+    }
+    if (config->gnic_arbitration == 1) {
+        selection.gnic = static_cast<std::uint32_t>(
+            (selection.gnic + state.gnic_round_robin++) % 4);
+    }
+    if (config->gpc_arbitration == 1) {
+        selection.gpc = static_cast<std::uint32_t>(
+            (selection.gpc + state.gpc_round_robin++) % 2);
+    }
+    const auto take_gnic =
+        hbfsim::device::sm120_operation_uses_gnic(operation);
+    const auto take_gpc =
+        hbfsim::device::sm120_operation_uses_gpc(operation);
+    const auto gnic_service = take_gnic
+        ? hbfsim::device::saturating_multiply(
+              config->gnic_service_ns_by_class[operation],
+              header->time_scale) : 0;
+    const auto gpc_service = take_gpc
+        ? hbfsim::device::saturating_multiply(
+              config->gpc_service_ns_by_class[operation],
+              header->time_scale) : 0;
+    const auto gnic_tail = take_gnic
+        ? system_acquire(&state.gnic_tail_ns[selection.gnic]) : 0;
+    const auto gpc_tail = take_gpc
+        ? system_acquire(&state.gpc_tail_ns[selection.gpc]) : 0;
+    const auto gnic_window = take_gnic
+        ? hbfsim::device::saturating_multiply(
+              gnic_service, config->gnic_depth) : 0;
+    const auto gpc_window = take_gpc
+        ? hbfsim::device::saturating_multiply(
+              gpc_service, config->gpc_depth) : 0;
+    const auto saturated =
+        (take_gnic && gnic_tail > arrival_ns &&
+         gnic_tail - arrival_ns >= gnic_window) ||
+        (take_gpc && gpc_tail > arrival_ns &&
+         gpc_tail - arrival_ns >= gpc_window);
+    if (saturated) {
+        (void)system_fetch_add(&state.saturated_requests, 1);
+        (void)system_fetch_add(&header->sm120_channel_saturated, 1);
+        system_release(lock, 0U);
+        return {.ready_ns = UINT64_MAX,
+                .packed_channels = selection.gnic |
+                    (selection.gpc << 2) | (take_gnic ? 1U << 3 : 0) |
+                    (take_gpc ? 1U << 4 : 0),
+                .valid = true,
+                .saturated = true};
+    }
+    std::uint64_t gnic_ready = 0;
+    std::uint64_t gpc_ready = 0;
+    if (take_gnic) {
+        gnic_ready = hbfsim::device::saturating_add(
+            gnic_tail > arrival_ns ? gnic_tail : arrival_ns,
+            gnic_service);
+        system_release(&state.gnic_tail_ns[selection.gnic], gnic_ready);
+        (void)system_fetch_add(&state.gnic_bytes[selection.gnic], bytes);
+        (void)system_fetch_add(&state.gnic_service_ns[selection.gnic],
+                               gnic_service);
+        (void)system_fetch_add(&state.gnic_requests[selection.gnic], 1);
+    }
+    if (take_gpc) {
+        gpc_ready = hbfsim::device::saturating_add(
+            gpc_tail > arrival_ns ? gpc_tail : arrival_ns, gpc_service);
+        system_release(&state.gpc_tail_ns[selection.gpc], gpc_ready);
+        (void)system_fetch_add(&state.gpc_bytes[selection.gpc], bytes);
+        (void)system_fetch_add(&state.gpc_service_ns[selection.gpc],
+                               gpc_service);
+        (void)system_fetch_add(&state.gpc_requests[selection.gpc], 1);
+    }
+    system_release(lock, 0U);
+    return {.ready_ns = hbfsim::device::sm120_ready_max(
+                base_ready_ns, gnic_ready, gpc_ready, media_ready_ns,
+                capacity_ready_ns, native_ready_ns),
+            .packed_channels = selection.gnic | (selection.gpc << 2) |
+                (take_gnic ? 1U << 3 : 0) | (take_gpc ? 1U << 4 : 0),
+            .valid = true};
 }
 
 __device__ DeviceFuture issue_reference(
@@ -650,16 +812,22 @@ __device__ DeviceFuture issue_fast(
         modeled_service = request.service_ns;
         const auto scaled_service = hbfsim::device::saturating_multiply(
             modeled_service, header->time_scale);
-        auto tail = system_acquire(&header->fast_channel_tail_ns);
-        for (;;) {
-            target = hbfsim::device::fast_future_ready_ns(
-                arrival, tail, 0, scaled_service);
-            auto expected = tail;
-            if (system_compare_exchange(&header->fast_channel_tail_ns,
-                                        expected, target)) {
-                break;
+        if (system_acquire(
+                &header->sm120_channel_profile_generation) != 0) {
+            target = hbfsim::device::saturating_add(arrival,
+                                                     scaled_service);
+        } else {
+            auto tail = system_acquire(&header->fast_channel_tail_ns);
+            for (;;) {
+                target = hbfsim::device::fast_future_ready_ns(
+                    arrival, tail, 0, scaled_service);
+                auto expected = tail;
+                if (system_compare_exchange(&header->fast_channel_tail_ns,
+                                            expected, target)) {
+                    break;
+                }
+                tail = expected;
             }
-            tail = expected;
         }
     } else {
         const auto request_operation = operation == 2 ? 0U : operation;
@@ -677,23 +845,39 @@ __device__ DeviceFuture issue_fast(
             base_latency, header->time_scale);
         const auto transfer_scaled = hbfsim::device::saturating_multiply(
             transfer_ns, header->time_scale);
-        auto tail = system_acquire(&header->fast_channel_tail_ns);
-        for (;;) {
+        if (system_acquire(
+                &header->sm120_channel_profile_generation) != 0) {
             target = hbfsim::device::fast_future_ready_ns(
-                arrival, tail, latency_scaled, transfer_scaled);
-            auto expected = tail;
-            const auto next_tail = hbfsim::device::saturating_add(
-                tail > arrival ? tail : arrival, transfer_scaled);
-            if (system_compare_exchange(&header->fast_channel_tail_ns,
-                                        expected, next_tail)) {
-                break;
+                arrival, arrival, latency_scaled, transfer_scaled);
+        } else {
+            auto tail = system_acquire(&header->fast_channel_tail_ns);
+            for (;;) {
+                target = hbfsim::device::fast_future_ready_ns(
+                    arrival, tail, latency_scaled, transfer_scaled);
+                auto expected = tail;
+                const auto next_tail = hbfsim::device::saturating_add(
+                    tail > arrival ? tail : arrival, transfer_scaled);
+                if (system_compare_exchange(&header->fast_channel_tail_ns,
+                                            expected, next_tail)) {
+                    break;
+                }
+                tail = expected;
             }
-            tail = expected;
         }
         modeled_service = hbfsim::device::fast_service_ns(
             base_latency, media.bytes,
             header->aggregate_bandwidth_bytes_per_s);
     }
+    const auto channel_operation = operation == 0 ? 0U
+                                   : operation == 1 ? 1U : 6U;
+    const auto channel = reserve_sm120_channels(
+        header, channel_operation, bytes, arrival, target, target,
+        range.mode == 2 ? target : 0, 0);
+    if (!channel.valid || channel.saturated) {
+        return failed_future(address, bytes, instruction_id,
+                             RequestStatus::Unsupported);
+    }
+    target = channel.ready_ns;
     const auto deadline = hbfsim::device::saturating_add(
         arrival, header->request_timeout_ns);
     if (target > deadline) {
@@ -709,7 +893,7 @@ __device__ DeviceFuture issue_fast(
             .ready_ns = target,
             .bytes = bytes,
             .instruction_id = instruction_id,
-            .channel = 0,
+            .channel = channel.packed_channels,
             .flags = hbfsim::device::DeviceFutureTiming |
                      (operation == 2
                           ? hbfsim::device::DeviceFutureAtomic
@@ -754,9 +938,19 @@ __device__ hbfsim::device::ResolveResult resolve_sync_legacy(
     const auto expected_region_bytes =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity +
         sizeof(hbfsim::device::SharedTensorMapSlot) *
-            hbfsim::device::kTensorMapCapacity;
+            hbfsim::device::kTensorMapCapacity +
+        sizeof(hbfsim::device::SharedSm120ChannelConfig) +
+        sizeof(hbfsim::device::SharedSm120ChannelState) *
+            hbfsim::device::kSm120StateCapacity;
     const auto expected_tensormap_offset =
         expected_page_offset + sizeof(hbfsim::device::PageEntry) * capacity;
+    const auto expected_channel_config_offset =
+        expected_tensormap_offset +
+        sizeof(hbfsim::device::SharedTensorMapSlot) *
+            hbfsim::device::kTensorMapCapacity;
+    const auto expected_channel_state_offset =
+        expected_channel_config_offset +
+        sizeof(hbfsim::device::SharedSm120ChannelConfig);
     if (header->magic != hbfsim::device::kControlMagic ||
         header->abi_version != hbfsim::device::kControlAbiVersion ||
         header->header_bytes != sizeof(SharedControlHeader) ||
@@ -769,6 +963,13 @@ __device__ hbfsim::device::ResolveResult resolve_sync_legacy(
         header->completion_offset != expected_completion_offset ||
         header->page_offset != expected_page_offset ||
         header->tensormap_offset != expected_tensormap_offset ||
+        header->sm120_channel_config_offset !=
+            expected_channel_config_offset ||
+        header->sm120_channel_state_offset != expected_channel_state_offset ||
+        header->sm120_channel_state_capacity !=
+            hbfsim::device::kSm120StateCapacity ||
+        header->sm120_channel_state_count >
+            hbfsim::device::kSm120StateCapacity ||
         header->region_bytes != expected_region_bytes ||
         header->timing_model > 2 || header->read_latency_ns == 0 ||
         header->program_latency_ns == 0 ||
@@ -1098,20 +1299,37 @@ extern "C" __device__ std::uint64_t __hbfsim_tma_issue(
         latency, header->time_scale);
     const auto scaled_transfer = hbfsim::device::saturating_multiply(
         transfer, header->time_scale);
-    auto tail = system_acquire(&header->fast_channel_tail_ns);
     std::uint64_t ready = 0;
-    for (;;) {
+    if (system_acquire(
+            &header->sm120_channel_profile_generation) != 0) {
         ready = hbfsim::device::fast_future_ready_ns(
-            arrival, tail, scaled_latency, scaled_transfer);
-        auto expected = tail;
-        const auto next_tail = hbfsim::device::saturating_add(
-            tail > arrival ? tail : arrival, scaled_transfer);
-        if (system_compare_exchange(&header->fast_channel_tail_ns,
-                                    expected, next_tail)) {
-            break;
+            arrival, arrival, scaled_latency, scaled_transfer);
+    } else {
+        auto tail = system_acquire(&header->fast_channel_tail_ns);
+        for (;;) {
+            ready = hbfsim::device::fast_future_ready_ns(
+                arrival, tail, scaled_latency, scaled_transfer);
+            auto expected = tail;
+            const auto next_tail = hbfsim::device::saturating_add(
+                tail > arrival ? tail : arrival, scaled_transfer);
+            if (system_compare_exchange(&header->fast_channel_tail_ns,
+                                        expected, next_tail)) {
+                break;
+            }
+            tail = expected;
         }
-        tail = expected;
     }
+    const auto operation_class = direction != 0 ? 3U
+        : multicast_mask == 0 ? 2U
+        : __popc(multicast_mask) > 1 ? 5U : 4U;
+    const auto channel = reserve_sm120_channels(
+        header, operation_class, static_cast<std::uint32_t>(tile_bytes),
+        arrival, ready, ready, 0, 0);
+    if (!channel.valid || channel.saturated) {
+        (void)system_fetch_add(&header->tma_faults, 1);
+        return 0;
+    }
+    ready = channel.ready_ns;
     return ready < 2 ? 2 : ready;
 }
 

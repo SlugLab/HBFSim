@@ -10,6 +10,7 @@
 #include <hbfsim/profile.hpp>
 #include <hbfsim/exact_profile.hpp>
 #include <hbfsim/launch_gate_abi.hpp>
+#include <hbfsim/sm120_channels.hpp>
 
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
 #include <cuda.h>
@@ -35,6 +36,7 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <sys/mman.h>
@@ -806,9 +808,15 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         return HBFSIM_INVALID_ARGUMENT;
     }
     hbfsim::Profile profile;
+    std::optional<hbfsim::ExactProfile> exact_profile;
     try {
         profile = hbfsim::load_profile(options->profile_path);
+        if (exact_profile_json != nullptr) {
+            exact_profile = hbfsim::parse_exact_profile(*exact_profile_json);
+        }
     } catch (const hbfsim::ProfileError&) {
+        return HBFSIM_INVALID_ARGUMENT;
+    } catch (const hbfsim::ExactProfileError&) {
         return HBFSIM_INVALID_ARGUMENT;
     }
     const auto executable = resolve_executable(daemon_path);
@@ -859,6 +867,13 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     if (!control.initialize(options->ring_capacity)) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
+    }
+    if (exact_profile.has_value() && exact_profile->schema_version >= 2 &&
+        !hbfsim::publish_sm120_channel_config(
+            context->control_mapping, context->control_bytes,
+            exact_profile->calibration)) {
+        release_context(context.release(), false);
+        return HBFSIM_INVALID_ARGUMENT;
     }
     control.header()->request_timeout_ns = options->request_timeout_ns;
     control.header()->heartbeat_timeout_ns =

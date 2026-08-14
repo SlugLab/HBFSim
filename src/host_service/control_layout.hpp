@@ -12,9 +12,13 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 7;
+inline constexpr std::uint32_t kControlAbiVersion = 8;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kTensorMapCapacity = 256;
+inline constexpr std::uint32_t kSm120StateCapacity = 256;
+inline constexpr std::uint32_t kSm120RoutingLutCapacity = 64;
+inline constexpr std::uint64_t kSm120ChannelConfigMagic =
+    0x534d313230434846ULL;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -142,6 +146,12 @@ struct alignas(64) SharedControlHeader {
     alignas(8) std::uint64_t tma_stale_generations;
     alignas(8) std::uint64_t tma_faults;
     alignas(8) std::uint64_t tma_leaked;
+    std::uint64_t sm120_channel_config_offset;
+    std::uint64_t sm120_channel_state_offset;
+    std::uint32_t sm120_channel_state_capacity;
+    alignas(4) std::uint32_t sm120_channel_state_count;
+    alignas(8) std::uint64_t sm120_channel_profile_generation;
+    alignas(8) std::uint64_t sm120_channel_saturated;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -178,6 +188,45 @@ struct alignas(64) SharedTensorMapSlot {
     std::uint32_t fenced;
 };
 
+struct alignas(64) SharedSm120ChannelConfig {
+    std::uint64_t magic;
+    std::uint32_t routing_version;
+    std::uint32_t enabled;
+    std::uint32_t gnic_count;
+    std::uint32_t gpc_count;
+    std::uint32_t gnic_depth;
+    std::uint32_t gpc_depth;
+    std::uint32_t gnic_arbitration;
+    std::uint32_t gpc_arbitration;
+    std::uint32_t smsp_proxy_lut_count;
+    std::uint32_t gnic_lut_count;
+    std::uint32_t gpc_lut_count;
+    std::byte routing_program_sha256[32];
+    std::byte reserved0[44];
+    std::uint64_t gnic_service_ns_by_class[7];
+    std::uint64_t gpc_service_ns_by_class[7];
+    std::uint32_t smsp_proxy_lut[kSm120RoutingLutCapacity];
+    std::uint32_t gnic_lut[kSm120RoutingLutCapacity];
+    std::uint32_t gpc_lut[kSm120RoutingLutCapacity];
+};
+
+struct alignas(64) SharedSm120ChannelState {
+    alignas(8) std::uint64_t gnic_tail_ns[4];
+    std::uint64_t gpc_tail_ns[2];
+    std::uint64_t gnic_bytes[4];
+    std::uint64_t gpc_bytes[2];
+    std::uint64_t gnic_service_ns[4];
+    std::uint64_t gpc_service_ns[2];
+    std::uint64_t gnic_requests[4];
+    std::uint64_t gpc_requests[2];
+    alignas(4) std::uint32_t gnic_outstanding[4];
+    std::uint32_t gpc_outstanding[2];
+    alignas(8) std::uint64_t saturated_requests;
+    alignas(8) std::uint64_t gnic_round_robin;
+    std::uint64_t gpc_round_robin;
+    std::byte reserved[16];
+};
+
 template <typename T>
 struct alignas(64) SharedRingSlot {
     alignas(8) std::uint64_t sequence;
@@ -196,11 +245,15 @@ static_assert(std::is_standard_layout_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedControlHeader>);
 static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
 static_assert(std::is_trivially_copyable_v<SharedTensorMapSlot>);
+static_assert(std::is_trivially_copyable_v<SharedSm120ChannelConfig>);
+static_assert(std::is_trivially_copyable_v<SharedSm120ChannelState>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
-static_assert(sizeof(SharedControlHeader) == 512);
+static_assert(sizeof(SharedControlHeader) == 576);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedTensorMapSlot) == 384);
+static_assert(sizeof(SharedSm120ChannelConfig) == 1024);
+static_assert(sizeof(SharedSm120ChannelState) == 256);
 static_assert(sizeof(SharedRequestSlot) == 192);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 
@@ -228,6 +281,9 @@ inline std::size_t control_region_bytes(std::uint32_t capacity) noexcept
     bytes = align_control(bytes) + sizeof(PageEntry) * capacity;
     bytes = align_control(bytes) +
             sizeof(SharedTensorMapSlot) * kTensorMapCapacity;
+    bytes = align_control(bytes) + sizeof(SharedSm120ChannelConfig);
+    bytes = align_control(bytes) +
+            sizeof(SharedSm120ChannelState) * kSm120StateCapacity;
     return align_control(bytes);
 }
 
@@ -311,6 +367,7 @@ public:
             !valid_ring_capacity(h->ring_capacity) ||
             h->range_capacity != kRangeCapacity ||
             h->tensormap_capacity != kTensorMapCapacity ||
+            h->sm120_channel_state_capacity != kSm120StateCapacity ||
             h->page_capacity != h->ring_capacity ||
             h->region_bytes != bytes_ ||
             control_region_bytes(h->ring_capacity) != bytes_) {
@@ -331,6 +388,13 @@ public:
                                  sizeof(PageEntry) * h->page_capacity) &&
                h->tensormap_offset +
                        sizeof(SharedTensorMapSlot) * kTensorMapCapacity ==
+                   h->sm120_channel_config_offset &&
+               h->sm120_channel_state_offset ==
+                   h->sm120_channel_config_offset +
+                       sizeof(SharedSm120ChannelConfig) &&
+               h->sm120_channel_state_offset +
+                       sizeof(SharedSm120ChannelState) *
+                           kSm120StateCapacity ==
                    bytes_;
     }
 
@@ -350,6 +414,7 @@ public:
         h->range_capacity = kRangeCapacity;
         h->page_capacity = capacity;
         h->tensormap_capacity = kTensorMapCapacity;
+        h->sm120_channel_state_capacity = kSm120StateCapacity;
         h->range_offset = sizeof(SharedControlHeader);
         h->request_offset =
             h->range_offset + sizeof(SharedRangeRecord) * kRangeCapacity;
@@ -359,6 +424,12 @@ public:
             h->completion_offset + sizeof(SharedCompletionSlot) * capacity;
         h->tensormap_offset =
             align_control(h->page_offset + sizeof(PageEntry) * capacity);
+        h->sm120_channel_config_offset =
+            h->tensormap_offset +
+            sizeof(SharedTensorMapSlot) * kTensorMapCapacity;
+        h->sm120_channel_state_offset =
+            h->sm120_channel_config_offset +
+            sizeof(SharedSm120ChannelConfig);
         for (std::uint64_t index = 0; index < capacity; ++index) {
             request_slots()[index].sequence = index;
             completion_slots()[index].sequence = index;
@@ -389,6 +460,16 @@ public:
     {
         return reinterpret_cast<SharedTensorMapSlot*>(
             base_ + header()->tensormap_offset);
+    }
+    [[nodiscard]] SharedSm120ChannelConfig* sm120_channel_config() const noexcept
+    {
+        return reinterpret_cast<SharedSm120ChannelConfig*>(
+            base_ + header()->sm120_channel_config_offset);
+    }
+    [[nodiscard]] SharedSm120ChannelState* sm120_channel_states() const noexcept
+    {
+        return reinterpret_cast<SharedSm120ChannelState*>(
+            base_ + header()->sm120_channel_state_offset);
     }
 
     bool try_push_request(const HbfRequest& request,

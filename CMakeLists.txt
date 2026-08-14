@@ -58,6 +58,7 @@ add_library(
     src/cuda_runtime/module_identity.cpp
     src/cuda_runtime/range_table.cpp
     src/cuda_runtime/shadow_future.cpp
+    src/cuda_runtime/sm120_channels.cpp
     src/cuda_runtime/timing_binding.cpp
     src/cuda_runtime/tensormap.cpp
     src/cuda_runtime/tma_tile.cpp
@@ -133,6 +134,19 @@ add_test(NAME exact_profile COMMAND exact_profile_test)
 set_tests_properties(
     exact_profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
+
+add_executable(sm120_channels_test tests/cpu/sm120_channels_test.cpp)
+target_link_libraries(sm120_channels_test PRIVATE hbfsim_core)
+add_test(NAME sm120_channels COMMAND sm120_channels_test)
+set_tests_properties(
+    sm120_channels PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(
+    sm120_channels_property_test tests/cpu/sm120_channels_property_test.cpp
+)
+target_link_libraries(sm120_channels_property_test PRIVATE hbfsim_core)
+add_test(NAME sm120_channels_property COMMAND sm120_channels_property_test)
 
 add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
 target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)

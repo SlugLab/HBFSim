@@ -82,6 +82,26 @@ int main()
     CHECK(stage4.calibration.label_semantics == "contention_equivalent");
     CHECK(stage4.calibration.counter_thresholds.size() == 3);
 
+    auto staged = stage4_fixture();
+    staged["runtime_artifacts"] = {
+        {"bundle_root", "/tmp/bundles"},
+        {"prepatched_ptx_dir", "/tmp/prepatched"},
+        {"pass_manifest", "/tmp/pass-manifest.jsonl"},
+    };
+    staged["fit_report"] = {{"schema_version", 1}};
+    staged["validation"] = {{"status", "pending"}};
+    CHECK(hbfsim::parse_exact_profile(staged.dump()).validation.status ==
+          hbfsim::ValidationStatus::Pending);
+    expect_stage4_error(
+        [](auto& value) {
+            value["runtime_artifacts"] = {
+                {"bundle_root", "relative"},
+                {"prepatched_ptx_dir", "/tmp/prepatched"},
+                {"pass_manifest", "/tmp/pass-manifest.jsonl"},
+            };
+        },
+        "invalid_field");
+
     expect_stage4_error(
         [](auto& value) { value["calibration"]["gnic"]["count"] = 3; },
         "invalid_queue_count");

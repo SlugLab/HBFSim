@@ -49,6 +49,11 @@ def fixture(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     profile = json.loads((ROOT / "tests/fixtures/exact/sm120-stage4-valid.json").read_text())
     profile["validation"]["status"] = "pending"
     profile["validation"]["classes"] = []
+    native_latencies = [1000 + index * 20 for index in range(len(CLASSES))]
+    profile["calibration"]["gnic"]["service_ns_by_class"] = [
+        value + 20 for value in native_latencies]
+    profile["calibration"]["gpc"]["service_ns_by_class"] = [
+        value for value in native_latencies]
     profile["fit_report"] = {
         "schema_version": 1,
         "training_sha256": profile["calibration"]["raw_training_sha256"],
@@ -58,6 +63,11 @@ def fixture(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
                      "routing_program_sha256":
                          profile["calibration"]["routing"]["program_sha256"]},
         "cross_validation": {"method": "training-only", "holdout_read": False},
+        "counter_model_by_class": {
+            operation: {"lsu_active": 104, "tma_active": 52,
+                        "long_scoreboard": 26}
+            for operation in CLASSES
+        },
         "rejected_candidates": [{"reason": "class_count"}],
     }
     candidate = root / "candidate.json"
@@ -72,11 +82,8 @@ def fixture(root: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
                 "operation_class": operation,
                 "expected_sha256": digest, "observed_sha256": digest,
                 "native_latency_ns": 1000 + index * 20,
-                "modeled_latency_ns": 1020 + index * 20,
                 "native_counters": {"lsu_active": 100, "tma_active": 50,
                                     "long_scoreboard": 25},
-                "modeled_counters": {"lsu_active": 104, "tma_active": 52,
-                                     "long_scoreboard": 26},
             })
     holdout_doc = {
         "schema_version": 1, "suite": "holdout",
@@ -125,11 +132,11 @@ def main() -> int:
         failure_mutation(root, class_missing)
 
         def class_p95(candidate, holdout):
-            holdout["observations"][0]["modeled_latency_ns"] = 2000
+            holdout["observations"][0]["native_latency_ns"] = 2000
         failure_mutation(root, class_p95)
 
         def counter_failure(candidate, holdout):
-            holdout["observations"][0]["modeled_counters"]["lsu_active"] = 200
+            holdout["observations"][0]["native_counters"]["lsu_active"] = 10
         failure_mutation(root, counter_failure)
 
         def threshold_changed(candidate, holdout):

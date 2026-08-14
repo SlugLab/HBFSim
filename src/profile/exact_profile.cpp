@@ -339,12 +339,21 @@ ExactValidationClass parse_validation_class(const json& value)
 ExactValidation parse_validation(const json& value,
                                  const ExactThresholds& thresholds)
 {
-    object_with_keys(value, {"status", "training", "holdout", "classes"});
-    ExactValidation result{
-        .status = parse_status(value),
-        .training = parse_dataset(value.at("training")),
-        .holdout = parse_dataset(value.at("holdout")),
-    };
+    object_with_keys(value, {"status"}, {"training", "holdout", "classes"});
+    ExactValidation result{.status = parse_status(value)};
+    const auto evidence_fields =
+        static_cast<unsigned>(value.contains("training")) +
+        static_cast<unsigned>(value.contains("holdout")) +
+        static_cast<unsigned>(value.contains("classes"));
+    if (evidence_fields == 0 && result.status != ValidationStatus::Passed) {
+        return result;
+    }
+    if (evidence_fields != 3) {
+        fail("missing_field",
+             "validation evidence must include training, holdout, and classes");
+    }
+    result.training = parse_dataset(value.at("training"));
+    result.holdout = parse_dataset(value.at("holdout"));
     if (result.training.manifest_sha256 == result.holdout.manifest_sha256) {
         fail("training_validation_overlap",
              "training and holdout manifests must differ");
@@ -568,7 +577,26 @@ ExactProfile parse_exact_profile(std::string_view text)
         object_with_keys(root,
                          {"schema_version", "profile_id", "target",
                           "toolchain", "conditions", "thresholds", "limits",
-                          "modules", "validation"}, {"calibration"});
+                          "modules", "validation"},
+                         {"calibration", "runtime_artifacts", "fit_report"});
+        if (root.contains("runtime_artifacts")) {
+            const auto& artifacts = root.at("runtime_artifacts");
+            object_with_keys(artifacts,
+                             {"bundle_root", "prepatched_ptx_dir",
+                              "pass_manifest"});
+            for (const auto key : {"bundle_root", "prepatched_ptx_dir",
+                                   "pass_manifest"}) {
+                const auto path = nonempty_string(artifacts, key);
+                if (path.front() != '/') {
+                    fail("invalid_field",
+                         "runtime artifact path must be absolute");
+                }
+            }
+        }
+        if (root.contains("fit_report") &&
+            !root.at("fit_report").is_object()) {
+            fail("invalid_field", "fit_report must be an object");
+        }
         ExactProfile result;
         result.schema_version = field<std::uint32_t>(root, "schema_version");
         if (result.schema_version != 1 && result.schema_version != 2) {

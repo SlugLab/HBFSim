@@ -120,6 +120,16 @@ def validate(candidate: dict, holdout: dict, raw_holdout: bytes,
     if fitted_ids & set(holdout_ids):
         reasons.append("training_holdout_case_overlap")
     metrics = calibration.get("metric_names", [])
+    counter_model = fit.get("counter_model_by_class")
+    if not isinstance(counter_model, dict) or set(counter_model) != set(CLASSES):
+        counter_model = {}
+        reasons.append("counter_model_missing")
+    gnic_service = calibration.get("gnic", {}).get("service_ns_by_class", [])
+    gpc_service = calibration.get("gpc", {}).get("service_ns_by_class", [])
+    if not isinstance(gnic_service, list) or not isinstance(gpc_service, list) or \
+            len(gnic_service) != len(CLASSES) or \
+            len(gpc_service) != len(CLASSES):
+        reasons.append("latency_model_missing")
     threshold_map = {item.get("metric"): item.get("max_error_percent")
                      for item in calibration.get("counter_thresholds", [])
                      if isinstance(item, dict)}
@@ -133,7 +143,7 @@ def validate(candidate: dict, holdout: dict, raw_holdout: bytes,
             p50_limit > 5 or p95_limit > 10 or counter_limit > 10:
         reasons.append("threshold_limit_invalid")
     class_results = []
-    for operation in CLASSES:
+    for operation_index, operation in enumerate(CLASSES):
         selected = [item for item in observations
                     if isinstance(item, dict) and
                     item.get("operation_class") == operation]
@@ -146,14 +156,17 @@ def validate(candidate: dict, holdout: dict, raw_holdout: bytes,
             if item.get("expected_sha256") != item.get("observed_sha256"):
                 class_reasons.append("byte_mismatch")
             native = item.get("native_latency_ns")
-            modeled = item.get("modeled_latency_ns")
+            modeled = (max(float(gnic_service[operation_index]),
+                           float(gpc_service[operation_index]))
+                       if len(gnic_service) == len(CLASSES) and
+                       len(gpc_service) == len(CLASSES) else None)
             if not isinstance(native, (int, float)) or native <= 0 or \
                     not isinstance(modeled, (int, float)) or modeled < 0:
                 class_reasons.append("latency_missing")
             else:
                 latency_errors.append(abs(modeled - native) * 100.0 / native)
             native_counters = item.get("native_counters", {})
-            modeled_counters = item.get("modeled_counters", {})
+            modeled_counters = counter_model.get(operation, {})
             for metric in metrics:
                 native_value = native_counters.get(metric)
                 modeled_value = modeled_counters.get(metric)
@@ -186,6 +199,7 @@ def validate(candidate: dict, holdout: dict, raw_holdout: bytes,
               "candidate_sha256": sha(canonical(candidate)),
               "holdout_sha256": sha(raw_holdout),
               "routing_program_sha256": routing_hash,
+              "model_source": "frozen_training_candidate",
               "classes": class_results, "reasons": sorted(set(reasons))}
     if reasons:
         return {}, report

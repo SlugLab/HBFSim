@@ -3,6 +3,26 @@
   "suite": "training",
   "warmup": 2,
   "repetitions": 5,
+  "exact_profile_contract": {
+    "cache_condition": "warm_l2",
+    "concurrency_condition": "exclusive_process",
+    "cluster_shape": [1, 1, 1],
+    "thresholds": {
+      "p50_percent": 5,
+      "p95_percent": 10,
+      "counter_percent": 10
+    },
+    "limits": {
+      "max_thread_futures": 16,
+      "max_warp_futures": 256,
+      "max_cta_futures": 2048,
+      "max_cluster_futures": 8192,
+      "max_thread_async_objects": 8,
+      "max_warp_async_objects": 128,
+      "max_cta_async_objects": 1024,
+      "max_cluster_async_objects": 4096
+    }
+  },
   "cases": [
     {
       "id": "train-ordinary-load-single-cold",

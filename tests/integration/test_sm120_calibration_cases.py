@@ -33,6 +33,23 @@ def load(path: pathlib.Path, suite: str) -> tuple[dict, str]:
     require(document["suite"] == suite, "wrong suite")
     require(document["warmup"] >= 1 and document["repetitions"] >= 3,
             "insufficient repetition policy")
+    contract = document.get("exact_profile_contract")
+    require(isinstance(contract, dict), "exact profile contract missing")
+    require(contract.get("cache_condition") in ("warm_l2", "cold"),
+            "invalid deployment cache condition")
+    require(contract.get("concurrency_condition") == "exclusive_process",
+            "exact collection must require exclusive process")
+    require(contract.get("cluster_shape") in ([1, 1, 1], [2, 1, 1]),
+            "invalid deployment cluster shape")
+    require(contract.get("thresholds") == {
+        "p50_percent": 5, "p95_percent": 10, "counter_percent": 10,
+    }, "thresholds are not frozen")
+    require(set(contract.get("limits", {})) == {
+        "max_thread_futures", "max_warp_futures", "max_cta_futures",
+        "max_cluster_futures", "max_thread_async_objects",
+        "max_warp_async_objects", "max_cta_async_objects",
+        "max_cluster_async_objects",
+    }, "exact limits missing")
     cases = document["cases"]
     ids: set[str] = set()
     classes: set[str] = set()
@@ -72,6 +89,9 @@ def main() -> int:
         ROOT / "configs/calibration/sm120-training-cases.json", "training")
     holdout, holdout_hash = load(
         ROOT / "configs/calibration/sm120-holdout-cases.json", "holdout")
+    require(training["exact_profile_contract"] ==
+            holdout["exact_profile_contract"],
+            "training/holdout exact contracts differ")
     training_ids = {case["id"] for case in training["cases"]}
     holdout_ids = {case["id"] for case in holdout["cases"]}
     require(training_ids.isdisjoint(holdout_ids), "training/holdout overlap")

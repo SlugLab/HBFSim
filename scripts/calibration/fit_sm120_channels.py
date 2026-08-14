@@ -66,7 +66,15 @@ def verify_members(manifest: dict, directory: pathlib.Path) -> None:
 def observations(manifest: dict, directory: pathlib.Path) -> list[dict]:
     direct = manifest.get("observations")
     if isinstance(direct, list):
-        return direct
+        result = []
+        for value in direct:
+            if not isinstance(value, dict):
+                raise FitError("training observation is malformed")
+            item = dict(value)
+            if "latency_ns" not in item:
+                item["latency_ns"] = item.get("native_latency_ns")
+            result.append(item)
+        return result
     case_metadata: dict[str, dict] = {}
     case_path = manifest.get("case_manifest_path")
     if isinstance(case_path, str):
@@ -100,19 +108,59 @@ def observations(manifest: dict, directory: pathlib.Path) -> list[dict]:
 
 
 def labels(items: list[dict], field: str, count: int) -> list[int]:
-    vectors = [item.get(field) for item in items]
-    if all(isinstance(vector, list) and vector for vector in vectors):
-        unique = sorted({tuple(float(value) for value in vector) for vector in vectors})
-        if len(unique) != count:
-            raise FitError(f"underdetermined {count}-way contention matrix")
-        mapping = {value: index for index, value in enumerate(unique)}
-        return [mapping[tuple(float(value) for value in vector)] for vector in vectors]
-    ordered = sorted(range(len(items)), key=lambda index: (
-        float(items[index]["latency_ns"]), str(items[index]["case_id"])))
-    result = [0] * len(items)
-    for rank, index in enumerate(ordered):
-        result[index] = min(count - 1, rank * count // len(items))
-    return result
+    raw = [item.get(field) for item in items]
+    if not all(isinstance(vector, list) and vector for vector in raw):
+        raise FitError(f"{count}-way contention vectors are missing")
+    try:
+        vectors = [tuple(float(value) for value in vector) for vector in raw]
+    except (TypeError, ValueError) as error:
+        raise FitError("contention vector is not numeric") from error
+    width = len(vectors[0])
+    if width == 0 or any(len(vector) != width or any(
+            not math.isfinite(value) for value in vector) for vector in vectors):
+        raise FitError("contention vector shape/value is invalid")
+    columns = list(zip(*vectors))
+    minima = [min(column) for column in columns]
+    spans = [max(column) - minimum
+             for column, minimum in zip(columns, minima)]
+    normalized = [tuple((value - minima[index]) / spans[index]
+                        if spans[index] else 0.0
+                        for index, value in enumerate(vector))
+                  for vector in vectors]
+    unique = sorted(set(normalized))
+    if len(unique) < count:
+        raise FitError(f"underdetermined {count}-way contention matrix")
+
+    def distance(left: tuple[float, ...], right: tuple[float, ...]) -> float:
+        return sum((a - b) ** 2 for a, b in zip(left, right))
+
+    centroids = [unique[0]]
+    while len(centroids) < count:
+        candidates = [(min(distance(value, center) for center in centroids),
+                       value) for value in unique if value not in centroids]
+        centroids.append(max(candidates, key=lambda item: (item[0], item[1]))[1])
+    assignments = [0] * len(normalized)
+    for _ in range(100):
+        next_assignments = [min(range(count),
+                                key=lambda index: (distance(value,
+                                                            centroids[index]),
+                                                   index))
+                            for value in normalized]
+        if next_assignments == assignments and _ != 0:
+            break
+        assignments = next_assignments
+        next_centroids = []
+        for label in range(count):
+            members = [value for value, assigned in zip(normalized, assignments)
+                       if assigned == label]
+            if not members:
+                raise FitError(f"empty {count}-way contention cluster")
+            next_centroids.append(tuple(sum(column) / len(members)
+                                        for column in zip(*members)))
+        centroids = next_centroids
+    order = {old: new for new, old in enumerate(sorted(
+        range(count), key=lambda index: centroids[index]))}
+    return [order[value] for value in assignments]
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -136,6 +184,117 @@ def fitted_lut(items: list[dict], item_labels: list[int], count: int) -> list[in
             for index, bucket in enumerate(votes)]
 
 
+def positive_integer_map(value: object, required: set[str],
+                         label: str) -> dict[str, int]:
+    if not isinstance(value, dict) or set(value) != required or any(
+            not isinstance(item, int) or isinstance(item, bool) or item <= 0
+            for item in value.values()):
+        raise FitError(f"invalid {label}")
+    return {key: int(value[key]) for key in sorted(required)}
+
+
+def runtime_artifacts(stage1_path: pathlib.Path, stage1: dict) -> dict[str, str]:
+    provenance = stage1.get("provenance")
+    if not isinstance(provenance, dict) or \
+            set(provenance) != {"pass_manifest_sha256", "bundle"}:
+        raise FitError("stage1 provenance missing")
+    bundle = pathlib.Path(str(provenance["bundle"]))
+    pass_manifest = stage1_path.parent / "pass-manifest.jsonl"
+    prepatched = stage1_path.parent / "prepatched-ptx"
+    for path, kind in ((bundle, "bundle"), (prepatched, "prepatched PTX")):
+        if path.is_symlink() or not path.is_dir():
+            raise FitError(f"stage1 {kind} directory unavailable")
+    if pass_manifest.is_symlink() or not pass_manifest.is_file() or \
+            sha(pass_manifest.read_bytes()) != provenance["pass_manifest_sha256"]:
+        raise FitError("stage1 pass manifest unavailable or changed")
+    if len(bundle.parents) < 2:
+        raise FitError("stage1 bundle layout is invalid")
+    bundle_root = bundle.parents[1]
+    if bundle_root.is_symlink() or not bundle_root.is_dir():
+        raise FitError("stage1 bundle root is unsafe")
+    ptx_files = sorted(prepatched.glob("*.ptx"))
+    if not ptx_files or any(path.is_symlink() or not path.is_file()
+                            for path in ptx_files):
+        raise FitError("stage1 prepatched PTX set is empty or unsafe")
+    return {"bundle_root": str(bundle_root.resolve()),
+            "prepatched_ptx_dir": str(prepatched.resolve()),
+            "pass_manifest": str(pass_manifest.resolve())}
+
+
+def build_profile_base(training_path: pathlib.Path, manifest: dict,
+                       stage1_path: pathlib.Path, stage1: dict,
+                       training_sha256: str) -> dict:
+    if stage1.get("fragment_schema_version") != 1:
+        raise FitError("stage1 fragment schema mismatch")
+    toolchain = stage1.get("toolchain")
+    modules = stage1.get("modules")
+    if not isinstance(toolchain, dict) or not isinstance(modules, list) or \
+            not modules:
+        raise FitError("stage1 toolchain/module evidence missing")
+    environment = manifest.get("calibration_environment")
+    target = environment.get("target") if isinstance(environment, dict) else None
+    target_keys = {"gpu_name", "gpu_uuid", "pci_vendor_id", "pci_device_id",
+                   "compute_capability_major", "compute_capability_minor",
+                   "driver_version"}
+    if not isinstance(target, dict) or set(target) != target_keys:
+        raise FitError("calibration target evidence missing")
+    if target.get("compute_capability_major") != 12 or \
+            target.get("compute_capability_minor") != 0:
+        raise FitError("calibration target is not SM120")
+    contract = manifest.get("exact_profile_contract")
+    if not isinstance(contract, dict):
+        raise FitError("frozen exact profile contract missing")
+    thresholds = contract.get("thresholds")
+    if thresholds != {"p50_percent": 5, "p95_percent": 10,
+                      "counter_percent": 10}:
+        raise FitError("exact thresholds are absent or relaxed")
+    limit_keys = {"max_thread_futures", "max_warp_futures",
+                  "max_cta_futures", "max_cluster_futures",
+                  "max_thread_async_objects", "max_warp_async_objects",
+                  "max_cta_async_objects", "max_cluster_async_objects"}
+    limits = positive_integer_map(contract.get("limits"), limit_keys,
+                                  "exact limits")
+    cluster = contract.get("cluster_shape")
+    if not isinstance(cluster, list) or len(cluster) != 3 or any(
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+            for value in cluster):
+        raise FitError("invalid deployment cluster shape")
+    snapshots = manifest.get("gpu_snapshots")
+    if not isinstance(snapshots, list) or len(snapshots) < 2:
+        raise FitError("operating-condition snapshots missing")
+    try:
+        sm_clocks = [int(item["sm_clock_mhz"]) for item in snapshots]
+        memory_clocks = [int(item["memory_clock_mhz"]) for item in snapshots]
+        power_limits = [int(item["power_limit_mw"]) for item in snapshots]
+        temperatures = [int(item["temperature_c"]) for item in snapshots]
+    except (KeyError, TypeError, ValueError) as error:
+        raise FitError("operating-condition snapshot malformed") from error
+    if len(set(power_limits)) != 1:
+        raise FitError("power limit changed during training")
+    module_hash = str(modules[0].get("original_ptx_sha256", ""))
+    if len(module_hash) != 64:
+        raise FitError("stage1 module identity missing")
+    return {
+        "schema_version": 2,
+        "profile_id": f"sm120-{training_sha256[:16]}-{module_hash[:12]}",
+        "target": dict(target), "toolchain": dict(toolchain),
+        "conditions": {
+            "sm_clock_mhz": statistics.mode(sm_clocks),
+            "memory_clock_mhz": statistics.mode(memory_clocks),
+            "power_limit_mw": power_limits[0],
+            "temperature_min_c": min(temperatures),
+            "temperature_max_c": max(temperatures),
+            "cache_condition": contract.get("cache_condition"),
+            "concurrency_condition": contract.get("concurrency_condition"),
+            "cluster_shape": {"x": cluster[0], "y": cluster[1],
+                              "z": cluster[2]},
+        },
+        "thresholds": dict(thresholds), "limits": limits,
+        "modules": modules, "validation": {"status": "pending"},
+        "runtime_artifacts": runtime_artifacts(stage1_path, stage1),
+    }
+
+
 def main(argv: list[str]) -> int:
     try:
         options = parse(argv)
@@ -145,7 +304,7 @@ def main(argv: list[str]) -> int:
         return 64
     try:
         training_path, raw_training = read_regular(options["--training"])
-        _, raw_stage1 = read_regular(options["--stage1-fragment"])
+        stage1_path, raw_stage1 = read_regular(options["--stage1-fragment"])
         output = pathlib.Path(options["--output"]).absolute()
         if output.exists() or output.is_symlink() or output.parent.is_symlink() or not output.parent.is_dir():
             raise FitError("unsafe or existing output")
@@ -153,6 +312,10 @@ def main(argv: list[str]) -> int:
         stage1 = json.loads(raw_stage1)
         if manifest.get("suite") != "training":
             raise FitError("fitter accepts training suite only")
+        environment_sha256 = manifest.get("environment_sha256")
+        if not isinstance(environment_sha256, str) or \
+                len(environment_sha256) != 64:
+            raise FitError("training environment hash missing")
         metrics = manifest.get("metrics")
         if not isinstance(metrics, list) or not metrics:
             raise FitError("training metrics missing")
@@ -169,6 +332,7 @@ def main(argv: list[str]) -> int:
         gpc_lut = fitted_lut(items, gpc_labels, 2)
         service = []
         residuals = []
+        counter_model: dict[str, dict[str, float]] = {}
         for operation in CLASSES:
             values = [float(item["latency_ns"]) for item in items
                       if item["operation_class"] == operation]
@@ -179,6 +343,18 @@ def main(argv: list[str]) -> int:
             residuals.append({"operation_class": operation,
                               "p50_error_percent": round(percentile(errors, .50), 6),
                               "p95_error_percent": round(percentile(errors, .95), 6)})
+            selected_items = [item for item in items
+                              if item["operation_class"] == operation]
+            counter_model[operation] = {}
+            for metric in metrics:
+                samples = [item.get("native_counters", item.get("counters", {})).get(metric)
+                           for item in selected_items]
+                if not all(isinstance(value, (int, float)) and
+                           not isinstance(value, bool) and math.isfinite(value)
+                           for value in samples):
+                    raise FitError(f"training counter missing: {operation}:{metric}")
+                counter_model[operation][metric] = round(
+                    statistics.median(float(value) for value in samples), 9)
         depth = max(int(item.get("queue_depth", 1)) for item in items)
         routing = {"version": 1, "inputs": INPUTS,
                    "smsp_proxy_lut": [index % 4 for index in range(64)],
@@ -200,18 +376,19 @@ def main(argv: list[str]) -> int:
                                       "max_error_percent": 10.0}
                                      for metric in metrics],
         }
-        candidate = dict(stage1)
-        candidate["schema_version"] = 2
-        candidate.setdefault("validation", {})["status"] = "pending"
+        training_sha256 = sha(raw_training)
+        candidate = build_profile_base(training_path, manifest, stage1_path,
+                                       stage1, training_sha256)
         candidate["calibration"] = calibration
         candidate["fit_report"] = {
-            "schema_version": 1, "training_sha256": sha(raw_training),
-            "environment_sha256": sha(canonical(manifest.get("environment", {}))),
-            "frozen_thresholds": stage1.get("thresholds", {}),
+            "schema_version": 1, "training_sha256": training_sha256,
+            "environment_sha256": environment_sha256,
+            "frozen_thresholds": candidate["thresholds"],
             "selected": {"gnic_classes": 4, "gpc_classes": 2,
                          "routing_program_sha256": routing["program_sha256"]},
             "cross_validation": {"method": "deterministic-even-odd-training-only",
                                  "holdout_read": False},
+            "counter_model_by_class": counter_model,
             "rejected_candidates": [
                 {"gnic_classes": value, "reason": "required_class_count_mismatch"}
                 for value in (1, 2, 3, 5, 6)],

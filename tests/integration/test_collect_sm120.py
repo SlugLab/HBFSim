@@ -43,6 +43,7 @@ def main() -> int:
         benchmark = tools / "benchmark"
         ncu = tools / "ncu"
         nvcc = tools / "nvcc"
+        nvidia_smi = tools / "nvidia-smi"
         write_executable(benchmark, """#!/usr/bin/env python3
 import hashlib,json,sys
 case=sys.argv[sys.argv.index('--case-id')+1]
@@ -63,20 +64,57 @@ if '--version' in sys.argv:
 index=sys.argv.index('--')
 run=subprocess.run(sys.argv[index+1:],text=True,capture_output=True)
 print('ID,Kernel Name,Metric Name,Metric Value')
-print('0,kernel,gpu__time_duration.sum,100')
+metrics={
+ 'sm__pipe_tma_cycles_active.avg.pct_of_peak_sustained_active':5,
+ 'smsp__inst_executed_pipe_lsu.avg.pct_of_peak_sustained_active':10,
+ 'smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct':15,
+ 'smsp__warp_issue_stalled_barrier_per_warp_active.pct':20,
+ 'smsp__warp_issue_stalled_membar_per_warp_active.pct':25,
+ 'lts__t_sectors.sum':30,
+ 'dram__bytes.sum':35,
+ 'gpu__time_duration.sum':100,
+}
+for name,value in metrics.items(): print(f'0,kernel,{name},{value}')
 print(run.stdout,end='')
 print(run.stderr,end='',file=sys.stderr)
 raise SystemExit(run.returncode)
+""")
+        write_executable(nvidia_smi, """#!/usr/bin/env python3
+import sys
+query=' '.join(sys.argv[1:])
+if '--query-compute-apps=' in query:
+ raise SystemExit(0)
+if '--query-gpu=' in query:
+ print('0, NVIDIA RTX PRO 6000 Blackwell Server Edition, GPU-test, 00000000:01:00.0, 0x2BB510DE, 12.0, 1830, 14001, 600.00, 45')
+ raise SystemExit(0)
+raise SystemExit(2)
 """)
         cases = root / "cases.json"
         cases.write_text(json.dumps({
             "manifest_schema_version": 1, "suite": "training",
             "warmup": 1, "repetitions": 3,
+            "exact_profile_contract": {
+                "cache_condition": "warm_l2",
+                "concurrency_condition": "exclusive_process",
+                "cluster_shape": [1, 1, 1],
+                "thresholds": {"p50_percent": 5, "p95_percent": 10,
+                               "counter_percent": 10},
+                "limits": {"max_thread_futures": 16,
+                           "max_warp_futures": 256,
+                           "max_cta_futures": 2048,
+                           "max_cluster_futures": 8192,
+                           "max_thread_async_objects": 8,
+                           "max_warp_async_objects": 128,
+                           "max_cta_async_objects": 1024,
+                           "max_cluster_async_objects": 4096},
+            },
             "cases": [{"id": "fake-load", "operation_class": "ordinary_load"}],
         }, sort_keys=True))
         env = dict(os.environ)
         env["FAKE_COMMAND_LOG"] = str(log)
         env["CUDA_VISIBLE_DEVICES"] = "0"
+        env["PATH"] = str(tools) + os.pathsep + env.get("PATH", "")
+        env["HBFSIM_TEST_CUDA_DRIVER_VERSION"] = "13020"
         output = root / "evidence"
         invoke(["--suite", "training", "--cases", str(cases),
                 "--benchmark", str(benchmark), "--ncu", str(ncu),
@@ -90,7 +128,31 @@ raise SystemExit(run.returncode)
                 "wrong CUDA version")
         require(manifest["environment"]["CUDA_VISIBLE_DEVICES"] == "0",
                 "environment not captured")
+        require(len(manifest["environment_sha256"]) == 64,
+                "environment hash missing")
+        require(manifest["calibration_environment"]["target"] == {
+            "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+            "gpu_uuid": "GPU-test", "pci_vendor_id": 0x10DE,
+            "pci_device_id": 0x2BB5,
+            "compute_capability_major": 12,
+            "compute_capability_minor": 0, "driver_version": 13020,
+        }, "target snapshot missing")
+        require(manifest["exact_profile_contract"] ==
+                json.loads(cases.read_text())["exact_profile_contract"],
+                "frozen exact contract missing")
+        require(manifest["gpu_processes"] == [] and
+                manifest["exclusive_process_observed"] is True,
+                "collector did not prove exclusive process")
+        require(len(manifest["gpu_snapshots"]) >= 2,
+                "operating snapshots missing")
         require(len(manifest["runs"]) == 3, "wrong repetition count")
+        require(len(manifest["observations"]) == 3,
+                "parsed observations missing")
+        require(all(item["native_latency_ns"] == 100 and
+                    len(item["contention_vector"]) == 4 and
+                    len(item["return_contention_vector"]) == 2
+                    for item in manifest["observations"]),
+                "Nsight metrics were not normalized into observations")
         for member in manifest["members"]:
             path = output / member["path"]
             require(path.is_file() and not path.is_symlink(), "missing raw member")
@@ -120,6 +182,20 @@ raise SystemExit(run.returncode)
                 "--output-dir", str(failed_output)], 70, env)
         require(not failed_output.exists(), "partial output was published")
         require(not list(root.glob(".*.partial-*")), "partial directory leaked")
+
+        write_executable(nvidia_smi, """#!/usr/bin/env python3
+import sys
+query=' '.join(sys.argv[1:])
+if '--query-compute-apps=' in query:
+ print('GPU-test, 999, other-process, 1024')
+ raise SystemExit(0)
+print('0, NVIDIA RTX PRO 6000 Blackwell Server Edition, GPU-test, 00000000:01:00.0, 0x2BB510DE, 12.0, 1830, 14001, 600.00, 45')
+""")
+        blocked = root / "blocked"
+        invoke(["--suite", "training", "--cases", str(cases),
+                "--benchmark", str(benchmark), "--ncu", str(ncu),
+                "--output-dir", str(blocked)], 70, env)
+        require(not blocked.exists(), "competing GPU work was not fail closed")
     print(json.dumps({"status": "passed"}))
     return 0
 

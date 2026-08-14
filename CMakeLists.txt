@@ -154,6 +154,11 @@ add_test(
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_calibration_cases.py"
             "${CMAKE_BINARY_DIR}/benchmarks/cuda/sm120_calibration"
 )
+add_test(
+    NAME collect_sm120
+    COMMAND Python3::Interpreter
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_collect_sm120.py"
+)
 
 add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
 target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)

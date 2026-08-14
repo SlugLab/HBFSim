@@ -221,7 +221,7 @@ timestamps, delayed waits relative to the synchronous control, zero unsafe
 launches/faults/leaks, and `issued == drained`. It also forces the real system
 NVIDIA driver ahead of the build-tree fake CUDA test library.
 
-## Remaining Stage 3/4 limit
+## Stage 3 TMA smoke and Stage 4 collection
 
 The Stage 3 live TMA smoke proof can be reproduced on a CC 12.0 GPU with:
 
@@ -237,10 +237,29 @@ TensorMap/TMA manifest, nonzero issue-to-wait overlap, one modeled HBF TMA, and
 zero faults, leaks, stale generations, and OOB bytes. This smoke proof is not a
 substitute for the Stage 4 independent calibration/holdout gate.
 
-Stages 1–2 do **not** yet implement or validate TMA load/store or
-unicast/multicast completion semantics, TensorMap runtime address-space
-splitting, GPCARB's two contention-equivalent queues, GNIC2TEX's four
-contention-equivalent queues, or their SMSP/CGA-relative routing model. Those
-require the TensorMap/TMA model (Stage 3) and independent CUDA/Nsight
-calibration plus holdout validation (Stage 4). Until those gates pass, the
-runtime remains fail-closed for complete Blackwell instruction timing fidelity.
+The runtime now publishes a schema-v2 routing program into control ABI v8 and
+maintains four load/fanout plus two store/return atomic queue timelines and
+counters per SM. The names are contention-equivalent labels, never assertions
+about undocumented physical channel numbering. Route inputs are the measured
+SM/warp/cluster identifiers and the launch-visible CTA/warp proxy declared in
+the profile. Queue saturation is fail-closed.
+
+Collect training or holdout evidence without changing clocks, power, or
+compute mode:
+
+```bash
+python3 scripts/calibration/collect_sm120.py --suite training \
+  --cases configs/calibration/sm120-training-cases.json \
+  --benchmark build-sm120-exact/benchmarks/cuda/sm120_calibration \
+  --ncu /usr/local/cuda-13.0/bin/ncu \
+  --output-dir /tmp/hbfsim-sm120-training
+```
+
+The collector requires CUDA 13.0 and Nsight Compute 2025.4.1.0, refuses
+symlink inputs and pre-existing outputs, records every argv and the relevant
+environment, and hashes raw stdout, stderr, and CSV members before atomically
+publishing the manifest. Exit codes are 64 for usage, 66 for unsafe/invalid
+inputs, and 70 for a tool or correctness failure. No collector or fitter may
+write `validation.status=passed`; that remains the independent holdout
+validator's sole responsibility. Until that validation and the post-run gates
+pass, reporting remains `calibrated_emulation`.

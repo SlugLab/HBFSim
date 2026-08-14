@@ -12,6 +12,8 @@ constexpr std::array<std::string_view, 7> kRequiredValidationClasses{
     "ordinary_load", "ordinary_store", "tma_load", "tma_store",
     "unicast", "multicast", "mixed_hbm_hbf"};
 
+bool sha256_hex(std::string_view value);
+
 bool validation_classes_complete(const ExactProfile& profile)
 {
     if (profile.validation.classes.size() !=
@@ -32,6 +34,24 @@ bool validation_classes_complete(const ExactProfile& profile)
         kRequiredValidationClasses.begin(),
         kRequiredValidationClasses.end(),
         [&](std::string_view name) { return names.contains(name); });
+}
+
+bool channel_profile_complete(const ExactProfile& profile)
+{
+    const auto& calibration = profile.calibration;
+    return profile.schema_version == 2 &&
+           calibration.label_semantics == "contention_equivalent" &&
+           calibration.gnic.count == 4 && calibration.gpc.count == 2 &&
+           calibration.gnic.depth != 0 && calibration.gpc.depth != 0 &&
+           calibration.gnic.service_ns_by_class.size() == 7 &&
+           calibration.gpc.service_ns_by_class.size() == 7 &&
+           calibration.routing.version != 0 &&
+           sha256_hex(calibration.routing.program_sha256) &&
+           !calibration.routing.smsp_proxy_lut.empty() &&
+           !calibration.routing.gnic_lut.empty() &&
+           !calibration.routing.gpc_lut.empty() &&
+           sha256_hex(calibration.raw_training_sha256) &&
+           sha256_hex(calibration.raw_holdout_sha256);
 }
 
 template <class Record>
@@ -145,6 +165,28 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
            "profile_not_validated");
     reject(!validation_classes_complete(profile),
            "validation_class_missing");
+    const auto channel_profile_valid = channel_profile_complete(profile);
+    reject(!channel_profile_valid || !evidence.channel_runtime.observed,
+           "queue_profile_missing");
+    reject(channel_profile_valid && evidence.channel_runtime.observed &&
+               (evidence.channel_runtime.routing_version !=
+                    profile.calibration.routing.version ||
+                evidence.channel_runtime.routing_program_sha256 !=
+                    profile.calibration.routing.program_sha256 ||
+                evidence.channel_runtime.gnic_count != 4 ||
+                evidence.channel_runtime.gpc_count != 2),
+           "routing_program_mismatch");
+    reject(channel_profile_valid && evidence.channel_runtime.observed &&
+               (evidence.channel_runtime.maximum_gnic_outstanding >
+                    profile.calibration.gnic.depth ||
+                evidence.channel_runtime.maximum_gpc_outstanding >
+                    profile.calibration.gpc.depth ||
+                evidence.channel_runtime.saturated_requests != 0),
+           "outstanding_depth_exceeded");
+    reject(evidence.channel_runtime.migration_visible_sm_mismatch,
+           "migration_visible_sm_mismatch");
+    reject(evidence.channel_runtime.counter_residual_failed,
+           "counter_residual_failure");
     reject(live.gpu_name != profile.target.gpu_name, "gpu_name_mismatch");
     reject(live.gpu_uuid != profile.target.gpu_uuid, "gpu_uuid_mismatch");
     reject(live.pci_vendor_id != profile.target.pci_vendor_id ||

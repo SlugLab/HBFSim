@@ -979,6 +979,14 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
     evidence.future_runtime = decision.future_runtime;
     evidence.tma_manifest = decision.tma_manifest;
     evidence.tma_runtime = decision.tma_runtime;
+    evidence.channel_runtime = {
+        .routing_version = exact.profile->calibration.routing.version,
+        .routing_program_sha256 =
+            exact.profile->calibration.routing.program_sha256,
+        .gnic_count = exact.profile->calibration.gnic.count,
+        .gpc_count = exact.profile->calibration.gpc.count,
+        .observed = exact.profile->schema_version == 2,
+    };
     decision.cubin_sha256 = evidence.cubin_sha256;
     decision.sass_sha256 = evidence.sass_sha256;
     decision.aot_verified = evidence.aot_verified;
@@ -1013,9 +1021,18 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
                       decision.exact_rejection_reasons.end(),
                       "validation_class_missing") ==
                 decision.exact_rejection_reasons.end();
-        if (decision.exact_rejection_reasons.empty() && decision.allowed) {
-            decision.admitted_fidelity = "exact";
-        } else if (!decision.exact_rejection_reasons.empty()) {
+        decision.routing_program_sha256 =
+            exact.profile->calibration.routing.program_sha256;
+        decision.raw_training_sha256 =
+            exact.profile->calibration.raw_training_sha256;
+        decision.raw_holdout_sha256 =
+            exact.profile->calibration.raw_holdout_sha256;
+        decision.channel_runtime = evidence.channel_runtime;
+        // Launch admission is necessarily pre-run.  The durable coverage
+        // record remains calibrated_emulation until final runtime counters,
+        // leaks, barriers/groups, and channel residuals are validated.
+        decision.post_run_validation_passed = false;
+        if (!decision.exact_rejection_reasons.empty()) {
             decision.allowed = false;
             decision.reason = "exact_admission_failed";
         }

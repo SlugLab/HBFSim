@@ -13,8 +13,16 @@ nlohmann::json to_json(const GateDecision& decision)
     if (decision.admitted_fidelity == "exact" &&
         (!decision.allowed || decision.requested_fidelity != "exact" ||
          !decision.aot_verified || !decision.validation_passed ||
+         !decision.post_run_validation_passed ||
          decision.exact_profile_id.empty() || decision.cubin_sha256.empty() ||
          decision.sass_sha256.empty() ||
+         decision.routing_program_sha256.empty() ||
+         decision.raw_training_sha256.empty() ||
+         decision.raw_holdout_sha256.empty() ||
+         !decision.channel_runtime.observed ||
+         decision.channel_runtime.saturated_requests != 0 ||
+         decision.channel_runtime.counter_residual_failed ||
+         decision.channel_runtime.migration_visible_sm_mismatch ||
          !decision.exact_rejection_reasons.empty() ||
          (decision.manifest_schema_version != 3 &&
           decision.manifest_schema_version != 4) ||
@@ -62,6 +70,11 @@ nlohmann::json to_json(const GateDecision& decision)
         {"exact_rejection_reasons", decision.exact_rejection_reasons},
         {"aot_verified", decision.aot_verified},
         {"validation_passed", decision.validation_passed},
+        {"post_run_validation_passed",
+         decision.post_run_validation_passed},
+        {"routing_program_sha256", decision.routing_program_sha256},
+        {"raw_training_sha256", decision.raw_training_sha256},
+        {"raw_holdout_sha256", decision.raw_holdout_sha256},
         {"async_transform_version",
          decision.future_manifest.async_transform_version},
         {"ir_sha256", decision.future_manifest.ir_sha256},
@@ -96,6 +109,21 @@ nlohmann::json to_json(const GateDecision& decision)
         {"tma_mixed_tiles_proved",
          decision.tma_runtime.mixed_tiles_proved},
         {"tma_runtime_observed", decision.tma_runtime.observed},
+        {"channel_routing_version",
+         decision.channel_runtime.routing_version},
+        {"channel_gnic_count", decision.channel_runtime.gnic_count},
+        {"channel_gpc_count", decision.channel_runtime.gpc_count},
+        {"channel_maximum_gnic_outstanding",
+         decision.channel_runtime.maximum_gnic_outstanding},
+        {"channel_maximum_gpc_outstanding",
+         decision.channel_runtime.maximum_gpc_outstanding},
+        {"channel_saturated_requests",
+         decision.channel_runtime.saturated_requests},
+        {"channel_migration_visible_sm_mismatch",
+         decision.channel_runtime.migration_visible_sm_mismatch},
+        {"channel_counter_residual_failed",
+         decision.channel_runtime.counter_residual_failed},
+        {"channel_runtime_observed", decision.channel_runtime.observed},
     };
 }
 

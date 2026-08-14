@@ -199,14 +199,83 @@ def validate_dataset(value: object, label: str) -> dict:
     return result
 
 
+def validate_calibration(value: object) -> dict:
+    calibration = exact_keys(value, {
+        "label_semantics", "gnic", "gpc", "routing", "metric_names",
+        "raw_training_sha256", "raw_holdout_sha256", "fitted_case_ids",
+        "residuals", "counter_thresholds",
+    }, "calibration")
+    if calibration["label_semantics"] != "contention_equivalent":
+        fail(64, "calibration labels must be contention-equivalent")
+    for name, count in (("gnic", 4), ("gpc", 2)):
+        queue = exact_keys(calibration[name], {
+            "count", "depth", "arbitration", "service_ns_by_class",
+        }, f"calibration.{name}")
+        if integer(queue["count"], f"calibration.{name}.count") != count:
+            fail(64, f"calibration.{name} queue count mismatch")
+        integer(queue["depth"], f"calibration.{name}.depth", positive=True)
+        if queue["arbitration"] not in ("fifo", "round_robin"):
+            fail(64, f"invalid calibration.{name}.arbitration")
+        services = queue["service_ns_by_class"]
+        if (not isinstance(services, list) or len(services) != 7 or
+                any(not isinstance(item, int) or isinstance(item, bool) or
+                    item <= 0 for item in services)):
+            fail(64, f"invalid calibration.{name} services")
+    routing = exact_keys(calibration["routing"], {
+        "version", "program_sha256", "inputs", "smsp_proxy_lut",
+        "gnic_lut", "gpc_lut",
+    }, "calibration.routing")
+    integer(routing["version"], "calibration.routing.version", positive=True)
+    sha256(routing["program_sha256"], "calibration.routing.program_sha256")
+    if routing["inputs"] != [
+            "smid", "warpid", "cta_shape", "resident_warps",
+            "cluster_ctarank", "operation"]:
+        fail(64, "calibration routing inputs mismatch")
+    for name, bound in (("smsp_proxy_lut", None), ("gnic_lut", 4),
+                        ("gpc_lut", 2)):
+        lut = routing[name]
+        if (not isinstance(lut, list) or not lut or
+                any(not isinstance(item, int) or isinstance(item, bool) or
+                    item < 0 or (bound is not None and item >= bound)
+                    for item in lut)):
+            fail(64, f"invalid calibration routing {name}")
+    for name in ("raw_training_sha256", "raw_holdout_sha256"):
+        sha256(calibration[name], f"calibration.{name}")
+    if calibration["raw_training_sha256"] == calibration["raw_holdout_sha256"]:
+        fail(64, "calibration training and holdout hashes overlap")
+    metrics = calibration["metric_names"]
+    if (not isinstance(metrics, list) or not metrics or
+            any(not isinstance(item, str) or not item for item in metrics) or
+            len(metrics) != len(set(metrics))):
+        fail(64, "invalid calibration metrics")
+    thresholds = calibration["counter_thresholds"]
+    if not isinstance(thresholds, list) or len(thresholds) != len(metrics):
+        fail(64, "invalid calibration counter thresholds")
+    threshold_metrics = set()
+    for index, item in enumerate(thresholds):
+        record = exact_keys(item, {"metric", "max_error_percent"},
+                            f"calibration.counter_thresholds[{index}]")
+        threshold_metrics.add(string(record["metric"], "counter metric"))
+        if number(record["max_error_percent"], "counter threshold") > 10:
+            fail(64, "calibration counter threshold exceeds limit")
+    if threshold_metrics != set(metrics):
+        fail(64, "calibration metric threshold set mismatch")
+    return calibration
+
+
 def validate_profile(value: object) -> dict:
+    if not isinstance(value, dict):
+        fail(64, "profile object shape mismatch")
+    schema = integer(value.get("schema_version"), "schema_version",
+                     positive=True)
     root_fields = {
         "schema_version", "profile_id", "target", "toolchain", "conditions",
-        "thresholds", "limits", "modules", "validation",
+        "thresholds", "limits", "modules", "validation", "calibration",
     }
     profile = exact_keys(value, root_fields, "profile")
-    if integer(profile["schema_version"], "schema_version", positive=True) != 1:
+    if schema != 2:
         fail(64, "unsupported exact profile schema")
+    validate_calibration(profile["calibration"])
     string(profile["profile_id"], "profile_id")
     target = exact_keys(profile["target"], {
         "gpu_name", "gpu_uuid", "pci_vendor_id", "pci_device_id",
@@ -631,6 +700,13 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
                        validation["holdout"]["manifest_sha256"])
     add(reasons, not training_matches, "training_manifest_sha256_mismatch")
     add(reasons, not holdout_matches, "holdout_manifest_sha256_mismatch")
+    calibration = profile["calibration"]
+    add(reasons, calibration["raw_training_sha256"] !=
+        validation["training"]["manifest_sha256"],
+        "training_manifest_sha256_mismatch")
+    add(reasons, calibration["raw_holdout_sha256"] !=
+        validation["holdout"]["manifest_sha256"],
+        "holdout_manifest_sha256_mismatch")
 
     if live is None:
         add(reasons, True, "live_environment_missing")
@@ -792,7 +868,7 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
         "decision_schema_version": 1,
         "operation": "sm120_exact_admission_dry_run",
         "requested_fidelity": "exact",
-        "admitted_fidelity": "exact" if allowed else "calibrated_emulation",
+        "admitted_fidelity": "calibrated_emulation",
         "allowed": allowed,
         "reason": "exact_admitted" if allowed else "exact_admission_failed",
         "exact_rejection_reasons": reasons,
@@ -804,11 +880,18 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
         "aot_verified": aot_verified,
         "aot_authorization_verified": aot_authorization_verified,
         "validation_passed": validation_passed,
+        "post_run_validation_passed": False,
+        "routing_program_sha256":
+            profile["calibration"]["routing"]["program_sha256"],
+        "raw_training_sha256":
+            profile["calibration"]["raw_training_sha256"],
+        "raw_holdout_sha256":
+            profile["calibration"]["raw_holdout_sha256"],
         "environment_source": environment_source,
         "environment_diagnostics": environment_diagnostics,
         "launch_attempted": False,
         "module_loaded": False,
-        "scope": "stage1_identity_environment_reproducibility_only",
+        "scope": "stage4_prelaunch_only",
         "timing_fidelity_proven": False,
     }
     return (0 if allowed else 2), decision
@@ -826,6 +909,7 @@ def error_decision(error: AdmissionError) -> dict:
         "aot_verified": False,
         "aot_authorization_verified": False,
         "validation_passed": False,
+        "post_run_validation_passed": False,
         "launch_attempted": False,
         "module_loaded": False,
         "scope": "stage1_identity_environment_reproducibility_only",

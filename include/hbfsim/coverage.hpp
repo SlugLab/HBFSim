@@ -152,6 +152,19 @@ struct TmaRuntimeEvidence {
     bool observed{false};
 };
 
+struct ChannelRuntimeEvidence {
+    std::uint32_t routing_version{0};
+    std::string routing_program_sha256;
+    std::uint32_t gnic_count{0};
+    std::uint32_t gpc_count{0};
+    std::uint32_t maximum_gnic_outstanding{0};
+    std::uint32_t maximum_gpc_outstanding{0};
+    std::uint64_t saturated_requests{0};
+    bool migration_visible_sm_mismatch{false};
+    bool counter_residual_failed{false};
+    bool observed{false};
+};
+
 struct ModuleManifest {
     std::string module_id;
     std::string kernel;
@@ -214,10 +227,15 @@ struct GateDecision {
     std::vector<std::string> exact_rejection_reasons;
     bool aot_verified{false};
     bool validation_passed{false};
+    bool post_run_validation_passed{false};
+    std::string routing_program_sha256;
+    std::string raw_training_sha256;
+    std::string raw_holdout_sha256;
     FutureManifestEvidence future_manifest;
     FutureRuntimeEvidence future_runtime;
     TmaManifestEvidence tma_manifest;
     TmaRuntimeEvidence tma_runtime;
+    ChannelRuntimeEvidence channel_runtime;
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);

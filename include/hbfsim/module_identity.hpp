@@ -38,6 +38,7 @@ struct LoadedModuleEvidence {
     FutureRuntimeEvidence future_runtime;
     TmaManifestEvidence tma_manifest;
     TmaRuntimeEvidence tma_runtime;
+    ChannelRuntimeEvidence channel_runtime;
     bool aot_verified{false};
 };
 

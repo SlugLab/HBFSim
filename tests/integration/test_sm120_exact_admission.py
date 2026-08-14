@@ -99,7 +99,7 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
     training.write_bytes(b'{"cases":["train-load","train-store"]}\n')
     holdout.write_bytes(b'{"cases":["holdout-load","holdout-tma"]}\n')
     profile = {
-        "schema_version": 1, "profile_id": "sm120-e2e-test",
+        "schema_version": 2, "profile_id": "sm120-e2e-test",
         "target": {
             "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
             "gpu_uuid": "GPU-11111111-2222-3333-4444-555555555555",
@@ -152,6 +152,31 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
                 "p50_error_percent": 2.0, "p95_error_percent": 4.0,
                 "counter_error_percent": 5.0,
             } for name in CLASSES],
+        },
+        "calibration": {
+            "label_semantics": "contention_equivalent",
+            "gnic": {"count": 4, "depth": 8, "arbitration": "fifo",
+                     "service_ns_by_class": [80, 90, 100, 110, 120, 130, 140]},
+            "gpc": {"count": 2, "depth": 8,
+                    "arbitration": "round_robin",
+                    "service_ns_by_class": [60, 70, 80, 90, 100, 110, 120]},
+            "routing": {
+                "version": 1, "program_sha256": "8" * 64,
+                "inputs": ["smid", "warpid", "cta_shape",
+                           "resident_warps", "cluster_ctarank", "operation"],
+                "smsp_proxy_lut": [0, 1, 2, 3],
+                "gnic_lut": [0, 1, 2, 3], "gpc_lut": [0, 1],
+            },
+            "metric_names": ["lsu_active", "tma_active", "long_scoreboard"],
+            "raw_training_sha256": digest(training.read_bytes()),
+            "raw_holdout_sha256": digest(holdout.read_bytes()),
+            "fitted_case_ids": ["train-load", "train-store"],
+            "residuals": [{"operation_class": name,
+                           "p50_error_percent": 2.0,
+                           "p95_error_percent": 4.0} for name in CLASSES],
+            "counter_thresholds": [
+                {"metric": name, "max_error_percent": 10.0}
+                for name in ("lsu_active", "tma_active", "long_scoreboard")],
         },
     }
     profile_path = root / "profile.json"
@@ -236,10 +261,12 @@ def main() -> int:
                 f"valid fixture rejected: {result.stderr}\n{decision}")
         require(decision["allowed"] is True and
                 decision["requested_fidelity"] == "exact" and
-                decision["admitted_fidelity"] == "exact" and
+                decision["admitted_fidelity"] == "calibrated_emulation" and
                 decision["aot_verified"] is True and
                 decision["aot_authorization_verified"] is True and
                 decision["validation_passed"] is True and
+                decision["post_run_validation_passed"] is False and
+                decision["routing_program_sha256"] == "8" * 64 and
                 decision["exact_rejection_reasons"] == [],
                 f"valid fixture lacks exact proof: {decision}")
         require(decision["launch_attempted"] is False and

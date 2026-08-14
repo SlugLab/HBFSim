@@ -443,6 +443,10 @@ int main()
     admitted_exact.sass_sha256 = std::string(64, '5');
     admitted_exact.aot_verified = true;
     admitted_exact.validation_passed = true;
+    admitted_exact.post_run_validation_passed = true;
+    admitted_exact.routing_program_sha256 = std::string(64, '8');
+    admitted_exact.raw_training_sha256 = std::string(64, '9');
+    admitted_exact.raw_holdout_sha256 = std::string(64, 'a');
     admitted_exact.manifest_schema_version = 4;
     admitted_exact.future_manifest = parsed_v4.future_manifest;
     admitted_exact.future_runtime = {
@@ -471,6 +475,15 @@ int main()
         .mixed_tiles_proved = true,
         .observed = true,
     };
+    admitted_exact.channel_runtime = {
+        .routing_version = 1,
+        .routing_program_sha256 = std::string(64, '8'),
+        .gnic_count = 4,
+        .gpc_count = 2,
+        .maximum_gnic_outstanding = 4,
+        .maximum_gpc_outstanding = 2,
+        .observed = true,
+    };
     writer.append(admitted_exact);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
@@ -483,6 +496,9 @@ int main()
           std::string::npos);
     CHECK(json.find("\"admitted_fidelity\":\"exact\"") !=
           std::string::npos);
+    CHECK(json.find("\"post_run_validation_passed\":true") !=
+          std::string::npos);
+    CHECK(json.find("\"channel_gnic_count\":4") != std::string::npos);
     CHECK(json.find("\"exact_profile_id\":\"profile\"") !=
           std::string::npos);
     CHECK(json.find("\"exact_rejection_reasons\":[]") !=
@@ -517,6 +533,17 @@ int main()
     }
     CHECK(false_exact_rejected);
 
+    auto prelaunch_only = admitted_exact;
+    prelaunch_only.post_run_validation_passed = false;
+    bool prelaunch_exact_rejected = false;
+    try {
+        hbfsim::CoverageWriter invariant_writer(report);
+        invariant_writer.append(prelaunch_only);
+    } catch (const std::logic_error&) {
+        prelaunch_exact_rejected = true;
+    }
+    CHECK(prelaunch_exact_rejected);
+
     auto pending = safe;
     pending.allowed = false;
     pending.reason = "exact_admission_failed";
@@ -525,6 +552,7 @@ int main()
     pending.exact_profile_id = "pending-profile";
     pending.exact_rejection_reasons = {"profile_not_validated"};
     pending.validation_passed = false;
+    pending.post_run_validation_passed = false;
     hbfsim::CoverageWriter pending_writer(report);
     pending_writer.append(pending);
     std::ifstream pending_input(report);

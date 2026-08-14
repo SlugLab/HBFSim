@@ -48,7 +48,7 @@ struct Case {
 Case matching_case()
 {
     Case value;
-    value.profile.schema_version = 1;
+    value.profile.schema_version = 2;
     value.profile.profile_id = "profile";
     value.profile.target = {
         .gpu_name = "NVIDIA RTX PRO 6000 Blackwell Server Edition",
@@ -111,6 +111,30 @@ Case matching_case()
             .counter_error_percent = 5.0,
         });
     }
+    value.profile.calibration = {
+        .label_semantics = "contention_equivalent",
+        .gnic = {.count = 4, .depth = 8, .arbitration = "fifo",
+                 .service_ns_by_class = {10, 11, 12, 13, 14, 15, 16}},
+        .gpc = {.count = 2, .depth = 8, .arbitration = "round_robin",
+                .service_ns_by_class = {8, 9, 10, 11, 12, 13, 14}},
+        .routing = {.version = 1,
+                    .program_sha256 = std::string(64, '8'),
+                    .inputs = {"smid", "warpid", "cta_shape",
+                               "resident_warps", "cluster_ctarank",
+                               "operation"},
+                    .smsp_proxy_lut = {0, 1, 2, 3},
+                    .gnic_lut = {0, 1, 2, 3},
+                    .gpc_lut = {0, 1}},
+        .metric_names = {"lsu_active"},
+        .raw_training_sha256 = std::string(64, '9'),
+        .raw_holdout_sha256 = std::string(64, 'a'),
+        .fitted_case_ids = {"train-a"},
+        .residuals = {{.operation_class = "ordinary_load",
+                       .p50_error_percent = 1,
+                       .p95_error_percent = 2}},
+        .counter_thresholds = {{.metric = "lsu_active",
+                                .max_error_percent = 10}},
+    };
 
     value.evidence = {
         .module_id = module_id,
@@ -168,6 +192,15 @@ Case matching_case()
                         .barrier_waits = 1,
                         .mixed_tiles_proved = true,
                         .observed = true},
+        .channel_runtime = {
+            .routing_version = 1,
+            .routing_program_sha256 = std::string(64, '8'),
+            .gnic_count = 4,
+            .gpc_count = 2,
+            .maximum_gnic_outstanding = 4,
+            .maximum_gpc_outstanding = 4,
+            .observed = true,
+        },
         .aot_verified = true,
     };
     value.live = {
@@ -213,6 +246,25 @@ std::vector<Mutation> mutations()
          }},
         {"validation_class_missing",
          [](Case& value) { value.profile.validation.classes.pop_back(); }},
+        {"queue_profile_missing",
+         [](Case& value) { value.profile.schema_version = 1; }},
+        {"routing_program_mismatch",
+         [](Case& value) {
+             value.evidence.channel_runtime.routing_program_sha256[0] = '0';
+         }},
+        {"outstanding_depth_exceeded",
+         [](Case& value) {
+             value.evidence.channel_runtime.maximum_gnic_outstanding = 9;
+         }},
+        {"migration_visible_sm_mismatch",
+         [](Case& value) {
+             value.evidence.channel_runtime.migration_visible_sm_mismatch =
+                 true;
+         }},
+        {"counter_residual_failure",
+         [](Case& value) {
+             value.evidence.channel_runtime.counter_residual_failed = true;
+         }},
         {"gpu_name_mismatch",
          [](Case& value) { value.live.gpu_name += " changed"; }},
         {"gpu_uuid_mismatch",

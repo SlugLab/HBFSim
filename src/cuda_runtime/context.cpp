@@ -64,11 +64,15 @@ struct hbfsim_context {
     const hbfsim::LaunchGateApiV4* launch_gate_api_v4{nullptr};
     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
+    hbfsim::LaunchGateFinalizeExactV1 launch_gate_finalize_exact_v1{nullptr};
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
     bool timing_owner_active{false};
     bool daemon_ready{false};
+    bool exact_requested{false};
+    bool exact_contract_published{false};
+    bool exact_finalized{false};
     hbfsim::runtime::AfterBeginRetireHook after_begin_retire{nullptr};
     void* after_begin_retire_state{nullptr};
     std::unique_ptr<hbfsim::Profile> profile;
@@ -951,6 +955,10 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         using get_api_type = hbfsim::LaunchGateGetApi;
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
+        context->launch_gate_finalize_exact_v1 =
+            reinterpret_cast<hbfsim::LaunchGateFinalizeExactV1>(
+                ::dlsym(RTLD_DEFAULT,
+                        "hbfsim_launch_gate_finalize_exact_v1"));
         if (get_api != nullptr) {
             context->launch_gate_api_v4 =
                 static_cast<const hbfsim::LaunchGateApiV4*>(
@@ -1033,8 +1041,11 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
                               context->launch_gate_api_v2->quarantine_retire !=
                                   nullptr;
         const auto exact_requested = exact_profile_json != nullptr;
+        context->exact_requested = exact_requested;
         if ((exact_requested ? !valid_v4
                              : (!valid_v4 && !valid_v3 && !valid_v2)) ||
+            (exact_requested &&
+             context->launch_gate_finalize_exact_v1 == nullptr) ||
             launch_gate_activate(
                 context.get(), reinterpret_cast<std::uintptr_t>(context.get()),
                 reinterpret_cast<std::uintptr_t>(context->device_control),
@@ -1592,6 +1603,190 @@ extern "C" int hbfsim_context_create_v2(const hbfsim_options_v2* options,
                             : nullptr;
     return hbfsim::runtime::create_context(&options->base, daemon, true,
                                            nullptr, nullptr, out, exact);
+}
+
+extern "C" int hbfsim_publish_exact_run_contract(
+    hbfsim_context* context, const hbfsim_exact_run_contract* contract)
+{
+    if (context == nullptr || contract == nullptr ||
+        contract->struct_bytes != sizeof(*contract) ||
+        (contract->cache_condition != HBFSIM_EXACT_CACHE_WARM_L2 &&
+         contract->cache_condition != HBFSIM_EXACT_CACHE_COLD) ||
+        contract->concurrency_condition !=
+            HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS ||
+        contract->cluster_x == 0 || contract->cluster_y == 0 ||
+        contract->cluster_z == 0) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation) return HBFSIM_IO_ERROR;
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (!context->exact_requested || context->exact_finalized ||
+        context->launch_gate_api_v4 == nullptr ||
+        !hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
+                                                 context->device_ordinal)) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    const auto epoch = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+    const hbfsim::ExactRunContractAbi raw{
+        .abi_version = hbfsim::kExactRunContractAbiVersion,
+        .struct_bytes = sizeof(hbfsim::ExactRunContractAbi),
+        .cache_condition = contract->cache_condition ==
+                                   HBFSIM_EXACT_CACHE_WARM_L2
+                               ? hbfsim::ExactCacheConditionAbi::WarmL2
+                               : hbfsim::ExactCacheConditionAbi::Cold,
+        .concurrency_condition =
+            hbfsim::ExactConcurrencyConditionAbi::ExclusiveProcess,
+        .cluster_x = contract->cluster_x,
+        .cluster_y = contract->cluster_y,
+        .cluster_z = contract->cluster_z,
+        .cache_condition_epoch = epoch,
+    };
+    if (context->launch_gate_api_v4->publish_run_contract(
+            reinterpret_cast<std::uintptr_t>(context),
+            context->control_generation, &raw) != 0) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    context->exact_contract_published = true;
+    return HBFSIM_OK;
+#else
+    return HBFSIM_CUDA_ERROR;
+#endif
+}
+
+extern "C" int hbfsim_finalize_exact(hbfsim_context* context)
+{
+    if (context == nullptr) return HBFSIM_INVALID_ARGUMENT;
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation) return HBFSIM_IO_ERROR;
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (!context->exact_requested || !context->exact_contract_published ||
+        context->launch_gate_finalize_exact_v1 == nullptr) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    if (context->exact_finalized) return HBFSIM_OK;
+    if (!hbfsim::runtime::cuda_domain_is_current(context->cuda_context,
+                                                 context->device_ordinal) ||
+        ::cudaDeviceSynchronize() != cudaSuccess) {
+        return HBFSIM_CUDA_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) return HBFSIM_IO_ERROR;
+    const auto* header = control.header();
+    const auto* config = control.sm120_channel_config();
+    const auto state_count = hbfsim::host_service::atomic_load(
+        header->sm120_channel_state_count, std::memory_order_acquire);
+    if (config->magic != hbfsim::host_service::kSm120ChannelConfigMagic ||
+        config->enabled == 0 || config->routing_version == 0 ||
+        config->gnic_count != 4 || config->gpc_count != 2 ||
+        state_count == 0 ||
+        state_count > hbfsim::host_service::kSm120StateCapacity) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    std::uint32_t maximum_gnic = 0, maximum_gpc = 0;
+    std::uint64_t saturated = hbfsim::host_service::atomic_load(
+        header->sm120_channel_saturated, std::memory_order_acquire);
+    std::uint64_t gnic_requests = 0, gpc_requests = 0;
+    bool migration_mismatch = false, residual_failed = false;
+    const auto add = [&](std::uint64_t& total, std::uint64_t value) {
+        if (value > std::numeric_limits<std::uint64_t>::max() - total) {
+            residual_failed = true;
+        } else {
+            total += value;
+        }
+    };
+    const auto* states = control.sm120_channel_states();
+    for (std::uint32_t sm = 0; sm < state_count; ++sm) {
+        const auto& state = states[sm];
+        maximum_gnic = std::max(maximum_gnic,
+            hbfsim::host_service::atomic_load(
+                state.maximum_gnic_outstanding, std::memory_order_acquire));
+        maximum_gpc = std::max(maximum_gpc,
+            hbfsim::host_service::atomic_load(
+                state.maximum_gpc_outstanding, std::memory_order_acquire));
+        migration_mismatch = migration_mismatch ||
+            hbfsim::host_service::atomic_load(
+                state.migration_visible_sm_mismatch,
+                std::memory_order_acquire) != 0;
+        for (const auto& value : state.gnic_requests) {
+            add(gnic_requests, hbfsim::host_service::atomic_load(
+                value, std::memory_order_acquire));
+        }
+        for (const auto& value : state.gpc_requests) {
+            add(gpc_requests, hbfsim::host_service::atomic_load(
+                value, std::memory_order_acquire));
+        }
+    }
+    residual_failed = residual_failed || maximum_gnic > config->gnic_depth ||
+                      maximum_gpc > config->gpc_depth;
+    hbfsim::ExactPostRunEvidenceAbi evidence{};
+    evidence.abi_version = hbfsim::kExactPostRunEvidenceAbiVersion;
+    evidence.struct_bytes = sizeof(evidence);
+    evidence.future_issued = hbfsim::host_service::atomic_load(
+        header->future_issued, std::memory_order_acquire);
+    evidence.future_issue_throttle_ns = hbfsim::host_service::atomic_load(
+        header->future_issue_throttle_ns, std::memory_order_acquire);
+    evidence.future_dependency_wait_ns = hbfsim::host_service::atomic_load(
+        header->future_dependency_wait_ns, std::memory_order_acquire);
+    evidence.future_ordering_wait_ns = hbfsim::host_service::atomic_load(
+        header->future_ordering_wait_ns, std::memory_order_acquire);
+    evidence.future_drained = hbfsim::host_service::atomic_load(
+        header->future_drained, std::memory_order_acquire);
+    evidence.future_leaked = evidence.future_issued > evidence.future_drained
+        ? evidence.future_issued - evidence.future_drained : 0;
+    evidence.future_faults = hbfsim::host_service::atomic_load(
+        header->future_faults, std::memory_order_acquire);
+    evidence.tma_issued = hbfsim::host_service::atomic_load(
+        header->tma_issued, std::memory_order_acquire);
+    evidence.tma_hbm_bytes = hbfsim::host_service::atomic_load(
+        header->tma_hbm_bytes, std::memory_order_acquire);
+    evidence.tma_hbf_bytes = hbfsim::host_service::atomic_load(
+        header->tma_hbf_bytes, std::memory_order_acquire);
+    evidence.tma_oob_bytes = hbfsim::host_service::atomic_load(
+        header->tma_oob_bytes, std::memory_order_acquire);
+    evidence.tma_fanout_targets = hbfsim::host_service::atomic_load(
+        header->tma_fanout_targets, std::memory_order_acquire);
+    evidence.tma_barrier_wait_ns = hbfsim::host_service::atomic_load(
+        header->tma_barrier_wait_ns, std::memory_order_acquire);
+    evidence.tma_group_wait_ns = hbfsim::host_service::atomic_load(
+        header->tma_group_wait_ns, std::memory_order_acquire);
+    evidence.tma_stale_generations = hbfsim::host_service::atomic_load(
+        header->tma_stale_generations, std::memory_order_acquire);
+    evidence.tma_faults = hbfsim::host_service::atomic_load(
+        header->tma_faults, std::memory_order_acquire);
+    evidence.tma_leaked = hbfsim::host_service::atomic_load(
+        header->tma_leaked, std::memory_order_acquire);
+    evidence.channel_routing_version = config->routing_version;
+    evidence.channel_gnic_count = config->gnic_count;
+    evidence.channel_gpc_count = config->gpc_count;
+    evidence.maximum_gnic_outstanding = maximum_gnic;
+    evidence.maximum_gpc_outstanding = maximum_gpc;
+    evidence.migration_visible_sm_mismatch = migration_mismatch ? 1U : 0U;
+    evidence.counter_residual_failed = residual_failed ? 1U : 0U;
+    evidence.channel_saturated_requests = saturated;
+    evidence.channel_gnic_requests = gnic_requests;
+    evidence.channel_gpc_requests = gpc_requests;
+    static constexpr char hex[] = "0123456789abcdef";
+    for (std::size_t index = 0; index < 32; ++index) {
+        const auto value = static_cast<unsigned char>(
+            config->routing_program_sha256[index]);
+        evidence.routing_program_sha256[index * 2] = hex[value >> 4];
+        evidence.routing_program_sha256[index * 2 + 1] = hex[value & 0xf];
+    }
+    evidence.routing_program_sha256[64] = '\0';
+    if (context->launch_gate_finalize_exact_v1(
+            reinterpret_cast<std::uintptr_t>(context),
+            context->control_generation, &evidence) != 0) {
+        return HBFSIM_UNSUPPORTED;
+    }
+    context->exact_finalized = true;
+    return HBFSIM_OK;
+#else
+    return HBFSIM_CUDA_ERROR;
+#endif
 }
 
 extern "C" int hbfsim_register_device(

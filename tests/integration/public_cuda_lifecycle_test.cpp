@@ -306,9 +306,22 @@ int main(int argc, char** argv)
         auto* exact_context =
             create_exact(configuration, exact_profile.c_str());
         register_range(exact_context);
+        const hbfsim_exact_run_contract exact_contract{
+            .struct_bytes = sizeof(hbfsim_exact_run_contract),
+            .cache_condition = HBFSIM_EXACT_CACHE_WARM_L2,
+            .concurrency_condition =
+                HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS,
+            .cluster_x = 2,
+            .cluster_y = 1,
+            .cluster_z = 1,
+        };
+        CHECK(hbfsim_publish_exact_run_contract(exact_context,
+                                                &exact_contract) ==
+              HBFSIM_OK);
         load_trusted_module();
         CHECK(launch_relevant() != 0);
         CHECK(fakeCudaLaunchCount() == 0);
+        CHECK(hbfsim_finalize_exact(exact_context) == HBFSIM_UNSUPPORTED);
         using unload_type = int (*)(void*);
         auto unload = reinterpret_cast<unload_type>(
             ::dlsym(RTLD_DEFAULT, "cuModuleUnload"));
@@ -318,6 +331,17 @@ int main(int argc, char** argv)
         fakeCudaResetLifecycleCounts();
     }
     auto* context = create(configuration);
+    const hbfsim_exact_run_contract emulation_contract{
+        .struct_bytes = sizeof(hbfsim_exact_run_contract),
+        .cache_condition = HBFSIM_EXACT_CACHE_WARM_L2,
+        .concurrency_condition = HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS,
+        .cluster_x = 1,
+        .cluster_y = 1,
+        .cluster_z = 1,
+    };
+    CHECK(hbfsim_publish_exact_run_contract(context, &emulation_contract) ==
+          HBFSIM_UNSUPPORTED);
+    CHECK(hbfsim_finalize_exact(context) == HBFSIM_UNSUPPORTED);
     const hbfsim_range_options unsupported_capacity{
         .mode = HBFSIM_RANGE_MODE_CAPACITY,
         .permissions = HBFSIM_RANGE_READ,

@@ -107,6 +107,7 @@ struct FutureRuntimeEvidence {
     std::uint64_t ordering_wait_ns{0};
     std::uint64_t drained{0};
     std::uint64_t leaked{0};
+    std::uint64_t faults{0};
     bool observed{false};
 };
 
@@ -160,9 +161,17 @@ struct ChannelRuntimeEvidence {
     std::uint32_t maximum_gnic_outstanding{0};
     std::uint32_t maximum_gpc_outstanding{0};
     std::uint64_t saturated_requests{0};
+    std::uint64_t gnic_requests{0};
+    std::uint64_t gpc_requests{0};
     bool migration_visible_sm_mismatch{false};
     bool counter_residual_failed{false};
     bool observed{false};
+};
+
+struct ExactPostRunEvidence {
+    FutureRuntimeEvidence future_runtime;
+    TmaRuntimeEvidence tma_runtime;
+    ChannelRuntimeEvidence channel_runtime;
 };
 
 struct ModuleManifest {
@@ -283,6 +292,9 @@ class CoverageWriter {
     std::filesystem::path path_;
     mutable std::mutex mutex_;
 };
+
+[[nodiscard]] GateDecision exact_post_run_decision(
+    GateDecision decision, const ExactPostRunEvidence& evidence);
 
 [[nodiscard]] bool try_append_coverage(CoverageWriter& writer,
                                        const GateDecision& decision) noexcept;

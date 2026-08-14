@@ -22,12 +22,17 @@ int main()
 {
     static_assert(std::is_standard_layout_v<hbfsim_options>);
     static_assert(std::is_standard_layout_v<hbfsim_options_v2>);
-    require(hbfsim_abi_version() == 2u);
+    require(hbfsim_abi_version() == 3u);
     require(hbfsim_get_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
     require(hbfsim_get_tma_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
 
     hbfsim_context* context = reinterpret_cast<hbfsim_context*>(1);
     hbfsim_options_v2 options{};
+    hbfsim_exact_run_contract contract{};
+    contract.struct_bytes = sizeof(contract);
+    require(hbfsim_publish_exact_run_contract(nullptr, &contract) ==
+            HBFSIM_INVALID_ARGUMENT);
+    require(hbfsim_finalize_exact(nullptr) == HBFSIM_INVALID_ARGUMENT);
     options.struct_bytes = offsetof(hbfsim_options_v2, fidelity);
     require(hbfsim_context_create_v2(&options, &context) ==
             HBFSIM_INVALID_ARGUMENT);

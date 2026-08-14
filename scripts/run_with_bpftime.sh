@@ -235,7 +235,54 @@ if (( status != 0 )); then
     exit "$status"
 fi
 
-if ! python3 -c 'import json,sys; manifests=[json.loads(x) for x in open(sys.argv[1]) if x.strip()]; decisions=[json.loads(x) for x in open(sys.argv[2]) if x.strip()]; assert manifests and all(m.get("module_id") and m.get("kernel") for m in manifests); assert decisions and all("allowed" in d and d.get("reason") for d in decisions); assert any(d.get("modeled") is True for d in decisions)' "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
+validation_fidelity=emulation
+(( exact_values == 3 )) && validation_fidelity=exact
+if ! python3 - "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" \
+    "$validation_fidelity" 2>/dev/null <<'PY'
+import json
+import pathlib
+import sys
+
+manifests = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines()
+             if line.strip()]
+decisions = [json.loads(line) for line in pathlib.Path(sys.argv[2]).read_text().splitlines()
+             if line.strip()]
+assert manifests and all(item.get("module_id") and item.get("kernel")
+                         for item in manifests)
+assert decisions and all("allowed" in item and item.get("reason")
+                         for item in decisions)
+assert any(item.get("modeled") is True for item in decisions)
+if sys.argv[3] == "exact":
+    final = [item for item in decisions
+             if item.get("requested_fidelity") == "exact" and
+             item.get("admitted_fidelity") == "exact"]
+    assert final
+    assert all(item.get("allowed") is True and
+               item.get("aot_verified") is True and
+               item.get("validation_passed") is True and
+               item.get("post_run_validation_passed") is True and
+               item.get("reason") == "exact_post_run_passed" and
+               item.get("future_issued", 0) > 0 and
+               item.get("future_issued") == item.get("future_drained") and
+               item.get("future_faults", 0) == 0 and
+               item.get("future_leaked", 0) == 0 and
+               item.get("tma_faults", 0) == 0 and
+               item.get("tma_leaked", 0) == 0 and
+               item.get("tma_stale_generations", 0) == 0 and
+               item.get("channel_gnic_count") == 4 and
+               item.get("channel_gpc_count") == 2 and
+               item.get("channel_gnic_requests", 0) +
+                   item.get("channel_gpc_requests", 0) > 0 and
+               item.get("channel_saturated_requests", 0) == 0 and
+               item.get("channel_counter_residual_failed") is False and
+               item.get("channel_migration_visible_sm_mismatch") is False and
+               not item.get("exact_rejection_reasons")
+               for item in final)
+    assert not any(item.get("requested_fidelity") == "exact" and
+                   item.get("reason") == "exact_post_run_failed"
+                   for item in decisions)
+PY
+then
     echo "run_with_bpftime: target produced no valid instrumentation activation artifacts" >&2
     exit 70
 fi

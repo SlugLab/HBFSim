@@ -45,6 +45,15 @@ enum hbfsim_fidelity {
     HBFSIM_FIDELITY_EXACT_SM120 = 1
 };
 
+enum hbfsim_exact_cache_condition {
+    HBFSIM_EXACT_CACHE_WARM_L2 = 1,
+    HBFSIM_EXACT_CACHE_COLD = 2
+};
+
+enum hbfsim_exact_concurrency_condition {
+    HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS = 1
+};
+
 typedef struct hbfsim_options {
     const char* profile_path;
     const char* report_dir;
@@ -59,6 +68,15 @@ typedef struct hbfsim_options_v2 {
     uint32_t fidelity;
     const char* exact_profile_path;
 } hbfsim_options_v2;
+
+typedef struct hbfsim_exact_run_contract {
+    uint32_t struct_bytes;
+    uint32_t cache_condition;
+    uint32_t concurrency_condition;
+    uint32_t cluster_x;
+    uint32_t cluster_y;
+    uint32_t cluster_z;
+} hbfsim_exact_run_contract;
 
 typedef struct hbfsim_range_options {
     uint32_t mode;
@@ -103,6 +121,9 @@ int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
 int hbfsim_context_create_v2(const hbfsim_options_v2* options,
                              hbfsim_context** out);
+int hbfsim_publish_exact_run_contract(
+    hbfsim_context* context, const hbfsim_exact_run_contract* contract);
+int hbfsim_finalize_exact(hbfsim_context* context);
 int hbfsim_register_device(hbfsim_context* context, void* device_ptr,
                            size_t length,
                            const hbfsim_range_options* options);

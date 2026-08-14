@@ -74,7 +74,11 @@ def main() -> int:
             "set -eu\n"
             "printf '%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n' \"$BPFTIME_PTXPASS_LIBRARIES\" \"$BPFTIME_CUDA_ROOT\" \"$LD_PRELOAD\" \"${HBFSIM_EXACT_PROFILE_PATH:-}\" \"${HBFSIM_EXACT_BUNDLE_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_PREPATCHED:-}\" > \"$1\"\n"
             "printf '%s\\n' '{\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"instrumented\":true}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
-            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n",
+            "if [[ -n ${HBFSIM_EXACT_PROFILE_PATH:-} ]]; then\n"
+            "  printf '%s\\n' '{\"allowed\":true,\"reason\":\"exact_post_run_passed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true,\"requested_fidelity\":\"exact\",\"admitted_fidelity\":\"exact\",\"aot_verified\":true,\"validation_passed\":true,\"post_run_validation_passed\":true,\"future_issued\":1,\"future_drained\":1,\"future_faults\":0,\"future_leaked\":0,\"tma_faults\":0,\"tma_leaked\":0,\"tma_stale_generations\":0,\"channel_gnic_count\":4,\"channel_gpc_count\":2,\"channel_gnic_requests\":1,\"channel_gpc_requests\":0,\"channel_saturated_requests\":0,\"channel_counter_residual_failed\":false,\"channel_migration_visible_sm_mismatch\":false,\"exact_rejection_reasons\":[]}' > \"$HBFSIM_COVERAGE_PATH\"\n"
+            "else\n"
+            "  printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n"
+            "fi\n",
         )
 
         env = os.environ.copy()
@@ -200,6 +204,24 @@ def main() -> int:
         require(exact_lines[3:] == [str(exact_profile), str(exact_bundles),
                                     str(prepatched), "1"],
                 f"wrapper exported wrong exact state: {exact_lines[3:]}")
+
+        nonfinal_exact = root / "nonfinal-exact"
+        executable(
+            nonfinal_exact,
+            "#!/usr/bin/env bash\n"
+            "set -eu\n"
+            "printf '%s\\n' '{\"module_id\":\"ptx:test\",\"kernel\":\"k\"}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
+            "printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n",
+        )
+        missing_post_run = subprocess.run(
+            [str(wrapper), "--exact-profile", str(exact_profile),
+             "--exact-bundle-dir", str(exact_bundles),
+             "--prepatched-ptx-dir", str(prepatched),
+             "--", str(nonfinal_exact)],
+            env=env, text=True, capture_output=True,
+        )
+        require(missing_post_run.returncode == 70,
+                "wrapper accepted exact mode without a post-run exact record")
 
         incomplete_exact = subprocess.run(
             [str(wrapper), "--exact-profile", str(exact_profile),

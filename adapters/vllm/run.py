@@ -36,10 +36,13 @@ def suppress_static_fatbin_scan(enabled: bool):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("baseline", "timing"), required=True)
+    parser.add_argument(
+        "--mode", choices=("baseline", "timing", "exact"), required=True
+    )
     parser.add_argument("--model", required=True)
     parser.add_argument("--tokenizer")
     parser.add_argument("--profile")
+    parser.add_argument("--exact-profile")
     parser.add_argument("--report-dir", required=True)
     parser.add_argument("--num-prompts", type=int, default=4)
     parser.add_argument("--input-len", type=int, default=32)
@@ -148,6 +151,7 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
         "mode": args.mode,
         "model": str(pathlib.Path(args.model).resolve()),
         "profile": args.profile,
+        "exact_profile": args.exact_profile,
         "num_prompts": args.num_prompts,
         "input_len": args.input_len,
         "output_len": args.output_len,
@@ -168,8 +172,12 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
 
 
 def validate_args(args: argparse.Namespace) -> None:
-    if args.mode == "timing" and not args.profile:
-        raise SystemExit("--profile is required for timing mode")
+    if args.mode in {"timing", "exact"} and not args.profile:
+        raise SystemExit("--profile is required for timing and exact modes")
+    if args.mode == "exact" and not args.exact_profile:
+        raise SystemExit("--exact-profile is required for exact mode")
+    if args.mode != "exact" and args.exact_profile:
+        raise SystemExit("--exact-profile requires exact mode")
     if min(args.num_prompts, args.input_len, args.output_len,
            args.max_model_len) <= 0:
         raise SystemExit("prompt counts and lengths must be positive")
@@ -180,6 +188,32 @@ def validate_args(args: argparse.Namespace) -> None:
         )
     if args.input_len + args.output_len > args.max_model_len:
         raise SystemExit("input plus output exceeds max model length")
+
+
+def exact_contract(path: str) -> dict[str, Any]:
+    profile_path = pathlib.Path(path)
+    if profile_path.is_symlink() or not profile_path.is_file():
+        raise SystemExit("exact profile must be a regular non-symlink file")
+    profile = json.loads(profile_path.read_text())
+    conditions = profile.get("conditions", {})
+    cluster = conditions.get("cluster_shape", {})
+    if profile.get("schema_version") != 2 or \
+            profile.get("validation", {}).get("status") != "passed":
+        raise SystemExit("exact profile must be schema v2 and independently passed")
+    if conditions.get("cache_condition") != "warm_l2" or \
+            conditions.get("concurrency_condition") != "exclusive_process" or \
+            cluster != {"x": 1, "y": 1, "z": 1}:
+        raise SystemExit(
+            "vLLM exact mode requires warm_l2, exclusive_process, and "
+            "cluster 1x1x1"
+        )
+    return {
+        "exact_profile_path": str(profile_path.resolve()),
+        "exact_cache_condition": "warm_l2",
+        "exact_cluster_x": 1,
+        "exact_cluster_y": 1,
+        "exact_cluster_z": 1,
+    }
 
 
 def main() -> int:
@@ -199,8 +233,8 @@ def main() -> int:
     load_format = "safetensors"
     loader_extra = None
     triton_binder = None
-    with suppress_static_fatbin_scan(enabled=args.mode == "timing"):
-        if args.mode == "timing":
+    with suppress_static_fatbin_scan(enabled=args.mode != "baseline"):
+        if args.mode in {"timing", "exact"}:
             import hbfsim_loader
             import triton_binding
 
@@ -219,6 +253,8 @@ def main() -> int:
                 "max_bytes_per_storage": args.hbf_range_bytes,
                 "timing_model": args.hbf_timing_model,
             }
+            if args.mode == "exact":
+                loader_extra.update(exact_contract(args.exact_profile))
 
         from vllm import LLM, SamplingParams
 
@@ -240,6 +276,9 @@ def main() -> int:
     started = time.perf_counter()
     llm = LLM(**engine_args)
     loaded = time.perf_counter()
+    exact_session_count = 0
+    if args.mode == "exact":
+        exact_session_count = hbfsim_loader.publish_exact_sessions()
     outputs = llm.generate(
         prompts,
         SamplingParams(
@@ -251,6 +290,10 @@ def main() -> int:
         use_tqdm=True,
     )
     finished = time.perf_counter()
+    if args.mode == "exact":
+        finalized = hbfsim_loader.finalize_exact_sessions()
+        if finalized != exact_session_count:
+            raise RuntimeError("exact vLLM session count changed during generation")
     token_ids = [list(output.outputs[0].token_ids) for output in outputs]
     output_tokens = sum(len(tokens) for tokens in token_ids)
     prompt_tokens = sum(len(prompt["prompt_token_ids"]) for prompt in prompts)
@@ -268,6 +311,8 @@ def main() -> int:
         "triton_exact_bindings": (
             triton_binder.bound_count if triton_binder is not None else 0
         ),
+        "exact_session_count": exact_session_count,
+        "exact_post_run_finalized": args.mode == "exact",
     })
     output_path = report / "result.json"
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")

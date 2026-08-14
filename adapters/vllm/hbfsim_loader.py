@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import re
+import weakref
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -20,10 +21,11 @@ from vllm.model_executor.model_loader.default_loader import DefaultModelLoader
 
 HBFSIM_OK = 0
 HBFSIM_INVALID_ARGUMENT = 1
-HBFSIM_VLLM_ABI_VERSION = 2
+HBFSIM_VLLM_ABI_VERSION = 3
 _TIMING_MODELS = {"reference": 0, "fast": 1, "hybrid": 2}
 _UINTPTR_LIMIT = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 _REGISTERED = False
+_ACTIVE_SESSIONS: weakref.WeakSet[Any] = weakref.WeakSet()
 
 
 class HbfSimError(RuntimeError):
@@ -45,6 +47,11 @@ class TimingConfig:
     parameter_regex: str = ""
     max_bytes_per_storage: int = 0
     timing_model: str = "hybrid"
+    exact_profile_path: str = ""
+    exact_cache_condition: str = ""
+    exact_cluster_x: int = 0
+    exact_cluster_y: int = 0
+    exact_cluster_z: int = 0
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "TimingConfig":
@@ -64,6 +71,11 @@ class TimingConfig:
         parameter_regex = str(raw.get("parameter_regex", ""))
         max_bytes = int(raw.get("max_bytes_per_storage", 0))
         timing_model = str(raw.get("timing_model", "hybrid"))
+        exact_profile = str(raw.get("exact_profile_path", ""))
+        exact_cache = str(raw.get("exact_cache_condition", ""))
+        exact_cluster_x = int(raw.get("exact_cluster_x", 0))
+        exact_cluster_y = int(raw.get("exact_cluster_y", 0))
+        exact_cluster_z = int(raw.get("exact_cluster_z", 0))
         if not profile or not report:
             raise ValueError("profile_path and report_dir are required")
         if ring <= 0 or timeout <= 0:
@@ -84,6 +96,17 @@ class TimingConfig:
             raise ValueError(
                 "timing_model must be reference, fast, or hybrid"
             )
+        if exact_profile and (
+            exact_cache not in {"warm_l2", "cold"}
+            or min(exact_cluster_x, exact_cluster_y, exact_cluster_z) <= 0
+        ):
+            raise ValueError(
+                "exact mode requires a cache condition and positive cluster shape"
+            )
+        if not exact_profile and (
+            exact_cache or exact_cluster_x or exact_cluster_y or exact_cluster_z
+        ):
+            raise ValueError("exact contract requires exact_profile_path")
         return cls(
             profile_path=profile,
             report_dir=report,
@@ -98,16 +121,28 @@ class TimingConfig:
             parameter_regex=parameter_regex,
             max_bytes_per_storage=max_bytes,
             timing_model=timing_model,
+            exact_profile_path=exact_profile,
+            exact_cache_condition=exact_cache,
+            exact_cluster_x=exact_cluster_x,
+            exact_cluster_y=exact_cluster_y,
+            exact_cluster_z=exact_cluster_z,
         )
 
 
 class _NativeOptions(ctypes.Structure):
     _fields_ = [
+        ("struct_bytes", ctypes.c_uint32),
         ("profile_path", ctypes.c_char_p),
         ("report_dir", ctypes.c_char_p),
         ("ring_capacity", ctypes.c_uint32),
         ("timing_model", ctypes.c_uint32),
         ("request_timeout_ns", ctypes.c_uint64),
+        ("exact_profile_path", ctypes.c_char_p),
+        ("exact_cache_condition", ctypes.c_uint32),
+        ("exact_concurrency_condition", ctypes.c_uint32),
+        ("exact_cluster_x", ctypes.c_uint32),
+        ("exact_cluster_y", ctypes.c_uint32),
+        ("exact_cluster_z", ctypes.c_uint32),
     ]
 
 
@@ -128,12 +163,22 @@ class NativeTimingSession:
         if self._library.hbfsim_vllm_abi_version() != HBFSIM_VLLM_ABI_VERSION:
             raise HbfSimError("HBFSim vLLM extension ABI mismatch")
         self._handle = ctypes.c_void_p()
+        self._exact_requested = bool(config.exact_profile_path)
         options = _NativeOptions(
+            ctypes.sizeof(_NativeOptions),
             config.profile_path.encode(),
             config.report_dir.encode(),
             config.ring_capacity,
             _TIMING_MODELS[config.timing_model],
             config.request_timeout_ns,
+            config.exact_profile_path.encode() if config.exact_profile_path
+            else None,
+            1 if config.exact_cache_condition == "warm_l2" else
+            2 if config.exact_cache_condition == "cold" else 0,
+            1 if config.exact_profile_path else 0,
+            config.exact_cluster_x,
+            config.exact_cluster_y,
+            config.exact_cluster_z,
         )
         status = self._library.hbfsim_vllm_session_create(
             ctypes.byref(options), ctypes.byref(self._handle)
@@ -158,6 +203,12 @@ class NativeTimingSession:
             ctypes.c_size_t,
         ]
         self._library.hbfsim_vllm_register_storage.restype = ctypes.c_int
+        self._library.hbfsim_vllm_publish_exact_contract.argtypes = [
+            ctypes.c_void_p
+        ]
+        self._library.hbfsim_vllm_publish_exact_contract.restype = ctypes.c_int
+        self._library.hbfsim_vllm_finalize_exact.argtypes = [ctypes.c_void_p]
+        self._library.hbfsim_vllm_finalize_exact.restype = ctypes.c_int
         self._library.hbfsim_vllm_session_close.argtypes = [
             ctypes.POINTER(ctypes.c_void_p)
         ]
@@ -180,6 +231,31 @@ class NativeTimingSession:
                 f"storage 0x{address:x}+{size} registration failed: "
                 f"{self._status(status)} ({status})"
             )
+
+    def publish_exact_contract(self) -> None:
+        if not self._exact_requested:
+            raise HbfSimError("session was not created for exact fidelity")
+        status = self._library.hbfsim_vllm_publish_exact_contract(self._handle)
+        if status != HBFSIM_OK:
+            raise HbfSimError(
+                "HBFSim exact run-contract publication failed: "
+                f"{self._status(status)} ({status})"
+            )
+
+    def finalize_exact(self) -> None:
+        if not self._exact_requested:
+            raise HbfSimError("session was not created for exact fidelity")
+        status = self._library.hbfsim_vllm_finalize_exact(self._handle)
+        if status != HBFSIM_OK:
+            raise HbfSimError(
+                "HBFSim exact post-run finalization failed: "
+                f"{self._status(status)} ({status})"
+            )
+
+    def abort(self) -> None:
+        if not getattr(self, "_handle", None) or not self._handle.value:
+            return
+        self._library.hbfsim_vllm_session_close(ctypes.byref(self._handle))
 
     def close(self) -> None:
         if not getattr(self, "_handle", None) or not self._handle.value:
@@ -291,6 +367,7 @@ def register_model_storages(
         ]
         for storage, bytes_to_register in registered:
             session.register_storage(storage.address, bytes_to_register)
+        _ACTIVE_SESSIONS.add(session)
         manifest = {
             "schema_version": 1,
             "mode": "timing_backed",
@@ -301,6 +378,10 @@ def register_model_storages(
             "registered_bytes": sum(size for _, size in registered),
             "profile_path": config.profile_path,
             "timing_model": config.timing_model,
+            "requested_fidelity": (
+                "exact" if config.exact_profile_path else "emulation"
+            ),
+            "exact_profile_path": config.exact_profile_path,
             "selection": {
                 "parameter_regex": config.parameter_regex,
                 "max_bytes_per_storage": config.max_bytes_per_storage,
@@ -320,7 +401,8 @@ def register_model_storages(
         setattr(model, "_hbfsim_timing_session", session)
         return manifest
     except Exception:
-        session.close()
+        abort = getattr(session, "abort", None)
+        abort() if abort is not None else session.close()
         raise
 
 
@@ -329,7 +411,28 @@ def close_model_session(model: Any) -> None:
     if session is None:
         return
     session.close()
+    _ACTIVE_SESSIONS.discard(session)
     delattr(model, "_hbfsim_timing_session")
+
+
+def publish_exact_sessions() -> int:
+    sessions = [session for session in _ACTIVE_SESSIONS
+                if getattr(session, "_exact_requested", False)]
+    if not sessions:
+        raise HbfSimError("no active exact vLLM timing sessions")
+    for session in sessions:
+        session.publish_exact_contract()
+    return len(sessions)
+
+
+def finalize_exact_sessions() -> int:
+    sessions = [session for session in _ACTIVE_SESSIONS
+                if getattr(session, "_exact_requested", False)]
+    if not sessions:
+        raise HbfSimError("no active exact vLLM timing sessions")
+    for session in sessions:
+        session.finalize_exact()
+    return len(sessions)
 
 
 class HbfSimModelLoader(BaseModelLoader):

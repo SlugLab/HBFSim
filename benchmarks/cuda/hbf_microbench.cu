@@ -30,12 +30,17 @@ struct Options {
     std::string pattern{"sequential"};
     std::string mode{"baseline"};
     std::string profile;
+    std::string exact_profile;
+    std::string exact_cache{"warm_l2"};
     std::string report_dir;
     std::string backing_dir{"/mnt/disk2"};
     std::string output;
     std::uint64_t bytes{8ULL << 20};
     std::uint64_t iterations{256};
     std::uint64_t seed{0};
+    std::uint32_t exact_cluster_x{1};
+    std::uint32_t exact_cluster_y{1};
+    std::uint32_t exact_cluster_z{1};
 };
 
 [[noreturn]] void fail(const std::string& message)
@@ -130,6 +135,18 @@ Options parse_options(int argc, char** argv)
         if (argument == "--pattern") result.pattern = value;
         else if (argument == "--mode") result.mode = value;
         else if (argument == "--profile") result.profile = value;
+        else if (argument == "--exact-profile") result.exact_profile = value;
+        else if (argument == "--exact-cache") result.exact_cache = value;
+        else if (argument == "--exact-cluster-x") {
+            result.exact_cluster_x = static_cast<std::uint32_t>(
+                parse_unsigned(value, "exact cluster x"));
+        } else if (argument == "--exact-cluster-y") {
+            result.exact_cluster_y = static_cast<std::uint32_t>(
+                parse_unsigned(value, "exact cluster y"));
+        } else if (argument == "--exact-cluster-z") {
+            result.exact_cluster_z = static_cast<std::uint32_t>(
+                parse_unsigned(value, "exact cluster z"));
+        }
         else if (argument == "--report-dir") result.report_dir = value;
         else if (argument == "--backing-dir") result.backing_dir = value;
         else if (argument == "--output") result.output = value;
@@ -141,13 +158,22 @@ Options parse_options(int argc, char** argv)
     const std::unordered_set<std::string> patterns{
         "sequential", "random", "strided", "pointer_chase", "mixed_rw"};
     const std::unordered_set<std::string> modes{
-        "baseline", "timing", "reference", "fast", "hybrid", "capacity"};
+        "baseline", "timing", "reference", "fast", "hybrid", "capacity",
+        "exact"};
     if (!patterns.contains(result.pattern) || !modes.contains(result.mode) ||
         result.bytes < sizeof(std::uint64_t) ||
         result.bytes % sizeof(std::uint64_t) != 0 ||
         result.iterations < 2 || result.profile.empty() ||
         result.report_dir.empty() || result.output.empty()) {
         fail("invalid benchmark configuration");
+    }
+    if ((result.mode == "exact") != !result.exact_profile.empty()) {
+        fail("exact mode requires --exact-profile and other modes forbid it");
+    }
+    if (result.mode == "exact" &&
+        (result.exact_cache != "warm_l2" || result.exact_cluster_x != 1 ||
+         result.exact_cluster_y != 1 || result.exact_cluster_z != 1)) {
+        fail("microbenchmark exact mode only proves warm_l2 and cluster 1x1x1");
     }
     return result;
 }
@@ -241,6 +267,9 @@ void write_report(const Options& options, std::uint64_t checksum,
            << "  \"schema_version\": 1,\n"
            << "  \"pattern\": \"" << options.pattern << "\",\n"
            << "  \"mode\": \"" << options.mode << "\",\n"
+           << "  \"requested_fidelity\": \""
+           << (options.mode == "exact" ? "exact" : "emulation")
+           << "\",\n"
            << "  \"logical_bytes\": " << options.bytes << ",\n"
            << "  \"iterations\": " << options.iterations << ",\n"
            << "  \"seed\": " << options.seed << ",\n"
@@ -277,6 +306,7 @@ int main(int argc, char** argv)
         cuda_check(cudaFree(nullptr), "initialize CUDA");
 
         const bool baseline_mode = options.mode == "baseline";
+        const bool exact_mode = options.mode == "exact";
         hbfsim_options context_options{
             .profile_path = options.profile.c_str(),
             .report_dir = options.report_dir.c_str(),
@@ -286,7 +316,7 @@ int main(int argc, char** argv)
             .ring_capacity = 256,
             .request_timeout_ns = 30'000'000'000ULL,
         };
-        if (!baseline_mode &&
+        if (!baseline_mode && !exact_mode &&
             hbfsim_context_create(&context_options, &context) != HBFSIM_OK) {
             fail("hbfsim_context_create failed");
         }
@@ -317,7 +347,7 @@ int main(int argc, char** argv)
             }
             cuda_check(cudaMemcpy(data, host.data(), options.bytes,
                                   cudaMemcpyHostToDevice), "initialize data");
-            if (!baseline_mode) {
+            if (!baseline_mode && !exact_mode) {
                 const hbfsim_range_options range{
                     .mode = HBFSIM_RANGE_MODE_TIMING,
                     .permissions = HBFSIM_RANGE_READ_WRITE,
@@ -354,6 +384,49 @@ int main(int argc, char** argv)
         bool mixed_write = options.pattern == "mixed_rw";
         void* arguments[]{&data, &device_offsets, &iterations, &seed,
                           &mixed_write, &device_output};
+        if (exact_mode) {
+            bool warm_read_only = false;
+            void* warm_arguments[]{&data, &device_offsets, &iterations, &seed,
+                                   &warm_read_only, &device_output};
+            driver_check(cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0,
+                                        nullptr, warm_arguments, nullptr),
+                         "cuLaunchKernel warm_l2");
+            cuda_check(cudaDeviceSynchronize(), "synchronize warm_l2");
+
+            hbfsim_options_v2 exact_options{
+                .struct_bytes = sizeof(hbfsim_options_v2),
+                .base = context_options,
+                .fidelity = HBFSIM_FIDELITY_EXACT_SM120,
+                .exact_profile_path = options.exact_profile.c_str(),
+            };
+            if (hbfsim_context_create_v2(&exact_options, &context) !=
+                HBFSIM_OK) {
+                fail("hbfsim_context_create_v2 exact failed");
+            }
+            const hbfsim_range_options range{
+                .mode = HBFSIM_RANGE_MODE_TIMING,
+                .permissions = HBFSIM_RANGE_READ_WRITE,
+                .cache_policy = HBFSIM_CACHE_POLICY_NONE,
+                .stream_id = 0,
+            };
+            if (hbfsim_register_device(context, data, options.bytes, &range) !=
+                HBFSIM_OK) {
+                fail("hbfsim_register_device exact failed");
+            }
+            const hbfsim_exact_run_contract contract{
+                .struct_bytes = sizeof(hbfsim_exact_run_contract),
+                .cache_condition = HBFSIM_EXACT_CACHE_WARM_L2,
+                .concurrency_condition =
+                    HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS,
+                .cluster_x = options.exact_cluster_x,
+                .cluster_y = options.exact_cluster_y,
+                .cluster_z = options.exact_cluster_z,
+            };
+            if (hbfsim_publish_exact_run_contract(context, &contract) !=
+                HBFSIM_OK) {
+                fail("hbfsim_publish_exact_run_contract failed");
+            }
+        }
         const auto begin = std::chrono::steady_clock::now();
         driver_check(cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, nullptr,
                                     arguments, nullptr),
@@ -371,6 +444,9 @@ int main(int argc, char** argv)
             fail("hbfsim_flush failed");
         }
         if (checksum != expected) fail("GPU checksum differs from CPU reference");
+        if (exact_mode && hbfsim_finalize_exact(context) != HBFSIM_OK) {
+            fail("hbfsim_finalize_exact failed");
+        }
         const auto span = *std::max_element(offsets.begin(), offsets.end()) -
                           *std::min_element(offsets.begin(), offsets.end()) + 8;
         write_report(options, checksum, expected,

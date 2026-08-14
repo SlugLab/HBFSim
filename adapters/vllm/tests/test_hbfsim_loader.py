@@ -48,10 +48,13 @@ class FakeModel:
 
 
 class FakeSession:
-    def __init__(self, fail_address=None):
+    def __init__(self, fail_address=None, exact=False):
         self.fail_address = fail_address
         self.registered = []
         self.closed = False
+        self._exact_requested = exact
+        self.published = 0
+        self.finalized = 0
 
     def register_storage(self, address, size):
         if address == self.fail_address:
@@ -60,6 +63,12 @@ class FakeSession:
 
     def close(self):
         self.closed = True
+
+    def publish_exact_contract(self):
+        self.published += 1
+
+    def finalize_exact(self):
+        self.finalized += 1
 
 
 def config(tmp_path, **overrides):
@@ -79,6 +88,22 @@ def test_timing_model_is_explicit_and_validated(tmp_path):
     assert config(tmp_path, timing_model="reference").timing_model == "reference"
     with pytest.raises(ValueError, match="timing_model"):
         config(tmp_path, timing_model="unknown")
+
+
+def test_exact_contract_is_complete_or_absent(tmp_path):
+    exact = config(
+        tmp_path,
+        exact_profile_path="/profiles/sm120.json",
+        exact_cache_condition="warm_l2",
+        exact_cluster_x=1,
+        exact_cluster_y=1,
+        exact_cluster_z=1,
+    )
+    assert exact.exact_profile_path == "/profiles/sm120.json"
+    with pytest.raises(ValueError, match="cache condition"):
+        config(tmp_path, exact_profile_path="/profiles/sm120.json")
+    with pytest.raises(ValueError, match="requires exact_profile_path"):
+        config(tmp_path, exact_cache_condition="warm_l2")
 
 
 def test_discovers_full_storages_and_deduplicates_aliases(tmp_path):
@@ -214,6 +239,30 @@ def test_explicit_model_close_is_idempotent(tmp_path):
 
     assert session.closed
     assert not hasattr(model, "_hbfsim_timing_session")
+
+
+def test_exact_sessions_publish_then_finalize(tmp_path):
+    model = FakeModel([
+        ("weight", FakeParameter(FakeStorage(0x1000, 0x1000))),
+    ])
+    session = FakeSession(exact=True)
+    exact_config = config(
+        tmp_path,
+        exact_profile_path="/profiles/sm120.json",
+        exact_cache_condition="warm_l2",
+        exact_cluster_x=1,
+        exact_cluster_y=1,
+        exact_cluster_z=1,
+    )
+    loader_module.register_model_storages(
+        model, exact_config, session_factory=lambda _: session
+    )
+
+    assert loader_module.publish_exact_sessions() == 1
+    assert loader_module.finalize_exact_sessions() == 1
+    assert session.published == 1
+    assert session.finalized == 1
+    loader_module.close_model_session(model)
 
 
 def test_loader_delegates_then_registers_finalized_model(monkeypatch, tmp_path):

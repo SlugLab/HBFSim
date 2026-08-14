@@ -141,11 +141,19 @@ class RuntimeGate {
     void finish_activation() noexcept
     {
         range_launch_sync_.reset_launch_seen();
+        std::scoped_lock lock(exact_mutex_);
+        exact_candidates_.clear();
+        exact_finalized_ = false;
+        exact_finalize_status_ = -1;
     }
     void finish_retirement() noexcept
     {
         gate_.clear_ranges();
         range_launch_sync_.reset_launch_seen();
+        std::scoped_lock lock(exact_mutex_);
+        exact_candidates_.clear();
+        exact_finalized_ = false;
+        exact_finalize_status_ = -1;
     }
     void mark_launch_seen() noexcept
     {
@@ -177,13 +185,48 @@ class RuntimeGate {
         if (!approved && decision.allowed) {
             std::cerr << "hbfsim coverage writer failed; rejecting launch\n";
         }
+        if (approved && decision.requested_fidelity == "exact" &&
+            decision.admitted_fidelity == "calibrated_emulation" &&
+            decision.validation_passed && decision.aot_verified &&
+            decision.exact_rejection_reasons.empty()) {
+            std::scoped_lock lock(exact_mutex_);
+            if (!exact_finalized_) exact_candidates_.push_back(decision);
+        }
         return approved;
+    }
+
+    int finalize_exact(const hbfsim::ExactPostRunEvidence& evidence) noexcept
+    {
+        std::scoped_lock lock(exact_mutex_);
+        if (exact_finalized_) return exact_finalize_status_;
+        exact_finalized_ = true;
+        if (exact_candidates_.empty()) {
+            exact_finalize_status_ = -1;
+            return exact_finalize_status_;
+        }
+        bool passed = true;
+        for (const auto& candidate : exact_candidates_) {
+            const auto decision =
+                hbfsim::exact_post_run_decision(candidate, evidence);
+            passed = passed && decision.admitted_fidelity == "exact" &&
+                     decision.post_run_validation_passed && decision.allowed;
+            if (!hbfsim::try_append_coverage(writer_, decision)) {
+                passed = false;
+            }
+        }
+        exact_candidates_.clear();
+        exact_finalize_status_ = passed ? 0 : -1;
+        return exact_finalize_status_;
     }
 
   private:
     hbfsim::CoverageGate gate_;
     hbfsim::CoverageWriter writer_;
     std::mutex manifest_mutex_;
+    std::mutex exact_mutex_;
+    std::vector<hbfsim::GateDecision> exact_candidates_;
+    bool exact_finalized_{false};
+    int exact_finalize_status_{-1};
     hbfsim::LaunchRangeSynchronizer range_launch_sync_;
 };
 
@@ -430,6 +473,13 @@ class ExactOwnerRegistry {
         if (state_.has_value() && state_->cuda_context == cuda_context) {
             state_.reset();
         }
+    }
+
+    bool owns(std::uintptr_t owner, std::uint64_t generation) const noexcept
+    {
+        std::lock_guard lock(mutex_);
+        return state_.has_value() && state_->owner == owner &&
+               state_->generation == generation && state_->profile.has_value();
     }
 
   private:
@@ -859,6 +909,75 @@ int publish_run_contract(
     const hbfsim::ExactRunContractAbi* contract) noexcept
 {
     return exact_owners().publish(owner, generation, contract);
+}
+
+int finalize_exact(std::uintptr_t owner, std::uint64_t generation,
+                   const hbfsim::ExactPostRunEvidenceAbi* raw) noexcept
+{
+    if (owner == 0 || generation == 0 || raw == nullptr ||
+        raw->abi_version != hbfsim::kExactPostRunEvidenceAbiVersion ||
+        raw->struct_bytes != sizeof(*raw) ||
+        raw->channel_gnic_count != 4 || raw->channel_gpc_count != 2 ||
+        raw->routing_program_sha256[64] != '\0' ||
+        !exact_owners().owns(owner, generation) ||
+        !timing_bindings().owns(owner, generation)) {
+        return -1;
+    }
+    for (std::size_t index = 0; index < 64; ++index) {
+        const char value = raw->routing_program_sha256[index];
+        if (!((value >= '0' && value <= '9') ||
+              (value >= 'a' && value <= 'f'))) {
+            return -1;
+        }
+    }
+    const auto mixed = raw->tma_hbm_bytes != 0 && raw->tma_hbf_bytes != 0;
+    const hbfsim::ExactPostRunEvidence evidence{
+        .future_runtime = {
+            .issued = raw->future_issued,
+            .issue_throttle_ns = raw->future_issue_throttle_ns,
+            .dependency_wait_ns = raw->future_dependency_wait_ns,
+            .ordering_wait_ns = raw->future_ordering_wait_ns,
+            .drained = raw->future_drained,
+            .leaked = raw->future_leaked,
+            .faults = raw->future_faults,
+            .observed = raw->future_issued != 0 || raw->future_drained != 0 ||
+                        raw->future_faults != 0,
+        },
+        .tma_runtime = {
+            .issued = raw->tma_issued,
+            .hbm_bytes = raw->tma_hbm_bytes,
+            .hbf_bytes = raw->tma_hbf_bytes,
+            .oob_bytes = raw->tma_oob_bytes,
+            .mixed_bytes = mixed ? std::min(raw->tma_hbm_bytes,
+                                             raw->tma_hbf_bytes) : 0,
+            .fanout_targets = raw->tma_fanout_targets,
+            .barrier_waits = raw->tma_barrier_wait_ns,
+            .group_read_waits = raw->tma_group_wait_ns,
+            .group_full_waits = 0,
+            .stale_generations = raw->tma_stale_generations,
+            .faults = raw->tma_faults,
+            .leaked = raw->tma_leaked,
+            .mixed_tiles_proved = mixed && raw->tma_oob_bytes == 0,
+            .observed = raw->tma_issued != 0 || raw->tma_faults != 0 ||
+                        raw->tma_stale_generations != 0,
+        },
+        .channel_runtime = {
+            .routing_version = raw->channel_routing_version,
+            .routing_program_sha256 = raw->routing_program_sha256,
+            .gnic_count = raw->channel_gnic_count,
+            .gpc_count = raw->channel_gpc_count,
+            .maximum_gnic_outstanding = raw->maximum_gnic_outstanding,
+            .maximum_gpc_outstanding = raw->maximum_gpc_outstanding,
+            .saturated_requests = raw->channel_saturated_requests,
+            .gnic_requests = raw->channel_gnic_requests,
+            .gpc_requests = raw->channel_gpc_requests,
+            .migration_visible_sm_mismatch =
+                raw->migration_visible_sm_mismatch != 0,
+            .counter_residual_failed = raw->counter_residual_failed != 0,
+            .observed = raw->channel_routing_version != 0,
+        },
+    };
+    return runtime_gate().finalize_exact(evidence);
 }
 
 const hbfsim::LaunchGateApiV2 launch_gate_api_v2{
@@ -1336,6 +1455,13 @@ hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
         return &launch_gate_api_v2;
     }
     return nullptr;
+}
+
+extern "C" int hbfsim_launch_gate_finalize_exact_v1(
+    std::uintptr_t owner, std::uint64_t generation,
+    const hbfsim::ExactPostRunEvidenceAbi* evidence) noexcept
+{
+    return finalize_exact(owner, generation, evidence);
 }
 
 extern "C" int hbfsim_collect_exact_environment_v1(

@@ -456,6 +456,7 @@ int main()
         .ordering_wait_ns = 12,
         .drained = 9,
         .leaked = 0,
+        .faults = 0,
         .observed = true,
     };
     admitted_exact.tma_manifest = parsed_v4.tma_manifest;
@@ -463,7 +464,7 @@ int main()
         .issued = 4,
         .hbm_bytes = 32,
         .hbf_bytes = 64,
-        .oob_bytes = 8,
+        .oob_bytes = 0,
         .mixed_bytes = 16,
         .fanout_targets = 7,
         .barrier_waits = 3,
@@ -482,6 +483,8 @@ int main()
         .gpc_count = 2,
         .maximum_gnic_outstanding = 4,
         .maximum_gpc_outstanding = 2,
+        .gnic_requests = 7,
+        .gpc_requests = 5,
         .observed = true,
     };
     writer.append(admitted_exact);
@@ -514,7 +517,7 @@ int main()
     CHECK(json.find("\"future_leaked\":0") != std::string::npos);
     CHECK(json.find("\"tma_hbm_bytes\":32") != std::string::npos);
     CHECK(json.find("\"tma_hbf_bytes\":64") != std::string::npos);
-    CHECK(json.find("\"tma_oob_bytes\":8") != std::string::npos);
+    CHECK(json.find("\"tma_oob_bytes\":0") != std::string::npos);
     CHECK(json.find("\"tma_fanout_targets\":7") != std::string::npos);
     CHECK(json.find("\"tma_barrier_waits\":3") != std::string::npos);
     CHECK(json.find("\"tma_group_read_waits\":2") != std::string::npos);
@@ -543,6 +546,36 @@ int main()
         prelaunch_exact_rejected = true;
     }
     CHECK(prelaunch_exact_rejected);
+
+    auto prelaunch_candidate = admitted_exact;
+    prelaunch_candidate.admitted_fidelity = "calibrated_emulation";
+    prelaunch_candidate.post_run_validation_passed = false;
+    prelaunch_candidate.future_runtime = {};
+    prelaunch_candidate.tma_runtime = {};
+    prelaunch_candidate.channel_runtime = admitted_exact.channel_runtime;
+    prelaunch_candidate.channel_runtime.maximum_gnic_outstanding = 0;
+    prelaunch_candidate.channel_runtime.maximum_gpc_outstanding = 0;
+    prelaunch_candidate.channel_runtime.gnic_requests = 0;
+    prelaunch_candidate.channel_runtime.gpc_requests = 0;
+    const hbfsim::ExactPostRunEvidence post_run{
+        .future_runtime = admitted_exact.future_runtime,
+        .tma_runtime = admitted_exact.tma_runtime,
+        .channel_runtime = admitted_exact.channel_runtime,
+    };
+    const auto finalized =
+        hbfsim::exact_post_run_decision(prelaunch_candidate, post_run);
+    CHECK(finalized.allowed);
+    CHECK(finalized.admitted_fidelity == "exact");
+    CHECK(finalized.post_run_validation_passed);
+    writer.append(finalized);
+    auto failed_post_run = post_run;
+    failed_post_run.future_runtime.faults = 1;
+    const auto rejected_post_run =
+        hbfsim::exact_post_run_decision(prelaunch_candidate, failed_post_run);
+    CHECK(!rejected_post_run.allowed);
+    CHECK(rejected_post_run.admitted_fidelity == "calibrated_emulation");
+    CHECK(rejected_post_run.exact_rejection_reasons ==
+          std::vector<std::string>{"post_run_future_failure"});
 
     auto pending = safe;
     pending.allowed = false;

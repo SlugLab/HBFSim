@@ -57,6 +57,7 @@ def main() -> int:
         "hbfsim_begin_module_load_from_ptx",
         "hbfsim_begin_module_load_from_aot", "hbfsim_end_module_load",
         "hbfsim_collect_exact_environment_v1",
+        "hbfsim_launch_gate_finalize_exact_v1",
         "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",

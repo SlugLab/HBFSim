@@ -90,6 +90,47 @@ struct ExactRunContractAbi {
     std::uint64_t cache_condition_epoch;
 };
 
+inline constexpr std::uint32_t kExactPostRunEvidenceAbiVersion = 1;
+
+struct ExactPostRunEvidenceAbi {
+    std::uint32_t abi_version;
+    std::uint32_t struct_bytes;
+    std::uint64_t future_issued;
+    std::uint64_t future_issue_throttle_ns;
+    std::uint64_t future_dependency_wait_ns;
+    std::uint64_t future_ordering_wait_ns;
+    std::uint64_t future_drained;
+    std::uint64_t future_leaked;
+    std::uint64_t future_faults;
+    std::uint64_t tma_issued;
+    std::uint64_t tma_hbm_bytes;
+    std::uint64_t tma_hbf_bytes;
+    std::uint64_t tma_oob_bytes;
+    std::uint64_t tma_fanout_targets;
+    std::uint64_t tma_barrier_wait_ns;
+    std::uint64_t tma_group_wait_ns;
+    std::uint64_t tma_stale_generations;
+    std::uint64_t tma_faults;
+    std::uint64_t tma_leaked;
+    std::uint32_t channel_routing_version;
+    std::uint32_t channel_gnic_count;
+    std::uint32_t channel_gpc_count;
+    std::uint32_t maximum_gnic_outstanding;
+    std::uint32_t maximum_gpc_outstanding;
+    std::uint32_t migration_visible_sm_mismatch;
+    std::uint32_t counter_residual_failed;
+    std::uint32_t reserved0;
+    std::uint64_t channel_saturated_requests;
+    std::uint64_t channel_gnic_requests;
+    std::uint64_t channel_gpc_requests;
+    char routing_program_sha256[65];
+    std::byte reserved1[7];
+};
+
+using LaunchGateFinalizeExactV1 = int (*)(
+    std::uintptr_t owner, std::uint64_t generation,
+    const ExactPostRunEvidenceAbi* evidence) noexcept;
+
 struct LaunchGateApiV4 {
     // Keep the complete v3 layout as a literal prefix. Consumers must still
     // validate abi_version and struct_bytes before using any callback.
@@ -124,6 +165,7 @@ struct LaunchGateApiV4 {
 };
 
 static_assert(std::is_standard_layout_v<ExactRunContractAbi>);
+static_assert(std::is_standard_layout_v<ExactPostRunEvidenceAbi>);
 static_assert(std::is_standard_layout_v<LaunchGateApiV4>);
 static_assert(offsetof(LaunchGateApiV3, register_range_with_policy) ==
               offsetof(LaunchGateApiV4, register_range_with_policy));

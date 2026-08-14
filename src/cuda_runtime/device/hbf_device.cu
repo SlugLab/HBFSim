@@ -589,7 +589,7 @@ __device__ DeviceChannelReservation reserve_sm120_channels(
         reinterpret_cast<hbfsim::device::SharedSm120ChannelState*>(
             base + header->sm120_channel_state_offset);
     auto& state = states[smid];
-    auto* lock = reinterpret_cast<std::uint32_t*>(state.reserved);
+    auto* lock = &state.lock;
     std::uint32_t delay = 64;
     for (;;) {
         std::uint32_t expected = 0;
@@ -631,6 +631,23 @@ __device__ DeviceChannelReservation reserve_sm120_channels(
          gnic_tail - arrival_ns >= gnic_window) ||
         (take_gpc && gpc_tail > arrival_ns &&
          gpc_tail - arrival_ns >= gpc_window);
+    const auto queued = [](std::uint64_t tail, std::uint64_t arrival,
+                           std::uint64_t service) {
+        if (service == 0 || tail <= arrival) return std::uint32_t{1};
+        const auto pending = (tail - arrival + service - 1) / service;
+        return pending >= UINT32_MAX ? UINT32_MAX
+                                     : static_cast<std::uint32_t>(pending + 1);
+    };
+    if (take_gnic) {
+        const auto value = queued(gnic_tail, arrival_ns, gnic_service);
+        if (value > state.maximum_gnic_outstanding)
+            state.maximum_gnic_outstanding = value;
+    }
+    if (take_gpc) {
+        const auto value = queued(gpc_tail, arrival_ns, gpc_service);
+        if (value > state.maximum_gpc_outstanding)
+            state.maximum_gpc_outstanding = value;
+    }
     if (saturated) {
         (void)system_fetch_add(&state.saturated_requests, 1);
         (void)system_fetch_add(&header->sm120_channel_saturated, 1);
@@ -668,7 +685,8 @@ __device__ DeviceChannelReservation reserve_sm120_channels(
                 base_ready_ns, gnic_ready, gpc_ready, media_ready_ns,
                 capacity_ready_ns, native_ready_ns),
             .packed_channels = selection.gnic | (selection.gpc << 2) |
-                (take_gnic ? 1U << 3 : 0) | (take_gpc ? 1U << 4 : 0),
+                (take_gnic ? 1U << 3 : 0) | (take_gpc ? 1U << 4 : 0) |
+                (smid << 8),
             .valid = true};
 }
 
@@ -1378,6 +1396,22 @@ __hbfsim_future_wait(hbfsim::device::DeviceFuture future,
         static_cast<std::uintptr_t>(control_address));
     const bool binding_valid =
         control_address != 0 && valid_control(header, expected_generation);
+    if (binding_valid && counted_issue &&
+        (future.flags & hbfsim::device::DeviceFutureTiming) != 0) {
+        const auto issue_smid = future.channel >> 8;
+        std::uint32_t wait_smid = 0;
+        asm volatile("mov.u32 %0, %%smid;" : "=r"(wait_smid));
+        const auto state_count =
+            system_acquire(&header->sm120_channel_state_count);
+        if (issue_smid < state_count && wait_smid != issue_smid) {
+            auto* base = reinterpret_cast<std::byte*>(header);
+            auto* states = reinterpret_cast<
+                hbfsim::device::SharedSm120ChannelState*>(
+                base + header->sm120_channel_state_offset);
+            system_release(&states[issue_smid].migration_visible_sm_mismatch,
+                           1U);
+        }
+    }
     if (future.state == DeviceFutureState::TerminalError ||
         (future.flags & hbfsim::device::DeviceFutureTiming) != 0) {
         if (future.state != DeviceFutureState::TerminalError &&

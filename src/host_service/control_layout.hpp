@@ -224,7 +224,10 @@ struct alignas(64) SharedSm120ChannelState {
     alignas(8) std::uint64_t saturated_requests;
     alignas(8) std::uint64_t gnic_round_robin;
     std::uint64_t gpc_round_robin;
-    std::byte reserved[16];
+    alignas(4) std::uint32_t lock;
+    std::uint32_t maximum_gnic_outstanding;
+    std::uint32_t maximum_gpc_outstanding;
+    std::uint32_t migration_visible_sm_mismatch;
 };
 
 template <typename T>

@@ -1,4 +1,5 @@
 import os
+import json
 import pathlib
 import sys
 from types import SimpleNamespace
@@ -63,3 +64,32 @@ def test_timing_model_defaults_to_hybrid(monkeypatch):
                       "--profile", "/profile.json", "--report-dir", "/report"]
     )
     assert run_module.parse_args().hbf_timing_model == "hybrid"
+
+
+def test_exact_contract_requires_passed_warm_l2_profile(tmp_path):
+    profile = tmp_path / "exact.json"
+    profile.write_text(json.dumps({
+        "schema_version": 2,
+        "conditions": {
+            "cache_condition": "warm_l2",
+            "concurrency_condition": "exclusive_process",
+            "cluster_shape": {"x": 1, "y": 1, "z": 1},
+        },
+        "validation": {"status": "passed"},
+    }))
+
+    assert run_module.exact_contract(str(profile)) == {
+        "exact_profile_path": str(profile.resolve()),
+        "exact_cache_condition": "warm_l2",
+        "exact_cluster_x": 1,
+        "exact_cluster_y": 1,
+        "exact_cluster_z": 1,
+    }
+
+    profile.write_text("{}")
+    try:
+        run_module.exact_contract(str(profile))
+    except SystemExit as error:
+        assert "schema v2" in str(error)
+    else:
+        raise AssertionError("malformed exact profile was accepted")

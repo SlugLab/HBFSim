@@ -3,7 +3,9 @@
 
 #include <json.hpp>
 
+#include <algorithm>
 #include <stdexcept>
+#include <string_view>
 
 namespace hbfsim {
 namespace {
@@ -29,7 +31,13 @@ nlohmann::json to_json(const GateDecision& decision)
          decision.future_manifest.async_transform_version !=
              "sm120-future-v1" ||
          !decision.future_manifest.ambiguities.empty() ||
+         !decision.future_runtime.observed ||
+         decision.future_runtime.issued == 0 ||
+         decision.future_runtime.issued != decision.future_runtime.drained ||
          decision.future_runtime.leaked != 0 ||
+         decision.future_runtime.faults != 0 ||
+         decision.channel_runtime.gnic_requests +
+                 decision.channel_runtime.gpc_requests == 0 ||
          (decision.manifest_schema_version == 4 &&
           (decision.tma_manifest.manifest_schema_version != 4 ||
            decision.tma_manifest.async_transform_version != "sm120-tma-v1" ||
@@ -38,6 +46,11 @@ nlohmann::json to_json(const GateDecision& decision)
            !decision.tma_manifest.ambiguities.empty() ||
            !decision.tma_manifest.provenance_required ||
            decision.tma_manifest.tensormap_parameters.empty() ||
+           !decision.tma_runtime.observed ||
+           decision.tma_runtime.issued == 0 ||
+           decision.tma_runtime.oob_bytes != 0 ||
+           decision.tma_runtime.stale_generations != 0 ||
+           decision.tma_runtime.faults != 0 ||
            decision.tma_runtime.leaked != 0 ||
            (decision.tma_runtime.mixed_bytes != 0 &&
             !decision.tma_runtime.mixed_tiles_proved))))) {
@@ -87,6 +100,7 @@ nlohmann::json to_json(const GateDecision& decision)
          decision.future_runtime.ordering_wait_ns},
         {"future_drained", decision.future_runtime.drained},
         {"future_leaked", decision.future_runtime.leaked},
+        {"future_faults", decision.future_runtime.faults},
         {"future_runtime_observed", decision.future_runtime.observed},
         {"tma_transform_version",
          decision.tma_manifest.async_transform_version},
@@ -119,6 +133,8 @@ nlohmann::json to_json(const GateDecision& decision)
          decision.channel_runtime.maximum_gpc_outstanding},
         {"channel_saturated_requests",
          decision.channel_runtime.saturated_requests},
+        {"channel_gnic_requests", decision.channel_runtime.gnic_requests},
+        {"channel_gpc_requests", decision.channel_runtime.gpc_requests},
         {"channel_migration_visible_sm_mismatch",
          decision.channel_runtime.migration_visible_sm_mismatch},
         {"channel_counter_residual_failed",
@@ -158,6 +174,67 @@ bool coverage_decision_permits_launch(CoverageWriter& writer,
     // Auditability is part of the launch policy: a launch is approved only
     // when its decision is safe and durably reportable.
     return try_append_coverage(writer, decision) && decision.allowed;
+}
+
+GateDecision exact_post_run_decision(
+    GateDecision decision, const ExactPostRunEvidence& evidence)
+{
+    const auto expected_channel = decision.channel_runtime;
+    decision.future_runtime = evidence.future_runtime;
+    decision.tma_runtime = evidence.tma_runtime;
+    decision.channel_runtime = evidence.channel_runtime;
+    decision.post_run_validation_passed = false;
+    decision.admitted_fidelity = "calibrated_emulation";
+    const auto reject = [&](bool failed, std::string_view reason) {
+        if (failed && std::find(decision.exact_rejection_reasons.begin(),
+                                decision.exact_rejection_reasons.end(), reason) ==
+                          decision.exact_rejection_reasons.end()) {
+            decision.exact_rejection_reasons.emplace_back(reason);
+        }
+    };
+    reject(decision.requested_fidelity != "exact" || !decision.allowed ||
+               !decision.validation_passed || !decision.aot_verified,
+           "prelaunch_exact_evidence_missing");
+    reject(!evidence.future_runtime.observed ||
+               evidence.future_runtime.issued == 0 ||
+               evidence.future_runtime.issued !=
+                   evidence.future_runtime.drained ||
+               evidence.future_runtime.leaked != 0 ||
+               evidence.future_runtime.faults != 0,
+           "post_run_future_failure");
+    const bool tma_required = decision.manifest_schema_version == 4;
+    reject(tma_required &&
+               (!evidence.tma_runtime.observed ||
+                evidence.tma_runtime.issued == 0 ||
+                evidence.tma_runtime.oob_bytes != 0 ||
+                evidence.tma_runtime.stale_generations != 0 ||
+                evidence.tma_runtime.faults != 0 ||
+                evidence.tma_runtime.leaked != 0 ||
+                (evidence.tma_runtime.mixed_bytes != 0 &&
+                 !evidence.tma_runtime.mixed_tiles_proved)),
+           "post_run_tma_failure");
+    reject(!evidence.channel_runtime.observed ||
+               evidence.channel_runtime.routing_version !=
+                   expected_channel.routing_version ||
+               evidence.channel_runtime.routing_program_sha256 !=
+                   expected_channel.routing_program_sha256 ||
+               evidence.channel_runtime.gnic_count != 4 ||
+               evidence.channel_runtime.gpc_count != 2 ||
+               evidence.channel_runtime.gnic_requests +
+                       evidence.channel_runtime.gpc_requests == 0 ||
+               evidence.channel_runtime.saturated_requests != 0 ||
+               evidence.channel_runtime.counter_residual_failed ||
+               evidence.channel_runtime.migration_visible_sm_mismatch,
+           "post_run_channel_failure");
+    if (decision.exact_rejection_reasons.empty()) {
+        decision.post_run_validation_passed = true;
+        decision.admitted_fidelity = "exact";
+        decision.reason = "exact_post_run_passed";
+    } else {
+        decision.allowed = false;
+        decision.reason = "exact_post_run_failed";
+    }
+    return decision;
 }
 
 }  // namespace hbfsim

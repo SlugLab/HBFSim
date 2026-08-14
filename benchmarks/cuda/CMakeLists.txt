@@ -151,3 +151,19 @@ target_compile_definitions(
     hbf_vmem_tuning_bench PRIVATE
     "HBFSIM_VMEM_TUNING_PTX_PATH=\"${HBFSIM_VMEM_TUNING_PTX}\""
 )
+
+add_executable(sm120_calibration sm120_calibration.cu)
+target_link_libraries(
+    sm120_calibration PRIVATE hbfsim_core CUDA::cudart CUDA::cuda_driver
+)
+target_include_directories(
+    sm120_calibration PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party"
+)
+set_target_properties(
+    sm120_calibration PROPERTIES
+    CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}"
+    CUDA_RUNTIME_LIBRARY Shared
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda"
+)

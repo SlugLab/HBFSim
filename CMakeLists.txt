@@ -44,6 +44,7 @@ endif()
 include(CTest)
 include(cmake/Dependencies.cmake)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_library(
     hbfsim_core STATIC
@@ -147,6 +148,12 @@ add_executable(
 )
 target_link_libraries(sm120_channels_property_test PRIVATE hbfsim_core)
 add_test(NAME sm120_channels_property COMMAND sm120_channels_property_test)
+add_test(
+    NAME sm120_calibration_cases
+    COMMAND Python3::Interpreter
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_calibration_cases.py"
+            "${CMAKE_BINARY_DIR}/benchmarks/cuda/sm120_calibration"
+)
 
 add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
 target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)

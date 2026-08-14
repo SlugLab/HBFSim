@@ -164,6 +164,11 @@ add_test(
     COMMAND Python3::Interpreter
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_fit_sm120_channels.py"
 )
+add_test(
+    NAME validate_sm120_exact
+    COMMAND Python3::Interpreter
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_validate_sm120_exact.py"
+)
 
 add_executable(hbfsim_calibrator_tests tests/cpu/calibrator_test.cpp)
 target_link_libraries(hbfsim_calibrator_tests PRIVATE hbfsim_core)

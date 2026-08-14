@@ -206,6 +206,8 @@ def main(argv: list[str]) -> int:
         candidate["calibration"] = calibration
         candidate["fit_report"] = {
             "schema_version": 1, "training_sha256": sha(raw_training),
+            "environment_sha256": sha(canonical(manifest.get("environment", {}))),
+            "frozen_thresholds": stage1.get("thresholds", {}),
             "selected": {"gnic_classes": 4, "gpc_classes": 2,
                          "routing_program_sha256": routing["program_sha256"]},
             "cross_validation": {"method": "deterministic-even-odd-training-only",

@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "profile_id": "sm120-stage4-test-profile",
+  "target": {
+    "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "gpu_uuid": "GPU-11111111-2222-3333-4444-555555555555",
+    "pci_vendor_id": 4318,
+    "pci_device_id": 1234,
+    "compute_capability_major": 12,
+    "compute_capability_minor": 0,
+    "driver_version": 13000
+  },
+  "toolchain": {
+    "cuda_version": "13.0",
+    "ptxas_version": "13.0.88",
+    "nvdisasm_version": "13.0.88",
+    "cuobjdump_version": "13.0.88",
+    "ncu_version": "2025.4.1.0"
+  },
+  "conditions": {
+    "sm_clock_mhz": 1830,
+    "memory_clock_mhz": 14001,
+    "power_limit_mw": 600000,
+    "temperature_min_c": 30,
+    "temperature_max_c": 75,
+    "cache_condition": "warm_l2",
+    "concurrency_condition": "exclusive_process",
+    "cluster_shape": {"x": 2, "y": 1, "z": 1}
+  },
+  "thresholds": {
+    "p50_percent": 5.0,
+    "p95_percent": 10.0,
+    "counter_percent": 10.0
+  },
+  "limits": {
+    "max_thread_futures": 16,
+    "max_warp_futures": 256,
+    "max_cta_futures": 2048,
+    "max_cluster_futures": 8192,
+    "max_thread_async_objects": 8,
+    "max_warp_async_objects": 128,
+    "max_cta_async_objects": 1024,
+    "max_cluster_async_objects": 4096
+  },
+  "modules": [{
+    "module_id": "ptx:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "ptx_target": "sm_120",
+    "original_ptx_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "transformed_ptx_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "cubin_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "sass_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "kernels": [{
+      "name": "kernel", "registers": 48, "spill_store_bytes": 0,
+      "spill_load_bytes": 0, "static_shared_bytes": 1024,
+      "max_dynamic_shared_bytes": 49152, "block_threads": 256,
+      "occupancy_blocks_per_sm": 2
+    }]
+  }],
+  "validation": {
+    "status": "passed",
+    "training": {
+      "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "case_ids": ["train-load", "train-store"]
+    },
+    "holdout": {
+      "manifest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "case_ids": ["holdout-load", "holdout-tma"]
+    },
+    "classes": [
+      {"operation_class":"ordinary_load","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"ordinary_store","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"tma_load","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"tma_store","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"unicast","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"multicast","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5},
+      {"operation_class":"mixed_hbm_hbf","passed":true,"p50_error_percent":2,"p95_error_percent":4,"counter_error_percent":5}
+    ]
+  },
+  "calibration": {
+    "label_semantics": "contention_equivalent",
+    "gnic": {
+      "count": 4, "depth": 8, "arbitration": "fifo",
+      "service_ns_by_class": [80, 96, 112, 128, 144, 160, 176]
+    },
+    "gpc": {
+      "count": 2, "depth": 8, "arbitration": "round_robin",
+      "service_ns_by_class": [64, 72, 80, 88, 96, 104, 112]
+    },
+    "routing": {
+      "version": 1,
+      "program_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "inputs": ["smid", "warpid", "cta_shape", "resident_warps", "cluster_ctarank", "operation"],
+      "smsp_proxy_lut": [0, 1, 2, 3],
+      "gnic_lut": [0, 1, 2, 3, 1, 2, 3, 0],
+      "gpc_lut": [0, 1, 1, 0]
+    },
+    "metric_names": ["lsu_active", "tma_active", "long_scoreboard"],
+    "raw_training_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "raw_holdout_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "fitted_case_ids": ["train-load", "train-store"],
+    "residuals": [
+      {"operation_class":"ordinary_load","p50_error_percent":2,"p95_error_percent":4},
+      {"operation_class":"tma_load","p50_error_percent":3,"p95_error_percent":6}
+    ],
+    "counter_thresholds": [
+      {"metric":"lsu_active","max_error_percent":10},
+      {"metric":"tma_active","max_error_percent":10},
+      {"metric":"long_scoreboard","max_error_percent":10}
+    ]
+  }
+}

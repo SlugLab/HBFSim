@@ -25,6 +25,27 @@ nlohmann::json fixture()
     return nlohmann::json::parse(input);
 }
 
+nlohmann::json stage4_fixture()
+{
+    std::ifstream input("tests/fixtures/exact/sm120-stage4-valid.json");
+    require(input.good(), "unable to open Stage 4 profile fixture");
+    return nlohmann::json::parse(input);
+}
+
+template <class Mutator>
+void expect_stage4_error(Mutator mutate, std::string_view expected_reason)
+{
+    auto document = stage4_fixture();
+    mutate(document);
+    try {
+        (void)hbfsim::parse_exact_profile(document.dump());
+    } catch (const hbfsim::ExactProfileError& error) {
+        CHECK(error.reason() == expected_reason);
+        return;
+    }
+    throw std::runtime_error("Stage 4 profile unexpectedly parsed");
+}
+
 template <class Mutator>
 void expect_error(Mutator mutate, std::string_view expected_reason)
 {
@@ -50,6 +71,45 @@ int main()
     CHECK(profile.target.compute_capability_minor == 0);
     CHECK(profile.modules.at(0).kernels.at(0).registers == 48);
     CHECK(profile.validation.status == hbfsim::ValidationStatus::Passed);
+
+    const auto stage4 = hbfsim::load_exact_profile(
+        "tests/fixtures/exact/sm120-stage4-valid.json");
+    CHECK(stage4.schema_version == 2);
+    CHECK(stage4.calibration.gnic.count == 4);
+    CHECK(stage4.calibration.gpc.count == 2);
+    CHECK(stage4.calibration.routing.version == 1);
+    CHECK(stage4.calibration.routing.gnic_lut.size() == 8);
+    CHECK(stage4.calibration.label_semantics == "contention_equivalent");
+    CHECK(stage4.calibration.counter_thresholds.size() == 3);
+
+    expect_stage4_error(
+        [](auto& value) { value["calibration"]["gnic"]["count"] = 3; },
+        "invalid_queue_count");
+    expect_stage4_error(
+        [](auto& value) { value["calibration"]["gpc"]["count"] = 3; },
+        "invalid_queue_count");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["routing"]["inputs"].push_back("smsp_id");
+        },
+        "unknown_routing_input");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["label_semantics"] = "physical_channel";
+        },
+        "physical_channel_claim");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["raw_holdout_sha256"] =
+                value["calibration"]["raw_training_sha256"];
+        },
+        "training_validation_overlap");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["counter_thresholds"][0]
+                 ["max_error_percent"] = 10.01;
+        },
+        "invalid_counter_threshold");
 
     expect_error(
         [](auto& value) {

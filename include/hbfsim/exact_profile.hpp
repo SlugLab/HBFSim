@@ -104,6 +104,46 @@ struct ExactValidation {
     std::vector<ExactValidationClass> classes;
 };
 
+struct CalibratedQueue {
+    std::uint32_t count{0};
+    std::uint32_t depth{0};
+    std::string arbitration;
+    std::vector<std::uint64_t> service_ns_by_class;
+};
+
+struct RoutingProgram {
+    std::uint32_t version{0};
+    std::string program_sha256;
+    std::vector<std::string> inputs;
+    std::vector<std::uint32_t> smsp_proxy_lut;
+    std::vector<std::uint32_t> gnic_lut;
+    std::vector<std::uint32_t> gpc_lut;
+};
+
+struct CounterThreshold {
+    std::string metric;
+    double max_error_percent{0};
+};
+
+struct CalibrationResidual {
+    std::string operation_class;
+    double p50_error_percent{0};
+    double p95_error_percent{0};
+};
+
+struct ExactCalibration {
+    std::string label_semantics;
+    CalibratedQueue gnic;
+    CalibratedQueue gpc;
+    RoutingProgram routing;
+    std::vector<std::string> metric_names;
+    std::string raw_training_sha256;
+    std::string raw_holdout_sha256;
+    std::vector<std::string> fitted_case_ids;
+    std::vector<CalibrationResidual> residuals;
+    std::vector<CounterThreshold> counter_thresholds;
+};
+
 struct ExactProfile {
     std::uint32_t schema_version{0};
     std::string profile_id;
@@ -114,6 +154,7 @@ struct ExactProfile {
     ExactFutureLimits limits;
     std::vector<ExactModuleArtifact> modules;
     ExactValidation validation;
+    ExactCalibration calibration;
 };
 
 class ExactProfileError : public std::runtime_error {

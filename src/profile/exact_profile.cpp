@@ -399,6 +399,156 @@ ExactValidation parse_validation(const json& value,
     return result;
 }
 
+CalibratedQueue parse_queue(const json& value, std::uint32_t expected_count,
+                            std::string_view name)
+{
+    object_with_keys(value,
+                     {"count", "depth", "arbitration",
+                      "service_ns_by_class"});
+    CalibratedQueue result{
+        .count = positive_u32(value, "count"),
+        .depth = positive_u32(value, "depth"),
+        .arbitration = nonempty_string(value, "arbitration"),
+        .service_ns_by_class =
+            field<std::vector<std::uint64_t>>(value, "service_ns_by_class"),
+    };
+    if (result.count != expected_count) {
+        fail("invalid_queue_count", std::string(name) +
+                                        " queue count differs");
+    }
+    if (result.arbitration != "fifo" &&
+        result.arbitration != "round_robin") {
+        fail("invalid_arbitration", "unknown calibrated queue arbitration");
+    }
+    if (result.service_ns_by_class.empty() ||
+        std::any_of(result.service_ns_by_class.begin(),
+                    result.service_ns_by_class.end(),
+                    [](std::uint64_t value) { return value == 0; })) {
+        fail("invalid_field", "calibrated service classes must be positive");
+    }
+    return result;
+}
+
+std::vector<std::string> unique_strings(const json& value,
+                                        std::string_view key)
+{
+    auto result = field<std::vector<std::string>>(value, key);
+    if (result.empty()) fail("invalid_field", "empty calibrated string list");
+    std::unordered_set<std::string> unique;
+    for (const auto& item : result) {
+        if (item.empty() || !unique.insert(item).second) {
+            fail("invalid_field", "invalid calibrated string list");
+        }
+    }
+    return result;
+}
+
+RoutingProgram parse_routing(const json& value)
+{
+    object_with_keys(value,
+                     {"version", "program_sha256", "inputs",
+                      "smsp_proxy_lut", "gnic_lut", "gpc_lut"});
+    RoutingProgram result{
+        .version = positive_u32(value, "version"),
+        .program_sha256 = sha256_field(value, "program_sha256"),
+        .inputs = unique_strings(value, "inputs"),
+        .smsp_proxy_lut =
+            field<std::vector<std::uint32_t>>(value, "smsp_proxy_lut"),
+        .gnic_lut = field<std::vector<std::uint32_t>>(value, "gnic_lut"),
+        .gpc_lut = field<std::vector<std::uint32_t>>(value, "gpc_lut"),
+    };
+    static const std::set<std::string> allowed_inputs{
+        "smid", "warpid", "cta_shape", "resident_warps",
+        "cluster_ctarank", "operation"};
+    if (result.inputs.size() != allowed_inputs.size() ||
+        !std::all_of(result.inputs.begin(), result.inputs.end(),
+                     [&](const auto& input) {
+                         return allowed_inputs.contains(input);
+                     })) {
+        fail("unknown_routing_input",
+             "routing inputs must be the declared visible proxies");
+    }
+    if (result.smsp_proxy_lut.empty() || result.gnic_lut.empty() ||
+        result.gpc_lut.empty() ||
+        std::any_of(result.gnic_lut.begin(), result.gnic_lut.end(),
+                    [](auto value) { return value >= 4; }) ||
+        std::any_of(result.gpc_lut.begin(), result.gpc_lut.end(),
+                    [](auto value) { return value >= 2; })) {
+        fail("invalid_routing_lut", "invalid calibrated routing LUT");
+    }
+    return result;
+}
+
+ExactCalibration parse_calibration(const json& value,
+                                   const ExactThresholds& thresholds)
+{
+    object_with_keys(value,
+                     {"label_semantics", "gnic", "gpc", "routing",
+                      "metric_names", "raw_training_sha256",
+                      "raw_holdout_sha256", "fitted_case_ids", "residuals",
+                      "counter_thresholds"});
+    ExactCalibration result{
+        .label_semantics = nonempty_string(value, "label_semantics"),
+        .gnic = parse_queue(value.at("gnic"), 4, "GNIC"),
+        .gpc = parse_queue(value.at("gpc"), 2, "GPC"),
+        .routing = parse_routing(value.at("routing")),
+        .metric_names = unique_strings(value, "metric_names"),
+        .raw_training_sha256 = sha256_field(value, "raw_training_sha256"),
+        .raw_holdout_sha256 = sha256_field(value, "raw_holdout_sha256"),
+        .fitted_case_ids = unique_strings(value, "fitted_case_ids"),
+    };
+    if (result.label_semantics != "contention_equivalent") {
+        fail("physical_channel_claim",
+             "channel labels must be contention-equivalent classes");
+    }
+    if (result.raw_training_sha256 == result.raw_holdout_sha256) {
+        fail("training_validation_overlap", "raw evidence hashes overlap");
+    }
+    std::unordered_set<std::string> residual_names;
+    for (const auto& item : value.at("residuals")) {
+        object_with_keys(item,
+                         {"operation_class", "p50_error_percent",
+                          "p95_error_percent"});
+        CalibrationResidual residual{
+            .operation_class = nonempty_string(item, "operation_class"),
+            .p50_error_percent =
+                nonnegative_number(item, "p50_error_percent"),
+            .p95_error_percent =
+                nonnegative_number(item, "p95_error_percent"),
+        };
+        if (!residual_names.insert(residual.operation_class).second) {
+            fail("invalid_field", "duplicate calibration residual class");
+        }
+        result.residuals.push_back(std::move(residual));
+    }
+    if (result.residuals.empty()) {
+        fail("invalid_field", "calibration residuals are empty");
+    }
+    std::unordered_set<std::string> metrics(result.metric_names.begin(),
+                                            result.metric_names.end());
+    std::unordered_set<std::string> threshold_metrics;
+    for (const auto& item : value.at("counter_thresholds")) {
+        object_with_keys(item, {"metric", "max_error_percent"});
+        CounterThreshold threshold{
+            .metric = nonempty_string(item, "metric"),
+            .max_error_percent =
+                nonnegative_number(item, "max_error_percent"),
+        };
+        if (!metrics.contains(threshold.metric) ||
+            !threshold_metrics.insert(threshold.metric).second ||
+            threshold.max_error_percent > thresholds.counter_percent) {
+            fail("invalid_counter_threshold",
+                 "counter threshold is missing, duplicated, or relaxed");
+        }
+        result.counter_thresholds.push_back(std::move(threshold));
+    }
+    if (threshold_metrics.size() != metrics.size()) {
+        fail("invalid_counter_threshold",
+             "every declared metric requires a counter threshold");
+    }
+    return result;
+}
+
 }  // namespace
 
 ExactProfileError::ExactProfileError(std::string reason, std::string message)
@@ -418,10 +568,10 @@ ExactProfile parse_exact_profile(std::string_view text)
         object_with_keys(root,
                          {"schema_version", "profile_id", "target",
                           "toolchain", "conditions", "thresholds", "limits",
-                          "modules", "validation"});
+                          "modules", "validation"}, {"calibration"});
         ExactProfile result;
         result.schema_version = field<std::uint32_t>(root, "schema_version");
-        if (result.schema_version != 1) {
+        if (result.schema_version != 1 && result.schema_version != 2) {
             fail("unsupported_schema_version",
                  "unsupported exact profile schema version");
         }
@@ -445,6 +595,15 @@ ExactProfile parse_exact_profile(std::string_view text)
         }
         result.validation =
             parse_validation(root.at("validation"), result.thresholds);
+        if (result.schema_version == 2) {
+            if (!root.contains("calibration")) {
+                fail("missing_field", "schema v2 requires calibration");
+            }
+            result.calibration =
+                parse_calibration(root.at("calibration"), result.thresholds);
+        } else if (root.contains("calibration")) {
+            fail("unknown_field", "schema v1 cannot contain calibration");
+        }
         return result;
     } catch (const ExactProfileError&) {
         throw;

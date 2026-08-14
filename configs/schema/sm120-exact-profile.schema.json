@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "profile_id", "target", "toolchain", "conditions", "thresholds", "limits", "modules", "validation"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"enum": [1, 2]},
     "profile_id": {"type": "string", "minLength": 1},
     "target": {"$ref": "#/$defs/target"},
     "toolchain": {"$ref": "#/$defs/toolchain"},
@@ -14,8 +14,14 @@
     "thresholds": {"$ref": "#/$defs/thresholds"},
     "limits": {"$ref": "#/$defs/limits"},
     "modules": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/module"}},
-    "validation": {"$ref": "#/$defs/validation"}
+    "validation": {"$ref": "#/$defs/validation"},
+    "calibration": {"$ref": "#/$defs/calibration"}
   },
+  "allOf": [{
+    "if": {"properties": {"schema_version": {"const": 2}}},
+    "then": {"required": ["calibration"]},
+    "else": {"not": {"required": ["calibration"]}}
+  }],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "positiveInteger": {"type": "integer", "minimum": 1},
@@ -154,6 +160,67 @@
         "training": {"$ref": "#/$defs/dataset"},
         "holdout": {"$ref": "#/$defs/dataset"},
         "classes": {"type": "array", "minItems": 7, "maxItems": 7, "items": {"$ref": "#/$defs/validationClass"}}
+      }
+    },
+    "calibratedQueue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "depth", "arbitration", "service_ns_by_class"],
+      "properties": {
+        "count": {"$ref": "#/$defs/positiveInteger"},
+        "depth": {"$ref": "#/$defs/positiveInteger"},
+        "arbitration": {"enum": ["fifo", "round_robin"]},
+        "service_ns_by_class": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/positiveInteger"}}
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "program_sha256", "inputs", "smsp_proxy_lut", "gnic_lut", "gpc_lut"],
+      "properties": {
+        "version": {"$ref": "#/$defs/positiveInteger"},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "inputs": {
+          "type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true,
+          "items": {"enum": ["smid", "warpid", "cta_shape", "resident_warps", "cluster_ctarank", "operation"]}
+        },
+        "smsp_proxy_lut": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0}},
+        "gnic_lut": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0, "maximum": 3}},
+        "gpc_lut": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0, "maximum": 1}}
+      }
+    },
+    "calibrationResidual": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operation_class", "p50_error_percent", "p95_error_percent"],
+      "properties": {
+        "operation_class": {"type": "string", "minLength": 1},
+        "p50_error_percent": {"type": "number", "minimum": 0},
+        "p95_error_percent": {"type": "number", "minimum": 0}
+      }
+    },
+    "counterThreshold": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metric", "max_error_percent"],
+      "properties": {
+        "metric": {"type": "string", "minLength": 1},
+        "max_error_percent": {"type": "number", "minimum": 0, "maximum": 10}
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_semantics", "gnic", "gpc", "routing", "metric_names", "raw_training_sha256", "raw_holdout_sha256", "fitted_case_ids", "residuals", "counter_thresholds"],
+      "properties": {
+        "label_semantics": {"const": "contention_equivalent"},
+        "gnic": {"allOf": [{"$ref": "#/$defs/calibratedQueue"}, {"properties": {"count": {"const": 4}}}]},
+        "gpc": {"allOf": [{"$ref": "#/$defs/calibratedQueue"}, {"properties": {"count": {"const": 2}}}]},
+        "routing": {"$ref": "#/$defs/routing"},
+        "metric_names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "raw_training_sha256": {"$ref": "#/$defs/sha256"},
+        "raw_holdout_sha256": {"$ref": "#/$defs/sha256"},
+        "fitted_case_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/calibrationResidual"}},
+        "counter_thresholds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/counterThreshold"}}
       }
     }
   }

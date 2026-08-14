@@ -80,6 +80,30 @@ extern "C" __global__ void sm120_future_atomic(
     publish_stamps(stamps, issue, independent_end, wait_end);
 }
 
+extern "C" __global__ void sm120_future_atomic_acq_rel_unused(
+    unsigned long long* data, std::uint64_t seed,
+    std::uint64_t* output, std::uint64_t* stamps)
+{
+    if (blockIdx.x != 0 || threadIdx.x != 0) return;
+    [[maybe_unused]] unsigned long long unused_old;
+    constexpr unsigned long long increment = 11ULL;
+    const auto issue = global_timer();
+    asm volatile("atom.global.acq_rel.gpu.add.u64 %0, [%1], %2;"
+                 : "=l"(unused_old)
+                 : "l"(data + 3), "l"(increment)
+                 : "memory");
+    // The atomic result is deliberately unused.  This independent access must
+    // still execute after the acquire/acq_rel ordering wait inserted by the
+    // PTX pass.
+    const auto loaded = data[0];
+    const auto independent = independent_work(seed ^ 0x41435152454cULL);
+    const auto independent_end = global_timer();
+    output[0] = loaded ^ independent;
+    output[1] = data[3];
+    const auto wait_end = global_timer();
+    publish_stamps(stamps, issue, independent_end, wait_end);
+}
+
 extern "C" __global__ void sm120_future_vector_branch(
     const ulonglong2* data, int enabled, std::uint64_t seed,
     std::uint64_t* output, std::uint64_t* stamps)

@@ -74,6 +74,16 @@ class ExactRunContract(ctypes.Structure):
         ("cluster_y", ctypes.c_uint32),
         ("cluster_z", ctypes.c_uint32),
         ("cache_condition_epoch", ctypes.c_uint64),
+        ("operation_class", ctypes.c_uint32),
+        ("issued_operations", ctypes.c_uint64),
+        ("bytes", ctypes.c_uint64),
+        ("resident_warps", ctypes.c_uint32),
+        ("queue_depth", ctypes.c_uint32),
+        ("dimension_count", ctypes.c_uint32),
+        ("iterations", ctypes.c_uint64),
+        ("load_use_distance", ctypes.c_uint32),
+        ("tile_elements", ctypes.c_uint64),
+        ("multicast_targets", ctypes.c_uint32),
     ]
 
 
@@ -349,7 +359,7 @@ def main() -> int:
                     0xA000, generation.value, profile, len(profile)) == 0,
                 "v4 rejected a structurally valid exact profile")
         invalid_contract = ExactRunContract()
-        invalid_contract.abi_version = 1
+        invalid_contract.abi_version = 2
         invalid_contract.struct_bytes = ctypes.sizeof(ExactRunContract) - 1
         require(api_v4.publish_run_contract(
                     0xA000, generation.value,
@@ -365,13 +375,23 @@ def main() -> int:
                 "v4 exact range registration failed")
         exact_module = load_trusted(b"exact-ptx-jit")
         contract = ExactRunContract()
-        contract.abi_version = 1
+        contract.abi_version = 2
         contract.struct_bytes = ctypes.sizeof(ExactRunContract)
         contract.cache_condition = 1
         contract.concurrency_condition = 1
         contract.cluster_x = 2
         contract.cluster_y = 1
         contract.cluster_z = 1
+        contract.operation_class = 1
+        contract.issued_operations = 128
+        contract.bytes = 4096
+        contract.resident_warps = 1
+        contract.queue_depth = 1
+        contract.dimension_count = 0
+        contract.iterations = 128
+        contract.load_use_distance = 0
+        contract.tile_elements = 1
+        contract.multicast_targets = 0
         contract.cache_condition_epoch = (1 << 64) - 1
         require(api_v4.publish_run_contract(
                     0xA000, generation.value, ctypes.byref(contract)) != 0,

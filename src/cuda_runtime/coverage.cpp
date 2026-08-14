@@ -279,8 +279,16 @@ ModuleManifest module_manifest_from_json(const std::string& text)
                         instruction.at("dimensions").get<std::uint32_t>(),
                     .completion =
                         instruction.at("completion").get<std::string>(),
+                    .multicast =
+                        instruction.at("multicast").get<bool>(),
                     .multicast_mask =
                         instruction.at("multicast_mask").get<std::uint32_t>(),
+                    .multicast_mask_operand =
+                        instruction.at("multicast_mask_operand")
+                            .get<std::string>(),
+                    .multicast_mask_kind =
+                        instruction.at("multicast_mask_kind")
+                            .get<std::string>(),
                     .descriptor_generation =
                         instruction.at("descriptor_generation")
                             .get<std::uint64_t>(),
@@ -297,10 +305,24 @@ ModuleManifest module_manifest_from_json(const std::string& text)
                     record.completion == "mbarrier" ||
                     record.completion == "bulk_group" ||
                     record.completion == "none";
+                const bool valid_multicast =
+                    (!record.multicast && record.multicast_mask == 0 &&
+                     record.multicast_mask_operand == "0" &&
+                     record.multicast_mask_kind == "none") ||
+                    (record.multicast &&
+                     !record.multicast_mask_operand.empty() &&
+                     ((record.multicast_mask_kind == "immediate" &&
+                       record.multicast_mask != 0) ||
+                      (record.multicast_mask_kind == "constant_register" &&
+                       record.multicast_mask != 0 &&
+                       record.multicast_mask_operand.starts_with('%')) ||
+                      (record.multicast_mask_kind == "runtime_register" &&
+                       record.multicast_mask == 0 &&
+                       record.multicast_mask_operand.starts_with('%'))));
                 if (record.instruction_id == 0 || record.source_line == 0 ||
                     record.dimensions == 0 || record.dimensions > 5 ||
                     record.descriptor_generation == 0 || !valid_direction ||
-                    !valid_mode || !valid_completion ||
+                    !valid_mode || !valid_completion || !valid_multicast ||
                     !tma_ids.insert(record.instruction_id).second) {
                     throw std::invalid_argument("invalid TMA instruction table");
                 }
@@ -515,6 +537,19 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         return decision;
     }
     for (const auto& parameter : launch.parameters) {
+        const bool recognized_tensormap =
+            parameter.tensormap_descriptor &&
+            std::ranges::find(manifest->tma_manifest.tensormap_parameters,
+                              parameter.index) !=
+                manifest->tma_manifest.tensormap_parameters.end();
+        if (parameter.tensormap_descriptor && !recognized_tensormap) {
+            decision.allowed = false;
+            decision.reason = "unrecognized_tensormap_parameter";
+            decision.operation = "unproven_tensormap_parameter";
+            decision.parameter_index = parameter.index;
+            decision.parameter_offset = parameter.offset;
+            return decision;
+        }
         if (parameter.opaque_aggregate && !ranges_.empty()) {
             if (aggregate_policy == RangePolicy::TimingBacked &&
                 !strict_policy(launch_policy)) {
@@ -596,8 +631,14 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 [&parameter](const ParameterMetadata& item) {
                     return item.index == parameter.index;
                 });
+            const bool authorized_tensormap =
+                recognized_tensormap &&
+                metadata != manifest->parameters.end() &&
+                metadata->kind == ParameterKind::OpaqueAggregate &&
+                metadata->width == 128;
             if (metadata == manifest->parameters.end() ||
-                metadata->kind != ParameterKind::Pointer) {
+                (metadata->kind != ParameterKind::Pointer &&
+                 !authorized_tensormap)) {
                 if (slot_policy == RangePolicy::TimingBacked &&
                     !strict_policy(launch_policy)) {
                     auto fallback =
@@ -620,6 +661,18 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     }
     decision.modeled = has_hbf;
     return decision;
+}
+
+bool CoverageGate::is_tensormap_parameter(
+    const std::string& module_id, const std::string& kernel,
+    std::size_t parameter_index) const
+{
+    std::shared_lock lock(mutex_);
+    const auto found = modules_.find(module_key(module_id, kernel));
+    if (found == modules_.end()) return false;
+    return std::ranges::find(found->second.tma_manifest.tensormap_parameters,
+                             parameter_index) !=
+           found->second.tma_manifest.tensormap_parameters.end();
 }
 
 }  // namespace hbfsim

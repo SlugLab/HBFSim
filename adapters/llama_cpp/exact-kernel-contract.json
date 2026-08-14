@@ -1,0 +1,7 @@
+{
+  "hbfsim_llama_probe_kernel": {
+    "block_threads": 128,
+    "max_dynamic_shared_bytes": 0,
+    "occupancy_blocks_per_sm": 1
+  }
+}

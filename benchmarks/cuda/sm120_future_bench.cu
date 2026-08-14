@@ -378,11 +378,13 @@ void validate_outputs(const std::vector<json>& cases)
     const auto store_reused = independent_work(
         store_expected ^ 0x9e3779b97f4a7c15ULL);
     const auto atomic_independent = independent_work(seed ^ 0x41544f4d4943ULL);
+    const auto acquire_independent = independent_work(seed ^ 0x41435152454cULL);
     const auto vector_independent = independent_work(seed ^ 0x564543544f52ULL);
-    const std::array<std::array<std::uint64_t, 2>, 5> expected{{
+    const std::array<std::array<std::uint64_t, 2>, 6> expected{{
         {load_expected, 0},
         {store_expected, store_reused},
         {100 ^ atomic_independent, 107},
+        {data[0] ^ acquire_independent, data[3] + 11},
         {data[4] ^ data[5] ^ vector_independent, 0},
         {vector_independent, 0},
     }};
@@ -424,6 +426,9 @@ int main(int argc, char** argv)
                                  "sm120_future_store"));
         cases.push_back(run_case(options, allocation, ptx, "atomic",
                                  "sm120_future_atomic"));
+        cases.push_back(run_case(options, allocation, ptx,
+                                 "atomic_acq_rel_unused",
+                                 "sm120_future_atomic_acq_rel_unused"));
         cases.push_back(run_case(options, allocation, ptx, "vector_branch_true",
                                  "sm120_future_vector_branch", 1));
         cases.push_back(run_case(options, allocation, ptx,

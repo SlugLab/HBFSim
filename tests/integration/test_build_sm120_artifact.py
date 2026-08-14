@@ -85,7 +85,12 @@ out.write_bytes(b"\x7fELF-HBFSIM-" + source)
 print("ptxas info    : Function properties for kernel", file=sys.stderr)
 print("    0 bytes stack frame, 16 bytes spill stores, 8 bytes spill loads", file=sys.stderr)
 print("ptxas info    : Used 48 registers", file=sys.stderr)
+print("ptxas info    : Function properties for __hbfsim_future_fault", file=sys.stderr)
 ''')
+    # Real CUDA ptxas is larger than the 16 MiB manifest/PTX input bound.
+    # Preserve that distinction in the fake-tool integration test.
+    with (tools / "ptxas").open("ab") as output:
+        output.write(b"\n#" + b"x" * (17 * 1024 * 1024))
     write_tool(tools / "nvdisasm", r'''
 import os, sys
 if "--version" in sys.argv:
@@ -102,7 +107,8 @@ if "--version" in sys.argv:
 if os.environ.get("FAKE_BAD_RESOURCE") == "1":
     print("malformed resources")
 else:
-    print("Resource usage:\n Function kernel:\n  REG:48 STACK:0 SHARED:1024 LOCAL:0")
+    print("Resource usage:\n Function kernel:\n  REG:48 STACK:0 SHARED:1024 LOCAL:0"
+          "\n Function __hbfsim_future_fault:\n  STACK:0 LOCAL:0")
 ''')
     return identity, root / "bundles" / hashlib.sha256(original).hexdigest() / "sm_120"
 

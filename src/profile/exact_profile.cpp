@@ -147,7 +147,10 @@ ExactConditions parse_conditions(const json& value)
                      {"sm_clock_mhz", "memory_clock_mhz", "power_limit_mw",
                       "temperature_min_c", "temperature_max_c",
                       "cache_condition", "concurrency_condition",
-                      "cluster_shape"});
+                      "cluster_shape"},
+                     {"clock_control", "sm_clock_min_mhz",
+                      "sm_clock_max_mhz", "memory_clock_min_mhz",
+                      "memory_clock_max_mhz"});
     const auto& shape = value.at("cluster_shape");
     object_with_keys(shape, {"x", "y", "z"});
     ExactConditions result{
@@ -166,6 +169,38 @@ ExactConditions parse_conditions(const json& value)
     if (result.temperature_min_c > result.temperature_max_c) {
         fail("invalid_temperature_interval",
              "temperature_min_c exceeds temperature_max_c");
+    }
+    const auto dynamic_fields =
+        static_cast<unsigned>(value.contains("clock_control")) +
+        static_cast<unsigned>(value.contains("sm_clock_min_mhz")) +
+        static_cast<unsigned>(value.contains("sm_clock_max_mhz")) +
+        static_cast<unsigned>(value.contains("memory_clock_min_mhz")) +
+        static_cast<unsigned>(value.contains("memory_clock_max_mhz"));
+    if (dynamic_fields == 0) {
+        result.clock_control = "base";
+        result.sm_clock_min_mhz = result.sm_clock_mhz;
+        result.sm_clock_max_mhz = result.sm_clock_mhz;
+        result.memory_clock_min_mhz = result.memory_clock_mhz;
+        result.memory_clock_max_mhz = result.memory_clock_mhz;
+    } else if (dynamic_fields == 5) {
+        result.clock_control = nonempty_string(value, "clock_control");
+        result.sm_clock_min_mhz = positive_u32(value, "sm_clock_min_mhz");
+        result.sm_clock_max_mhz = positive_u32(value, "sm_clock_max_mhz");
+        result.memory_clock_min_mhz =
+            positive_u32(value, "memory_clock_min_mhz");
+        result.memory_clock_max_mhz =
+            positive_u32(value, "memory_clock_max_mhz");
+        if (result.clock_control != "none" ||
+            result.sm_clock_min_mhz > result.sm_clock_mhz ||
+            result.sm_clock_mhz > result.sm_clock_max_mhz ||
+            result.memory_clock_min_mhz > result.memory_clock_mhz ||
+            result.memory_clock_mhz > result.memory_clock_max_mhz) {
+            fail("invalid_clock_interval",
+                 "dynamic clock interval or policy is invalid");
+        }
+    } else {
+        fail("invalid_clock_interval",
+             "dynamic clock evidence must be complete");
     }
     return result;
 }
@@ -488,6 +523,133 @@ RoutingProgram parse_routing(const json& value)
     return result;
 }
 
+void validate_counter_error_evidence(
+    const json& calibration, const std::vector<std::string>& metrics)
+{
+    const auto has_contract = calibration.contains("counter_error_contract");
+    const auto has_scales =
+        calibration.contains("counter_error_scale_by_class");
+    if (has_contract != has_scales) {
+        fail("invalid_counter_error_contract",
+             "counter error contract and scales must be supplied together");
+    }
+    if (!has_contract) return;
+    const auto& contract = calibration.at("counter_error_contract");
+    object_with_keys(
+        contract,
+        {"version", "percentage_metrics", "traffic_metrics",
+         "duration_metrics", "fallback_metrics"});
+    if (positive_u32(contract, "version") != 1 ||
+        nonempty_string(contract, "percentage_metrics") !=
+            "absolute_percentage_points" ||
+        nonempty_string(contract, "traffic_metrics") !=
+            "native_or_logical_issued_or_training_class_envelope" ||
+        nonempty_string(contract, "duration_metrics") !=
+            "relative_to_native" ||
+        nonempty_string(contract, "fallback_metrics") !=
+            "relative_to_native") {
+        fail("invalid_counter_error_contract",
+             "unknown counter error normalization contract");
+    }
+    const auto& scales = calibration.at("counter_error_scale_by_class");
+    static constexpr std::array operation_classes{
+        "ordinary_load", "ordinary_store", "tma_load", "tma_store",
+        "unicast",       "multicast",      "mixed_hbm_hbf"};
+    if (!scales.is_object() || scales.size() != operation_classes.size()) {
+        fail("invalid_counter_error_contract",
+             "counter error class scales are incomplete");
+    }
+    const std::set<std::string> metric_names(metrics.begin(), metrics.end());
+    for (const auto* operation : operation_classes) {
+        if (!scales.contains(operation)) {
+            fail("invalid_counter_error_contract",
+                 "counter error class scale is missing");
+        }
+        const auto& class_scales = scales.at(operation);
+        if (!class_scales.is_object() ||
+            class_scales.size() != metric_names.size()) {
+            fail("invalid_counter_error_contract",
+                 "counter error metric scales are incomplete");
+        }
+        for (const auto& metric : metric_names) {
+            if (!class_scales.contains(metric)) {
+                fail("invalid_counter_error_contract",
+                     "counter error metric scale is missing");
+            }
+            const auto scale = nonnegative_number(class_scales, metric);
+            const auto percentage = metric.ends_with(".pct") ||
+                                    metric.find(".pct_of_peak_") !=
+                                        std::string::npos;
+            const auto traffic = metric == "dram__bytes.sum" ||
+                                 metric == "lts__t_sectors.sum";
+            if ((percentage && scale != 100.0) ||
+                (traffic && scale <= 0.0)) {
+                fail("invalid_counter_error_contract",
+                     "counter error metric scale violates its units");
+            }
+        }
+    }
+}
+
+ExactWorkloadDomain parse_workload_domain(const json& value)
+{
+    object_with_keys(value,
+                     {"schema_version", "match_policy", "program_sha256",
+                      "feature_names", "vectors_by_class"});
+    if (positive_u32(value, "schema_version") != 1) {
+        fail("invalid_workload_domain", "unknown workload-domain schema");
+    }
+    ExactWorkloadDomain result{
+        .match_policy = nonempty_string(value, "match_policy"),
+        .program_sha256 = sha256_field(value, "program_sha256"),
+        .feature_names = unique_strings(value, "feature_names"),
+    };
+    static const std::vector<std::string> expected_features{
+        "log2_issued_operations", "log2_bytes", "log2_resident_warps",
+        "log2_queue_depth", "dimension_count", "cache_warm",
+        "log2_iterations", "log2_load_use_distance_plus_one",
+        "log2_tile_elements", "cluster_size", "multicast_targets",
+    };
+    static const std::set<std::string> expected_classes{
+        "ordinary_load", "ordinary_store", "tma_load", "tma_store",
+        "unicast", "multicast", "mixed_hbm_hbf",
+    };
+    if (result.match_policy != "exact_calibrated_vector" ||
+        result.feature_names != expected_features) {
+        fail("invalid_workload_domain",
+             "workload domain policy or feature order is invalid");
+    }
+    const auto& classes = value.at("vectors_by_class");
+    if (!classes.is_object() || classes.size() != expected_classes.size()) {
+        fail("invalid_workload_domain",
+             "workload domain classes are incomplete");
+    }
+    for (const auto& operation : expected_classes) {
+        if (!classes.contains(operation) ||
+            !classes.at(operation).is_array() ||
+            classes.at(operation).empty()) {
+            fail("invalid_workload_domain",
+                 "workload domain class vectors are missing");
+        }
+        std::set<std::vector<double>> unique;
+        for (const auto& encoded : classes.at(operation)) {
+            const auto features = encoded.get<std::vector<double>>();
+            if (features.size() != expected_features.size() ||
+                std::any_of(features.begin(), features.end(),
+                            [](double item) {
+                                return !std::isfinite(item) || item < 0.0;
+                            }) ||
+                !unique.insert(features).second) {
+                fail("invalid_workload_domain",
+                     "workload domain vector is invalid or duplicated");
+            }
+            result.vectors.push_back({.operation_class = operation,
+                                      .features = features});
+        }
+    }
+    return result;
+}
+
 ExactCalibration parse_calibration(const json& value,
                                    const ExactThresholds& thresholds)
 {
@@ -495,7 +657,9 @@ ExactCalibration parse_calibration(const json& value,
                      {"label_semantics", "gnic", "gpc", "routing",
                       "metric_names", "raw_training_sha256",
                       "raw_holdout_sha256", "fitted_case_ids", "residuals",
-                      "counter_thresholds"});
+                      "counter_thresholds", "workload_domain"},
+                     {"counter_error_contract",
+                      "counter_error_scale_by_class"});
     ExactCalibration result{
         .label_semantics = nonempty_string(value, "label_semantics"),
         .gnic = parse_queue(value.at("gnic"), 4, "GNIC"),
@@ -505,6 +669,8 @@ ExactCalibration parse_calibration(const json& value,
         .raw_training_sha256 = sha256_field(value, "raw_training_sha256"),
         .raw_holdout_sha256 = sha256_field(value, "raw_holdout_sha256"),
         .fitted_case_ids = unique_strings(value, "fitted_case_ids"),
+        .workload_domain =
+            parse_workload_domain(value.at("workload_domain")),
     };
     if (result.label_semantics != "contention_equivalent") {
         fail("physical_channel_claim",
@@ -555,6 +721,7 @@ ExactCalibration parse_calibration(const json& value,
         fail("invalid_counter_threshold",
              "every declared metric requires a counter threshold");
     }
+    validate_counter_error_evidence(value, result.metric_names);
     return result;
 }
 

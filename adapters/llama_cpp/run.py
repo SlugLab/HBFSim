@@ -27,6 +27,24 @@ def generated_text(stdout: str, prompt: str) -> str:
     raise RuntimeError("llama-cli output did not contain generated text")
 
 
+def exact_result_boundary(mode: str) -> dict[str, Any]:
+    if mode != "exact":
+        return {}
+    return {
+        "exact_scope": "one_shot_sideband_probe",
+        "model_graph_fidelity": "native",
+        "model_storage_registered": False,
+    }
+
+
+def dry_run_result(
+    mode: str, command: list[str], config: dict[str, Any] | None
+) -> dict[str, Any]:
+    result = {"mode": mode, "command": command, "config": config}
+    result.update(exact_result_boundary(mode))
+    return result
+
+
 def exact_runtime(profile_path: pathlib.Path) -> dict[str, Any]:
     if profile_path.is_symlink() or not profile_path.is_file():
         raise RuntimeError("exact profile must be a regular non-symlink file")
@@ -65,6 +83,8 @@ def exact_coverage(path: pathlib.Path) -> dict[str, int]:
         "exact_launches": len(final),
         "unsafe_launches": sum(item.get("allowed") is False
                                for item in decisions),
+        "future_issued": sum(item.get("future_issued", 0) for item in final),
+        "future_drained": sum(item.get("future_drained", 0) for item in final),
         "future_faults": sum(item.get("future_faults", 0) for item in final),
         "future_leaks": sum(item.get("future_leaked", 0) for item in final),
         "tma_faults": sum(item.get("tma_faults", 0) for item in final),
@@ -72,11 +92,14 @@ def exact_coverage(path: pathlib.Path) -> dict[str, int]:
         "tma_stale_generations": sum(
             item.get("tma_stale_generations", 0) for item in final),
     }
-    if result["exact_launches"] == 0 or any(
-        result[name] != 0 for name in result if name not in {
-            "decisions", "exact_launches"
-        }
-    ):
+    if result["exact_launches"] != 1 or \
+            result["future_issued"] != 128 * 8 * 384 or \
+            result["future_drained"] != result["future_issued"] or any(
+                result[name] != 0 for name in (
+                    "unsafe_launches", "future_faults", "future_leaks",
+                    "tma_faults", "tma_leaks", "tma_stale_generations"
+                )
+            ):
         raise RuntimeError("llama exact post-run coverage gate failed")
     return result
 
@@ -129,11 +152,15 @@ def run_once(args: argparse.Namespace, mode: str, destination: pathlib.Path) -> 
                 if environment.get("LD_PRELOAD") else ""
             )
         else:
+            existing_preload = environment.get("LD_PRELOAD")
+            environment["LD_PRELOAD"] = config["probe_library"]
+            if existing_preload:
+                environment["LD_PRELOAD"] += ":" + existing_preload
             environment.update({
                 "HBFSIM_BUILD_DIR": str(args.hbf_build.resolve()),
                 "HBFSIM_BPFTIME_BUILD_DIR": str(args.bpftime_build.resolve()),
                 "HBFSIM_BPFTIME_PROBE": str(
-                    (args.hbf_build / "coverage_probe.bpf.o").resolve()
+                    (args.hbf_build / "llama_probe.bpf.o").resolve()
                 ),
                 "HBFSIM_PASS_MANIFEST_PATH": str(
                     destination / "pass-manifests.jsonl"
@@ -150,7 +177,7 @@ def run_once(args: argparse.Namespace, mode: str, destination: pathlib.Path) -> 
                 "--", *command,
             ]
     if args.dry_run:
-        return {"mode": mode, "command": command, "config": config}
+        return dry_run_result(mode, command, config)
     start = time.perf_counter()
     completed = subprocess.run(command, env=environment, text=True, capture_output=True, timeout=args.timeout)
     wall = time.perf_counter() - start
@@ -170,7 +197,13 @@ def run_once(args: argparse.Namespace, mode: str, destination: pathlib.Path) -> 
         "injected_ns": sum(item["delay_ns"] for item in injections),
         "config": config,
     }
+    result.update(exact_result_boundary(mode))
     if mode == "exact":
+        if len(injections) != 1 or injections[0].get("bit_exact") is not True or \
+                injections[0].get("output_count") != 128 or \
+                injections[0].get("issued_operations") != 128 * 8 * 384:
+            raise RuntimeError("llama exact probe lacks deterministic oracle evidence")
+        result["exact_probe"] = injections[0]
         result["coverage"] = exact_coverage(destination / "coverage.jsonl")
     return result
 

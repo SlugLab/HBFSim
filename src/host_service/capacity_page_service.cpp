@@ -78,8 +78,12 @@ RequestStatus CapacityPageService::writeback(
         return RequestStatus::CopyError;
     }
     try {
-        return checked_status(
+        const auto status = checked_status(
             backing_.write_page(eviction.logical_page, page_bytes_, page));
+        if (status == RequestStatus::Ready) {
+            dirty_writebacks_.fetch_add(1, std::memory_order_relaxed);
+        }
+        return status;
     } catch (...) {
         return RequestStatus::IoError;
     }
@@ -93,6 +97,7 @@ CapacityResolveResult CapacityPageService::resolve(
     }
     std::lock_guard lock(mutex_);
     if (const auto resident = cache_.resolve(logical_page); resident) {
+        cache_hits_.fetch_add(1, std::memory_order_relaxed);
         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
             return {.status = RequestStatus::IoError};
         }
@@ -101,12 +106,15 @@ CapacityResolveResult CapacityPageService::resolve(
     }
     if (const auto reclaimed = cache_.reclaim_eviction(logical_page);
         reclaimed) {
+        cache_hits_.fetch_add(1, std::memory_order_relaxed);
         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
             return {.status = RequestStatus::IoError};
         }
         return {.status = RequestStatus::Ready,
                 .frame_address = *reclaimed};
     }
+
+    cache_misses_.fetch_add(1, std::memory_order_relaxed);
 
     CapacityMediaPlan media{.flags = CapacityMediaRead};
     auto frame = cache_.free_frame();
@@ -184,6 +192,15 @@ CapacityResolveResult CapacityPageService::resolve(
     return {.status = RequestStatus::Ready,
             .frame_address = *frame,
             .media = media};
+}
+
+CapacityPageStats CapacityPageService::stats() const noexcept
+{
+    return {
+        .cache_hits = cache_hits_.load(std::memory_order_relaxed),
+        .cache_misses = cache_misses_.load(std::memory_order_relaxed),
+        .dirty_writebacks = dirty_writebacks_.load(std::memory_order_relaxed),
+    };
 }
 
 RequestStatus CapacityPageService::flush()

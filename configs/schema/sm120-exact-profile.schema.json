@@ -70,12 +70,24 @@
       "properties": {
         "sm_clock_mhz": {"$ref": "#/$defs/positiveInteger"},
         "memory_clock_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "clock_control": {"enum": ["none"]},
+        "sm_clock_min_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "sm_clock_max_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "memory_clock_min_mhz": {"$ref": "#/$defs/positiveInteger"},
+        "memory_clock_max_mhz": {"$ref": "#/$defs/positiveInteger"},
         "power_limit_mw": {"$ref": "#/$defs/positiveInteger"},
         "temperature_min_c": {"type": "integer", "minimum": 0},
         "temperature_max_c": {"type": "integer", "minimum": 0},
         "cache_condition": {"type": "string", "minLength": 1},
         "concurrency_condition": {"type": "string", "minLength": 1},
         "cluster_shape": {"$ref": "#/$defs/clusterShape"}
+      },
+      "dependentRequired": {
+        "clock_control": ["sm_clock_min_mhz", "sm_clock_max_mhz", "memory_clock_min_mhz", "memory_clock_max_mhz"],
+        "sm_clock_min_mhz": ["clock_control", "sm_clock_max_mhz", "memory_clock_min_mhz", "memory_clock_max_mhz"],
+        "sm_clock_max_mhz": ["clock_control", "sm_clock_min_mhz", "memory_clock_min_mhz", "memory_clock_max_mhz"],
+        "memory_clock_min_mhz": ["clock_control", "sm_clock_min_mhz", "sm_clock_max_mhz", "memory_clock_max_mhz"],
+        "memory_clock_max_mhz": ["clock_control", "sm_clock_min_mhz", "sm_clock_max_mhz", "memory_clock_min_mhz"]
       }
     },
     "thresholds": {
@@ -222,10 +234,53 @@
         "max_error_percent": {"type": "number", "minimum": 0, "maximum": 10}
       }
     },
+    "counterErrorContract": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "percentage_metrics", "traffic_metrics", "duration_metrics", "fallback_metrics"],
+      "properties": {
+        "version": {"const": 1},
+        "percentage_metrics": {"const": "absolute_percentage_points"},
+        "traffic_metrics": {"const": "native_or_logical_issued_or_training_class_envelope"},
+        "duration_metrics": {"const": "relative_to_native"},
+        "fallback_metrics": {"const": "relative_to_native"}
+      }
+    },
+    "workloadDomain": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "match_policy", "program_sha256", "feature_names", "vectors_by_class"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "match_policy": {"const": "exact_calibrated_vector"},
+        "program_sha256": {"$ref": "#/$defs/sha256"},
+        "feature_names": {
+          "const": ["log2_issued_operations", "log2_bytes", "log2_resident_warps", "log2_queue_depth", "dimension_count", "cache_warm", "log2_iterations", "log2_load_use_distance_plus_one", "log2_tile_elements", "cluster_size", "multicast_targets"]
+        },
+        "vectors_by_class": {
+          "type": "object", "additionalProperties": false,
+          "required": ["ordinary_load", "ordinary_store", "tma_load", "tma_store", "unicast", "multicast", "mixed_hbm_hbf"],
+          "properties": {
+            "ordinary_load": {"$ref": "#/$defs/workloadVectors"},
+            "ordinary_store": {"$ref": "#/$defs/workloadVectors"},
+            "tma_load": {"$ref": "#/$defs/workloadVectors"},
+            "tma_store": {"$ref": "#/$defs/workloadVectors"},
+            "unicast": {"$ref": "#/$defs/workloadVectors"},
+            "multicast": {"$ref": "#/$defs/workloadVectors"},
+            "mixed_hbm_hbf": {"$ref": "#/$defs/workloadVectors"}
+          }
+        }
+      }
+    },
+    "workloadVectors": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {
+        "type": "array", "minItems": 11, "maxItems": 11,
+        "items": {"type": "number", "minimum": 0}
+      }
+    },
     "calibration": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["label_semantics", "gnic", "gpc", "routing", "metric_names", "raw_training_sha256", "raw_holdout_sha256", "fitted_case_ids", "residuals", "counter_thresholds"],
+      "required": ["label_semantics", "gnic", "gpc", "routing", "metric_names", "raw_training_sha256", "raw_holdout_sha256", "fitted_case_ids", "residuals", "counter_thresholds", "workload_domain"],
       "properties": {
         "label_semantics": {"const": "contention_equivalent"},
         "gnic": {"allOf": [{"$ref": "#/$defs/calibratedQueue"}, {"properties": {"count": {"const": 4}}}]},
@@ -236,7 +291,14 @@
         "raw_holdout_sha256": {"$ref": "#/$defs/sha256"},
         "fitted_case_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
         "residuals": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/calibrationResidual"}},
-        "counter_thresholds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/counterThreshold"}}
+        "counter_thresholds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/counterThreshold"}},
+        "counter_error_contract": {"$ref": "#/$defs/counterErrorContract"},
+        "counter_error_scale_by_class": {"type": "object"},
+        "workload_domain": {"$ref": "#/$defs/workloadDomain"}
+      },
+      "dependentRequired": {
+        "counter_error_contract": ["counter_error_scale_by_class"],
+        "counter_error_scale_by_class": ["counter_error_contract"]
       }
     }
   }

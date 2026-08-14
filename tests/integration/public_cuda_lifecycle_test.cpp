@@ -314,6 +314,16 @@ int main(int argc, char** argv)
             .cluster_x = 2,
             .cluster_y = 1,
             .cluster_z = 1,
+            .operation_class = HBFSIM_EXACT_OPERATION_ORDINARY_LOAD,
+            .issued_operations = 128,
+            .bytes = 1,
+            .resident_warps = 1,
+            .queue_depth = 1,
+            .dimension_count = 0,
+            .iterations = 1,
+            .load_use_distance = 0,
+            .tile_elements = 1,
+            .multicast_targets = 0,
         };
         CHECK(hbfsim_publish_exact_run_contract(exact_context,
                                                 &exact_contract) ==
@@ -338,6 +348,16 @@ int main(int argc, char** argv)
         .cluster_x = 1,
         .cluster_y = 1,
         .cluster_z = 1,
+        .operation_class = HBFSIM_EXACT_OPERATION_ORDINARY_LOAD,
+        .issued_operations = 1,
+        .bytes = 1,
+        .resident_warps = 1,
+        .queue_depth = 1,
+        .dimension_count = 0,
+        .iterations = 1,
+        .load_use_distance = 0,
+        .tile_elements = 1,
+        .multicast_targets = 0,
     };
     CHECK(hbfsim_publish_exact_run_contract(context, &emulation_contract) ==
           HBFSIM_UNSUPPORTED);

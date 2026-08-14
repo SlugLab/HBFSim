@@ -38,6 +38,11 @@ struct ExactClusterShape {
 struct ExactConditions {
     std::uint32_t sm_clock_mhz{0};
     std::uint32_t memory_clock_mhz{0};
+    std::string clock_control{"base"};
+    std::uint32_t sm_clock_min_mhz{0};
+    std::uint32_t sm_clock_max_mhz{0};
+    std::uint32_t memory_clock_min_mhz{0};
+    std::uint32_t memory_clock_max_mhz{0};
     std::uint32_t power_limit_mw{0};
     std::uint32_t temperature_min_c{0};
     std::uint32_t temperature_max_c{0};
@@ -131,6 +136,18 @@ struct CalibrationResidual {
     double p95_error_percent{0};
 };
 
+struct ExactWorkloadVector {
+    std::string operation_class;
+    std::vector<double> features;
+};
+
+struct ExactWorkloadDomain {
+    std::string match_policy;
+    std::string program_sha256;
+    std::vector<std::string> feature_names;
+    std::vector<ExactWorkloadVector> vectors;
+};
+
 struct ExactCalibration {
     std::string label_semantics;
     CalibratedQueue gnic;
@@ -142,6 +159,7 @@ struct ExactCalibration {
     std::vector<std::string> fitted_case_ids;
     std::vector<CalibrationResidual> residuals;
     std::vector<CounterThreshold> counter_thresholds;
+    ExactWorkloadDomain workload_domain;
 };
 
 struct ExactProfile {

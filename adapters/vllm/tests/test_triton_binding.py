@@ -96,6 +96,42 @@ def test_hook_binds_exact_function_and_ptx_bytes(tmp_path):
     assert record["result"] == "bound"
 
 
+def test_hook_refreshes_exact_contract_after_successful_module_bind(tmp_path):
+    ptx = tmp_path / "fused_moe_kernel.ptx"
+    ptx.write_bytes(PTX_A)
+    events = []
+
+    hook = binding.TritonVariantBinder(
+        tmp_path / "report",
+        lambda *_: events.append("bind") or 0,
+        after_bind=lambda: events.append("publish"),
+    )
+    hook.on_kernel_load(
+        None, 0x1234, "fused_moe_kernel",
+        SimpleNamespace(asm={"ptx": str(ptx)}), "hash",
+    )
+
+    assert events == ["bind", "publish"]
+    assert hook.bound_count == 1
+
+
+def test_hook_does_not_refresh_contract_after_failed_bind(tmp_path):
+    ptx = tmp_path / "fused_moe_kernel.ptx"
+    ptx.write_bytes(PTX_A)
+    events = []
+
+    hook = binding.TritonVariantBinder(
+        tmp_path / "report", lambda *_: 2, required=False,
+        after_bind=lambda: events.append("publish"), retries=0,
+    )
+    hook.on_kernel_load(
+        None, 0x1234, "fused_moe_kernel",
+        SimpleNamespace(asm={"ptx": str(ptx)}), "hash",
+    )
+
+    assert events == []
+
+
 def test_hook_keeps_same_name_variants_distinct(tmp_path):
     paths = []
     calls = []

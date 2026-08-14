@@ -68,8 +68,8 @@ def validate(native: dict, synchronous: dict, future: dict,
              capacity: dict) -> dict:
     reports = [native, synchronous, future, capacity]
     expected_names = {
-        "load", "store_fence", "atomic", "vector_branch_true",
-        "vector_branch_false",
+        "load", "store_fence", "atomic", "atomic_acq_rel_unused",
+        "vector_branch_true", "vector_branch_false",
     }
     for report in reports:
         cases = cases_by_name(report)
@@ -118,6 +118,21 @@ def validate(native: dict, synchronous: dict, future: dict,
             "future_wait_tail_ns": current["wait_tail_ns"],
             "synchronous_wait_tail_ns": sync_cases[name]["wait_tail_ns"],
         }
+
+    acquire_case = future_cases["atomic_acq_rel_unused"]
+    acquire_capacity = capacity_cases["atomic_acq_rel_unused"]
+    require(acquire_case["futures"]["issued"] > 0 and
+            acquire_case["futures"]["issued"] ==
+                acquire_case["futures"]["drained"],
+            "unused acq_rel atomic future was not conserved")
+    require(acquire_case["futures"]["ordering_wait_ns"] > 0,
+            "unused acq_rel atomic did not force an ordering wait")
+    require(acquire_capacity["futures"]["ordering_wait_ns"] > 0,
+            "capacity acq_rel atomic did not force an ordering wait")
+    require(acquire_case["timestamps"]["issue"] <
+            acquire_case["timestamps"]["independent_end"] <=
+            acquire_case["timestamps"]["dependency_wait_end"],
+            "acq_rel ordering wait did not precede the independent access")
 
     false_case = future_cases["vector_branch_false"]
     require(false_case["futures"]["issued"] == 0 and

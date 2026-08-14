@@ -148,12 +148,14 @@ add_executable(
 )
 target_link_libraries(sm120_channels_property_test PRIVATE hbfsim_core)
 add_test(NAME sm120_channels_property COMMAND sm120_channels_property_test)
-add_test(
-    NAME sm120_calibration_cases
-    COMMAND Python3::Interpreter
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_calibration_cases.py"
-            "${CMAKE_BINARY_DIR}/benchmarks/cuda/sm120_calibration"
-)
+if(HBFSIM_ENABLE_CUDA)
+    add_test(
+        NAME sm120_calibration_cases
+        COMMAND Python3::Interpreter
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_calibration_cases.py"
+                "${CMAKE_BINARY_DIR}/benchmarks/cuda/sm120_calibration"
+    )
+endif()
 add_test(
     NAME collect_sm120
     COMMAND Python3::Interpreter
@@ -362,10 +364,12 @@ target_link_libraries(ptx_transform_test PRIVATE hbfsim_core)
 target_include_directories(
     ptx_transform_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
 )
-add_test(NAME ptx_transform COMMAND ptx_transform_test)
-set_tests_properties(
-    ptx_transform PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+if(HBFSIM_ENABLE_CUDA)
+    add_test(NAME ptx_transform COMMAND ptx_transform_test)
+    set_tests_properties(
+        ptx_transform PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endif()
 
 add_executable(ptx_ir_test tests/cpu/ptx_ir_test.cpp)
 target_link_libraries(ptx_ir_test PRIVATE hbfsim_core)
@@ -390,11 +394,13 @@ target_include_directories(
 target_compile_definitions(
     ptx_tma_transform_test PRIVATE HBFSIM_TEST_DEVICE_HELPER_PTX=1
 )
-add_test(NAME ptx_tma_transform COMMAND ptx_tma_transform_test)
-set_tests_properties(
-    ptx_tma_transform
-    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+if(HBFSIM_ENABLE_CUDA)
+    add_test(NAME ptx_tma_transform COMMAND ptx_tma_transform_test)
+    set_tests_properties(
+        ptx_tma_transform
+        PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endif()
 
 add_executable(
     async_object_analysis_test tests/cpu/async_object_analysis_test.cpp
@@ -468,22 +474,32 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_build_sm120_artifact.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
     )
+    if(HBFSIM_ENABLE_CUDA)
+        add_test(
+            NAME exact_prepare_sm120
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_prepare_sm120_exact.py"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/prepare_sm120_exact.py"
+                "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
+        )
+    endif()
     add_test(
-        NAME exact_prepare_sm120
+        NAME exact_merge_sm120_fragments
         COMMAND
             "${HBFSIM_PYTHON3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_prepare_sm120_exact.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/prepare_sm120_exact.py"
-            "$<TARGET_FILE:ptxpass_hbf_plugin>"
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/calibration/build_sm120_artifact.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_merge_sm120_fragments.py"
     )
-    add_test(
-        NAME exact_sm120_admission
-        COMMAND
-            "${HBFSIM_PYTHON3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_exact_admission.py"
-            "$<TARGET_FILE:hbfsim_launch_gate>"
-    )
+    if(HBFSIM_ENABLE_CUDA)
+        add_test(
+            NAME exact_sm120_admission
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_sm120_exact_admission.py"
+                "$<TARGET_FILE:hbfsim_launch_gate>"
+        )
+    endif()
 endif()
 
 if(BUILD_TESTING)
@@ -554,6 +570,19 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
             "${CMAKE_CURRENT_SOURCE_DIR}/cmake/PreparePatchedBpftime.cmake"
     )
+    add_test(
+        NAME bpftime_prepatched_bootstrap_patch
+        COMMAND
+            "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_bpftime_prepatched_bootstrap_patch.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0001-exact-module-load-provenance.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0002-sm120-aot-bundle-load.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0003-libbpf-modern-libc-const.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0005-cuda13-context-create.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0006-prepatched-bootstrap-once.patch"
+    )
 
     add_executable(
         coverage_manifest_flow_test
@@ -566,13 +595,15 @@ if(BUILD_TESTING)
         coverage_manifest_flow_test
         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
     )
-    add_test(
-        NAME coverage_manifest_flow
-        COMMAND
-            coverage_manifest_flow_test
-            "$<TARGET_FILE:ptxpass_hbf_plugin>"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/unsupported_pointer.ptx"
-    )
+    if(HBFSIM_ENABLE_CUDA)
+        add_test(
+            NAME coverage_manifest_flow
+            COMMAND
+                coverage_manifest_flow_test
+                "$<TARGET_FILE:ptxpass_hbf_plugin>"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ptx/unsupported_pointer.ptx"
+        )
+    endif()
 
     add_test(
         NAME run_with_bpftime
@@ -585,6 +616,7 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0003-libbpf-modern-libc-const.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0005-cuda13-context-create.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/bpftime/0006-prepatched-bootstrap-once.patch"
     )
 endif()
 
@@ -652,31 +684,41 @@ if(TARGET PkgConfig::LIBBPF AND HBFSIM_CLANG_EXECUTABLE)
         VERBATIM
     )
     add_custom_target(hbfsim_llama_probe ALL DEPENDS "${HBFSIM_LLAMA_PROBE}")
-    set(HBFSIM_LLAMA_PROBE_PTX "${CMAKE_BINARY_DIR}/hbfsim_llama_probe.ptx")
-    add_custom_command(
-        OUTPUT "${HBFSIM_LLAMA_PROBE_PTX}"
-        COMMAND
-            "${CMAKE_CUDA_COMPILER}" --ptx
-            "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
-            -std=c++17 "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
-            -o "${HBFSIM_LLAMA_PROBE_PTX}"
-        DEPENDS
-            "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
-        VERBATIM
-    )
-    add_custom_target(
-        hbfsim_llama_probe_ptx ALL DEPENDS "${HBFSIM_LLAMA_PROBE_PTX}"
-    )
-    add_library(
-        hbfsim_llama_probe_module SHARED
-        adapters/llama_cpp/hbfsim_llama_probe.cu
-    )
-    set_target_properties(
-        hbfsim_llama_probe_module PROPERTIES
-        OUTPUT_NAME hbfsim_llama_probe
-        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}"
-        POSITION_INDEPENDENT_CODE ON
-    )
+    if(HBFSIM_ENABLE_CUDA)
+        set(
+            HBFSIM_LLAMA_PROBE_PTX
+            "${CMAKE_BINARY_DIR}/hbfsim_llama_probe.ptx"
+        )
+        add_custom_command(
+            OUTPUT "${HBFSIM_LLAMA_PROBE_PTX}"
+            COMMAND
+                "${CMAKE_CUDA_COMPILER}" --ptx
+                "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
+                -std=c++17
+                "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+                -o "${HBFSIM_LLAMA_PROBE_PTX}"
+            DEPENDS
+                "${CMAKE_CURRENT_SOURCE_DIR}/adapters/llama_cpp/hbfsim_llama_probe.cu"
+            VERBATIM
+        )
+        add_custom_target(
+            hbfsim_llama_probe_ptx ALL DEPENDS "${HBFSIM_LLAMA_PROBE_PTX}"
+        )
+        add_library(
+            hbfsim_llama_probe_module SHARED
+            adapters/llama_cpp/hbfsim_llama_probe.cu
+        )
+        target_link_libraries(
+            hbfsim_llama_probe_module PRIVATE CUDA::cuda_driver
+        )
+        set_target_properties(
+            hbfsim_llama_probe_module PROPERTIES
+            OUTPUT_NAME hbfsim_llama_probe
+            CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}"
+            CUDA_RUNTIME_LIBRARY Shared
+            POSITION_INDEPENDENT_CODE ON
+        )
+    endif()
     set(HBFSIM_VLLM_PROBE "${CMAKE_BINARY_DIR}/vllm_fused_moe_probe.bpf.o")
     add_custom_command(
         OUTPUT "${HBFSIM_VLLM_PROBE}"
@@ -918,15 +960,17 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
         )
-        add_test(
-            NAME live_sm120_environment
-            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_live_sm120_environment.py"
-                    "$<TARGET_FILE:hbfsim_launch_gate>"
-        )
-        set_tests_properties(
-            live_sm120_environment PROPERTIES SKIP_RETURN_CODE 77
-        )
+        if(HBFSIM_ENABLE_CUDA)
+            add_test(
+                NAME live_sm120_environment
+                COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_live_sm120_environment.py"
+                        "$<TARGET_FILE:hbfsim_launch_gate>"
+            )
+            set_tests_properties(
+                live_sm120_environment PROPERTIES SKIP_RETURN_CODE 77
+            )
+        endif()
     endif()
 elseif(HBFSIM_ENABLE_CUDA)
     message(FATAL_ERROR "HBFSIM_ENABLE_CUDA requires CUDA Toolkit 12.8 or newer")

@@ -70,6 +70,9 @@ class FakeSession:
     def finalize_exact(self):
         self.finalized += 1
 
+    def abort(self):
+        self.closed = True
+
 
 def config(tmp_path, **overrides):
     values = {
@@ -104,6 +107,121 @@ def test_exact_contract_is_complete_or_absent(tmp_path):
         config(tmp_path, exact_profile_path="/profiles/sm120.json")
     with pytest.raises(ValueError, match="requires exact_profile_path"):
         config(tmp_path, exact_cache_condition="warm_l2")
+
+
+def test_exact_preheat_reaches_profile_temperature_window(tmp_path):
+    profile = tmp_path / "sm120.json"
+    profile.write_text(json.dumps({
+        "schema_version": 2,
+        "conditions": {"temperature_min_c": 55, "temperature_max_c": 86},
+    }))
+    exact = config(
+        tmp_path,
+        exact_profile_path=str(profile),
+        exact_cache_condition="warm_l2",
+        exact_cluster_x=1,
+        exact_cluster_y=1,
+        exact_cluster_z=1,
+        exact_preheat=True,
+    )
+    temperatures = iter((42, 60, 71))
+    heat_calls = []
+
+    result = loader_module.preheat_exact_device(
+        exact, 0,
+        temperature_reader=lambda _: next(temperatures),
+        heat_step=lambda _: heat_calls.append("heat"),
+    )
+
+    assert result["status"] == "passed"
+    assert result["initial_temperature_c"] == 42
+    assert result["target_temperature_c"] == 70
+    assert result["final_temperature_c"] == 71
+    assert result["steps"] == 2
+    assert heat_calls == ["heat", "heat"]
+    assert json.loads((tmp_path / "preheat.json").read_text()) == result
+
+
+def test_exact_preheat_is_explicit(tmp_path):
+    assert config(tmp_path).exact_preheat is False
+    with pytest.raises(ValueError, match="exact_preheat"):
+        config(tmp_path, exact_preheat=True)
+
+
+def test_one_shot_exact_probe_orders_contract_and_closes(tmp_path):
+    profile = tmp_path / "sm120.json"
+    profile.write_text(json.dumps({
+        "schema_version": 2,
+        "conditions": {"temperature_min_c": 55, "temperature_max_c": 86},
+    }))
+    exact = config(
+        tmp_path,
+        exact_profile_path=str(profile),
+        exact_cache_condition="warm_l2",
+        exact_cluster_x=1,
+        exact_cluster_y=1,
+        exact_cluster_z=1,
+    )
+    events = []
+
+    class ProbeTensor:
+        def __init__(self, address, value):
+            self.address = address
+            self.value = value
+
+        def data_ptr(self):
+            return self.address
+
+    class ProbeSession(FakeSession):
+        def register_storage(self, address, size):
+            events.append(("register", address, size))
+
+        def publish_exact_contract(self):
+            events.append("publish")
+
+        def finalize_exact(self):
+            events.append("finalize")
+
+        def close(self):
+            events.append("close")
+
+    class ProbeBackend:
+        def prepare(self):
+            events.append("prepare")
+            return {"result": "bound"}
+
+        def launch(self, output, input_):
+            events.append(("launch", output.data_ptr(), input_.data_ptr()))
+            output.value = run_exact_probe.expected_probe_output(input_.value)
+
+    import run_exact_probe
+
+    input_values = run_exact_probe.probe_input_values()
+    input_ = ProbeTensor(0x3000, input_values)
+    output = ProbeTensor(0x4000, [0] * run_exact_probe.PROBE_THREADS)
+    session_configs = []
+    result = loader_module.run_one_shot_exact_probe(
+        exact,
+        device=0,
+        session_factory=lambda value: (
+            session_configs.append(value) or ProbeSession(exact=True)
+        ),
+        probe_factory=lambda _: (input_, output),
+        probe_backend=ProbeBackend(),
+        tensor_values=lambda tensor: tensor.value,
+    )
+
+    assert events == [
+        ("register", 0x3000, run_exact_probe.PROBE_BYTES), "prepare", "publish",
+        ("launch", 0x4000, 0x3000), "finalize", "close",
+    ]
+    assert result["status"] == "passed"
+    assert result["scope"] == "one_shot_sideband_probe"
+    assert result["bit_exact"] is True
+    assert session_configs[0].ring_capacity == \
+        run_exact_probe.PROBE_RING_CAPACITY == 1024
+    assert session_configs[0].request_timeout_ns == \
+        run_exact_probe.PROBE_REQUEST_TIMEOUT_NS == 10_000_000_000
 
 
 def test_discovers_full_storages_and_deduplicates_aliases(tmp_path):

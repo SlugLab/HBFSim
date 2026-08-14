@@ -8,6 +8,7 @@
 
 #include <hbfsim/protocol.hpp>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -40,6 +41,12 @@ struct CapacityBackingIo {
     std::function<RequestStatus()> flush;
 };
 
+struct CapacityPageStats {
+    std::uint64_t cache_hits{0};
+    std::uint64_t cache_misses{0};
+    std::uint64_t dirty_writebacks{0};
+};
+
 class CapacityPageService {
   public:
     using ModelProgram =
@@ -58,6 +65,7 @@ class CapacityPageService {
         std::optional<std::uint32_t> range_id = std::nullopt);
     RequestStatus flush(std::uint64_t first_page,
                         std::uint64_t page_count);
+    [[nodiscard]] CapacityPageStats stats() const noexcept;
 
   private:
     RequestStatus writeback(const runtime::CacheEviction& eviction);
@@ -70,6 +78,9 @@ class CapacityPageService {
     CapacityFrameIo frame_io_;
     std::unordered_map<std::uint64_t, std::uint32_t> resident_range_ids_;
     std::mutex mutex_;
+    std::atomic<std::uint64_t> cache_hits_{0};
+    std::atomic<std::uint64_t> cache_misses_{0};
+    std::atomic<std::uint64_t> dirty_writebacks_{0};
 };
 
 }  // namespace hbfsim::host_service

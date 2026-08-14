@@ -11,6 +11,7 @@ if [[ ! -d $HBFSIM_BUILD_DIR || -e $HBFSIM_BUILD_DIR/libcuda.so.1 ]]; then
     echo "llama adapter requires a test-free HBFSim build without fake libcuda.so.1" >&2
     exit 66
 fi
+HBFSIM_BUILD_DIR=$(cd "$HBFSIM_BUILD_DIR" && pwd -P)
 if [[ ! -d $LLAMA_CPP_SOURCE/.git ]]; then
     git clone https://github.com/ggml-org/llama.cpp.git "$LLAMA_CPP_SOURCE"
 fi
@@ -35,3 +36,14 @@ env HBFSIM_ROOT="$HBFSIM_ROOT" HBFSIM_BUILD_DIR="$HBFSIM_BUILD_DIR" \
         -DCMAKE_CUDA_HOST_COMPILER=${CMAKE_CUDA_HOST_COMPILER:-/usr/bin/g++-13} \
         -DCMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES:-120}
 cmake --build "$LLAMA_CPP_BUILD" --target llama-cli -j"${JOBS:-8}"
+
+llama_cuda_backend="$LLAMA_CPP_BUILD/bin/libggml-cuda.so"
+if [[ ! -r $llama_cuda_backend ]] ||
+   ! grep -aFq 'LLAMA_HBFSIM_CONFIG' "$llama_cuda_backend"; then
+    echo "llama adapter: built ggml-cuda backend is missing the HBFSim adapter" >&2
+    exit 66
+fi
+if ! ldd "$llama_cuda_backend" | grep -Fq "$HBFSIM_BUILD_DIR/libhbfsim.so"; then
+    echo "llama adapter: built ggml-cuda backend is not bound to the requested HBFSim build" >&2
+    exit 66
+fi

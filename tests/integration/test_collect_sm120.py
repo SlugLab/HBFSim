@@ -47,10 +47,19 @@ def main() -> int:
         write_executable(benchmark, """#!/usr/bin/env python3
 import hashlib,json,sys
 case=sys.argv[sys.argv.index('--case-id')+1]
+document=json.load(open(sys.argv[sys.argv.index('--cases')+1]))
+metadata=next(item for item in document['cases'] if item['id']==case)
 value=hashlib.sha256(case.encode()).hexdigest()
 print(json.dumps({'schema_version':1,'case_id':case,'bit_exact':True,
  'output_sha256':value,'expected_sha256':value,'timestamps':{'issue':1,'end':2},
- 'smid':0,'warpid':0,'cluster_ctarank':0}))
+ 'smid':0,'warpid':0,'cluster_ctarank':0,
+ 'hardware_opcode_class':'ld.global.u64',
+ 'executed_dimension_count':metadata.get('dimension_count',0),
+ 'executed_queue_depth':metadata.get('queue_depth',1),
+ 'executed_multicast_mask':metadata.get('multicast_mask',0),
+ 'executed_cluster_shape':metadata.get('cluster_shape',[1,1,1]),
+ 'issued_operations':1,
+ 'cache_condition_executed':metadata.get('cache_condition','warm')}))
 """)
         write_executable(nvcc, """#!/bin/sh
 echo 'Cuda compilation tools, release 13.0, V13.0.88'
@@ -96,6 +105,7 @@ raise SystemExit(2)
             "exact_profile_contract": {
                 "cache_condition": "warm_l2",
                 "concurrency_condition": "exclusive_process",
+                "clock_control": "none",
                 "cluster_shape": [1, 1, 1],
                 "thresholds": {"p50_percent": 5, "p95_percent": 10,
                                "counter_percent": 10},
@@ -108,7 +118,10 @@ raise SystemExit(2)
                            "max_cta_async_objects": 1024,
                            "max_cluster_async_objects": 4096},
             },
-            "cases": [{"id": "fake-load", "operation_class": "ordinary_load"}],
+            "cases": [{"id": "fake-load", "operation_class": "ordinary_load",
+                       "dimension_count": 0, "queue_depth": 1,
+                       "multicast_mask": 0, "cluster_shape": [1, 1, 1],
+                       "cache_condition": "warm"}],
         }, sort_keys=True))
         env = dict(os.environ)
         env["FAKE_COMMAND_LOG"] = str(log)
@@ -150,7 +163,10 @@ raise SystemExit(2)
                 "parsed observations missing")
         require(all(item["native_latency_ns"] == 100 and
                     len(item["contention_vector"]) == 4 and
-                    len(item["return_contention_vector"]) == 2
+                    len(item["return_contention_vector"]) == 2 and
+                    item["iterations"] == 1 and
+                    item["load_use_distance"] == 0 and
+                    item["dimensions"] == []
                     for item in manifest["observations"]),
                 "Nsight metrics were not normalized into observations")
         for member in manifest["members"]:
@@ -160,6 +176,16 @@ raise SystemExit(2)
                     "raw hash mismatch")
         command_text = log.read_text()
         command_tokens = command_text.split()
+        require("--kernel-name-base function" in command_text and
+                "--kernel-name regex:.*calibration_kernel.*" in command_text,
+                "Nsight target-kernel filter missing")
+        require("--page details" in command_text,
+                "Nsight metric/value CSV page is not selected")
+        require("--replay-mode application" in command_text and
+                "--app-replay-mode strict" in command_text and
+                "--cache-control none" in command_text and
+                "--clock-control none" in command_text,
+                "Nsight replay/cache/clock conditions are not explicit")
         for forbidden in ("-lgc", "-lmc", "-pl", "-c", "compute-mode"):
             require(forbidden not in command_tokens,
                     f"mutation flag used: {forbidden}")
@@ -182,6 +208,25 @@ raise SystemExit(2)
                 "--output-dir", str(failed_output)], 70, env)
         require(not failed_output.exists(), "partial output was published")
         require(not list(root.glob(".*.partial-*")), "partial directory leaked")
+
+        lying_benchmark = tools / "lying-benchmark"
+        write_executable(lying_benchmark, """#!/usr/bin/env python3
+import hashlib,json,sys
+case=sys.argv[sys.argv.index('--case-id')+1]
+value=hashlib.sha256(case.encode()).hexdigest()
+print(json.dumps({'schema_version':1,'case_id':case,'bit_exact':True,
+ 'output_sha256':value,'expected_sha256':value,'timestamps':{'issue':1,'end':2},
+ 'smid':0,'warpid':0,'cluster_ctarank':0,
+ 'hardware_opcode_class':'tma_load_2d_multicast_proxy',
+ 'executed_dimension_count':2,'executed_queue_depth':1,
+ 'executed_multicast_mask':0,'executed_cluster_shape':[1,1,1],
+ 'issued_operations':1,'cache_condition_executed':'warm'}))
+""")
+        lied = root / "lied"
+        invoke(["--suite", "training", "--cases", str(cases),
+                "--benchmark", str(lying_benchmark), "--ncu", str(ncu),
+                "--output-dir", str(lied)], 70, env)
+        require(not lied.exists(), "false execution evidence was published")
 
         write_executable(nvidia_smi, """#!/usr/bin/env python3
 import sys

@@ -8,6 +8,7 @@ import argparse
 import ctypes
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -24,6 +25,12 @@ VALIDATION_CLASSES = (
     "ordinary_load", "ordinary_store", "tma_load", "tma_store",
     "unicast", "multicast", "mixed_hbm_hbf",
 )
+FEATURE_NAMES = [
+    "log2_issued_operations", "log2_bytes", "log2_resident_warps",
+    "log2_queue_depth", "dimension_count", "cache_warm",
+    "log2_iterations", "log2_load_use_distance_plus_one",
+    "log2_tile_elements", "cluster_size", "multicast_targets",
+]
 
 
 class AdmissionError(RuntimeError):
@@ -200,11 +207,16 @@ def validate_dataset(value: object, label: str) -> dict:
 
 
 def validate_calibration(value: object) -> dict:
-    calibration = exact_keys(value, {
+    required = {
         "label_semantics", "gnic", "gpc", "routing", "metric_names",
         "raw_training_sha256", "raw_holdout_sha256", "fitted_case_ids",
-        "residuals", "counter_thresholds",
-    }, "calibration")
+        "residuals", "counter_thresholds", "workload_domain",
+    }
+    optional = {"counter_error_contract", "counter_error_scale_by_class"}
+    if (not isinstance(value, dict) or not required.issubset(value) or
+            set(value) - required != (set(value) & optional)):
+        fail(64, "calibration object shape mismatch")
+    calibration = value
     if calibration["label_semantics"] != "contention_equivalent":
         fail(64, "calibration labels must be contention-equivalent")
     for name, count in (("gnic", 4), ("gpc", 2)):
@@ -260,6 +272,61 @@ def validate_calibration(value: object) -> dict:
             fail(64, "calibration counter threshold exceeds limit")
     if threshold_metrics != set(metrics):
         fail(64, "calibration metric threshold set mismatch")
+    has_contract = "counter_error_contract" in calibration
+    has_scales = "counter_error_scale_by_class" in calibration
+    if has_contract != has_scales:
+        fail(64, "counter error contract and scales must be supplied together")
+    if has_contract:
+        contract = exact_keys(calibration["counter_error_contract"], {
+            "version", "percentage_metrics", "traffic_metrics",
+            "duration_metrics", "fallback_metrics",
+        }, "calibration.counter_error_contract")
+        if (integer(contract["version"], "counter error version",
+                    positive=True) != 1 or
+                contract["percentage_metrics"] !=
+                "absolute_percentage_points" or
+                contract["traffic_metrics"] !=
+                "native_or_logical_issued_or_training_class_envelope" or
+                contract["duration_metrics"] != "relative_to_native" or
+                contract["fallback_metrics"] != "relative_to_native"):
+            fail(64, "invalid counter error contract")
+        scales = exact_keys(
+            calibration["counter_error_scale_by_class"],
+            set(VALIDATION_CLASSES), "calibration.counter_error_scale_by_class")
+        for operation in VALIDATION_CLASSES:
+            class_scales = exact_keys(
+                scales[operation], set(metrics),
+                f"calibration.counter_error_scale_by_class.{operation}")
+            for metric in metrics:
+                scale = number(class_scales[metric], f"counter scale {metric}")
+                percentage = (metric.endswith(".pct") or
+                              ".pct_of_peak_" in metric)
+                traffic = metric in ("dram__bytes.sum", "lts__t_sectors.sum")
+                if (percentage and scale != 100.0) or (traffic and scale <= 0):
+                    fail(64, f"invalid counter scale {metric}")
+    domain = exact_keys(calibration["workload_domain"], {
+        "schema_version", "match_policy", "program_sha256", "feature_names",
+        "vectors_by_class",
+    }, "calibration.workload_domain")
+    if (integer(domain["schema_version"], "workload domain version",
+                positive=True) != 1 or
+            domain["match_policy"] != "exact_calibrated_vector" or
+            domain["feature_names"] != FEATURE_NAMES):
+        fail(64, "invalid workload domain contract")
+    sha256(domain["program_sha256"], "workload domain program")
+    vectors = exact_keys(domain["vectors_by_class"], set(VALIDATION_CLASSES),
+                         "workload domain vectors")
+    for operation in VALIDATION_CLASSES:
+        records = vectors[operation]
+        if (not isinstance(records, list) or not records or
+                any(not isinstance(record, list) or
+                    len(record) != len(FEATURE_NAMES) or
+                    any(not isinstance(item, (int, float)) or
+                        isinstance(item, bool) or not math.isfinite(item) or
+                        item < 0 for item in record)
+                    for record in records) or
+                len({tuple(record) for record in records}) != len(records)):
+            fail(64, f"invalid workload domain vectors for {operation}")
     return calibration
 
 
@@ -272,9 +339,22 @@ def validate_profile(value: object) -> dict:
         "schema_version", "profile_id", "target", "toolchain", "conditions",
         "thresholds", "limits", "modules", "validation", "calibration",
     }
-    profile = exact_keys(value, root_fields, "profile")
+    optional_root_fields = {"runtime_artifacts"}
+    if (not root_fields.issubset(value) or
+            set(value) - root_fields !=
+            (set(value) & optional_root_fields)):
+        fail(64, "profile object shape mismatch")
+    profile = value
     if schema != 2:
         fail(64, "unsupported exact profile schema")
+    if "runtime_artifacts" in profile:
+        artifacts = exact_keys(profile["runtime_artifacts"], {
+            "bundle_root", "prepatched_ptx_dir", "pass_manifest",
+        }, "runtime_artifacts")
+        for name, raw_path in artifacts.items():
+            path = string(raw_path, f"runtime_artifacts.{name}")
+            if not pathlib.PurePath(path).is_absolute():
+                fail(64, f"runtime_artifacts.{name} must be absolute")
     validate_calibration(profile["calibration"])
     string(profile["profile_id"], "profile_id")
     target = exact_keys(profile["target"], {
@@ -296,13 +376,40 @@ def validate_profile(value: object) -> dict:
     }, "toolchain")
     for name, value_text in toolchain.items():
         string(value_text, f"toolchain.{name}")
-    conditions = exact_keys(profile["conditions"], {
+    required_conditions = {
         "sm_clock_mhz", "memory_clock_mhz", "power_limit_mw",
         "temperature_min_c", "temperature_max_c", "cache_condition",
         "concurrency_condition", "cluster_shape",
-    }, "conditions")
+    }
+    dynamic_conditions = {
+        "clock_control", "sm_clock_min_mhz", "sm_clock_max_mhz",
+        "memory_clock_min_mhz", "memory_clock_max_mhz",
+    }
+    raw_conditions = profile["conditions"]
+    if (not isinstance(raw_conditions, dict) or
+            not required_conditions.issubset(raw_conditions) or
+            set(raw_conditions) - required_conditions not in
+            (set(), dynamic_conditions)):
+        fail(64, "conditions object shape mismatch")
+    conditions = raw_conditions
     for name in ("sm_clock_mhz", "memory_clock_mhz", "power_limit_mw"):
         integer(conditions[name], f"conditions.{name}", positive=True)
+    if dynamic_conditions.issubset(conditions):
+        if conditions["clock_control"] != "none":
+            fail(64, "unsupported dynamic clock policy")
+        sm_min = integer(conditions["sm_clock_min_mhz"],
+                         "conditions.sm_clock_min_mhz", positive=True)
+        sm_max = integer(conditions["sm_clock_max_mhz"],
+                         "conditions.sm_clock_max_mhz", positive=True)
+        memory_min = integer(conditions["memory_clock_min_mhz"],
+                             "conditions.memory_clock_min_mhz", positive=True)
+        memory_max = integer(conditions["memory_clock_max_mhz"],
+                             "conditions.memory_clock_max_mhz", positive=True)
+        if not (sm_min <= conditions["sm_clock_mhz"] <= sm_max and
+                memory_min <= conditions["memory_clock_mhz"] <= memory_max):
+            fail(64, "invalid dynamic clock interval")
+    elif set(conditions) - required_conditions:
+        fail(64, "incomplete dynamic clock evidence")
     minimum = integer(conditions["temperature_min_c"],
                       "conditions.temperature_min_c")
     maximum = integer(conditions["temperature_max_c"],
@@ -454,6 +561,9 @@ def validate_contract(value: object) -> dict:
     contract = exact_keys(value, {
         "cache_condition", "concurrency_condition", "cluster_shape",
         "cache_condition_epoch", "latest_relevant_mutation_epoch",
+        "operation_class", "issued_operations", "bytes", "resident_warps",
+        "queue_depth", "dimension_count", "iterations",
+        "load_use_distance", "tile_elements", "multicast_targets",
     }, "run contract")
     string(contract["cache_condition"], "run_contract.cache_condition")
     string(contract["concurrency_condition"],
@@ -466,7 +576,32 @@ def validate_contract(value: object) -> dict:
             "run_contract.cache_condition_epoch")
     integer(contract["latest_relevant_mutation_epoch"],
             "run_contract.latest_relevant_mutation_epoch")
+    if contract["operation_class"] not in VALIDATION_CLASSES:
+        fail(64, "invalid run_contract.operation_class")
+    for name in ("issued_operations", "bytes", "resident_warps",
+                 "queue_depth", "iterations", "tile_elements"):
+        integer(contract[name], f"run_contract.{name}", positive=True)
+    for name in ("dimension_count", "load_use_distance",
+                 "multicast_targets"):
+        integer(contract[name], f"run_contract.{name}")
     return contract
+
+
+def contract_features(contract: dict) -> list[float]:
+    shape = contract["cluster_shape"]
+    return [
+        math.log2(contract["issued_operations"]),
+        math.log2(contract["bytes"]),
+        math.log2(contract["resident_warps"]),
+        math.log2(contract["queue_depth"]),
+        float(contract["dimension_count"]),
+        1.0 if contract["cache_condition"] == "warm_l2" else 0.0,
+        math.log2(contract["iterations"]),
+        math.log2(contract["load_use_distance"] + 1),
+        math.log2(contract["tile_elements"]),
+        float(shape["x"] * shape["y"] * shape["z"]),
+        float(contract["multicast_targets"]),
+    ]
 
 
 class Snapshot(ctypes.Structure):
@@ -694,6 +829,14 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
         )
     )
     add(reasons, not classes_complete, "validation_class_missing")
+    domain = profile["calibration"]["workload_domain"]
+    actual_features = contract_features(contract)
+    allowed_vectors = domain["vectors_by_class"][contract["operation_class"]]
+    add(reasons, not any(
+        all(abs(actual - allowed) <= 1e-8
+            for actual, allowed in zip(actual_features, vector))
+        for vector in allowed_vectors
+    ), "workload_out_of_domain")
     training_matches = (sha256_file(training_path) ==
                         validation["training"]["manifest_sha256"])
     holdout_matches = (sha256_file(holdout_path) ==
@@ -797,7 +940,8 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
     conditions = profile["conditions"]
     add(reasons, live["sm_clock_mhz"] != conditions["sm_clock_mhz"],
         "sm_clock_mismatch")
-    add(reasons, live["memory_clock_mhz"] != conditions["memory_clock_mhz"],
+    add(reasons,
+        live["memory_clock_mhz"] != conditions["memory_clock_mhz"],
         "memory_clock_mismatch")
     add(reasons, live["power_limit_mw"] != conditions["power_limit_mw"],
         "power_limit_mismatch")

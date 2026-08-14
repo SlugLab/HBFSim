@@ -258,7 +258,7 @@ DataflowState transfer_block(
             if (pending.empty()) {
                 continue;
             }
-            if (observations != nullptr && definitions->second.size() != 1) {
+            if (observations != nullptr && pending.size() != 1) {
                 observations->rejection_reasons.emplace(
                     instruction.instruction_id,
                     "ambiguous_future_definition");

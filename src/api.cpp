@@ -2,5 +2,5 @@
 
 uint32_t hbfsim_abi_version(void)
 {
-    return 3u;
+    return 4u;
 }

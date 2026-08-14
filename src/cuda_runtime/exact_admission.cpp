@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
+#include <limits>
 #include <set>
 
 namespace hbfsim {
@@ -52,6 +54,54 @@ bool channel_profile_complete(const ExactProfile& profile)
            !calibration.routing.gpc_lut.empty() &&
            sha256_hex(calibration.raw_training_sha256) &&
            sha256_hex(calibration.raw_holdout_sha256);
+}
+
+bool workload_in_calibrated_domain(const ExactProfile& profile,
+                                   const ExactRunContract& contract)
+{
+    if (contract.operation_class.empty() ||
+        contract.issued_operations == 0 || contract.bytes == 0 ||
+        contract.resident_warps == 0 || contract.queue_depth == 0 ||
+        contract.iterations == 0 || contract.tile_elements == 0) {
+        return false;
+    }
+    const auto cluster_size =
+        static_cast<std::uint64_t>(contract.cluster_shape.x) *
+        contract.cluster_shape.y * contract.cluster_shape.z;
+    if (cluster_size == 0 ||
+        cluster_size > std::numeric_limits<std::uint32_t>::max()) {
+        return false;
+    }
+    const std::vector<double> features{
+        std::log2(static_cast<double>(contract.issued_operations)),
+        std::log2(static_cast<double>(contract.bytes)),
+        std::log2(static_cast<double>(contract.resident_warps)),
+        std::log2(static_cast<double>(contract.queue_depth)),
+        static_cast<double>(contract.dimension_count),
+        contract.cache_condition == "warm_l2" ? 1.0 : 0.0,
+        std::log2(static_cast<double>(contract.iterations)),
+        std::log2(static_cast<double>(contract.load_use_distance) + 1.0),
+        std::log2(static_cast<double>(contract.tile_elements)),
+        static_cast<double>(cluster_size),
+        static_cast<double>(contract.multicast_targets),
+    };
+    constexpr double tolerance = 1e-8;
+    return std::any_of(
+        profile.calibration.workload_domain.vectors.begin(),
+        profile.calibration.workload_domain.vectors.end(),
+        [&](const ExactWorkloadVector& allowed) {
+            if (allowed.operation_class != contract.operation_class ||
+                allowed.features.size() != features.size()) {
+                return false;
+            }
+            for (std::size_t index = 0; index < features.size(); ++index) {
+                if (std::abs(allowed.features[index] - features[index]) >
+                    tolerance) {
+                    return false;
+                }
+            }
+            return true;
+        });
 }
 
 template <class Record>
@@ -115,7 +165,21 @@ bool tma_manifest_complete(const TmaManifestEvidence& evidence)
     return std::all_of(
         evidence.instructions.begin(), evidence.instructions.end(),
         [](const TmaInstructionEvidence& instruction) {
-            return instruction.instruction_id != 0 &&
+            const bool multicast_complete =
+                (!instruction.multicast && instruction.multicast_mask == 0 &&
+                 instruction.multicast_mask_operand == "0" &&
+                 instruction.multicast_mask_kind == "none") ||
+                (instruction.multicast &&
+                 !instruction.multicast_mask_operand.empty() &&
+                 ((instruction.multicast_mask_kind == "immediate" &&
+                   instruction.multicast_mask != 0) ||
+                  (instruction.multicast_mask_kind == "constant_register" &&
+                   instruction.multicast_mask != 0 &&
+                   instruction.multicast_mask_operand.starts_with('%')) ||
+                  (instruction.multicast_mask_kind == "runtime_register" &&
+                   instruction.multicast_mask == 0 &&
+                   instruction.multicast_mask_operand.starts_with('%'))));
+            return multicast_complete && instruction.instruction_id != 0 &&
                    instruction.source_line != 0 &&
                    instruction.dimensions >= 1 && instruction.dimensions <= 5;
         });
@@ -165,6 +229,8 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
            "profile_not_validated");
     reject(!validation_classes_complete(profile),
            "validation_class_missing");
+    reject(!workload_in_calibrated_domain(profile, contract),
+           "workload_out_of_domain");
     const auto channel_profile_valid = channel_profile_complete(profile);
     reject(!channel_profile_valid || !evidence.channel_runtime.observed,
            "queue_profile_missing");
@@ -185,8 +251,8 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
            "outstanding_depth_exceeded");
     reject(evidence.channel_runtime.migration_visible_sm_mismatch,
            "migration_visible_sm_mismatch");
-    reject(evidence.channel_runtime.counter_residual_failed,
-           "counter_residual_failure");
+    reject(evidence.channel_runtime.queue_accounting_failed,
+           "queue_accounting_failure");
     reject(live.gpu_name != profile.target.gpu_name, "gpu_name_mismatch");
     reject(live.gpu_uuid != profile.target.gpu_uuid, "gpu_uuid_mismatch");
     reject(live.pci_vendor_id != profile.target.pci_vendor_id ||
@@ -286,6 +352,9 @@ ExactAdmissionDecision ExactAdmissionEvaluator::evaluate(
         }
     }
 
+    // Dynamic clocks were observed during calibration, but clocks are not a
+    // fitted predictor feature.  Exact admission is therefore restricted to
+    // the nominal observed pair rather than interpolating over the envelope.
     reject(live.sm_clock_mhz != profile.conditions.sm_clock_mhz,
            "sm_clock_mismatch");
     reject(live.memory_clock_mhz != profile.conditions.memory_clock_mhz,

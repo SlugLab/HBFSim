@@ -106,6 +106,26 @@
       {"metric":"lsu_active","max_error_percent":10},
       {"metric":"tma_active","max_error_percent":10},
       {"metric":"long_scoreboard","max_error_percent":10}
-    ]
+    ],
+    "workload_domain": {
+      "schema_version": 1,
+      "match_policy": "exact_calibrated_vector",
+      "program_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "feature_names": [
+        "log2_issued_operations", "log2_bytes", "log2_resident_warps",
+        "log2_queue_depth", "dimension_count", "cache_warm",
+        "log2_iterations", "log2_load_use_distance_plus_one",
+        "log2_tile_elements", "cluster_size", "multicast_targets"
+      ],
+      "vectors_by_class": {
+        "ordinary_load": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "ordinary_store": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "tma_load": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "tma_store": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "unicast": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "multicast": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+        "mixed_hbm_hbf": [[7, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]]
+      }
+    }
   }
 }

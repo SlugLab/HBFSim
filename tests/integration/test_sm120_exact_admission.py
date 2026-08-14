@@ -116,6 +116,10 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
         },
         "conditions": {
             "sm_clock_mhz": 1830, "memory_clock_mhz": 14001,
+            "clock_control": "none",
+            "sm_clock_min_mhz": 1700, "sm_clock_max_mhz": 1900,
+            "memory_clock_min_mhz": 13000,
+            "memory_clock_max_mhz": 15000,
             "power_limit_mw": 600000, "temperature_min_c": 30,
             "temperature_max_c": 75, "cache_condition": "warm_l2",
             "concurrency_condition": "exclusive_process",
@@ -177,6 +181,44 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
             "counter_thresholds": [
                 {"metric": name, "max_error_percent": 10.0}
                 for name in ("lsu_active", "tma_active", "long_scoreboard")],
+            "counter_error_contract": {
+                "version": 1,
+                "percentage_metrics": "absolute_percentage_points",
+                "traffic_metrics":
+                    "native_or_logical_issued_or_training_class_envelope",
+                "duration_metrics": "relative_to_native",
+                "fallback_metrics": "relative_to_native",
+            },
+            "counter_error_scale_by_class": {
+                operation: {
+                    "lsu_active": 0.0,
+                    "tma_active": 0.0,
+                    "long_scoreboard": 0.0,
+                }
+                for operation in CLASSES
+            },
+            "workload_domain": {
+                "schema_version": 1,
+                "match_policy": "exact_calibrated_vector",
+                "program_sha256": "9" * 64,
+                "feature_names": [
+                    "log2_issued_operations", "log2_bytes",
+                    "log2_resident_warps", "log2_queue_depth",
+                    "dimension_count", "cache_warm", "log2_iterations",
+                    "log2_load_use_distance_plus_one",
+                    "log2_tile_elements", "cluster_size",
+                    "multicast_targets",
+                ],
+                "vectors_by_class": {
+                    operation: [[7, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0]]
+                    for operation in CLASSES
+                },
+            },
+        },
+        "runtime_artifacts": {
+            "bundle_root": str((root / "bundles").resolve()),
+            "prepatched_ptx_dir": str(root.resolve()),
+            "pass_manifest": str(pass_manifest.resolve()),
         },
     }
     profile_path = root / "profile.json"
@@ -202,6 +244,16 @@ def make_fixture(root: pathlib.Path) -> dict[str, pathlib.Path]:
         "cluster_shape": {"x": 2, "y": 1, "z": 1},
         "cache_condition_epoch": 9,
         "latest_relevant_mutation_epoch": 8,
+        "operation_class": "ordinary_load",
+        "issued_operations": 128,
+        "bytes": 1,
+        "resident_warps": 1,
+        "queue_depth": 1,
+        "dimension_count": 0,
+        "iterations": 1,
+        "load_use_distance": 0,
+        "tile_elements": 1,
+        "multicast_targets": 0,
     }
     contract_path = root / "run-contract.json"
     write_json(contract_path, contract)
@@ -299,7 +351,7 @@ def main() -> int:
              "gpu_uuid_mismatch", "aot"),
             ("clock", lambda p: mutate_json(
                 p["environment"],
-                lambda value: value.__setitem__("sm_clock_mhz", 1829)),
+                lambda value: value.__setitem__("sm_clock_mhz", 1901)),
              "sm_clock_mismatch", "aot"),
             ("temperature", lambda p: mutate_json(
                 p["environment"],
@@ -309,6 +361,10 @@ def main() -> int:
                 p["contract"],
                 lambda value: value.__setitem__("cache_condition_epoch", 8)),
              "cache_condition_unproven", "aot"),
+            ("workload domain", lambda p: mutate_json(
+                p["contract"],
+                lambda value: value.__setitem__("iterations", 2)),
+             "workload_out_of_domain", "aot"),
             ("validation dataset", lambda p: p["holdout"].write_bytes(b"changed\n"),
              "holdout_manifest_sha256_mismatch", "aot"),
             ("pending validation", lambda p: mutate_json(

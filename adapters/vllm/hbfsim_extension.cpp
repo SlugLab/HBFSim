@@ -72,6 +72,16 @@ hbfsim_vllm_session_create(const hbfsim_vllm_options* options,
             .cluster_x = options->exact_cluster_x,
             .cluster_y = options->exact_cluster_y,
             .cluster_z = options->exact_cluster_z,
+            .operation_class = HBFSIM_EXACT_OPERATION_ORDINARY_LOAD,
+            .issued_operations = 128ULL * 8ULL * 384ULL,
+            .bytes = 12288,
+            .resident_warps = 4,
+            .queue_depth = 8,
+            .dimension_count = 0,
+            .iterations = 384,
+            .load_use_distance = 32,
+            .tile_elements = 1,
+            .multicast_targets = 0,
         };
         session->exact_requested = true;
     } else {

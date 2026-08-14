@@ -146,8 +146,14 @@ AsyncObjectPlan analyze_async_objects(const Function& function,
             if (tensor_map->op == TensorMapOp::Replace) {
                 const auto found = descriptors.find(tensor_map->address);
                 if (found == descriptors.end()) {
-                    reject(plan, instruction.instruction_id,
-                           "unknown_tensormap");
+                    // Shared-memory TensorMaps can arrive through async copy.
+                    // Their contents are validated by the injected begin
+                    // helper before the native replace executes.
+                    const auto object = next_descriptor_object++;
+                    descriptors[tensor_map->address] = {object, 2, false};
+                    current_generation[object] = 2;
+                    plan.descriptor_generations[instruction.instruction_id] =
+                        2;
                 } else {
                     auto& generation = current_generation[found->second.object];
                     if (generation == std::numeric_limits<std::uint64_t>::max()) {
@@ -160,6 +166,25 @@ AsyncObjectPlan analyze_async_objects(const Function& function,
                         plan.descriptor_generations[instruction.instruction_id] =
                             generation;
                     }
+                }
+            } else if (tensor_map->op == TensorMapOp::CopyFence) {
+                const auto source = descriptors.find(tensor_map->source);
+                if (source == descriptors.end()) {
+                    // A shared descriptor can be populated and mutated by
+                    // instructions whose contents are only knowable at run
+                    // time.  The injected copy-begin helper validates its
+                    // 128-byte value against the published registry and traps
+                    // if provenance is absent.
+                    const auto object = next_descriptor_object++;
+                    descriptors[tensor_map->address] = {object, 1, false};
+                    current_generation[object] = 1;
+                    plan.descriptor_generations[instruction.instruction_id] =
+                        1;
+                } else {
+                    descriptors[tensor_map->address] = source->second;
+                    descriptors[tensor_map->address].fenced = false;
+                    plan.descriptor_generations[instruction.instruction_id] =
+                        source->second.generation;
                 }
             } else if (tensor_map->op == TensorMapOp::FenceAcquire) {
                 const auto found = descriptors.find(tensor_map->address);
@@ -270,10 +295,10 @@ AsyncObjectPlan analyze_async_objects(const Function& function,
         }
         if (tma.multicast) {
             const auto mask = immediate(tma.multicast_mask);
-            if (!mask || *mask == 0 || (*mask & 0xffff0000U) != 0) {
+            if (mask && (*mask == 0 || (*mask & 0xffff0000U) != 0)) {
                 reject(plan, instruction.instruction_id,
                        "ambiguous_mbarrier_phase");
-            } else {
+            } else if (mask) {
                 auto& targets = plan.multicast_targets[instruction.instruction_id];
                 for (std::uint32_t target = 0; target < 16; ++target) {
                     if ((*mask & (1U << target)) != 0) targets.insert(target);

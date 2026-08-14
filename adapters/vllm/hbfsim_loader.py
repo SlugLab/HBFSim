@@ -5,10 +5,13 @@ from __future__ import annotations
 import copy
 import ctypes
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
 import re
+import subprocess
+import time
 import weakref
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -52,6 +55,7 @@ class TimingConfig:
     exact_cluster_x: int = 0
     exact_cluster_y: int = 0
     exact_cluster_z: int = 0
+    exact_preheat: bool = False
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "TimingConfig":
@@ -76,6 +80,7 @@ class TimingConfig:
         exact_cluster_x = int(raw.get("exact_cluster_x", 0))
         exact_cluster_y = int(raw.get("exact_cluster_y", 0))
         exact_cluster_z = int(raw.get("exact_cluster_z", 0))
+        exact_preheat = bool(raw.get("exact_preheat", False))
         if not profile or not report:
             raise ValueError("profile_path and report_dir are required")
         if ring <= 0 or timeout <= 0:
@@ -107,6 +112,8 @@ class TimingConfig:
             exact_cache or exact_cluster_x or exact_cluster_y or exact_cluster_z
         ):
             raise ValueError("exact contract requires exact_profile_path")
+        if exact_preheat and not exact_profile:
+            raise ValueError("exact_preheat requires exact_profile_path")
         return cls(
             profile_path=profile,
             report_dir=report,
@@ -126,6 +133,7 @@ class TimingConfig:
             exact_cluster_x=exact_cluster_x,
             exact_cluster_y=exact_cluster_y,
             exact_cluster_z=exact_cluster_z,
+            exact_preheat=exact_preheat,
         )
 
 
@@ -276,6 +284,188 @@ class NativeTimingSession:
             pass
 
 
+class _NativeExactProbeBackend:
+    def __init__(self) -> None:
+        build = pathlib.Path(os.environ.get("HBFSIM_BUILD_DIR", ""))
+        library_path = pathlib.Path(os.environ.get(
+            "HBFSIM_VLLM_EXACT_PROBE_LIBRARY",
+            str(build / "libhbfsim_llama_probe.so"),
+        ))
+        self.ptx_path = pathlib.Path(os.environ.get(
+            "HBFSIM_VLLM_EXACT_PROBE_PTX",
+            str(build / "hbfsim_llama_probe.ptx"),
+        ))
+        if not library_path.is_file() or not self.ptx_path.is_file():
+            raise HbfSimError("vLLM exact sideband probe artifacts are missing")
+        self.library = ctypes.CDLL(str(library_path.resolve()))
+        self.function = self.library.hbfsim_llama_probe_function
+        self.function.argtypes = []
+        self.function.restype = ctypes.c_void_p
+        self.launch_function = self.library.hbfsim_llama_launch_probe
+        self.launch_function.argtypes = (
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint64, ctypes.c_void_p,
+        )
+        self.launch_function.restype = ctypes.c_int
+        try:
+            self.bind_function = ctypes.CDLL(None).bpftime_nv_bind_ptx_variant
+        except AttributeError as error:
+            raise HbfSimError("bpftime exact PTX variant binder is not loaded") \
+                from error
+        self.bind_function.argtypes = (
+            ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p,
+        )
+        self.bind_function.restype = ctypes.c_int
+
+    def prepare(self) -> dict[str, Any]:
+        payload = self.ptx_path.read_bytes()
+        function = self.function()
+        if not function:
+            raise HbfSimError("vLLM exact probe CUDA function is unavailable")
+        result = 1
+        attempts = 0
+        while result == 1 and attempts <= 100:
+            result = int(self.bind_function(
+                ctypes.c_void_p(function), payload, len(payload),
+                b"hbfsim_llama_probe_kernel",
+            ))
+            if result == 1 and attempts < 100:
+                time.sleep(0.05)
+            attempts += 1
+        if result != 0:
+            raise HbfSimError(
+                f"vLLM exact probe PTX binding failed: {result}"
+            )
+        return {
+            "result": "bound",
+            "attempts": attempts,
+            "ptx_path": str(self.ptx_path.resolve()),
+            "ptx_sha256": hashlib.sha256(payload).hexdigest(),
+            "original_function": hex(int(function)),
+        }
+
+    def launch(self, output: Any, input_: Any) -> None:
+        status = self.launch_function(
+            ctypes.c_void_p(output.data_ptr()),
+            ctypes.c_void_p(input_.data_ptr()), 0, None,
+        )
+        if status != 0:
+            raise HbfSimError(f"vLLM exact probe launch failed: {status}")
+        import torch
+
+        torch.cuda.synchronize()
+
+
+def _probe_tensors(device: int) -> tuple[Any, Any]:
+    import torch
+    import run_exact_probe
+
+    with torch.cuda.device(device):
+        values = [
+            value if value < (1 << 63) else value - (1 << 64)
+            for value in run_exact_probe.probe_input_values()
+        ]
+        input_ = torch.tensor(values, dtype=torch.int64, device="cuda")
+        output = torch.zeros(
+            run_exact_probe.PROBE_THREADS, dtype=torch.int64, device="cuda"
+        )
+    return input_, output
+
+
+def _probe_tensor_values(tensor: Any) -> list[int]:
+    return [
+        int(value) & ((1 << 64) - 1)
+        for value in tensor.detach().cpu().tolist()
+    ]
+
+
+def run_one_shot_exact_probe(
+    config: TimingConfig,
+    *,
+    device: int,
+    session_factory: Callable[[TimingConfig], Any] = NativeTimingSession,
+    probe_factory: Callable[[int], tuple[Any, Any]] | None = None,
+    probe_backend: Any | None = None,
+    tensor_values: Callable[[Any], list[int]] | None = None,
+) -> dict[str, Any]:
+    if not config.exact_profile_path:
+        raise HbfSimError("one-shot exact probe requires exact mode")
+    import run_exact_probe
+
+    if config.exact_preheat:
+        preheat_exact_device(config, device)
+    input_, output = (probe_factory or _probe_tensors)(device)
+    values = tensor_values or _probe_tensor_values
+    input_values = values(input_)
+    backend = probe_backend or _NativeExactProbeBackend()
+    probe_config = dataclasses.replace(
+        config,
+        ring_capacity=max(
+            config.ring_capacity, run_exact_probe.PROBE_RING_CAPACITY
+        ),
+        request_timeout_ns=max(
+            config.request_timeout_ns,
+            run_exact_probe.PROBE_REQUEST_TIMEOUT_NS,
+        ),
+    )
+    session = session_factory(probe_config)
+    try:
+        if len(input_values) != run_exact_probe.PROBE_WORDS:
+            raise HbfSimError("one-shot exact probe input shape mismatch")
+        session.register_storage(
+            int(input_.data_ptr()), run_exact_probe.PROBE_BYTES
+        )
+        _write_manifest(pathlib.Path(config.report_dir) / "registration.json", {
+            "schema_version": 1,
+            "mode": "exact_sideband_probe",
+            "requested_fidelity": "exact",
+            "device": device,
+            "registered_bytes": run_exact_probe.PROBE_BYTES,
+            "profile_path": config.profile_path,
+            "exact_profile_path": config.exact_profile_path,
+            "storages": [{
+                "address": int(input_.data_ptr()),
+                "bytes": run_exact_probe.PROBE_BYTES,
+                "aliases": ["__hbfsim_vllm_exact_probe_shadow__"],
+            }],
+        })
+        binding = backend.prepare()
+        session.publish_exact_contract()
+        backend.launch(output, input_)
+        output_values = values(output)
+        try:
+            expected_output = run_exact_probe.validate_probe_output(
+                input_values, output_values
+            )
+        except RuntimeError as error:
+            raise HbfSimError(str(error)) from error
+        session.finalize_exact()
+        session.close()
+    except Exception:
+        session.abort()
+        raise
+    result = {
+        "schema_version": 1,
+        "status": "passed",
+        "scope": "one_shot_sideband_probe",
+        "model_graph_fidelity": "native",
+        "device": device,
+        "registered_bytes": run_exact_probe.PROBE_BYTES,
+        "input_sha256": hashlib.sha256(json.dumps(
+            input_values, separators=(",", ":")
+        ).encode()).hexdigest(),
+        "output_sha256": hashlib.sha256(json.dumps(
+            output_values, separators=(",", ":")
+        ).encode()).hexdigest(),
+        "expected_output_sha256": hashlib.sha256(json.dumps(
+            expected_output, separators=(",", ":")
+        ).encode()).hexdigest(),
+        "bit_exact": True,
+        "binding": binding,
+    }
+    _write_manifest(pathlib.Path(config.report_dir) / "exact-probe.json", result)
+    return result
+
+
 @dataclasses.dataclass
 class _Storage:
     device: int
@@ -341,6 +531,114 @@ def _write_manifest(path: pathlib.Path, manifest: dict[str, Any]) -> None:
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _gpu_temperature_c(device: int) -> int:
+    import torch
+
+    uuid = str(torch.cuda.get_device_properties(device).uuid)
+    identifier = uuid if uuid.startswith("GPU-") else f"GPU-{uuid}"
+    completed = subprocess.run(
+        ["nvidia-smi", f"--id={identifier}",
+         "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
+        check=True, capture_output=True, text=True, timeout=5,
+    )
+    values = [line.strip() for line in completed.stdout.splitlines()
+              if line.strip()]
+    if len(values) != 1:
+        raise HbfSimError("could not read one exact GPU temperature")
+    return int(values[0])
+
+
+def preheat_exact_device(
+    config: TimingConfig,
+    device: int,
+    *,
+    temperature_reader: Callable[[int], int] | None = None,
+    heat_step: Callable[[int], None] | None = None,
+) -> dict[str, Any]:
+    if not config.exact_preheat or not config.exact_profile_path:
+        raise HbfSimError("exact preheat was not requested")
+    profile_path = pathlib.Path(config.exact_profile_path)
+    if profile_path.is_symlink() or not profile_path.is_file():
+        raise HbfSimError("exact preheat profile is not a regular file")
+    try:
+        conditions = json.loads(profile_path.read_text())["conditions"]
+        minimum = int(conditions["temperature_min_c"])
+        maximum = int(conditions["temperature_max_c"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise HbfSimError("exact preheat profile has no thermal window") from error
+    if minimum < 0 or maximum < minimum:
+        raise HbfSimError("exact preheat profile has an invalid thermal window")
+
+    read_temperature = temperature_reader or _gpu_temperature_c
+    cleanup: Callable[[], None] | None = None
+    if heat_step is None:
+        import torch
+
+        with torch.cuda.device(device):
+            size = 8192
+            left = torch.ones((size, size), device="cuda", dtype=torch.bfloat16)
+            right = torch.ones((size, size), device="cuda", dtype=torch.bfloat16)
+            result = torch.empty_like(left)
+
+        def default_heat_step(selected_device: int) -> None:
+            with torch.cuda.device(selected_device):
+                for _ in range(64):
+                    torch.mm(left, right, out=result)
+                torch.cuda.synchronize(selected_device)
+
+        def cleanup_tensors() -> None:
+            nonlocal left, right, result
+            del left, right, result
+            with torch.cuda.device(device):
+                torch.cuda.empty_cache()
+
+        heat_step = default_heat_step
+        cleanup = cleanup_tensors
+
+    started = time.monotonic()
+    initial = read_temperature(device)
+    current = initial
+    upper_margin = maximum - 5 if maximum - minimum >= 5 else maximum
+    target = min(upper_margin, minimum + 15)
+    steps = 0
+    try:
+        if current > maximum:
+            raise HbfSimError(
+                f"GPU temperature {current}C exceeds exact maximum {maximum}C"
+            )
+        while current < target:
+            if time.monotonic() - started > 120:
+                raise HbfSimError(
+                    f"GPU did not reach exact minimum {minimum}C within 120s"
+                )
+            heat_step(device)
+            steps += 1
+            current = read_temperature(device)
+            if current > maximum:
+                raise HbfSimError(
+                    f"GPU temperature {current}C exceeds exact maximum {maximum}C"
+                )
+    finally:
+        if cleanup is not None:
+            cleanup()
+
+    manifest = {
+        "schema_version": 1,
+        "status": "passed",
+        "device": device,
+        "profile_path": str(profile_path.resolve()),
+        "temperature_min_c": minimum,
+        "temperature_max_c": maximum,
+        "target_temperature_c": target,
+        "initial_temperature_c": initial,
+        "final_temperature_c": current,
+        "steps": steps,
+        "elapsed_seconds": time.monotonic() - started,
+    }
+    _write_manifest(pathlib.Path(config.report_dir) / "preheat.json", manifest)
+    return manifest
 
 
 def register_model_storages(
@@ -467,6 +765,11 @@ class HbfSimModelLoader(BaseModelLoader):
             model_config=model_config,
             prefix=prefix,
         )
+        if self._timing_config.exact_preheat:
+            storages, _ = _discover_storages(model)
+            preheat_exact_device(
+                self._timing_config, storages[0].device
+            )
         register_model_storages(model, self._timing_config)
         return model
 

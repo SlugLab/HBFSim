@@ -43,6 +43,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tokenizer")
     parser.add_argument("--profile")
     parser.add_argument("--exact-profile")
+    parser.add_argument("--exact-preheat", action="store_true")
+    parser.add_argument("--defer-exact-probe", action="store_true")
     parser.add_argument("--report-dir", required=True)
     parser.add_argument("--num-prompts", type=int, default=4)
     parser.add_argument("--input-len", type=int, default=32)
@@ -146,7 +148,7 @@ def repository_commit() -> str:
 
 
 def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, Any]:
-    return {
+    manifest = {
         "schema_version": 1,
         "mode": args.mode,
         "model": str(pathlib.Path(args.model).resolve()),
@@ -166,9 +168,17 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
         "hbf_selection": {
             "parameter_regex": args.hbf_parameter_regex,
             "max_bytes_per_storage": args.hbf_range_bytes,
+            "registered_in_model_graph": args.mode == "timing",
         },
         "hbf_timing_model": args.hbf_timing_model,
     }
+    if args.mode == "exact":
+        manifest.update({
+            "exact_scope": "one_shot_sideband_probe",
+            "model_graph_fidelity": "native",
+            "model_storage_registered": False,
+        })
+    return manifest
 
 
 def validate_args(args: argparse.Namespace) -> None:
@@ -178,6 +188,10 @@ def validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("--exact-profile is required for exact mode")
     if args.mode != "exact" and args.exact_profile:
         raise SystemExit("--exact-profile requires exact mode")
+    if args.mode != "exact" and args.exact_preheat:
+        raise SystemExit("--exact-preheat requires exact mode")
+    if args.mode != "exact" and args.defer_exact_probe:
+        raise SystemExit("--defer-exact-probe requires exact mode")
     if min(args.num_prompts, args.input_len, args.output_len,
            args.max_model_len) <= 0:
         raise SystemExit("prompt counts and lengths must be positive")
@@ -236,25 +250,24 @@ def main() -> int:
     with suppress_static_fatbin_scan(enabled=args.mode != "baseline"):
         if args.mode in {"timing", "exact"}:
             import hbfsim_loader
-            import triton_binding
+            if args.mode == "timing":
+                import triton_binding
 
-            hbfsim_loader.register()
-            triton_binder = triton_binding.install_triton_binding(
-                report, required=True
-            )
-            load_format = "hbfsim"
-            loader_extra = {
-                "profile_path": str(pathlib.Path(args.profile).resolve()),
-                "report_dir": str(report),
-                "underlying_load_format": "safetensors",
-                "require_modeled_accesses": True,
-                "allow_opaque_timing": True,
-                "parameter_regex": args.hbf_parameter_regex,
-                "max_bytes_per_storage": args.hbf_range_bytes,
-                "timing_model": args.hbf_timing_model,
-            }
-            if args.mode == "exact":
-                loader_extra.update(exact_contract(args.exact_profile))
+                hbfsim_loader.register()
+                triton_binder = triton_binding.install_triton_binding(
+                    report, required=True,
+                )
+                load_format = "hbfsim"
+                loader_extra = {
+                    "profile_path": str(pathlib.Path(args.profile).resolve()),
+                    "report_dir": str(report),
+                    "underlying_load_format": "safetensors",
+                    "require_modeled_accesses": True,
+                    "allow_opaque_timing": True,
+                    "parameter_regex": args.hbf_parameter_regex,
+                    "max_bytes_per_storage": args.hbf_range_bytes,
+                    "timing_model": args.hbf_timing_model,
+                }
 
         from vllm import LLM, SamplingParams
 
@@ -276,9 +289,6 @@ def main() -> int:
     started = time.perf_counter()
     llm = LLM(**engine_args)
     loaded = time.perf_counter()
-    exact_session_count = 0
-    if args.mode == "exact":
-        exact_session_count = hbfsim_loader.publish_exact_sessions()
     outputs = llm.generate(
         prompts,
         SamplingParams(
@@ -290,10 +300,28 @@ def main() -> int:
         use_tqdm=True,
     )
     finished = time.perf_counter()
+    exact_session_count = 0
+    exact_probe = None
+    exact_native_preheat = None
     if args.mode == "exact":
-        finalized = hbfsim_loader.finalize_exact_sessions()
-        if finalized != exact_session_count:
-            raise RuntimeError("exact vLLM session count changed during generation")
+        probe_config = {
+            "profile_path": str(pathlib.Path(args.profile).resolve()),
+            "report_dir": str(report),
+            "timing_model": args.hbf_timing_model,
+            "exact_preheat": args.exact_preheat,
+            **exact_contract(args.exact_profile),
+        }
+        native_config = hbfsim_loader.TimingConfig.from_mapping(probe_config)
+        if args.defer_exact_probe:
+            if args.exact_preheat:
+                exact_native_preheat = hbfsim_loader.preheat_exact_device(
+                    native_config, 0
+                )
+        else:
+            exact_probe = hbfsim_loader.run_one_shot_exact_probe(
+                native_config, device=0,
+            )
+            exact_session_count = 1
     token_ids = [list(output.outputs[0].token_ids) for output in outputs]
     output_tokens = sum(len(tokens) for tokens in token_ids)
     prompt_tokens = sum(len(prompt["prompt_token_ids"]) for prompt in prompts)
@@ -312,7 +340,14 @@ def main() -> int:
             triton_binder.bound_count if triton_binder is not None else 0
         ),
         "exact_session_count": exact_session_count,
-        "exact_post_run_finalized": args.mode == "exact",
+        "exact_post_run_finalized": (
+            args.mode == "exact" and not args.defer_exact_probe
+        ),
+        "exact_probe_deferred": (
+            args.mode == "exact" and args.defer_exact_probe
+        ),
+        "exact_native_preheat": exact_native_preheat,
+        "exact_probe": exact_probe,
     })
     output_path = report / "result.json"
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")

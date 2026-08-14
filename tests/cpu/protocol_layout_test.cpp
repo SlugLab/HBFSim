@@ -12,8 +12,8 @@ static_assert(sizeof(hbfsim::ControlHeader) == 64);
 static_assert(sizeof(hbfsim::PageEntry) == 64);
 static_assert(std::is_trivially_copyable_v<hbfsim::HbfRequest>);
 static_assert(std::is_trivially_copyable_v<hbfsim::HbfCompletion>);
-static_assert(sizeof(hbfsim::host_service::SharedTensorMapSlot) == 384);
-static_assert(hbfsim::host_service::kControlAbiVersion == 8);
+static_assert(sizeof(hbfsim::host_service::SharedTensorMapSlot) == 448);
+static_assert(hbfsim::host_service::kControlAbiVersion == 9);
 
 int main()
 {

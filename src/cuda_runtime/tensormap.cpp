@@ -61,7 +61,6 @@ bool TensorMapRegistry::publish(std::uintptr_t context, int device,
 {
     if (context == 0 || device < 0 || !valid_record(record)) return false;
     record.descriptor_sha256 = tensormap_sha256(record.descriptor);
-    record.fenced = false;
     std::unique_lock lock(mutex_);
     auto& domain = domains_[{context, device}];
     if (domain.next_generation == 0) return false;

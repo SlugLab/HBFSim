@@ -8,6 +8,7 @@ BPFTIME_PATCH2="$HBFSIM_ROOT/patches/bpftime/0002-sm120-aot-bundle-load.patch"
 BPFTIME_PATCH3="$HBFSIM_ROOT/patches/bpftime/0003-libbpf-modern-libc-const.patch"
 BPFTIME_PATCH4="$HBFSIM_ROOT/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
 BPFTIME_PATCH5="$HBFSIM_ROOT/patches/bpftime/0005-cuda13-context-create.patch"
+BPFTIME_PATCH6="$HBFSIM_ROOT/patches/bpftime/0006-prepatched-bootstrap-once.patch"
 BPFTIME_COMMIT=ec26daecc8e787fb80fd95dd596a576404a5e36e
 
 actual_commit=$(git -C "$BPFTIME_SOURCE" rev-parse HEAD)
@@ -36,7 +37,7 @@ if [[ ${1:-} == --check ]]; then
     trap cleanup_check EXIT
     cmake \
         -DBPFTIME_SOURCE="$BPFTIME_SOURCE" \
-        -DPATCHES="$BPFTIME_PATCH1;$BPFTIME_PATCH2;$BPFTIME_PATCH3;$BPFTIME_PATCH4;$BPFTIME_PATCH5" \
+        -DPATCHES="$BPFTIME_PATCH1;$BPFTIME_PATCH2;$BPFTIME_PATCH3;$BPFTIME_PATCH4;$BPFTIME_PATCH5;$BPFTIME_PATCH6" \
         -DOUTPUT_SOURCE="$check_root/bpftime-hbfsim-src" \
         -P "$HBFSIM_ROOT/cmake/PreparePatchedBpftime.cmake" >/dev/null
     cleanup_check
@@ -65,7 +66,7 @@ stamp="$build_dir/hbfsim-bpftime.provenance"
 rm -f -- "$stamp"
 cmake \
     -DBPFTIME_SOURCE="$BPFTIME_SOURCE" \
-    -DPATCHES="$BPFTIME_PATCH1;$BPFTIME_PATCH2;$BPFTIME_PATCH3;$BPFTIME_PATCH4;$BPFTIME_PATCH5" \
+    -DPATCHES="$BPFTIME_PATCH1;$BPFTIME_PATCH2;$BPFTIME_PATCH3;$BPFTIME_PATCH4;$BPFTIME_PATCH5;$BPFTIME_PATCH6" \
     -DOUTPUT_SOURCE="$source_copy" \
     -P "$HBFSIM_ROOT/cmake/PreparePatchedBpftime.cmake"
 
@@ -163,13 +164,14 @@ patch2_digest=$(sha256sum "$BPFTIME_PATCH2" | awk '{print $1}')
 patch3_digest=$(sha256sum "$BPFTIME_PATCH3" | awk '{print $1}')
 patch4_digest=$(sha256sum "$BPFTIME_PATCH4" | awk '{print $1}')
 patch5_digest=$(sha256sum "$BPFTIME_PATCH5" | awk '{print $1}')
+patch6_digest=$(sha256sum "$BPFTIME_PATCH6" | awk '{print $1}')
 temporary_stamp=$(mktemp "$build_dir/.hbfsim-bpftime.provenance.XXXXXX")
 cleanup() {
     rm -f -- "$temporary_stamp"
 }
 trap cleanup EXIT
-printf 'bpftime_commit=%s\npatch_0001_sha256=%s\npatch_0002_sha256=%s\npatch_0003_sha256=%s\npatch_0004_sha256=%s\npatch_0005_sha256=%s\naot_bridge_version=1\ncuda_root=%s\ncuda_release=13.0\n' \
-    "$BPFTIME_COMMIT" "$patch1_digest" "$patch2_digest" "$patch3_digest" "$patch4_digest" "$patch5_digest" "$cuda_root" \
+printf 'bpftime_commit=%s\npatch_0001_sha256=%s\npatch_0002_sha256=%s\npatch_0003_sha256=%s\npatch_0004_sha256=%s\npatch_0005_sha256=%s\npatch_0006_sha256=%s\naot_bridge_version=1\ncuda_root=%s\ncuda_release=13.0\n' \
+    "$BPFTIME_COMMIT" "$patch1_digest" "$patch2_digest" "$patch3_digest" "$patch4_digest" "$patch5_digest" "$patch6_digest" "$cuda_root" \
     > "$temporary_stamp"
 mv -f -- "$temporary_stamp" "$stamp"
 trap - EXIT

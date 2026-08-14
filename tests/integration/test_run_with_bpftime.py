@@ -21,11 +21,8 @@ def executable(path: pathlib.Path, text: str) -> None:
 
 def main() -> int:
     wrapper = pathlib.Path(sys.argv[1]).resolve()
-    patch1 = pathlib.Path(sys.argv[2]).resolve()
-    patch2 = pathlib.Path(sys.argv[3]).resolve()
-    patch3 = pathlib.Path(sys.argv[4]).resolve()
-    patch4 = pathlib.Path(sys.argv[5]).resolve()
-    patch5 = pathlib.Path(sys.argv[6]).resolve()
+    patches = [pathlib.Path(value).resolve() for value in sys.argv[2:]]
+    require(len(patches) == 6, "expected the complete six-patch series")
     with tempfile.TemporaryDirectory(prefix="hbfsim-wrapper-") as directory:
         root = pathlib.Path(directory)
         hbfsim_build = root / "hbfsim-build"
@@ -75,7 +72,7 @@ def main() -> int:
             "printf '%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n' \"$BPFTIME_PTXPASS_LIBRARIES\" \"$BPFTIME_CUDA_ROOT\" \"$LD_PRELOAD\" \"${HBFSIM_EXACT_PROFILE_PATH:-}\" \"${HBFSIM_EXACT_BUNDLE_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_DIR:-}\" \"${BPFTIME_CUDA_LATE_PTX_PREPATCHED:-}\" > \"$1\"\n"
             "printf '%s\\n' '{\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"instrumented\":true}' > \"$HBFSIM_PASS_MANIFEST_PATH\"\n"
             "if [[ -n ${HBFSIM_EXACT_PROFILE_PATH:-} ]]; then\n"
-            "  printf '%s\\n' '{\"allowed\":true,\"reason\":\"exact_post_run_passed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true,\"requested_fidelity\":\"exact\",\"admitted_fidelity\":\"exact\",\"aot_verified\":true,\"validation_passed\":true,\"post_run_validation_passed\":true,\"future_issued\":1,\"future_drained\":1,\"future_faults\":0,\"future_leaked\":0,\"tma_faults\":0,\"tma_leaked\":0,\"tma_stale_generations\":0,\"channel_gnic_count\":4,\"channel_gpc_count\":2,\"channel_gnic_requests\":1,\"channel_gpc_requests\":0,\"channel_saturated_requests\":0,\"channel_counter_residual_failed\":false,\"channel_migration_visible_sm_mismatch\":false,\"exact_rejection_reasons\":[]}' > \"$HBFSIM_COVERAGE_PATH\"\n"
+            "  printf '%s\\n' '{\"allowed\":true,\"reason\":\"exact_post_run_passed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true,\"requested_fidelity\":\"exact\",\"admitted_fidelity\":\"exact\",\"aot_verified\":true,\"validation_passed\":true,\"post_run_validation_passed\":true,\"future_issued\":1,\"future_drained\":1,\"future_faults\":0,\"future_leaked\":0,\"tma_faults\":0,\"tma_leaked\":0,\"tma_stale_generations\":0,\"channel_gnic_count\":4,\"channel_gpc_count\":2,\"channel_gnic_requests\":1,\"channel_gpc_requests\":0,\"channel_saturated_requests\":0,\"channel_queue_accounting_failed\":false,\"channel_migration_visible_sm_mismatch\":false,\"exact_rejection_reasons\":[]}' > \"$HBFSIM_COVERAGE_PATH\"\n"
             "else\n"
             "  printf '%s\\n' '{\"allowed\":true,\"reason\":\"allowed\",\"module_id\":\"ptx:test\",\"kernel\":\"k\",\"modeled\":true}' > \"$HBFSIM_COVERAGE_PATH\"\n"
             "fi\n",
@@ -108,42 +105,32 @@ def main() -> int:
                 "wrapper started loader before checking missing provenance")
 
         commit = "ec26daecc8e787fb80fd95dd596a576404a5e36e"
-        digest1 = hashlib.sha256(patch1.read_bytes()).hexdigest()
-        digest2 = hashlib.sha256(patch2.read_bytes()).hexdigest()
-        digest3 = hashlib.sha256(patch3.read_bytes()).hexdigest()
-        digest4 = hashlib.sha256(patch4.read_bytes()).hexdigest()
-        digest5 = hashlib.sha256(patch5.read_bytes()).hexdigest()
+        digests = [hashlib.sha256(patch.read_bytes()).hexdigest()
+                   for patch in patches]
         stamp = bpftime_build / "hbfsim-bpftime.provenance"
 
-        def write_stamp(stamp_commit: str, stamp_digest1: str,
-                        stamp_digest2: str, stamp_digest3: str,
-                        stamp_digest4: str, stamp_digest5: str, version: str,
+        def write_stamp(stamp_commit: str, stamp_digests: list[str],
+                        version: str,
                         cuda_root: str = "/usr/local/cuda-13.0",
                         cuda_release: str = "13.0") -> None:
-            stamp.write_text(
-                f"bpftime_commit={stamp_commit}\n"
-                f"patch_0001_sha256={stamp_digest1}\n"
-                f"patch_0002_sha256={stamp_digest2}\n"
-                f"patch_0003_sha256={stamp_digest3}\n"
-                f"patch_0004_sha256={stamp_digest4}\n"
-                f"patch_0005_sha256={stamp_digest5}\n"
-                f"aot_bridge_version={version}\n"
-                f"cuda_root={cuda_root}\n"
-                f"cuda_release={cuda_release}\n"
+            lines = [f"bpftime_commit={stamp_commit}"]
+            lines.extend(
+                f"patch_{index:04d}_sha256={digest}"
+                for index, digest in enumerate(stamp_digests, 1)
             )
+            lines.extend((f"aot_bridge_version={version}",
+                          f"cuda_root={cuda_root}",
+                          f"cuda_release={cuda_release}"))
+            stamp.write_text("\n".join(lines) + "\n")
 
-        for (label, stamp_commit, stamp_digest1, stamp_digest2,
-             stamp_digest3, stamp_digest4, stamp_digest5, version) in (
-            ("commit", "0" * 40, digest1, digest2, digest3, digest4, digest5, "1"),
-            ("digest1", commit, "0" * 64, digest2, digest3, digest4, digest5, "1"),
-            ("digest2", commit, digest1, "0" * 64, digest3, digest4, digest5, "1"),
-            ("digest3", commit, digest1, digest2, "0" * 64, digest4, digest5, "1"),
-            ("digest4", commit, digest1, digest2, digest3, "0" * 64, digest5, "1"),
-            ("digest5", commit, digest1, digest2, digest3, digest4, "0" * 64, "1"),
-            ("version", commit, digest1, digest2, digest3, digest4, digest5, "0"),
-        ):
-            write_stamp(stamp_commit, stamp_digest1, stamp_digest2,
-                        stamp_digest3, stamp_digest4, stamp_digest5, version)
+        cases = [("commit", "0" * 40, digests, "1")]
+        for index in range(len(digests)):
+            wrong = list(digests)
+            wrong[index] = "0" * 64
+            cases.append((f"digest{index + 1}", commit, wrong, "1"))
+        cases.append(("version", commit, digests, "0"))
+        for label, stamp_commit, stamp_digests, version in cases:
+            write_stamp(stamp_commit, stamp_digests, version)
             rejected_stamp = subprocess.run(
                 [str(wrapper), "--", str(command), str(output)],
                 env=env,
@@ -156,7 +143,7 @@ def main() -> int:
             require(not loader_started.exists(),
                     f"wrapper started loader before rejecting wrong {label}")
 
-        write_stamp(commit, digest1, digest2, digest3, digest4, digest5, "1")
+        write_stamp(commit, digests, "1")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,

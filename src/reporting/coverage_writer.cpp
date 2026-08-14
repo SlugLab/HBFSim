@@ -12,6 +12,15 @@ namespace {
 
 nlohmann::json to_json(const GateDecision& decision)
 {
+    const bool future_required =
+        decision.workload_operation_class == "ordinary_load" ||
+        decision.workload_operation_class == "ordinary_store" ||
+        decision.workload_operation_class == "mixed_hbm_hbf";
+    const bool tma_required =
+        decision.workload_operation_class == "tma_load" ||
+        decision.workload_operation_class == "tma_store" ||
+        decision.workload_operation_class == "unicast" ||
+        decision.workload_operation_class == "multicast";
     if (decision.admitted_fidelity == "exact" &&
         (!decision.allowed || decision.requested_fidelity != "exact" ||
          !decision.aot_verified || !decision.validation_passed ||
@@ -21,9 +30,11 @@ nlohmann::json to_json(const GateDecision& decision)
          decision.routing_program_sha256.empty() ||
          decision.raw_training_sha256.empty() ||
          decision.raw_holdout_sha256.empty() ||
+         decision.workload_operation_class.empty() ||
+         decision.workload_expected_operations == 0 ||
          !decision.channel_runtime.observed ||
          decision.channel_runtime.saturated_requests != 0 ||
-         decision.channel_runtime.counter_residual_failed ||
+         decision.channel_runtime.queue_accounting_failed ||
          decision.channel_runtime.migration_visible_sm_mismatch ||
          !decision.exact_rejection_reasons.empty() ||
          (decision.manifest_schema_version != 3 &&
@@ -31,15 +42,27 @@ nlohmann::json to_json(const GateDecision& decision)
          decision.future_manifest.async_transform_version !=
              "sm120-future-v1" ||
          !decision.future_manifest.ambiguities.empty() ||
-         !decision.future_runtime.observed ||
-         decision.future_runtime.issued == 0 ||
+         (!future_required && !tma_required) ||
+         (future_required && (!decision.future_runtime.observed ||
+                              decision.future_runtime.issued == 0)) ||
+         (future_required && decision.tma_runtime.issued != 0) ||
+         (tma_required && decision.future_runtime.issued != 0) ||
          decision.future_runtime.issued != decision.future_runtime.drained ||
          decision.future_runtime.leaked != 0 ||
          decision.future_runtime.faults != 0 ||
+         decision.future_runtime.issued + decision.tma_runtime.issued !=
+             decision.workload_expected_operations ||
          decision.channel_runtime.gnic_requests +
                  decision.channel_runtime.gpc_requests == 0 ||
-         (decision.manifest_schema_version == 4 &&
-          (decision.tma_manifest.manifest_schema_version != 4 ||
+         decision.tma_runtime.oob_bytes != 0 ||
+         decision.tma_runtime.stale_generations != 0 ||
+         decision.tma_runtime.faults != 0 ||
+         decision.tma_runtime.leaked != 0 ||
+         (decision.tma_runtime.mixed_bytes != 0 &&
+          !decision.tma_runtime.mixed_tiles_proved) ||
+         (tma_required &&
+          (decision.manifest_schema_version != 4 ||
+           decision.tma_manifest.manifest_schema_version != 4 ||
            decision.tma_manifest.async_transform_version != "sm120-tma-v1" ||
            decision.tma_manifest.instructions.empty() ||
            decision.tma_manifest.maximum_live_async_objects == 0 ||
@@ -47,13 +70,7 @@ nlohmann::json to_json(const GateDecision& decision)
            !decision.tma_manifest.provenance_required ||
            decision.tma_manifest.tensormap_parameters.empty() ||
            !decision.tma_runtime.observed ||
-           decision.tma_runtime.issued == 0 ||
-           decision.tma_runtime.oob_bytes != 0 ||
-           decision.tma_runtime.stale_generations != 0 ||
-           decision.tma_runtime.faults != 0 ||
-           decision.tma_runtime.leaked != 0 ||
-           (decision.tma_runtime.mixed_bytes != 0 &&
-            !decision.tma_runtime.mixed_tiles_proved))))) {
+           decision.tma_runtime.issued == 0)))) {
         throw std::logic_error("invalid exact coverage decision");
     }
     return {
@@ -88,6 +105,9 @@ nlohmann::json to_json(const GateDecision& decision)
         {"routing_program_sha256", decision.routing_program_sha256},
         {"raw_training_sha256", decision.raw_training_sha256},
         {"raw_holdout_sha256", decision.raw_holdout_sha256},
+        {"workload_operation_class", decision.workload_operation_class},
+        {"workload_expected_operations",
+         decision.workload_expected_operations},
         {"async_transform_version",
          decision.future_manifest.async_transform_version},
         {"ir_sha256", decision.future_manifest.ir_sha256},
@@ -137,8 +157,8 @@ nlohmann::json to_json(const GateDecision& decision)
         {"channel_gpc_requests", decision.channel_runtime.gpc_requests},
         {"channel_migration_visible_sm_mismatch",
          decision.channel_runtime.migration_visible_sm_mismatch},
-        {"channel_counter_residual_failed",
-         decision.channel_runtime.counter_residual_failed},
+        {"channel_queue_accounting_failed",
+         decision.channel_runtime.queue_accounting_failed},
         {"channel_runtime_observed", decision.channel_runtime.observed},
     };
 }
@@ -195,23 +215,39 @@ GateDecision exact_post_run_decision(
     reject(decision.requested_fidelity != "exact" || !decision.allowed ||
                !decision.validation_passed || !decision.aot_verified,
            "prelaunch_exact_evidence_missing");
-    reject(!evidence.future_runtime.observed ||
-               evidence.future_runtime.issued == 0 ||
+    const bool future_required =
+        decision.workload_operation_class == "ordinary_load" ||
+        decision.workload_operation_class == "ordinary_store" ||
+        decision.workload_operation_class == "mixed_hbm_hbf";
+    const bool tma_required =
+        decision.workload_operation_class == "tma_load" ||
+        decision.workload_operation_class == "tma_store" ||
+        decision.workload_operation_class == "unicast" ||
+        decision.workload_operation_class == "multicast";
+    reject((future_required && (!evidence.future_runtime.observed ||
+                                evidence.future_runtime.issued == 0)) ||
                evidence.future_runtime.issued !=
                    evidence.future_runtime.drained ||
                evidence.future_runtime.leaked != 0 ||
                evidence.future_runtime.faults != 0,
            "post_run_future_failure");
-    const bool tma_required = decision.manifest_schema_version == 4;
-    reject(tma_required &&
-               (!evidence.tma_runtime.observed ||
-                evidence.tma_runtime.issued == 0 ||
-                evidence.tma_runtime.oob_bytes != 0 ||
-                evidence.tma_runtime.stale_generations != 0 ||
-                evidence.tma_runtime.faults != 0 ||
-                evidence.tma_runtime.leaked != 0 ||
-                (evidence.tma_runtime.mixed_bytes != 0 &&
-                 !evidence.tma_runtime.mixed_tiles_proved)),
+    reject((future_required && evidence.tma_runtime.issued != 0) ||
+               (tma_required && evidence.future_runtime.issued != 0) ||
+               (!future_required && !tma_required),
+           "post_run_workload_class_mismatch");
+    reject(decision.workload_expected_operations == 0 ||
+               evidence.future_runtime.issued + evidence.tma_runtime.issued !=
+                   decision.workload_expected_operations,
+           "post_run_workload_operation_mismatch");
+    reject((tma_required && decision.manifest_schema_version != 4) ||
+               (tma_required && (!evidence.tma_runtime.observed ||
+                                 evidence.tma_runtime.issued == 0)) ||
+               evidence.tma_runtime.oob_bytes != 0 ||
+               evidence.tma_runtime.stale_generations != 0 ||
+               evidence.tma_runtime.faults != 0 ||
+               evidence.tma_runtime.leaked != 0 ||
+               (evidence.tma_runtime.mixed_bytes != 0 &&
+                !evidence.tma_runtime.mixed_tiles_proved),
            "post_run_tma_failure");
     reject(!evidence.channel_runtime.observed ||
                evidence.channel_runtime.routing_version !=
@@ -223,7 +259,7 @@ GateDecision exact_post_run_decision(
                evidence.channel_runtime.gnic_requests +
                        evidence.channel_runtime.gpc_requests == 0 ||
                evidence.channel_runtime.saturated_requests != 0 ||
-               evidence.channel_runtime.counter_residual_failed ||
+               evidence.channel_runtime.queue_accounting_failed ||
                evidence.channel_runtime.migration_visible_sm_mismatch,
            "post_run_channel_failure");
     if (decision.exact_rejection_reasons.empty()) {

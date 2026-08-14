@@ -172,9 +172,12 @@ int main()
     const auto& predicated = module.function("predicated_definition");
     const auto predicated_plan = hbfsim::ptx::analyze_futures(predicated);
     const auto predicated_use = id_of(predicated, "add.u32");
-    require(predicated_plan.reason(predicated_use) ==
-                "ambiguous_future_definition",
-            "predicated definition did not preserve its false path");
+    require(predicated_plan.exact_safe(),
+            "one pending future plus a ready definition was rejected");
+    require(predicated_plan.first_consumers.at(
+                id_of(predicated, "ld.global.u32")) ==
+                std::set<std::uint32_t>({predicated_use}),
+            "predicated future did not retain its guarded first consumer");
 
     const auto& loop = module.function("loop_and_dead");
     const auto loop_plan = hbfsim::ptx::analyze_futures(loop);

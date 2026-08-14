@@ -1,0 +1,26 @@
+.version 9.0
+.target sm_120a
+.address_size 64
+
+.visible .entry tma_cta_group2_sm120a(
+    .param .u64 tmap,
+    .param .u64 dst,
+    .param .u64 barrier
+)
+.maxclusterrank 2
+{
+    .reg .b64 %rd<5>;
+    .reg .b32 %r<2>;
+    .reg .pred %p<2>;
+    ld.param.u64 %rd1, [tmap];
+    ld.param.u64 %rd2, [dst];
+    ld.param.u64 %rd3, [barrier];
+    mov.u32 %r1, 0;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    mbarrier.init.shared::cta.b64 [%rd3], 1;
+    cp.async.bulk.tensor.1d.shared::cluster.global.tile.mbarrier::complete_tx::bytes.cta_group::2
+        [%rd2], [%rd1, {%r1}], [%rd3];
+    mbarrier.arrive.shared::cta.b64 %rd4, [%rd3];
+    mbarrier.test_wait.shared::cta.b64 %p1, [%rd3], %rd4;
+    ret;
+}

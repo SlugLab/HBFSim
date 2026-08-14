@@ -75,6 +75,7 @@ def require_dirty_refusal(
         helper.parent.parent / "patches/bpftime/0003-libbpf-modern-libc-const.patch",
         helper.parent.parent / "patches/bpftime/0004-honor-llvm-aot-cli-option.patch",
         helper.parent.parent / "patches/bpftime/0005-cuda13-context-create.patch",
+        helper.parent.parent / "patches/bpftime/0006-prepatched-bootstrap-once.patch",
     ]
     prepared = subprocess.run(
         [
@@ -115,7 +116,8 @@ def copy_test_layout(
                  "0002-sm120-aot-bundle-load.patch",
                  "0003-libbpf-modern-libc-const.patch",
                  "0004-honor-llvm-aot-cli-option.patch",
-                 "0005-cuda13-context-create.patch"):
+                 "0005-cuda13-context-create.patch",
+                 "0006-prepatched-bootstrap-once.patch"):
         shutil.copy2(helper.parent.parent / "patches/bpftime" / name,
                      isolated_patch_dir / name)
     revision = subprocess.run(
@@ -275,6 +277,8 @@ def main() -> int:
             "build helper omitted the LLVM AOT CLI option patch")
     require("0005-cuda13-context-create.patch" in helper.read_text(),
             "build helper omitted the CUDA 13 context API patch")
+    require("0006-prepatched-bootstrap-once.patch" in helper.read_text(),
+            "build helper omitted the exact bootstrap scalability patch")
     helper_text = helper.read_text()
     stamp_assignment = helper_text.find(
         'stamp="$build_dir/hbfsim-bpftime.provenance"')

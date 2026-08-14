@@ -61,9 +61,16 @@ void fill_common(hbfsim::TensorMapRecord& record, CUtensorMapDataType type,
         record.shape.element_stride[index] = element_strides[index];
         if (index != 0) record.shape.global_stride[index] = strides[index - 1];
     }
-    record.element_type = static_cast<std::uint32_t>(type);
+    constexpr std::uint32_t ptx_types[16]{
+        0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 8, 11, 12, 13, 14, 15};
+    const auto raw_type = static_cast<std::uint32_t>(type);
+    record.element_type = raw_type < std::size(ptx_types)
+                              ? ptx_types[raw_type]
+                              : UINT32_MAX;
     record.interleave = static_cast<std::uint32_t>(interleave);
-    record.swizzle = static_cast<std::uint32_t>(swizzle);
+    const auto raw_swizzle = static_cast<std::uint32_t>(swizzle);
+    record.swizzle = raw_swizzle <= 3 ? raw_swizzle : 3;
+    record.swizzle_atomicity = raw_swizzle <= 3 ? 0 : raw_swizzle - 3;
     record.l2_promotion = static_cast<std::uint32_t>(promotion);
     record.oob_fill = static_cast<std::uint32_t>(fill);
 }
@@ -80,6 +87,9 @@ bool valid_inputs(CUtensorMap* map, cuuint32_t rank, void* address,
 
 void publish_record(const Domain& domain, hbfsim::TensorMapRecord record)
 {
+    // A host-created descriptor is immutable for the duration of a kernel
+    // launch and CUDA launch ordering publishes it to the tensormap proxy.
+    record.fenced = true;
     const auto descriptor = record.descriptor;
     if (!hbfsim::global_tensormap_registry().publish(
             domain.context, domain.device, std::move(record))) {
@@ -229,6 +239,11 @@ extern "C" CUresult cuTensorMapReplaceAddress(CUtensorMap* map,
             domain.context, domain.device, before, after,
             reinterpret_cast<std::uintptr_t>(address));
         if (replaced) {
+            // Host descriptor mutation is ordered before a later launch by
+            // the CUDA API call boundary, so publish the new generation as a
+            // launch-visible fenced descriptor.
+            (void)hbfsim::global_tensormap_registry().fence(
+                domain.context, domain.device, after);
             const auto record = hbfsim::global_tensormap_registry().lookup(
                 domain.context, domain.device, after);
             using publish_type = int (*)(

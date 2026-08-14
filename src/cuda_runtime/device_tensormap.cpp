@@ -70,11 +70,19 @@ bool DeviceTensorMapTable::publish(const TensorMapRecord& record) noexcept
               slot.box_dim);
     std::copy(record.shape.element_stride.begin(),
               record.shape.element_stride.end(), slot.element_stride);
+    std::copy(record.shape.lower_corner.begin(),
+              record.shape.lower_corner.end(), slot.lower_corner);
+    std::copy(record.shape.upper_corner.begin(),
+              record.shape.upper_corner.end(), slot.upper_corner);
+    slot.channels_per_pixel = record.shape.channels_per_pixel;
+    slot.pixels_per_column = record.shape.pixels_per_column;
+    slot.wide_mode = record.shape.wide_mode;
     slot.rank = record.shape.rank;
     slot.mode = static_cast<std::uint32_t>(record.mode);
     slot.element_type = record.element_type;
     slot.interleave = record.interleave;
     slot.swizzle = record.swizzle;
+    slot.swizzle_atomicity = record.swizzle_atomicity;
     slot.l2_promotion = record.l2_promotion;
     slot.oob_fill = record.oob_fill;
     slot.fenced = record.fenced ? 1U : 0U;

@@ -14,16 +14,20 @@ int main()
         map.base_address = 0x100000;
         map.shape.rank = 1 + random() % 5;
         map.element_type = random() % 13;
+        const std::uint32_t element_bytes[13]{
+            1, 2, 4, 4, 8, 8, 2, 4, 4, 8, 2, 4, 4};
         std::uint64_t expected = 1;
         for (std::uint32_t dimension = 0; dimension < map.shape.rank;
              ++dimension) {
-            map.shape.global_dim[dimension] = 8 + random() % 32;
-            map.shape.box_dim[dimension] = 1 + random() % 4;
+            map.shape.box_dim[dimension] = dimension == 0
+                ? (16U / element_bytes[map.element_type]) *
+                      (1U + random() % 2U)
+                : 1U + random() % 4U;
+            map.shape.global_dim[dimension] =
+                map.shape.box_dim[dimension] + 8U + random() % 32U;
             map.shape.element_stride[dimension] = 1;
             expected *= map.shape.box_dim[dimension];
         }
-        const std::uint32_t element_bytes[13]{
-            1, 2, 4, 4, 8, 8, 2, 4, 8, 2, 4, 4, 4};
         expected *= element_bytes[map.element_type];
         map.shape.global_stride[1] = 256;
         map.shape.global_stride[2] = 8192;

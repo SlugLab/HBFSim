@@ -16,8 +16,8 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 8);
-    static_assert(host_service::kControlAbiVersion == 8);
+    static_assert(device::kControlAbiVersion == 9);
+    static_assert(host_service::kControlAbiVersion == 9);
     static_assert(sizeof(SharedControlHeader) == 576);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
@@ -89,9 +89,80 @@ int main()
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));
+    constexpr auto warmup_future_count = [] {
+        std::uint64_t count = 0;
+        for (std::uint64_t sequence = 0; sequence < 2048; sequence += 32) {
+            if (hbfsim::device::warp_hybrid_reference_sample(
+                    sequence, 1024, 0, sequence ^ 0x5a5aU)) {
+                count += 32;
+            }
+        }
+        return count;
+    }();
+    static_assert(warmup_future_count == 1024);
+    constexpr auto sampled_future_count = [] {
+        std::uint64_t count = 0;
+        for (std::uint64_t sequence = 0; sequence < 33'792;
+             sequence += 32) {
+            if (hbfsim::device::warp_hybrid_reference_sample(
+                    sequence, 1024,
+                    std::numeric_limits<std::uint64_t>::max() / 2,
+                    sequence * 0x9e3779b97f4a7c15ULL + 0xa5a5U)) {
+                count += 32;
+            }
+        }
+        return count;
+    }();
+    static_assert(sampled_future_count > 1024);
+    static_assert(sampled_future_count < 33'792);
     static_assert(hbfsim::device::fast_service_ns(10'000, 16'384,
                                                   512'000'000'000ULL) ==
                   10'032);
+    static_assert(tma_global_unit_bytes(0) == 1);
+    static_assert(tma_global_unit_bytes(1) == 2);
+    static_assert(tma_global_unit_bytes(2) == 4);
+    static_assert(tma_global_unit_bytes(3) == 4);
+    static_assert(tma_global_unit_bytes(4) == 8);
+    static_assert(tma_global_unit_bytes(5) == 8);
+    static_assert(tma_global_unit_bytes(6) == 2);
+    static_assert(tma_global_unit_bytes(7) == 4);
+    // Internal IDs use PTX order: f32_ftz=8, f64=9, bf16=10.
+    static_assert(tma_global_unit_bytes(8) == 4);
+    static_assert(tma_global_unit_bytes(9) == 8);
+    static_assert(tma_global_unit_bytes(10) == 2);
+    static_assert(tma_global_unit_bytes(11) == 4);
+    static_assert(tma_global_unit_bytes(12) == 4);
+    static_assert(tma_global_unit_bytes(13) == 8);
+    static_assert(tma_global_unit_bytes(14) == 8);
+    static_assert(tma_global_unit_bytes(15) == 12);
+    static_assert(tma_global_unit_bytes(16) == 0);
+    static_assert(tma_shared_unit_bytes(13) == 8);
+    static_assert(tma_shared_unit_bytes(14) == 16);
+    static_assert(tma_shared_unit_bytes(15) == 16);
+    static_assert(tma_oob_nan_fill_byte(6, 0) == 0xf7);
+    static_assert(tma_oob_nan_fill_byte(6, 1) == 0x7f);
+    static_assert(tma_oob_nan_fill_byte(7, 2) == 0xf7);
+    static_assert(tma_oob_nan_fill_byte(8, 3) == 0x7f);
+    static_assert(tma_oob_nan_fill_byte(9, 7) == 0x7f);
+    static_assert(tma_oob_nan_fill_byte(10, 1) == 0x7f);
+    static_assert(tma_oob_nan_fill_byte(11, 0) == 0xf7);
+    static_assert(tma_oob_nan_fill_byte(12, 1) == 0x7f);
+    static_assert(tma_oob_nan_fill_byte(5, 0) == UINT32_MAX);
+    static_assert(tma_tf32_load_bits(0x00000000U) == 0x00000000U);
+    static_assert(tma_tf32_load_bits(0x80000000U) == 0x80000000U);
+    static_assert(tma_tf32_load_bits(0x00000001U) == 0x00000000U);
+    static_assert(tma_tf32_load_bits(0x00002000U) == 0x00002000U);
+    static_assert(tma_tf32_load_bits(0x80002000U) == 0x80002000U);
+    static_assert(tma_tf32_load_bits(0x007fffffU) == 0x00800000U);
+    static_assert(tma_tf32_load_bits(0x3f801000U) == 0x3f800000U);
+    static_assert(tma_tf32_load_bits(0x3f803000U) == 0x3f804000U);
+    static_assert(tma_tf32_load_bits(0x7f7fffffU) == 0x7f800000U);
+    static_assert(tma_tf32_load_bits(0x7f800000U) == 0x7f800000U);
+    static_assert(tma_tf32_load_bits(0xff800000U) == 0xff800000U);
+    static_assert(tma_tf32_load_bits(0x7fc12345U) == 0x7fffe000U);
+    static_assert(tma_tf32_load_bits(0x7fa12345U) == 0x7fffe000U);
+    static_assert(tma_tf32_load_bits(0xffc12345U) == 0x7fffe000U);
+    static_assert(tma_tf32_load_bits(0xffa12345U) == 0x7fffe000U);
     static_assert(offsetof(hbfsim::device::HbfRequest, logical_address) ==
                   offsetof(hbfsim::HbfRequest, logical_address));
     static_assert(offsetof(hbfsim::device::HbfRequest, instruction_id) ==
@@ -162,6 +233,13 @@ int main()
     CHECK(empirical_cumulative_ns(pages, cumulative, 6, 513) == 20'291'431);
     CHECK(empirical_service_ns(pages, cumulative, 6, 4) ==
           41'495 - empirical_cumulative_ns(pages, cumulative, 6, 3));
+    CHECK(sm120_reference_channel_delay_valid(100, 125));
+    CHECK(sm120_reference_channel_delay(100, 125) == 25);
+    CHECK(!sm120_reference_channel_delay_valid(125, 100));
+    CHECK(!sm120_reference_channel_delay_valid(
+        100, 100 + std::uint64_t{UINT32_MAX} + 1));
+    CHECK(sm120_reference_ready_ns(100, 25, 120) == 125);
+    CHECK(sm120_reference_ready_ns(100, 25, 150) == 150);
 
     constexpr std::uint32_t overflow_pages[]{1, 2};
     constexpr std::uint64_t overflow_cumulative[]{

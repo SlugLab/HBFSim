@@ -88,9 +88,10 @@ def main() -> int:
     require("register_range_with_policy != nullptr" in context_source,
             "context accepts v3 without policy-aware range registration")
     require("hbfsim_expect_module_identity" not in source and
-            "discard_expectations" not in source and
-            "expected_" not in source,
+            "discard_expectations" not in source,
             "launch gate retains process-global module expectations")
+    require("workload_expected_operations" in source,
+            "launch gate omitted the per-run workload operation contract")
     require("interposed_wrapper_address" in source,
             "driver-entry APIs do not use an explicit local wrapper map")
     lookup_map = function_body(source, "interposed_wrapper_address(")

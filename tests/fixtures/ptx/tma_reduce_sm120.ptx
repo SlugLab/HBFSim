@@ -1,0 +1,22 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry tma_reduce_sm120(
+    .param .u64 tmap,
+    .param .u64 source
+)
+{
+    .reg .b64 %rd<4>;
+    .reg .b32 %r<3>;
+    ld.param.u64 %rd1, [tmap];
+    ld.param.u64 %rd2, [source];
+    cvta.to.shared.u64 %rd3, %rd2;
+    mov.u32 %r1, 0;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    cp.reduce.async.bulk.tensor.1d.global.shared::cta.add.tile.bulk_group
+        [%rd1, {%r1}], [%rd3];
+    cp.async.bulk.commit_group;
+    cp.async.bulk.wait_group 0;
+    ret;
+}

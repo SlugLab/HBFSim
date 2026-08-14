@@ -348,6 +348,49 @@ int main()
     CHECK(capacity_opaque.range_policy ==
           hbfsim::RangePolicy::CapacityUnbacked);
 
+    auto tensormap_manifest = manifest(
+        "ptx:tensormap", "tensormap_kernel",
+        {{.index = 0,
+          .offset = 0,
+          .width = 128,
+          .kind = hbfsim::ParameterKind::OpaqueAggregate}});
+    tensormap_manifest.manifest_schema_version = 4;
+    tensormap_manifest.tma_manifest.manifest_schema_version = 4;
+    tensormap_manifest.tma_manifest.tensormap_parameters = {0};
+    tensormap_manifest.tma_manifest.provenance_required = true;
+    capacity_gate.add_module(std::move(tensormap_manifest));
+    CHECK(capacity_gate.is_tensormap_parameter(
+        "ptx:tensormap", "tensormap_kernel", 0));
+    CHECK(!capacity_gate.is_tensormap_parameter(
+        "ptx:tensormap", "tensormap_kernel", 1));
+    const auto proven_tensormap = capacity_gate.check_launch(launch(
+        "ptx:tensormap", "tensormap_kernel",
+        {{.index = 0,
+          .offset = 0,
+          .width = 128,
+          .tensormap_descriptor = true,
+          .slots = {{0, 0x500100}}}}));
+    CHECK(proven_tensormap.allowed);
+    CHECK(proven_tensormap.modeled);
+    CHECK(proven_tensormap.range_policy ==
+          hbfsim::RangePolicy::CapacityUnbacked);
+
+    capacity_gate.add_module(
+        manifest("ptx:not-tensormap", "aggregate_kernel",
+                 {{.index = 0,
+                   .offset = 0,
+                   .width = 24,
+                   .kind = hbfsim::ParameterKind::OpaqueAggregate}}));
+    const auto forged_tensormap = capacity_gate.check_launch(launch(
+        "ptx:not-tensormap", "aggregate_kernel",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .tensormap_descriptor = true,
+          .slots = {{0, 0x500100}}}}));
+    CHECK(!forged_tensormap.allowed);
+    CHECK(forged_tensormap.reason == "unrecognized_tensormap_parameter");
+
     const auto hbm = gate.check_launch(
         launch("missing", "opaque_kernel", {pointer(0, 0x900000)}));
     CHECK(hbm.allowed);
@@ -413,7 +456,8 @@ int main()
       "bulk_group_instruction_ids":[11,12],
       "tma_instruction_table":[{"instruction_id":7,"source_line":20,
         "direction":"global_to_shared","mode":"tile","dimensions":1,
-        "completion":"mbarrier","multicast_mask":0,
+        "completion":"mbarrier","multicast":false,"multicast_mask":0,
+        "multicast_mask_operand":"0","multicast_mask_kind":"none",
         "descriptor_generation":1}],
       "maximum_live_async_objects":1,
       "tma_ambiguities":[], "tensormap_provenance_required":true,
@@ -447,6 +491,8 @@ int main()
     admitted_exact.routing_program_sha256 = std::string(64, '8');
     admitted_exact.raw_training_sha256 = std::string(64, '9');
     admitted_exact.raw_holdout_sha256 = std::string(64, 'a');
+    admitted_exact.workload_operation_class = "mixed_hbm_hbf";
+    admitted_exact.workload_expected_operations = 13;
     admitted_exact.manifest_schema_version = 4;
     admitted_exact.future_manifest = parsed_v4.future_manifest;
     admitted_exact.future_runtime = {
@@ -487,7 +533,15 @@ int main()
         .gpc_requests = 5,
         .observed = true,
     };
+    auto admitted_tma = admitted_exact;
+    admitted_tma.workload_operation_class = "tma_load";
+    admitted_tma.workload_expected_operations = 4;
+    admitted_tma.future_runtime = {};
+    admitted_exact.workload_operation_class = "ordinary_load";
+    admitted_exact.workload_expected_operations = 9;
+    admitted_exact.tma_runtime = {};
     writer.append(admitted_exact);
+    writer.append(admitted_tma);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
     CHECK(json.find("ptx:atom") != std::string::npos);
@@ -557,9 +611,11 @@ int main()
     prelaunch_candidate.channel_runtime.maximum_gpc_outstanding = 0;
     prelaunch_candidate.channel_runtime.gnic_requests = 0;
     prelaunch_candidate.channel_runtime.gpc_requests = 0;
+    prelaunch_candidate.workload_operation_class = "ordinary_load";
+    prelaunch_candidate.workload_expected_operations = 9;
     const hbfsim::ExactPostRunEvidence post_run{
         .future_runtime = admitted_exact.future_runtime,
-        .tma_runtime = admitted_exact.tma_runtime,
+        .tma_runtime = {},
         .channel_runtime = admitted_exact.channel_runtime,
     };
     const auto finalized =
@@ -568,6 +624,27 @@ int main()
     CHECK(finalized.admitted_fidelity == "exact");
     CHECK(finalized.post_run_validation_passed);
     writer.append(finalized);
+    auto tma_candidate = prelaunch_candidate;
+    tma_candidate.workload_operation_class = "tma_load";
+    tma_candidate.workload_expected_operations = 4;
+    auto tma_only_evidence = post_run;
+    tma_only_evidence.future_runtime = {};
+    tma_only_evidence.tma_runtime = admitted_tma.tma_runtime;
+    const auto finalized_tma = hbfsim::exact_post_run_decision(
+        tma_candidate, tma_only_evidence);
+    CHECK(finalized_tma.allowed);
+    CHECK(finalized_tma.admitted_fidelity == "exact");
+    CHECK(finalized_tma.post_run_validation_passed);
+    auto mismatched_workload = post_run;
+    ++mismatched_workload.future_runtime.issued;
+    ++mismatched_workload.future_runtime.drained;
+    const auto rejected_workload = hbfsim::exact_post_run_decision(
+        prelaunch_candidate, mismatched_workload);
+    CHECK(!rejected_workload.allowed);
+    CHECK(rejected_workload.admitted_fidelity == "calibrated_emulation");
+    CHECK(rejected_workload.exact_rejection_reasons ==
+          std::vector<std::string>{
+              "post_run_workload_operation_mismatch"});
     auto failed_post_run = post_run;
     failed_post_run.future_runtime.faults = 1;
     const auto rejected_post_run =

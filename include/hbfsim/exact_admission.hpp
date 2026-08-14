@@ -17,6 +17,16 @@ struct ExactRunContract {
     ExactClusterShape cluster_shape;
     std::uint64_t cache_condition_epoch{0};
     std::uint64_t latest_relevant_mutation_epoch{0};
+    std::string operation_class;
+    std::uint64_t issued_operations{0};
+    std::uint64_t bytes{0};
+    std::uint32_t resident_warps{0};
+    std::uint32_t queue_depth{0};
+    std::uint32_t dimension_count{0};
+    std::uint64_t iterations{0};
+    std::uint32_t load_use_distance{0};
+    std::uint64_t tile_elements{0};
+    std::uint32_t multicast_targets{0};
 };
 
 struct ExactAdmissionDecision {

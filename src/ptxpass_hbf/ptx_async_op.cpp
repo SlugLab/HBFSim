@@ -118,10 +118,12 @@ std::optional<AsyncInstruction> parse_tma(
         result.direction = TmaDirection::GlobalToShared;
         result.destination = *shared;
     }
+    if (shared != tokens.end()) result.shared_state_space = *shared;
 
     const bool gather = has(tokens, "tile::gather4");
     const bool scatter = has(tokens, "tile::scatter4");
-    const bool im2col = has(tokens, "im2col") || has(tokens, "im2col_no_offs");
+    const bool no_offsets = has(tokens, "im2col_no_offs");
+    const bool im2col = has(tokens, "im2col") || no_offsets;
     const bool wide = has(tokens, "im2col::w") || has(tokens, "im2col::w::128");
     if (static_cast<int>(gather) + static_cast<int>(scatter) +
             static_cast<int>(im2col) + static_cast<int>(wide) >
@@ -139,14 +141,24 @@ std::optional<AsyncInstruction> parse_tma(
     if ((im2col || wide) && result.dimensions < 3) {
         throw ParseError("im2col TMA requires 3d-5d");
     }
-    if (gather && result.direction != TmaDirection::GlobalToShared) {
+    if (gather && result.direction != TmaDirection::GlobalToShared &&
+        result.direction != TmaDirection::Prefetch) {
         throw ParseError("gather4 is only valid for TMA loads");
     }
     if (scatter && result.direction != TmaDirection::SharedToGlobal) {
         throw ParseError("scatter4 is only valid for TMA stores");
     }
+    if (result.direction == TmaDirection::SharedToGlobal &&
+        (wide || (im2col && !no_offsets))) {
+        throw ParseError("TMA stores require im2col_no_offs");
+    }
+    if (no_offsets && result.direction != TmaDirection::SharedToGlobal) {
+        throw ParseError("im2col_no_offs is only valid for TMA stores");
+    }
 
-    result.completion = has(tokens, "bulk_group")
+    result.completion = prefetch
+                            ? CompletionKind::BulkGroup
+                            : has(tokens, "bulk_group")
                             ? CompletionKind::BulkGroup
                             : (has(tokens, "mbarrier::complete_tx::bytes") ||
                                        result.direction ==
@@ -157,6 +169,10 @@ std::optional<AsyncInstruction> parse_tma(
     result.cache_hint = has(tokens, "L2::cache_hint");
     if (has(tokens, "cta_group::2")) result.cta_group = 2;
     if (has(tokens, "cta_group::1")) result.cta_group = 1;
+    if (prefetch && (has(tokens, "cta_group::1") ||
+                     has(tokens, "cta_group::2") || result.multicast)) {
+        throw ParseError("tensor prefetch does not support CTA-group/multicast");
+    }
     if (result.multicast && result.destination != "shared::cluster") {
         throw ParseError("TMA multicast requires shared::cluster destination");
     }
@@ -173,7 +189,9 @@ std::optional<AsyncInstruction> parse_tma(
     const std::size_t descriptor_operand =
         result.direction == TmaDirection::GlobalToShared ? 1 : 0;
     const std::size_t minimum =
-        result.direction == TmaDirection::GlobalToShared ? 3 : 2;
+        result.direction == TmaDirection::GlobalToShared
+            ? 3
+            : result.direction == TmaDirection::Prefetch ? 1 : 2;
     if (operands.size() < minimum) throw ParseError("TMA has too few operands");
     const auto descriptor_fields =
         register_occurrences(operands[descriptor_operand]);
@@ -192,20 +210,33 @@ std::optional<AsyncInstruction> parse_tma(
     }
     if (result.direction == TmaDirection::GlobalToShared) {
         result.destination = single_address(operands[0]);
+        result.shared_address = result.destination;
         result.barrier = single_address(operands[2]);
-    }
-    if (result.multicast) {
-        if (operands.size() < 4) throw ParseError("TMA multicast mask is missing");
-        result.multicast_mask = operands[3];
+    } else if (result.direction == TmaDirection::SharedToGlobal) {
+        result.shared_address = single_address(operands[1]);
     }
     const std::size_t extra = result.cache_hint ? 1 : 0;
     const std::size_t im2col_info =
-        result.mode == TensorMode::Im2col || result.mode == TensorMode::Im2colWide
+        !no_offsets && (result.mode == TensorMode::Im2col ||
+                        result.mode == TensorMode::Im2colWide)
             ? 1
             : 0;
     const std::size_t mask = result.multicast ? 1 : 0;
     if (operands.size() != minimum + extra + im2col_info + mask) {
         throw ParseError("TMA operand count does not match modifiers");
+    }
+    auto next_operand = minimum;
+    if (im2col_info != 0) {
+        result.im2col_offsets = register_occurrences(operands[next_operand++]);
+        const auto expected = result.mode == TensorMode::Im2colWide
+                                  ? 2U
+                                  : result.dimensions - 2U;
+        if (result.im2col_offsets.size() != expected) {
+            throw ParseError("TMA im2col offset count does not match mode");
+        }
+    }
+    if (result.multicast) {
+        result.multicast_mask = operands[next_operand++];
     }
     return AsyncInstruction{std::move(result)};
 }
@@ -296,6 +327,11 @@ std::optional<AsyncInstruction> parse_tensormap(
         }
         result.op = TensorMapOp::Replace;
         result.field = tokens[3];
+        result.state_space = tokens[4];
+        if (result.state_space != "global" &&
+            result.state_space != "shared::cta") {
+            throw ParseError("unsupported tensormap.replace state space");
+        }
         const bool indexed = result.field == "box_dim" ||
                              result.field == "global_dim" ||
                              result.field == "global_stride" ||
@@ -311,6 +347,18 @@ std::optional<AsyncInstruction> parse_tensormap(
             }
         }
         result.value = operands.back();
+    } else if (opcode.starts_with("tensormap.cp_fenceproxy.global.shared::cta.") &&
+               opcode.find(".tensormap::generic.release.") !=
+                   std::string::npos &&
+               opcode.ends_with(".sync.aligned")) {
+        if (operands.size() != 3 || operands[2] != "128") {
+            throw ParseError(
+                "TensorMap copy fence requires destination, source, 128");
+        }
+        result.op = TensorMapOp::CopyFence;
+        result.address = single_address(operands[0]);
+        result.source = single_address(operands[1]);
+        result.state_space = "shared::cta";
     } else if (opcode.starts_with("fence.proxy.tensormap::generic.release.")) {
         if (!operands.empty()) throw ParseError("TensorMap release fence takes no operands");
         result.op = TensorMapOp::FenceRelease;

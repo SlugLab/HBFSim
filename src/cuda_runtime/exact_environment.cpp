@@ -296,14 +296,14 @@ ExactEnvironmentResult collect_exact_environment(
                            "clock_temperature_stability");
         }
 
-        if (compute_mode == ExactComputeMode::ExclusiveProcess) {
-            if (processes.size() != 1 || processes.front() != current_pid) {
-                return failure(
-                    ExactEnvironmentError::ExclusiveProcessViolation,
-                    "exclusive_process_contract");
-            }
-            live.current_process_is_exclusive = true;
+        if (processes.size() != 1 || processes.front() != current_pid) {
+            return failure(
+                ExactEnvironmentError::ExclusiveProcessViolation,
+                compute_mode == ExactComputeMode::ExclusiveProcess
+                    ? "exclusive_process_contract"
+                    : "no_competing_process_contract");
         }
+        live.current_process_is_exclusive = true;
         live.captured_unix_ns = static_cast<std::uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::system_clock::now().time_since_epoch())

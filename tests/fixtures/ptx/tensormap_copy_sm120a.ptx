@@ -1,0 +1,32 @@
+.version 9.0
+.target sm_120a
+.address_size 64
+
+.global .align 128 .b8 copied_map[128];
+.shared .align 128 .b8 shared_map[128];
+
+.visible .entry tensormap_copy_sm120a(
+    .param .u64 destination,
+    .param .u64 barrier
+)
+{
+    .reg .b64 %rd<7>;
+    .reg .b32 %r<3>;
+    .reg .pred %p<2>;
+    mov.u64 %rd1, copied_map;
+    mov.u32 %r1, shared_map;
+    ld.param.u64 %rd2, [destination];
+    ld.param.u64 %rd3, [barrier];
+    mov.u32 %r2, 0;
+    tensormap.replace.tile.global_address.shared::cta.b1024.b64
+        [%r1], %rd2;
+    tensormap.cp_fenceproxy.global.shared::cta.tensormap::generic.release.gpu.sync.aligned
+        [%rd1], [%r1], 128;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    mbarrier.init.shared::cta.b64 [%rd3], 1;
+    cp.async.bulk.tensor.1d.shared::cta.global.tile.mbarrier::complete_tx::bytes
+        [%rd2], [%rd1, {%r2}], [%rd3];
+    mbarrier.arrive.shared::cta.b64 %rd4, [%rd3];
+    mbarrier.test_wait.shared::cta.b64 %p1, [%rd3], %rd4;
+    ret;
+}

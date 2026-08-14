@@ -134,6 +134,18 @@ Case matching_case()
                        .p95_error_percent = 2}},
         .counter_thresholds = {{.metric = "lsu_active",
                                 .max_error_percent = 10}},
+        .workload_domain = {
+            .match_policy = "exact_calibrated_vector",
+            .program_sha256 = std::string(64, 'f'),
+            .feature_names = {
+                "log2_issued_operations", "log2_bytes",
+                "log2_resident_warps", "log2_queue_depth",
+                "dimension_count", "cache_warm", "log2_iterations",
+                "log2_load_use_distance_plus_one", "log2_tile_elements",
+                "cluster_size", "multicast_targets"},
+            .vectors = {{.operation_class = "ordinary_load",
+                         .features = {7, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0}}},
+        },
     };
 
     value.evidence = {
@@ -181,7 +193,10 @@ Case matching_case()
                               .mode = "tile",
                               .dimensions = 1,
                               .completion = "mbarrier",
+                              .multicast = false,
                               .multicast_mask = 0,
+                              .multicast_mask_operand = "0",
+                              .multicast_mask_kind = "none",
                               .descriptor_generation = 1}},
             .maximum_live_async_objects = 1,
             .provenance_required = true,
@@ -225,6 +240,16 @@ Case matching_case()
         .cluster_shape = {.x = 2, .y = 1, .z = 1},
         .cache_condition_epoch = 2,
         .latest_relevant_mutation_epoch = 1,
+        .operation_class = "ordinary_load",
+        .issued_operations = 128,
+        .bytes = 1,
+        .resident_warps = 1,
+        .queue_depth = 1,
+        .dimension_count = 0,
+        .iterations = 1,
+        .load_use_distance = 0,
+        .tile_elements = 1,
+        .multicast_targets = 0,
     };
     return value;
 }
@@ -246,6 +271,8 @@ std::vector<Mutation> mutations()
          }},
         {"validation_class_missing",
          [](Case& value) { value.profile.validation.classes.pop_back(); }},
+        {"workload_out_of_domain",
+         [](Case& value) { value.contract.iterations = 2; }},
         {"queue_profile_missing",
          [](Case& value) { value.profile.schema_version = 1; }},
         {"routing_program_mismatch",
@@ -261,9 +288,9 @@ std::vector<Mutation> mutations()
              value.evidence.channel_runtime.migration_visible_sm_mismatch =
                  true;
          }},
-        {"counter_residual_failure",
+        {"queue_accounting_failure",
          [](Case& value) {
-             value.evidence.channel_runtime.counter_residual_failed = true;
+             value.evidence.channel_runtime.queue_accounting_failed = true;
          }},
         {"gpu_name_mismatch",
          [](Case& value) { value.live.gpu_name += " changed"; }},
@@ -354,7 +381,11 @@ std::vector<Mutation> mutations()
              value.live.current_process_is_exclusive = false;
          }},
         {"cluster_shape_mismatch",
-         [](Case& value) { value.contract.cluster_shape.x++; }},
+         [](Case& value) {
+             value.contract.cluster_shape.x++;
+             value.profile.calibration.workload_domain.vectors[0]
+                 .features[9] = 3;
+         }},
     };
 }
 
@@ -372,6 +403,28 @@ int main()
     CHECK(admitted.profile_id == "profile");
     CHECK(admitted.module_id == matching.evidence.module_id);
     CHECK(admitted.kernel == "kernel");
+
+    auto dynamic = matching_case();
+    dynamic.profile.conditions.clock_control = "none";
+    dynamic.profile.conditions.sm_clock_min_mhz = 1700;
+    dynamic.profile.conditions.sm_clock_max_mhz = 1900;
+    dynamic.profile.conditions.memory_clock_min_mhz = 13000;
+    dynamic.profile.conditions.memory_clock_max_mhz = 15000;
+    dynamic.live.sm_clock_mhz = 1830;
+    dynamic.live.memory_clock_mhz = 14001;
+    CHECK(evaluator.evaluate(
+              dynamic.profile, dynamic.evidence, dynamic.live,
+              dynamic.contract, "kernel")
+              .allowed);
+    dynamic.live.sm_clock_mhz = 1750;
+    const auto outside_dynamic_clock = evaluator.evaluate(
+        dynamic.profile, dynamic.evidence, dynamic.live,
+        dynamic.contract, "kernel");
+    CHECK(!outside_dynamic_clock.allowed);
+    CHECK(std::find(outside_dynamic_clock.reasons.begin(),
+                    outside_dynamic_clock.reasons.end(),
+                    "sm_clock_mismatch") !=
+          outside_dynamic_clock.reasons.end());
 
     const auto cases = mutations();
     std::vector<std::string> canonical_reason_order;
@@ -401,6 +454,7 @@ int main()
     {
         auto value = matching_case();
         value.contract.cache_condition = "cold";
+        value.profile.calibration.workload_domain.vectors[0].features[5] = 0;
         const auto rejected = evaluator.evaluate(
             value.profile, value.evidence, value.live, value.contract,
             "kernel");

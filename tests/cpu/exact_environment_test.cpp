@@ -157,6 +157,34 @@ int main()
     }
     {
         Fixture fixture;
+        fixture.nvml.compute_mode = [](std::uintptr_t,
+                                       hbfsim::ExactComputeMode* value) {
+            *value = hbfsim::ExactComputeMode::Default;
+            return 0;
+        };
+        const auto result = hbfsim::collect_exact_environment(
+            fixture.driver, fixture.nvml, fixture.pid);
+        CHECK(result.error == hbfsim::ExactEnvironmentError::None);
+        CHECK(result.environment.has_value());
+        CHECK(result.environment->current_process_is_exclusive);
+    }
+    {
+        Fixture fixture;
+        fixture.nvml.compute_mode = [](std::uintptr_t,
+                                       hbfsim::ExactComputeMode* value) {
+            *value = hbfsim::ExactComputeMode::Default;
+            return 0;
+        };
+        fixture.nvml.compute_processes =
+            [&fixture](std::uintptr_t, std::vector<std::uint32_t>* value) {
+                *value = {fixture.pid, fixture.pid + 1};
+                return 0;
+            };
+        expect_error(fixture,
+                     hbfsim::ExactEnvironmentError::ExclusiveProcessViolation);
+    }
+    {
+        Fixture fixture;
         fixture.driver.current_context = [](std::uintptr_t* value) {
             *value = 0;
             return 0;

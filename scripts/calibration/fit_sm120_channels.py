@@ -15,6 +15,20 @@ CLASSES = ["ordinary_load", "ordinary_store", "tma_load", "tma_store",
            "unicast", "multicast", "mixed_hbm_hbf"]
 INPUTS = ["smid", "warpid", "cta_shape", "resident_warps",
           "cluster_ctarank", "operation"]
+FEATURE_NAMES = [
+    "log2_issued_operations", "log2_bytes", "log2_resident_warps",
+    "log2_queue_depth", "dimension_count", "cache_warm",
+    "log2_iterations", "log2_load_use_distance_plus_one",
+    "log2_tile_elements", "cluster_size", "multicast_targets",
+]
+COUNTER_ERROR_CONTRACT = {
+    "version": 1,
+    "percentage_metrics": "absolute_percentage_points",
+    "traffic_metrics":
+        "native_or_logical_issued_or_training_class_envelope",
+    "duration_metrics": "relative_to_native",
+    "fallback_metrics": "relative_to_native",
+}
 
 
 class FitError(Exception):
@@ -57,8 +71,10 @@ def verify_members(manifest: dict, directory: pathlib.Path) -> None:
         path = directory / relative
         if path.is_symlink() or not path.is_file() or sha(path.read_bytes()) != member.get("sha256"):
             raise FitError(f"training member hash mismatch: {relative}")
-        digest.update(relative.encode()); digest.update(b"\0")
-        digest.update(str(member["sha256"]).encode()); digest.update(b"\0")
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(str(member["sha256"]).encode())
+        digest.update(b"\0")
     if digest.hexdigest() != manifest.get("members_sha256"):
         raise FitError("training aggregate hash mismatch")
 
@@ -169,6 +185,288 @@ def percentile(values: list[float], fraction: float) -> float:
     return ordered[index]
 
 
+def feature_vector(item: dict) -> list[float]:
+    dimensions = item.get("dimensions", [])
+    if not isinstance(dimensions, list) or any(
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+            for value in dimensions):
+        dimensions = []
+    tile_elements = math.prod(dimensions) if dimensions else 1
+    cluster = item.get("executed_cluster_shape", [1, 1, 1])
+    if not isinstance(cluster, list) or len(cluster) != 3 or any(
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0
+            for value in cluster):
+        cluster = [1, 1, 1]
+    mask = item.get("executed_multicast_mask", 0)
+    if not isinstance(mask, int) or isinstance(mask, bool) or mask < 0:
+        mask = 0
+    def positive(name: str, default: int = 1) -> int:
+        return max(1, int(item.get(name, default)))
+    return [
+        math.log2(positive("issued_operations")),
+        math.log2(positive("bytes")),
+        math.log2(positive("resident_warps")),
+        math.log2(positive("queue_depth")),
+        float(max(0, int(item.get("executed_dimension_count", 0)))),
+        1.0 if item.get("cache_condition_executed") == "warm" else 0.0,
+        math.log2(positive("iterations")),
+        math.log2(max(0, int(item.get("load_use_distance", 0))) + 1),
+        math.log2(tile_elements),
+        float(math.prod(cluster)),
+        float(mask.bit_count()),
+    ]
+
+
+def base_case_id(item: dict) -> str:
+    explicit = item.get("base_case_id")
+    if isinstance(explicit, str) and explicit:
+        return explicit
+    value = str(item.get("case_id", ""))
+    return value.split(".repeat-", 1)[0]
+
+
+def build_predictor(items: list[dict], metrics: list[str]) -> dict:
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for item in items:
+        operation = str(item.get("operation_class", ""))
+        grouped.setdefault((operation, base_case_id(item)), []).append(item)
+    prototypes: dict[str, list[dict]] = {operation: [] for operation in CLASSES}
+    for (operation, case_id), samples in sorted(grouped.items()):
+        if operation not in prototypes:
+            raise FitError("training predictor contains an unknown class")
+        vectors = [feature_vector(sample) for sample in samples]
+        if any(vector != vectors[0] for vector in vectors[1:]):
+            raise FitError(f"training case features changed across repeats: {case_id}")
+        latencies = [float(sample["latency_ns"]) for sample in samples]
+        counters: dict[str, float] = {}
+        for metric in metrics:
+            values = [sample.get("native_counters",
+                                 sample.get("counters", {})).get(metric)
+                      for sample in samples]
+            if not all(isinstance(value, (int, float)) and
+                       not isinstance(value, bool) and math.isfinite(value)
+                       for value in values):
+                raise FitError(f"training counter missing: {operation}:{metric}")
+            counters[metric] = round(statistics.median(
+                float(value) for value in values), 9)
+        prototypes[operation].append({
+            "base_case_id": case_id,
+            "features": [round(value, 9) for value in vectors[0]],
+            "latency_ns": max(1, round(statistics.median(latencies))),
+            "counters": counters,
+        })
+    if any(not prototypes[operation] for operation in CLASSES):
+        raise FitError("training predictor class missing")
+    domains = {}
+    for operation in CLASSES:
+        columns = list(zip(*(item["features"]
+                             for item in prototypes[operation])))
+        domains[operation] = {
+            "minimum": [round(min(column), 9) for column in columns],
+            "maximum": [round(max(column), 9) for column in columns],
+        }
+    return {
+        "schema_version": 1,
+        "feature_names": FEATURE_NAMES,
+        "neighbors": 2,
+        "aggregation": "median_by_base_case",
+        "distance": "normalized_euclidean_inverse_square",
+        "prototypes_by_class": prototypes,
+        "domain_by_class": domains,
+    }
+
+
+def predict(predictor: dict, operation: str,
+            features: list[float]) -> tuple[float, dict[str, float]]:
+    prototypes = predictor["prototypes_by_class"][operation]
+    domain = predictor["domain_by_class"][operation]
+    minimum = domain["minimum"]
+    maximum = domain["maximum"]
+    distances = []
+    for prototype in prototypes:
+        distance = 0.0
+        for value, reference, low, high in zip(
+                features, prototype["features"], minimum, maximum):
+            span = float(high) - float(low)
+            delta = value - float(reference)
+            distance += (delta / span) ** 2 if span > 0 else delta ** 2
+        distances.append((distance, float(prototype["latency_ns"]),
+                          prototype["counters"]))
+    distances.sort(key=lambda item: item[0])
+    selected = distances[:min(int(predictor["neighbors"]), len(distances))]
+    exact = [item for item in selected if item[0] <= 1e-18]
+    if exact:
+        selected = exact
+        weights = [1.0] * len(selected)
+    else:
+        weights = [1.0 / item[0] for item in selected]
+    denominator = sum(weights)
+    latency = sum(weight * item[1]
+                  for weight, item in zip(weights, selected)) / denominator
+    counters = {
+        metric: sum(weight * float(item[2][metric])
+                    for weight, item in zip(weights, selected)) / denominator
+        for metric in selected[0][2]
+    }
+    return latency, counters
+
+
+def relative_error(modeled: float, native: float) -> float:
+    if modeled == native == 0:
+        return 0.0
+    return abs(modeled - native) * 100.0 / max(abs(native), 1e-12)
+
+
+def logical_issued_bytes(item: dict) -> float:
+    issued = item.get("issued_operations", 1)
+    if not isinstance(issued, (int, float)) or isinstance(issued, bool) or \
+            not math.isfinite(float(issued)) or issued <= 0:
+        issued = 1
+    dimensions = item.get("dimensions", [])
+    dimension_count = item.get("executed_dimension_count", 0)
+    if isinstance(dimensions, list) and dimensions and \
+            isinstance(dimension_count, int) and not isinstance(
+                dimension_count, bool) and dimension_count == len(dimensions) and \
+            all(isinstance(value, int) and not isinstance(value, bool) and
+                value > 0 for value in dimensions):
+        bytes_per_operation = math.prod(dimensions) * 4
+    else:
+        bytes_per_operation = 8
+    mask = item.get("executed_multicast_mask", 0)
+    fanout = mask.bit_count() if isinstance(mask, int) and \
+        not isinstance(mask, bool) and mask > 0 else 1
+    return float(issued) * bytes_per_operation * fanout
+
+
+def counter_error_percent(modeled: float, native: float, metric: str,
+                          item: dict, training_scale: float = 0.0) -> float:
+    absolute = abs(modeled - native)
+    if metric.endswith(".pct") or ".pct_of_peak_" in metric:
+        denominator = 100.0
+    elif metric == "dram__bytes.sum":
+        denominator = max(abs(native), logical_issued_bytes(item),
+                          training_scale)
+    elif metric == "lts__t_sectors.sum":
+        denominator = max(abs(native),
+                          math.ceil(logical_issued_bytes(item) / 32.0),
+                          training_scale)
+    else:
+        denominator = abs(native)
+    if absolute == denominator == 0:
+        return 0.0
+    return absolute * 100.0 / max(denominator, 1e-12)
+
+
+def build_counter_error_scales(items: list[dict],
+                               metrics: list[str]) -> dict[str, dict[str, float]]:
+    result: dict[str, dict[str, float]] = {}
+    for operation in CLASSES:
+        selected = [item for item in items
+                    if item.get("operation_class") == operation]
+        if not selected:
+            raise FitError(f"counter scale class missing: {operation}")
+        result[operation] = {}
+        for metric in metrics:
+            if metric.endswith(".pct") or ".pct_of_peak_" in metric:
+                scale = 100.0
+            elif metric in {"dram__bytes.sum", "lts__t_sectors.sum"}:
+                samples = []
+                for item in selected:
+                    counters = item.get("native_counters",
+                                        item.get("counters", {}))
+                    native = counters.get(metric)
+                    if not isinstance(native, (int, float)) or \
+                            isinstance(native, bool) or \
+                            not math.isfinite(float(native)):
+                        raise FitError(
+                            f"training counter missing: {operation}:{metric}")
+                    opportunity = logical_issued_bytes(item)
+                    if metric == "lts__t_sectors.sum":
+                        opportunity = math.ceil(opportunity / 32.0)
+                    samples.append(max(abs(float(native)), opportunity))
+                scale = max(samples)
+            else:
+                scale = 0.0
+            result[operation][metric] = round(scale, 9)
+    return result
+
+
+def cross_validate(items: list[dict], metrics: list[str],
+                   thresholds: dict[str, int]) -> dict:
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for item in items:
+        key = (str(item.get("operation_class", "")), base_case_id(item))
+        grouped.setdefault(key, []).append(item)
+    fit_items: list[dict] = []
+    validation_items: list[dict] = []
+    for (operation, case_id), samples in sorted(grouped.items()):
+        ordered = sorted(samples, key=lambda item: str(item.get("case_id", "")))
+        if len(ordered) < 2:
+            raise FitError(
+                f"training cross-validation repetitions missing: {operation}:{case_id}")
+        fit_items.extend(ordered[0::2])
+        retained = ordered[1::2]
+        reference = dict(retained[0])
+        reference["case_id"] = f"{case_id}.cv-validation"
+        reference["latency_ns"] = statistics.median(
+            float(item["latency_ns"]) for item in retained)
+        reference["native_counters"] = {
+            metric: statistics.median(float(item.get(
+                "native_counters", item.get("counters", {}))[metric])
+                                      for item in retained)
+            for metric in metrics
+        }
+        validation_items.append(reference)
+    predictor = build_predictor(fit_items, metrics)
+    counter_scales = build_counter_error_scales(fit_items, metrics)
+    classes = []
+    for operation in CLASSES:
+        selected = [item for item in validation_items
+                    if item.get("operation_class") == operation]
+        if not selected:
+            raise FitError(
+                f"training cross-validation class missing: {operation}")
+        latency_errors = []
+        counter_errors = []
+        for item in selected:
+            modeled, modeled_counters = predict(
+                predictor, operation, feature_vector(item))
+            latency_errors.append(relative_error(
+                modeled, float(item["latency_ns"])))
+            native_counters = item.get("native_counters",
+                                       item.get("counters", {}))
+            for metric in metrics:
+                counter_errors.append(counter_error_percent(
+                    float(modeled_counters[metric]),
+                    float(native_counters[metric]), metric, item,
+                    counter_scales[operation][metric]))
+        p50 = percentile(latency_errors, .50)
+        p95 = percentile(latency_errors, .95)
+        counter = max(counter_errors)
+        counter_within = counter <= thresholds["counter_percent"]
+        passed = p50 <= thresholds["p50_percent"] and \
+            p95 <= thresholds["p95_percent"] and counter_within
+        classes.append({
+            "operation_class": operation,
+            "passed": passed,
+            "p50_error_percent": round(p50, 6),
+            "p95_error_percent": round(p95, 6),
+            "counter_error_percent": round(counter, 6),
+            "counter_within_holdout_threshold": counter_within,
+            "validation_samples": len(selected),
+        })
+    return {
+        "method": "repetition-stratified-training-only",
+        "split": {"fit_repetition_indices": "even",
+                  "validation_repetition_indices": "odd"},
+        "counter_error_scale_source": "fit_repetitions_only",
+        "holdout_read": False,
+        "passed": all(item["passed"] for item in classes),
+        "evaluated_samples": len(validation_items),
+        "classes": classes,
+    }
+
+
 def routing_bucket(item: dict) -> int:
     payload = [item.get("smid", 0), item.get("warpid", 0),
                item.get("cta_shape", [1, 1, 1]), item.get("resident_warps", 1),
@@ -259,6 +557,9 @@ def build_profile_base(training_path: pathlib.Path, manifest: dict,
             not isinstance(value, int) or isinstance(value, bool) or value <= 0
             for value in cluster):
         raise FitError("invalid deployment cluster shape")
+    clock_control = contract.get("clock_control")
+    if clock_control != "none":
+        raise FitError("unsupported calibration clock policy")
     snapshots = manifest.get("gpu_snapshots")
     if not isinstance(snapshots, list) or len(snapshots) < 2:
         raise FitError("operating-condition snapshots missing")
@@ -271,16 +572,26 @@ def build_profile_base(training_path: pathlib.Path, manifest: dict,
         raise FitError("operating-condition snapshot malformed") from error
     if len(set(power_limits)) != 1:
         raise FitError("power limit changed during training")
-    module_hash = str(modules[0].get("original_ptx_sha256", ""))
-    if len(module_hash) != 64:
+    module_hashes = sorted(str(module.get("original_ptx_sha256", ""))
+                           for module in modules if isinstance(module, dict))
+    if len(module_hashes) != len(modules) or \
+            len(set(module_hashes)) != len(module_hashes) or \
+            any(len(value) != 64 for value in module_hashes):
         raise FitError("stage1 module identity missing")
+    module_set_hash = module_hashes[0] if len(module_hashes) == 1 else \
+        sha(canonical(module_hashes))
     return {
         "schema_version": 2,
-        "profile_id": f"sm120-{training_sha256[:16]}-{module_hash[:12]}",
+        "profile_id": f"sm120-{training_sha256[:16]}-{module_set_hash[:12]}",
         "target": dict(target), "toolchain": dict(toolchain),
         "conditions": {
             "sm_clock_mhz": statistics.mode(sm_clocks),
             "memory_clock_mhz": statistics.mode(memory_clocks),
+            "clock_control": clock_control,
+            "sm_clock_min_mhz": min(sm_clocks),
+            "sm_clock_max_mhz": max(sm_clocks),
+            "memory_clock_min_mhz": min(memory_clocks),
+            "memory_clock_max_mhz": max(memory_clocks),
             "power_limit_mw": power_limits[0],
             "temperature_min_c": min(temperatures),
             "temperature_max_c": max(temperatures),
@@ -330,14 +641,43 @@ def main(argv: list[str]) -> int:
         gpc_labels = labels(items, "return_contention_vector", 2)
         gnic_lut = fitted_lut(items, gnic_labels, 4)
         gpc_lut = fitted_lut(items, gpc_labels, 2)
+        predictor = build_predictor(items, metrics)
+        predictor_sha256 = sha(canonical(predictor))
+        workload_domain = {
+            "schema_version": 1,
+            "match_policy": "exact_calibrated_vector",
+            "program_sha256": predictor_sha256,
+            "feature_names": list(predictor["feature_names"]),
+            "vectors_by_class": {
+                operation: [list(features) for features in sorted({
+                    tuple(prototype["features"])
+                    for prototype in predictor["prototypes_by_class"][operation]
+                })]
+                for operation in CLASSES
+            },
+        }
+        cross_validation = cross_validate(
+            items, metrics, manifest["exact_profile_contract"]["thresholds"])
+        if not cross_validation["passed"]:
+            failed = [item["operation_class"]
+                      for item in cross_validation["classes"]
+                      if not item["passed"]]
+            raise FitError("training cross-validation failed: " +
+                           ",".join(failed))
         service = []
         residuals = []
         counter_model: dict[str, dict[str, float]] = {}
         for operation in CLASSES:
             values = [float(item["latency_ns"]) for item in items
                       if item["operation_class"] == operation]
+            per_request = [
+                float(prototype["latency_ns"]) /
+                max(1.0, 2.0 ** float(prototype["features"][0]))
+                for prototype in
+                predictor["prototypes_by_class"][operation]
+            ]
             median = max(1, round(statistics.median(values)))
-            service.append(median)
+            service.append(max(1, round(statistics.median(per_request))))
             errors = [abs(value - median) * 100.0 / max(1.0, value)
                       for value in values]
             residuals.append({"operation_class": operation,
@@ -356,12 +696,15 @@ def main(argv: list[str]) -> int:
                 counter_model[operation][metric] = round(
                     statistics.median(float(value) for value in samples), 9)
         depth = max(int(item.get("queue_depth", 1)) for item in items)
+        counter_error_scales = build_counter_error_scales(items, metrics)
         routing = {"version": 1, "inputs": INPUTS,
                    "smsp_proxy_lut": [index % 4 for index in range(64)],
                    "gnic_lut": gnic_lut, "gpc_lut": gpc_lut}
         routing["program_sha256"] = sha(canonical(routing))
         calibration = {
             "label_semantics": "contention_equivalent",
+            "counter_error_contract": COUNTER_ERROR_CONTRACT,
+            "counter_error_scale_by_class": counter_error_scales,
             "gnic": {"count": 4, "depth": depth, "arbitration": "fifo",
                      "service_ns_by_class": service},
             "gpc": {"count": 2, "depth": depth,
@@ -375,27 +718,32 @@ def main(argv: list[str]) -> int:
             "counter_thresholds": [{"metric": metric,
                                       "max_error_percent": 10.0}
                                      for metric in metrics],
+            "workload_domain": workload_domain,
         }
         training_sha256 = sha(raw_training)
         candidate = build_profile_base(training_path, manifest, stage1_path,
                                        stage1, training_sha256)
+        candidate["profile_id"] += f"-{predictor_sha256[:12]}"
         candidate["calibration"] = calibration
         candidate["fit_report"] = {
             "schema_version": 1, "training_sha256": training_sha256,
             "environment_sha256": environment_sha256,
             "frozen_thresholds": candidate["thresholds"],
             "selected": {"gnic_classes": 4, "gpc_classes": 2,
-                         "routing_program_sha256": routing["program_sha256"]},
-            "cross_validation": {"method": "deterministic-even-odd-training-only",
-                                 "holdout_read": False},
+                         "routing_program_sha256": routing["program_sha256"],
+                         "predictor_program_sha256": predictor_sha256},
+            "cross_validation": cross_validation,
             "counter_model_by_class": counter_model,
+            "predictor": predictor,
             "rejected_candidates": [
                 {"gnic_classes": value, "reason": "required_class_count_mismatch"}
                 for value in (1, 2, 3, 5, 6)],
         }
         encoded = (json.dumps(candidate, indent=2, sort_keys=True) + "\n").encode()
         with output.open("xb") as stream:
-            stream.write(encoded); stream.flush(); os.fsync(stream.fileno())
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
         print(json.dumps({"status": "pending", "output": str(output),
                           "routing_program_sha256": routing["program_sha256"]},
                          sort_keys=True))

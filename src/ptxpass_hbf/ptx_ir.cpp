@@ -197,14 +197,21 @@ std::optional<MemoryInstruction> parse_memory(
         throw ParseError("global memory instruction has too few operands");
     }
     static const std::regex address(
-        R"(^\[\s*(%[A-Za-z][A-Za-z0-9_$]*)(?:\s*([+-])\s*((?:0[xX])?[0-9A-Fa-f]+))?\s*\]$)");
+        R"(^\[\s*(%[A-Za-z][A-Za-z0-9_$]*)(?:\s*([+-])\s*(-?(?:0[xX])?[0-9A-Fa-f]+))?\s*\]$)");
     std::smatch address_match;
     if (!std::regex_match(operands[address_index], address_match, address)) {
         throw ParseError("unsupported global address expression");
     }
     std::string offset;
     if (address_match[2].matched) {
-        offset = address_match[2].str() + address_match[3].str();
+        auto magnitude = address_match[3].str();
+        const bool magnitude_negative = magnitude.starts_with('-');
+        if (magnitude_negative) {
+            magnitude.erase(magnitude.begin());
+        }
+        const bool negative =
+            (address_match[2].str() == "-") != magnitude_negative;
+        offset = (negative ? "-" : "+") + magnitude;
     }
     const auto signed_offset = parse_integer(offset);
     if (!signed_offset.has_value()) {
@@ -365,17 +372,16 @@ Module parse_module(std::string_view ptx)
         R"(^\s*([A-Za-z_$][A-Za-z0-9_$.]*)\s*:\s*$)");
 
     const auto new_block = [&](Function& value, std::string label) {
-        if (!value.blocks.empty() && value.blocks.back().instructions.empty()) {
-            value.blocks.back().label = std::move(label);
-        } else {
-            value.blocks.push_back({.label = std::move(label)});
-        }
+        // Consecutive PTX labels are aliases for the same instruction.  Keep
+        // each alias as an empty fall-through block so branches to either
+        // spelling remain resolvable by CFG construction.
+        value.blocks.push_back({.label = std::move(label)});
     };
 
     while (std::getline(input, raw)) {
         ++line_number;
         auto line = without_comment(raw);
-        const auto clean = trim(line);
+        auto clean = trim(line);
         if (function == nullptr) {
             std::smatch match;
             if (std::regex_search(line, match, function_expression)) {
@@ -401,7 +407,13 @@ Module parse_module(std::string_view ptx)
         if (!body_open) {
             throw ParseError("invalid PTX function state");
         }
-        if (instruction_text.empty() && clean.starts_with("{")) {
+        if (instruction_text.empty() && clean.size() >= 2 &&
+            clean.front() == '{' && clean.back() == '}' &&
+            clean.find(';') != std::string::npos) {
+            clean = trim(std::string_view{clean}.substr(1, clean.size() - 2));
+            line = clean;
+        }
+        if (instruction_text.empty() && clean == "{") {
             ++nested_scope;
             continue;
         }
@@ -445,8 +457,14 @@ Module parse_module(std::string_view ptx)
         if (clean.find(';') == std::string::npos) {
             continue;
         }
-        auto instruction = parse_instruction(
-            std::move(instruction_text), instruction_location, next_id++);
+        Instruction instruction;
+        try {
+            instruction = parse_instruction(
+                std::move(instruction_text), instruction_location, next_id++);
+        } catch (const ParseError& error) {
+            throw ParseError(std::string{error.what()} + " at PTX line " +
+                             std::to_string(instruction_location.line));
+        }
         instruction_text.clear();
         const auto index = function->instructions.size();
         const bool terminator = instruction.opcode == "bra" ||

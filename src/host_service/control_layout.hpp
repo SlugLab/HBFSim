@@ -12,7 +12,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 8;
+inline constexpr std::uint32_t kControlAbiVersion = 9;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kTensorMapCapacity = 256;
 inline constexpr std::uint32_t kSm120StateCapacity = 256;
@@ -178,11 +178,17 @@ struct alignas(64) SharedTensorMapSlot {
     std::uint64_t global_stride[5];
     std::uint32_t box_dim[5];
     std::uint32_t element_stride[5];
+    std::int32_t lower_corner[5];
+    std::int32_t upper_corner[5];
+    std::uint32_t channels_per_pixel;
+    std::uint32_t pixels_per_column;
+    std::uint32_t wide_mode;
     std::uint32_t rank;
     std::uint32_t mode;
     std::uint32_t element_type;
     std::uint32_t interleave;
     std::uint32_t swizzle;
+    std::uint32_t swizzle_atomicity;
     std::uint32_t l2_promotion;
     std::uint32_t oob_fill;
     std::uint32_t fenced;
@@ -254,7 +260,7 @@ static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
 static_assert(sizeof(SharedControlHeader) == 576);
 static_assert(sizeof(SharedRangeRecord) == 64);
-static_assert(sizeof(SharedTensorMapSlot) == 384);
+static_assert(sizeof(SharedTensorMapSlot) == 448);
 static_assert(sizeof(SharedSm120ChannelConfig) == 1024);
 static_assert(sizeof(SharedSm120ChannelState) == 256);
 static_assert(sizeof(SharedRequestSlot) == 192);

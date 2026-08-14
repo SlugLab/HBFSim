@@ -49,6 +49,7 @@ int main()
             {"[%dst]", "[" + coordinates + "]", "[%bar]"});
         require(load.direction == hbfsim::ptx::TmaDirection::GlobalToShared &&
                     load.dimensions == dimensions &&
+                    load.shared_address == "%dst" &&
                     load.coordinates.size() == dimensions &&
                     load.completion == hbfsim::ptx::CompletionKind::Mbarrier,
                 "typed tiled load differs");
@@ -57,6 +58,7 @@ int main()
                 "d.global.shared::cta.tile.bulk_group",
             {"[" + coordinates + "]", "[%src]"});
         require(store.direction == hbfsim::ptx::TmaDirection::SharedToGlobal &&
+                    store.shared_address == "%src" &&
                     store.completion == hbfsim::ptx::CompletionKind::BulkGroup,
                 "typed tiled store differs");
     }
@@ -77,18 +79,50 @@ int main()
         "mbarrier::complete_tx::bytes",
         {"[%dst]", "[%tm, {%a, %b, %c, %d, %e}]", "[%bar]",
          "{%ow, %oh, %od}"});
-    require(im2col.mode == hbfsim::ptx::TensorMode::Im2col,
+    require(im2col.mode == hbfsim::ptx::TensorMode::Im2col &&
+                im2col.im2col_offsets ==
+                    std::vector<std::string>{"%ow", "%oh", "%od"},
             "im2col mode differs");
     auto wide = tma(
         "cp.async.bulk.tensor.3d.im2col::w.shared::cluster.global."
         "mbarrier::complete_tx::bytes",
         {"[%dst]", "[%tm, {%a, %b, %c}]", "[%bar]", "{%halo, %offs}"});
-    require(wide.mode == hbfsim::ptx::TensorMode::Im2colWide,
+    require(wide.mode == hbfsim::ptx::TensorMode::Im2colWide &&
+                wide.im2col_offsets ==
+                    std::vector<std::string>{"%halo", "%offs"},
             "wide im2col mode differs");
+    auto im2col_store = tma(
+        "cp.async.bulk.tensor.3d.global.shared::cta.im2col_no_offs.bulk_group",
+        {"[%tm, {%a, %b, %c}]", "[%src]"});
+    require(im2col_store.direction ==
+                    hbfsim::ptx::TmaDirection::SharedToGlobal &&
+                im2col_store.mode == hbfsim::ptx::TensorMode::Im2col &&
+                im2col_store.im2col_offsets.empty(),
+            "im2col_no_offs store mode differs");
     auto reduction = tma(
         "cp.reduce.async.bulk.tensor.2d.global.shared::cta.add.tile.bulk_group",
         {"[%tm, {%x, %y}]", "[%src]"});
     require(reduction.reduction == "add", "TMA reduction was not typed");
+    auto prefetch = tma(
+        "cp.async.bulk.prefetch.tensor.2d.L2.global.tile",
+        {"[%tm, {%x, %y}]"});
+    require(prefetch.direction == hbfsim::ptx::TmaDirection::Prefetch &&
+                prefetch.completion == hbfsim::ptx::CompletionKind::BulkGroup &&
+                prefetch.descriptor == "%tm" &&
+                prefetch.coordinates ==
+                    std::vector<std::string>{"%x", "%y"} &&
+                prefetch.shared_address.empty() && prefetch.barrier.empty(),
+            "tensor prefetch bulk-group operands differ");
+    auto prefetch_im2col = tma(
+        "cp.async.bulk.prefetch.tensor.3d.L2.global.im2col.L2::cache_hint",
+        {"[%tm, {%x, %y, %z}]", "{%off}", "%policy"});
+    require(prefetch_im2col.direction ==
+                    hbfsim::ptx::TmaDirection::Prefetch &&
+                prefetch_im2col.mode == hbfsim::ptx::TensorMode::Im2col &&
+                prefetch_im2col.im2col_offsets ==
+                    std::vector<std::string>{"%off"} &&
+                prefetch_im2col.cache_hint,
+            "im2col tensor prefetch operands differ");
 
     using namespace hbfsim::ptx;
     auto barrier = parse_async_instruction(
@@ -116,23 +150,55 @@ int main()
         {"[%tm]", "2", "%value"});
     require(replace &&
                 std::get<TensorMapInstruction>(*replace).ordinal == 2 &&
-                std::get<TensorMapInstruction>(*replace).field == "global_dim",
+                std::get<TensorMapInstruction>(*replace).field == "global_dim" &&
+                std::get<TensorMapInstruction>(*replace).state_space ==
+                    "global",
             "TensorMap replace differs");
+    auto shared_replace = parse_async_instruction(
+        "tensormap.replace.tile.global_address.shared::cta.b1024.b64",
+        {"[%shared]", "%replacement"});
+    require(shared_replace &&
+                std::get<TensorMapInstruction>(*shared_replace).state_space ==
+                    "shared::cta",
+            "TensorMap shared replace state space differs");
     auto release = parse_async_instruction(
         "fence.proxy.tensormap::generic.release.gpu", {});
     auto acquire = parse_async_instruction(
         "fence.proxy.tensormap::generic.acquire.gpu", {"[%tm]", "128"});
     auto async_fence = parse_async_instruction("fence.proxy.async.shared::cta", {});
-    require(release && acquire && async_fence,
+    auto copy_fence = parse_async_instruction(
+        "tensormap.cp_fenceproxy.global.shared::cta."
+        "tensormap::generic.release.gpu.sync.aligned",
+        {"[%global]", "[%shared]", "128"});
+    require(release && acquire && async_fence && copy_fence &&
+                std::get<TensorMapInstruction>(*copy_fence).op ==
+                    TensorMapOp::CopyFence &&
+                std::get<TensorMapInstruction>(*copy_fence).address ==
+                    "%global" &&
+                std::get<TensorMapInstruction>(*copy_fence).source ==
+                    "%shared" &&
+                std::get<TensorMapInstruction>(*copy_fence).state_space ==
+                    "shared::cta",
             "TensorMap/async fence was not typed");
 
     rejects("cp.async.bulk.tensor.6d.shared::cta.global.tile", {"[%d]"});
     rejects("cp.async.bulk.tensor.3d.tile::gather4.shared::cta.global",
             {"[%d]", "[%tm, {%x, %y, %z}]", "[%bar]"});
+    rejects("cp.async.bulk.prefetch.tensor.1d.L2.global.tile.cta_group::2",
+            {"[%tm, {%x}]"});
+    rejects("cp.async.bulk.prefetch.tensor.1d.L2.global.tile.multicast::cluster",
+            {"[%tm, {%x}]", "%mask"});
+    rejects("cp.async.bulk.tensor.3d.global.shared::cta.im2col.bulk_group",
+            {"[%tm, {%x, %y, %z}]", "[%src]", "{%off}"});
+    rejects("cp.async.bulk.tensor.3d.global.shared::cta.im2col::w.bulk_group",
+            {"[%tm, {%x, %y, %z}]", "[%src]", "{%halo, %off}"});
     rejects("cp.async.bulk.wait_group", {"8"});
     rejects("mbarrier.test_wait.shared.b64", {"%p", "[%bar]"});
     rejects("tensormap.replace.tile.global_dim.global.b1024.b64",
             {"[%tm]", "7", "%value"});
+    rejects("tensormap.cp_fenceproxy.global.shared::cta."
+            "tensormap::generic.release.gpu.sync.aligned",
+            {"[%global]", "[%shared]", "64"});
 
     const auto module = parse_module(R"ptx(
 .version 9.0

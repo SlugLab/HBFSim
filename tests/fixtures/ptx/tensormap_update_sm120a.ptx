@@ -1,0 +1,30 @@
+.version 9.0
+.target sm_120a
+.address_size 64
+
+.visible .entry tensormap_update_sm120a(
+    .param .u64 descriptor,
+    .param .u64 replacement,
+    .param .u64 destination,
+    .param .u64 barrier
+)
+{
+    .reg .b64 %rd<8>;
+    .reg .b32 %r<3>;
+    .reg .pred %p<2>;
+    ld.param.u64 %rd1, [descriptor];
+    ld.param.u64 %rd2, [replacement];
+    ld.param.u64 %rd3, [destination];
+    ld.param.u64 %rd4, [barrier];
+    mov.u32 %r1, 0;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    tensormap.replace.tile.global_address.global.b1024.b64 [%rd1], %rd2;
+    fence.proxy.tensormap::generic.release.gpu;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    mbarrier.init.shared::cta.b64 [%rd4], 1;
+    cp.async.bulk.tensor.1d.shared::cta.global.tile.mbarrier::complete_tx::bytes
+        [%rd3], [%rd1, {%r1}], [%rd4];
+    mbarrier.arrive.shared::cta.b64 %rd5, [%rd4];
+    mbarrier.test_wait.shared::cta.b64 %p1, [%rd4], %rd5;
+    ret;
+}

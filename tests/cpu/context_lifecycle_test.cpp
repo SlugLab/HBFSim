@@ -21,6 +21,11 @@
 
 namespace {
 
+static_assert(hbfsim::runtime::effective_heartbeat_timeout_ns(1) ==
+              50'000'000ULL);
+static_assert(hbfsim::runtime::effective_heartbeat_timeout_ns(
+                  10'000'000'000ULL) == 1'000'000'000ULL);
+
 [[noreturn]] void fail(const char* expression, int line)
 {
     std::fprintf(stderr, "CPU seam CHECK failed at line %d: %s\n", line,
@@ -116,7 +121,7 @@ void verify_empirical_publication(hbfsim_context* context,
     CHECK(mapping != MAP_FAILED);
     const auto* header =
         static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
-    CHECK(header->abi_version == 8);
+    CHECK(header->abi_version == 9);
     CHECK(header->empirical_burst_state == 0);
     if (expected_empirical) {
         CHECK(header->empirical_flags == 1);

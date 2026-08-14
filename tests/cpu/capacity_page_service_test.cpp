@@ -107,6 +107,10 @@ int main()
     CHECK(page_zero_hit.status == hbfsim::RequestStatus::Ready);
     CHECK(page_zero_hit.media.flags ==
           hbfsim::host_service::CapacityMediaNone);
+    const auto warm_stats = service.stats();
+    CHECK(warm_stats.cache_misses == 1);
+    CHECK(warm_stats.cache_hits == 1);
+    CHECK(warm_stats.dirty_writebacks == 0);
 
     const auto page_one = service.resolve(1, 1);
     CHECK(page_one.status == hbfsim::RequestStatus::Ready);

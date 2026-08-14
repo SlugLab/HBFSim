@@ -1,0 +1,33 @@
+.version 9.0
+.target sm_120
+.address_size 64
+
+.visible .entry tma_im2col_multicast_sm120(
+    .param .u64 tmap,
+    .param .u64 dst,
+    .param .u64 barrier,
+    .param .u16 offset,
+    .param .u16 mask
+)
+.maxclusterrank 2
+{
+    .reg .b64 %rd<6>;
+    .reg .b32 %r<4>;
+    .reg .u16 %rs<3>;
+    .reg .pred %p<2>;
+    ld.param.u64 %rd1, [tmap];
+    ld.param.u64 %rd2, [dst];
+    ld.param.u64 %rd3, [barrier];
+    ld.param.u16 %rs1, [offset];
+    ld.param.u16 %rs2, [mask];
+    mov.u32 %r1, 0;
+    mov.u32 %r2, 0;
+    mov.u32 %r3, 0;
+    fence.proxy.tensormap::generic.acquire.gpu [%rd1], 128;
+    mbarrier.init.shared::cta.b64 [%rd3], 1;
+    cp.async.bulk.tensor.3d.shared::cluster.global.im2col.mbarrier::complete_tx::bytes.multicast::cluster
+        [%rd2], [%rd1, {%r1, %r2, %r3}], [%rd3], {%rs1}, %rs2;
+    mbarrier.arrive.shared::cta.b64 %rd4, [%rd3];
+    mbarrier.test_wait.shared::cta.b64 %p1, [%rd3], %rd4;
+    ret;
+}

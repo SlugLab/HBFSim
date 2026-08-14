@@ -85,18 +85,41 @@ int main()
     require(bytes(swizzled) == 32,
             "swizzled tile lost bytes");
 
+    auto traversed = tiled(2);
+    traversed.shape.box_dim = {4, 5, 0, 0, 0};
+    traversed.shape.element_stride = {8, 2, 0, 0, 0};
+    const std::int32_t zero2[2]{};
+    require(bytes(hbfsim::expand_and_split(
+                traversed, zero2,
+                {}, hbfsim::TmaTransferDirection::Load)) == 48,
+            "CPU tiled traversal-stride byte count differs");
+
+    auto packed = tiled(1);
+    packed.base_address = 0x200000;
+    packed.element_type = 14;
+    packed.shape.global_dim[0] = 128;
+    packed.shape.box_dim[0] = 128;
+    const auto packed_segments = hbfsim::expand_and_split(
+        packed, zero, {}, hbfsim::TmaTransferDirection::Load);
+    require(bytes(packed_segments) == 64 &&
+                packed_segments.back().destination_offset == 112,
+            "CPU packed b4x16_p64 expansion differs");
+
     auto gather = tiled(2);
-    gather.shape.box_dim = {2, 4, 0, 0, 0};
+    gather.shape.box_dim = {4, 1, 0, 0, 0};
     const std::int32_t gather_coordinates[5]{0, 1, 3, 5, 7};
     require(bytes(hbfsim::expand_and_split(
                 gather, gather_coordinates, {},
                 hbfsim::TmaTransferDirection::Load,
-                hbfsim::TmaAccessMode::Gather4)) == 32,
+                hbfsim::TmaAccessMode::Gather4)) == 64,
             "gather4 byte expansion differs");
 
     auto im2col = tiled(3);
     im2col.mode = hbfsim::TensorMapMode::Im2col;
     im2col.shape.lower_corner = {-1, -1, 0, 0, 0};
+    im2col.shape.upper_corner = {0, 0, 0, 0, 0};
+    im2col.shape.channels_per_pixel = 2;
+    im2col.shape.pixels_per_column = 4;
     const std::int32_t im2col_coordinates[3]{0, 0, 0};
     const auto im2col_segments = hbfsim::expand_and_split(
         im2col, im2col_coordinates, {},
@@ -108,6 +131,14 @@ int main()
                                    hbfsim::SegmentSpace::OobFill;
                         }),
             "im2col signed halo did not produce OOB segments");
+    const std::int32_t im2col_offset[1]{1};
+    const auto shifted_im2col = hbfsim::expand_and_split(
+        im2col, im2col_coordinates, {},
+        hbfsim::TmaTransferDirection::Load,
+        hbfsim::TmaAccessMode::Im2col, im2col_offset);
+    require(bytes(shifted_im2col) == 32 &&
+                shifted_im2col.front().space == hbfsim::SegmentSpace::Hbm,
+            "runtime im2col offset did not shift the filter base");
 
     bool rejected = false;
     try {

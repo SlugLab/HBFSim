@@ -218,7 +218,29 @@ def version(executable: pathlib.Path, arguments: list[str]) -> str:
     return completed.stdout.decode("utf-8", "replace").strip()
 
 
-def parse_benchmark_record(stdout: bytes, case_id: str) -> dict[str, object]:
+def expected_opcode_class(case: dict[str, object]) -> str:
+    operation = str(case.get("operation_class", ""))
+    dimensions = int(case.get("dimension_count", 0))
+    if operation == "ordinary_load":
+        return "ld.global.u64"
+    if operation == "ordinary_store":
+        return "st.global.u64"
+    if operation == "mixed_hbm_hbf":
+        return "ld.global.u64+st.global.u64"
+    if operation == "tma_store":
+        return f"tma_store_{dimensions}d"
+    if operation == "unicast":
+        return f"tma_load_{dimensions}d_unicast"
+    if operation == "multicast":
+        return f"tma_load_{dimensions}d_multicast"
+    if operation == "tma_load":
+        return f"tma_load_{dimensions}d"
+    raise ToolError("benchmark case operation class is unsupported")
+
+
+def parse_benchmark_record(stdout: bytes,
+                           case: dict[str, object]) -> dict[str, object]:
+    case_id = str(case.get("id", ""))
     for line in reversed(stdout.decode("utf-8", "replace").splitlines()):
         if not line.lstrip().startswith("{"):
             continue
@@ -230,13 +252,36 @@ def parse_benchmark_record(stdout: bytes, case_id: str) -> dict[str, object]:
             if record.get("bit_exact") is not True or \
                     record.get("output_sha256") != record.get("expected_sha256"):
                 raise ToolError(f"benchmark correctness failure: {case_id}")
+            required_matches = {
+                "executed_dimension_count": int(case.get("dimension_count", 0)),
+                "executed_queue_depth": int(case.get("queue_depth", 1)),
+                "executed_multicast_mask": int(case.get("multicast_mask", 0)),
+                "executed_cluster_shape": case.get("cluster_shape", [1, 1, 1]),
+                "cache_condition_executed": str(case.get("cache_condition", "")),
+                "hardware_opcode_class": expected_opcode_class(case),
+            }
+            for field, expected in required_matches.items():
+                if record.get(field) != expected:
+                    raise ToolError(
+                        f"benchmark execution evidence mismatch: {case_id}:{field}")
+            issued = record.get("issued_operations")
+            if not isinstance(issued, int) or isinstance(issued, bool) or issued <= 0:
+                raise ToolError(
+                    f"benchmark issued-operation evidence missing: {case_id}")
+            if "proxy" in str(record.get("hardware_opcode_class", "")).lower():
+                raise ToolError(f"benchmark proxy opcode is forbidden: {case_id}")
+            if case.get("operation_class") == "multicast" and \
+                    record.get("cluster_ctarank") != case.get("cta_rank"):
+                raise ToolError(
+                    f"benchmark multicast issuer rank mismatch: {case_id}")
             return record
     raise ToolError(f"benchmark JSON record missing: {case_id}")
 
 
 def metric_number(text: str) -> float:
     value = text.strip().replace(",", "")
-    if value.endswith("%"): value = value[:-1]
+    if value.endswith("%"):
+        value = value[:-1]
     try:
         result = float(value)
     except ValueError as error:
@@ -293,6 +338,16 @@ def observation(case: dict[str, object], repetition: int,
             "cluster_ctarank": int(record.get("cluster_ctarank", 0)),
             "bytes": int(case.get("bytes", 1)),
             "queue_depth": int(case.get("queue_depth", 1)),
+            "iterations": int(case.get("iterations", 1)),
+            "load_use_distance": int(case.get("load_use_distance", 0)),
+            "dimensions": [int(value) for value in
+                           case.get("dimensions", [])],
+            "hardware_opcode_class": str(record["hardware_opcode_class"]),
+            "executed_dimension_count": int(record["executed_dimension_count"]),
+            "executed_multicast_mask": int(record["executed_multicast_mask"]),
+            "executed_cluster_shape": list(record["executed_cluster_shape"]),
+            "issued_operations": int(record["issued_operations"]),
+            "cache_condition_executed": str(record["cache_condition_executed"]),
             "native_counters": metrics,
             "contention_vector": [
                 metrics["smsp__inst_executed_pipe_lsu.avg.pct_of_peak_sustained_active"],
@@ -341,7 +396,8 @@ def main(argv: list[str]) -> int:
         exact_contract = cases.get("exact_profile_contract")
         if not isinstance(exact_contract, dict) or \
                 exact_contract.get("concurrency_condition") != \
-                "exclusive_process":
+                "exclusive_process" or \
+                exact_contract.get("clock_control") != "none":
             raise InputError("exact profile contract is missing or unsafe")
         case_items = cases.get("cases")
         if not isinstance(case_items, list) or not case_items:
@@ -411,10 +467,17 @@ def main(argv: list[str]) -> int:
                                              completed.stderr))
                 if completed.returncode != 0:
                     raise ToolError(f"warmup failed: {case_id}")
-                parse_benchmark_record(completed.stdout, case_id)
+                parse_benchmark_record(completed.stdout, cases_by_id[case_id])
             for repetition in range(repetitions):
-                command = [str(ncu), "--csv", "--page", "raw", "--metrics",
-                           ",".join(METRICS), "--target-processes", "all", "--",
+                command = [str(ncu), "--csv", "--page", "details",
+                           "--replay-mode", "application",
+                           "--app-replay-mode", "strict",
+                           "--cache-control", "none",
+                           "--clock-control",
+                           str(exact_contract["clock_control"]), "--metrics",
+                           ",".join(METRICS), "--target-processes", "all",
+                           "--kernel-name-base", "function", "--kernel-name",
+                           "regex:.*calibration_kernel.*", "--",
                            *benchmark_command]
                 commands.append(command)
                 completed = run(command)
@@ -423,15 +486,17 @@ def main(argv: list[str]) -> int:
                                               completed.stdout)
                 stderr_member = durable_write(partial / f"{prefix}.stderr.raw",
                                               completed.stderr)
-                csv_lines = [line for line in completed.stdout.splitlines()
+                profile_output = completed.stdout + b"\n" + completed.stderr
+                csv_lines = [line for line in profile_output.splitlines()
                              if not line.lstrip().startswith(b"{")]
                 csv_data = b"\n".join(csv_lines) + (b"\n" if csv_lines else b"")
                 csv_member = durable_write(partial / f"{prefix}.ncu.csv", csv_data)
                 members.extend((stdout_member, stderr_member, csv_member))
                 if completed.returncode != 0:
                     raise ToolError(f"Nsight collection failed: {case_id}")
-                record = parse_benchmark_record(completed.stdout, case_id)
-                metrics = parse_ncu_metrics(completed.stdout)
+                record = parse_benchmark_record(
+                    profile_output, cases_by_id[case_id])
+                metrics = parse_ncu_metrics(profile_output)
                 snapshot = gpu_snapshot(nvidia_smi)
                 if snapshot["gpu_uuid"] != initial_snapshot["gpu_uuid"] or \
                         snapshot["power_limit_mw"] != \

@@ -1,0 +1,33 @@
+diff --git a/attach/nv_attach_impl/nv_attach_impl.cpp b/attach/nv_attach_impl/nv_attach_impl.cpp
+--- a/attach/nv_attach_impl/nv_attach_impl.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl.cpp
+@@ -1934,5 +1934,29 @@ void nv_attach_impl::bootstrap_existing_fatbins()
+ {
+ 	SPDLOG_INFO("nv_attach_impl: late attach bootstrap scanning fatbins..");
++	const char *prepatched_env =
++		getenv("BPFTIME_CUDA_LATE_PTX_PREPATCHED");
++	const bool prepatched = prepatched_env != nullptr &&
++		prepatched_env[0] == '1' && prepatched_env[1] == '\0';
++	if (prepatched) {
++		// The external directory is the complete, content-addressed exact
++		// module set. extract_ptxs() ignores individual fatbin bytes in this
++		// mode, so walking every registered fatbin would reload the identical
++		// set once per wrapper (thousands of times in llama.cpp/vLLM).
++		auto extracted_ptx = extract_ptxs({});
++		if (extracted_ptx.empty())
++			throw std::runtime_error(
++				"Prepatched PTX directory contains no modules");
++		auto rec = std::make_unique<fatbin_record>();
++		rec->original_ptx = std::move(extracted_ptx);
++		rec->module_pool = module_pool;
++		rec->ptx_pool = ptx_pool;
++		rec->try_loading_ptxs(*this);
++		fatbin_records.emplace_back(std::move(rec));
++		SPDLOG_INFO(
++			"nv_attach_impl: prepatched late attach bootstrap ingested one exact module set");
++		prefill_patched_kernel_functions_from_loaded_fatbins();
++		return;
++	}
+ 	auto modules = elf_introspect::list_loaded_modules();
+ 	std::size_t ingested = 0;
+ 

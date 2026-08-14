@@ -92,6 +92,24 @@ int main()
                 store.memory->bytes == 8,
             "store memory record is wrong");
 
+    const auto nvcc_offset = hbfsim::ptx::parse_module(R"PTX(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry nvcc_offset() {
+    ld.global.u64 %rd1, [%rd2+-32];
+    st.global.u64 [%rd2- -16], %rd1;
+    ret;
+}
+)PTX");
+    const auto& offset_kernel = nvcc_offset.function("nvcc_offset");
+    require(offset_kernel.instructions.at(0).memory.has_value() &&
+                offset_kernel.instructions.at(0).memory->signed_offset == -32,
+            "nvcc plus-negative address offset was not normalized");
+    require(offset_kernel.instructions.at(1).memory.has_value() &&
+                offset_kernel.instructions.at(1).memory->signed_offset == 16,
+            "nvcc minus-negative address offset was not normalized");
+
     const auto& branch = find_opcode(kernel, "bra");
     require(branch.predicate == "@%p1" &&
                 branch.branch_targets == std::vector<std::string>({"load_path"}),
@@ -115,6 +133,44 @@ done:
                 qualified_branch.branch_targets ==
                     std::vector<std::string>({"done"}),
             "qualified branch target metadata is wrong");
+
+    const auto adjacent_labels = hbfsim::ptx::parse_module(R"PTX(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry adjacent_labels() {
+    bra first;
+first:
+second:
+    ret;
+}
+)PTX");
+    const auto& adjacent_kernel = adjacent_labels.function("adjacent_labels");
+    require(adjacent_kernel.blocks.size() == 3,
+            "adjacent labels were collapsed into one basic block");
+    require(adjacent_kernel.blocks.at(1).label == "first" &&
+                adjacent_kernel.blocks.at(1).instructions.empty() &&
+                adjacent_kernel.blocks.at(2).label == "second",
+            "adjacent label aliases were not preserved");
+
+    const auto inline_scope = hbfsim::ptx::parse_module(R"PTX(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .func helper() {
+    { cvt.f32.f16 %f1, %rs1;}
+    ret;
+}
+.visible .entry after_helper() {
+    mov.u32 %r1, 7;
+    ret;
+}
+)PTX");
+    require(find_opcode(inline_scope.function("helper"), "cvt.f32.f16")
+                    .defs == std::vector<std::string>({"%f1"}) &&
+                find_opcode(inline_scope.function("after_helper"), "mov.u32")
+                    .defs == std::vector<std::string>({"%r1"}),
+            "NVCC one-line scoped instruction consumed the next function");
 
     bool missing_rejected = false;
     try {

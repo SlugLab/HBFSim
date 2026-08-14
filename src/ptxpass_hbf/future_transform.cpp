@@ -103,6 +103,14 @@ std::uint32_t value_bits(const Instruction& instruction)
     return 0;
 }
 
+std::uint32_t snapshot_register_bits(const Instruction& instruction)
+{
+    // PTX registers have a minimum width of 16 bits. Byte loads/stores name
+    // their scalar operands through .b16 registers even though the memory
+    // access itself is 8 bits wide.
+    return std::max<std::uint32_t>(16, value_bits(instruction));
+}
+
 std::vector<std::string> snapshot_sources(const Instruction& instruction)
 {
     std::vector<std::string> result;
@@ -196,10 +204,11 @@ std::string instruction_text(const Instruction& instruction,
     return output.str();
 }
 
-bool immediate_load_wait(const Instruction& instruction)
+bool immediate_ordering_wait(const Instruction& instruction)
 {
     if (!instruction.memory.has_value() ||
-        instruction.memory->kind != MemoryKind::Load) {
+        (instruction.memory->kind != MemoryKind::Load &&
+         instruction.memory->kind != MemoryKind::AtomicRmw)) {
         return false;
     }
     const auto& qualifiers = instruction.memory->qualifiers;
@@ -234,7 +243,7 @@ std::string future_declarations(const Instruction& instruction)
            << "    .reg .pred " << reg(id, "consumed") << ";\n"
            << "    .reg .pred " << reg(id, "deferred") << ";\n"
            << "    .reg .pred " << reg(id, "fault") << ";\n";
-    const auto bits = value_bits(instruction);
+    const auto bits = snapshot_register_bits(instruction);
     const auto sources = snapshot_sources(instruction);
     for (std::size_t index = 0; index < sources.size(); ++index) {
         output << "    .reg .b" << bits << ' '
@@ -309,7 +318,7 @@ std::string emit_issue(const Instruction& instruction)
         output << "    " << inverse_predicate(instruction.predicate)
                << " bra " << false_label << ";\n";
     }
-    const auto bits = value_bits(instruction);
+    const auto bits = snapshot_register_bits(instruction);
     const auto snapshots = snapshot_map(instruction);
     for (const auto& [source, destination] : snapshots) {
         output << "    mov.b" << bits << ' ' << destination << ", "
@@ -431,6 +440,21 @@ std::string emit_wait(const Instruction& future,
     return output.str();
 }
 
+std::string emit_reissue_drain(const Instruction& future)
+{
+    auto output = emit_wait(future, nullptr, 0, 1);
+    const auto marker = "// HBFSim future wait " +
+                        std::to_string(future.instruction_id);
+    const auto position = output.find(marker);
+    if (position == std::string::npos) {
+        throw ParseError("future reissue drain marker is missing");
+    }
+    output.replace(position, marker.size(),
+                   "// HBFSim future reissue drain " +
+                       std::to_string(future.instruction_id));
+    return output;
+}
+
 std::size_t function_body_line(const std::vector<std::string>& lines,
                                std::string_view kernel)
 {
@@ -504,6 +528,47 @@ bool supported_atomic(const Instruction& instruction)
     return std::regex_search(instruction.opcode, type);
 }
 
+bool instruction_may_reissue(const Function& function,
+                             const ControlFlowGraph& cfg,
+                             std::uint32_t instruction_id)
+{
+    std::size_t instruction_index = function.instructions.size();
+    for (std::size_t index = 0; index < function.instructions.size(); ++index) {
+        if (function.instructions[index].instruction_id == instruction_id) {
+            instruction_index = index;
+            break;
+        }
+    }
+    if (instruction_index == function.instructions.size()) return false;
+    std::size_t origin = function.blocks.size();
+    for (std::size_t block = 0; block < function.blocks.size(); ++block) {
+        if (std::find(function.blocks[block].instructions.begin(),
+                      function.blocks[block].instructions.end(),
+                      instruction_index) !=
+            function.blocks[block].instructions.end()) {
+            origin = block;
+            break;
+        }
+    }
+    if (origin == function.blocks.size()) return false;
+    std::vector<bool> visited(function.blocks.size(), false);
+    std::vector<std::size_t> pending;
+    pending.reserve(function.blocks.size());
+    for (const auto successor : cfg.successors[origin]) {
+        pending.push_back(successor);
+    }
+    while (!pending.empty()) {
+        const auto block = pending.back();
+        pending.pop_back();
+        if (block == origin) return true;
+        if (block >= visited.size() || visited[block]) continue;
+        visited[block] = true;
+        pending.insert(pending.end(), cfg.successors[block].begin(),
+                       cfg.successors[block].end());
+    }
+    return false;
+}
+
 }  // namespace
 
 FutureTransformResult transform_futures(std::string_view ptx,
@@ -564,9 +629,14 @@ FutureTransformResult transform_futures(std::string_view ptx,
         initializers << "    mov.u32 "
                      << reg(future->instruction_id, "state")
                      << ", 5;\n";
-        auto issue = emit_issue(*future);
-        if (immediate_load_wait(*future)) {
-            issue += emit_wait(*future, nullptr, 1, 0);
+        auto issue = instruction_may_reissue(
+                         function, result.plan.cfg,
+                         future->instruction_id)
+                         ? emit_reissue_drain(*future)
+                         : std::string{};
+        issue += emit_issue(*future);
+        if (immediate_ordering_wait(*future)) {
+            issue += emit_wait(*future, nullptr, 1, 1);
         }
         replacement[future->location.line] = std::move(issue);
         auto end = static_cast<std::size_t>(future->location.line);
@@ -589,7 +659,7 @@ FutureTransformResult transform_futures(std::string_view ptx,
     std::map<std::uint32_t, std::uint32_t> occurrences;
     for (const auto& [future_id, consumers] : result.plan.first_consumers) {
         const auto* future = by_id.at(future_id);
-        if (immediate_load_wait(*future)) {
+        if (immediate_ordering_wait(*future)) {
             continue;
         }
         for (const auto consumer_id : consumers) {
@@ -600,7 +670,7 @@ FutureTransformResult transform_futures(std::string_view ptx,
         }
     }
     for (const auto& [future_id, drains] : result.plan.drain_points) {
-        if (immediate_load_wait(*by_id.at(future_id))) {
+        if (immediate_ordering_wait(*by_id.at(future_id))) {
             continue;
         }
         for (const auto drain_id : drains) {

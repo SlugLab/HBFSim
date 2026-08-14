@@ -32,10 +32,13 @@ struct TmaInstruction {
     bool cache_hint{false};
     std::string reduction;
     std::string destination;
+    std::string shared_address;
+    std::string shared_state_space;
     std::string descriptor;
     std::string barrier;
     std::string multicast_mask;
     std::vector<std::string> coordinates;
+    std::vector<std::string> im2col_offsets;
 };
 
 enum class BarrierOp : std::uint32_t {
@@ -62,6 +65,7 @@ struct BulkGroupInstruction {
 
 enum class TensorMapOp : std::uint32_t {
     Replace,
+    CopyFence,
     FenceRelease,
     FenceAcquire,
     FenceAsync,
@@ -69,6 +73,8 @@ enum class TensorMapOp : std::uint32_t {
 struct TensorMapInstruction {
     TensorMapOp op{TensorMapOp::Replace};
     std::string address;
+    std::string source;
+    std::string state_space;
     std::string field;
     std::string value;
     std::optional<std::uint32_t> ordinal;

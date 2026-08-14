@@ -881,7 +881,8 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     }
     control.header()->request_timeout_ns = options->request_timeout_ns;
     control.header()->heartbeat_timeout_ns =
-        std::max<std::uint64_t>(options->request_timeout_ns, 50'000'000);
+        hbfsim::runtime::effective_heartbeat_timeout_ns(
+            options->request_timeout_ns);
     control.header()->time_scale = profile.time_scale;
     control.header()->read_latency_ns = profile.read_latency_ns;
     control.header()->program_latency_ns = profile.program_latency_ns;
@@ -1615,7 +1616,12 @@ extern "C" int hbfsim_publish_exact_run_contract(
         contract->concurrency_condition !=
             HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS ||
         contract->cluster_x == 0 || contract->cluster_y == 0 ||
-        contract->cluster_z == 0) {
+        contract->cluster_z == 0 ||
+        contract->operation_class < HBFSIM_EXACT_OPERATION_ORDINARY_LOAD ||
+        contract->operation_class > HBFSIM_EXACT_OPERATION_MIXED_HBM_HBF ||
+        contract->issued_operations == 0 || contract->bytes == 0 ||
+        contract->resident_warps == 0 || contract->queue_depth == 0 ||
+        contract->iterations == 0 || contract->tile_elements == 0) {
         return HBFSIM_INVALID_ARGUMENT;
     }
     hbfsim::runtime::ContextOperation operation(context);
@@ -1643,6 +1649,17 @@ extern "C" int hbfsim_publish_exact_run_contract(
         .cluster_y = contract->cluster_y,
         .cluster_z = contract->cluster_z,
         .cache_condition_epoch = epoch,
+        .operation_class = static_cast<hbfsim::ExactOperationClassAbi>(
+            contract->operation_class),
+        .issued_operations = contract->issued_operations,
+        .bytes = contract->bytes,
+        .resident_warps = contract->resident_warps,
+        .queue_depth = contract->queue_depth,
+        .dimension_count = contract->dimension_count,
+        .iterations = contract->iterations,
+        .load_use_distance = contract->load_use_distance,
+        .tile_elements = contract->tile_elements,
+        .multicast_targets = contract->multicast_targets,
     };
     if (context->launch_gate_api_v4->publish_run_contract(
             reinterpret_cast<std::uintptr_t>(context),
@@ -1690,10 +1707,10 @@ extern "C" int hbfsim_finalize_exact(hbfsim_context* context)
     std::uint64_t saturated = hbfsim::host_service::atomic_load(
         header->sm120_channel_saturated, std::memory_order_acquire);
     std::uint64_t gnic_requests = 0, gpc_requests = 0;
-    bool migration_mismatch = false, residual_failed = false;
+    bool migration_mismatch = false, queue_accounting_failed = false;
     const auto add = [&](std::uint64_t& total, std::uint64_t value) {
         if (value > std::numeric_limits<std::uint64_t>::max() - total) {
-            residual_failed = true;
+            queue_accounting_failed = true;
         } else {
             total += value;
         }
@@ -1720,8 +1737,9 @@ extern "C" int hbfsim_finalize_exact(hbfsim_context* context)
                 value, std::memory_order_acquire));
         }
     }
-    residual_failed = residual_failed || maximum_gnic > config->gnic_depth ||
-                      maximum_gpc > config->gpc_depth;
+    queue_accounting_failed =
+        queue_accounting_failed || maximum_gnic > config->gnic_depth ||
+        maximum_gpc > config->gpc_depth;
     hbfsim::ExactPostRunEvidenceAbi evidence{};
     evidence.abi_version = hbfsim::kExactPostRunEvidenceAbiVersion;
     evidence.struct_bytes = sizeof(evidence);
@@ -1765,7 +1783,7 @@ extern "C" int hbfsim_finalize_exact(hbfsim_context* context)
     evidence.maximum_gnic_outstanding = maximum_gnic;
     evidence.maximum_gpc_outstanding = maximum_gpc;
     evidence.migration_visible_sm_mismatch = migration_mismatch ? 1U : 0U;
-    evidence.counter_residual_failed = residual_failed ? 1U : 0U;
+    evidence.queue_accounting_failed = queue_accounting_failed ? 1U : 0U;
     evidence.channel_saturated_requests = saturated;
     evidence.channel_gnic_requests = gnic_requests;
     evidence.channel_gpc_requests = gpc_requests;
@@ -2087,6 +2105,10 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
         return HBFSIM_IO_ERROR;
     }
     const auto* header = control.header();
+    const auto capacity_stats =
+        context->capacity
+            ? context->capacity->stats()
+            : hbfsim::host_service::CapacityPageStats{};
     *out = {
         .requests_submitted = hbfsim::host_service::atomic_load(
             header->request_producer, std::memory_order_acquire),
@@ -2098,6 +2120,9 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
             header->reference_requests, std::memory_order_acquire),
         .fast_modeled_ns = hbfsim::host_service::atomic_load(
             header->fast_modeled_ns, std::memory_order_acquire),
+        .capacity_cache_hits = capacity_stats.cache_hits,
+        .capacity_cache_misses = capacity_stats.cache_misses,
+        .capacity_dirty_writebacks = capacity_stats.dirty_writebacks,
     };
     return HBFSIM_OK;
 }

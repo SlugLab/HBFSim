@@ -36,6 +36,7 @@ struct TensorMapRecord {
     std::uint32_t element_type{0};
     std::uint32_t interleave{0};
     std::uint32_t swizzle{0};
+    std::uint32_t swizzle_atomicity{0};
     std::uint32_t l2_promotion{0};
     std::uint32_t oob_fill{0};
     bool fenced{false};

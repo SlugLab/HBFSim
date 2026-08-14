@@ -12,11 +12,13 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 8;
+inline constexpr std::uint32_t kControlAbiVersion = 9;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kTensorMapCapacity = 256;
 inline constexpr std::uint32_t kSm120StateCapacity = 256;
 inline constexpr std::uint32_t kSm120RoutingLutCapacity = 64;
+inline constexpr std::uint64_t kTmaSoftwareTokenBit = 1ULL << 63;
+inline constexpr std::uint64_t kTmaTimingTokenBit = 1ULL << 62;
 inline constexpr std::uint64_t kSm120ChannelConfigMagic =
     0x534d313230434846ULL;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
@@ -130,11 +132,17 @@ struct alignas(64) SharedTensorMapSlot {
     std::uint64_t global_stride[5];
     std::uint32_t box_dim[5];
     std::uint32_t element_stride[5];
+    std::int32_t lower_corner[5];
+    std::int32_t upper_corner[5];
+    std::uint32_t channels_per_pixel;
+    std::uint32_t pixels_per_column;
+    std::uint32_t wide_mode;
     std::uint32_t rank;
     std::uint32_t mode;
     std::uint32_t element_type;
     std::uint32_t interleave;
     std::uint32_t swizzle;
+    std::uint32_t swizzle_atomicity;
     std::uint32_t l2_promotion;
     std::uint32_t oob_fill;
     std::uint32_t fenced;
@@ -276,6 +284,436 @@ struct MediaDescriptor {
     bool valid;
 };
 
+struct TmaTileClassification {
+    std::uint64_t hbm_bytes;
+    std::uint64_t hbf_bytes;
+    std::uint64_t oob_bytes;
+    bool capacity;
+    bool valid;
+};
+
+struct TmaElementAddress {
+    std::uint64_t global_address;
+    std::uint64_t destination_offset;
+    std::uint32_t bytes;
+    std::uint32_t shared_bytes;
+    bool oob;
+    bool valid;
+};
+
+HBFSIM_HOST_DEVICE constexpr bool tma_packed_element_type(
+    std::uint32_t element_type) noexcept
+{
+    return element_type >= 13 && element_type <= 15;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_global_unit_bytes(
+    std::uint32_t element_type) noexcept
+{
+    // Internal element_type values follow the PTX TensorMap encoding order,
+    // not CUtensorMapDataType. The host interposer performs the translation.
+    constexpr std::uint32_t sizes[16]{
+        1, 2, 4, 4, 8, 8, 2, 4, 4, 8, 2, 4, 4, 8, 8, 12};
+    return element_type < 16 ? sizes[element_type] : 0;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_shared_unit_bytes(
+    std::uint32_t element_type) noexcept
+{
+    if (element_type == 14 || element_type == 15) return 16;
+    return tma_global_unit_bytes(element_type);
+}
+
+HBFSIM_HOST_DEVICE constexpr bool tma_float_element_type(
+    std::uint32_t element_type) noexcept
+{
+    return element_type >= 6 && element_type <= 12;
+}
+
+// SM120 TensorMap OOB NaN is the 16-bit marker 0x7ff7 repeated to
+// the destination element width. This differs from the older cp.async
+// OOB_NAN_F16 marker (0x7eff) and is covered by the native SM120 oracle.
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_oob_nan_fill_byte(
+    std::uint32_t element_type, std::uint32_t byte_offset) noexcept
+{
+    if (!tma_float_element_type(element_type) ||
+        byte_offset >= tma_shared_unit_bytes(element_type)) {
+        return UINT32_MAX;
+    }
+    return (byte_offset & 1U) == 0 ? 0xf7U : 0x7fU;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_tf32_load_bits(
+    std::uint32_t bits) noexcept
+{
+    constexpr std::uint32_t exponent_mask = 0x7f800000U;
+    constexpr std::uint32_t mantissa_mask = 0x007fffffU;
+    constexpr std::uint32_t retained_mask = 0xffffe000U;
+    if ((bits & exponent_mask) == exponent_mask &&
+        (bits & mantissa_mask) != 0) {
+        return 0x7fffe000U;
+    }
+    const auto retained_lsb = (bits >> 13U) & 1U;
+    return (bits + 0x00000fffU + retained_lsb) & retained_mask;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t tma_swizzled_destination(
+    std::uint64_t linear, std::uint64_t row_bytes,
+    std::uint64_t destination_base, std::uint32_t swizzle,
+    std::uint32_t atomicity) noexcept
+{
+    if (swizzle == 0) return linear;
+    if (row_bytes == 0 || swizzle > 4 || atomicity > 3 ||
+        (swizzle != 3 && atomicity != 0)) {
+        return UINT64_MAX;
+    }
+    const std::uint64_t span = swizzle == 1 ? 32U
+                                 : swizzle == 2 ? 64U
+                                 : swizzle == 4 ? 96U
+                                                : 128U;
+    if (row_bytes > span) return UINT64_MAX;
+    const std::uint64_t atom = atomicity == 1 || atomicity == 2
+                                   ? 32U
+                                   : atomicity == 3 ? 64U : 16U;
+    if (span % atom != 0) return UINT64_MAX;
+    const auto row = linear / row_bytes;
+    const auto in_row = linear % row_bytes;
+    const auto atoms = span / atom;
+    const auto atom_index = in_row / atom;
+    if (atom_index >= atoms) return UINT64_MAX;
+    const auto base_offset = (destination_base / 128U) % atoms;
+    const auto swizzled_atom = atom_index ^ ((row + base_offset) % atoms);
+    auto within = in_row % atom;
+    if (atomicity == 2 && ((row + base_offset) & 1U) != 0) within ^= 8U;
+    if (row > UINT64_MAX / span || swizzled_atom > UINT64_MAX / atom ||
+        row * span > UINT64_MAX - swizzled_atom * atom ||
+        row * span + swizzled_atom * atom > UINT64_MAX - within) {
+        return UINT64_MAX;
+    }
+    return row * span + swizzled_atom * atom + within;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t
+tma_im2col_wide_swizzled_destination(
+    std::uint64_t linear, std::uint64_t destination_base,
+    std::uint32_t swizzle, std::uint32_t atomicity) noexcept
+{
+    if (swizzle == 0 || swizzle > 4 || atomicity > 3 ||
+        (swizzle != 3 && atomicity != 0)) {
+        return UINT64_MAX;
+    }
+    const std::uint64_t atom = atomicity == 1 || atomicity == 2
+                                   ? 32U
+                                   : atomicity == 3 ? 64U : 16U;
+    const std::uint64_t pattern = swizzle == 1 ? 2U
+                                    : swizzle == 2 ? 4U
+                                    : swizzle == 4 ? 2U
+                                    : atomicity == 0 ? 8U
+                                    : atomicity == 3 ? 2U : 4U;
+    const auto row = linear / 128U;
+    const auto in_row = linear % 128U;
+    const auto atom_index = in_row / atom;
+    const auto base_offset = (destination_base / 128U) % pattern;
+    const auto swizzled_atom = atom_index ^ ((row + base_offset) % pattern);
+    auto within = in_row % atom;
+    if (atomicity == 2 && ((row + base_offset) & 1U) != 0) within ^= 8U;
+    if (row > UINT64_MAX / 128U ||
+        swizzled_atom > UINT64_MAX / atom ||
+        row * 128U > UINT64_MAX - swizzled_atom * atom ||
+        row * 128U + swizzled_atom * atom > UINT64_MAX - within) {
+        return UINT64_MAX;
+    }
+    return row * 128U + swizzled_atom * atom + within;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool tma_descriptor_layout_valid(
+    const SharedTensorMapSlot& map, std::uint32_t access_mode) noexcept
+{
+    if (map.rank == 0 || map.rank > 5 || map.element_type > 15 ||
+        map.base_address == 0 || map.base_address % 16U != 0 ||
+        map.interleave > 2 || map.swizzle > 4 ||
+        map.swizzle_atomicity > 3 || map.oob_fill > 1 ||
+        access_mode > 4 ||
+        (map.interleave != 0 && map.rank < 3) ||
+        (map.interleave == 2 && map.base_address % 32U != 0) ||
+        (map.element_type >= 14 && map.base_address % 32U != 0) ||
+        (map.oob_fill != 0 && !tma_float_element_type(map.element_type)) ||
+        (map.swizzle != 3 && map.swizzle_atomicity != 0)) {
+        return false;
+    }
+    constexpr std::uint64_t max_dimension =
+        static_cast<std::uint64_t>(UINT32_MAX) + 1U;
+    for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+        if (map.global_dim[dimension] == 0 ||
+            map.global_dim[dimension] > max_dimension ||
+            map.element_stride[dimension] == 0 ||
+            map.element_stride[dimension] > 8) {
+            return false;
+        }
+        if (dimension != 0 &&
+            (map.global_stride[dimension] == 0 ||
+             map.global_stride[dimension] >= (1ULL << 40) ||
+             map.global_stride[dimension] % 16U != 0 ||
+             ((map.interleave == 2 || map.element_type >= 14) &&
+              map.global_stride[dimension] % 32U != 0))) {
+            return false;
+        }
+    }
+    const auto packed = tma_packed_element_type(map.element_type);
+    if (access_mode < 3) {
+        for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+            if (map.box_dim[dimension] == 0 ||
+                map.box_dim[dimension] > 256) return false;
+        }
+        const auto bits = map.element_type == 15 ? 6U
+                          : packed                 ? 4U
+                                                   : 8U * tma_global_unit_bytes(
+                                                               map.element_type);
+        if (bits == 0 || map.box_dim[0] > UINT64_MAX / bits ||
+            (map.interleave == 0 &&
+             (static_cast<std::uint64_t>(map.box_dim[0]) * bits) % 128U !=
+                 0)) {
+            return false;
+        }
+    } else {
+        if (map.rank < 3 || map.channels_per_pixel == 0 ||
+            map.channels_per_pixel > 256 || map.pixels_per_column == 0 ||
+            map.pixels_per_column > 1024 ||
+            (map.element_type >= 14 && map.channels_per_pixel != 128)) {
+            return false;
+        }
+        const auto corners = map.rank - 2;
+        const std::int32_t low_limit = map.rank == 3 ? -32768
+                                       : map.rank == 4 ? -128
+                                                       : -16;
+        const std::int32_t high_limit = map.rank == 3 ? 32767
+                                        : map.rank == 4 ? 127
+                                                        : 15;
+        for (std::uint32_t dimension = 0; dimension < corners; ++dimension) {
+            if (map.lower_corner[dimension] < low_limit ||
+                map.lower_corner[dimension] > high_limit ||
+                map.upper_corner[dimension] < low_limit ||
+                map.upper_corner[dimension] > high_limit ||
+                -static_cast<std::int64_t>(map.upper_corner[dimension]) <
+                    map.lower_corner[dimension]) {
+                return false;
+            }
+        }
+    }
+    if (map.element_type == 13 && map.global_dim[0] % 2U != 0) return false;
+    if (map.element_type >= 14 && map.global_dim[0] % 128U != 0) return false;
+    if (map.swizzle == 4 &&
+        (map.interleave != 0 || access_mode == 4 || map.element_type >= 14)) {
+        return false;
+    }
+    if (map.swizzle != 0) {
+        const std::uint64_t span = map.swizzle == 1 ? 32U
+                                     : map.swizzle == 2 ? 64U
+                                     : map.swizzle == 4 ? 96U
+                                                        : 128U;
+        std::uint64_t inner_elements = access_mode >= 3
+                                           ? map.channels_per_pixel
+                                           : map.box_dim[0];
+        if (packed) {
+            if (inner_elements % 16U != 0) return false;
+            inner_elements /= 16U;
+        }
+        if (inner_elements > UINT64_MAX /
+                                 tma_shared_unit_bytes(map.element_type) ||
+            inner_elements * tma_shared_unit_bytes(map.element_type) > span) {
+            return false;
+        }
+    }
+    if (access_mode == 4 &&
+        (map.interleave != 0 || map.swizzle == 0 ||
+         map.swizzle_atomicity == 2)) {
+        return false;
+    }
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool tma_software_copy_supported(
+    const SharedTensorMapSlot& map, std::uint32_t direction,
+    std::uint32_t access_mode, std::uint32_t shared_scope) noexcept
+{
+    if (!tma_descriptor_layout_valid(map, access_mode) ||
+        direction > 1 || access_mode > 4 || shared_scope > 1 ||
+        map.element_type > 15 || map.swizzle > 4 ||
+        map.swizzle_atomicity > 3 ||
+        (map.swizzle != 3 && map.swizzle_atomicity != 0) ||
+        (map.oob_fill != 0 && !tma_float_element_type(map.element_type)) ||
+        (direction == 1 && (access_mode == 1 || access_mode == 4)) ||
+        (direction == 0 && access_mode == 2) ||
+        (map.swizzle == 4 && (map.interleave != 0 || access_mode == 4 ||
+                              map.swizzle_atomicity != 0)) ||
+        (map.element_type >= 14 && map.swizzle == 4) ||
+        (map.element_type == 14 && direction == 1)) {
+        return false;
+    }
+    if (tma_packed_element_type(map.element_type) &&
+        ((map.swizzle != 0 && map.swizzle != 3) ||
+         map.swizzle_atomicity == 2)) {
+        return false;
+    }
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool tma_copy_supported(
+    const SharedTensorMapSlot& map, std::uint32_t direction,
+    std::uint32_t access_mode, std::uint32_t shared_scope) noexcept
+{
+    if (!tma_software_copy_supported(map, direction, access_mode,
+                                     shared_scope) ||
+        (map.swizzle_atomicity == 2 &&
+         (direction != 0 || access_mode == 4)) ||
+        ((map.element_type == 14 || map.element_type == 15) &&
+         direction == 0 && map.swizzle_atomicity == 3) ||
+        (shared_scope == 1 && direction == 0 &&
+         (tma_packed_element_type(map.element_type) ||
+          map.swizzle_atomicity != 0))) {
+        return false;
+    }
+    return true;
+}
+
+HBFSIM_HOST_DEVICE inline bool tma_pack_b6p2x16(
+    const std::byte* source, std::byte* destination) noexcept
+{
+    if (source == nullptr || destination == nullptr) return false;
+    auto* output = reinterpret_cast<unsigned char*>(destination);
+    const auto* input = reinterpret_cast<const unsigned char*>(source);
+    for (std::uint32_t byte = 0; byte < 12; ++byte) output[byte] = 0;
+    for (std::uint32_t index = 0; index < 16; ++index) {
+        const auto value = static_cast<std::uint32_t>(input[index] & 0x3fU);
+        const auto bit = index * 6U;
+        const auto byte = bit / 8U;
+        const auto shift = bit % 8U;
+        output[byte] |= static_cast<unsigned char>(value << shift);
+        if (shift > 2U) {
+            output[byte + 1] |=
+                static_cast<unsigned char>(value >> (8U - shift));
+        }
+    }
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool tma_reduction_supported(
+    std::uint32_t element_type, std::uint32_t operation) noexcept
+{
+    if (operation == UINT32_MAX) return true;
+    switch (operation) {
+    case 0:  // add
+        return element_type == 2 || element_type == 3 || element_type == 4 ||
+               element_type == 6 || element_type == 7 || element_type == 10;
+    case 1:  // and
+    case 2:  // or
+    case 3:  // xor
+        return element_type == 2 || element_type == 3 || element_type == 4 ||
+               element_type == 5;
+    case 4:  // inc
+    case 5:  // dec
+        return element_type == 2;
+    case 6:  // min
+    case 7:  // max
+        return element_type == 2 || element_type == 3 || element_type == 4 ||
+               element_type == 5 || element_type == 6 || element_type == 10;
+    default:
+        return false;
+    }
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_barrier_target_mask(
+    std::uint32_t data_target_mask, std::uint32_t barrier_owner_rank,
+    std::uint32_t cta_group) noexcept
+{
+    if ((data_target_mask & 0xffff0000U) != 0 ||
+        barrier_owner_rank >= 16 || (cta_group != 1 && cta_group != 2)) {
+        return 0;
+    }
+    if (cta_group == 1) return data_target_mask;
+    std::uint32_t result = 0;
+    const auto parity = barrier_owner_rank & 1U;
+    for (std::uint32_t rank = 0; rank < 16; ++rank) {
+        if ((data_target_mask & (1U << rank)) != 0) {
+            result |= 1U << ((rank & ~1U) | parity);
+        }
+    }
+    return result;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_data_target_mask(
+    std::uint32_t multicast_mask, std::uint32_t issuer_rank,
+    std::uint32_t destination_rank, std::uint32_t shared_scope) noexcept
+{
+    if ((multicast_mask & 0xffff0000U) != 0 || issuer_rank >= 16 ||
+        destination_rank >= 16 || shared_scope > 1) {
+        return 0;
+    }
+    if (multicast_mask != 0) {
+        return shared_scope == 1 ? multicast_mask : 0;
+    }
+    return 1U << (shared_scope == 1 ? destination_rank : issuer_rank);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t encode_tma_software_token(
+    std::uint32_t generation, std::uint32_t slot) noexcept
+{
+    return generation == 0 || slot > UINT16_MAX
+               ? 0
+               : kTmaSoftwareTokenBit |
+                     (static_cast<std::uint64_t>(generation & 0x7fffffffU)
+                      << 16) |
+                     slot;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool is_tma_software_token(
+    std::uint64_t token) noexcept
+{
+    return (token & kTmaSoftwareTokenBit) != 0;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t encode_tma_timing_token(
+    std::uint32_t generation, std::uint32_t slot) noexcept
+{
+    return generation == 0 || slot > UINT16_MAX
+               ? 0
+               : kTmaTimingTokenBit |
+                     (static_cast<std::uint64_t>(generation & 0x7fffffffU)
+                      << 16) |
+                     slot;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool is_tma_timing_token(
+    std::uint64_t token) noexcept
+{
+    return (token & kTmaTimingTokenBit) != 0 &&
+           (token & kTmaSoftwareTokenBit) == 0;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_tracked_token_slot(
+    std::uint64_t token) noexcept
+{
+    return static_cast<std::uint32_t>(token & UINT16_MAX);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_tracked_token_generation(
+    std::uint64_t token) noexcept
+{
+    return static_cast<std::uint32_t>((token >> 16) & 0x7fffffffU);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_software_token_slot(
+    std::uint64_t token) noexcept
+{
+    return tma_tracked_token_slot(token);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t tma_software_token_generation(
+    std::uint64_t token) noexcept
+{
+    return tma_tracked_token_generation(token);
+}
+
 struct Sm120DeviceRoutingInput {
     std::uint32_t smid;
     std::uint32_t warpid;
@@ -323,9 +761,189 @@ HBFSIM_HOST_DEVICE constexpr std::uint32_t find_tensormap_slot(
     return count;
 }
 
+enum class TensorMapReplaceField : std::uint32_t {
+    GlobalAddress,
+    Rank,
+    BoxDim,
+    GlobalDim,
+    GlobalStride,
+    ElementStride,
+    ElementType,
+    InterleaveLayout,
+    SwizzleMode,
+    SwizzleAtomicity,
+    FillMode,
+};
+
+HBFSIM_HOST_DEVICE constexpr bool apply_tensormap_replace(
+    SharedTensorMapSlot& slot, TensorMapReplaceField field,
+    std::uint32_t ordinal, std::uint64_t value) noexcept
+{
+    switch (field) {
+    case TensorMapReplaceField::GlobalAddress:
+        if (value == 0) return false;
+        slot.base_address = value;
+        return true;
+    case TensorMapReplaceField::Rank:
+        if (value > 4) return false;
+        slot.rank = static_cast<std::uint32_t>(value) + 1;
+        return true;
+    case TensorMapReplaceField::BoxDim:
+        if (ordinal >= 5 || value == 0 || value > UINT32_MAX) return false;
+        slot.box_dim[ordinal] = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::GlobalDim:
+        if (ordinal >= 5 || value == 0) return false;
+        slot.global_dim[ordinal] = value;
+        return true;
+    case TensorMapReplaceField::GlobalStride:
+        if (ordinal >= 5 || value == 0) return false;
+        // The runtime table stores the byte stride at its tensor-dimension
+        // index; dimension zero remains the implicit element byte size.
+        if (ordinal == 4) return false;
+        slot.global_stride[ordinal + 1] = value;
+        return true;
+    case TensorMapReplaceField::ElementStride:
+        if (ordinal >= 5 || value == 0 || value > UINT32_MAX) return false;
+        slot.element_stride[ordinal] = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::ElementType:
+        if (value > 15) return false;
+        // Device tile expansion supports byte-addressable PTX element kinds;
+        // packed sub-byte kinds are retained but fail closed at TMA issue.
+        slot.element_type = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::InterleaveLayout:
+        if (value > 2) return false;
+        slot.interleave = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::SwizzleMode:
+        if (value > 4) return false;
+        slot.swizzle = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::SwizzleAtomicity:
+        if (value > 3) return false;
+        slot.swizzle_atomicity = static_cast<std::uint32_t>(value);
+        return true;
+    case TensorMapReplaceField::FillMode:
+        if (value > 1) return false;
+        slot.oob_fill = static_cast<std::uint32_t>(value);
+        return true;
+    }
+    return false;
+}
+
+HBFSIM_HOST_DEVICE inline std::uint32_t tensormap_rotr(
+    std::uint32_t value, std::uint32_t shift) noexcept
+{
+    return (value >> shift) | (value << (32U - shift));
+}
+
+HBFSIM_HOST_DEVICE inline void tensormap_sha256_bytes(
+    const std::byte* descriptor, std::byte* digest) noexcept
+{
+    constexpr std::uint32_t constants[64]{
+        0x428a2f98U, 0x71374491U, 0xb5c0fbcfU, 0xe9b5dba5U,
+        0x3956c25bU, 0x59f111f1U, 0x923f82a4U, 0xab1c5ed5U,
+        0xd807aa98U, 0x12835b01U, 0x243185beU, 0x550c7dc3U,
+        0x72be5d74U, 0x80deb1feU, 0x9bdc06a7U, 0xc19bf174U,
+        0xe49b69c1U, 0xefbe4786U, 0x0fc19dc6U, 0x240ca1ccU,
+        0x2de92c6fU, 0x4a7484aaU, 0x5cb0a9dcU, 0x76f988daU,
+        0x983e5152U, 0xa831c66dU, 0xb00327c8U, 0xbf597fc7U,
+        0xc6e00bf3U, 0xd5a79147U, 0x06ca6351U, 0x14292967U,
+        0x27b70a85U, 0x2e1b2138U, 0x4d2c6dfcU, 0x53380d13U,
+        0x650a7354U, 0x766a0abbU, 0x81c2c92eU, 0x92722c85U,
+        0xa2bfe8a1U, 0xa81a664bU, 0xc24b8b70U, 0xc76c51a3U,
+        0xd192e819U, 0xd6990624U, 0xf40e3585U, 0x106aa070U,
+        0x19a4c116U, 0x1e376c08U, 0x2748774cU, 0x34b0bcb5U,
+        0x391c0cb3U, 0x4ed8aa4aU, 0x5b9cca4fU, 0x682e6ff3U,
+        0x748f82eeU, 0x78a5636fU, 0x84c87814U, 0x8cc70208U,
+        0x90befffaU, 0xa4506cebU, 0xbef9a3f7U, 0xc67178f2U,
+    };
+    std::uint32_t state[8]{
+        0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
+        0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U,
+    };
+    if (descriptor == nullptr || digest == nullptr) return;
+    for (std::uint32_t block = 0; block < 3; ++block) {
+        std::uint32_t words[64]{};
+        for (std::uint32_t word = 0; word < 16; ++word) {
+            std::uint32_t value = 0;
+            for (std::uint32_t byte = 0; byte < 4; ++byte) {
+                const auto position = block * 64 + word * 4 + byte;
+                std::uint32_t octet = 0;
+                if (position < 128) {
+                    octet = static_cast<std::uint32_t>(
+                        reinterpret_cast<const unsigned char*>(descriptor)
+                            [position]);
+                } else if (position == 128) {
+                    octet = 0x80U;
+                } else if (position == 190) {
+                    octet = 0x04U;
+                }
+                value = (value << 8) | octet;
+            }
+            words[word] = value;
+        }
+        for (std::uint32_t word = 16; word < 64; ++word) {
+            const auto a = words[word - 15];
+            const auto b = words[word - 2];
+            const auto sigma0 = tensormap_rotr(a, 7) ^
+                                tensormap_rotr(a, 18) ^ (a >> 3);
+            const auto sigma1 = tensormap_rotr(b, 17) ^
+                                tensormap_rotr(b, 19) ^ (b >> 10);
+            words[word] = words[word - 16] + sigma0 + words[word - 7] +
+                          sigma1;
+        }
+        auto a = state[0];
+        auto b = state[1];
+        auto c = state[2];
+        auto d = state[3];
+        auto e = state[4];
+        auto f = state[5];
+        auto g = state[6];
+        auto h = state[7];
+        for (std::uint32_t round = 0; round < 64; ++round) {
+            const auto upper = tensormap_rotr(e, 6) ^
+                               tensormap_rotr(e, 11) ^
+                               tensormap_rotr(e, 25);
+            const auto choice = (e & f) ^ (~e & g);
+            const auto first = h + upper + choice + constants[round] +
+                               words[round];
+            const auto lower = tensormap_rotr(a, 2) ^
+                               tensormap_rotr(a, 13) ^
+                               tensormap_rotr(a, 22);
+            const auto majority = (a & b) ^ (a & c) ^ (b & c);
+            const auto second = lower + majority;
+            h = g;
+            g = f;
+            f = e;
+            e = d + first;
+            d = c;
+            c = b;
+            b = a;
+            a = first + second;
+        }
+        state[0] += a;
+        state[1] += b;
+        state[2] += c;
+        state[3] += d;
+        state[4] += e;
+        state[5] += f;
+        state[6] += g;
+        state[7] += h;
+    }
+    for (std::uint32_t word = 0; word < 8; ++word) {
+        for (std::uint32_t byte = 0; byte < 4; ++byte) {
+            digest[word * 4 + byte] = static_cast<std::byte>(
+                (state[word] >> (24U - byte * 8U)) & 0xffU);
+        }
+    }
+}
+
 static_assert(sizeof(SharedControlHeader) == 576);
 static_assert(sizeof(SharedRangeRecord) == 64);
-static_assert(sizeof(SharedTensorMapSlot) == 384);
+static_assert(sizeof(SharedTensorMapSlot) == 448);
 static_assert(sizeof(SharedSm120ChannelConfig) == 1024);
 static_assert(sizeof(SharedSm120ChannelState) == 256);
 static_assert(sizeof(HbfRequest) == 128);
@@ -445,6 +1063,18 @@ HBFSIM_HOST_DEVICE constexpr bool hybrid_reference_sample(
            (threshold != 0 && fast_hash(sequence ^ key) <= threshold);
 }
 
+HBFSIM_HOST_DEVICE constexpr bool warp_hybrid_reference_sample(
+    std::uint64_t warp_sequence_base, std::uint32_t warmup,
+    std::uint64_t threshold, std::uint64_t leader_key) noexcept
+{
+    // Hybrid sampling is an instruction decision.  The base sequence counts
+    // every active lane, while one leader key keeps all lanes on the same
+    // reference/fast path so one warp instruction reserves the 4+2 queues
+    // exactly once.
+    return hybrid_reference_sample(warp_sequence_base, warmup, threshold,
+                                   leader_key);
+}
+
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_transfer_ns(
     std::uint32_t bytes, std::uint64_t bandwidth_bytes_per_s) noexcept
 {
@@ -529,6 +1159,463 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t resolved_address(
                : cache_frame_address + page_offset;
 }
 
+HBFSIM_HOST_DEVICE constexpr std::uint64_t tma_access_element_count(
+    const SharedTensorMapSlot& map, std::uint32_t access_mode,
+    const std::int32_t* runtime_offsets = nullptr) noexcept
+{
+    if (!tma_descriptor_layout_valid(map, access_mode)) return 0;
+    const auto packed = tma_packed_element_type(map.element_type);
+    if (access_mode >= 3) {
+        if (map.rank < 3 || map.channels_per_pixel == 0 ||
+            map.pixels_per_column == 0 ||
+            (access_mode == 3 && map.mode != 1) ||
+            (access_mode == 4 && (map.mode != 2 || map.wide_mode > 1))) {
+            return 0;
+        }
+        if (runtime_offsets != nullptr) {
+            if (access_mode == 3) {
+                const auto limit = map.rank == 3 ? 0xffff :
+                                   map.rank == 4 ? 0xff : 0x1f;
+                for (std::uint32_t index = 0; index + 2 < map.rank; ++index) {
+                    if (runtime_offsets[index] < 0 ||
+                        runtime_offsets[index] > limit) {
+                        return 0;
+                    }
+                }
+            } else if (runtime_offsets[0] < 0 ||
+                       runtime_offsets[0] >
+                           (map.wide_mode == 1 ? 31 : 511) ||
+                       runtime_offsets[1] < 0 ||
+                       runtime_offsets[1] > 31) {
+                return 0;
+            }
+        }
+        std::uint64_t pixels = map.pixels_per_column;
+        if (access_mode == 4) {
+            const auto halo = runtime_offsets == nullptr
+                                  ? 0U
+                                  : static_cast<std::uint32_t>(
+                                        runtime_offsets[0]);
+            if (map.wide_mode == 1) {
+                pixels = 128;
+                if (halo > (UINT64_MAX - pixels) / 4U) return 0;
+                pixels += static_cast<std::uint64_t>(halo) * 4U;
+            } else {
+                if (halo > UINT64_MAX - pixels) return 0;
+                pixels += halo;
+            }
+        }
+        auto channels = static_cast<std::uint64_t>(map.channels_per_pixel);
+        if (packed) {
+            if (channels % 16U != 0) return 0;
+            channels /= 16U;
+        }
+        return pixels > UINT64_MAX / channels ? 0 : pixels * channels;
+    }
+    if (access_mode == 1 || access_mode == 2) {
+        if (map.rank != 2 || map.box_dim[1] != 1) return 0;
+    }
+    std::uint64_t elements = 1;
+    for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+        const auto extent = (access_mode == 1 || access_mode == 2) &&
+                                    dimension == 1
+                                ? 4U
+                                : map.box_dim[dimension];
+        if (extent == 0) return 0;
+        const auto stride = dimension == 0 && map.interleave == 0
+                                ? 1U
+                                : map.element_stride[dimension] == 0
+                                      ? 1U
+                                      : map.element_stride[dimension];
+        auto traversed = (static_cast<std::uint64_t>(extent) + stride - 1U) /
+                         stride;
+        if (packed && dimension == 0) {
+            if (traversed % 16U != 0) return 0;
+            traversed /= 16U;
+        }
+        if (traversed == 0 || elements > UINT64_MAX / traversed) return 0;
+        elements *= traversed;
+    }
+    return elements;
+}
+
+HBFSIM_HOST_DEVICE constexpr TmaElementAddress tma_element_address(
+    const SharedTensorMapSlot& map, const std::int32_t* coordinates,
+    std::uint32_t access_mode, std::uint64_t linear,
+    const std::int32_t* runtime_offsets = nullptr,
+    std::uint64_t destination_base = 0) noexcept
+{
+    TmaElementAddress result{.global_address = 0,
+                             .destination_offset = 0,
+                             .bytes = 0,
+                             .shared_bytes = 0,
+                             .oob = false,
+                             .valid = false};
+    const auto packed = tma_packed_element_type(map.element_type);
+    if (coordinates == nullptr ||
+        !tma_descriptor_layout_valid(map, access_mode) ||
+        map.rank == 0 || map.rank > 5 ||
+        map.element_type > 15 || map.base_address == 0 || access_mode > 4 ||
+        map.interleave > 2 || map.swizzle > 4 ||
+        map.swizzle_atomicity > 3 || map.oob_fill > 1 ||
+        (access_mode < 3 && map.mode != 0) ||
+        (map.interleave != 0 &&
+         (map.rank < 3 || access_mode == 1 || access_mode == 2 ||
+          access_mode == 4)) ||
+        ((access_mode == 1 || access_mode == 2) && map.rank != 2) ||
+        (access_mode >= 3 && map.rank < 3) ||
+        (packed && (map.interleave != 0 || map.oob_fill != 0)) ||
+        (packed && map.base_address % (map.element_type == 13 ? 16U : 32U) !=
+                       0) ||
+        (map.element_type == 13 && map.global_dim[0] % 2U != 0) ||
+        ((map.element_type == 14 || map.element_type == 15) &&
+         (map.global_dim[0] % 128U != 0 ||
+          (access_mode < 3 && map.box_dim[0] != 128))) ||
+        (packed && map.swizzle != 0 && map.swizzle != 3) ||
+        (packed && map.swizzle_atomicity == 2) ||
+        (map.swizzle != 3 && map.swizzle_atomicity != 0) ||
+        (map.swizzle == 4 &&
+         (map.interleave != 0 || access_mode == 4 || packed))) {
+        return result;
+    }
+    if ((map.element_type == 14 || map.element_type == 15)) {
+        for (std::uint32_t dimension = 1; dimension < map.rank; ++dimension) {
+            if (map.global_stride[dimension] == 0 ||
+                map.global_stride[dimension] % 32U != 0) return result;
+        }
+    }
+    if (packed) {
+        const auto coordinate_alignment = map.element_type == 13 ? 32 : 128;
+        if (coordinates[0] % coordinate_alignment != 0) return result;
+        if (access_mode < 3 && map.box_dim[0] % 16U != 0) return result;
+        if (access_mode >= 3 && map.channels_per_pixel % 16U != 0) {
+            return result;
+        }
+    }
+    std::uint32_t box[5]{};
+    for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+        if (map.global_dim[dimension] == 0) return result;
+        box[dimension] = map.box_dim[dimension];
+    }
+    if (access_mode == 1 || access_mode == 2) box[1] = 4;
+    const auto elements =
+        tma_access_element_count(map, access_mode, runtime_offsets);
+    if (linear >= elements) return result;
+    const auto element_bytes = tma_global_unit_bytes(map.element_type);
+    const auto shared_bytes = tma_shared_unit_bytes(map.element_type);
+    std::int64_t global_coordinates[5]{};
+    if (access_mode < 3) {
+        auto remainder = linear;
+        for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+            const auto stride = dimension == 0 && map.interleave == 0
+                                    ? 1U
+                                    : map.element_stride[dimension] == 0
+                                          ? 1U
+                                          : map.element_stride[dimension];
+            auto traversed =
+                (static_cast<std::uint64_t>(box[dimension]) + stride - 1U) /
+                stride;
+            if (packed && dimension == 0) traversed /= 16U;
+            if (traversed == 0) return result;
+            auto local = remainder % traversed;
+            remainder /= traversed;
+            auto origin = static_cast<std::int64_t>(coordinates[dimension]);
+            if ((access_mode == 1 || access_mode == 2) && dimension == 1) {
+                origin = coordinates[local + 1];
+                local = 0;
+            }
+            const auto coordinate_stride = packed && dimension == 0
+                                               ? 16U
+                                               : stride;
+            if (local > static_cast<std::uint64_t>(INT64_MAX) /
+                            coordinate_stride) {
+                return result;
+            }
+            const auto delta = static_cast<std::int64_t>(
+                local * coordinate_stride);
+            if (delta > 0 && origin > INT64_MAX - delta) return result;
+            global_coordinates[dimension] = origin + delta;
+        }
+    } else {
+        const auto channels = packed
+                                  ? static_cast<std::uint64_t>(
+                                        map.channels_per_pixel / 16U)
+                                  : static_cast<std::uint64_t>(
+                                        map.channels_per_pixel);
+        const auto channel = linear % channels;
+        auto pixel = linear / channels;
+        const auto channel_delta = packed ? channel * 16U : channel;
+        if (channel_delta > static_cast<std::uint64_t>(INT64_MAX) ||
+            coordinates[0] >
+                INT64_MAX - static_cast<std::int64_t>(channel_delta)) {
+            return result;
+        }
+        global_coordinates[0] = coordinates[0] +
+                                static_cast<std::int64_t>(channel_delta);
+        if (access_mode == 3) {
+            for (std::uint32_t dimension = 1;
+                 dimension + 1 < map.rank; ++dimension) {
+                const auto lower = static_cast<std::int64_t>(
+                    map.lower_corner[dimension - 1]);
+                const auto upper = -static_cast<std::int64_t>(
+                    map.upper_corner[dimension - 1]);
+                if (upper < lower) return result;
+                const auto span = static_cast<std::uint64_t>(upper - lower + 1);
+                const auto start = runtime_offsets == nullptr
+                                       ? 0U
+                                       : static_cast<std::uint32_t>(
+                                             runtime_offsets[dimension - 1]);
+                const auto position = pixel % span;
+                pixel /= span;
+                const auto stride = map.element_stride[dimension] == 0
+                                        ? 1U
+                                        : map.element_stride[dimension];
+                if (position > static_cast<std::uint64_t>(INT64_MAX) / stride ||
+                    start > static_cast<std::uint64_t>(INT64_MAX)) {
+                    return result;
+                }
+                const auto traversed =
+                    static_cast<std::int64_t>(position * stride);
+                if (lower > INT64_MAX - static_cast<std::int64_t>(start) ||
+                    lower + static_cast<std::int64_t>(start) >
+                        INT64_MAX - traversed) {
+                    return result;
+                }
+                const auto delta = lower + static_cast<std::int64_t>(start) +
+                                   traversed;
+                const auto origin =
+                    static_cast<std::int64_t>(coordinates[dimension]);
+                if ((delta > 0 && origin > INT64_MAX - delta) ||
+                    (delta < 0 && origin < INT64_MIN - delta)) {
+                    return result;
+                }
+                global_coordinates[dimension] = origin + delta;
+            }
+            const auto batch_dimension = map.rank - 1;
+            if (pixel > static_cast<std::uint64_t>(INT64_MAX) ||
+                coordinates[batch_dimension] >
+                    INT64_MAX - static_cast<std::int64_t>(pixel)) {
+                return result;
+            }
+            global_coordinates[batch_dimension] =
+                coordinates[batch_dimension] + static_cast<std::int64_t>(pixel);
+        } else {
+            const auto offset = runtime_offsets == nullptr
+                                    ? 0U
+                                    : static_cast<std::uint32_t>(
+                                          runtime_offsets[1]);
+            const auto lower = static_cast<std::int64_t>(map.lower_corner[0]);
+            const auto stride = map.element_stride[1] == 0
+                                    ? 1U
+                                    : map.element_stride[1];
+            if (pixel > static_cast<std::uint64_t>(INT64_MAX) / stride ||
+                offset > static_cast<std::uint32_t>(INT64_MAX / 2)) {
+                return result;
+            }
+            const auto traversed = static_cast<std::int64_t>(pixel * stride);
+            const auto adjusted = static_cast<std::int64_t>(offset) * 2;
+            if (lower > INT64_MAX - adjusted ||
+                lower + adjusted > INT64_MAX - traversed) {
+                return result;
+            }
+            const auto delta = lower + adjusted + traversed;
+            const auto origin = static_cast<std::int64_t>(coordinates[1]);
+            if ((delta > 0 && origin > INT64_MAX - delta) ||
+                (delta < 0 && origin < INT64_MIN - delta)) {
+                return result;
+            }
+            global_coordinates[1] = origin + delta;
+            for (std::uint32_t dimension = 2; dimension < map.rank;
+                 ++dimension) {
+                global_coordinates[dimension] = coordinates[dimension];
+            }
+        }
+    }
+    std::uint64_t offset = 0;
+    bool in_bounds = true;
+    for (std::uint32_t dimension = 0; dimension < map.rank; ++dimension) {
+        const auto coordinate = global_coordinates[dimension];
+        const auto packed_dimension = packed && dimension == 0;
+        if (coordinate < 0 ||
+            static_cast<std::uint64_t>(coordinate) >=
+                map.global_dim[dimension] ||
+            (packed_dimension &&
+             (map.global_dim[dimension] < 16U ||
+              static_cast<std::uint64_t>(coordinate) >
+                  map.global_dim[dimension] - 16U))) {
+            in_bounds = false;
+            continue;
+        }
+        if (packed_dimension) {
+            const auto bits = map.element_type == 15 ? 6U : 4U;
+            const auto unsigned_coordinate =
+                static_cast<std::uint64_t>(coordinate);
+            if (unsigned_coordinate > UINT64_MAX / bits ||
+                (unsigned_coordinate * bits) % 8U != 0 ||
+                offset > UINT64_MAX - unsigned_coordinate * bits / 8U) {
+                return result;
+            }
+            offset += unsigned_coordinate * bits / 8U;
+            continue;
+        }
+        auto byte_stride =
+            dimension == 0 ? element_bytes : map.global_stride[dimension];
+        const auto unsigned_coordinate =
+            static_cast<std::uint64_t>(coordinate);
+        if (map.interleave != 0 && dimension == 0) {
+            const auto slice_bytes = map.interleave == 1 ? 16U : 32U;
+            if (slice_bytes % element_bytes != 0) return result;
+            const auto channels_per_slice = slice_bytes / element_bytes;
+            const auto slices =
+                (map.global_dim[0] + channels_per_slice - 1) /
+                channels_per_slice;
+            const auto batch_stride = map.global_stride[map.rank - 1];
+            if (slices == 0 || batch_stride == 0 ||
+                batch_stride % slices != 0) {
+                return result;
+            }
+            const auto slice_stride = batch_stride / slices;
+            const auto slice = unsigned_coordinate / channels_per_slice;
+            const auto within = unsigned_coordinate % channels_per_slice;
+            if (slice > UINT64_MAX / slice_stride ||
+                within > UINT64_MAX / element_bytes ||
+                slice * slice_stride >
+                    UINT64_MAX - within * element_bytes) {
+                return result;
+            }
+            offset = slice * slice_stride + within * element_bytes;
+            continue;
+        }
+        if (byte_stride == 0 ||
+            unsigned_coordinate > UINT64_MAX / byte_stride ||
+            offset > UINT64_MAX - unsigned_coordinate * byte_stride) {
+            return result;
+        }
+        offset += unsigned_coordinate * byte_stride;
+    }
+    if (linear > UINT64_MAX / shared_bytes) return result;
+    auto destination = linear * shared_bytes;
+    if (map.swizzle != 0 && map.mode == 2) {
+        // im2col::w swizzles a continuous column in fixed 128-byte shared
+        // memory rows.  This differs from tiled/im2col, whose row width comes
+        // from the innermost box/channel extent.
+        destination = tma_im2col_wide_swizzled_destination(
+            destination, destination_base, map.swizzle,
+            map.swizzle_atomicity);
+        if (destination == UINT64_MAX) return result;
+    } else if (map.swizzle != 0) {
+        const auto inner_stride = map.interleave == 0
+                                      ? 1U
+                                      : map.element_stride[0] == 0
+                                            ? 1U
+                                            : map.element_stride[0];
+        auto row_elements = access_mode >= 3
+                                ? static_cast<std::uint64_t>(
+                                      map.channels_per_pixel)
+                                : (static_cast<std::uint64_t>(box[0]) +
+                                   inner_stride - 1U) /
+                                      inner_stride;
+        if (packed) row_elements /= 16U;
+        const auto row_bytes =
+            static_cast<std::uint64_t>(row_elements) * shared_bytes;
+        destination = tma_swizzled_destination(
+            destination, row_bytes, destination_base, map.swizzle,
+            map.swizzle_atomicity);
+        if (destination == UINT64_MAX) return result;
+    }
+    result.destination_offset = destination;
+    result.bytes = element_bytes;
+    result.shared_bytes = shared_bytes;
+    result.oob = !in_bounds;
+    if (!in_bounds) {
+        result.valid = true;
+        return result;
+    }
+    if (offset > UINT64_MAX - map.base_address ||
+        map.base_address + offset > UINT64_MAX - element_bytes) {
+        return result;
+    }
+    result.global_address = map.base_address + offset;
+    result.valid = true;
+    return result;
+}
+
+HBFSIM_HOST_DEVICE constexpr TmaTileClassification classify_tma_access(
+    const SharedTensorMapSlot& map, const std::int32_t* coordinates,
+    const SharedRangeRecord* ranges, std::uint32_t range_count,
+    std::uint32_t direction, std::uint32_t access_mode,
+    const std::int32_t* runtime_offsets = nullptr) noexcept
+{
+    TmaTileClassification result{.hbm_bytes = 0,
+                                 .hbf_bytes = 0,
+                                 .oob_bytes = 0,
+                                 .capacity = false,
+                                 .valid = false};
+    if (coordinates == nullptr || (range_count != 0 && ranges == nullptr) ||
+        map.rank == 0 || map.rank > 5 || map.element_type > 15 ||
+        map.base_address == 0 || direction > 1 || access_mode > 4 ||
+        range_count > kRangeCapacity ||
+        (map.element_type == 14 && direction == 1) ||
+        (access_mode == 1 && (direction != 0 || map.rank != 2)) ||
+        (access_mode == 2 && (direction != 1 || map.rank != 2)) ||
+        (access_mode == 3 && map.rank < 3) ||
+        (access_mode == 4 && (direction != 0 || map.rank < 3))) {
+        return result;
+    }
+    const auto elements =
+        tma_access_element_count(map, access_mode, runtime_offsets);
+    if (elements == 0) return result;
+    for (std::uint64_t linear = 0; linear < elements; ++linear) {
+        const auto element = tma_element_address(
+            map, coordinates, access_mode, linear, runtime_offsets);
+        if (!element.valid) return result;
+        if (element.oob) {
+            if (direction == 1) return {};
+            if (result.oob_bytes > UINT64_MAX - element.bytes) return result;
+            result.oob_bytes += element.bytes;
+            continue;
+        }
+        const auto address = element.global_address;
+        for (std::uint32_t byte = 0; byte < element.bytes; ++byte) {
+            const auto current = address + byte;
+            const auto index = find_range_index(ranges, range_count, current);
+            const SharedRangeRecord* range = nullptr;
+            if (index != range_count) {
+                const auto& candidate = ranges[index];
+                if (candidate.length != 0 &&
+                    candidate.base <= UINT64_MAX - candidate.length &&
+                    current >= candidate.base &&
+                    current < candidate.base + candidate.length) {
+                    range = &candidate;
+                }
+            }
+            if (range == nullptr) {
+                if (result.hbm_bytes == UINT64_MAX) return result;
+                ++result.hbm_bytes;
+                continue;
+            }
+            if ((range->mode != 1 && range->mode != 2) ||
+                (range->permissions & (1U << direction)) == 0 ||
+                result.hbf_bytes == UINT64_MAX) {
+                return result;
+            }
+            ++result.hbf_bytes;
+            result.capacity = result.capacity || range->mode == 2;
+        }
+    }
+    result.valid = true;
+    return result;
+}
+
+HBFSIM_HOST_DEVICE constexpr TmaTileClassification classify_tma_tiled(
+    const SharedTensorMapSlot& map, const std::int32_t* coordinates,
+    const SharedRangeRecord* ranges, std::uint32_t range_count,
+    std::uint32_t direction) noexcept
+{
+    return classify_tma_access(map, coordinates, ranges, range_count,
+                               direction, 0);
+}
+
 HBFSIM_HOST_DEVICE constexpr MediaDescriptor media_descriptor(
     const SharedRangeRecord& range, std::uint64_t address,
     std::uint32_t bytes, std::uint32_t operation) noexcept
@@ -570,6 +1657,29 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_future_ready_ns(
     const auto latency_target = saturating_add(arrival_ns, latency_ns);
     return transfer_target > latency_target ? transfer_target
                                              : latency_target;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool sm120_reference_channel_delay_valid(
+    std::uint64_t arrival_ns, std::uint64_t channel_ready_ns) noexcept
+{
+    return channel_ready_ns >= arrival_ns &&
+           channel_ready_ns - arrival_ns <= UINT32_MAX;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint32_t sm120_reference_channel_delay(
+    std::uint64_t arrival_ns, std::uint64_t channel_ready_ns) noexcept
+{
+    return static_cast<std::uint32_t>(channel_ready_ns - arrival_ns);
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t sm120_reference_ready_ns(
+    std::uint64_t arrival_ns, std::uint32_t channel_delay_ns,
+    std::uint64_t modeled_ready_ns) noexcept
+{
+    const auto channel_ready_ns =
+        saturating_add(arrival_ns, channel_delay_ns);
+    return channel_ready_ns > modeled_ready_ns ? channel_ready_ns
+                                                : modeled_ready_ns;
 }
 
 HBFSIM_HOST_DEVICE constexpr bool future_ring_slot_available(

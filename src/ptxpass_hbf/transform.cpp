@@ -106,14 +106,28 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
         defines_function(ptx, "__hbfsim_tma_barrier_wait");
     const bool tma_commit =
         defines_function(ptx, "__hbfsim_tma_commit_group");
+    const bool tensormap_replace_begin =
+        defines_function(ptx, "__hbfsim_tensormap_replace_begin");
+    const bool tensormap_replace_commit =
+        defines_function(ptx, "__hbfsim_tensormap_replace_commit");
+    const bool tensormap_copy_begin =
+        defines_function(ptx, "__hbfsim_tensormap_copy_begin");
+    const bool tensormap_copy_commit =
+        defines_function(ptx, "__hbfsim_tensormap_copy_commit");
+    const bool tensormap_acquire =
+        defines_function(ptx, "__hbfsim_tensormap_acquire");
     if (marker || resolver || fault || issue || poll || wait || future_fault ||
-        tma_issue || tma_poll || tma_wait || tma_barrier_wait || tma_commit) {
+        tma_issue || tma_poll || tma_wait || tma_barrier_wait || tma_commit ||
+        tensormap_replace_begin || tensormap_replace_commit ||
+        tensormap_copy_begin || tensormap_copy_commit || tensormap_acquire) {
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
         const bool exact_helper =
             trusted_existing_helper && marker && resolver && fault && issue &&
             poll && wait && future_fault &&
             tma_issue && tma_poll && tma_wait && tma_barrier_wait &&
-            tma_commit &&
+            tma_commit && tensormap_replace_begin &&
+            tensormap_replace_commit && tensormap_copy_begin &&
+            tensormap_copy_commit && tensormap_acquire &&
             ptx.find(kEmbeddedDevicePtx) != std::string::npos;
         if (exact_helper) {
             return;

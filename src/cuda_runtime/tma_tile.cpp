@@ -1,5 +1,7 @@
 #include <hbfsim/tma_tile.hpp>
 
+#include "device/hbf_device.cuh"
+
 #include <algorithm>
 #include <array>
 #include <limits>
@@ -26,37 +28,9 @@ std::uint64_t checked_mul(std::uint64_t left, std::uint64_t right)
 
 std::uint32_t element_bytes(std::uint32_t type)
 {
-    static constexpr std::array<std::uint32_t, 13> bytes{
-        1, 2, 4, 4, 8, 8, 2, 4, 8, 2, 4, 4, 4};
-    if (type >= bytes.size()) {
-        throw std::invalid_argument(
-            "packed sub-byte TensorMap elements require bit segments");
-    }
-    return bytes[type];
-}
-
-std::uint64_t swizzled_destination(const TensorMapRecord& map,
-                                   std::uint64_t linear,
-                                   std::uint64_t row_bytes)
-{
-    if (map.swizzle == 0 || row_bytes == 0) return linear;
-    const std::uint64_t configured_span = map.swizzle == 1 ? 32 :
-                                          map.swizzle == 2 ? 64 : 128;
-    const std::uint64_t span = std::min(configured_span, row_bytes);
-    const std::uint64_t row = linear / row_bytes;
-    const std::uint64_t in_row = linear % row_bytes;
-    const std::uint64_t span_base = (in_row / span) * span;
-    const std::uint64_t in_span = in_row % span;
-    const std::uint64_t atom = map.swizzle >= 4 ? 32 : 16;
-    const std::uint64_t atoms = std::max<std::uint64_t>(1, span / atom);
-    const std::uint64_t atom_index = in_span / atom;
-    const std::uint64_t within_atom = in_span % atom;
-    const std::uint64_t swizzled_atom = atom_index ^ (row % atoms);
-    std::uint64_t within = within_atom;
-    if (map.swizzle == 5 && (row & 1U) != 0) within ^= 8;
-    return checked_add(checked_mul(row, row_bytes),
-                       checked_add(span_base,
-                                   checked_add(swizzled_atom * atom, within)));
+    const auto bytes = device::tma_global_unit_bytes(type);
+    if (bytes == 0) throw std::invalid_argument("unknown TensorMap element type");
+    return bytes;
 }
 
 struct Classification {
@@ -139,7 +113,8 @@ std::vector<TileSegment> expand_and_split(
     const TensorMapRecord& map,
     std::span<const std::int32_t> coordinates,
     const ImmutableRangeSnapshot& ranges,
-    TmaTransferDirection direction, TmaAccessMode mode)
+    TmaTransferDirection direction, TmaAccessMode mode,
+    std::span<const std::int32_t> im2col_offsets)
 {
     const auto rank = map.shape.rank;
     if (rank == 0 || rank > 5 || coordinates.size() < rank ||
@@ -159,90 +134,76 @@ std::vector<TileSegment> expand_and_split(
         direction != TmaTransferDirection::Store) {
         throw std::invalid_argument("scatter4 is store-only");
     }
+    if ((mode == TmaAccessMode::Im2col ||
+         mode == TmaAccessMode::Im2colWide) &&
+        direction != TmaTransferDirection::Load) {
+        throw std::invalid_argument("im2col is load-only");
+    }
+    const auto expected_offsets = mode == TmaAccessMode::Im2col
+                                      ? rank - 2
+                                      : mode == TmaAccessMode::Im2colWide ? 2U
+                                                                          : 0U;
+    if (!im2col_offsets.empty() && im2col_offsets.size() != expected_offsets) {
+        throw std::invalid_argument("TMA im2col offset count differs");
+    }
+    device::SharedTensorMapSlot slot{};
+    slot.base_address = map.base_address;
+    slot.rank = rank;
+    slot.mode = static_cast<std::uint32_t>(map.mode);
+    slot.element_type = map.element_type;
+    slot.interleave = map.interleave;
+    slot.swizzle = map.swizzle;
+    slot.swizzle_atomicity = map.swizzle_atomicity;
+    slot.l2_promotion = map.l2_promotion;
+    slot.oob_fill = map.oob_fill;
+    slot.channels_per_pixel = map.shape.channels_per_pixel;
+    slot.pixels_per_column = map.shape.pixels_per_column;
+    slot.wide_mode = map.shape.wide_mode;
+    std::copy(map.shape.global_dim.begin(), map.shape.global_dim.end(),
+              slot.global_dim);
+    std::copy(map.shape.global_stride.begin(), map.shape.global_stride.end(),
+              slot.global_stride);
+    std::copy(map.shape.box_dim.begin(), map.shape.box_dim.end(), slot.box_dim);
+    std::copy(map.shape.element_stride.begin(),
+              map.shape.element_stride.end(), slot.element_stride);
+    std::copy(map.shape.lower_corner.begin(), map.shape.lower_corner.end(),
+              slot.lower_corner);
+    std::copy(map.shape.upper_corner.begin(), map.shape.upper_corner.end(),
+              slot.upper_corner);
+    std::array<std::int32_t, 3> offsets{};
+    std::copy(im2col_offsets.begin(), im2col_offsets.end(), offsets.begin());
+    const auto access_mode = static_cast<std::uint32_t>(mode);
+    const auto elements = device::tma_access_element_count(
+        slot, access_mode, offsets.data());
+    if (elements == 0) {
+        throw std::invalid_argument("TensorMap/access mode is inconsistent");
+    }
     const auto bytes = element_bytes(map.element_type);
-    std::array<std::uint64_t, 5> box{};
-    std::uint64_t elements = 1;
-    for (std::uint32_t index = 0; index < rank; ++index) {
-        box[index] = map.shape.box_dim[index] == 0
-                         ? 1
-                         : map.shape.box_dim[index];
-        elements = checked_mul(elements, box[index]);
-    }
-    if (mode == TmaAccessMode::Gather4 || mode == TmaAccessMode::Scatter4) {
-        box[1] = 4;
-        elements = checked_mul(box[0], 4);
-    }
     const auto total_bytes = checked_mul(elements, bytes);
     if (total_bytes > (1ULL << 32)) {
         throw std::invalid_argument("TMA tile exceeds bounded materialization");
     }
-    const auto row_bytes = checked_mul(box[0], bytes);
-
     std::vector<TileSegment> result;
     for (std::uint64_t linear_element = 0; linear_element < elements;
          ++linear_element) {
-        auto remainder = linear_element;
-        std::array<std::uint64_t, 5> local{};
-        for (std::uint32_t dimension = 0; dimension < rank; ++dimension) {
-            local[dimension] = remainder % box[dimension];
-            remainder /= box[dimension];
-        }
-        std::array<std::int64_t, 5> global{};
-        bool in_bounds = true;
-        for (std::uint32_t dimension = 0; dimension < rank; ++dimension) {
-            std::int64_t origin = coordinates[dimension];
-            if ((mode == TmaAccessMode::Im2col ||
-                 mode == TmaAccessMode::Im2colWide ||
-                 map.mode != TensorMapMode::Tiled) && dimension != 0) {
-                origin += map.shape.lower_corner[dimension - 1];
-            }
-            if ((mode == TmaAccessMode::Gather4 ||
-                 mode == TmaAccessMode::Scatter4) && dimension == 1) {
-                origin = coordinates[local[1] + 1];
-                local[1] = 0;
-            }
-            const auto step = map.shape.element_stride[dimension] == 0
-                                  ? 1
-                                  : map.shape.element_stride[dimension];
-            if (local[dimension] >
-                static_cast<std::uint64_t>(
-                    std::numeric_limits<std::int64_t>::max()) /
-                    step) {
-                throw std::overflow_error("TMA coordinate overflow");
-            }
-            global[dimension] =
-                origin + static_cast<std::int64_t>(local[dimension] * step);
-            if (global[dimension] < 0 ||
-                static_cast<std::uint64_t>(global[dimension]) >=
-                    map.shape.global_dim[dimension]) {
-                in_bounds = false;
-            }
+        const auto element = device::tma_element_address(
+            slot, coordinates.data(), access_mode, linear_element,
+            offsets.data());
+        if (!element.valid || element.bytes != bytes) {
+            throw std::invalid_argument("invalid TensorMap element address");
         }
         const auto logical = checked_mul(linear_element, bytes);
-        const auto destination =
-            swizzled_destination(map, logical, row_bytes);
-        if (!in_bounds) {
+        if (element.oob) {
             append_segment(result, {.space = SegmentSpace::OobFill,
                                     .global_address = 0,
                                     .logical_offset = logical,
-                                    .destination_offset = destination,
+                                    .destination_offset =
+                                        element.destination_offset,
                                     .bytes = bytes,
                                     .range_id = 0});
             continue;
         }
-        std::uint64_t global_offset =
-            checked_mul(static_cast<std::uint64_t>(global[0]), bytes);
-        for (std::uint32_t dimension = 1; dimension < rank; ++dimension) {
-            global_offset = checked_add(
-                global_offset,
-                checked_mul(static_cast<std::uint64_t>(global[dimension]),
-                            map.shape.global_stride[dimension]));
-        }
-        if (global_offset > std::numeric_limits<std::uintptr_t>::max() -
-                                map.base_address) {
-            throw std::overflow_error("TMA global address overflow");
-        }
-        auto address = map.base_address + global_offset;
+        auto address = element.global_address;
         if (bytes > std::numeric_limits<std::uintptr_t>::max() - address) {
             throw std::overflow_error("TMA element end address overflow");
         }
@@ -254,7 +215,8 @@ std::vector<TileSegment> expand_and_split(
                            {.space = classification.space,
                             .global_address = address + emitted,
                             .logical_offset = logical + emitted,
-                            .destination_offset = destination + emitted,
+                            .destination_offset =
+                                element.destination_offset + emitted,
                             .bytes = classification.until,
                             .range_id = classification.range_id});
             emitted += classification.until;

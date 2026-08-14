@@ -22,7 +22,7 @@ int main()
 {
     static_assert(std::is_standard_layout_v<hbfsim_options>);
     static_assert(std::is_standard_layout_v<hbfsim_options_v2>);
-    require(hbfsim_abi_version() == 3u);
+    require(hbfsim_abi_version() == 4u);
     require(hbfsim_get_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
     require(hbfsim_get_tma_stats(nullptr, nullptr) == HBFSIM_INVALID_ARGUMENT);
 

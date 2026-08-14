@@ -339,7 +339,10 @@ class ExactOwnerRegistry {
             raw->abi_version != hbfsim::kExactRunContractAbiVersion ||
             raw->struct_bytes != sizeof(*raw) || raw->cluster_x == 0 ||
             raw->cluster_y == 0 || raw->cluster_z == 0 ||
-            raw->cache_condition_epoch == 0) {
+            raw->cache_condition_epoch == 0 ||
+            raw->issued_operations == 0 || raw->bytes == 0 ||
+            raw->resident_warps == 0 || raw->queue_depth == 0 ||
+            raw->iterations == 0 || raw->tile_elements == 0) {
             return -1;
         }
         std::string cache_condition;
@@ -357,6 +360,32 @@ class ExactOwnerRegistry {
         switch (raw->concurrency_condition) {
         case hbfsim::ExactConcurrencyConditionAbi::ExclusiveProcess:
             concurrency_condition = "exclusive_process";
+            break;
+        default:
+            return -1;
+        }
+        std::string operation_class;
+        switch (raw->operation_class) {
+        case hbfsim::ExactOperationClassAbi::OrdinaryLoad:
+            operation_class = "ordinary_load";
+            break;
+        case hbfsim::ExactOperationClassAbi::OrdinaryStore:
+            operation_class = "ordinary_store";
+            break;
+        case hbfsim::ExactOperationClassAbi::TmaLoad:
+            operation_class = "tma_load";
+            break;
+        case hbfsim::ExactOperationClassAbi::TmaStore:
+            operation_class = "tma_store";
+            break;
+        case hbfsim::ExactOperationClassAbi::Unicast:
+            operation_class = "unicast";
+            break;
+        case hbfsim::ExactOperationClassAbi::Multicast:
+            operation_class = "multicast";
+            break;
+        case hbfsim::ExactOperationClassAbi::MixedHbmHbf:
+            operation_class = "mixed_hbm_hbf";
             break;
         default:
             return -1;
@@ -387,6 +416,16 @@ class ExactOwnerRegistry {
                 .cache_condition_epoch = raw->cache_condition_epoch,
                 .latest_relevant_mutation_epoch =
                     state_->latest_relevant_mutation_epoch,
+                .operation_class = std::move(operation_class),
+                .issued_operations = raw->issued_operations,
+                .bytes = raw->bytes,
+                .resident_warps = raw->resident_warps,
+                .queue_depth = raw->queue_depth,
+                .dimension_count = raw->dimension_count,
+                .iterations = raw->iterations,
+                .load_use_distance = raw->load_use_distance,
+                .tile_elements = raw->tile_elements,
+                .multicast_targets = raw->multicast_targets,
             };
             return 0;
         } catch (...) {
@@ -973,7 +1012,7 @@ int finalize_exact(std::uintptr_t owner, std::uint64_t generation,
             .gpc_requests = raw->channel_gpc_requests,
             .migration_visible_sm_mismatch =
                 raw->migration_visible_sm_mismatch != 0,
-            .counter_residual_failed = raw->counter_residual_failed != 0,
+            .queue_accounting_failed = raw->queue_accounting_failed != 0,
             .observed = raw->channel_routing_version != 0,
         },
     };
@@ -1146,10 +1185,13 @@ hbfsim::GateDecision apply_exact_admission(hbfsim::GateDecision decision,
             exact.profile->calibration.raw_training_sha256;
         decision.raw_holdout_sha256 =
             exact.profile->calibration.raw_holdout_sha256;
+        decision.workload_operation_class = contract.operation_class;
+        decision.workload_expected_operations = contract.issued_operations;
         decision.channel_runtime = evidence.channel_runtime;
         // Launch admission is necessarily pre-run.  The durable coverage
         // record remains calibrated_emulation until final runtime counters,
-        // leaks, barriers/groups, and channel residuals are validated.
+        // leaks, barriers/groups, and structural queue accounting are
+        // validated.
         decision.post_run_validation_passed = false;
         if (!decision.exact_rejection_reasons.empty()) {
             decision.allowed = false;
@@ -1247,6 +1289,43 @@ inspect_bounded(Handle handle, std::string runtime_module_id,
             std::uintptr_t value = 0;
             std::memcpy(&value, arguments[index], sizeof(value));
             parameter.slots.push_back({.offset = 0, .value = value});
+            if (value != 0 && runtime.gate().is_tensormap_parameter(
+                                  runtime_module_id, kernel, index)) {
+                using copy_type = CUresult (*)(void*, CUdeviceptr,
+                                               std::size_t);
+                static auto copy = reinterpret_cast<copy_type>(
+                    driver_symbol("cuMemcpyDtoH"));
+                std::array<std::byte, 128> descriptor{};
+                const auto domain = current_cuda_domain();
+                if (copy != nullptr && domain.has_value() &&
+                    copy(descriptor.data(), static_cast<CUdeviceptr>(value),
+                         descriptor.size()) == CUDA_SUCCESS) {
+                    const auto record =
+                        hbfsim::global_tensormap_registry().lookup_fenced(
+                            domain->context, domain->device, descriptor);
+                    if (record.has_value()) {
+                        parameter.tensormap_descriptor = true;
+                        parameter.slots.push_back(
+                            {.offset = 0, .value = record->base_address});
+                    }
+                }
+            }
+        } else if (width == 128 && arguments[index] != nullptr) {
+            std::array<std::byte, 128> descriptor{};
+            std::memcpy(descriptor.data(), arguments[index],
+                        descriptor.size());
+            const auto domain = current_cuda_domain();
+            if (domain.has_value()) {
+                const auto record =
+                    hbfsim::global_tensormap_registry().lookup_fenced(
+                        domain->context, domain->device, descriptor);
+                if (record.has_value()) {
+                    parameter.opaque_aggregate = false;
+                    parameter.tensormap_descriptor = true;
+                    parameter.slots.push_back(
+                        {.offset = 0, .value = record->base_address});
+                }
+            }
         }
         launch.parameters.push_back(std::move(parameter));
     }

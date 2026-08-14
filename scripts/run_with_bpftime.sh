@@ -78,6 +78,7 @@ BPFTIME_PATCH2="$HBFSIM_ROOT/patches/bpftime/0002-sm120-aot-bundle-load.patch"
 BPFTIME_PATCH3="$HBFSIM_ROOT/patches/bpftime/0003-libbpf-modern-libc-const.patch"
 BPFTIME_PATCH4="$HBFSIM_ROOT/patches/bpftime/0004-honor-llvm-aot-cli-option.patch"
 BPFTIME_PATCH5="$HBFSIM_ROOT/patches/bpftime/0005-cuda13-context-create.patch"
+BPFTIME_PATCH6="$HBFSIM_ROOT/patches/bpftime/0006-prepatched-bootstrap-once.patch"
 if [[ ! -r $BPFTIME_PROVENANCE ]]; then
     echo "run_with_bpftime: bpftime build provenance is missing: $BPFTIME_PROVENANCE" >&2
     exit 66
@@ -88,16 +89,18 @@ expected_digest2=$(sha256sum "$BPFTIME_PATCH2" | awk '{print $1}')
 expected_digest3=$(sha256sum "$BPFTIME_PATCH3" | awk '{print $1}')
 expected_digest4=$(sha256sum "$BPFTIME_PATCH4" | awk '{print $1}')
 expected_digest5=$(sha256sum "$BPFTIME_PATCH5" | awk '{print $1}')
-if [[ ${#provenance[@]} -ne 9 ||
+expected_digest6=$(sha256sum "$BPFTIME_PATCH6" | awk '{print $1}')
+if [[ ${#provenance[@]} -ne 10 ||
       ${provenance[0]:-} != bpftime_commit=ec26daecc8e787fb80fd95dd596a576404a5e36e ||
       ${provenance[1]:-} != patch_0001_sha256="$expected_digest1" ||
       ${provenance[2]:-} != patch_0002_sha256="$expected_digest2" ||
       ${provenance[3]:-} != patch_0003_sha256="$expected_digest3" ||
       ${provenance[4]:-} != patch_0004_sha256="$expected_digest4" ||
       ${provenance[5]:-} != patch_0005_sha256="$expected_digest5" ||
-      ${provenance[6]:-} != aot_bridge_version=1 ||
-      ${provenance[7]:-} != cuda_root="$HBFSIM_CUDA_ROOT" ||
-      ${provenance[8]:-} != cuda_release=13.0 ]]; then
+      ${provenance[6]:-} != patch_0006_sha256="$expected_digest6" ||
+      ${provenance[7]:-} != aot_bridge_version=1 ||
+      ${provenance[8]:-} != cuda_root="$HBFSIM_CUDA_ROOT" ||
+      ${provenance[9]:-} != cuda_release=13.0 ]]; then
     echo "run_with_bpftime: bpftime build provenance mismatch: $BPFTIME_PROVENANCE" >&2
     exit 66
 fi
@@ -274,7 +277,7 @@ if sys.argv[3] == "exact":
                item.get("channel_gnic_requests", 0) +
                    item.get("channel_gpc_requests", 0) > 0 and
                item.get("channel_saturated_requests", 0) == 0 and
-               item.get("channel_counter_residual_failed") is False and
+               item.get("channel_queue_accounting_failed") is False and
                item.get("channel_migration_visible_sm_mismatch") is False and
                not item.get("exact_rejection_reasons")
                for item in final)

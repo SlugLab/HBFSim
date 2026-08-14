@@ -7,12 +7,14 @@
 #include <json.hpp>
 #include <openssl/sha.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iomanip>
 #include <mutex>
+#include <optional>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -434,18 +436,66 @@ const char* completion_kind(hbfsim::ptx::CompletionKind value)
     return "unknown";
 }
 
-std::uint32_t immediate_mask(const hbfsim::ptx::TmaInstruction& tma)
+std::optional<std::uint32_t> immediate_mask(std::string_view operand)
 {
-    if (!tma.multicast) return 0;
     try {
         std::size_t consumed = 0;
-        const auto value = std::stoul(tma.multicast_mask, &consumed, 0);
-        return consumed == tma.multicast_mask.size() && value <= 0xffff
-                   ? static_cast<std::uint32_t>(value)
-                   : 0;
+        const auto text = std::string(operand);
+        const auto value = std::stoul(text, &consumed, 0);
+        if (consumed == text.size() && value <= 0xffff) {
+            return static_cast<std::uint32_t>(value);
+        }
     } catch (const std::exception&) {
-        return 0;
     }
+    return std::nullopt;
+}
+
+struct MulticastMaskEvidence {
+    std::uint32_t value{0};
+    std::string operand{"0"};
+    std::string kind{"none"};
+};
+
+MulticastMaskEvidence multicast_mask_evidence(
+    const hbfsim::ptx::Function& function, std::size_t instruction_index,
+    const hbfsim::ptx::TmaInstruction& tma)
+{
+    if (!tma.multicast) return {};
+    if (const auto value = immediate_mask(tma.multicast_mask)) {
+        return {.value = *value,
+                .operand = tma.multicast_mask,
+                .kind = "immediate"};
+    }
+    for (const auto& block : function.blocks) {
+        const auto position = std::find(block.instructions.begin(),
+                                        block.instructions.end(),
+                                        instruction_index);
+        if (position == block.instructions.end()) continue;
+        for (auto prior = position; prior != block.instructions.begin();) {
+            --prior;
+            const auto& definition = function.instructions[*prior];
+            if (std::find(definition.defs.begin(), definition.defs.end(),
+                          tma.multicast_mask) == definition.defs.end()) {
+                continue;
+            }
+            if (definition.predicate.empty() &&
+                definition.opcode.starts_with("mov.") &&
+                definition.operands.size() == 2 &&
+                definition.operands.front() == tma.multicast_mask) {
+                if (const auto value =
+                        immediate_mask(definition.operands.back())) {
+                    return {.value = *value,
+                            .operand = tma.multicast_mask,
+                            .kind = "constant_register"};
+                }
+            }
+            break;
+        }
+        break;
+    }
+    return {.value = 0,
+            .operand = tma.multicast_mask,
+            .kind = "runtime_register"};
 }
 
 TmaPassEvidence tma_pass_evidence(
@@ -463,7 +513,10 @@ TmaPassEvidence tma_pass_evidence(
     std::set<std::string> descriptor_registers;
     std::ostringstream canonical;
     canonical << "sm120-tma-v1\n" << function.name << '\n';
-    for (const auto& instruction : function.instructions) {
+    for (std::size_t instruction_index = 0;
+         instruction_index < function.instructions.size();
+         ++instruction_index) {
+        const auto& instruction = function.instructions[instruction_index];
         if (!instruction.async.has_value()) continue;
         if (const auto* tma =
                 std::get_if<hbfsim::ptx::TmaInstruction>(
@@ -473,7 +526,8 @@ TmaPassEvidence tma_pass_evidence(
                 plan.descriptor_generations.contains(instruction.instruction_id)
                     ? plan.descriptor_generations.at(instruction.instruction_id)
                     : 0;
-            const auto mask = immediate_mask(*tma);
+            const auto mask = multicast_mask_evidence(
+                function, instruction_index, *tma);
             result.instruction_table.push_back({
                 {"instruction_id", instruction.instruction_id},
                 {"source_line", instruction.location.line},
@@ -481,14 +535,19 @@ TmaPassEvidence tma_pass_evidence(
                 {"mode", tensor_mode(tma->mode)},
                 {"dimensions", tma->dimensions},
                 {"completion", completion_kind(tma->completion)},
-                {"multicast_mask", mask},
+                {"multicast", tma->multicast},
+                {"multicast_mask", mask.value},
+                {"multicast_mask_operand", mask.operand},
+                {"multicast_mask_kind", mask.kind},
                 {"descriptor_generation", generation},
             });
             canonical << instruction.instruction_id << '|'
                       << instruction.location.line << '|'
                       << tma_direction(tma->direction) << '|'
                       << tensor_mode(tma->mode) << '|' << tma->dimensions << '|'
-                      << completion_kind(tma->completion) << '|' << mask << '|'
+                      << completion_kind(tma->completion) << '|'
+                      << tma->multicast << '|' << mask.value << '|'
+                      << mask.operand << '|' << mask.kind << '|'
                       << generation << '\n';
         }
     }

@@ -54,6 +54,16 @@ enum hbfsim_exact_concurrency_condition {
     HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS = 1
 };
 
+enum hbfsim_exact_operation_class {
+    HBFSIM_EXACT_OPERATION_ORDINARY_LOAD = 1,
+    HBFSIM_EXACT_OPERATION_ORDINARY_STORE = 2,
+    HBFSIM_EXACT_OPERATION_TMA_LOAD = 3,
+    HBFSIM_EXACT_OPERATION_TMA_STORE = 4,
+    HBFSIM_EXACT_OPERATION_UNICAST = 5,
+    HBFSIM_EXACT_OPERATION_MULTICAST = 6,
+    HBFSIM_EXACT_OPERATION_MIXED_HBM_HBF = 7
+};
+
 typedef struct hbfsim_options {
     const char* profile_path;
     const char* report_dir;
@@ -76,6 +86,16 @@ typedef struct hbfsim_exact_run_contract {
     uint32_t cluster_x;
     uint32_t cluster_y;
     uint32_t cluster_z;
+    uint32_t operation_class;
+    uint64_t issued_operations;
+    uint64_t bytes;
+    uint32_t resident_warps;
+    uint32_t queue_depth;
+    uint32_t dimension_count;
+    uint64_t iterations;
+    uint32_t load_use_distance;
+    uint64_t tile_elements;
+    uint32_t multicast_targets;
 } hbfsim_exact_run_contract;
 
 typedef struct hbfsim_range_options {
@@ -91,6 +111,9 @@ typedef struct hbfsim_stats {
     uint64_t fast_requests;
     uint64_t reference_requests;
     uint64_t fast_modeled_ns;
+    uint64_t capacity_cache_hits;
+    uint64_t capacity_cache_misses;
+    uint64_t capacity_dirty_writebacks;
 } hbfsim_stats;
 
 typedef struct hbfsim_future_stats {

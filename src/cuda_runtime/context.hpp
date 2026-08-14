@@ -9,6 +9,18 @@
 
 namespace hbfsim::runtime {
 
+constexpr std::uint64_t effective_heartbeat_timeout_ns(
+    std::uint64_t request_timeout_ns) noexcept
+{
+    constexpr std::uint64_t kMinimumHeartbeatTimeoutNs = 50'000'000;
+    constexpr std::uint64_t kMaximumHeartbeatTimeoutNs = 1'000'000'000;
+    return request_timeout_ns < kMinimumHeartbeatTimeoutNs
+               ? kMinimumHeartbeatTimeoutNs
+           : request_timeout_ns > kMaximumHeartbeatTimeoutNs
+               ? kMaximumHeartbeatTimeoutNs
+               : request_timeout_ns;
+}
+
 using BeforeForkHook = void (*)(int control_fd, void* state) noexcept;
 using AfterBeginRetireHook = void (*)(void* state) noexcept;
 using PublishRange = void (*)(void* state) noexcept;

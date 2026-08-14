@@ -81,7 +81,7 @@ add_custom_command(
     OUTPUT "${HBFSIM_SM120_TMA_PTX}"
     COMMAND
         "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20
-        "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+        "--gpu-architecture=sm_${HBFSIM_CUDA_ARCHITECTURE}a"
         "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/gpu/sm120_tma_correctness.cu"
         -o "${HBFSIM_SM120_TMA_PTX}"

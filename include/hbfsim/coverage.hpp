@@ -118,7 +118,10 @@ struct TmaInstructionEvidence {
     std::string mode;
     std::uint32_t dimensions{0};
     std::string completion;
+    bool multicast{false};
     std::uint32_t multicast_mask{0};
+    std::string multicast_mask_operand;
+    std::string multicast_mask_kind;
     std::uint64_t descriptor_generation{0};
 };
 
@@ -164,7 +167,7 @@ struct ChannelRuntimeEvidence {
     std::uint64_t gnic_requests{0};
     std::uint64_t gpc_requests{0};
     bool migration_visible_sm_mismatch{false};
-    bool counter_residual_failed{false};
+    bool queue_accounting_failed{false};
     bool observed{false};
 };
 
@@ -200,6 +203,7 @@ struct LaunchParameter {
     std::size_t offset{0};
     std::size_t width{0};
     bool opaque_aggregate{false};
+    bool tensormap_descriptor{false};
     std::vector<ArgumentSlot> slots;
 };
 
@@ -240,6 +244,8 @@ struct GateDecision {
     std::string routing_program_sha256;
     std::string raw_training_sha256;
     std::string raw_holdout_sha256;
+    std::string workload_operation_class;
+    std::uint64_t workload_expected_operations{0};
     FutureManifestEvidence future_manifest;
     FutureRuntimeEvidence future_runtime;
     TmaManifestEvidence tma_manifest;
@@ -267,6 +273,9 @@ class CoverageGate {
     [[nodiscard]] bool has_ranges() const;
     [[nodiscard]] bool has_capacity_ranges() const;
     [[nodiscard]] bool has_strict_ranges() const;
+    [[nodiscard]] bool is_tensormap_parameter(
+        const std::string& module_id, const std::string& kernel,
+        std::size_t parameter_index) const;
     [[nodiscard]] GateDecision check_launch(const KernelLaunch& launch) const;
 
   private:

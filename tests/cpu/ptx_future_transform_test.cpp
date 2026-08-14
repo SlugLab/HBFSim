@@ -185,6 +185,41 @@ int main()
                     std::string::npos,
             "atomic resident/deferred executions are not mutually exclusive");
 
+    const std::string acquire_atomic_ptx = R"ptx(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry acquire_atomic(
+    .param .u64 atomic_pointer,
+    .param .u64 load_pointer) {
+  .reg .b64 %rd<3>;
+  .reg .b32 %r<4>;
+  ld.param.u64 %rd1, [atomic_pointer];
+  ld.param.u64 %rd2, [load_pointer];
+  mov.u32 %r1, 1;
+  atom.global.acq_rel.gpu.add.u32 %r2, [%rd1], %r1;
+  ld.global.u32 %r3, [%rd2];
+  ret;
+})ptx";
+    const auto acquire_atomic = hbfsim::ptx::transform_futures(
+        acquire_atomic_ptx, "acquire_atomic");
+    require(acquire_atomic.modified &&
+                acquire_atomic.rejection_reason.empty(),
+            "acquire atomic future was not transformed");
+    const auto acquire_atomic_issue = require_find(
+        acquire_atomic.output_ptx, "// HBFSim future issue 4");
+    const auto acquire_atomic_wait = require_find(
+        acquire_atomic.output_ptx, "// HBFSim future wait 4");
+    const auto following_load_issue = require_find(
+        acquire_atomic.output_ptx, "// HBFSim future issue 5");
+    require(acquire_atomic_issue < acquire_atomic_wait &&
+                acquire_atomic_wait < following_load_issue,
+            "acquire atomic escaped its architectural wait boundary");
+    require(acquire_atomic.output_ptx.find(
+                "st.param.b32 [%hbfsim_wait_4_1_kind], 1;") !=
+                std::string::npos,
+            "acquire atomic wait was not classified as an ordering wait");
+
     require(stores.output_ptx.find(
                 "@!%p1 bra $L__hbfsim_f10_predicate_false;") !=
                 std::string::npos,
@@ -202,5 +237,62 @@ int main()
     require(!unsupported.modified && unsupported.output_ptx.empty() &&
                 unsupported.rejection_reason == "unsupported_atomic_type",
             "unsupported atomic type did not fail closed");
+
+    const std::string byte_store_ptx = R"ptx(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry byte_store(
+    .param .u64 pointer,
+    .param .u16 value) {
+  .reg .b64 %rd<2>;
+  .reg .b16 %rs<2>;
+  ld.param.u64 %rd1, [pointer];
+  ld.param.u16 %rs1, [value];
+  st.global.u8 [%rd1], %rs1;
+  ret;
+})ptx";
+    const auto byte_store =
+        hbfsim::ptx::transform_futures(byte_store_ptx, "byte_store");
+    require(byte_store.modified && byte_store.rejection_reason.empty() &&
+                byte_store.output_ptx.find(
+                    ".reg .b16 %hbfsim_f3_snapshot_0;") !=
+                    std::string::npos &&
+                byte_store.output_ptx.find(
+                    "mov.b16 %hbfsim_f3_snapshot_0, %rs1;") !=
+                    std::string::npos &&
+                byte_store.output_ptx.find("mov.b8") == std::string::npos,
+            "byte-store snapshot did not use a legal 16-bit PTX register");
+
+    const std::string loop_ptx = R"ptx(
+.version 9.0
+.target sm_120
+.address_size 64
+.visible .entry future_loop(.param .u64 pointer) {
+  .reg .b64 %rd<3>;
+  .reg .b32 %r<4>;
+  .reg .pred %p<2>;
+  ld.param.u64 %rd1, [pointer];
+  mov.u32 %r2, 4;
+$loop:
+  ld.global.u32 %r1, [%rd1];
+  add.u32 %r3, %r1, 1;
+  sub.u32 %r2, %r2, 1;
+  setp.ne.u32 %p1, %r2, 0;
+  @%p1 bra $loop;
+  ret;
+})ptx";
+    const auto loop = hbfsim::ptx::transform_futures(loop_ptx, "future_loop");
+    require(loop.modified && loop.rejection_reason.empty(),
+            "loop future was not transformed");
+    const auto reissue_drain = require_find(
+        loop.output_ptx, "// HBFSim future reissue drain 3");
+    const auto loop_issue = require_find(
+        loop.output_ptx, "// HBFSim future issue 3");
+    require(reissue_drain < loop_issue &&
+                loop.output_ptx.find(
+                    "st.param.b32 [%hbfsim_wait_3_0_kind], 1;") !=
+                    std::string::npos,
+            "loop-carried static future is overwritten before its old ticket drains");
     return 0;
 }

@@ -21,6 +21,7 @@ from typing import NoReturn
 TARGETS = frozenset(("sm_120", "sm_120a", "sm_120f"))
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 MAX_CUBIN_BYTES = 1024 * 1024 * 1024
+MAX_TOOL_BYTES = 1024 * 1024 * 1024
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MODULE_ID_RE = re.compile(r"^ptx:sha256:([0-9a-f]{64})$")
 IDENTITY_RE = re.compile(
@@ -60,7 +61,10 @@ def regular_file(path_text: str, label: str, maximum: int = MAX_MANIFEST_BYTES) 
 
 
 def executable(path_text: str, label: str) -> pathlib.Path:
-    path = regular_file(path_text, label)
+    # CUDA compiler binaries are commonly larger than the bounded JSON/PTX
+    # inputs.  Keep a separate executable ceiling so the input-data limit does
+    # not reject the real, explicitly named toolchain.
+    path = regular_file(path_text, label, MAX_TOOL_BYTES)
     if not os.access(path, os.X_OK):
         fail(66, f"{label} is not executable")
     return path
@@ -167,7 +171,11 @@ def run_tool(command: list[str], label: str) -> subprocess.CompletedProcess[str]
 def ptxas_resources(log: str, kernels: list[str]) -> dict[str, dict[str, int]]:
     starts = list(re.finditer(r"Function properties for\s+([^\s]+)", log))
     result: dict[str, dict[str, int]] = {}
+    required = set(kernels)
     for index, match in enumerate(starts):
+        name = match.group(1)
+        if name not in required:
+            continue
         end = starts[index + 1].start() if index + 1 < len(starts) else len(log)
         section = log[match.end():end]
         spills = re.search(
@@ -175,8 +183,10 @@ def ptxas_resources(log: str, kernels: list[str]) -> dict[str, dict[str, int]]:
             section)
         registers = re.search(r"Used\s+([0-9]+) registers", section)
         if spills is None or registers is None:
-            fail(70, f"ptxas resource output is incomplete for {match.group(1)}")
-        result[match.group(1)] = {
+            fail(70, f"ptxas resource output is incomplete for {name}")
+        if name in result:
+            fail(70, f"ptxas resource output is duplicated for {name}")
+        result[name] = {
             "registers": int(registers.group(1)),
             "spill_store_bytes": int(spills.group(1)),
             "spill_load_bytes": int(spills.group(2)),
@@ -189,14 +199,20 @@ def ptxas_resources(log: str, kernels: list[str]) -> dict[str, dict[str, int]]:
 def cuobjdump_resources(output: str, kernels: list[str]) -> dict[str, int]:
     starts = list(re.finditer(r"Function\s+([^:\s]+):", output))
     result: dict[str, int] = {}
+    required = set(kernels)
     for index, match in enumerate(starts):
+        name = match.group(1)
+        if name not in required:
+            continue
         end = starts[index + 1].start() if index + 1 < len(starts) else len(output)
         section = output[match.end():end]
         shared = re.search(r"\bSHARED:([0-9]+)\b", section)
         registers = re.search(r"\bREG:([0-9]+)\b", section)
         if shared is None or registers is None:
-            fail(70, f"cuobjdump resource output is incomplete for {match.group(1)}")
-        result[match.group(1)] = int(shared.group(1))
+            fail(70, f"cuobjdump resource output is incomplete for {name}")
+        if name in result:
+            fail(70, f"cuobjdump resource output is duplicated for {name}")
+        result[name] = int(shared.group(1))
     if set(result) != set(kernels):
         fail(70, "cuobjdump resource records do not match pass manifest")
     return result

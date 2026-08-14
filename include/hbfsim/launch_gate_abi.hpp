@@ -66,7 +66,7 @@ struct LaunchGateApiV3 {
         LaunchGatePublishRange publish, void* publish_state) noexcept;
 };
 
-inline constexpr std::uint32_t kExactRunContractAbiVersion = 1;
+inline constexpr std::uint32_t kExactRunContractAbiVersion = 2;
 
 enum class ExactCacheConditionAbi : std::uint32_t {
     Unspecified = 0,
@@ -79,6 +79,17 @@ enum class ExactConcurrencyConditionAbi : std::uint32_t {
     ExclusiveProcess = 1,
 };
 
+enum class ExactOperationClassAbi : std::uint32_t {
+    Unspecified = 0,
+    OrdinaryLoad = 1,
+    OrdinaryStore = 2,
+    TmaLoad = 3,
+    TmaStore = 4,
+    Unicast = 5,
+    Multicast = 6,
+    MixedHbmHbf = 7,
+};
+
 struct ExactRunContractAbi {
     std::uint32_t abi_version;
     std::uint32_t struct_bytes;
@@ -88,9 +99,19 @@ struct ExactRunContractAbi {
     std::uint32_t cluster_y;
     std::uint32_t cluster_z;
     std::uint64_t cache_condition_epoch;
+    ExactOperationClassAbi operation_class;
+    std::uint64_t issued_operations;
+    std::uint64_t bytes;
+    std::uint32_t resident_warps;
+    std::uint32_t queue_depth;
+    std::uint32_t dimension_count;
+    std::uint64_t iterations;
+    std::uint32_t load_use_distance;
+    std::uint64_t tile_elements;
+    std::uint32_t multicast_targets;
 };
 
-inline constexpr std::uint32_t kExactPostRunEvidenceAbiVersion = 1;
+inline constexpr std::uint32_t kExactPostRunEvidenceAbiVersion = 2;
 
 struct ExactPostRunEvidenceAbi {
     std::uint32_t abi_version;
@@ -118,7 +139,7 @@ struct ExactPostRunEvidenceAbi {
     std::uint32_t maximum_gnic_outstanding;
     std::uint32_t maximum_gpc_outstanding;
     std::uint32_t migration_visible_sm_mismatch;
-    std::uint32_t counter_residual_failed;
+    std::uint32_t queue_accounting_failed;
     std::uint32_t reserved0;
     std::uint64_t channel_saturated_requests;
     std::uint64_t channel_gnic_requests;

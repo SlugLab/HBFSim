@@ -421,6 +421,20 @@ int main(int argc, char** argv)
                 .cluster_x = options.exact_cluster_x,
                 .cluster_y = options.exact_cluster_y,
                 .cluster_z = options.exact_cluster_z,
+                .operation_class = options.pattern == "mixed_rw"
+                    ? HBFSIM_EXACT_OPERATION_MIXED_HBM_HBF
+                    : HBFSIM_EXACT_OPERATION_ORDINARY_LOAD,
+                .issued_operations = options.iterations +
+                    (options.pattern == "mixed_rw" ?
+                         options.iterations / 2 : 0),
+                .bytes = options.bytes,
+                .resident_warps = 1,
+                .queue_depth = 1,
+                .dimension_count = 0,
+                .iterations = options.iterations,
+                .load_use_distance = 0,
+                .tile_elements = 1,
+                .multicast_targets = 0,
             };
             if (hbfsim_publish_exact_run_contract(context, &contract) !=
                 HBFSIM_OK) {

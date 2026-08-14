@@ -65,13 +65,27 @@ def test_real_vllm_exact_workload(request) -> None:
     subprocess.run([
         str(ROOT / "adapters/vllm/run_timing.sh"),
         "--exact-profile", str(exact_profile),
-        "--report-dir", str(exact), *common,
+        "--exact-preheat", "--report-dir", str(exact), *common,
     ], cwd=ROOT, env=environment, check=True, timeout=1200)
     native = json.loads((baseline / "result.json").read_text())
     instrumented = json.loads((exact / "result.json").read_text())
     assert native["output_token_ids"] == instrumented["output_token_ids"]
     assert instrumented["exact_post_run_finalized"] is True
     assert instrumented["exact_session_count"] > 0
+    assert instrumented["exact_scope"] == "one_shot_sideband_probe"
+    assert instrumented["model_graph_fidelity"] == "native"
+    assert instrumented["model_storage_registered"] is False
+    assert instrumented["exact_probe"]["status"] == "passed"
+    coverage = [json.loads(line) for line in
+                (exact / "coverage.jsonl").read_text().splitlines()]
+    post_run = [record for record in coverage
+                if record.get("reason") == "exact_post_run_passed"]
+    assert post_run
+    assert all(record["admitted_fidelity"] == "exact" for record in post_run)
+    assert all(record["future_issued"] == record["future_drained"] == 393216
+               for record in post_run)
+    assert all(record["future_faults"] == record["future_leaked"] == 0
+               for record in post_run)
 
 
 def main() -> int:

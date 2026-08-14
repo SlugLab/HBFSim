@@ -48,6 +48,7 @@ class ImmutableRangeSnapshot {
     std::span<const std::int32_t> coordinates,
     const ImmutableRangeSnapshot& ranges,
     TmaTransferDirection direction,
-    TmaAccessMode mode = TmaAccessMode::Tile);
+    TmaAccessMode mode = TmaAccessMode::Tile,
+    std::span<const std::int32_t> im2col_offsets = {});
 
 }  // namespace hbfsim

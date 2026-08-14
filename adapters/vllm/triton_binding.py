@@ -16,6 +16,7 @@ class TritonBindingError(RuntimeError):
 
 
 NativeBinder = Callable[[int, bytes, str], int]
+AfterBind = Callable[[], Any]
 
 
 def load_native_binder() -> NativeBinder:
@@ -66,7 +67,8 @@ class TritonVariantBinder:
 
     def __init__(self, report_dir: pathlib.Path, native: NativeBinder,
                  *, required: bool = True, retries: int = 100,
-                 retry_seconds: float = 0.05):
+                 retry_seconds: float = 0.05,
+                 after_bind: AfterBind | None = None):
         self.report_dir = pathlib.Path(report_dir).resolve()
         self.report_dir.mkdir(parents=True, exist_ok=True)
         self.output = self.report_dir / "triton-bindings.jsonl"
@@ -74,6 +76,7 @@ class TritonVariantBinder:
         self.required = required
         self.retries = retries
         self.retry_seconds = retry_seconds
+        self.after_bind = after_bind
         self.bound_count = 0
 
     def _write(self, record: dict[str, Any]) -> None:
@@ -128,6 +131,8 @@ class TritonVariantBinder:
         }
         self._write(record)
         if result == 0:
+            if self.after_bind is not None:
+                self.after_bind()
             self.bound_count += 1
             return
         if self.required and name == "fused_moe_kernel":
@@ -138,12 +143,14 @@ class TritonVariantBinder:
 
 
 def install_triton_binding(report_dir: pathlib.Path, *, required: bool = True,
-                           native: NativeBinder | None = None
+                           native: NativeBinder | None = None,
+                           after_bind: AfterBind | None = None,
                            ) -> TritonVariantBinder:
     import triton
 
     binder = TritonVariantBinder(
-        report_dir, native or load_native_binder(), required=required
+        report_dir, native or load_native_binder(), required=required,
+        after_bind=after_bind,
     )
     triton.knobs.runtime.kernel_load_end_hook = binder.on_kernel_load
     return binder

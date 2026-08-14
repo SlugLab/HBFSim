@@ -134,8 +134,17 @@ profile.
 
 See [SM120 exact mode](docs/sm120-exact-mode.md) for the offline preparation,
 read-only admission check, stamped-bpftime launch path, rejection/remediation
-table, and precise proof boundary. Stage 1 does not yet model asynchronous
-LDG/STG, TMA/TensorMap, or the GNIC2TEX/GPCARB 4+2 channel topology.
+table, and precise proof boundary. Stages 2--4 add first-consumer futures for
+ordinary LD/ST/atomic operations, software-visible TensorMap/TMA shadow state,
+and calibrated four-plus-two contention-equivalent queues. These queue labels
+are fitted equivalence classes, not claims about undocumented NVIDIA physical
+channel numbering.
+
+The [2026-08-14 Stage 2--4 proof checkpoint](docs/proofs/2026-08-14-sm120-exact-stage2-4.md)
+records the real SM120 correctness, training plus independent-seed replication,
+exact
+microbenchmark, and real-workload gates with their content hashes and claim
+boundaries.
 
 The `hybrid` branch now has real-GPU proof for automatic timing injection,
 public file-backed capacity beyond physical VRAM, deterministic vLLM and
@@ -150,11 +159,15 @@ those live gates from narrower CPU, fake-driver, and static PTX checks.
 | Incremental media-only MQSim interface and trace equivalence | Implemented and tested |
 | Reproducible MQSim media benchmark | Implemented and tested |
 | PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
+| SM120 ordinary asynchronous futures | Implemented for scalar/vector load, store, and supported atomic RMW flows; ambiguous def-use/control flow rejects exact mode |
+| TensorMap/TMA asynchronous state | Implemented for tiled 1D--5D load/store, im2col variants, multicast, OOB fill, descriptor update/copy/acquire, mbarrier phase reuse, and bulk groups; the current exact label is restricted to in-bounds TMA |
+| SM120 four-plus-two channel model | Implemented as calibrated contention-equivalent per-SM queues with deterministic routing and fail-closed saturation |
 | bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
 | Live bpftime + GPU interception proof | Passed on real vLLM Triton `cuLaunchKernelEx` variants |
 | Timing-only host range registration and host service | Implemented; CPU/static checks pass |
 | PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
 | vLLM timing-only adapter | Real Qwen3-30B-A3B execution passed with selective named ranges and bit-exact tokens |
+| vLLM exact-workload adapter | Qwen tokens are bit-exact; the model graph is explicitly native and a process-isolated one-shot sideband probe passes exact post-run gates |
 | Live timing-only GPU delay proof | Passed: 24 modeled fused-MoE launches on an explicit 16 KiB weight range |
 | File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
 | Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
@@ -432,32 +445,36 @@ python3 tests/integration/run_ptxpass_json.py \
   build/src/ptxpass_hbf/ptxpass_hbf sm_120 "$(command -v ptxas)"
 ```
 
-When CUDA 12.8 is installed, the check assembles rewritten PTX for the
-single architecture selected at configure time with `ptxas`. The initial pass
-recognizes selected scalar/vector,
-predicated, offset, and cache-qualified global loads and stores. Atomics,
-generic-space operations, texture/surface operations, malformed addresses, and
-inline SASS remain outside the supported HBF path. The runtime coverage gate
-rejects a relevant launch when those operations could consume an HBF pointer;
-this behavior has static/fake-driver coverage but no live-GPU proof yet.
+When a matching CUDA toolkit is installed, the check assembles rewritten PTX
+for the single architecture selected at configure time with `ptxas`. In SM120
+future mode the pass recognizes selected scalar/vector, predicated, offset,
+cache-qualified global loads and stores, plus the supported atomic RMW forms.
+It also recognizes the TensorMap/TMA operations listed in the status table and
+emits schema-v4 evidence for those kernels. Generic-space operations,
+texture/surface operations, malformed addresses, inline SASS, and unprovable
+control/data flow remain outside the exact HBF path. The runtime coverage and
+exact-admission gates reject a relevant launch when such operations or an
+ambiguous future/TMA plan could consume an HBF pointer.
 
-For a modified module, the pass now embeds one PTX-callable resolver directly
-into that module. The helper validates control ABI v2 and the exact control
+For a modified module, the pass embeds one PTX-callable runtime helper directly
+into that module. The helper validates control ABI v9 and the exact control
 generation, searches at most 64 sorted explicit ranges, coalesces matching
 lanes by warp and page, and exchanges timing requests with the host through
-system-scope ordered rings. Each range is assigned a page-aligned synthetic
-media interval within the selected profile's capacity, so MQSim sees bounded
-HBF page addresses rather than process-specific GPU virtual addresses.
-Out-of-range HBM addresses remain unchanged, while an access spanning two HBF
-pages is rejected until split-access support exists.
+system-scope ordered rings. Stage 2 adds issue/poll/wait futures and first-
+consumer or ordering-drain waits; Stage 3 adds TensorMap descriptor shadowing,
+TMA/mbarrier completion, multicast fanout, and bulk-group tracking. Each range
+is assigned a page-aligned synthetic media interval within the selected
+profile's capacity, so MQSim sees bounded HBF page addresses rather than
+process-specific GPU virtual addresses. Out-of-range HBM addresses remain
+unchanged, while unsupported boundary-spanning accesses fail closed.
 
 Only a CUDA-enabled build contains the production helper PTX. A CPU-only pass
 therefore rejects a module that would require instrumentation instead of
 emitting unresolved or user-supplied resolver symbols. Repeated per-kernel
 passes accept an existing helper only when the plugin can authenticate the
 entire module as one it previously emitted. The build checks that the resulting
-module is self-contained and assembles it with CUDA 12.8 `ptxas`; this is still
-static proof, not evidence that delay has been injected on a live GPU.
+module is self-contained and assembles it with the selected CUDA `ptxas`; this
+is still static proof, not evidence that delay has been injected on a live GPU.
 
 ## Verification
 

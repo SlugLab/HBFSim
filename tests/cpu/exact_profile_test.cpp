@@ -90,8 +90,71 @@ int main()
     };
     staged["fit_report"] = {{"schema_version", 1}};
     staged["validation"] = {{"status", "pending"}};
+    staged["conditions"]["clock_control"] = "none";
+    staged["conditions"]["sm_clock_min_mhz"] = 1700;
+    staged["conditions"]["sm_clock_max_mhz"] = 1900;
+    staged["conditions"]["memory_clock_min_mhz"] = 13000;
+    staged["conditions"]["memory_clock_max_mhz"] = 15000;
+    staged["calibration"]["counter_error_contract"] = {
+        {"version", 1},
+        {"percentage_metrics", "absolute_percentage_points"},
+        {"traffic_metrics",
+         "native_or_logical_issued_or_training_class_envelope"},
+        {"duration_metrics", "relative_to_native"},
+        {"fallback_metrics", "relative_to_native"},
+    };
+    nlohmann::json counter_scales = nlohmann::json::object();
+    for (const auto* operation : {
+             "ordinary_load", "ordinary_store", "tma_load", "tma_store",
+             "unicast", "multicast", "mixed_hbm_hbf"}) {
+        counter_scales[operation] = {
+            {"lsu_active", 0.0},
+            {"tma_active", 0.0},
+            {"long_scoreboard", 0.0},
+        };
+    }
+    staged["calibration"]["counter_error_scale_by_class"] = counter_scales;
     CHECK(hbfsim::parse_exact_profile(staged.dump()).validation.status ==
           hbfsim::ValidationStatus::Pending);
+    auto dynamic_conditions = hbfsim::parse_exact_profile(staged.dump());
+    CHECK(dynamic_conditions.conditions.clock_control == "none");
+    CHECK(dynamic_conditions.conditions.sm_clock_min_mhz == 1700);
+    CHECK(dynamic_conditions.conditions.sm_clock_max_mhz == 1900);
+    expect_stage4_error(
+        [](auto& value) {
+            value["conditions"]["clock_control"] = "none";
+            value["conditions"]["sm_clock_min_mhz"] = 1900;
+            value["conditions"]["sm_clock_max_mhz"] = 1700;
+            value["conditions"]["memory_clock_min_mhz"] = 13000;
+            value["conditions"]["memory_clock_max_mhz"] = 15000;
+        },
+        "invalid_clock_interval");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["counter_error_contract"] = {
+                {"version", 2},
+                {"percentage_metrics", "absolute_percentage_points"},
+                {"traffic_metrics",
+                 "native_or_logical_issued_or_training_class_envelope"},
+                {"duration_metrics", "relative_to_native"},
+                {"fallback_metrics", "relative_to_native"},
+            };
+            value["calibration"]["counter_error_scale_by_class"] =
+                nlohmann::json::object();
+        },
+        "invalid_counter_error_contract");
+    expect_stage4_error(
+        [](auto& value) {
+            value["calibration"]["counter_error_contract"] = {
+                {"version", 1},
+                {"percentage_metrics", "absolute_percentage_points"},
+                {"traffic_metrics",
+                 "native_or_logical_issued_or_training_class_envelope"},
+                {"duration_metrics", "relative_to_native"},
+                {"fallback_metrics", "relative_to_native"},
+            };
+        },
+        "invalid_counter_error_contract");
     expect_stage4_error(
         [](auto& value) {
             value["runtime_artifacts"] = {

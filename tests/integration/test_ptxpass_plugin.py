@@ -162,9 +162,58 @@ def main() -> int:
             "mode": "tile",
             "dimensions": 1,
             "completion": "mbarrier",
+            "multicast": False,
             "multicast_mask": 0,
+            "multicast_mask_operand": "0",
+            "multicast_mask_kind": "none",
             "descriptor_generation": 1,
         }], f"unexpected TMA table: {tma_manifest['tma_instruction_table']}")
+        multicast_ptx = configured_fixture(
+            "tests/fixtures/ptx/tma_im2col_multicast_sm120.ptx"
+        )
+        multicast_manifest_path = (
+            pathlib.Path(directory) / "multicast-manifest.jsonl"
+        )
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(
+            multicast_manifest_path
+        )
+        multicast_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        multicast_status = plugin.process_input(
+            request_for(multicast_ptx, "tma_im2col_multicast_sm120"),
+            len(multicast_output), multicast_output,
+        )
+        require(multicast_status == 0, "multicast TMA pass failed")
+        multicast_manifest = json.loads(multicast_manifest_path.read_text())
+        multicast_instruction = multicast_manifest["tma_instruction_table"][0]
+        require(multicast_instruction["multicast"] is True and
+                multicast_instruction["multicast_mask"] == 0 and
+                multicast_instruction["multicast_mask_operand"] == "%rs2" and
+                multicast_instruction["multicast_mask_kind"] ==
+                "runtime_register",
+                f"dynamic multicast evidence differs: {multicast_instruction}")
+        constant_ptx = multicast_ptx.replace(
+            "ld.param.u16 %rs2, [mask];", "mov.u16 %rs2, 3;"
+        )
+        constant_manifest_path = (
+            pathlib.Path(directory) / "constant-multicast-manifest.jsonl"
+        )
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(
+            constant_manifest_path
+        )
+        constant_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        constant_status = plugin.process_input(
+            request_for(constant_ptx, "tma_im2col_multicast_sm120"),
+            len(constant_output), constant_output,
+        )
+        require(constant_status == 0,
+                "constant-register multicast pass failed")
+        constant_manifest = json.loads(constant_manifest_path.read_text())
+        constant_instruction = constant_manifest["tma_instruction_table"][0]
+        require(constant_instruction["multicast_mask"] == 3 and
+                constant_instruction["multicast_mask_operand"] == "%rs2" and
+                constant_instruction["multicast_mask_kind"] ==
+                "constant_register",
+                f"constant multicast evidence differs: {constant_instruction}")
         require(tma_manifest["tensormap_provenance_required"] is True,
                 "TMA exact manifest did not require TensorMap provenance")
         os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(manifest_path)

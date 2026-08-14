@@ -5,7 +5,7 @@ index d3953eee9..d40b90c05 100644
 @@ -129,6 +129,13 @@ if (CUDAToolkit_FOUND)
                               ${GGML_SOURCES_CUDA}
                              )
-
+ 
 +    if (DEFINED ENV{HBFSIM_ROOT} AND DEFINED ENV{HBFSIM_BUILD_DIR})
 +        target_include_directories(ggml-cuda PRIVATE "$ENV{HBFSIM_ROOT}/include")
 +        target_link_libraries(ggml-cuda PRIVATE "$ENV{HBFSIM_BUILD_DIR}/libhbfsim.so")
@@ -14,16 +14,16 @@ index d3953eee9..d40b90c05 100644
 +    endif()
 +
      add_compile_definitions(GGML_CUDA_PEER_MAX_BATCH_SIZE=${GGML_CUDA_PEER_MAX_BATCH_SIZE})
-
+ 
      if (GGML_CUDA_GRAPHS)
 diff --git a/ggml/src/ggml-cuda/ggml-cuda.cu b/ggml/src/ggml-cuda/ggml-cuda.cu
-index dec619324..0f925f761 100644
+index dec619324..94dd0c360 100644
 --- a/ggml/src/ggml-cuda/ggml-cuda.cu
 +++ b/ggml/src/ggml-cuda/ggml-cuda.cu
 @@ -69,6 +69,10 @@
  #include "ggml-cuda/lightning-indexer.cuh"
  #include "ggml.h"
-
+ 
 +#ifdef GGML_CUDA_HBFSIM
 +#include <hbfsim/api.h>
 +#endif
@@ -39,7 +39,7 @@ index dec619324..0f925f761 100644
  #include <limits>
  #include <map>
  #include <memory>
-@@ -86,11 +91,240 @@
+@@ -86,11 +91,389 @@
  #include <cstdarg>
  #include <cstdio>
  #include <cstdlib>
@@ -48,14 +48,17 @@ index dec619324..0f925f761 100644
 +#include <regex>
 +#include <unordered_map>
  #include <vector>
-
+ 
  static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
-
+ 
 +#ifdef GGML_CUDA_HBFSIM
 +namespace {
 +
 +using hbfsim_llama_launch_probe_fn = int (*)(
 +    uint64_t *, const uint64_t *, uint64_t, cudaStream_t);
++using hbfsim_llama_probe_function_fn = void * (*)();
++using bpftime_nv_bind_ptx_variant_fn = int (*)(
++    void *, const char *, size_t, const char *);
 +
 +struct hbfsim_llama_state {
 +    std::mutex mutex;
@@ -74,6 +77,58 @@ index dec619324..0f925f761 100644
 +    int device = -1;
 +    std::unordered_map<void *, size_t> ranges;
 +};
++
++constexpr uint32_t hbfsim_probe_threads = 128;
++constexpr uint32_t hbfsim_probe_depth = 8;
++constexpr uint32_t hbfsim_probe_ring_capacity =
++    hbfsim_probe_threads * hbfsim_probe_depth;
++constexpr uint32_t hbfsim_probe_iterations = 384;
++constexpr uint32_t hbfsim_probe_distance = 32;
++constexpr size_t hbfsim_probe_bytes = 12288;
++constexpr size_t hbfsim_probe_words = hbfsim_probe_bytes / sizeof(uint64_t);
++constexpr uint64_t hbfsim_probe_seed = 0x0123456789abcdefULL;
++constexpr uint64_t hbfsim_probe_slot_mix = 0xd1b54a32d192ed03ULL;
++constexpr uint64_t hbfsim_probe_input_mix = 0x9e3779b97f4a7c15ULL;
++
++uint64_t hbfsim_probe_step(uint64_t value) {
++    value ^= value << 13;
++    value ^= value >> 7;
++    value ^= value << 17;
++    return value;
++}
++
++std::vector<uint64_t> hbfsim_probe_input_values() {
++    std::vector<uint64_t> input(hbfsim_probe_words);
++    for (size_t index = 0; index < input.size(); ++index) {
++        input[index] = hbfsim_probe_seed ^ (index * hbfsim_probe_input_mix);
++    }
++    return input;
++}
++
++std::vector<uint64_t> hbfsim_probe_expected(
++        const std::vector<uint64_t> & input) {
++    std::vector<uint64_t> output(hbfsim_probe_threads);
++    for (uint32_t thread = 0; thread < hbfsim_probe_threads; ++thread) {
++        uint64_t values[hbfsim_probe_depth];
++        for (uint32_t slot = 0; slot < hbfsim_probe_depth; ++slot) {
++            values[slot] = hbfsim_probe_seed ^ (uint64_t{thread} << 32) ^
++                           thread ^ (uint64_t{slot} * hbfsim_probe_slot_mix);
++        }
++        for (uint32_t iteration = 0; iteration < hbfsim_probe_iterations;
++             ++iteration) {
++            for (uint32_t slot = 0; slot < hbfsim_probe_depth; ++slot) {
++                const auto index = (thread * 131U + iteration +
++                                    hbfsim_probe_distance + slot * 17U) %
++                                   hbfsim_probe_words;
++                values[slot] = hbfsim_probe_step(values[slot] ^ input[index]);
++            }
++        }
++        for (uint32_t slot = 0; slot < hbfsim_probe_depth; ++slot) {
++            output[thread] ^= values[slot];
++        }
++    }
++    return output;
++}
 +
 +hbfsim_llama_state & hbfsim_llama() {
 +    static hbfsim_llama_state state;
@@ -141,7 +196,8 @@ index dec619324..0f925f761 100644
 +        throw std::runtime_error("llama.cpp adapter rejects uninstrumented capacity ranges");
 +    }
 +    hbfsim_options options{
-+        profile.c_str(), report.c_str(), hbfsim_model_mode(model), 256,
++        profile.c_str(), report.c_str(), hbfsim_model_mode(model),
++        exact_requested ? hbfsim_probe_ring_capacity : 256,
 +        30'000'000'000ULL,
 +    };
 +    if (exact_requested) {
@@ -154,6 +210,11 @@ index dec619324..0f925f761 100644
 +        state.exact_contract = {
 +            sizeof(hbfsim_exact_run_contract), HBFSIM_EXACT_CACHE_WARM_L2,
 +            HBFSIM_EXACT_CONCURRENCY_EXCLUSIVE_PROCESS, 1, 1, 1,
++            HBFSIM_EXACT_OPERATION_ORDINARY_LOAD,
++            uint64_t{hbfsim_probe_threads} * hbfsim_probe_depth *
++                hbfsim_probe_iterations,
++            hbfsim_probe_bytes, 4, hbfsim_probe_depth, 0,
++            hbfsim_probe_iterations, hbfsim_probe_distance, 1, 0,
 +        };
 +        state.exact_requested = true;
 +    } else {
@@ -165,6 +226,7 @@ index dec619324..0f925f761 100644
 +    state.injection_report = report + "/llama-injection.jsonl";
 +    std::ifstream ptx_input(probe_path, std::ios::binary);
 +    if (!ptx_input) throw std::runtime_error("cannot open HBFSim llama probe PTX");
++    const std::string probe_ptx{std::istreambuf_iterator<char>(ptx_input), {}};
 +    // Static llama.cpp fatbins are intentionally skipped by the runner.  Turn
 +    // automatic extraction back on only for this small dlopen boundary.
 +    (void) unsetenv("BPFTIME_CUDA_DISABLE_CUOBJDUMP");
@@ -177,7 +239,37 @@ index dec619324..0f925f761 100644
 +    if (state.launch_probe == nullptr) {
 +        throw std::runtime_error("HBFSim llama probe is missing launch entrypoint");
 +    }
-+    CUDA_CHECK(cudaMalloc(&state.probe_output, sizeof(uint64_t)));
++    if (state.exact_requested) {
++        const auto probe_function = reinterpret_cast<hbfsim_llama_probe_function_fn>(
++            dlsym(state.probe_library, "hbfsim_llama_probe_function"));
++        const auto bind_variant = reinterpret_cast<bpftime_nv_bind_ptx_variant_fn>(
++            dlsym(RTLD_DEFAULT, "bpftime_nv_bind_ptx_variant"));
++        if (probe_function == nullptr || bind_variant == nullptr ||
++            bind_variant(probe_function(), probe_ptx.data(), probe_ptx.size(),
++                         "hbfsim_llama_probe_kernel") != 0) {
++            throw std::runtime_error("exact probe PTX variant binding failed");
++        }
++    }
++    CUDA_CHECK(cudaMalloc(
++        &state.probe_output, hbfsim_probe_threads * sizeof(uint64_t)));
++    if (state.exact_requested) {
++        // The exact profile covers the instrumented sideband probe, not every
++        // opaque kernel in llama.cpp's static CUDA backend.  Keep an isolated
++        // exact probe shadow so ordinary model kernels cannot be mislabeled
++        // exact merely because they consume the same weight allocation.
++        CUDA_CHECK(cudaMalloc(&state.probe_input, hbfsim_probe_bytes));
++        const auto probe_input = hbfsim_probe_input_values();
++        CUDA_CHECK(cudaMemcpy(state.probe_input, probe_input.data(),
++                              hbfsim_probe_bytes, cudaMemcpyHostToDevice));
++        const hbfsim_range_options range{
++            HBFSIM_RANGE_MODE_TIMING, HBFSIM_RANGE_READ,
++            HBFSIM_CACHE_POLICY_NONE, 0,
++        };
++        hbfsim_check(hbfsim_register_device(
++                         state.context, state.probe_input,
++                         hbfsim_probe_bytes, &range),
++                     "hbfsim_register_device(exact probe)");
++    }
 +}
 +
 +bool hbfsim_register_weight_buffer(void * pointer, size_t bytes, int device) {
@@ -190,6 +282,12 @@ index dec619324..0f925f761 100644
 +        throw std::runtime_error("HBFSim llama adapter supports one CUDA device");
 +    }
 +    if (state.ranges.find(pointer) != state.ranges.end()) return true;
++    if (state.exact_requested) {
++        state.ranges.emplace(pointer, bytes);
++        GGML_LOG_INFO("HBFSim: sampled CUDA weight buffer %p (%zu bytes) for exact probe shadow\n",
++                      pointer, bytes);
++        return true;
++    }
 +    const hbfsim_range_options range{
 +        HBFSIM_RANGE_MODE_TIMING, HBFSIM_RANGE_READ,
 +        HBFSIM_CACHE_POLICY_NONE, 0,
@@ -197,7 +295,9 @@ index dec619324..0f925f761 100644
 +    hbfsim_check(hbfsim_register_device(state.context, pointer, bytes, &range),
 +                 "hbfsim_register_device(weight buffer)");
 +    state.ranges.emplace(pointer, bytes);
-+    if (state.probe_input == nullptr) state.probe_input = pointer;
++    if (state.probe_input == nullptr && bytes >= hbfsim_probe_bytes) {
++        state.probe_input = pointer;
++    }
 +    GGML_LOG_INFO("HBFSim: registered CUDA weight buffer %p (%zu bytes)\n", pointer, bytes);
 +    return true;
 +}
@@ -205,8 +305,9 @@ index dec619324..0f925f761 100644
 +void hbfsim_unregister_weight_buffer(void * pointer) noexcept {
 +    auto & state = hbfsim_llama();
 +    std::lock_guard<std::mutex> lock(state.mutex);
-+    if (state.context == nullptr || state.ranges.find(pointer) == state.ranges.end()) return;
-+    if (state.exact_requested && !state.exact_finalized) {
++    if (state.ranges.find(pointer) == state.ranges.end()) return;
++    if (state.context != nullptr && state.exact_requested &&
++        !state.exact_finalized) {
 +        if (cudaDeviceSynchronize() != cudaSuccess ||
 +            hbfsim_finalize_exact(state.context) != HBFSIM_OK) {
 +            GGML_LOG_ERROR("HBFSim: exact post-run finalization failed\n");
@@ -214,17 +315,25 @@ index dec619324..0f925f761 100644
 +        }
 +        state.exact_finalized = true;
 +    }
-+    if (hbfsim_unregister(state.context, pointer) != HBFSIM_OK) {
++    if (state.context != nullptr && !state.exact_requested &&
++        hbfsim_unregister(state.context, pointer) != HBFSIM_OK) {
 +        GGML_LOG_ERROR("HBFSim: failed to unregister CUDA weight buffer %p\n", pointer);
 +        return;
 +    }
 +    state.ranges.erase(pointer);
-+    if (state.probe_input == pointer) {
++    if (!state.exact_requested && state.probe_input == pointer) {
 +        state.probe_input = state.ranges.empty() ? nullptr : state.ranges.begin()->first;
 +    }
 +    if (!state.ranges.empty()) return;
++    if (state.context != nullptr && state.exact_requested &&
++        state.probe_input != nullptr &&
++        hbfsim_unregister(state.context, state.probe_input) != HBFSIM_OK) {
++        GGML_LOG_ERROR("HBFSim: failed to unregister exact probe shadow\n");
++        return;
++    }
 +    hbfsim_stats stats{};
-+    if (hbfsim_get_stats(state.context, &stats) == HBFSIM_OK) {
++    if (state.context != nullptr &&
++        hbfsim_get_stats(state.context, &stats) == HBFSIM_OK) {
 +        GGML_LOG_INFO("HBFSim llama stats: submitted=%llu completed=%llu fast=%llu reference=%llu modeled_ns=%llu probe_launches=%llu injected_ns=%llu\n",
 +                      (unsigned long long) stats.requests_submitted,
 +                      (unsigned long long) stats.requests_completed,
@@ -234,9 +343,12 @@ index dec619324..0f925f761 100644
 +                      (unsigned long long) state.probe_launches,
 +                      (unsigned long long) (state.probe_launches * state.delay_ns));
 +    }
++    if (state.exact_requested && state.probe_input != nullptr) {
++        (void) cudaFree(state.probe_input);
++    }
 +    if (state.probe_output != nullptr) (void) cudaFree(state.probe_output);
 +    if (state.probe_library != nullptr) (void) dlclose(state.probe_library);
-+    hbfsim_context_destroy(state.context);
++    if (state.context != nullptr) hbfsim_context_destroy(state.context);
 +    state.context = nullptr;
 +    state.probe_output = nullptr;
 +    state.probe_library = nullptr;
@@ -270,8 +382,45 @@ index dec619324..0f925f761 100644
 +        state.delay_ns, stream)));
 +    ++state.probe_launches;
 +    std::ofstream trace(state.injection_report, std::ios::app);
-+    trace << "{\"launch\":" << state.probe_launches
-+          << ",\"delay_ns\":" << state.delay_ns << "}\n";
++    if (!state.exact_requested) {
++        trace << "{\"launch\":" << state.probe_launches
++              << ",\"delay_ns\":" << state.delay_ns << "}\n";
++    }
++    if (state.exact_requested) {
++        // Exact mode is a one-shot exact probe.  Finalize and release its
++        // owner before llama.cpp launches opaque static CUDA graph kernels;
++        // those kernels remain native/emulation and are never mislabeled.
++        CUDA_CHECK(cudaStreamSynchronize(stream));
++        const auto probe_input = hbfsim_probe_input_values();
++        const auto expected = hbfsim_probe_expected(probe_input);
++        std::vector<uint64_t> observed(hbfsim_probe_threads);
++        CUDA_CHECK(cudaMemcpy(observed.data(), state.probe_output,
++                              observed.size() * sizeof(uint64_t),
++                              cudaMemcpyDeviceToHost));
++        if (observed != expected) {
++            throw std::runtime_error("HBFSim exact probe output mismatch");
++        }
++        trace << "{\"launch\":" << state.probe_launches
++              << ",\"delay_ns\":0,\"bit_exact\":true"
++              << ",\"output_count\":" << observed.size()
++              << ",\"issued_operations\":"
++              << uint64_t{hbfsim_probe_threads} * hbfsim_probe_depth *
++                     hbfsim_probe_iterations
++              << "}\n";
++        trace.flush();
++        if (!trace) {
++            throw std::runtime_error("HBFSim exact probe evidence write failed");
++        }
++        hbfsim_check(hbfsim_finalize_exact(state.context),
++                     "hbfsim_finalize_exact(probe)");
++        state.exact_finalized = true;
++        hbfsim_check(hbfsim_unregister(state.context, state.probe_input),
++                     "hbfsim_unregister(exact probe)");
++        (void) cudaFree(state.probe_input);
++        state.probe_input = nullptr;
++        hbfsim_context_destroy(state.context);
++        state.context = nullptr;
++    }
 +}
 +
 +} // namespace
@@ -279,20 +428,20 @@ index dec619324..0f925f761 100644
 +
  #define GGML_LOG_WARN_ONCE(str) \
      { static std::once_flag warn_flag; std::call_once(warn_flag, []() { GGML_LOG_WARN(str); }); }
-
-@@ -725,6 +959,9 @@ struct ggml_backend_cuda_buffer_context {
+ 
+@@ -725,6 +1108,9 @@ struct ggml_backend_cuda_buffer_context {
      int device;
      void * dev_ptr = nullptr;
      std::string name;
 +#ifdef GGML_CUDA_HBFSIM
 +    bool hbfsim_registered = false;
 +#endif
-
+ 
      ggml_backend_cuda_buffer_context(int device, void * dev_ptr) :
          device(device), dev_ptr(dev_ptr),
-@@ -732,6 +969,9 @@ struct ggml_backend_cuda_buffer_context {
+@@ -732,6 +1118,9 @@ struct ggml_backend_cuda_buffer_context {
      }
-
+ 
      ~ggml_backend_cuda_buffer_context() {
 +#ifdef GGML_CUDA_HBFSIM
 +        if (hbfsim_registered) hbfsim_unregister_weight_buffer(dev_ptr);
@@ -300,7 +449,7 @@ index dec619324..0f925f761 100644
          CUDA_CHECK(cudaFree(dev_ptr));
      }
  };
-@@ -785,6 +1025,13 @@ static void ggml_backend_cuda_buffer_set_tensor(ggml_backend_buffer_t buffer, gg
+@@ -785,6 +1174,13 @@ static void ggml_backend_cuda_buffer_set_tensor(ggml_backend_buffer_t buffer, gg
      ggml_cuda_set_device(ctx->device);
      CUDA_CHECK(cudaMemcpyAsync((char *) tensor->data + offset, data, size, cudaMemcpyHostToDevice, cudaStreamPerThread));
      CUDA_CHECK(cudaStreamSynchronize(cudaStreamPerThread));
@@ -312,12 +461,12 @@ index dec619324..0f925f761 100644
 +    }
 +#endif
  }
-
+ 
  static void ggml_backend_cuda_buffer_get_tensor(ggml_backend_buffer_t buffer, const ggml_tensor * tensor, void * data, size_t offset, size_t size) {
-@@ -4207,6 +4454,10 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend,
-
+@@ -4207,6 +4603,10 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend,
+ 
      ggml_cuda_set_device(cuda_ctx->device);
-
+ 
 +#ifdef GGML_CUDA_HBFSIM
 +    hbfsim_launch_llama_probe(cuda_ctx->stream());
 +#endif

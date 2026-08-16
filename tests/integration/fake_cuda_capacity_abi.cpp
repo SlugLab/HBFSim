@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 
 extern "C" {
 
@@ -67,9 +68,16 @@ CUresult CUDAAPI cuDeviceGetName(char*, int, CUdevice)
     return CUDA_ERROR_NOT_SUPPORTED;
 }
 
-CUresult CUDAAPI cuDeviceGetPCIBusId(char*, int, CUdevice)
+CUresult CUDAAPI cuDeviceGetPCIBusId(char* bus_id, int bytes, CUdevice device)
 {
-    return CUDA_ERROR_NOT_SUPPORTED;
+    if (bus_id == nullptr || bytes <= 0 || device < 0) {
+        return CUDA_ERROR_INVALID_VALUE;
+    }
+    const auto written = std::snprintf(
+        bus_id, static_cast<std::size_t>(bytes), "0000:%02x:00.0",
+        static_cast<unsigned int>(device) & 0xffU);
+    return written >= 0 && written < bytes ? CUDA_SUCCESS
+                                           : CUDA_ERROR_INVALID_VALUE;
 }
 
 CUresult CUDAAPI cuDeviceGetUuid_v2(CUuuid*, CUdevice)

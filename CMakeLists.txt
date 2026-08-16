@@ -1072,6 +1072,75 @@ if(HBFSIM_ENABLE_CUDA)
         )
     endif()
 
+    set(
+        HBFSIM_THERMAL_TIMING_PTX
+        "${CMAKE_CURRENT_BINARY_DIR}/thermal_timing_live.ptx"
+    )
+    add_custom_command(
+        OUTPUT "${HBFSIM_THERMAL_TIMING_PTX}"
+        COMMAND
+            "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20
+            "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+            "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/thermal_timing_live.cu"
+            -o "${HBFSIM_THERMAL_TIMING_PTX}"
+        DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/thermal_timing_live.cu"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/gpu/sm120_future_correctness.cu"
+        VERBATIM
+    )
+    add_custom_target(
+        thermal_timing_live_ptx DEPENDS "${HBFSIM_THERMAL_TIMING_PTX}"
+    )
+    add_executable(
+        thermal_timing_live EXCLUDE_FROM_ALL
+        benchmarks/cuda/sm120_future_bench.cu
+    )
+    target_link_libraries(
+        thermal_timing_live
+        PRIVATE hbfsim_core ptxpass_hbf_plugin CUDA::cudart CUDA::cuda_driver
+    )
+    target_include_directories(
+        thermal_timing_live PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+    )
+    target_compile_definitions(
+        thermal_timing_live PRIVATE
+        "HBFSIM_SM120_FUTURE_PTX_PATH=\"${HBFSIM_THERMAL_TIMING_PTX}\""
+    )
+    set_target_properties(
+        thermal_timing_live PROPERTIES
+        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
+        CUDA_RUNTIME_LIBRARY Shared
+        ENABLE_EXPORTS ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests/gpu"
+    )
+    add_dependencies(thermal_timing_live thermal_timing_live_ptx hbfsimd)
+    if(TARGET hbfsim_launch_gate)
+        add_dependencies(thermal_timing_live hbfsim_launch_gate)
+    endif()
+    if(BUILD_TESTING)
+        add_test(
+            NAME thermal_timing_live
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_thermal_timing_live.py"
+                --binary "$<TARGET_FILE:thermal_timing_live>"
+                --gate "$<TARGET_FILE:hbfsim_launch_gate>"
+                --daemon "$<TARGET_FILE:hbfsimd>"
+                --profile
+                "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/thermal-validation.json"
+        )
+        set_tests_properties(
+            thermal_timing_live PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            SKIP_RETURN_CODE 77
+            TIMEOUT 600
+            LABELS "live;sm120;thermal"
+        )
+    endif()
+
     add_executable(unsupported_kernel tests/gpu/unsupported_kernel.cu)
     target_link_libraries(
         unsupported_kernel PRIVATE hbfsim_core CUDA::cudart ${CMAKE_DL_LIBS}

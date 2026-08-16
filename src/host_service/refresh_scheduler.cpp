@@ -121,6 +121,27 @@ void RefreshScheduler::record_read(std::uint64_t address, std::uint64_t bytes)
     }
 }
 
+void RefreshScheduler::record_program(std::uint64_t address,
+                                      std::uint64_t bytes)
+{
+    const auto block_bytes = static_cast<std::uint64_t>(profile_.page_bytes) *
+                             profile_.pages_per_block;
+    if (bytes != block_bytes || address % block_bytes != 0) {
+        throw std::invalid_argument(
+            "application PEC accounting requires one complete block");
+    }
+    const auto found = std::find_if(blocks_.begin(), blocks_.end(),
+                                    [&](const auto& block) {
+                                        return block.base == address;
+                                    });
+    if (found == blocks_.end()) {
+        throw std::out_of_range("programmed block is not registered");
+    }
+    found->reliability.valid = true;
+    commit_refresh(found->reliability);
+    found->eligibility_epoch = 0;
+}
+
 std::vector<RefreshAction> RefreshScheduler::plan(
     std::uint64_t now_epoch,
     std::span<const ApplicationMediaUse> application_reads)

@@ -48,6 +48,7 @@ public:
     void age(std::int64_t junction_millic, std::chrono::nanoseconds elapsed,
              std::uint64_t epoch);
     void record_read(std::uint64_t address, std::uint64_t bytes);
+    void record_program(std::uint64_t address, std::uint64_t bytes);
 
     [[nodiscard]] std::vector<RefreshAction> plan(
         std::uint64_t now_epoch,

@@ -183,6 +183,20 @@ set_tests_properties(
     thermal_consistency PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_executable(thermal_daemon_test tests/integration/thermal_daemon_test.cpp)
+target_link_libraries(thermal_daemon_test PRIVATE hbfsim_core)
+add_test(NAME thermal_daemon COMMAND thermal_daemon_test)
+set_tests_properties(
+    thermal_daemon PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(thermal_capacity_test tests/integration/thermal_capacity_test.cpp)
+target_link_libraries(thermal_capacity_test PRIVATE hbfsim_core)
+add_test(NAME thermal_capacity COMMAND thermal_capacity_test)
+set_tests_properties(
+    thermal_capacity PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
 target_include_directories(

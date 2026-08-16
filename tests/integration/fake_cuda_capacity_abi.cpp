@@ -67,6 +67,26 @@ CUresult CUDAAPI cuDeviceGetName(char*, int, CUdevice)
     return CUDA_ERROR_NOT_SUPPORTED;
 }
 
+CUresult CUDAAPI cuDeviceGetPCIBusId(char*, int, CUdevice)
+{
+    return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult CUDAAPI cuDeviceGetUuid_v2(CUuuid*, CUdevice)
+{
+    return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult CUDAAPI cuDeviceGetAttribute(int*, CUdevice_attribute, CUdevice)
+{
+    return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult CUDAAPI cuDriverGetVersion(int*)
+{
+    return CUDA_ERROR_NOT_SUPPORTED;
+}
+
 CUresult CUDAAPI cuMemGetAllocationGranularity(
     std::size_t* granularity, const CUmemAllocationProp* properties,
     CUmemAllocationGranularity_flags option)

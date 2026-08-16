@@ -1,8 +1,12 @@
 #include "control_layout.hpp"
 #include "request_dispatcher.hpp"
+#include "thermal_controller.hpp"
 
 #include <hbfsim/api.h>
 #include <hbfsim/profile.hpp>
+#include <hbfsim/thermal_report.hpp>
+
+#include <openssl/evp.h>
 
 #if defined(HBFSIM_ENABLE_MQSIM_RUNTIME)
 #include <hbfsim/mqsim_online.hpp>
@@ -15,9 +19,13 @@
 #include <cstdlib>
 #include <deque>
 #include <filesystem>
+#include <fstream>
 #include <fcntl.h>
 #include <iostream>
 #include <limits>
+#include <memory>
+#include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -89,6 +97,63 @@ hbfsim::HbfCompletion unsupported_completion(
     };
 }
 
+std::string sha256_file(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        throw std::runtime_error("unable to open profile for hashing");
+    }
+    std::ostringstream bytes;
+    bytes << input.rdbuf();
+    const auto payload = bytes.str();
+    unsigned char digest[EVP_MAX_MD_SIZE]{};
+    unsigned int digest_bytes = 0;
+    if (EVP_Digest(payload.data(), payload.size(), digest, &digest_bytes,
+                   EVP_sha256(), nullptr) != 1 || digest_bytes != 32) {
+        throw std::runtime_error("unable to hash profile");
+    }
+    constexpr char hex[] = "0123456789abcdef";
+    std::string result(64, '0');
+    for (std::size_t index = 0; index < digest_bytes; ++index) {
+        result[index * 2] = hex[digest[index] >> 4];
+        result[index * 2 + 1] = hex[digest[index] & 0xf];
+    }
+    return result;
+}
+
+std::string thermal_source_name(hbfsim::ThermalTemperatureSource source)
+{
+    switch (source) {
+    case hbfsim::ThermalTemperatureSource::LiveGpu:
+        return "live_gpu";
+    case hbfsim::ThermalTemperatureSource::Trace:
+        return "trace";
+    case hbfsim::ThermalTemperatureSource::Constant:
+        return "constant";
+    }
+    throw std::invalid_argument("unknown thermal source");
+}
+
+void publish_summary_status(hbfsim::host_service::ControlView control,
+                            std::uint32_t status) noexcept
+{
+    auto* header = control.header();
+    const auto generation = hbfsim::host_service::atomic_load(
+        header->thermal_summary_generation, std::memory_order_acquire);
+    if ((generation & 1U) != 0 ||
+        generation > std::numeric_limits<std::uint64_t>::max() - 2) {
+        return;
+    }
+    hbfsim::host_service::atomic_store(
+        header->thermal_summary_generation, generation + 1,
+        std::memory_order_release);
+    hbfsim::host_service::atomic_store(
+        header->thermal_summary_status, status, std::memory_order_relaxed);
+    hbfsim::host_service::atomic_store(
+        header->thermal_summary_generation, generation + 2,
+        std::memory_order_release);
+}
+
 }  // namespace
 
 int main(int argc, char** argv)
@@ -128,6 +193,48 @@ int main(int argc, char** argv)
             throw std::runtime_error("invalid control region ABI");
         }
 
+        std::unique_ptr<hbfsim::host_service::ThermalController>
+            thermal_controller;
+        std::optional<hbfsim::ThermalReliabilityProfile> thermal_profile;
+        std::filesystem::path thermal_report_path;
+        std::string profile_sha256;
+        std::string terminal_status = "clean_shutdown";
+        auto next_thermal_tick = std::chrono::steady_clock::now();
+        if (profile.thermal_reliability) {
+            thermal_profile = *profile.thermal_reliability;
+            profile_sha256 = sha256_file(arguments.profile);
+            thermal_report_path = std::filesystem::path(arguments.report_dir) /
+                                  "thermal-reliability-summary.json";
+            const auto start = std::chrono::nanoseconds(monotonic_ns());
+            thermal_controller = std::make_unique<
+                hbfsim::host_service::ThermalController>(
+                *thermal_profile, control, start);
+
+            // A thermal daemon is not ready until it has consumed one stable
+            // sample and published the initial admission state.
+            const auto readiness_deadline =
+                std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            for (;;) {
+                if (std::chrono::steady_clock::now() >= readiness_deadline) {
+                    throw std::runtime_error(
+                        "thermal telemetry did not become ready");
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                const auto now = std::chrono::nanoseconds(monotonic_ns());
+                const auto result = thermal_controller->tick_at(now);
+                if (result == hbfsim::host_service::ThermalControllerStatus::Ready) {
+                    break;
+                }
+                if (result != hbfsim::host_service::ThermalControllerStatus::StaleTelemetry &&
+                    result != hbfsim::host_service::ThermalControllerStatus::InvalidTelemetry) {
+                    throw std::runtime_error(
+                        "thermal controller failed before startup readiness");
+                }
+            }
+            next_thermal_tick = std::chrono::steady_clock::now() +
+                std::chrono::milliseconds(thermal_profile->controller_period_ms);
+        }
+
 #if defined(HBFSIM_ENABLE_MQSIM_RUNTIME)
         hbfsim::MqsimOnlineEngine engine(profile);
         hbfsim::host_service::atomic_store(
@@ -156,7 +263,6 @@ int main(int argc, char** argv)
                          },
             });
 #else
-        (void)profile;
         std::deque<hbfsim::HbfCompletion> disabled_completions;
         hbfsim::host_service::RequestDispatcher dispatcher(
             control, hbfsim::host_service::RequestDispatcher::Engine{
@@ -208,6 +314,26 @@ int main(int argc, char** argv)
         });
         for (;;) {
             bool progressed = false;
+            if (thermal_controller &&
+                std::chrono::steady_clock::now() >= next_thermal_tick) {
+                const auto result = thermal_controller->tick_at(
+                    std::chrono::nanoseconds(monotonic_ns()));
+                next_thermal_tick += std::chrono::milliseconds(
+                    thermal_profile->controller_period_ms);
+                if (result != hbfsim::host_service::ThermalControllerStatus::Ready) {
+                    const auto thermal_shutdown =
+                        result == hbfsim::host_service::ThermalControllerStatus::Shutdown;
+                    terminal_status = thermal_shutdown ? "thermal_shutdown"
+                                                       : "thermal_controller_failure";
+                    hbfsim::host_service::atomic_store(
+                        control.header()->fault,
+                        static_cast<std::uint64_t>(
+                            thermal_shutdown ? HBFSIM_THERMAL_SHUTDOWN
+                                             : HBFSIM_IO_ERROR),
+                        std::memory_order_release);
+                    break;
+                }
+            }
             while (dispatcher.poll_once()) {
                 progressed = true;
             }
@@ -223,6 +349,28 @@ int main(int argc, char** argv)
 
         heartbeat.request_stop();
         heartbeat.join();
+        if (thermal_controller) {
+            hbfsim::ThermalRunSummary summary{
+                .profile_sha256 = profile_sha256,
+                .profile = *thermal_profile,
+                .temperature_source = thermal_source_name(
+                    thermal_profile->temperature_source),
+                .samples = thermal_controller->samples(),
+                .transitions = thermal_controller->transitions(),
+                .accounting = thermal_controller->accounting(),
+                .mtbf = hbfsim::integrate_mtbf_sensitivity(
+                    *thermal_profile,
+                    thermal_controller->temperature_intervals()),
+                .terminal_status = terminal_status,
+            };
+            try {
+                hbfsim::write_thermal_summary(thermal_report_path, summary);
+                publish_summary_status(control, 1);
+            } catch (...) {
+                publish_summary_status(control, 2);
+                throw;
+            }
+        }
         ::munmap(mapping, mapping_bytes);
         ::close(arguments.control_fd);
         return 0;

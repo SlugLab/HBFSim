@@ -30,38 +30,52 @@ void require_finite(long double value, const char* message)
     }
 }
 
-ThermalMode transition(ThermalMode current, std::int64_t temperature_millic,
-                       const ThermalReliabilityProfile& profile)
+struct TransitionResult {
+    ThermalMode mode;
+    std::vector<ThermalMode> edges;
+};
+
+TransitionResult transition(ThermalMode current,
+                            std::int64_t temperature_millic,
+                            const ThermalReliabilityProfile& profile)
 {
     if (current == ThermalMode::Shutdown) {
-        return current;
-    }
-    if (temperature_millic >= profile.shutdown_millic) {
-        return ThermalMode::Shutdown;
+        return {.mode = current, .edges = {}};
     }
 
+    std::vector<ThermalMode> edges;
     for (;;) {
         if (current == ThermalMode::Normal &&
             temperature_millic >= profile.ltt_millic) {
             current = ThermalMode::Light;
+            edges.push_back(current);
             continue;
         }
         if (current == ThermalMode::Light &&
             temperature_millic >= profile.stt_millic) {
             current = ThermalMode::Severe;
+            edges.push_back(current);
+            continue;
+        }
+        if (current == ThermalMode::Severe &&
+            temperature_millic >= profile.shutdown_millic) {
+            current = ThermalMode::Shutdown;
+            edges.push_back(current);
             continue;
         }
         if (current == ThermalMode::Severe &&
             temperature_millic <= profile.ltt_millic) {
             current = ThermalMode::Light;
+            edges.push_back(current);
             continue;
         }
         if (current == ThermalMode::Light &&
             temperature_millic <= profile.rtt_millic) {
             current = ThermalMode::Normal;
+            edges.push_back(current);
             continue;
         }
-        return current;
+        return {.mode = current, .edges = std::move(edges)};
     }
 }
 
@@ -91,7 +105,8 @@ ThermalReliabilityModel::ThermalReliabilityModel(
     ThermalReliabilityProfile profile, std::int64_t initial_junction_millic)
     : profile_(std::move(profile)),
       junction_millic_(static_cast<long double>(initial_junction_millic)),
-      mode_(transition(ThermalMode::Normal, initial_junction_millic, profile_))
+      mode_(transition(ThermalMode::Normal, initial_junction_millic, profile_)
+                .mode)
 {
     require_finite(junction_millic_, "initial HBF junction is not finite");
 }
@@ -128,12 +143,30 @@ ThermalSnapshot ThermalReliabilityModel::advance(const ThermalInput& input)
 
     junction_millic_ = next_c * 1000.0L;
     const auto rounded = static_cast<std::int64_t>(std::llround(junction_millic_));
-    mode_ = transition(mode_, rounded, profile_);
+    const auto transitioned = transition(mode_, rounded, profile_);
+    if (transitioned.edges.size() >
+        std::numeric_limits<std::uint64_t>::max() - transition_count_) {
+        throw std::overflow_error("thermal transition counter overflow");
+    }
+    mode_ = transitioned.mode;
+    last_transitions_ = transitioned.edges;
+    transition_count_ += last_transitions_.size();
     if (generation_ == std::numeric_limits<std::uint64_t>::max()) {
         throw std::overflow_error("thermal generation overflow");
     }
     ++generation_;
     return snapshot();
+}
+
+std::uint64_t ThermalReliabilityModel::transition_count() const noexcept
+{
+    return transition_count_;
+}
+
+const std::vector<ThermalMode>&
+ThermalReliabilityModel::last_transitions() const noexcept
+{
+    return last_transitions_;
 }
 
 ThermalSnapshot ThermalReliabilityModel::snapshot() const noexcept

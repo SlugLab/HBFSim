@@ -72,6 +72,7 @@ add_library(
     src/profile/profile.cpp
     src/thermal/thermal_reliability.cpp
     src/host_service/request_dispatcher.cpp
+    src/host_service/thermal_controller.cpp
     src/host_service/backing_store.cpp
     src/host_service/capacity_backing_router.cpp
     src/host_service/capacity_page_service.cpp
@@ -87,6 +88,7 @@ add_library(
     src/ptxpass_hbf/tma_transform.cpp
     src/reporting/coverage_writer.cpp
     src/reporting/durable_append.cpp
+    src/reporting/thermal_report.cpp
 )
 target_include_directories(
     hbfsim_core
@@ -136,6 +138,22 @@ add_test(NAME thermal_reliability COMMAND thermal_reliability_test)
 add_executable(thermal_telemetry_test tests/cpu/thermal_telemetry_test.cpp)
 target_link_libraries(thermal_telemetry_test PRIVATE hbfsim_core)
 add_test(NAME thermal_telemetry COMMAND thermal_telemetry_test)
+
+add_executable(thermal_controller_test tests/cpu/thermal_controller_test.cpp)
+target_link_libraries(thermal_controller_test PRIVATE hbfsim_core)
+add_test(NAME thermal_controller COMMAND thermal_controller_test)
+set_tests_properties(
+    thermal_controller PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(thermal_report_fixture tests/cpu/thermal_report_fixture.cpp)
+target_link_libraries(thermal_report_fixture PRIVATE hbfsim_core)
+add_test(
+    NAME thermal_report
+    COMMAND Python3::Interpreter
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_thermal_report.py"
+            "$<TARGET_FILE:thermal_report_fixture>"
+)
 
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)

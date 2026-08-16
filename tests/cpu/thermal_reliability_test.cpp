@@ -122,6 +122,11 @@ int main()
     });
     check(shutdown.mode == ThermalMode::Shutdown,
           "shutdown threshold is terminal");
+    check(model.last_transitions() ==
+              std::vector<ThermalMode>{ThermalMode::Light,
+                                       ThermalMode::Severe,
+                                       ThermalMode::Shutdown},
+          "large temperature changes expose every crossed edge");
     const auto still_shutdown = model.advance({
         .elapsed_ns = 1'000'000'000,
         .gpu_millic = 25'000,
@@ -130,6 +135,8 @@ int main()
     });
     check(still_shutdown.mode == ThermalMode::Shutdown,
           "Shutdown never recovers");
+    check(model.transition_count() == 7,
+          "every crossed hysteresis edge is counted");
 
     check(close_ld(hbfsim::retention_hours(profile, 85'000),
                    24.0L, 1e-12L),

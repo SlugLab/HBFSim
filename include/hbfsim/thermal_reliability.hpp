@@ -58,12 +58,17 @@ public:
 
     ThermalSnapshot advance(const ThermalInput& input);
     [[nodiscard]] ThermalSnapshot snapshot() const noexcept;
+    [[nodiscard]] std::uint64_t transition_count() const noexcept;
+    [[nodiscard]] const std::vector<ThermalMode>&
+    last_transitions() const noexcept;
 
 private:
     ThermalReliabilityProfile profile_;
     long double junction_millic_;
     ThermalMode mode_ = ThermalMode::Normal;
     std::uint64_t generation_ = 0;
+    std::uint64_t transition_count_ = 0;
+    std::vector<ThermalMode> last_transitions_;
 };
 
 long double retention_hours(const ThermalReliabilityProfile& profile,

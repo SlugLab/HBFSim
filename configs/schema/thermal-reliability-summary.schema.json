@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sluglab.github.io/HBFSim/thermal-reliability-summary.schema.json",
+  "title": "HBFSim thermal reliability run summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_sha256",
+    "profile",
+    "source",
+    "reliability_time_acceleration",
+    "accelerated_reliability_time",
+    "samples",
+    "transitions",
+    "accounting",
+    "mtbf_sensitivity",
+    "terminal_status"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "profile_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temperature_source", "source_identity", "constant_gpu_millic",
+        "trace_path", "ambient_millic", "initial_hbf_junction_millic",
+        "tau_seconds", "gpu_coupling_ratio", "thermal_resistance_c_per_w",
+        "idle_power_w", "read_energy_j_per_byte", "write_energy_j_per_byte",
+        "telemetry_period_ms", "controller_period_ms", "rtt_millic",
+        "ltt_millic", "stt_millic", "shutdown_millic", "light_service_ppm",
+        "zone_bytes", "reference_retention_hours",
+        "reference_retention_millic", "retention_activation_energy_ev",
+        "refresh_damage_threshold", "read_disturb_limit",
+        "refresh_quantum_bytes", "registered_ranges_contain_valid_data",
+        "reliability_time_acceleration", "max_pec", "reference_mtbf_hours",
+        "mtbf_reference_millic", "mtbf_activation_energy_ev_min",
+        "mtbf_activation_energy_ev_max", "mtbf_activation_energy_ev_step",
+        "source_sha256"
+      ],
+      "properties": {
+        "temperature_source": { "enum": ["live_gpu", "trace", "constant"] },
+        "source_identity": { "type": "string", "minLength": 1 },
+        "constant_gpu_millic": { "type": ["integer", "null"] },
+        "trace_path": { "type": ["string", "null"] },
+        "ambient_millic": { "type": "integer" },
+        "initial_hbf_junction_millic": { "type": "integer" },
+        "tau_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "gpu_coupling_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "thermal_resistance_c_per_w": { "type": "number", "minimum": 0 },
+        "idle_power_w": { "type": "number", "minimum": 0 },
+        "read_energy_j_per_byte": { "type": "number", "minimum": 0 },
+        "write_energy_j_per_byte": { "type": "number", "minimum": 0 },
+        "telemetry_period_ms": { "type": "integer", "minimum": 1 },
+        "controller_period_ms": { "type": "integer", "minimum": 1 },
+        "rtt_millic": { "type": "integer" },
+        "ltt_millic": { "type": "integer" },
+        "stt_millic": { "type": "integer" },
+        "shutdown_millic": { "type": "integer" },
+        "light_service_ppm": { "type": "integer", "minimum": 1, "maximum": 999999 },
+        "zone_bytes": { "type": "integer", "minimum": 1 },
+        "reference_retention_hours": { "type": "number", "exclusiveMinimum": 0 },
+        "reference_retention_millic": { "type": "integer" },
+        "retention_activation_energy_ev": { "type": "number", "exclusiveMinimum": 0 },
+        "refresh_damage_threshold": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "read_disturb_limit": { "type": "integer", "minimum": 1 },
+        "refresh_quantum_bytes": { "type": "integer", "minimum": 1 },
+        "registered_ranges_contain_valid_data": { "type": "boolean" },
+        "reliability_time_acceleration": { "type": "number", "exclusiveMinimum": 0 },
+        "max_pec": { "type": "integer", "minimum": 1 },
+        "reference_mtbf_hours": { "type": "number", "exclusiveMinimum": 0 },
+        "mtbf_reference_millic": { "type": "integer" },
+        "mtbf_activation_energy_ev_min": { "type": "number", "exclusiveMinimum": 0 },
+        "mtbf_activation_energy_ev_max": { "type": "number", "exclusiveMinimum": 0 },
+        "mtbf_activation_energy_ev_step": { "type": "number", "exclusiveMinimum": 0 },
+        "source_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "sha256"],
+      "properties": {
+        "kind": { "enum": ["live_gpu", "trace", "constant"] },
+        "identity": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "reliability_time_acceleration": { "type": "number", "exclusiveMinimum": 0 },
+    "accelerated_reliability_time": { "type": "boolean" },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["host_ns", "gpu_millic", "gpu_power_mw", "hbf_junction_millic"],
+        "properties": {
+          "host_ns": { "type": "integer", "minimum": 1 },
+          "gpu_millic": { "type": "integer" },
+          "gpu_power_mw": { "type": "integer", "minimum": 0 },
+          "hbf_junction_millic": { "type": "integer" }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["host_ns", "from", "to", "junction_millic"],
+        "properties": {
+          "host_ns": { "type": "integer", "minimum": 1 },
+          "from": { "enum": ["normal", "light", "severe", "shutdown"] },
+          "to": { "enum": ["normal", "light", "severe", "shutdown"] },
+          "junction_millic": { "type": "integer" }
+        }
+      }
+    },
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application_read_bytes", "application_write_bytes",
+        "refresh_read_bytes", "refresh_write_bytes", "refresh_debt_bytes",
+        "refresh_claimed_bytes", "refresh_background_drained_bytes",
+        "completed_refresh_blocks", "maximum_pec", "average_pec_millionths",
+        "normal_residency_ns", "light_residency_ns", "severe_residency_ns",
+        "shutdown_residency_ns", "maximum_retention_damage_millionths",
+        "average_retention_damage_millionths"
+      ],
+      "properties": {
+        "application_read_bytes": { "type": "integer", "minimum": 0 },
+        "application_write_bytes": { "type": "integer", "minimum": 0 },
+        "refresh_read_bytes": { "type": "integer", "minimum": 0 },
+        "refresh_write_bytes": { "type": "integer", "minimum": 0 },
+        "refresh_debt_bytes": { "type": "integer", "minimum": 0 },
+        "refresh_claimed_bytes": { "type": "integer", "minimum": 0 },
+        "refresh_background_drained_bytes": { "type": "integer", "minimum": 0 },
+        "completed_refresh_blocks": { "type": "integer", "minimum": 0 },
+        "maximum_pec": { "type": "integer", "minimum": 0 },
+        "average_pec_millionths": { "type": "integer", "minimum": 0 },
+        "normal_residency_ns": { "type": "integer", "minimum": 0 },
+        "light_residency_ns": { "type": "integer", "minimum": 0 },
+        "severe_residency_ns": { "type": "integer", "minimum": 0 },
+        "shutdown_residency_ns": { "type": "integer", "minimum": 0 },
+        "maximum_retention_damage_millionths": { "type": "integer", "minimum": 0 },
+        "average_retention_damage_millionths": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mtbf_sensitivity": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["activation_energy_ev", "hazard", "failure_probability", "equivalent_mtbf_hours"],
+        "properties": {
+          "activation_energy_ev": { "type": "number", "exclusiveMinimum": 0 },
+          "hazard": { "type": "number", "minimum": 0 },
+          "failure_probability": { "type": "number", "minimum": 0, "maximum": 1 },
+          "equivalent_mtbf_hours": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "terminal_status": {
+      "enum": ["clean", "source_failed", "model_error", "thermal_shutdown", "media_error", "report_error"]
+    }
+  }
+}

@@ -412,6 +412,10 @@ int main(int argc, char** argv)
                         control.header()->thermal_max_pec,
                         refresh_scheduler->maximum_pec(),
                         std::memory_order_release);
+                    hbfsim::host_service::atomic_store(
+                        control.header()->thermal_average_pec_millionths,
+                        refresh_scheduler->average_pec_millionths(),
+                        std::memory_order_release);
                 }
                 last_debt_update = debt_now;
                 const auto range_count = hbfsim::host_service::atomic_load(
@@ -423,8 +427,8 @@ int main(int argc, char** argv)
                 const auto* ranges = control.ranges();
                 while (registered_refresh_ranges < range_count) {
                     const auto& range = ranges[registered_refresh_ranges++];
-                    refresh_scheduler->register_range(
-                        range.base, range.length,
+                    refresh_scheduler->register_published_range(
+                        range,
                         thermal_profile->registered_ranges_contain_valid_data);
                 }
                 const auto result = thermal_controller->tick_at(

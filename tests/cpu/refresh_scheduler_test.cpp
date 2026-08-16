@@ -1,4 +1,5 @@
 #include "../../src/host_service/refresh_scheduler.hpp"
+#include "../../src/host_service/control_layout.hpp"
 
 #include <hbfsim/profile.hpp>
 
@@ -57,8 +58,22 @@ int main()
               "ordered refresh action completes");
     }
     check(completion.completed_blocks() == 1 &&
-              completion.maximum_pec() == 1,
+              completion.maximum_pec() == 1 &&
+              completion.average_pec_millionths() == 1'000'000,
           "a complete block commits one PEC");
+
+    RefreshScheduler published(profile, thermal);
+    hbfsim::host_service::SharedRangeRecord published_range{
+        .base = 0x7f00'0000'0000ULL,
+        .length = profile.page_bytes * profile.pages_per_block,
+        .file_offset = profile.page_bytes * profile.pages_per_block * 7,
+    };
+    published.register_published_range(published_range, true);
+    published.age(85'000, 1s, 1);
+    const auto published_plan = published.plan(10, {});
+    check(!published_plan.empty() &&
+              published_plan.front().address == published_range.file_offset,
+          "published GPU ranges refresh their media offset");
 
     RefreshScheduler failed(profile, thermal);
     failed.register_range(0, profile.page_bytes * profile.pages_per_block,

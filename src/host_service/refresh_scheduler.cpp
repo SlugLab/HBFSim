@@ -1,5 +1,7 @@
 #include "refresh_scheduler.hpp"
 
+#include "control_layout.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -84,6 +86,12 @@ void RefreshScheduler::register_range(std::uint64_t base,
             .reliability = {.valid = contains_valid_data},
         });
     }
+}
+
+void RefreshScheduler::register_published_range(
+    const SharedRangeRecord& range, bool contains_valid_data)
+{
+    register_range(range.file_offset, range.length, contains_valid_data);
 }
 
 void RefreshScheduler::age(std::int64_t junction_millic,
@@ -245,6 +253,18 @@ std::uint64_t RefreshScheduler::maximum_pec() const noexcept
         result = std::max(result, block.reliability.maximum_pec);
     }
     return result;
+}
+
+std::uint64_t RefreshScheduler::average_pec_millionths() const noexcept
+{
+    if (blocks_.empty()) return 0;
+    unsigned __int128 total = 0;
+    for (const auto& block : blocks_) {
+        total += static_cast<unsigned __int128>(
+                     block.reliability.current_pec) *
+                 1'000'000U;
+    }
+    return static_cast<std::uint64_t>(total / blocks_.size());
 }
 
 std::uint64_t RefreshScheduler::planned_bytes() const noexcept

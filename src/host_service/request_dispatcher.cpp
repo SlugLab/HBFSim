@@ -485,6 +485,9 @@ bool RequestDispatcher::poll_once()
             atomic_store(control_.header()->thermal_max_pec,
                          refresh_scheduler_->maximum_pec(),
                          std::memory_order_release);
+            atomic_store(control_.header()->thermal_average_pec_millionths,
+                         refresh_scheduler_->average_pec_millionths(),
+                         std::memory_order_release);
             if (success) {
                 auto* counter = action.kind == RefreshActionKind::Read
                                     ? &control_.header()->thermal_refresh_read_bytes

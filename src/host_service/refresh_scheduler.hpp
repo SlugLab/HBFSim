@@ -10,6 +10,8 @@
 
 namespace hbfsim::host_service {
 
+struct SharedRangeRecord;
+
 enum class RefreshActionKind : std::uint32_t { Read = 0, Write = 1 };
 
 struct ApplicationMediaUse {
@@ -45,6 +47,8 @@ public:
 
     void register_range(std::uint64_t base, std::uint64_t length,
                         bool contains_valid_data);
+    void register_published_range(const SharedRangeRecord& range,
+                                  bool contains_valid_data);
     void age(std::int64_t junction_millic, std::chrono::nanoseconds elapsed,
              std::uint64_t epoch);
     void record_read(std::uint64_t address, std::uint64_t bytes);
@@ -57,6 +61,7 @@ public:
 
     [[nodiscard]] std::uint64_t completed_blocks() const noexcept;
     [[nodiscard]] std::uint64_t maximum_pec() const noexcept;
+    [[nodiscard]] std::uint64_t average_pec_millionths() const noexcept;
     [[nodiscard]] std::uint64_t planned_bytes() const noexcept;
     [[nodiscard]] long double maximum_damage() const noexcept;
     [[nodiscard]] long double average_damage() const noexcept;

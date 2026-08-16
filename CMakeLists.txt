@@ -197,6 +197,12 @@ set_tests_properties(
     thermal_capacity PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_test(
+    NAME thermal_timing_environment
+    COMMAND Python3::Interpreter
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_thermal_timing_environment.py"
+)
+
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
 target_include_directories(

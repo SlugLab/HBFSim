@@ -24,7 +24,7 @@ def gpu_inventory() -> list[dict[str, str]]:
     completed = subprocess.run(
         [
             "nvidia-smi",
-            "--query-gpu=index,compute_cap,memory.total,memory.free",
+            "--query-gpu=index,uuid,compute_cap,memory.total,memory.free",
             "--format=csv,noheader,nounits",
         ],
         text=True,
@@ -35,23 +35,40 @@ def gpu_inventory() -> list[dict[str, str]]:
     rows = []
     for line in completed.stdout.splitlines():
         fields = [field.strip() for field in line.split(",")]
-        if len(fields) == 4:
-            rows.append(dict(zip(("index", "cc", "total_mib", "free_mib"),
+        if len(fields) == 5:
+            rows.append(dict(zip(("index", "uuid", "cc", "total_mib", "free_mib"),
                                  fields, strict=True)))
     return rows
 
 
-def compute_processes() -> str:
+def parse_compute_processes(output: str, gpu_uuid: str) -> str:
+    processes = []
+    for line in output.splitlines():
+        fields = [field.strip() for field in line.split(",")]
+        require(len(fields) == 4,
+                "nvidia-smi compute-process result is malformed")
+        if fields[0] == gpu_uuid:
+            processes.append(
+                f"pid={fields[1]}:{fields[2]}:{fields[3]} MiB")
+    return ", ".join(processes)
+
+
+def compute_processes(gpu_uuid: str) -> str:
     completed = subprocess.run(
         [
             "nvidia-smi",
-            "--query-compute-apps=pid,process_name,used_gpu_memory",
+            "--query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory",
             "--format=csv,noheader,nounits",
         ],
         text=True,
         capture_output=True,
     )
-    return completed.stdout.strip() if completed.returncode == 0 else "unknown"
+    if completed.returncode != 0:
+        return "nvidia-smi compute-process query unavailable"
+    try:
+        return parse_compute_processes(completed.stdout, gpu_uuid)
+    except RuntimeError as error:
+        return str(error)
 
 
 def write_profile(source: pathlib.Path, destination: pathlib.Path,
@@ -125,14 +142,21 @@ def main() -> int:
         print("SKIP: no CUDA compute-capability 12.0 device", file=sys.stderr)
         return SKIP
     selected = devices[0]
+    processes = compute_processes(selected["uuid"])
+    if processes:
+        print(
+            f"SKIP: GPU {selected['index']} has competing compute work; "
+            f"thermal live timing requires exclusive use; {processes}",
+            file=sys.stderr,
+        )
+        return SKIP
     required = int(os.environ.get("HBFSIM_LIVE_REQUIRE_FREE_MIB",
                                   DEFAULT_REQUIRED_FREE_MIB))
     free = int(selected["free_mib"])
     if free < required:
         print(
             f"SKIP: GPU {selected['index']} has {free} MiB free; "
-            f"thermal live gate requires {required} MiB headroom; "
-            f"compute processes: {compute_processes() or 'none'}",
+            f"thermal live gate requires {required} MiB headroom",
             file=sys.stderr,
         )
         return SKIP

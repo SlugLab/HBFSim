@@ -5,7 +5,7 @@ Date: 2026-08-16 UTC
 Branch: `feature/thermal-reliability`
 
 Implementation base tested for this checkpoint:
-`6a42ba0811c1ed416bc508123a0f40d17a474c34`
+`8e51dece9a289ba3e3feda1cdb1271c976fd6e18`
 
 ## Proven boundary
 
@@ -22,9 +22,11 @@ terminate or modify that process.
 
 | Gate | Command/result |
 |---|---|
-| Focused thermal/reliability offline set | 9/9 passed |
+| Complete build | passed with GCC 13/CUDA 13/MQSim enabled |
+| Complete offline CTest set | 99/99 passed in 45.17 s; the four registered live/environment tests were excluded |
+| Python/shell/source hygiene | `compileall`, Ruff, `bash -n`, and `git diff --check` passed |
 | vLLM adapter regression | 46/46 passed; two SWIG deprecation warnings |
-| `thermal_timing_live` | built; CTest skipped with return 77 because 256 MiB is below the declared 2,048 MiB headroom |
+| `thermal_timing_live` | built; CTest skipped with return 77 because PID 269473 violates the exclusive-GPU contract; the same snapshot had only 256 MiB free |
 | `live_sm120_environment` | blocked by `no_competing_process_contract` |
 | `sm120_future_live` | rebuilt against ABI v10, then blocked in native CUDA initialization with `out of memory` |
 
@@ -33,20 +35,28 @@ terminate or modify that process.
 The active tree is a Debug build with CUDA and MQSim enabled.  It uses GCC
 13.4.0 (`/usr/bin/g++-13`), CUDA 13.0 nvcc
 (`Build cuda_13.0.r13.0/compiler.36424714_0`), CMake 4.2.3, and Python 3.13.9.
-The generated test inventory contains 102 tests, including the new live test as
-test 95.
+The generated test inventory contains 103 tests, including the offline
+`thermal_timing_environment` parser gate as test 13 and
+`thermal_timing_live` as test 96.
 
 ## Commands and captured evidence
 
 ```bash
 cmake -S . -B build-thermal-baseline-gcc13
+cmake --build build-thermal-baseline-gcc13 -j2
 cmake --build build-thermal-baseline-gcc13 \
   --target thermal_timing_live -j2
 
 ctest --test-dir build-thermal-baseline-gcc13 \
-  -R '^(thermal_reliability|thermal_controller|thermal_report|thermal_device_reference|refresh_scheduler|background_dispatch|thermal_consistency|thermal_daemon|thermal_capacity)$' \
+  -E 'sm120_calibration_cases|live_sm120_environment|sm120_future_live|sm120_tma_live|thermal_timing_live' \
   --output-on-failure
-# 9/9 passed
+# 99/99 passed in 45.17 s
+
+python3 -m compileall -q scripts tests adapters
+python3 -m ruff check scripts tests adapters
+bash -n scripts/*.sh adapters/*/*.sh
+git diff --check
+# all passed
 
 python3 -m pytest -q adapters/vllm/tests
 # 46 passed, 2 warnings
@@ -56,13 +66,14 @@ nvidia-smi --query-gpu=index,name,compute_cap,memory.total,memory.used,memory.fr
 # 0, NVIDIA RTX PRO 6000 Blackwell Server Edition, 12.0,
 # 97887, 96997, 256, 45
 
-nvidia-smi --query-compute-apps=pid,process_name,used_gpu_memory \
+nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory \
   --format=csv,noheader,nounits
+# GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174,
 # 269473, /home/eabban/.conda/envs/bitnet/bin/python, 96860
 
 ctest --test-dir build-thermal-baseline-gcc13 \
   -R '^thermal_timing_live$' --output-on-failure
-# skipped (return 77)
+# skipped (return 77: competing compute process)
 ```
 
 The capacity integrity gate refreshes one complete 1 MiB block as 256 ordered
@@ -72,6 +83,14 @@ equal the pre-refresh SHA-256.  A subsequent application program plus refresh
 reaches PEC 2.  The test deletes its temporary backing file after the equality
 check, so this checkpoint records the equality assertion rather than claiming
 a persistent data artifact.
+
+The final integration gates also prove three post-review boundaries.  Completed
+application writes are charged to the same per-block PEC state as background
+refresh; partial page coverage cannot increment PEC until the whole block has
+been programmed.  Reference and fast refresh both add nonzero modeled
+foreground completion latency under contention.  Clean, source-failure,
+model-error, thermal-shutdown, and media-error exits all emit schema-valid,
+distinct terminal status strings.
 
 The live target would run five interleaved Normal/Light trials from declared
 60 C and 85 C constant sources, respectively.  It checks every output word,

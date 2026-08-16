@@ -1,0 +1,1748 @@
+{
+  "density_sweep": [
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 2048,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 742948,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc02",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7489.88847684059,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 546870626
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 2048,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 759316,
+        "p50": 731980,
+        "p99": 1691920
+      },
+      "modeled_bandwidth_bytes_per_s": 33810206209.97849,
+      "profile": "density-dpc02",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7355.05222074507,
+      "timing_ns": {
+        "modeled": 1984870,
+        "wall": 556896114
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 1024,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 742795,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc04",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7352.513308493362,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 557088417
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 1024,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 779983,
+        "p50": 752940,
+        "p99": 1800780
+      },
+      "modeled_bandwidth_bytes_per_s": 34148444186.626366,
+      "profile": "density-dpc04",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7498.367242432225,
+      "timing_ns": {
+        "modeled": 1965210,
+        "wall": 546252253
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 742488,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc08",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7307.470701863882,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 560522261
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 821833,
+        "p50": 771300,
+        "p99": 1922640
+      },
+      "modeled_bandwidth_bytes_per_s": 32417078790.630722,
+      "profile": "density-dpc08",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7532.742316872257,
+      "timing_ns": {
+        "modeled": 2070170,
+        "wall": 543759474
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 32,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1361747,
+        "p50": 1361750,
+        "p99": 2682230
+      },
+      "modeled_bandwidth_bytes_per_s": 24831774552.82808,
+      "profile": "density-dpc128",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 6288.16428101835,
+      "timing_ns": {
+        "modeled": 2702540,
+        "wall": 651382473
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 32,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1494889,
+        "p50": 1401070,
+        "p99": 3369680
+      },
+      "modeled_bandwidth_bytes_per_s": 18732254579.863953,
+      "profile": "density-dpc128",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 6245.1179046165735,
+      "timing_ns": {
+        "modeled": 3582530,
+        "wall": 655872325
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 741873,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc16",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7407.418057178377,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 552959205
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 882512,
+        "p50": 811270,
+        "p99": 2111440
+      },
+      "modeled_bandwidth_bytes_per_s": 29630992308.43952,
+      "profile": "density-dpc16",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7238.739616530808,
+      "timing_ns": {
+        "modeled": 2264820,
+        "wall": 565844362
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 128,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 740644,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc32",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7440.815141444074,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 550477323
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 128,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 995895,
+        "p50": 906970,
+        "p99": 2405040
+      },
+      "modeled_bandwidth_bytes_per_s": 25730545139.448036,
+      "profile": "density-dpc32",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7096.11238114564,
+      "timing_ns": {
+        "modeled": 2608140,
+        "wall": 577217465
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 64,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 738187,
+        "p50": 732630,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "density-dpc64",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 6756.481084375097,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 606232734
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 64,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1199514,
+        "p50": 1089760,
+        "p99": 2820500
+      },
+      "modeled_bandwidth_bytes_per_s": 22133165350.175625,
+      "profile": "density-dpc64",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 6904.6002242875775,
+      "timing_ns": {
+        "modeled": 3032050,
+        "wall": 593227684
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    }
+  ],
+  "interleave_sweep": [
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 741873,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "interleave-cwdp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7266.920342744298,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 563650048
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 882512,
+        "p50": 811270,
+        "p99": 2111440
+      },
+      "modeled_bandwidth_bytes_per_s": 29630992308.43952,
+      "profile": "interleave-cwdp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7339.204699481983,
+      "timing_ns": {
+        "modeled": 2264820,
+        "wall": 558098618
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "DWCP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 741873,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "interleave-dwcp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7705.492668940472,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 531568866
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "DWCP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 885367,
+        "p50": 810620,
+        "p99": 2154660
+      },
+      "modeled_bandwidth_bytes_per_s": 27492928572.8917,
+      "profile": "interleave-dwcp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7654.757919065722,
+      "timing_ns": {
+        "modeled": 2440950,
+        "wall": 535092036
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "PDWC",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 743025,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "interleave-pdwc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7247.1319391308225,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 565189103
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "PDWC",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 883263,
+        "p50": 805420,
+        "p99": 2166520
+      },
+      "modeled_bandwidth_bytes_per_s": 27822566054.31939,
+      "profile": "interleave-pdwc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7291.750130814015,
+      "timing_ns": {
+        "modeled": 2412030,
+        "wall": 561730713
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "WCDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 741873,
+        "p50": 731980,
+        "p99": 1444300
+      },
+      "modeled_bandwidth_bytes_per_s": 46464629232.153984,
+      "profile": "interleave-wcdp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7306.978227179694,
+      "timing_ns": {
+        "modeled": 1444300,
+        "wall": 560560039
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 256,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "WCDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 20000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 882512,
+        "p50": 811270,
+        "p99": 2111440
+      },
+      "modeled_bandwidth_bytes_per_s": 29630992308.43952,
+      "profile": "interleave-wcdp",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7290.946509180608,
+      "timing_ns": {
+        "modeled": 2264820,
+        "wall": 561792628
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    }
+  ],
+  "nand_sweep": [
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "MLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 475000,
+        "read_latency_ns": 50000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1622331,
+        "p50": 1696980,
+        "p99": 3369300
+      },
+      "modeled_bandwidth_bytes_per_s": 19917746712.967087,
+      "profile": "nand-mlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7289.208987035177,
+      "timing_ns": {
+        "modeled": 3369300,
+        "wall": 561926542
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "MLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 475000,
+        "read_latency_ns": 50000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1826961,
+        "p50": 1696300,
+        "p99": 4474140
+      },
+      "modeled_bandwidth_bytes_per_s": 13822145053.623251,
+      "profile": "nand-mlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7242.215863586555,
+      "timing_ns": {
+        "modeled": 4855170,
+        "wall": 565572758
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "QLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 562500,
+        "read_latency_ns": 62500
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1878581,
+        "p50": 2096980,
+        "p99": 4169300
+      },
+      "modeled_bandwidth_bytes_per_s": 16095954716.619097,
+      "profile": "nand-qlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7476.756705606647,
+      "timing_ns": {
+        "modeled": 4169300,
+        "wall": 547831120
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "QLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 562500,
+        "read_latency_ns": 62500
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 2136043,
+        "p50": 1994070,
+        "p99": 5457210
+      },
+      "modeled_bandwidth_bytes_per_s": 11320238452.689003,
+      "profile": "nand-qlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7781.185820652071,
+      "timing_ns": {
+        "modeled": 5928220,
+        "wall": 526397916
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 25000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 909831,
+        "p50": 896980,
+        "p99": 1769300
+      },
+      "modeled_bandwidth_bytes_per_s": 37929612841.23665,
+      "profile": "nand-slc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7653.074832544847,
+      "timing_ns": {
+        "modeled": 1769300,
+        "wall": 535209715
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "SLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 200000,
+        "read_latency_ns": 25000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1009383,
+        "p50": 946300,
+        "p99": 2367640
+      },
+      "modeled_bandwidth_bytes_per_s": 26263952691.993095,
+      "profile": "nand-slc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7470.946949219753,
+      "timing_ns": {
+        "modeled": 2555170,
+        "wall": 548257139
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "TLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 466667,
+        "read_latency_ns": 50000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 962956,
+        "p50": 896980,
+        "p99": 2169300
+      },
+      "modeled_bandwidth_bytes_per_s": 30935723044.300003,
+      "profile": "nand-tlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7490.978295338458,
+      "timing_ns": {
+        "modeled": 2169300,
+        "wall": 546791065
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "sequential",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "sequential",
+        "--seed",
+        "42"
+      ]
+    },
+    {
+      "effective_profile": {
+        "aggregate_bandwidth_bytes_per_s": 128000000000,
+        "blocks_per_plane": 512,
+        "capacity_bytes": 1099511627776,
+        "channels": 16,
+        "hbm_cache_bytes": 67108864,
+        "nand_technology": "TLC",
+        "plane_allocation_scheme": "CWDP",
+        "program_latency_ns": 466667,
+        "read_latency_ns": 50000
+      },
+      "engine": "mqsim-hbf-media-only",
+      "latency_ns": {
+        "average": 1127290,
+        "p50": 948250,
+        "p99": 3100740
+      },
+      "modeled_bandwidth_bytes_per_s": 19294025104.794983,
+      "profile": "nand-tlc",
+      "requests": {
+        "completed": 4096,
+        "submitted": 4096
+      },
+      "schema_version": 1,
+      "simulator_requests_per_s": 7440.056156875429,
+      "timing_ns": {
+        "modeled": 3478220,
+        "wall": 550533479
+      },
+      "workload": {
+        "arrival_gap_ns": 0,
+        "bytes_per_request": 16384,
+        "operation": "read",
+        "pattern": "random",
+        "requests": 4096,
+        "seed": 42
+      },
+      "command": [
+        "build/hbf_mqsim_bench",
+        "--profile",
+        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
+        "--capacity-bytes",
+        "1099511627776",
+        "--operation",
+        "read",
+        "--requests",
+        "4096",
+        "--bytes",
+        "16384",
+        "--arrival-gap-ns",
+        "0",
+        "--pattern",
+        "random",
+        "--seed",
+        "42"
+      ]
+    }
+  ]
+}

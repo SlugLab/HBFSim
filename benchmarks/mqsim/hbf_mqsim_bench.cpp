@@ -16,144 +16,227 @@
 #include <string_view>
 #include <vector>
 
-namespace {
-
-constexpr std::uint64_t kDefaultCacheCapacity = 64ULL * 1024 * 1024;
-constexpr std::uint64_t kDefaultBlocksPerPlane = 16;
-
-struct Options {
-    std::string profile_path;
-    std::uint64_t requests{1024};
-    std::uint32_t bytes{16384};
-    std::string operation{"read"};
-    std::uint64_t arrival_gap_ns{0};
-    std::uint64_t capacity_bytes{0};
-};
-
-[[noreturn]] void usage_error(const std::string& message)
+namespace
 {
-    throw std::invalid_argument(
-        message +
-        "\nusage: hbf_mqsim_bench --profile FILE [--requests N] "
-        "[--bytes N] [--operation read|write|mixed] "
-        "[--arrival-gap-ns N] [--capacity-bytes N]");
-}
 
-std::uint64_t parse_u64(std::string_view text, std::string_view option)
-{
-    std::uint64_t value = 0;
-    const auto result =
-        std::from_chars(text.data(), text.data() + text.size(), value);
-    if (result.ec != std::errc{} || result.ptr != text.data() + text.size()) {
-        usage_error("invalid value for " + std::string(option));
+    constexpr std::uint64_t kDefaultCacheCapacity = 64ULL * 1024 * 1024;
+    constexpr std::uint64_t kDefaultBlocksPerPlane = 16;
+
+    struct Options
+    {
+        std::string profile_path;
+        std::uint64_t requests{1024};
+        std::uint32_t bytes{16384};
+        std::string operation{"read"};
+        std::uint64_t arrival_gap_ns{0};
+        std::uint64_t capacity_bytes{0};
+        std::string pattern{"sequential"};
+        std::uint64_t seed{0};
+    };
+
+    [[noreturn]] void usage_error(const std::string &message)
+    {
+        throw std::invalid_argument(
+            message +
+            "\nusage: hbf_mqsim_bench --profile FILE [--requests N] "
+            "[--bytes N] [--operation read|write|mixed] "
+            "[--arrival-gap-ns N] [--capacity-bytes N] "
+            "[--pattern sequential|random] [--seed N]");
     }
-    return value;
-}
 
-Options parse_options(int argc, char** argv)
-{
-    Options options;
-    for (int index = 1; index < argc; ++index) {
-        const std::string_view option{argv[index]};
-        if (index + 1 >= argc) {
-            usage_error("missing value for " + std::string(option));
+    std::uint64_t parse_u64(std::string_view text, std::string_view option)
+    {
+        std::uint64_t value = 0;
+        const auto result =
+            std::from_chars(text.data(), text.data() + text.size(), value);
+        if (result.ec != std::errc{} || result.ptr != text.data() + text.size())
+        {
+            usage_error("invalid value for " + std::string(option));
         }
-        const std::string_view value{argv[++index]};
-        if (option == "--profile") {
-            options.profile_path = value;
-        } else if (option == "--requests") {
-            options.requests = parse_u64(value, option);
-        } else if (option == "--bytes") {
-            const auto bytes = parse_u64(value, option);
-            if (bytes > std::numeric_limits<std::uint32_t>::max()) {
-                usage_error("--bytes exceeds the request ABI limit");
+        return value;
+    }
+
+    Options parse_options(int argc, char **argv)
+    {
+        Options options;
+        for (int index = 1; index < argc; ++index)
+        {
+            const std::string_view option{argv[index]};
+            if (index + 1 >= argc)
+            {
+                usage_error("missing value for " + std::string(option));
             }
-            options.bytes = static_cast<std::uint32_t>(bytes);
-        } else if (option == "--operation") {
-            options.operation = value;
-        } else if (option == "--arrival-gap-ns") {
-            options.arrival_gap_ns = parse_u64(value, option);
-        } else if (option == "--capacity-bytes") {
-            options.capacity_bytes = parse_u64(value, option);
-        } else {
-            usage_error("unknown option " + std::string(option));
+            const std::string_view value{argv[++index]};
+            if (option == "--profile")
+            {
+                options.profile_path = value;
+            }
+            else if (option == "--requests")
+            {
+                options.requests = parse_u64(value, option);
+            }
+            else if (option == "--bytes")
+            {
+                const auto bytes = parse_u64(value, option);
+                if (bytes > std::numeric_limits<std::uint32_t>::max())
+                {
+                    usage_error("--bytes exceeds the request ABI limit");
+                }
+                options.bytes = static_cast<std::uint32_t>(bytes);
+            }
+            else if (option == "--operation")
+            {
+                options.operation = value;
+            }
+            else if (option == "--arrival-gap-ns")
+            {
+                options.arrival_gap_ns = parse_u64(value, option);
+            }
+            else if (option == "--capacity-bytes")
+            {
+                options.capacity_bytes = parse_u64(value, option);
+            }
+            else if (option == "--pattern")
+            {
+                options.pattern = value;
+            }
+            else if (option == "--seed")
+            {
+                options.seed = parse_u64(value, option);
+            }
+            else
+            {
+                usage_error("unknown option " + std::string(option));
+            }
         }
+
+        if (options.profile_path.empty())
+        {
+            usage_error("--profile is required");
+        }
+        if (options.requests == 0)
+        {
+            usage_error("--requests must be non-zero");
+        }
+        if (options.bytes == 0 || options.bytes % 512 != 0)
+        {
+            usage_error("--bytes must be a non-zero multiple of 512");
+        }
+        if (options.operation != "read" && options.operation != "write" &&
+            options.operation != "mixed")
+        {
+            usage_error("--operation must be read, write, or mixed");
+        }
+        if (options.pattern != "sequential" && options.pattern != "random")
+        {
+            usage_error("--pattern must be sequential or random");
+        }
+        if (options.capacity_bytes != 0 && options.capacity_bytes < options.bytes)
+        {
+            usage_error("--capacity-bytes must fit one request");
+        }
+        if (options.requests > 1 &&
+            options.arrival_gap_ns >
+                std::numeric_limits<std::uint64_t>::max() /
+                    (options.requests - 1))
+        {
+            usage_error("benchmark arrival timeline overflows");
+        }
+        return options;
     }
 
-    if (options.profile_path.empty()) {
-        usage_error("--profile is required");
+    std::uint32_t operation_for(const Options &options, std::uint64_t index)
+    {
+        const bool write = options.operation == "write" ||
+                           (options.operation == "mixed" && index % 2 != 0);
+        return static_cast<std::uint32_t>(
+            write ? hbfsim::RequestOperation::Write
+                  : hbfsim::RequestOperation::Read);
     }
-    if (options.requests == 0) {
-        usage_error("--requests must be non-zero");
-    }
-    if (options.bytes == 0 || options.bytes % 512 != 0) {
-        usage_error("--bytes must be a non-zero multiple of 512");
-    }
-    if (options.operation != "read" && options.operation != "write" &&
-        options.operation != "mixed") {
-        usage_error("--operation must be read, write, or mixed");
-    }
-    if (options.capacity_bytes != 0 && options.capacity_bytes < options.bytes) {
-        usage_error("--capacity-bytes must fit one request");
-    }
-    if (options.requests > 1 &&
-        options.arrival_gap_ns >
-            std::numeric_limits<std::uint64_t>::max() /
-                (options.requests - 1)) {
-        usage_error("benchmark arrival timeline overflows");
-    }
-    return options;
-}
 
-std::uint32_t operation_for(const Options& options, std::uint64_t index)
+    // splitmix64, used only to shuffle which address slot each request index
+    // lands on for --pattern random; seeded so runs are reproducible.
+    std::uint64_t splitmix64(std::uint64_t &state)
+    {
+        state += 0x9e3779b97f4a7c15ULL;
+        std::uint64_t value = state;
+        value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+        return value ^ (value >> 31);
+    }
+
+    std::vector<std::uint64_t> address_slot_order(const Options &options,
+                                                  std::uint64_t address_slots)
+    {
+        std::vector<std::uint64_t> order(options.requests);
+        if (options.pattern == "random")
+        {
+            // Sample a slot uniformly from the whole device for every request,
+            // not just a permutation of the first N sequential slots, so the
+            // pattern actually spans channels/dies instead of replaying a
+            // narrow, already-balanced address run.
+            std::uint64_t state = options.seed;
+            for (std::uint64_t index = 0; index < options.requests; ++index)
+            {
+                order[index] = splitmix64(state) % address_slots;
+            }
+        }
+        else
+        {
+            for (std::uint64_t index = 0; index < options.requests; ++index)
+            {
+                order[index] = index % address_slots;
+            }
+        }
+        return order;
+    }
+
+    std::uint64_t percentile(const std::vector<std::uint64_t> &sorted,
+                             std::uint64_t percent)
+    {
+        const auto rank = (percent * sorted.size() + 99) / 100;
+        return sorted[std::max<std::size_t>(1, rank) - 1];
+    }
+
+    std::uint64_t capacity_for_blocks(const hbfsim::Profile &profile,
+                                      std::uint64_t blocks_per_plane)
+    {
+        const auto capacity =
+            static_cast<unsigned __int128>(profile.page_bytes) *
+            profile.pages_per_block * profile.planes_per_die *
+            profile.dies_per_channel * profile.channels * blocks_per_plane;
+        if (capacity > std::numeric_limits<std::uint64_t>::max())
+        {
+            throw std::overflow_error(
+                "benchmark profile geometry exceeds uint64 capacity");
+        }
+        return static_cast<std::uint64_t>(capacity);
+    }
+
+} // namespace
+
+int main(int argc, char **argv)
 {
-    const bool write = options.operation == "write" ||
-                       (options.operation == "mixed" && index % 2 != 0);
-    return static_cast<std::uint32_t>(
-        write ? hbfsim::RequestOperation::Write
-              : hbfsim::RequestOperation::Read);
-}
-
-std::uint64_t percentile(const std::vector<std::uint64_t>& sorted,
-                         std::uint64_t percent)
-{
-    const auto rank = (percent * sorted.size() + 99) / 100;
-    return sorted[std::max<std::size_t>(1, rank) - 1];
-}
-
-std::uint64_t capacity_for_blocks(const hbfsim::Profile& profile,
-                                  std::uint64_t blocks_per_plane)
-{
-    const auto capacity =
-        static_cast<unsigned __int128>(profile.page_bytes) *
-        profile.pages_per_block * profile.planes_per_die *
-        profile.dies_per_channel * profile.channels * blocks_per_plane;
-    if (capacity > std::numeric_limits<std::uint64_t>::max()) {
-        throw std::overflow_error(
-            "benchmark profile geometry exceeds uint64 capacity");
-    }
-    return static_cast<std::uint64_t>(capacity);
-}
-
-}  // namespace
-
-int main(int argc, char** argv)
-{
-    try {
+    try
+    {
         const auto options = parse_options(argc, argv);
         auto profile = hbfsim::load_profile(options.profile_path);
-        if (options.capacity_bytes == 0) {
+        if (options.capacity_bytes == 0)
+        {
             profile.capacity_bytes = std::min(
                 profile.capacity_bytes,
                 capacity_for_blocks(profile, kDefaultBlocksPerPlane));
-        } else {
+        }
+        else
+        {
             profile.capacity_bytes = options.capacity_bytes;
         }
         profile.hbm_cache_bytes =
             std::min(profile.capacity_bytes, kDefaultCacheCapacity);
         hbfsim::validate_profile(profile);
         const auto effective_blocks_per_plane = hbfsim::blocks_per_plane(profile);
-        if (options.operation != "read" && effective_blocks_per_plane <= 10) {
+        if (options.operation != "read" && effective_blocks_per_plane <= 10)
+        {
             usage_error(
                 "write workloads require more than 10 blocks per plane; "
                 "increase --capacity-bytes");
@@ -165,13 +248,15 @@ int main(int argc, char** argv)
         {
             hbfsim::MqsimOnlineEngine engine(profile);
             const auto address_slots = profile.capacity_bytes / options.bytes;
-            for (std::uint64_t index = 0; index < options.requests; ++index) {
+            const auto slot_order = address_slot_order(options, address_slots);
+            for (std::uint64_t index = 0; index < options.requests; ++index)
+            {
                 const auto arrival = static_cast<std::uint64_t>(
                     static_cast<unsigned __int128>(index) *
                     options.arrival_gap_ns);
                 const auto address = static_cast<std::uint64_t>(
-                    (static_cast<unsigned __int128>(index) * options.bytes) %
-                    (address_slots * options.bytes));
+                    static_cast<unsigned __int128>(slot_order[index]) *
+                    options.bytes);
                 engine.submit(hbfsim::HbfRequest{
                     .request_id = index + 1,
                     .sequence = index + 1,
@@ -186,9 +271,11 @@ int main(int argc, char** argv)
                     .flags = 0,
                 });
             }
-            while (engine.pending() != 0) {
+            while (engine.pending() != 0)
+            {
                 auto completion = engine.run_next_completion();
-                if (!completion.has_value()) {
+                if (!completion.has_value())
+                {
                     throw std::runtime_error(
                         "MQSim stopped with pending benchmark requests");
                 }
@@ -205,9 +292,11 @@ int main(int argc, char** argv)
         latencies.reserve(completions.size());
         std::uint64_t modeled_end_ns = 0;
         unsigned __int128 latency_sum = 0;
-        for (const auto& completion : completions) {
+        for (const auto &completion : completions)
+        {
             if (completion.status !=
-                static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready)) {
+                static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready))
+            {
                 throw std::runtime_error(
                     "MQSim returned a non-ready completion");
             }
@@ -239,10 +328,15 @@ int main(int argc, char** argv)
               {"channels", profile.channels},
               {"read_latency_ns", profile.read_latency_ns},
               {"program_latency_ns", profile.program_latency_ns},
+              {"nand_technology", hbfsim::to_string(profile.nand_technology)},
+              {"plane_allocation_scheme",
+               hbfsim::to_string(profile.plane_allocation_scheme)},
               {"aggregate_bandwidth_bytes_per_s",
                profile.aggregate_bandwidth_bytes_per_s}}},
             {"workload",
              {{"operation", options.operation},
+              {"pattern", options.pattern},
+              {"seed", options.seed},
               {"requests", options.requests},
               {"bytes_per_request", options.bytes},
               {"arrival_gap_ns", options.arrival_gap_ns}}},
@@ -259,10 +353,14 @@ int main(int argc, char** argv)
         };
         std::cout << result.dump(2) << '\n';
         return 0;
-    } catch (const std::invalid_argument& error) {
+    }
+    catch (const std::invalid_argument &error)
+    {
         std::cerr << "hbf_mqsim_bench: " << error.what() << '\n';
         return 64;
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         std::cerr << "hbf_mqsim_bench: " << error.what() << '\n';
         return 70;
     }

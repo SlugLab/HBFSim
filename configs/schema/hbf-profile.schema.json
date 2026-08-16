@@ -43,6 +43,24 @@
     "reference_warmup_requests": { "type": "integer", "minimum": 0 },
     "time_scale": { "type": "integer", "minimum": 1 },
     "timing_tolerance_ns": { "type": "integer", "minimum": 0 },
+    "nand_technology": { "type": "string", "enum": ["SLC", "MLC", "TLC", "QLC"] },
+    "plane_allocation_scheme": {
+      "type": "string",
+      "enum": [
+        "CWDP", "CWPD", "CDWP", "CDPW", "CPWD", "CPDW",
+        "WCDP", "WCPD", "WDCP", "WDPC", "WPCD", "WPDC",
+        "DCWP", "DCPW", "DWCP", "DWPC", "DPCW", "DPWC",
+        "PCWD", "PCDW", "PWCD", "PWDC", "PDCW", "PDWC"
+      ]
+    },
+    "page_read_latency_lsb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_csb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_msb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_tsb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_lsb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_csb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_msb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_tsb_ns": { "type": "integer", "minimum": 1 },
     "empirical_vmem": {
       "type": "object",
       "additionalProperties": false,

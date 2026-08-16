@@ -207,7 +207,7 @@ int main(int argc, char** argv)
         std::optional<hbfsim::ThermalReliabilityProfile> thermal_profile;
         std::filesystem::path thermal_report_path;
         std::string profile_sha256;
-        std::string terminal_status = "clean_shutdown";
+        std::string terminal_status = "clean";
         auto next_thermal_tick = std::chrono::steady_clock::now();
         if (profile.thermal_reliability) {
             thermal_profile = *profile.thermal_reliability;

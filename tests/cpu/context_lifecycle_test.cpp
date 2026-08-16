@@ -343,6 +343,14 @@ int main(int argc, char** argv)
     verify_constant_thermal_publication(
         thermal_context, thermal_options.ring_capacity);
     hbfsim_context_destroy(thermal_context);
+    {
+        std::ifstream input(
+            report_dir / "thermal-reliability-summary.json");
+        CHECK(input.good());
+        const std::string summary{std::istreambuf_iterator<char>(input), {}};
+        CHECK(summary.find("\"terminal_status\": \"clean\"") !=
+              std::string::npos);
+    }
 
     const auto seals = ::fcntl(hbfsim::runtime::control_fd_for_test(context),
                                F_GET_SEALS);

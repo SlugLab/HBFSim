@@ -29,5 +29,11 @@ int main()
           ThermalAdmission::Drain);
     CHECK(hbfsim::device::thermal_admission(ThermalMode::Shutdown, false) ==
           ThermalAdmission::Shutdown);
+    const auto full = hbfsim::device::claim_refresh_debt(12ULL << 10,
+                                                         4ULL << 10);
+    CHECK(full.claimed == (4ULL << 10) && full.remaining == (8ULL << 10));
+    const auto short_claim = hbfsim::device::claim_refresh_debt(2ULL << 10,
+                                                                4ULL << 10);
+    CHECK(short_claim.claimed == (2ULL << 10) && short_claim.remaining == 0);
     return 0;
 }

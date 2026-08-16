@@ -19,6 +19,24 @@ bool conflicts(std::uint32_t channel, std::uint32_t die,
 
 }  // namespace
 
+RefreshDebtDecay decay_refresh_debt(
+    std::uint64_t debt, std::chrono::nanoseconds elapsed,
+    std::uint64_t bandwidth_bytes_per_s, std::uint32_t service_ppm)
+{
+    if (elapsed.count() < 0 || service_ppm > 1'000'000) {
+        throw std::invalid_argument("invalid refresh debt decay input");
+    }
+    const auto capacity =
+        static_cast<long double>(bandwidth_bytes_per_s) *
+        static_cast<long double>(elapsed.count()) /
+        1'000'000'000.0L * static_cast<long double>(service_ppm) /
+        1'000'000.0L;
+    const auto drained = capacity >= static_cast<long double>(debt)
+                             ? debt
+                             : static_cast<std::uint64_t>(capacity);
+    return {.drained = drained, .remaining = debt - drained};
+}
+
 RefreshScheduler::RefreshScheduler(Profile profile,
                                    ThermalReliabilityProfile thermal)
     : profile_(std::move(profile)), thermal_(std::move(thermal))

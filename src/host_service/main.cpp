@@ -199,6 +199,11 @@ int main(int argc, char** argv)
         std::unique_ptr<hbfsim::host_service::RefreshScheduler>
             refresh_scheduler;
         std::uint32_t registered_refresh_ranges = 0;
+        std::deque<hbfsim::host_service::RefreshAction> fast_refresh_actions;
+        std::uint64_t observed_refresh_claimed = 0;
+        std::uint64_t observed_refresh_drained = 0;
+        std::uint64_t refresh_completion_credit = 0;
+        auto last_debt_update = std::chrono::steady_clock::now();
         std::optional<hbfsim::ThermalReliabilityProfile> thermal_profile;
         std::filesystem::path thermal_report_path;
         std::string profile_sha256;
@@ -218,6 +223,10 @@ int main(int argc, char** argv)
                                                         *thermal_profile);
             thermal_controller->attach_refresh_scheduler(
                 refresh_scheduler.get());
+            hbfsim::host_service::atomic_store(
+                control.header()->thermal_refresh_quantum_bytes,
+                thermal_profile->refresh_quantum_bytes,
+                std::memory_order_release);
 
             // A thermal daemon is not ready until it has consumed one stable
             // sample and published the initial admission state.
@@ -329,6 +338,82 @@ int main(int argc, char** argv)
             bool progressed = false;
             if (thermal_controller &&
                 std::chrono::steady_clock::now() >= next_thermal_tick) {
+                const auto debt_now = std::chrono::steady_clock::now();
+                if (control.header()->timing_model != 0) {
+                    auto debt = hbfsim::host_service::atomic_load(
+                        control.header()->refresh_debt_bytes,
+                        std::memory_order_acquire);
+                    hbfsim::host_service::RefreshDebtDecay decay{};
+                    for (;;) {
+                        decay = hbfsim::host_service::decay_refresh_debt(
+                            debt, std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                      debt_now - last_debt_update),
+                            profile.aggregate_bandwidth_bytes_per_s,
+                            thermal_controller->snapshot().service_ppm);
+                        auto expected = debt;
+                        if (hbfsim::host_service::atomic_compare_exchange_weak(
+                                control.header()->refresh_debt_bytes, expected,
+                                decay.remaining, std::memory_order_acq_rel,
+                                std::memory_order_acquire)) {
+                            break;
+                        }
+                        debt = expected;
+                    }
+                    if (decay.drained != 0) {
+                        (void)hbfsim::host_service::atomic_fetch_add(
+                            control.header()->thermal_refresh_background_drained_bytes,
+                            decay.drained);
+                    }
+                    const auto claimed = hbfsim::host_service::atomic_load(
+                        control.header()->thermal_refresh_claimed_bytes,
+                        std::memory_order_acquire);
+                    const auto drained = hbfsim::host_service::atomic_load(
+                        control.header()->thermal_refresh_background_drained_bytes,
+                        std::memory_order_acquire);
+                    if (claimed < observed_refresh_claimed ||
+                        drained < observed_refresh_drained) {
+                        throw std::runtime_error(
+                            "refresh service counter regressed");
+                    }
+                    const auto claimed_delta = claimed - observed_refresh_claimed;
+                    const auto drained_delta = drained - observed_refresh_drained;
+                    if (claimed_delta >
+                        std::numeric_limits<std::uint64_t>::max() - drained_delta ||
+                        refresh_completion_credit >
+                        std::numeric_limits<std::uint64_t>::max() -
+                            (claimed_delta + drained_delta)) {
+                        throw std::runtime_error("refresh service credit overflow");
+                    }
+                    refresh_completion_credit += claimed_delta + drained_delta;
+                    observed_refresh_claimed = claimed;
+                    observed_refresh_drained = drained;
+                    while (!fast_refresh_actions.empty() &&
+                           refresh_completion_credit >=
+                               fast_refresh_actions.front().bytes) {
+                        const auto action = fast_refresh_actions.front();
+                        fast_refresh_actions.pop_front();
+                        refresh_completion_credit -= action.bytes;
+                        if (!refresh_scheduler->complete(action, true)) {
+                            throw std::runtime_error(
+                                "fast refresh completion order diverged");
+                        }
+                        auto& bytes = action.kind ==
+                                              hbfsim::host_service::RefreshActionKind::Read
+                                          ? control.header()->thermal_refresh_read_bytes
+                                          : control.header()->thermal_refresh_write_bytes;
+                        (void)hbfsim::host_service::atomic_fetch_add(
+                            bytes, static_cast<std::uint64_t>(action.bytes));
+                    }
+                    hbfsim::host_service::atomic_store(
+                        control.header()->thermal_completed_refresh_blocks,
+                        refresh_scheduler->completed_blocks(),
+                        std::memory_order_release);
+                    hbfsim::host_service::atomic_store(
+                        control.header()->thermal_max_pec,
+                        refresh_scheduler->maximum_pec(),
+                        std::memory_order_release);
+                }
+                last_debt_update = debt_now;
                 const auto range_count = hbfsim::host_service::atomic_load(
                     control.header()->range_count, std::memory_order_acquire);
                 if (range_count < registered_refresh_ranges ||
@@ -368,6 +453,40 @@ int main(int argc, char** argv)
                             throw std::runtime_error(
                                 "unable to enqueue background refresh");
                         }
+                    }
+                } else {
+                    const auto refresh = refresh_scheduler->plan(
+                        thermal_controller->snapshot().generation, {});
+                    std::uint64_t added = 0;
+                    for (const auto& action : refresh) {
+                        if (added > std::numeric_limits<std::uint64_t>::max() -
+                                        action.bytes) {
+                            throw std::runtime_error("refresh debt overflow");
+                        }
+                        added += action.bytes;
+                        fast_refresh_actions.push_back(action);
+                    }
+                    if (added != 0) {
+                        auto debt = hbfsim::host_service::atomic_load(
+                            control.header()->refresh_debt_bytes,
+                            std::memory_order_acquire);
+                        for (;;) {
+                            if (debt > std::numeric_limits<std::uint64_t>::max() -
+                                           added) {
+                                throw std::runtime_error("refresh debt overflow");
+                            }
+                            auto expected = debt;
+                            if (hbfsim::host_service::atomic_compare_exchange_weak(
+                                    control.header()->refresh_debt_bytes,
+                                    expected, debt + added,
+                                    std::memory_order_acq_rel,
+                                    std::memory_order_acquire)) {
+                                break;
+                            }
+                            debt = expected;
+                        }
+                        (void)hbfsim::host_service::atomic_fetch_add(
+                            control.header()->refresh_debt_generation, 1);
                     }
                 }
             }

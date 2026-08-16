@@ -60,6 +60,18 @@ struct DeviceThermalSnapshot {
     bool valid{true};
 };
 
+struct RefreshDebtClaim {
+    std::uint64_t claimed{0};
+    std::uint64_t remaining{0};
+};
+
+HBFSIM_HOST_DEVICE constexpr RefreshDebtClaim claim_refresh_debt(
+    std::uint64_t debt, std::uint64_t quantum) noexcept
+{
+    const auto claimed = debt < quantum ? debt : quantum;
+    return {.claimed = claimed, .remaining = debt - claimed};
+}
+
 HBFSIM_HOST_DEVICE constexpr ThermalAdmission thermal_admission(
     ThermalMode mode, bool already_issued) noexcept
 {
@@ -170,6 +182,7 @@ struct alignas(64) SharedControlHeader {
     std::uint64_t thermal_refresh_write_bytes;
     alignas(8) std::uint64_t refresh_debt_bytes;
     std::uint64_t refresh_debt_generation;
+    std::uint64_t thermal_refresh_quantum_bytes;
     std::uint64_t thermal_transitions;
     std::uint64_t thermal_inflight_completed;
     std::uint64_t thermal_completed_refresh_blocks;

@@ -30,6 +30,15 @@ struct RefreshAction {
     std::uint64_t eligibility_epoch{0};
 };
 
+struct RefreshDebtDecay {
+    std::uint64_t drained{0};
+    std::uint64_t remaining{0};
+};
+
+RefreshDebtDecay decay_refresh_debt(
+    std::uint64_t debt, std::chrono::nanoseconds elapsed,
+    std::uint64_t bandwidth_bytes_per_s, std::uint32_t service_ppm);
+
 class RefreshScheduler {
 public:
     RefreshScheduler(Profile profile, ThermalReliabilityProfile thermal);

@@ -266,6 +266,38 @@ __device__ RequestStatus await_thermal_admission(
     }
 }
 
+__device__ std::uint64_t claim_refresh_service(
+    SharedControlHeader* header, std::uint32_t service_ppm)
+{
+    const auto quantum = header->thermal_refresh_quantum_bytes;
+    if (quantum == 0) return 0;
+    auto debt = system_acquire(&header->refresh_debt_bytes);
+    std::uint64_t claimed = 0;
+    for (;;) {
+        const auto update = hbfsim::device::claim_refresh_debt(debt, quantum);
+        if (update.claimed == 0) return 0;
+        auto expected = debt;
+        if (system_compare_exchange(&header->refresh_debt_bytes, expected,
+                                    update.remaining)) {
+            claimed = update.claimed;
+            break;
+        }
+        debt = expected;
+    }
+    (void)system_fetch_add(&header->thermal_refresh_claimed_bytes, claimed);
+    const auto bytes = claimed > UINT32_MAX
+                           ? UINT32_MAX
+                           : static_cast<std::uint32_t>(claimed);
+    const auto base = header->program_latency_ns > header->read_latency_ns
+                          ? header->program_latency_ns
+                          : header->read_latency_ns;
+    const auto service = hbfsim::device::fast_service_ns(
+        base, bytes, header->aggregate_bandwidth_bytes_per_s);
+    return hbfsim::device::saturating_multiply(
+        hbfsim::device::scale_thermal_service_ns(service, service_ppm),
+        header->time_scale);
+}
+
 __device__ RequestStatus reserve_request(
     SharedControlHeader* header, SharedRequestSlot* requests,
     SharedCompletionSlot* completions,
@@ -463,6 +495,8 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
         return {.status = RequestStatus::Unsupported};
     }
+    const auto refresh_service = claim_refresh_service(
+        header, thermal_service_ppm);
 
     if (empirical_enabled) {
         if (media.bytes != 4096 || range.page_bytes != 4096 ||
@@ -493,8 +527,9 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         const auto thermal_service =
             hbfsim::device::scale_thermal_service_ns(
                 request.service_ns, thermal_service_ppm);
-        const auto scaled_service = hbfsim::device::saturating_multiply(
-            thermal_service, header->time_scale);
+        const auto scaled_service = hbfsim::device::saturating_add(
+            refresh_service, hbfsim::device::saturating_multiply(
+                                 thermal_service, header->time_scale));
         auto tail = system_acquire(&header->fast_channel_tail_ns);
         std::uint64_t target = 0;
         for (;;) {
@@ -535,10 +570,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         return {.status = RequestStatus::Unsupported};
     }
     const auto arrival = gpu_time_ns();
-    const auto base_scaled = hbfsim::device::saturating_multiply(
+    const auto base_scaled = hbfsim::device::saturating_add(
+        refresh_service, hbfsim::device::saturating_multiply(
         hbfsim::device::scale_thermal_service_ns(base_latency,
                                                   thermal_service_ppm),
-        header->time_scale);
+        header->time_scale));
     const auto transfer_scaled = hbfsim::device::saturating_multiply(
         hbfsim::device::scale_thermal_service_ns(transfer_ns,
                                                   thermal_service_ppm),
@@ -1042,6 +1078,9 @@ __device__ DeviceFuture issue_fast(
                              RequestStatus::Unsupported);
     }
 
+    const auto refresh_service = claim_refresh_service(
+        header, thermal_service_ppm);
+
     const auto arrival = gpu_time_ns();
     std::uint64_t modeled_service = 0;
     std::uint64_t target = 0;
@@ -1070,10 +1109,11 @@ __device__ DeviceFuture issue_fast(
             previous_state = expected;
         }
         modeled_service = request.service_ns;
-        const auto scaled_service = hbfsim::device::saturating_multiply(
+        const auto scaled_service = hbfsim::device::saturating_add(
+            refresh_service, hbfsim::device::saturating_multiply(
             hbfsim::device::scale_thermal_service_ns(
                 modeled_service, thermal_service_ppm),
-            header->time_scale);
+            header->time_scale));
         if (system_acquire(
                 &header->sm120_channel_profile_generation) != 0) {
             target = hbfsim::device::saturating_add(arrival,
@@ -1103,9 +1143,10 @@ __device__ DeviceFuture issue_fast(
             return failed_future(address, bytes, instruction_id,
                                  RequestStatus::Unsupported);
         }
-        const auto latency_scaled = hbfsim::device::saturating_multiply(
+        const auto latency_scaled = hbfsim::device::saturating_add(
+            refresh_service, hbfsim::device::saturating_multiply(
             hbfsim::device::scale_thermal_service_ns(
-                base_latency, thermal_service_ppm), header->time_scale);
+                base_latency, thermal_service_ppm), header->time_scale));
         const auto transfer_scaled = hbfsim::device::saturating_multiply(
             hbfsim::device::scale_thermal_service_ns(
                 transfer_ns, thermal_service_ppm), header->time_scale);

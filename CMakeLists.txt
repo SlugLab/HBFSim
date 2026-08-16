@@ -176,6 +176,13 @@ set_tests_properties(
     background_dispatch PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_executable(thermal_consistency_test tests/cpu/thermal_consistency_test.cpp)
+target_link_libraries(thermal_consistency_test PRIVATE hbfsim_core)
+add_test(NAME thermal_consistency COMMAND thermal_consistency_test)
+set_tests_properties(
+    thermal_consistency PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
 target_include_directories(

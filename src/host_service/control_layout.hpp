@@ -168,6 +168,7 @@ struct alignas(64) SharedControlHeader {
     std::uint64_t thermal_refresh_write_bytes;
     alignas(8) std::uint64_t refresh_debt_bytes;
     std::uint64_t refresh_debt_generation;
+    std::uint64_t thermal_refresh_quantum_bytes;
     std::uint64_t thermal_transitions;
     std::uint64_t thermal_inflight_completed;
     std::uint64_t thermal_completed_refresh_blocks;

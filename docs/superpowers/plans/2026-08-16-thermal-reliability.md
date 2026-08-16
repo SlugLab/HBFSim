@@ -234,7 +234,7 @@ using hbfsim::ThermalMode;
 const auto profile = make_test_thermal_profile();
 hbfsim::ThermalReliabilityModel model(profile, 78'000);
 const auto light = model.advance({.elapsed_ns = 1'000'000'000,
-                                  .gpu_millic = 90'000,
+                                  .gpu_millic = 85'000,
                                   .read_bytes = 1ULL << 20,
                                   .write_bytes = 0});
 check(light.mode == ThermalMode::Light, "LTT enters Light");

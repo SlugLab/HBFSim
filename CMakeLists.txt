@@ -69,6 +69,7 @@ add_library(
     src/hybrid/calibrator.cpp
     src/profile/exact_profile.cpp
     src/profile/profile.cpp
+    src/thermal/thermal_reliability.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/backing_store.cpp
     src/host_service/capacity_backing_router.cpp
@@ -124,6 +125,12 @@ target_link_libraries(hbfsim_profile_tests PRIVATE hbfsim_core)
 
 add_test(NAME profile COMMAND hbfsim_profile_tests)
 set_tests_properties(profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(
+    thermal_reliability_test tests/cpu/thermal_reliability_test.cpp
+)
+target_link_libraries(thermal_reliability_test PRIVATE hbfsim_core)
+add_test(NAME thermal_reliability COMMAND thermal_reliability_test)
 
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)

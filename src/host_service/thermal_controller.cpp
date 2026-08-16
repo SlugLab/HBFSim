@@ -1,4 +1,5 @@
 #include "thermal_controller.hpp"
+#include "refresh_scheduler.hpp"
 
 #include <limits>
 #include <optional>
@@ -163,6 +164,10 @@ ThermalControllerStatus ThermalController::tick_at(
             .read_bytes = *read_delta,
             .write_bytes = *write_delta,
         });
+        if (refresh_scheduler_ != nullptr) {
+            refresh_scheduler_->age(thermal.junction_millic, elapsed,
+                                    thermal.generation);
+        }
         publish(thermal);
         samples_.push_back({
             .host_ns = telemetry->host_ns,
@@ -252,7 +257,24 @@ ThermalAccounting ThermalController::accounting() const noexcept
                                      std::memory_order_acquire);
     result.average_pec_millionths = atomic_load(
         header->thermal_average_pec_millionths, std::memory_order_acquire);
+    if (refresh_scheduler_ != nullptr) {
+        result.completed_refresh_blocks =
+            refresh_scheduler_->completed_blocks();
+        result.maximum_pec = refresh_scheduler_->maximum_pec();
+        result.maximum_retention_damage_millionths =
+            static_cast<std::uint64_t>(
+                refresh_scheduler_->maximum_damage() * 1'000'000.0L);
+        result.average_retention_damage_millionths =
+            static_cast<std::uint64_t>(
+                refresh_scheduler_->average_damage() * 1'000'000.0L);
+    }
     return result;
+}
+
+void ThermalController::attach_refresh_scheduler(
+    RefreshScheduler* scheduler) noexcept
+{
+    refresh_scheduler_ = scheduler;
 }
 
 }  // namespace hbfsim::host_service

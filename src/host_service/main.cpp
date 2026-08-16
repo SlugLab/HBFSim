@@ -1,5 +1,6 @@
 #include "control_layout.hpp"
 #include "request_dispatcher.hpp"
+#include "refresh_scheduler.hpp"
 #include "thermal_controller.hpp"
 
 #include <hbfsim/api.h>
@@ -195,6 +196,9 @@ int main(int argc, char** argv)
 
         std::unique_ptr<hbfsim::host_service::ThermalController>
             thermal_controller;
+        std::unique_ptr<hbfsim::host_service::RefreshScheduler>
+            refresh_scheduler;
+        std::uint32_t registered_refresh_ranges = 0;
         std::optional<hbfsim::ThermalReliabilityProfile> thermal_profile;
         std::filesystem::path thermal_report_path;
         std::string profile_sha256;
@@ -209,6 +213,11 @@ int main(int argc, char** argv)
             thermal_controller = std::make_unique<
                 hbfsim::host_service::ThermalController>(
                 *thermal_profile, control, start);
+            refresh_scheduler = std::make_unique<
+                hbfsim::host_service::RefreshScheduler>(profile,
+                                                        *thermal_profile);
+            thermal_controller->attach_refresh_scheduler(
+                refresh_scheduler.get());
 
             // A thermal daemon is not ready until it has consumed one stable
             // sample and published the initial admission state.
@@ -316,6 +325,19 @@ int main(int argc, char** argv)
             bool progressed = false;
             if (thermal_controller &&
                 std::chrono::steady_clock::now() >= next_thermal_tick) {
+                const auto range_count = hbfsim::host_service::atomic_load(
+                    control.header()->range_count, std::memory_order_acquire);
+                if (range_count < registered_refresh_ranges ||
+                    range_count > hbfsim::host_service::kRangeCapacity) {
+                    throw std::runtime_error("thermal range publication regressed");
+                }
+                const auto* ranges = control.ranges();
+                while (registered_refresh_ranges < range_count) {
+                    const auto& range = ranges[registered_refresh_ranges++];
+                    refresh_scheduler->register_range(
+                        range.base, range.length,
+                        thermal_profile->registered_ranges_contain_valid_data);
+                }
                 const auto result = thermal_controller->tick_at(
                     std::chrono::nanoseconds(monotonic_ns()));
                 next_thermal_tick += std::chrono::milliseconds(

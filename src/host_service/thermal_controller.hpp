@@ -12,6 +12,8 @@
 
 namespace hbfsim::host_service {
 
+class RefreshScheduler;
+
 enum class ThermalControllerStatus : std::uint32_t {
     Ready = 0,
     StaleTelemetry = 1,
@@ -35,6 +37,7 @@ public:
     [[nodiscard]] const std::vector<TemperatureInterval>&
     temperature_intervals() const noexcept;
     [[nodiscard]] ThermalAccounting accounting() const noexcept;
+    void attach_refresh_scheduler(RefreshScheduler* scheduler) noexcept;
 
 private:
     struct TelemetrySnapshot {
@@ -67,6 +70,7 @@ private:
     std::vector<ThermalTransition> transitions_;
     std::vector<TemperatureInterval> temperature_intervals_;
     ThermalAccounting accounting_{};
+    RefreshScheduler* refresh_scheduler_{nullptr};
 };
 
 }  // namespace hbfsim::host_service

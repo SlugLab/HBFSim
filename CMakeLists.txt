@@ -73,6 +73,7 @@ add_library(
     src/thermal/thermal_reliability.cpp
     src/host_service/request_dispatcher.cpp
     src/host_service/thermal_controller.cpp
+    src/host_service/refresh_scheduler.cpp
     src/host_service/backing_store.cpp
     src/host_service/capacity_backing_router.cpp
     src/host_service/capacity_page_service.cpp
@@ -160,6 +161,13 @@ add_executable(
 )
 target_link_libraries(thermal_device_reference_test PRIVATE hbfsim_core)
 add_test(NAME thermal_device_reference COMMAND thermal_device_reference_test)
+
+add_executable(refresh_scheduler_test tests/cpu/refresh_scheduler_test.cpp)
+target_link_libraries(refresh_scheduler_test PRIVATE hbfsim_core)
+add_test(NAME refresh_scheduler COMMAND refresh_scheduler_test)
+set_tests_properties(
+    refresh_scheduler PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)

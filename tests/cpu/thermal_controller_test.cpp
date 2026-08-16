@@ -148,6 +148,17 @@ int main()
     check(controller.tick_at(600ms) ==
               ThermalControllerStatus::SourceFailed,
           "terminal telemetry failure propagates");
+    check(hbfsim::host_service::thermal_report_terminal_status(
+              ThermalControllerStatus::SourceFailed) == "source_failed",
+          "source failure has a schema-valid terminal status");
+    check(hbfsim::host_service::thermal_report_terminal_status(
+              ThermalControllerStatus::Shutdown) == "thermal_shutdown",
+          "shutdown has a schema-valid terminal status");
+    check(hbfsim::host_service::thermal_report_terminal_status(
+              ThermalControllerStatus::ModelError) == "model_error" &&
+              hbfsim::host_service::thermal_report_terminal_status(
+                  ThermalControllerStatus::StaleTelemetry) == "model_error",
+          "controller validation failures map to model_error");
 
     std::vector<std::byte> regression_storage(
         hbfsim::host_service::control_region_bytes(ring_capacity));

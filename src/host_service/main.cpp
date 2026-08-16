@@ -439,8 +439,9 @@ int main(int argc, char** argv)
                 if (result != hbfsim::host_service::ThermalControllerStatus::Ready) {
                     const auto thermal_shutdown =
                         result == hbfsim::host_service::ThermalControllerStatus::Shutdown;
-                    terminal_status = thermal_shutdown ? "thermal_shutdown"
-                                                       : "thermal_controller_failure";
+                    terminal_status =
+                        hbfsim::host_service::thermal_report_terminal_status(
+                            result);
                     hbfsim::host_service::atomic_store(
                         control.header()->fault,
                         static_cast<std::uint64_t>(
@@ -496,6 +497,16 @@ int main(int argc, char** argv)
             }
             while (dispatcher.poll_once()) {
                 progressed = true;
+            }
+            const auto fault = hbfsim::host_service::atomic_load(
+                control.header()->fault, std::memory_order_acquire);
+            if (fault != 0) {
+                terminal_status =
+                    fault == static_cast<std::uint64_t>(
+                                 HBFSIM_THERMAL_SHUTDOWN)
+                        ? "thermal_shutdown"
+                        : "media_error";
+                break;
             }
             if (hbfsim::host_service::atomic_load(
                     control.header()->shutdown, std::memory_order_acquire) !=

@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 namespace hbfsim::host_service {
@@ -24,6 +25,9 @@ enum class ThermalControllerStatus : std::uint32_t {
     ModelError = 6,
     Shutdown = 7,
 };
+
+[[nodiscard]] std::string_view thermal_report_terminal_status(
+    ThermalControllerStatus status) noexcept;
 
 class ThermalController {
 public:

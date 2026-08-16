@@ -26,6 +26,26 @@ std::optional<std::uint64_t> checked_delta_sum(
 
 }  // namespace
 
+std::string_view thermal_report_terminal_status(
+    ThermalControllerStatus status) noexcept
+{
+    switch (status) {
+    case ThermalControllerStatus::Ready:
+        return "clean";
+    case ThermalControllerStatus::SourceFailed:
+        return "source_failed";
+    case ThermalControllerStatus::Shutdown:
+        return "thermal_shutdown";
+    case ThermalControllerStatus::StaleTelemetry:
+    case ThermalControllerStatus::InvalidTelemetry:
+    case ThermalControllerStatus::CounterRegression:
+    case ThermalControllerStatus::CounterOverflow:
+    case ThermalControllerStatus::ModelError:
+        return "model_error";
+    }
+    return "model_error";
+}
+
 ThermalController::ThermalController(ThermalReliabilityProfile profile,
                                      ControlView control,
                                      std::chrono::nanoseconds start_time)

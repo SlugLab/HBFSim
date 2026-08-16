@@ -272,12 +272,57 @@ std::optional<std::uint64_t> RequestDispatcher::next_engine_id() noexcept
     if (id == 0) {
         return std::nullopt;
     }
-    if (id == std::numeric_limits<std::uint64_t>::max()) {
+    if (id >= kBackgroundRequestIdBit - 1) {
         engine_ids_exhausted_ = true;
     } else {
         ++next_engine_id_;
     }
     return id;
+}
+
+void RequestDispatcher::attach_refresh_scheduler(
+    RefreshScheduler* scheduler) noexcept
+{
+    refresh_scheduler_ = scheduler;
+}
+
+bool RequestDispatcher::enqueue_background(const RefreshAction& action)
+{
+    if (refresh_scheduler_ == nullptr || action.action_id == 0 ||
+        action.bytes == 0 || action.address % action.bytes != 0) {
+        return false;
+    }
+    background_pending_.push_back(action);
+    return !background_inflight_.empty() || submit_next_background();
+}
+
+bool RequestDispatcher::submit_next_background()
+{
+    if (!background_inflight_.empty() || background_pending_.empty() ||
+        next_background_id_ == 0) {
+        return background_pending_.empty() || !background_inflight_.empty();
+    }
+    const auto action = background_pending_.front();
+    const auto id = next_background_id_++;
+    HbfRequest request{
+        .request_id = id,
+        .arrival_ns = 0,
+        .logical_address = action.address,
+        .bytes = action.bytes,
+        .operation = action.kind == RefreshActionKind::Read
+                         ? static_cast<std::uint32_t>(RequestOperation::Read)
+                         : static_cast<std::uint32_t>(RequestOperation::Write),
+        .page_generation = static_cast<std::uint32_t>(action.action_id),
+        .flags = kRequestFlagBackgroundRefresh,
+    };
+    try {
+        engine_.submit(request);
+    } catch (...) {
+        return false;
+    }
+    background_pending_.pop_front();
+    background_inflight_.emplace(id, action);
+    return true;
 }
 
 bool RequestDispatcher::submit_next(std::uint64_t ticket,
@@ -403,7 +448,7 @@ bool RequestDispatcher::poll_once()
         }
     }
 
-    while (!groups_by_ticket_.empty()) {
+    while (!groups_by_ticket_.empty() || !background_inflight_.empty()) {
         std::optional<HbfCompletion> completion;
         try {
             completion = engine_.run_next_completion();
@@ -416,6 +461,44 @@ bool RequestDispatcher::poll_once()
             return true;
         }
         progressed = true;
+        if ((completion->request_id & kBackgroundRequestIdBit) != 0) {
+            const auto found = background_inflight_.find(
+                completion->request_id);
+            if (found == background_inflight_.end() ||
+                refresh_scheduler_ == nullptr ||
+                completion->page_generation !=
+                    static_cast<std::uint32_t>(found->second.action_id) ||
+                !terminal(completion->status)) {
+                fail_all();
+                return true;
+            }
+            const auto success = completion->status ==
+                static_cast<std::uint32_t>(RequestStatus::Ready);
+            const auto action = found->second;
+            if (!refresh_scheduler_->complete(action, success)) {
+                fail_all();
+                return true;
+            }
+            atomic_store(control_.header()->thermal_completed_refresh_blocks,
+                         refresh_scheduler_->completed_blocks(),
+                         std::memory_order_release);
+            atomic_store(control_.header()->thermal_max_pec,
+                         refresh_scheduler_->maximum_pec(),
+                         std::memory_order_release);
+            if (success) {
+                auto* counter = action.kind == RefreshActionKind::Read
+                                    ? &control_.header()->thermal_refresh_read_bytes
+                                    : &control_.header()->thermal_refresh_write_bytes;
+                (void)atomic_fetch_add(*counter,
+                                       static_cast<std::uint64_t>(action.bytes));
+            }
+            background_inflight_.erase(found);
+            if (!background_pending_.empty() && !submit_next_background()) {
+                fail_all();
+                return true;
+            }
+            continue;
+        }
         const auto request_ticket =
             ticket_by_engine_id_.find(completion->request_id);
         if (request_ticket == ticket_by_engine_id_.end()) {
@@ -496,6 +579,8 @@ void RequestDispatcher::fail_all() noexcept
     }
     groups_by_ticket_.clear();
     ticket_by_engine_id_.clear();
+    background_pending_.clear();
+    background_inflight_.clear();
     atomic_store(control_.header()->fault, HBFSIM_IO_ERROR,
                  std::memory_order_release);
 }

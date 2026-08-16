@@ -169,6 +169,13 @@ set_tests_properties(
     refresh_scheduler PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_executable(background_dispatch_test tests/cpu/background_dispatch_test.cpp)
+target_link_libraries(background_dispatch_test PRIVATE hbfsim_core)
+add_test(NAME background_dispatch COMMAND background_dispatch_test)
+set_tests_properties(
+    background_dispatch PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
 target_include_directories(

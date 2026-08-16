@@ -1,8 +1,10 @@
 #pragma once
 
 #include "control_layout.hpp"
+#include "refresh_scheduler.hpp"
 
 #include <array>
+#include <deque>
 #include <functional>
 #include <optional>
 #include <unordered_map>
@@ -17,6 +19,8 @@ struct PreparedDispatch {
 };
 
 inline constexpr std::uint32_t kRequestFlagExplicitCapacityProgram = 1U << 0;
+inline constexpr std::uint32_t kRequestFlagBackgroundRefresh = 1U << 1;
+inline constexpr std::uint64_t kBackgroundRequestIdBit = 1ULL << 63;
 
 PreparedDispatch prepare_capacity_media_dispatch(
     const HbfRequest& request, const CapacityHandoffResult& result,
@@ -49,6 +53,8 @@ public:
 
     // Returns true when a request was consumed or a completion was published.
     bool poll_once();
+    void attach_refresh_scheduler(RefreshScheduler* scheduler) noexcept;
+    bool enqueue_background(const RefreshAction& action);
 
 private:
     friend class RequestDispatcherTestAccess;
@@ -63,13 +69,18 @@ private:
     [[nodiscard]] std::optional<std::uint64_t> next_engine_id() noexcept;
     bool submit_next(std::uint64_t ticket, DispatchGroup& group);
     bool publish(std::uint64_t ticket, DispatchGroup& group);
+    bool submit_next_background();
     void fail_all() noexcept;
 
     ControlView control_;
     Engine engine_;
     std::unordered_map<std::uint64_t, DispatchGroup> groups_by_ticket_;
     std::unordered_map<std::uint64_t, std::uint64_t> ticket_by_engine_id_;
+    std::deque<RefreshAction> background_pending_;
+    std::unordered_map<std::uint64_t, RefreshAction> background_inflight_;
+    RefreshScheduler* refresh_scheduler_{nullptr};
     std::uint64_t next_engine_id_{1};
+    std::uint64_t next_background_id_{kBackgroundRequestIdBit};
     bool engine_ids_exhausted_{false};
 };
 

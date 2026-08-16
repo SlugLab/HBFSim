@@ -306,6 +306,10 @@ int main(int argc, char** argv)
             });
 #endif
 
+        if (refresh_scheduler) {
+            dispatcher.attach_refresh_scheduler(refresh_scheduler.get());
+        }
+
         hbfsim::host_service::atomic_store(
             control.header()->daemon_pid,
             static_cast<std::uint64_t>(::getpid()), std::memory_order_release);
@@ -340,8 +344,9 @@ int main(int argc, char** argv)
                 }
                 const auto result = thermal_controller->tick_at(
                     std::chrono::nanoseconds(monotonic_ns()));
-                next_thermal_tick += std::chrono::milliseconds(
-                    thermal_profile->controller_period_ms);
+                next_thermal_tick = std::chrono::steady_clock::now() +
+                    std::chrono::milliseconds(
+                        thermal_profile->controller_period_ms);
                 if (result != hbfsim::host_service::ThermalControllerStatus::Ready) {
                     const auto thermal_shutdown =
                         result == hbfsim::host_service::ThermalControllerStatus::Shutdown;
@@ -354,6 +359,16 @@ int main(int argc, char** argv)
                                              : HBFSIM_IO_ERROR),
                         std::memory_order_release);
                     break;
+                }
+                if (control.header()->timing_model == 0) {
+                    const auto refresh = refresh_scheduler->plan(
+                        thermal_controller->snapshot().generation, {});
+                    for (const auto& action : refresh) {
+                        if (!dispatcher.enqueue_background(action)) {
+                            throw std::runtime_error(
+                                "unable to enqueue background refresh");
+                        }
+                    }
                 }
             }
             while (dispatcher.poll_once()) {

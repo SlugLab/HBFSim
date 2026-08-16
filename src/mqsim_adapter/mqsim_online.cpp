@@ -230,7 +230,8 @@ MqsimOnlineEngine& MqsimOnlineEngine::operator=(MqsimOnlineEngine&&) noexcept =
 void MqsimOnlineEngine::submit(const HbfRequest& request)
 {
     if (request.bytes == 0 || request.bytes % kSectorBytes != 0 ||
-        request.logical_address % kSectorBytes != 0) {
+        request.logical_address % kSectorBytes != 0 ||
+        (request.flags & ~std::uint32_t{3}) != 0) {
         throw std::invalid_argument(
             "MQSim requests must be non-empty and 512-byte aligned");
     }

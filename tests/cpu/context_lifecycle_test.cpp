@@ -121,7 +121,7 @@ void verify_empirical_publication(hbfsim_context* context,
     CHECK(mapping != MAP_FAILED);
     const auto* header =
         static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
-    CHECK(header->abi_version == 9);
+    CHECK(header->abi_version == 10);
     CHECK(header->empirical_burst_state == 0);
     if (expected_empirical) {
         CHECK(header->empirical_flags == 1);
@@ -283,6 +283,15 @@ int main(int argc, char** argv)
     CHECK(::unsetenv("HBFSIM_PASS_MANIFEST_PATH") == 0);
     CHECK(::unsetenv("HBFSIM_PRELOAD_MARKER_PATH") == 0);
     verify_empirical_publication(context, options.ring_capacity, false);
+
+    hbfsim_thermal_stats thermal_stats{
+        .struct_bytes = sizeof(hbfsim_thermal_stats),
+    };
+    CHECK(hbfsim_get_thermal_stats(context, &thermal_stats) == HBFSIM_OK);
+    CHECK(thermal_stats.mode == 0);
+    thermal_stats.struct_bytes = sizeof(hbfsim_thermal_stats) - 1;
+    CHECK(hbfsim_get_thermal_stats(context, &thermal_stats) ==
+          HBFSIM_INVALID_ARGUMENT);
 
     const auto tuned_profile = write_tuned_profile(report_dir);
     const auto tuned_options =

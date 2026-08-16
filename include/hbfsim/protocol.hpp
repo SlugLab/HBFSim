@@ -20,6 +20,7 @@ enum class RequestStatus : std::uint32_t {
     Timeout = 5,
     Unsupported = 6,
     DaemonLost = 7,
+    ThermalShutdown = 8,
 };
 
 enum class PageState : std::uint32_t {

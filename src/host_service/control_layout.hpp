@@ -12,7 +12,7 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 9;
+inline constexpr std::uint32_t kControlAbiVersion = 10;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kTensorMapCapacity = 256;
 inline constexpr std::uint32_t kSm120StateCapacity = 256;
@@ -152,6 +152,32 @@ struct alignas(64) SharedControlHeader {
     alignas(4) std::uint32_t sm120_channel_state_count;
     alignas(8) std::uint64_t sm120_channel_profile_generation;
     alignas(8) std::uint64_t sm120_channel_saturated;
+    alignas(8) std::uint64_t telemetry_generation;
+    std::uint64_t telemetry_host_ns;
+    std::int64_t telemetry_gpu_millic;
+    std::uint64_t telemetry_gpu_power_mw;
+    std::uint32_t telemetry_status;
+    std::uint32_t thermal_mode;
+    alignas(8) std::uint64_t thermal_generation;
+    std::int64_t thermal_junction_millic;
+    std::uint32_t thermal_service_ppm;
+    std::uint32_t thermal_admission_open;
+    alignas(8) std::uint64_t thermal_read_bytes;
+    std::uint64_t thermal_write_bytes;
+    std::uint64_t thermal_refresh_read_bytes;
+    std::uint64_t thermal_refresh_write_bytes;
+    alignas(8) std::uint64_t refresh_debt_bytes;
+    std::uint64_t refresh_debt_generation;
+    std::uint64_t thermal_transitions;
+    std::uint64_t thermal_inflight_completed;
+    std::uint64_t thermal_completed_refresh_blocks;
+    std::uint64_t thermal_max_pec;
+    std::uint64_t thermal_average_pec_millionths;
+    std::uint64_t thermal_refresh_claimed_bytes;
+    std::uint64_t thermal_refresh_background_drained_bytes;
+    std::uint64_t thermal_summary_generation;
+    std::uint32_t thermal_summary_status;
+    std::uint32_t reserved1;
 };
 
 struct alignas(64) SharedRangeRecord {
@@ -258,7 +284,7 @@ static_assert(std::is_trivially_copyable_v<SharedSm120ChannelConfig>);
 static_assert(std::is_trivially_copyable_v<SharedSm120ChannelState>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
-static_assert(sizeof(SharedControlHeader) == 576);
+static_assert(sizeof(SharedControlHeader) == 768);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedTensorMapSlot) == 448);
 static_assert(sizeof(SharedSm120ChannelConfig) == 1024);
@@ -306,6 +332,12 @@ inline std::uint32_t atomic_load(const std::uint32_t& value,
                                  std::memory_order order) noexcept
 {
     return std::atomic_ref<const std::uint32_t>(value).load(order);
+}
+
+inline std::int64_t atomic_load(const std::int64_t& value,
+                                std::memory_order order) noexcept
+{
+    return std::atomic_ref<const std::int64_t>(value).load(order);
 }
 
 inline void atomic_store(std::uint64_t& target, std::uint64_t value,
@@ -424,6 +456,8 @@ public:
         h->page_capacity = capacity;
         h->tensormap_capacity = kTensorMapCapacity;
         h->sm120_channel_state_capacity = kSm120StateCapacity;
+        h->thermal_service_ppm = 1'000'000;
+        h->thermal_admission_open = 1;
         h->range_offset = sizeof(SharedControlHeader);
         h->request_offset =
             h->range_offset + sizeof(SharedRangeRecord) * kRangeCapacity;

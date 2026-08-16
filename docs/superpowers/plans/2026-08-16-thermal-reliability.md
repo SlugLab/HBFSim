@@ -380,6 +380,14 @@ alignas(8) std::uint64_t refresh_debt_bytes;
 std::uint64_t refresh_debt_generation;
 std::uint64_t thermal_transitions;
 std::uint64_t thermal_inflight_completed;
+std::uint64_t thermal_completed_refresh_blocks;
+std::uint64_t thermal_max_pec;
+std::uint64_t thermal_average_pec_millionths;
+std::uint64_t thermal_refresh_claimed_bytes;
+std::uint64_t thermal_refresh_background_drained_bytes;
+std::uint64_t thermal_summary_generation;
+std::uint32_t thermal_summary_status;
+std::uint32_t reserved1;
 ```
 
 Bump control ABI to 10 and public ABI to 5. Add

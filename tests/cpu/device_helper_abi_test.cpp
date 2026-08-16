@@ -16,9 +16,9 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 9);
-    static_assert(host_service::kControlAbiVersion == 9);
-    static_assert(sizeof(SharedControlHeader) == 576);
+    static_assert(device::kControlAbiVersion == 10);
+    static_assert(host_service::kControlAbiVersion == 10);
+    static_assert(sizeof(SharedControlHeader) == 768);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));
     static_assert(sizeof(SharedRangeRecord) ==
@@ -86,6 +86,11 @@ int main()
     static_assert(offsetof(SharedControlHeader, sm120_channel_state_offset) ==
                   offsetof(host_service::SharedControlHeader,
                            sm120_channel_state_offset));
+    static_assert(offsetof(SharedControlHeader, thermal_generation) ==
+                  offsetof(host_service::SharedControlHeader,
+                           thermal_generation));
+    static_assert(offsetof(SharedControlHeader, thermal_generation) ==
+                  device::kThermalGenerationOffset);
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));

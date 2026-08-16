@@ -1,3 +1,4 @@
+#include <hbfsim/api.h>
 #include <hbfsim/protocol.hpp>
 
 #include "../../src/host_service/control_layout.hpp"
@@ -13,11 +14,14 @@ static_assert(sizeof(hbfsim::PageEntry) == 64);
 static_assert(std::is_trivially_copyable_v<hbfsim::HbfRequest>);
 static_assert(std::is_trivially_copyable_v<hbfsim::HbfCompletion>);
 static_assert(sizeof(hbfsim::host_service::SharedTensorMapSlot) == 448);
-static_assert(hbfsim::host_service::kControlAbiVersion == 9);
+static_assert(hbfsim::host_service::kControlAbiVersion == 10);
 
 int main()
 {
     assert(static_cast<std::uint32_t>(hbfsim::RequestStatus::DaemonLost) == 7u);
+    assert(static_cast<std::uint32_t>(
+               hbfsim::RequestStatus::ThermalShutdown) == 8u);
+    assert(hbfsim_abi_version() == 5u);
 
     hbfsim::SequenceRing<std::uint64_t, 8> ring;
     for (std::uint64_t value = 0; value < 8; ++value) {

@@ -2200,6 +2200,53 @@ extern "C" int hbfsim_get_tma_stats(hbfsim_context* context,
     return HBFSIM_OK;
 }
 
+extern "C" int hbfsim_get_thermal_stats(hbfsim_context* context,
+                                          hbfsim_thermal_stats* out)
+{
+    if (context == nullptr || out == nullptr ||
+        out->struct_bytes < sizeof(hbfsim_thermal_stats)) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation || context->control_mapping == MAP_FAILED) {
+        return HBFSIM_IO_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) {
+        return HBFSIM_IO_ERROR;
+    }
+    const auto* header = control.header();
+    *out = {
+        .struct_bytes = sizeof(hbfsim_thermal_stats),
+        .mode = hbfsim::host_service::atomic_load(
+            header->thermal_mode, std::memory_order_acquire),
+        .junction_millic = hbfsim::host_service::atomic_load(
+            header->thermal_junction_millic, std::memory_order_acquire),
+        .service_ppm = hbfsim::host_service::atomic_load(
+            header->thermal_service_ppm, std::memory_order_acquire),
+        .telemetry_status = hbfsim::host_service::atomic_load(
+            header->telemetry_status, std::memory_order_acquire),
+        .transitions = hbfsim::host_service::atomic_load(
+            header->thermal_transitions, std::memory_order_acquire),
+        .refresh_read_bytes = hbfsim::host_service::atomic_load(
+            header->thermal_refresh_read_bytes, std::memory_order_acquire),
+        .refresh_write_bytes = hbfsim::host_service::atomic_load(
+            header->thermal_refresh_write_bytes, std::memory_order_acquire),
+        .refresh_debt_bytes = hbfsim::host_service::atomic_load(
+            header->refresh_debt_bytes, std::memory_order_acquire),
+        .completed_refresh_blocks = hbfsim::host_service::atomic_load(
+            header->thermal_completed_refresh_blocks,
+            std::memory_order_acquire),
+        .max_pec = hbfsim::host_service::atomic_load(
+            header->thermal_max_pec, std::memory_order_acquire),
+        .average_pec_millionths = hbfsim::host_service::atomic_load(
+            header->thermal_average_pec_millionths,
+            std::memory_order_acquire),
+    };
+    return HBFSIM_OK;
+}
+
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 {
     if (context == nullptr || range_base == nullptr) {

@@ -16,7 +16,8 @@ enum hbfsim_error {
     HBFSIM_CUDA_ERROR = 3,
     HBFSIM_TIMEOUT = 4,
     HBFSIM_UNSUPPORTED = 5,
-    HBFSIM_DAEMON_LOST = 6
+    HBFSIM_DAEMON_LOST = 6,
+    HBFSIM_THERMAL_SHUTDOWN = 7
 };
 
 enum hbfsim_range_mode {
@@ -139,6 +140,21 @@ typedef struct hbfsim_tma_stats {
     uint64_t leaked;
 } hbfsim_tma_stats;
 
+typedef struct hbfsim_thermal_stats {
+    uint32_t struct_bytes;
+    uint32_t mode;
+    int64_t junction_millic;
+    uint32_t service_ppm;
+    uint32_t telemetry_status;
+    uint64_t transitions;
+    uint64_t refresh_read_bytes;
+    uint64_t refresh_write_bytes;
+    uint64_t refresh_debt_bytes;
+    uint64_t completed_refresh_blocks;
+    uint64_t max_pec;
+    uint64_t average_pec_millionths;
+} hbfsim_thermal_stats;
+
 uint32_t hbfsim_abi_version(void);
 int hbfsim_context_create(const hbfsim_options* options,
                           hbfsim_context** out);
@@ -159,6 +175,8 @@ int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
 int hbfsim_get_future_stats(hbfsim_context* context,
                             hbfsim_future_stats* out);
 int hbfsim_get_tma_stats(hbfsim_context* context, hbfsim_tma_stats* out);
+int hbfsim_get_thermal_stats(hbfsim_context* context,
+                             hbfsim_thermal_stats* out);
 int hbfsim_unregister(hbfsim_context* context, void* range_base);
 void hbfsim_context_destroy(hbfsim_context* context);
 

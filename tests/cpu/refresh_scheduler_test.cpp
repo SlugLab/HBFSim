@@ -62,11 +62,24 @@ int main()
               completion.average_pec_millionths() == 1'000'000,
           "a complete block commits one PEC");
 
+    RefreshScheduler application(profile, thermal);
+    application.register_range(
+        0, profile.page_bytes * profile.pages_per_block, false);
+    for (std::uint32_t page = 0; page < profile.pages_per_block; ++page) {
+        application.record_program(
+            static_cast<std::uint64_t>(page) * profile.page_bytes,
+            profile.page_bytes);
+        check(application.maximum_pec() ==
+                  (page + 1 == profile.pages_per_block ? 1U : 0U),
+              "application pages commit PEC only at full-block completion");
+    }
+
     RefreshScheduler published(profile, thermal);
     hbfsim::host_service::SharedRangeRecord published_range{
         .base = 0x7f00'0000'0000ULL,
         .length = profile.page_bytes * profile.pages_per_block,
         .file_offset = profile.page_bytes * profile.pages_per_block * 7,
+        .range_id = 7,
     };
     published.register_published_range(published_range, true);
     published.age(85'000, 1s, 1);

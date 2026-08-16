@@ -69,6 +69,8 @@ private:
     [[nodiscard]] std::optional<std::uint64_t> next_engine_id() noexcept;
     bool submit_next(std::uint64_t ticket, DispatchGroup& group);
     bool publish(std::uint64_t ticket, DispatchGroup& group);
+    bool account_application_media(const HbfRequest& action) noexcept;
+    void publish_reliability_accounting() noexcept;
     bool submit_next_background();
     void fail_all() noexcept;
 

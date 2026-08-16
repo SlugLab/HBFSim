@@ -49,6 +49,7 @@ public:
                         bool contains_valid_data);
     void register_published_range(const SharedRangeRecord& range,
                                   bool contains_valid_data);
+    void register_published_range(const SharedRangeRecord& range);
     void age(std::int64_t junction_millic, std::chrono::nanoseconds elapsed,
              std::uint64_t epoch);
     void record_read(std::uint64_t address, std::uint64_t bytes);
@@ -74,13 +75,22 @@ private:
         std::uint32_t channel{0};
         std::uint32_t die{0};
         ZoneReliability reliability{};
+        std::vector<bool> programmed_pages;
+        std::uint32_t programmed_page_count{0};
         std::uint64_t eligibility_epoch{0};
         bool inflight{false};
+    };
+
+    struct PublishedRangeState {
+        std::uint32_t range_id{0};
+        std::uint64_t file_offset{0};
+        std::uint64_t length{0};
     };
 
     Profile profile_;
     ThermalReliabilityProfile thermal_;
     std::vector<BlockState> blocks_;
+    std::vector<PublishedRangeState> published_ranges_;
     std::vector<RefreshAction> inflight_plan_;
     std::size_t next_completion_{0};
     std::size_t inflight_block_{0};

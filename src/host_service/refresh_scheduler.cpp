@@ -84,6 +84,8 @@ void RefreshScheduler::register_range(std::uint64_t base,
             .channel = channel,
             .die = die,
             .reliability = {.valid = contains_valid_data},
+            .programmed_pages =
+                std::vector<bool>(profile_.pages_per_block, false),
         });
     }
 }
@@ -91,7 +93,33 @@ void RefreshScheduler::register_range(std::uint64_t base,
 void RefreshScheduler::register_published_range(
     const SharedRangeRecord& range, bool contains_valid_data)
 {
+    if (range.range_id == 0) {
+        throw std::invalid_argument("published refresh range has zero ID");
+    }
+    const auto existing = std::find_if(
+        published_ranges_.begin(), published_ranges_.end(),
+        [&](const auto& state) { return state.range_id == range.range_id; });
+    if (existing != published_ranges_.end()) {
+        if (existing->file_offset != range.file_offset ||
+            existing->length != range.length) {
+            throw std::invalid_argument(
+                "published refresh range ID changed geometry");
+        }
+        return;
+    }
     register_range(range.file_offset, range.length, contains_valid_data);
+    published_ranges_.push_back({
+        .range_id = range.range_id,
+        .file_offset = range.file_offset,
+        .length = range.length,
+    });
+}
+
+void RefreshScheduler::register_published_range(
+    const SharedRangeRecord& range)
+{
+    register_published_range(
+        range, thermal_.registered_ranges_contain_valid_data);
 }
 
 void RefreshScheduler::age(std::int64_t junction_millic,
@@ -134,20 +162,40 @@ void RefreshScheduler::record_program(std::uint64_t address,
 {
     const auto block_bytes = static_cast<std::uint64_t>(profile_.page_bytes) *
                              profile_.pages_per_block;
-    if (bytes != block_bytes || address % block_bytes != 0) {
-        throw std::invalid_argument(
-            "application PEC accounting requires one complete block");
+    if (bytes == 0 || address > std::numeric_limits<std::uint64_t>::max() -
+                                  (bytes - 1)) {
+        throw std::invalid_argument("invalid application program range");
     }
-    const auto found = std::find_if(blocks_.begin(), blocks_.end(),
-                                    [&](const auto& block) {
-                                        return block.base == address;
-                                    });
-    if (found == blocks_.end()) {
+    const auto end = address + bytes;
+    bool found = false;
+    for (auto& block : blocks_) {
+        const auto block_end = block.base + block_bytes;
+        const auto overlap_begin = std::max(address, block.base);
+        const auto overlap_end = std::min(end, block_end);
+        if (overlap_begin >= overlap_end) continue;
+        found = true;
+        block.reliability.valid = true;
+        const auto first_page = static_cast<std::uint32_t>(
+            (overlap_begin - block.base) / profile_.page_bytes);
+        const auto last_page = static_cast<std::uint32_t>(
+            (overlap_end - 1 - block.base) / profile_.page_bytes);
+        for (auto page = first_page; page <= last_page; ++page) {
+            if (!block.programmed_pages[page]) {
+                block.programmed_pages[page] = true;
+                ++block.programmed_page_count;
+            }
+        }
+        if (block.programmed_page_count == profile_.pages_per_block) {
+            commit_refresh(block.reliability);
+            block.eligibility_epoch = 0;
+            std::fill(block.programmed_pages.begin(),
+                      block.programmed_pages.end(), false);
+            block.programmed_page_count = 0;
+        }
+    }
+    if (!found) {
         throw std::out_of_range("programmed block is not registered");
     }
-    found->reliability.valid = true;
-    commit_refresh(found->reliability);
-    found->eligibility_epoch = 0;
 }
 
 std::vector<RefreshAction> RefreshScheduler::plan(
@@ -233,6 +281,9 @@ bool RefreshScheduler::complete(const RefreshAction& action, bool success)
     ++next_completion_;
     if (next_completion_ != inflight_plan_.size()) return true;
     commit_refresh(block.reliability);
+    std::fill(block.programmed_pages.begin(), block.programmed_pages.end(),
+              false);
+    block.programmed_page_count = 0;
     ++completed_blocks_;
     block.eligibility_epoch = 0;
     block.inflight = false;

@@ -378,6 +378,54 @@ bool RequestDispatcher::publish(std::uint64_t ticket,
     return control_.try_publish_completion(ticket, completion);
 }
 
+void RequestDispatcher::publish_reliability_accounting() noexcept
+{
+    if (refresh_scheduler_ == nullptr) return;
+    atomic_store(control_.header()->thermal_completed_refresh_blocks,
+                 refresh_scheduler_->completed_blocks(),
+                 std::memory_order_release);
+    atomic_store(control_.header()->thermal_max_pec,
+                 refresh_scheduler_->maximum_pec(),
+                 std::memory_order_release);
+    atomic_store(control_.header()->thermal_average_pec_millionths,
+                 refresh_scheduler_->average_pec_millionths(),
+                 std::memory_order_release);
+}
+
+bool RequestDispatcher::account_application_media(
+    const HbfRequest& action) noexcept
+{
+    if (refresh_scheduler_ == nullptr || action.range_id == 0) return true;
+    try {
+        const auto count = atomic_load(control_.header()->range_count,
+                                       std::memory_order_acquire);
+        if (count > kRangeCapacity) return false;
+        const SharedRangeRecord* range = nullptr;
+        for (std::uint32_t index = 0; index < count; ++index) {
+            if (control_.ranges()[index].range_id == action.range_id) {
+                range = &control_.ranges()[index];
+                break;
+            }
+        }
+        if (range == nullptr) return false;
+        refresh_scheduler_->register_published_range(*range);
+        if (action.operation ==
+            static_cast<std::uint32_t>(RequestOperation::Read)) {
+            refresh_scheduler_->record_read(action.logical_address,
+                                            action.bytes);
+        }
+        if (action.operation ==
+            static_cast<std::uint32_t>(RequestOperation::Write)) {
+            refresh_scheduler_->record_program(action.logical_address,
+                                               action.bytes);
+        }
+        publish_reliability_accounting();
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 bool RequestDispatcher::poll_once()
 {
     if (atomic_load(control_.header()->fault, std::memory_order_acquire) != 0) {
@@ -479,15 +527,7 @@ bool RequestDispatcher::poll_once()
                 fail_all();
                 return true;
             }
-            atomic_store(control_.header()->thermal_completed_refresh_blocks,
-                         refresh_scheduler_->completed_blocks(),
-                         std::memory_order_release);
-            atomic_store(control_.header()->thermal_max_pec,
-                         refresh_scheduler_->maximum_pec(),
-                         std::memory_order_release);
-            atomic_store(control_.header()->thermal_average_pec_millionths,
-                         refresh_scheduler_->average_pec_millionths(),
-                         std::memory_order_release);
+            publish_reliability_accounting();
             if (success) {
                 auto* counter = action.kind == RefreshActionKind::Read
                                     ? &control_.header()->thermal_refresh_read_bytes
@@ -522,6 +562,11 @@ bool RequestDispatcher::poll_once()
             !terminal(completion->status) ||
             completion->status !=
                 static_cast<std::uint32_t>(RequestStatus::Ready)) {
+            fail_all();
+            return true;
+        }
+        if (!account_application_media(
+                group.prepared.media_actions[action_index])) {
             fail_all();
             return true;
         }

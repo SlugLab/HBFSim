@@ -3,10 +3,12 @@
 #include <json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <limits>
 #include <string>
+#include <string_view>
 
 namespace hbfsim {
 namespace {
@@ -90,6 +92,156 @@ std::optional<EmpiricalVmemProfile> parse_empirical_vmem(
     return parsed;
 }
 
+std::int64_t parse_millic(const nlohmann::json& object, const char* field)
+{
+    const auto celsius = object.at(field).get<long double>();
+    if (!std::isfinite(celsius) ||
+        celsius < static_cast<long double>(std::numeric_limits<std::int64_t>::min()) /
+                      1000.0L ||
+        celsius > static_cast<long double>(std::numeric_limits<std::int64_t>::max()) /
+                      1000.0L) {
+        throw ProfileError(std::string("thermal_reliability ") + field +
+                           " must be a finite temperature");
+    }
+    return static_cast<std::int64_t>(std::llround(celsius * 1000.0L));
+}
+
+ThermalTemperatureSource parse_temperature_source(std::string_view source)
+{
+    if (source == "live_gpu") {
+        return ThermalTemperatureSource::LiveGpu;
+    }
+    if (source == "trace") {
+        return ThermalTemperatureSource::Trace;
+    }
+    if (source == "constant") {
+        return ThermalTemperatureSource::Constant;
+    }
+    throw ProfileError(
+        "thermal_reliability temperature_source must be live_gpu, trace, or constant");
+}
+
+bool is_lower_sha256(std::string_view digest)
+{
+    return digest.size() == 64 &&
+           std::all_of(digest.begin(), digest.end(), [](char character) {
+               return (character >= '0' && character <= '9') ||
+                      (character >= 'a' && character <= 'f');
+           });
+}
+
+std::optional<ThermalReliabilityProfile> parse_thermal_reliability(
+    const nlohmann::json& document)
+{
+    const auto iterator = document.find("thermal_reliability");
+    if (iterator == document.end()) {
+        return std::nullopt;
+    }
+    const auto& thermal = *iterator;
+    if (!thermal.is_object()) {
+        throw ProfileError("thermal_reliability must be an object");
+    }
+
+    static constexpr std::array<std::string_view, 32> fields{
+        "temperature_source",
+        "ambient_c",
+        "initial_hbf_junction_c",
+        "tau_seconds",
+        "gpu_coupling_ratio",
+        "thermal_resistance_c_per_w",
+        "idle_power_w",
+        "read_energy_j_per_byte",
+        "write_energy_j_per_byte",
+        "telemetry_period_ms",
+        "controller_period_ms",
+        "rtt_c",
+        "ltt_c",
+        "stt_c",
+        "shutdown_c",
+        "light_service_ppm",
+        "zone_bytes",
+        "reference_retention_hours",
+        "reference_retention_temperature_c",
+        "retention_activation_energy_ev",
+        "refresh_damage_threshold",
+        "read_disturb_limit",
+        "refresh_quantum_bytes",
+        "registered_ranges_contain_valid_data",
+        "reliability_time_acceleration",
+        "max_pec",
+        "reference_mtbf_hours",
+        "mtbf_reference_temperature_c",
+        "mtbf_activation_energy_ev_min",
+        "mtbf_activation_energy_ev_max",
+        "mtbf_activation_energy_ev_step",
+        "source_sha256",
+    };
+    for (const auto& [key, value] : thermal.items()) {
+        (void)value;
+        if (std::find(fields.begin(), fields.end(), key) == fields.end()) {
+            throw ProfileError("thermal_reliability contains unknown field: " +
+                               key);
+        }
+    }
+
+    return ThermalReliabilityProfile{
+        .temperature_source = parse_temperature_source(
+            thermal.at("temperature_source").get<std::string>()),
+        .ambient_millic = parse_millic(thermal, "ambient_c"),
+        .initial_hbf_junction_millic =
+            parse_millic(thermal, "initial_hbf_junction_c"),
+        .tau_seconds = thermal.at("tau_seconds").get<long double>(),
+        .gpu_coupling_ratio =
+            thermal.at("gpu_coupling_ratio").get<long double>(),
+        .thermal_resistance_c_per_w =
+            thermal.at("thermal_resistance_c_per_w").get<long double>(),
+        .idle_power_w = thermal.at("idle_power_w").get<long double>(),
+        .read_energy_j_per_byte =
+            thermal.at("read_energy_j_per_byte").get<long double>(),
+        .write_energy_j_per_byte =
+            thermal.at("write_energy_j_per_byte").get<long double>(),
+        .telemetry_period_ms =
+            thermal.at("telemetry_period_ms").get<std::uint32_t>(),
+        .controller_period_ms =
+            thermal.at("controller_period_ms").get<std::uint32_t>(),
+        .rtt_millic = parse_millic(thermal, "rtt_c"),
+        .ltt_millic = parse_millic(thermal, "ltt_c"),
+        .stt_millic = parse_millic(thermal, "stt_c"),
+        .shutdown_millic = parse_millic(thermal, "shutdown_c"),
+        .light_service_ppm =
+            thermal.at("light_service_ppm").get<std::uint32_t>(),
+        .zone_bytes = thermal.at("zone_bytes").get<std::uint64_t>(),
+        .reference_retention_hours =
+            thermal.at("reference_retention_hours").get<long double>(),
+        .reference_retention_millic =
+            parse_millic(thermal, "reference_retention_temperature_c"),
+        .retention_ea_ev =
+            thermal.at("retention_activation_energy_ev").get<long double>(),
+        .refresh_damage_threshold =
+            thermal.at("refresh_damage_threshold").get<long double>(),
+        .read_disturb_limit =
+            thermal.at("read_disturb_limit").get<std::uint64_t>(),
+        .refresh_quantum_bytes =
+            thermal.at("refresh_quantum_bytes").get<std::uint64_t>(),
+        .registered_ranges_contain_valid_data =
+            thermal.at("registered_ranges_contain_valid_data").get<bool>(),
+        .reliability_time_acceleration =
+            thermal.at("reliability_time_acceleration").get<long double>(),
+        .max_pec = thermal.at("max_pec").get<std::uint64_t>(),
+        .reference_mtbf_hours =
+            thermal.at("reference_mtbf_hours").get<long double>(),
+        .mtbf_reference_millic =
+            parse_millic(thermal, "mtbf_reference_temperature_c"),
+        .mtbf_ea_min_ev =
+            thermal.at("mtbf_activation_energy_ev_min").get<long double>(),
+        .mtbf_ea_max_ev =
+            thermal.at("mtbf_activation_energy_ev_max").get<long double>(),
+        .mtbf_ea_step_ev =
+            thermal.at("mtbf_activation_energy_ev_step").get<long double>(),
+        .source_sha256 = thermal.at("source_sha256").get<std::string>(),
+    };
+}
+
 }  // namespace
 
 Profile load_profile(const std::filesystem::path& path)
@@ -134,6 +286,7 @@ Profile load_profile(const std::filesystem::path& path)
             .timing_tolerance_ns =
                 document.at("timing_tolerance_ns").get<std::uint64_t>(),
             .empirical_vmem = parse_empirical_vmem(document),
+            .thermal_reliability = parse_thermal_reliability(document),
         };
         validate_profile(profile);
         return profile;
@@ -185,6 +338,97 @@ void validate_profile(const Profile& profile)
     require_nonzero(profile.time_scale, "time_scale");
     calculate_blocks_per_plane(profile);
 
+    if (profile.thermal_reliability) {
+        const auto& thermal = *profile.thermal_reliability;
+        const auto finite_positive = [](long double value) {
+            return std::isfinite(value) && value > 0.0L;
+        };
+        const auto finite_nonnegative = [](long double value) {
+            return std::isfinite(value) && value >= 0.0L;
+        };
+        if (thermal.ambient_millic < 0 ||
+            thermal.initial_hbf_junction_millic < thermal.ambient_millic ||
+            thermal.initial_hbf_junction_millic > 105'000) {
+            throw ProfileError(
+                "thermal temperatures must satisfy 0C <= ambient <= initial <= 105C");
+        }
+        if (!finite_positive(thermal.tau_seconds)) {
+            throw ProfileError("thermal tau_seconds must be finite and positive");
+        }
+        if (!std::isfinite(thermal.gpu_coupling_ratio) ||
+            thermal.gpu_coupling_ratio < 0.0L ||
+            thermal.gpu_coupling_ratio > 1.0L) {
+            throw ProfileError("thermal gpu_coupling_ratio must be in [0, 1]");
+        }
+        if (!finite_nonnegative(thermal.thermal_resistance_c_per_w) ||
+            !finite_nonnegative(thermal.idle_power_w) ||
+            !finite_nonnegative(thermal.read_energy_j_per_byte) ||
+            !finite_nonnegative(thermal.write_energy_j_per_byte)) {
+            throw ProfileError(
+                "thermal power and energy parameters must be finite and nonnegative");
+        }
+        if (thermal.telemetry_period_ms == 0 ||
+            thermal.controller_period_ms == 0 ||
+            thermal.controller_period_ms > thermal.telemetry_period_ms) {
+            throw ProfileError(
+                "thermal periods must satisfy 0 < controller_period_ms <= telemetry_period_ms");
+        }
+        if (thermal.rtt_millic < 0 ||
+            !(thermal.rtt_millic < thermal.ltt_millic &&
+              thermal.ltt_millic < thermal.stt_millic &&
+              thermal.stt_millic < thermal.shutdown_millic) ||
+            thermal.shutdown_millic > 105'000) {
+            throw ProfileError(
+                "thermal thresholds must satisfy RTT < LTT < STT < shutdown <= 105C");
+        }
+        if (thermal.light_service_ppm == 0 ||
+            thermal.light_service_ppm >= 1'000'000) {
+            throw ProfileError(
+                "thermal light_service_ppm must be in (0, 1000000)");
+        }
+        const auto block_bytes = static_cast<unsigned __int128>(profile.page_bytes) *
+                                 profile.pages_per_block;
+        if (block_bytes > std::numeric_limits<std::uint64_t>::max() ||
+            thermal.zone_bytes == 0 ||
+            thermal.zone_bytes % static_cast<std::uint64_t>(block_bytes) != 0) {
+            throw ProfileError(
+                "thermal zone_bytes must be a nonzero multiple of block bytes");
+        }
+        if (thermal.refresh_quantum_bytes == 0 ||
+            thermal.refresh_quantum_bytes % profile.page_bytes != 0 ||
+            static_cast<std::uint64_t>(block_bytes) %
+                    thermal.refresh_quantum_bytes !=
+                0) {
+            throw ProfileError(
+                "thermal refresh_quantum_bytes must be page aligned and divide block bytes");
+        }
+        if (!finite_positive(thermal.reference_retention_hours) ||
+            thermal.reference_retention_millic < 0 ||
+            thermal.reference_retention_millic > 105'000 ||
+            !finite_positive(thermal.retention_ea_ev) ||
+            !std::isfinite(thermal.refresh_damage_threshold) ||
+            thermal.refresh_damage_threshold <= 0.0L ||
+            thermal.refresh_damage_threshold > 1.0L ||
+            thermal.read_disturb_limit == 0 ||
+            !finite_positive(thermal.reliability_time_acceleration)) {
+            throw ProfileError("thermal retention parameters are invalid");
+        }
+        if (thermal.max_pec == 0 ||
+            !finite_positive(thermal.reference_mtbf_hours) ||
+            thermal.mtbf_reference_millic < 0 ||
+            thermal.mtbf_reference_millic > 105'000 ||
+            !finite_positive(thermal.mtbf_ea_min_ev) ||
+            !finite_positive(thermal.mtbf_ea_max_ev) ||
+            !finite_positive(thermal.mtbf_ea_step_ev) ||
+            thermal.mtbf_ea_max_ev < thermal.mtbf_ea_min_ev) {
+            throw ProfileError("thermal endurance and MTBF parameters are invalid");
+        }
+        if (!is_lower_sha256(thermal.source_sha256)) {
+            throw ProfileError(
+                "thermal source_sha256 must be lowercase hexadecimal SHA256");
+        }
+    }
+
     if (!profile.empirical_vmem) {
         return;
     }
@@ -192,16 +436,7 @@ void validate_profile(const Profile& profile)
     if (profile.page_bytes != 4096) {
         throw ProfileError("empirical_vmem requires page_bytes == 4096");
     }
-    const auto valid_sha = empirical.source_sha256.size() == 64 &&
-                           std::all_of(empirical.source_sha256.begin(),
-                                       empirical.source_sha256.end(),
-                                       [](char character) {
-                                           return (character >= '0' &&
-                                                   character <= '9') ||
-                                                  (character >= 'a' &&
-                                                   character <= 'f');
-                                       });
-    if (!valid_sha) {
+    if (!is_lower_sha256(empirical.source_sha256)) {
         throw ProfileError(
             "empirical_vmem source_sha256 must be lowercase hexadecimal SHA256");
     }

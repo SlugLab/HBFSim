@@ -1,5 +1,7 @@
 #include <hbfsim/profile.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -15,6 +17,14 @@ void check(bool condition, std::string_view message)
         std::cerr << "check failed: " << message << '\n';
         std::abort();
     }
+}
+
+bool close_ld(long double actual, long double expected,
+              long double relative_epsilon)
+{
+    const auto scale = std::max(std::fabs(actual), std::fabs(expected));
+    return std::fabs(actual - expected) <=
+           relative_epsilon * std::max(1.0L, scale);
 }
 
 template <typename Function>
@@ -77,6 +87,49 @@ std::string tuned_document(bool include_sixth_point = true)
     return document;
 }
 
+std::string thermal_document()
+{
+    auto document = tuned_document();
+    const auto closing = document.rfind("\n}\n");
+    check(closing != std::string::npos, "thermal fixture closing brace");
+    document.insert(closing, R"JSON(,
+  "thermal_reliability": {
+    "temperature_source": "constant",
+    "ambient_c": 25.0,
+    "initial_hbf_junction_c": 79.0,
+    "tau_seconds": 0.001,
+    "gpu_coupling_ratio": 1.0,
+    "thermal_resistance_c_per_w": 0.0,
+    "idle_power_w": 0.0,
+    "read_energy_j_per_byte": 0.0,
+    "write_energy_j_per_byte": 0.0,
+    "telemetry_period_ms": 100,
+    "controller_period_ms": 100,
+    "rtt_c": 78.0,
+    "ltt_c": 80.0,
+    "stt_c": 90.0,
+    "shutdown_c": 100.0,
+    "light_service_ppm": 900000,
+    "zone_bytes": 1048576,
+    "reference_retention_hours": 24.0,
+    "reference_retention_temperature_c": 85.0,
+    "retention_activation_energy_ev": 1.10,
+    "refresh_damage_threshold": 0.95,
+    "read_disturb_limit": 1000000,
+    "refresh_quantum_bytes": 4096,
+    "registered_ranges_contain_valid_data": true,
+    "reliability_time_acceleration": 1000.0,
+    "max_pec": 3000,
+    "reference_mtbf_hours": 20000000.0,
+    "mtbf_reference_temperature_c": 85.0,
+    "mtbf_activation_energy_ev_min": 1.05,
+    "mtbf_activation_energy_ev_max": 1.20,
+    "mtbf_activation_energy_ev_step": 0.05,
+    "source_sha256": "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f"
+  })JSON");
+    return document;
+}
+
 std::filesystem::path write_profile(std::string_view document,
                                     std::string_view suffix)
 {
@@ -116,6 +169,21 @@ int main()
           "last empirical cumulative latency");
     check(tuned.empirical_vmem->program_p50_ns == 408'305,
           "empirical program latency");
+
+    const auto thermal_path = write_profile(thermal_document(), "thermal-valid");
+    const auto thermal = hbfsim::load_profile(thermal_path);
+    std::filesystem::remove(thermal_path);
+    check(thermal.thermal_reliability.has_value(), "thermal profile loaded");
+    check(thermal.thermal_reliability->ltt_millic == 80'000, "LTT parsed");
+    check(close_ld(thermal.thermal_reliability->retention_ea_ev,
+                   1.10L, 1e-12L),
+          "retention activation energy parsed");
+
+    auto invalid_thermal = thermal;
+    invalid_thermal.thermal_reliability->rtt_millic = 81'000;
+    check_profile_error(
+        [&] { hbfsim::validate_profile(invalid_thermal); },
+        "thermal thresholds must satisfy RTT < LTT < STT < shutdown <= 105C");
 
     const auto conservative =
         hbfsim::load_profile("configs/profiles/conservative.json");

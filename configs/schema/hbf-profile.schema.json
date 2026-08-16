@@ -43,6 +43,128 @@
     "reference_warmup_requests": { "type": "integer", "minimum": 0 },
     "time_scale": { "type": "integer", "minimum": 1 },
     "timing_tolerance_ns": { "type": "integer", "minimum": 0 },
+    "thermal_reliability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temperature_source",
+        "ambient_c",
+        "initial_hbf_junction_c",
+        "tau_seconds",
+        "gpu_coupling_ratio",
+        "thermal_resistance_c_per_w",
+        "idle_power_w",
+        "read_energy_j_per_byte",
+        "write_energy_j_per_byte",
+        "telemetry_period_ms",
+        "controller_period_ms",
+        "rtt_c",
+        "ltt_c",
+        "stt_c",
+        "shutdown_c",
+        "light_service_ppm",
+        "zone_bytes",
+        "reference_retention_hours",
+        "reference_retention_temperature_c",
+        "retention_activation_energy_ev",
+        "refresh_damage_threshold",
+        "read_disturb_limit",
+        "refresh_quantum_bytes",
+        "registered_ranges_contain_valid_data",
+        "reliability_time_acceleration",
+        "max_pec",
+        "reference_mtbf_hours",
+        "mtbf_reference_temperature_c",
+        "mtbf_activation_energy_ev_min",
+        "mtbf_activation_energy_ev_max",
+        "mtbf_activation_energy_ev_step",
+        "source_sha256"
+      ],
+      "properties": {
+        "temperature_source": {
+          "enum": ["live_gpu", "trace", "constant"]
+        },
+        "ambient_c": { "type": "number", "minimum": 0, "maximum": 105 },
+        "initial_hbf_junction_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 105
+        },
+        "tau_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "gpu_coupling_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "thermal_resistance_c_per_w": { "type": "number", "minimum": 0 },
+        "idle_power_w": { "type": "number", "minimum": 0 },
+        "read_energy_j_per_byte": { "type": "number", "minimum": 0 },
+        "write_energy_j_per_byte": { "type": "number", "minimum": 0 },
+        "telemetry_period_ms": { "type": "integer", "minimum": 1 },
+        "controller_period_ms": { "type": "integer", "minimum": 1 },
+        "rtt_c": { "type": "number", "minimum": 0, "maximum": 105 },
+        "ltt_c": { "type": "number", "minimum": 0, "maximum": 105 },
+        "stt_c": { "type": "number", "minimum": 0, "maximum": 105 },
+        "shutdown_c": { "type": "number", "minimum": 0, "maximum": 105 },
+        "light_service_ppm": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999999
+        },
+        "zone_bytes": { "type": "integer", "minimum": 1 },
+        "reference_retention_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "reference_retention_temperature_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 105
+        },
+        "retention_activation_energy_ev": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "refresh_damage_threshold": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "read_disturb_limit": { "type": "integer", "minimum": 1 },
+        "refresh_quantum_bytes": { "type": "integer", "minimum": 1 },
+        "registered_ranges_contain_valid_data": { "type": "boolean" },
+        "reliability_time_acceleration": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_pec": { "type": "integer", "minimum": 1 },
+        "reference_mtbf_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "mtbf_reference_temperature_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 105
+        },
+        "mtbf_activation_energy_ev_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "mtbf_activation_energy_ev_max": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "mtbf_activation_energy_ev_step": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
     "empirical_vmem": {
       "type": "object",
       "additionalProperties": false,

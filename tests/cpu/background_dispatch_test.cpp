@@ -42,12 +42,14 @@ int main()
     const auto refresh = scheduler.plan(1, {});
 
     std::deque<hbfsim::HbfCompletion> completions;
+    std::uint64_t media_tail_ns = 0;
     hbfsim::host_service::RequestDispatcher dispatcher(
         control, {
             .submit = [&](const hbfsim::HbfRequest& request) {
+                media_tail_ns += 100;
                 completions.push_back({
                     .request_id = request.request_id,
-                    .modeled_completion_ns = 100,
+                    .modeled_completion_ns = media_tail_ns,
                     .modeled_ns = 100,
                     .service_ns = 100,
                     .page_generation = request.page_generation,
@@ -83,6 +85,7 @@ int main()
     hbfsim::HbfCompletion completion{};
     CHECK(control.try_consume_completion(ticket, completion));
     CHECK(completion.request_id == foreground.request_id);
+    CHECK(completion.modeled_completion_ns == 200);
     CHECK(scheduler.completed_blocks() == 1);
     CHECK(control.header()->thermal_refresh_read_bytes ==
           static_cast<std::uint64_t>(profile.page_bytes) *

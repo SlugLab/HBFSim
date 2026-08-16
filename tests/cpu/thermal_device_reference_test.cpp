@@ -35,5 +35,13 @@ int main()
     const auto short_claim = hbfsim::device::claim_refresh_debt(2ULL << 10,
                                                                 4ULL << 10);
     CHECK(short_claim.claimed == (2ULL << 10) && short_claim.remaining == 0);
+    const auto application_service = hbfsim::device::fast_service_ns(
+        10'000, 4ULL << 10, 512ULL << 30);
+    const auto refresh_service = hbfsim::device::scale_thermal_service_ns(
+        hbfsim::device::fast_service_ns(
+            100'000, static_cast<std::uint32_t>(full.claimed), 512ULL << 30),
+        900'000);
+    CHECK(refresh_service > 0 &&
+          application_service + refresh_service > application_service);
     return 0;
 }

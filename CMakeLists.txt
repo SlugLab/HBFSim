@@ -155,6 +155,12 @@ add_test(
             "$<TARGET_FILE:thermal_report_fixture>"
 )
 
+add_executable(
+    thermal_device_reference_test tests/cpu/thermal_device_reference_test.cpp
+)
+target_link_libraries(thermal_device_reference_test PRIVATE hbfsim_core)
+add_test(NAME thermal_device_reference COMMAND thermal_device_reference_test)
+
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)
 target_include_directories(

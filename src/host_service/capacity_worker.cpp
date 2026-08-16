@@ -115,7 +115,7 @@ void CapacityWorker::run(std::stop_token stop)
                             .frame_address = 0};
             }
             if (resolved.status == RequestStatus::Pending ||
-                resolved.status > RequestStatus::DaemonLost ||
+                resolved.status > RequestStatus::ThermalShutdown ||
                 (resolved.status == RequestStatus::Ready) !=
                     (resolved.frame_address != 0) ||
                 !valid_capacity_media_plan(resolved.media) ||

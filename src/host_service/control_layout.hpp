@@ -787,7 +787,7 @@ public:
         if (!valid() || request_id == 0 ||
             ticket > kMaximumCapacityTicket ||
             status == RequestStatus::Pending ||
-            status > RequestStatus::DaemonLost ||
+            status > RequestStatus::ThermalShutdown ||
             (status == RequestStatus::Ready) != (frame_address != 0) ||
             !valid_capacity_media_plan(media) ||
             (status != RequestStatus::Ready &&
@@ -851,7 +851,7 @@ public:
         if (raw_status == capacity_pending_token(request.sequence) ||
             raw_status == kCapacityCompletionClaimed ||
             raw_status >
-                static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
+                static_cast<std::uint64_t>(RequestStatus::ThermalShutdown)) {
             return false;
         }
         const auto status = static_cast<RequestStatus>(raw_status);
@@ -891,7 +891,7 @@ public:
         const auto status =
             atomic_load(page.reserved0, std::memory_order_acquire);
         if (status < static_cast<std::uint64_t>(RequestStatus::Ready) ||
-            status > static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
+            status > static_cast<std::uint64_t>(RequestStatus::ThermalShutdown)) {
             return false;
         }
         auto state = std::atomic_ref<std::uint32_t>(page.state);

@@ -213,6 +213,59 @@ __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
     return RequestStatus::Pending;
 }
 
+__device__ hbfsim::device::DeviceThermalSnapshot read_thermal_snapshot(
+    const SharedControlHeader* header)
+{
+    for (std::uint32_t attempt = 0; attempt < 16; ++attempt) {
+        const auto before = system_acquire(&header->thermal_generation);
+        if (before == 0) return {};
+        if ((before & 1U) != 0) continue;
+        hbfsim::device::DeviceThermalSnapshot snapshot{
+            .generation = before,
+            .mode = static_cast<hbfsim::device::ThermalMode>(
+                header->thermal_mode),
+            .service_ppm = header->thermal_service_ppm,
+            .admission_open = header->thermal_admission_open != 0,
+            .valid = true,
+        };
+        const auto after = system_acquire(&header->thermal_generation);
+        if (before != after || (after & 1U) != 0) continue;
+        if (static_cast<std::uint32_t>(snapshot.mode) > 3 ||
+            snapshot.service_ppm > 1'000'000 ||
+            ((snapshot.mode == hbfsim::device::ThermalMode::Normal ||
+              snapshot.mode == hbfsim::device::ThermalMode::Light) !=
+             snapshot.admission_open) ||
+            ((snapshot.mode == hbfsim::device::ThermalMode::Normal ||
+              snapshot.mode == hbfsim::device::ThermalMode::Light) &&
+             snapshot.service_ppm == 0)) {
+            snapshot.valid = false;
+        }
+        return snapshot;
+    }
+    return {.valid = false};
+}
+
+__device__ RequestStatus await_thermal_admission(
+    SharedControlHeader* header, WaitState& wait,
+    hbfsim::device::DeviceThermalSnapshot& accepted)
+{
+    for (;;) {
+        const auto snapshot = read_thermal_snapshot(header);
+        if (!snapshot.valid) return RequestStatus::IoError;
+        const auto admission = hbfsim::device::thermal_admission(
+            snapshot.mode, false);
+        if (admission == hbfsim::device::ThermalAdmission::Admit) {
+            accepted = snapshot;
+            return RequestStatus::Ready;
+        }
+        if (admission == hbfsim::device::ThermalAdmission::Shutdown) {
+            return RequestStatus::ThermalShutdown;
+        }
+        const auto liveness = poll_liveness(header, wait);
+        if (liveness != RequestStatus::Pending) return liveness;
+    }
+}
+
 __device__ RequestStatus reserve_request(
     SharedControlHeader* header, SharedRequestSlot* requests,
     SharedCompletionSlot* completions,
@@ -282,7 +335,8 @@ __device__ RequestStatus reserve_request(
 __device__ CompletionResult wait_for_completion(
     SharedControlHeader* header, SharedCompletionSlot* completions,
     std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns,
-    std::uint32_t channel_delay_ns = 0)
+    std::uint32_t channel_delay_ns = 0,
+    std::uint32_t thermal_service_ppm = 1'000'000)
 {
     auto& slot = completions[ticket & (header->ring_capacity - 1)];
     while (system_acquire(&slot.sequence) != ticket + 1) {
@@ -305,15 +359,21 @@ __device__ CompletionResult wait_for_completion(
         completion.status == static_cast<std::uint32_t>(
                                  RequestStatus::Pending) ||
         completion.status > static_cast<std::uint32_t>(
-                                RequestStatus::DaemonLost)) {
+                                RequestStatus::ThermalShutdown)) {
         return {.status = RequestStatus::IoError};
     }
     const auto status = static_cast<RequestStatus>(completion.status);
     if (status != RequestStatus::Ready) {
         return {.status = status};
     }
+    const auto effective_service_ppm = completion.reserved == 0
+                                           ? thermal_service_ppm
+                                           : static_cast<std::uint32_t>(
+                                                 completion.reserved);
+    const auto thermal_scaled = hbfsim::device::scale_thermal_service_ns(
+        completion.modeled_ns, effective_service_ppm);
     const auto scaled = hbfsim::device::saturating_multiply(
-        completion.modeled_ns, header->time_scale);
+        thermal_scaled, header->time_scale);
     const auto target = hbfsim::device::sm120_reference_ready_ns(
         arrival_ns, channel_delay_ns,
         hbfsim::device::saturating_add(arrival_ns, scaled));
@@ -330,7 +390,7 @@ __device__ CompletionResult wait_for_completion(
 __device__ CompletionResult resolve_leader(
     SharedControlHeader* header, const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media,
-    std::uint32_t operation)
+    std::uint32_t operation, std::uint32_t thermal_service_ppm)
 {
     const auto capacity = header->ring_capacity;
     if (capacity < hbfsim::device::kMinimumRingCapacity ||
@@ -365,6 +425,7 @@ __device__ CompletionResult resolve_leader(
         .operation = operation,
         .page_generation = 0,
         .flags = 0,
+        .future_flags = thermal_service_ppm << 8,
     };
     std::uint64_t ticket = 0;
     const auto reserved = reserve_request(header, requests, completions,
@@ -377,8 +438,8 @@ __device__ CompletionResult resolve_leader(
 
 __device__ CompletionResult resolve_fast_or_hybrid(
     SharedControlHeader* header, const SharedRangeRecord& range,
-    const hbfsim::device::MediaDescriptor& media,
-    std::uint32_t operation)
+        const hbfsim::device::MediaDescriptor& media,
+    std::uint32_t operation, std::uint32_t thermal_service_ppm)
 {
     constexpr std::uint32_t kFast = 1;
     constexpr std::uint32_t kHybrid = 2;
@@ -396,7 +457,8 @@ __device__ CompletionResult resolve_fast_or_hybrid(
             sequence, header->reference_warmup_requests,
             header->reference_sample_threshold, sample_key)) {
         (void)system_fetch_add(&header->reference_requests, 1);
-        return resolve_leader(header, range, media, operation);
+        return resolve_leader(header, range, media, operation,
+                              thermal_service_ppm);
     }
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
         return {.status = RequestStatus::Unsupported};
@@ -428,8 +490,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         }
 
         const auto arrival = gpu_time_ns();
+        const auto thermal_service =
+            hbfsim::device::scale_thermal_service_ns(
+                request.service_ns, thermal_service_ppm);
         const auto scaled_service = hbfsim::device::saturating_multiply(
-            request.service_ns, header->time_scale);
+            thermal_service, header->time_scale);
         auto tail = system_acquire(&header->fast_channel_tail_ns);
         std::uint64_t target = 0;
         for (;;) {
@@ -471,9 +536,13 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     }
     const auto arrival = gpu_time_ns();
     const auto base_scaled = hbfsim::device::saturating_multiply(
-        base_latency, header->time_scale);
+        hbfsim::device::scale_thermal_service_ns(base_latency,
+                                                  thermal_service_ppm),
+        header->time_scale);
     const auto transfer_scaled = hbfsim::device::saturating_multiply(
-        transfer_ns, header->time_scale);
+        hbfsim::device::scale_thermal_service_ns(transfer_ns,
+                                                  thermal_service_ppm),
+        header->time_scale);
     auto tail = system_acquire(&header->fast_channel_tail_ns);
     std::uint64_t transfer_target = 0;
     for (;;) {
@@ -622,7 +691,8 @@ __device__ DeviceChannelReservation reserve_sm120_channels(
     std::uint32_t bytes, std::uint64_t arrival_ns,
     std::uint64_t base_ready_ns, std::uint64_t media_ready_ns = 0,
     std::uint64_t capacity_ready_ns = 0,
-    std::uint64_t native_ready_ns = 0)
+    std::uint64_t native_ready_ns = 0,
+    std::uint32_t thermal_service_ppm = 1'000'000)
 {
     if (system_acquire(&header->sm120_channel_profile_generation) == 0) {
         return {.ready_ns = hbfsim::device::sm120_ready_max(
@@ -682,11 +752,15 @@ __device__ DeviceChannelReservation reserve_sm120_channels(
         hbfsim::device::sm120_operation_uses_gpc(operation);
     const auto gnic_service = take_gnic
         ? hbfsim::device::saturating_multiply(
-              config->gnic_service_ns_by_class[operation],
+              hbfsim::device::scale_thermal_service_ns(
+                  config->gnic_service_ns_by_class[operation],
+                  thermal_service_ppm),
               header->time_scale) : 0;
     const auto gpc_service = take_gpc
         ? hbfsim::device::saturating_multiply(
-              config->gpc_service_ns_by_class[operation],
+              hbfsim::device::scale_thermal_service_ns(
+                  config->gpc_service_ns_by_class[operation],
+                  thermal_service_ppm),
               header->time_scale) : 0;
     const auto gnic_tail = take_gnic
         ? system_acquire(&state.gnic_tail_ns[selection.gnic]) : 0;
@@ -767,7 +841,8 @@ __device__ DeviceChannelReservation reserve_sm120_channels_warp(
     std::uint32_t bytes, std::uint64_t arrival_ns,
     std::uint64_t base_ready_ns, std::uint64_t media_ready_ns = 0,
     std::uint64_t capacity_ready_ns = 0,
-    std::uint64_t native_ready_ns = 0)
+    std::uint64_t native_ready_ns = 0,
+    std::uint32_t thermal_service_ppm = 1'000'000)
 {
     // A transformed ordinary memory instruction creates one future per active
     // lane, but GNIC2TEX/GPCARB arbitrate the issuing warp instruction.  Let a
@@ -787,7 +862,7 @@ __device__ DeviceChannelReservation reserve_sm120_channels_warp(
                 ? UINT32_MAX
                 : static_cast<std::uint32_t>(aggregate_bytes),
             arrival_ns, base_ready_ns, media_ready_ns, capacity_ready_ns,
-            native_ready_ns);
+            native_ready_ns, thermal_service_ppm);
     }
     auto ready_low = static_cast<std::uint32_t>(reservation.ready_ns);
     auto ready_high = static_cast<std::uint32_t>(reservation.ready_ns >> 32);
@@ -843,7 +918,7 @@ __device__ DeviceFuture issue_reference(
     SharedControlHeader* header, const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media, std::uint64_t address,
     std::uint32_t bytes, std::uint32_t operation,
-    std::uint32_t instruction_id)
+    std::uint32_t instruction_id, std::uint32_t thermal_service_ppm)
 {
     const auto arrival = gpu_time_ns();
     WaitState wait{.deadline_ns = hbfsim::device::saturating_add(
@@ -863,7 +938,7 @@ __device__ DeviceFuture issue_reference(
                                    : operation == 1 ? 1U : 6U;
     const auto channel = reserve_sm120_channels_warp(
         header, channel_operation, bytes, arrival, arrival, arrival,
-        range.mode == 2 ? arrival : 0, 0);
+        range.mode == 2 ? arrival : 0, 0, thermal_service_ppm);
     if (!channel.valid || channel.saturated ||
         !hbfsim::device::sm120_reference_channel_delay_valid(
             arrival, channel.ready_ns)) {
@@ -890,9 +965,10 @@ __device__ DeviceFuture issue_reference(
         .stream_id = range.stream_id,
         .operation = request_operation,
         .page_generation = 0,
-        .flags = 0,
+        .flags = thermal_service_ppm << 8,
         .instruction_id = instruction_id,
-        .future_flags = hbfsim::device::DeviceFutureReference |
+        .future_flags = (thermal_service_ppm << 8) |
+                        hbfsim::device::DeviceFutureReference |
                         (range.mode == 2
                              ? hbfsim::device::DeviceFutureCapacity
                              : 0U) |
@@ -935,7 +1011,7 @@ __device__ DeviceFuture issue_fast(
     SharedControlHeader* header, const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media, std::uint64_t address,
     std::uint32_t bytes, std::uint32_t operation,
-    std::uint32_t instruction_id)
+    std::uint32_t instruction_id, std::uint32_t thermal_service_ppm)
 {
     constexpr std::uint32_t kFast = 1;
     constexpr std::uint32_t kHybrid = 2;
@@ -954,7 +1030,8 @@ __device__ DeviceFuture issue_fast(
     if (header->timing_model == kHybrid && hybrid.reference) {
         (void)system_fetch_add(&header->reference_requests, 1);
         return issue_reference(header, range, media, address, bytes,
-                               operation, instruction_id);
+                               operation, instruction_id,
+                               thermal_service_ppm);
     }
     if (header->timing_model == kFast) {
         (void)system_fetch_add(&header->fast_request_sequence, 1);
@@ -994,7 +1071,9 @@ __device__ DeviceFuture issue_fast(
         }
         modeled_service = request.service_ns;
         const auto scaled_service = hbfsim::device::saturating_multiply(
-            modeled_service, header->time_scale);
+            hbfsim::device::scale_thermal_service_ns(
+                modeled_service, thermal_service_ppm),
+            header->time_scale);
         if (system_acquire(
                 &header->sm120_channel_profile_generation) != 0) {
             target = hbfsim::device::saturating_add(arrival,
@@ -1025,9 +1104,11 @@ __device__ DeviceFuture issue_fast(
                                  RequestStatus::Unsupported);
         }
         const auto latency_scaled = hbfsim::device::saturating_multiply(
-            base_latency, header->time_scale);
+            hbfsim::device::scale_thermal_service_ns(
+                base_latency, thermal_service_ppm), header->time_scale);
         const auto transfer_scaled = hbfsim::device::saturating_multiply(
-            transfer_ns, header->time_scale);
+            hbfsim::device::scale_thermal_service_ns(
+                transfer_ns, thermal_service_ppm), header->time_scale);
         if (system_acquire(
                 &header->sm120_channel_profile_generation) != 0) {
             target = hbfsim::device::fast_future_ready_ns(
@@ -1055,7 +1136,7 @@ __device__ DeviceFuture issue_fast(
                                    : operation == 1 ? 1U : 6U;
     const auto channel = reserve_sm120_channels_warp(
         header, channel_operation, bytes, arrival, target, target,
-        range.mode == 2 ? target : 0, 0);
+        range.mode == 2 ? target : 0, 0, thermal_service_ppm);
     if (!channel.valid || channel.saturated) {
         return failed_future(address, bytes, instruction_id,
                              RequestStatus::Unsupported);
@@ -1189,11 +1270,39 @@ __device__ hbfsim::device::ResolveResult resolve_sync_legacy(
     CompletionResult resolution{.status = RequestStatus::Ready};
     if (static_cast<int>(lane_id()) == leader) {
         auto* mutable_header = const_cast<SharedControlHeader*>(header);
-        resolution = range->mode == 1 && header->timing_model != 0
-                         ? resolve_fast_or_hybrid(mutable_header, *range,
-                                                  media, operation)
-                         : resolve_leader(mutable_header, *range, media,
-                                          operation);
+        const auto admission_begin = gpu_time_ns();
+        WaitState thermal_wait{
+            .deadline_ns = hbfsim::device::saturating_add(
+                admission_begin, header->request_timeout_ns),
+            .heartbeat_value = system_acquire(&header->heartbeat_ns),
+            .heartbeat_observed_ns = admission_begin,
+        };
+        hbfsim::device::DeviceThermalSnapshot thermal{};
+        const auto admitted = await_thermal_admission(
+            mutable_header, thermal_wait, thermal);
+        if (admitted != RequestStatus::Ready) {
+            resolution = {.status = admitted};
+        } else {
+            if (operation == 0 || operation == 2) {
+                (void)system_fetch_add(&mutable_header->thermal_read_bytes,
+                                       media.bytes);
+            }
+            if (operation == 1 || operation == 2) {
+                (void)system_fetch_add(&mutable_header->thermal_write_bytes,
+                                       media.bytes);
+            }
+            resolution = range->mode == 1 && header->timing_model != 0
+                             ? resolve_fast_or_hybrid(
+                                   mutable_header, *range, media, operation,
+                                   thermal.service_ppm)
+                             : resolve_leader(
+                                   mutable_header, *range, media, operation,
+                                   thermal.service_ppm);
+            if (resolution.status == RequestStatus::Ready) {
+                (void)system_fetch_add(
+                    &mutable_header->thermal_inflight_completed, 1);
+            }
+        }
     }
     auto status = __shfl_sync(
         group, static_cast<std::uint32_t>(resolution.status), leader);
@@ -1256,11 +1365,31 @@ __hbfsim_future_issue(std::uint64_t address, std::uint32_t bytes,
         return failed_future(address, bytes, instruction_id,
                              RequestStatus::Unsupported);
     }
+    const auto admission_begin = gpu_time_ns();
+    WaitState thermal_wait{
+        .deadline_ns = hbfsim::device::saturating_add(
+            admission_begin, header->request_timeout_ns),
+        .heartbeat_value = system_acquire(&header->heartbeat_ns),
+        .heartbeat_observed_ns = admission_begin,
+    };
+    hbfsim::device::DeviceThermalSnapshot thermal{};
+    const auto admitted = await_thermal_admission(header, thermal_wait,
+                                                   thermal);
+    if (admitted != RequestStatus::Ready) {
+        return failed_future(address, bytes, instruction_id, admitted);
+    }
+    if (operation == 0 || operation == 2) {
+        (void)system_fetch_add(&header->thermal_read_bytes, media.bytes);
+    }
+    if (operation == 1 || operation == 2) {
+        (void)system_fetch_add(&header->thermal_write_bytes, media.bytes);
+    }
     return range->mode == 1 && header->timing_model != 0
                ? issue_fast(header, *range, media, address, bytes,
-                            operation, instruction_id)
+                            operation, instruction_id, thermal.service_ppm)
                : issue_reference(header, *range, media, address, bytes,
-                                 operation, instruction_id);
+                                 operation, instruction_id,
+                                 thermal.service_ppm);
 }
 
 extern "C" __device__ std::uint32_t __hbfsim_future_poll(
@@ -1313,8 +1442,14 @@ extern "C" __device__ std::uint32_t __hbfsim_future_poll(
             static_cast<std::uint32_t>(RequestStatus::Ready)) {
         return 1;
     }
+    const auto service_ppm = completion.reserved == 0
+                                 ? 1'000'000U
+                                 : static_cast<std::uint32_t>(
+                                       completion.reserved);
     const auto scaled = hbfsim::device::saturating_multiply(
-        completion.modeled_ns, header->time_scale);
+        hbfsim::device::scale_thermal_service_ns(
+            completion.modeled_ns, service_ppm),
+        header->time_scale);
     const auto target = hbfsim::device::saturating_add(
         future.ready_ns, scaled);
     return now >= target ? 1U : 0U;
@@ -2664,6 +2799,10 @@ __hbfsim_future_wait(hbfsim::device::DeviceFuture future,
         (void)system_fetch_add(counter, future.ready_ns - wait_begin);
         if (counted_issue) {
             (void)system_fetch_add(&header->future_drained, 1);
+            if (future.status == RequestStatus::Ready) {
+                (void)system_fetch_add(
+                    &header->thermal_inflight_completed, 1);
+            }
         }
     }
     return future;

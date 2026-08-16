@@ -11,7 +11,7 @@ namespace {
 RequestStatus checked_status(RequestStatus status)
 {
     return status == RequestStatus::Pending ||
-                   status > RequestStatus::DaemonLost
+                   status > RequestStatus::ThermalShutdown
                ? RequestStatus::IoError
                : status;
 }

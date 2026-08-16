@@ -32,7 +32,7 @@ HbfCompletion failed_completion(const HbfRequest& request,
 bool terminal(std::uint32_t status) noexcept
 {
     return status != static_cast<std::uint32_t>(RequestStatus::Pending) &&
-           status <= static_cast<std::uint32_t>(RequestStatus::DaemonLost);
+           status <= static_cast<std::uint32_t>(RequestStatus::ThermalShutdown);
 }
 
 bool valid_prepared_action(const HbfRequest& action,
@@ -92,7 +92,7 @@ PreparedDispatch prepare_capacity_media_dispatch(
     };
     if (request.request_id == 0 || request.bytes == 0 ||
         result.status == RequestStatus::Pending ||
-        result.status > RequestStatus::DaemonLost ||
+        result.status > RequestStatus::ThermalShutdown ||
         !valid_capacity_media_plan(result.media) ||
         (result.status == RequestStatus::Ready) !=
             (result.frame_address != 0) ||
@@ -329,6 +329,7 @@ bool RequestDispatcher::publish(std::uint64_t ticket,
         completion.page_generation != group.original.page_generation) {
         return false;
     }
+    completion.reserved = group.original.future_flags >> 8;
     return control_.try_publish_completion(ticket, completion);
 }
 

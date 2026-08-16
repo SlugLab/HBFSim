@@ -38,6 +38,53 @@ enum class RequestStatus : std::uint32_t {
     ThermalShutdown = 8,
 };
 
+enum class ThermalMode : std::uint32_t {
+    Normal = 0,
+    Light = 1,
+    Severe = 2,
+    Shutdown = 3,
+};
+
+enum class ThermalAdmission : std::uint32_t {
+    Admit = 0,
+    Wait = 1,
+    Drain = 2,
+    Shutdown = 3,
+};
+
+struct DeviceThermalSnapshot {
+    std::uint64_t generation{0};
+    ThermalMode mode{ThermalMode::Normal};
+    std::uint32_t service_ppm{1'000'000};
+    bool admission_open{true};
+    bool valid{true};
+};
+
+HBFSIM_HOST_DEVICE constexpr ThermalAdmission thermal_admission(
+    ThermalMode mode, bool already_issued) noexcept
+{
+    if (mode == ThermalMode::Shutdown) return ThermalAdmission::Shutdown;
+    if (mode == ThermalMode::Severe) {
+        return already_issued ? ThermalAdmission::Drain
+                              : ThermalAdmission::Wait;
+    }
+    return ThermalAdmission::Admit;
+}
+
+HBFSIM_HOST_DEVICE constexpr std::uint64_t scale_thermal_service_ns(
+    std::uint64_t base_ns, std::uint32_t service_ppm) noexcept
+{
+    if (base_ns == 0) return 0;
+    if (service_ppm == 0 || service_ppm > 1'000'000) return UINT64_MAX;
+    const auto quotient = base_ns / service_ppm;
+    const auto remainder = base_ns % service_ppm;
+    if (quotient > UINT64_MAX / 1'000'000ULL) return UINT64_MAX;
+    const auto whole = quotient * 1'000'000ULL;
+    const auto fraction =
+        (remainder * 1'000'000ULL + service_ppm - 1) / service_ppm;
+    return fraction > UINT64_MAX - whole ? UINT64_MAX : whole + fraction;
+}
+
 struct alignas(64) SharedControlHeader {
     std::uint64_t magic;
     std::uint32_t abi_version;

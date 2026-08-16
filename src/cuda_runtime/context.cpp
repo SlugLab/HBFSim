@@ -359,6 +359,8 @@ int public_capacity_status(RequestStatus status) noexcept
         return HBFSIM_UNSUPPORTED;
     case RequestStatus::DaemonLost:
         return HBFSIM_DAEMON_LOST;
+    case RequestStatus::ThermalShutdown:
+        return HBFSIM_THERMAL_SHUTDOWN;
     case RequestStatus::Pending:
     case RequestStatus::IoError:
     case RequestStatus::ChecksumError:
@@ -1608,7 +1610,7 @@ RequestStatus submit_capacity_program(hbfsim_context* context,
         }
     }
     if (completion.status >
-        static_cast<std::uint32_t>(RequestStatus::DaemonLost)) {
+        static_cast<std::uint32_t>(RequestStatus::ThermalShutdown)) {
         return RequestStatus::IoError;
     }
     return static_cast<RequestStatus>(completion.status);

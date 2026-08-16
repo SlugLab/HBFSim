@@ -34,6 +34,9 @@ enum class ThermalTemperatureSource : std::uint32_t {
 
 struct ThermalReliabilityProfile {
     ThermalTemperatureSource temperature_source;
+    std::string source_identity;
+    std::optional<std::int64_t> constant_gpu_millic;
+    std::optional<std::filesystem::path> trace_path;
     std::int64_t ambient_millic;
     std::int64_t initial_hbf_junction_millic;
     long double tau_seconds;

@@ -139,6 +139,37 @@ void verify_empirical_publication(hbfsim_context* context,
     CHECK(::munmap(mapping, bytes) == 0);
 }
 
+void verify_constant_thermal_publication(hbfsim_context* context,
+                                         std::uint32_t ring_capacity)
+{
+    const auto bytes =
+        hbfsim::host_service::control_region_bytes(ring_capacity);
+    const auto mapping = ::mmap(
+        nullptr, bytes, PROT_READ, MAP_SHARED,
+        hbfsim::runtime::control_fd_for_test(context), 0);
+    CHECK(mapping != MAP_FAILED);
+    const auto* header =
+        static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(500);
+    auto generation = hbfsim::host_service::atomic_load(
+        header->telemetry_generation, std::memory_order_acquire);
+    while (generation < 2 &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        generation = hbfsim::host_service::atomic_load(
+            header->telemetry_generation, std::memory_order_acquire);
+    }
+    CHECK(generation >= 2);
+    CHECK((generation & 1U) == 0);
+    CHECK(hbfsim::host_service::atomic_load(
+              header->telemetry_status, std::memory_order_acquire) == 1);
+    CHECK(hbfsim::host_service::atomic_load(
+              header->telemetry_gpu_millic, std::memory_order_acquire) ==
+          79'000);
+    CHECK(::munmap(mapping, bytes) == 0);
+}
+
 struct TimingGateState {
     bool accept{true};
     std::size_t calls{0};
@@ -303,6 +334,15 @@ int main(int argc, char** argv)
                                  tuned_options.ring_capacity, true);
     hbfsim_context_destroy(tuned_context);
     CHECK(std::filesystem::remove(tuned_profile));
+
+    const auto thermal_options = test_options(
+        "configs/profiles/thermal-validation.json", report_dir);
+    hbfsim_context* thermal_context = nullptr;
+    CHECK(hbfsim::runtime::create_cpu_test_context(
+              &thermal_options, argv[1], &thermal_context) == HBFSIM_OK);
+    verify_constant_thermal_publication(
+        thermal_context, thermal_options.ring_capacity);
+    hbfsim_context_destroy(thermal_context);
 
     const auto seals = ::fcntl(hbfsim::runtime::control_fd_for_test(context),
                                F_GET_SEALS);

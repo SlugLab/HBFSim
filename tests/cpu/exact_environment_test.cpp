@@ -97,6 +97,11 @@ struct Fixture {
             *value = 600000;
             return 0;
         };
+        nvml.instantaneous_power_mw = [](std::uintptr_t,
+                                         std::uint32_t* value) {
+            *value = 225000;
+            return 0;
+        };
         nvml.temperature_c = [](std::uintptr_t, std::uint32_t* value) {
             *value = 42;
             return 0;
@@ -131,6 +136,23 @@ void expect_error(const Fixture& fixture, hbfsim::ExactEnvironmentError error)
 
 int main()
 {
+    {
+        Fixture fixture;
+        const auto result = hbfsim::collect_nvml_thermal_sample(
+            fixture.nvml, "0000:8a:00.0", 123);
+        CHECK(result.error == hbfsim::ExactEnvironmentError::None);
+        CHECK(result.sample.has_value());
+        CHECK(result.sample->host_ns == 123);
+        CHECK(result.sample->gpu_millic == 42'000);
+        CHECK(result.sample->gpu_power_mw == 225'000);
+
+        fixture.nvml.instantaneous_power_mw = {};
+        const auto missing_power = hbfsim::collect_nvml_thermal_sample(
+            fixture.nvml, "0000:8a:00.0", 124);
+        CHECK(!missing_power.sample.has_value());
+        CHECK(missing_power.error ==
+              hbfsim::ExactEnvironmentError::PowerQueryFailed);
+    }
     {
         Fixture fixture;
         const auto result = hbfsim::collect_exact_environment(

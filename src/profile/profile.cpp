@@ -142,8 +142,11 @@ std::optional<ThermalReliabilityProfile> parse_thermal_reliability(
         throw ProfileError("thermal_reliability must be an object");
     }
 
-    static constexpr std::array<std::string_view, 32> fields{
+    static constexpr std::array<std::string_view, 35> fields{
         "temperature_source",
+        "source_identity",
+        "constant_gpu_c",
+        "trace_path",
         "ambient_c",
         "initial_hbf_junction_c",
         "tau_seconds",
@@ -187,6 +190,17 @@ std::optional<ThermalReliabilityProfile> parse_thermal_reliability(
     return ThermalReliabilityProfile{
         .temperature_source = parse_temperature_source(
             thermal.at("temperature_source").get<std::string>()),
+        .source_identity = thermal.at("source_identity").get<std::string>(),
+        .constant_gpu_millic =
+            thermal.contains("constant_gpu_c")
+                ? std::optional<std::int64_t>(
+                      parse_millic(thermal, "constant_gpu_c"))
+                : std::nullopt,
+        .trace_path =
+            thermal.contains("trace_path")
+                ? std::optional<std::filesystem::path>(
+                      thermal.at("trace_path").get<std::string>())
+                : std::nullopt,
         .ambient_millic = parse_millic(thermal, "ambient_c"),
         .initial_hbf_junction_millic =
             parse_millic(thermal, "initial_hbf_junction_c"),
@@ -346,6 +360,28 @@ void validate_profile(const Profile& profile)
         const auto finite_nonnegative = [](long double value) {
             return std::isfinite(value) && value >= 0.0L;
         };
+        if (thermal.source_identity.empty()) {
+            throw ProfileError(
+                "thermal source_identity must not be empty");
+        }
+        if (thermal.temperature_source == ThermalTemperatureSource::Constant &&
+            (!thermal.constant_gpu_millic || thermal.trace_path ||
+             *thermal.constant_gpu_millic < 0 ||
+             *thermal.constant_gpu_millic > 105'000)) {
+            throw ProfileError(
+                "constant thermal source requires only constant_gpu_c in [0, 105]");
+        }
+        if (thermal.temperature_source == ThermalTemperatureSource::Trace &&
+            (!thermal.trace_path || thermal.trace_path->empty() ||
+             thermal.constant_gpu_millic)) {
+            throw ProfileError(
+                "trace thermal source requires only a nonempty trace_path");
+        }
+        if (thermal.temperature_source == ThermalTemperatureSource::LiveGpu &&
+            (thermal.constant_gpu_millic || thermal.trace_path)) {
+            throw ProfileError(
+                "live_gpu thermal source does not accept constant_gpu_c or trace_path");
+        }
         if (thermal.ambient_millic < 0 ||
             thermal.initial_hbf_junction_millic < thermal.ambient_millic ||
             thermal.initial_hbf_junction_millic > 105'000) {

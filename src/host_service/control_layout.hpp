@@ -352,6 +352,12 @@ inline void atomic_store(std::uint32_t& target, std::uint32_t value,
     std::atomic_ref<std::uint32_t>(target).store(value, order);
 }
 
+inline void atomic_store(std::int64_t& target, std::int64_t value,
+                         std::memory_order order) noexcept
+{
+    std::atomic_ref<std::int64_t>(target).store(value, order);
+}
+
 inline bool atomic_compare_exchange_weak(
     std::uint64_t& target, std::uint64_t& expected,
     std::uint64_t desired,

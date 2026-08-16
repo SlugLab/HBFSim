@@ -64,6 +64,7 @@ add_library(
     src/cuda_runtime/tensormap.cpp
     src/cuda_runtime/tma_tile.cpp
     src/cuda_runtime/tma_async.cpp
+    src/cuda_runtime/thermal_telemetry.cpp
     src/cuda_runtime/device_tensormap.cpp
     src/cuda_runtime/vmm.cpp
     src/hybrid/calibrator.cpp
@@ -131,6 +132,10 @@ add_executable(
 )
 target_link_libraries(thermal_reliability_test PRIVATE hbfsim_core)
 add_test(NAME thermal_reliability COMMAND thermal_reliability_test)
+
+add_executable(thermal_telemetry_test tests/cpu/thermal_telemetry_test.cpp)
+target_link_libraries(thermal_telemetry_test PRIVATE hbfsim_core)
+add_test(NAME thermal_telemetry COMMAND thermal_telemetry_test)
 
 add_executable(exact_profile_test tests/cpu/exact_profile_test.cpp)
 target_link_libraries(exact_profile_test PRIVATE hbfsim_core)

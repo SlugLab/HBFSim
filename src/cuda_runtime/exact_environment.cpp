@@ -37,7 +37,8 @@ bool complete(const ExactNvmlApi& api)
 {
     return api.device_by_pci_bus_id && api.device_uuid && api.pci_identity &&
            api.clock_mhz && api.enforced_power_limit_mw &&
-           api.temperature_c && api.compute_mode && api.compute_processes;
+           api.instantaneous_power_mw && api.temperature_c &&
+           api.compute_mode && api.compute_processes;
 }
 
 std::optional<std::string> canonical_pci_bus_id(std::string_view value)
@@ -322,6 +323,68 @@ ExactEnvironmentResult collect_exact_environment(
     }
 }
 
+NvmlThermalSampleResult collect_nvml_thermal_sample(
+    const ExactNvmlApi& nvml, std::string_view pci_bus_id,
+    std::uint64_t host_ns) noexcept
+{
+    const auto fail = [](ExactEnvironmentError error, std::string operation,
+                         int status = 0) {
+        return NvmlThermalSampleResult{
+            .sample = std::nullopt,
+            .error = error,
+            .operation = std::move(operation),
+            .native_status = status,
+        };
+    };
+    try {
+        if (!nvml.available || !nvml.device_by_pci_bus_id ||
+            !nvml.temperature_c) {
+            return fail(ExactEnvironmentError::NvmlUnavailable,
+                        "libnvidia-ml.so.1");
+        }
+        if (!nvml.instantaneous_power_mw) {
+            return fail(ExactEnvironmentError::PowerQueryFailed,
+                        "nvmlDeviceGetPowerUsage");
+        }
+        const auto canonical = canonical_pci_bus_id(pci_bus_id);
+        if (!canonical || host_ns == 0) {
+            return fail(ExactEnvironmentError::InvalidPciIdentity,
+                        "thermal_pci_identity");
+        }
+        std::uintptr_t device = 0;
+        auto status = nvml.device_by_pci_bus_id(*canonical, &device);
+        if (status != nvml.success_status || device == 0) {
+            return fail(ExactEnvironmentError::NvmlQueryFailed,
+                        "nvmlDeviceGetHandleByPciBusId_v2", status);
+        }
+        std::uint32_t temperature_c = 0;
+        status = nvml.temperature_c(device, &temperature_c);
+        if (status != nvml.success_status || temperature_c > 105) {
+            return fail(ExactEnvironmentError::TemperatureQueryFailed,
+                        "nvmlDeviceGetTemperature", status);
+        }
+        std::uint32_t power_mw = 0;
+        status = nvml.instantaneous_power_mw(device, &power_mw);
+        if (status != nvml.success_status) {
+            return fail(ExactEnvironmentError::PowerQueryFailed,
+                        "nvmlDeviceGetPowerUsage", status);
+        }
+        return {
+            .sample = NvmlThermalSample{
+                .host_ns = host_ns,
+                .gpu_millic = static_cast<std::int64_t>(temperature_c) * 1000,
+                .gpu_power_mw = power_mw,
+            },
+            .error = ExactEnvironmentError::None,
+            .operation = "complete",
+            .native_status = 0,
+        };
+    } catch (...) {
+        return fail(ExactEnvironmentError::InvalidApi,
+                    "thermal_collector_exception");
+    }
+}
+
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
 namespace {
 
@@ -364,8 +427,10 @@ class NvmlLibrary {
         pci_ = resolve<decltype(pci_)>(handle_, "nvmlDeviceGetPciInfo_v3");
         clock_ =
             resolve<decltype(clock_)>(handle_, "nvmlDeviceGetClockInfo");
-        power_ = resolve<decltype(power_)>(
+        power_limit_ = resolve<decltype(power_limit_)>(
             handle_, "nvmlDeviceGetEnforcedPowerLimit");
+        power_usage_ = resolve<decltype(power_usage_)>(
+            handle_, "nvmlDeviceGetPowerUsage");
         temperature_ = resolve<decltype(temperature_)>(
             handle_, "nvmlDeviceGetTemperature");
         compute_mode_ = resolve<decltype(compute_mode_)>(
@@ -374,7 +439,8 @@ class NvmlLibrary {
             handle_, "nvmlDeviceGetComputeRunningProcesses_v3");
         if (init_ == nullptr || shutdown_ == nullptr ||
             handle_by_pci_ == nullptr || uuid_ == nullptr || pci_ == nullptr ||
-            clock_ == nullptr || power_ == nullptr || temperature_ == nullptr ||
+            clock_ == nullptr || power_limit_ == nullptr ||
+            power_usage_ == nullptr || temperature_ == nullptr ||
             compute_mode_ == nullptr || processes_ == nullptr) {
             return false;
         }
@@ -435,7 +501,12 @@ class NvmlLibrary {
         };
         result.enforced_power_limit_mw =
             [this](std::uintptr_t input, std::uint32_t* output) {
-                return static_cast<int>(power_(
+                return static_cast<int>(power_limit_(
+                    reinterpret_cast<nvmlDevice_t>(input), output));
+            };
+        result.instantaneous_power_mw =
+            [this](std::uintptr_t input, std::uint32_t* output) {
+                return static_cast<int>(power_usage_(
                     reinterpret_cast<nvmlDevice_t>(input), output));
             };
         result.temperature_c =
@@ -499,7 +570,8 @@ class NvmlLibrary {
     nvmlReturn_t (*pci_)(nvmlDevice_t, nvmlPciInfo_t*) = nullptr;
     nvmlReturn_t (*clock_)(nvmlDevice_t, nvmlClockType_t, unsigned int*) =
         nullptr;
-    nvmlReturn_t (*power_)(nvmlDevice_t, unsigned int*) = nullptr;
+    nvmlReturn_t (*power_limit_)(nvmlDevice_t, unsigned int*) = nullptr;
+    nvmlReturn_t (*power_usage_)(nvmlDevice_t, unsigned int*) = nullptr;
     TemperatureFn temperature_ = nullptr;
     nvmlReturn_t (*compute_mode_)(nvmlDevice_t, nvmlComputeMode_t*) = nullptr;
     nvmlReturn_t (*processes_)(nvmlDevice_t, unsigned int*,
@@ -600,6 +672,32 @@ collect_live_exact_environment(std::uint32_t current_pid) noexcept
     (void)current_pid;
     return failure(ExactEnvironmentError::CudaUnavailable,
                    "cuda_runtime_disabled");
+#endif
+}
+
+NvmlThermalSampleResult collect_live_nvml_thermal_sample(
+    std::string_view pci_bus_id, std::uint64_t host_ns) noexcept
+{
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    NvmlLibrary library;
+    if (!library.load()) {
+        return {
+            .sample = std::nullopt,
+            .error = ExactEnvironmentError::NvmlUnavailable,
+            .operation = "libnvidia-ml.so.1",
+            .native_status = library.init_status(),
+        };
+    }
+    return collect_nvml_thermal_sample(library.api(), pci_bus_id, host_ns);
+#else
+    (void)pci_bus_id;
+    (void)host_ns;
+    return {
+        .sample = std::nullopt,
+        .error = ExactEnvironmentError::CudaUnavailable,
+        .operation = "cuda_runtime_disabled",
+        .native_status = 0,
+    };
 #endif
 }
 

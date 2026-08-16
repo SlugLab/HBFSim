@@ -143,6 +143,9 @@ enum class ThermalTemperatureSource : std::uint32_t {
 
 struct ThermalReliabilityProfile {
     ThermalTemperatureSource temperature_source;
+    std::string source_identity;
+    std::optional<std::int64_t> constant_gpu_millic;
+    std::optional<std::filesystem::path> trace_path;
     std::int64_t ambient_millic;
     std::int64_t initial_hbf_junction_millic;
     long double tau_seconds;
@@ -462,12 +465,12 @@ FakeThermalSource source({
 ThermalTelemetryPublisher publisher(control, source, fake_wait);
 check(publisher.publish_once() == TelemetryStatus::Ready,
       "first telemetry sample is ready");
-check(control.header()->telemetry_generation == 1,
-      "first sample publishes generation one");
+check(control.header()->telemetry_generation == 2,
+      "first sample publishes stable generation two");
 check(publisher.publish_once() == TelemetryStatus::Ready,
       "second telemetry sample is ready");
-check(control.header()->telemetry_generation == 2,
-      "second sample publishes generation two");
+check(control.header()->telemetry_generation == 4,
+      "second sample publishes stable generation four");
 check(publisher.publish_once() == TelemetryStatus::SourceFailed,
       "source exhaustion fails closed");
 ```

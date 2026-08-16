@@ -31,6 +31,9 @@ hbfsim::ThermalReliabilityProfile make_profile()
 {
     return {
         .temperature_source = hbfsim::ThermalTemperatureSource::Constant,
+        .source_identity = "deterministic-test-constant",
+        .constant_gpu_millic = 79'000,
+        .trace_path = std::nullopt,
         .ambient_millic = 25'000,
         .initial_hbf_junction_millic = 79'000,
         .tau_seconds = 0.001L,

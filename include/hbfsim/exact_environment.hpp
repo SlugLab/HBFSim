@@ -56,6 +56,8 @@ struct ExactNvmlApi {
         clock_mhz;
     std::function<int(std::uintptr_t, std::uint32_t*)>
         enforced_power_limit_mw;
+    std::function<int(std::uintptr_t, std::uint32_t*)>
+        instantaneous_power_mw;
     std::function<int(std::uintptr_t, std::uint32_t*)> temperature_c;
     std::function<int(std::uintptr_t, ExactComputeMode*)> compute_mode;
     std::function<int(std::uintptr_t, std::vector<std::uint32_t>*)>
@@ -95,10 +97,24 @@ enum class ExactEnvironmentError : std::uint32_t {
     TemperatureQueryFailed = 12,
     ExclusiveProcessViolation = 13,
     SnapshotChanged = 14,
+    PowerQueryFailed = 15,
 };
 
 struct ExactEnvironmentResult {
     std::optional<ExactLiveEnvironment> environment;
+    ExactEnvironmentError error{ExactEnvironmentError::None};
+    std::string operation;
+    int native_status{0};
+};
+
+struct NvmlThermalSample {
+    std::uint64_t host_ns{0};
+    std::int64_t gpu_millic{0};
+    std::uint64_t gpu_power_mw{0};
+};
+
+struct NvmlThermalSampleResult {
+    std::optional<NvmlThermalSample> sample;
     ExactEnvironmentError error{ExactEnvironmentError::None};
     std::string operation;
     int native_status{0};
@@ -110,6 +126,13 @@ struct ExactEnvironmentResult {
 
 [[nodiscard]] ExactEnvironmentResult
 collect_live_exact_environment(std::uint32_t current_pid) noexcept;
+
+[[nodiscard]] NvmlThermalSampleResult collect_nvml_thermal_sample(
+    const ExactNvmlApi& nvml, std::string_view pci_bus_id,
+    std::uint64_t host_ns) noexcept;
+
+[[nodiscard]] NvmlThermalSampleResult collect_live_nvml_thermal_sample(
+    std::string_view pci_bus_id, std::uint64_t host_ns) noexcept;
 
 inline constexpr std::uint32_t kExactEnvironmentSnapshotAbiVersion = 1;
 inline constexpr std::size_t kExactEnvironmentNameBytes = 128;

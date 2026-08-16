@@ -3,6 +3,7 @@
 #include "capacity_runtime.hpp"
 #include "device_tensormap.hpp"
 #include "range_table.hpp"
+#include "thermal_telemetry.hpp"
 
 #include "../host_service/control_layout.hpp"
 #include "../host_service/request_dispatcher.hpp"
@@ -68,6 +69,7 @@ struct hbfsim_context {
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
+    std::string device_pci_bus_id;
     bool timing_owner_active{false};
     bool daemon_ready{false};
     bool exact_requested{false};
@@ -76,6 +78,10 @@ struct hbfsim_context {
     hbfsim::runtime::AfterBeginRetireHook after_begin_retire{nullptr};
     void* after_begin_retire_state{nullptr};
     std::unique_ptr<hbfsim::Profile> profile;
+    std::unique_ptr<hbfsim::runtime::ThermalTelemetrySource> telemetry_source;
+    std::unique_ptr<hbfsim::runtime::ThermalTelemetryPublisher>
+        telemetry_publisher;
+    std::chrono::milliseconds telemetry_period{0};
     std::unique_ptr<hbfsim::runtime::CapacityRuntime> capacity;
     std::array<std::unique_ptr<hbfsim::runtime::CapacityMapping>,
                hbfsim::host_service::kRangeCapacity>
@@ -540,6 +546,9 @@ ReleaseResult release_context(hbfsim_context* context,
     if (context == nullptr) {
         return ReleaseResult::destroyed;
     }
+    if (context->telemetry_publisher) {
+        context->telemetry_publisher->stop();
+    }
     std::uintptr_t retire_token = 0;
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (context->timing_owner_active) {
@@ -669,6 +678,8 @@ ReleaseResult release_context(hbfsim_context* context,
         (void)::close(context->control_fd);
         context->control_fd = -1;
     }
+    context->telemetry_publisher.reset();
+    context->telemetry_source.reset();
     delete context;
     return ReleaseResult::destroyed;
 }
@@ -1059,6 +1070,14 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         context->cuda_context =
             reinterpret_cast<std::uintptr_t>(cuda_context);
         context->device_ordinal = static_cast<int>(device);
+        std::array<char, 32> device_pci_bus_id{};
+        if (::cuDeviceGetPCIBusId(device_pci_bus_id.data(),
+                                 device_pci_bus_id.size(), device) !=
+            CUDA_SUCCESS) {
+            release_context(context.release(), false);
+            return HBFSIM_CUDA_ERROR;
+        }
+        context->device_pci_bus_id = device_pci_bus_id.data();
         context->timing_owner_active = true;
         control.header()->control_generation = context->control_generation;
         if (!bind_device_tensormap_domain(context->cuda_context,
@@ -1079,6 +1098,57 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         release_context(context.release(), false);
         return HBFSIM_CUDA_ERROR;
 #endif
+    }
+
+    if (profile.thermal_reliability) {
+        const auto& thermal = *profile.thermal_reliability;
+        try {
+            switch (thermal.temperature_source) {
+            case ThermalTemperatureSource::Constant:
+                context->telemetry_source =
+                    std::make_unique<ConstantThermalSource>(
+                        ThermalTelemetrySample{
+                            .host_ns = monotonic_ns(),
+                            .gpu_millic = *thermal.constant_gpu_millic,
+                            .gpu_power_mw = 0,
+                        });
+                break;
+            case ThermalTemperatureSource::Trace: {
+                auto trace_path = *thermal.trace_path;
+                if (trace_path.is_relative()) {
+                    trace_path = std::filesystem::path(options->profile_path)
+                                     .parent_path() /
+                                 trace_path;
+                }
+                context->telemetry_source =
+                    std::make_unique<TraceThermalSource>(load_thermal_trace(
+                        trace_path, thermal.source_sha256));
+                break;
+            }
+            case ThermalTemperatureSource::LiveGpu:
+                if (!register_with_cuda || context->device_pci_bus_id.empty()) {
+                    release_context(context.release(), false);
+                    return HBFSIM_CUDA_ERROR;
+                }
+                context->telemetry_source =
+                    std::make_unique<NvmlThermalSource>(
+                        context->device_pci_bus_id);
+                break;
+            }
+            context->telemetry_publisher =
+                std::make_unique<ThermalTelemetryPublisher>(
+                    control, *context->telemetry_source);
+            context->telemetry_period =
+                std::chrono::milliseconds(thermal.telemetry_period_ms);
+            if (!context->telemetry_publisher->start(
+                    context->telemetry_period)) {
+                release_context(context.release(), false);
+                return HBFSIM_IO_ERROR;
+            }
+        } catch (...) {
+            release_context(context.release(), false);
+            return HBFSIM_INVALID_ARGUMENT;
+        }
     }
 
     const auto spawn_status = spawn_daemon(context.get(), options, executable,
@@ -2393,6 +2463,9 @@ extern "C" void hbfsim_context_destroy(hbfsim_context* context)
     if (context == nullptr) {
         return;
     }
+    if (context->telemetry_publisher) {
+        context->telemetry_publisher->stop();
+    }
     auto admission = hbfsim::runtime::close_context_admission(context);
     if (admission == nullptr) {
         return;
@@ -2400,6 +2473,18 @@ extern "C" void hbfsim_context_destroy(hbfsim_context* context)
     const auto result = hbfsim::runtime::release_context(context, true);
     if (result == hbfsim::runtime::ReleaseResult::retryable) {
         hbfsim::runtime::reopen_context_admission(admission);
+        if (context->telemetry_publisher &&
+            !context->telemetry_publisher->start(
+                context->telemetry_period)) {
+            hbfsim::host_service::ControlView control(
+                context->control_mapping, context->control_bytes);
+            if (control.valid()) {
+                hbfsim::host_service::atomic_store(
+                    control.header()->fault,
+                    static_cast<std::uint64_t>(HBFSIM_IO_ERROR),
+                    std::memory_order_release);
+            }
+        }
     } else if (result == hbfsim::runtime::ReleaseResult::quarantined) {
         hbfsim::runtime::quarantine_context_admission(admission);
     } else {

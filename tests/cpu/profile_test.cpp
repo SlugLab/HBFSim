@@ -95,6 +95,8 @@ std::string thermal_document()
     document.insert(closing, R"JSON(,
   "thermal_reliability": {
     "temperature_source": "constant",
+    "source_identity": "deterministic-validation-constant",
+    "constant_gpu_c": 79.0,
     "ambient_c": 25.0,
     "initial_hbf_junction_c": 79.0,
     "tau_seconds": 0.001,
@@ -175,6 +177,11 @@ int main()
     std::filesystem::remove(thermal_path);
     check(thermal.thermal_reliability.has_value(), "thermal profile loaded");
     check(thermal.thermal_reliability->ltt_millic == 80'000, "LTT parsed");
+    check(thermal.thermal_reliability->source_identity ==
+              "deterministic-validation-constant",
+          "thermal source identity parsed");
+    check(thermal.thermal_reliability->constant_gpu_millic == 79'000,
+          "constant GPU temperature parsed");
     check(close_ld(thermal.thermal_reliability->retention_ea_ev,
                    1.10L, 1e-12L),
           "retention activation energy parsed");

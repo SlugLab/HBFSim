@@ -48,6 +48,7 @@
       "additionalProperties": false,
       "required": [
         "temperature_source",
+        "source_identity",
         "ambient_c",
         "initial_hbf_junction_c",
         "tau_seconds",
@@ -84,6 +85,13 @@
         "temperature_source": {
           "enum": ["live_gpu", "trace", "constant"]
         },
+        "source_identity": { "type": "string", "minLength": 1 },
+        "constant_gpu_c": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 105
+        },
+        "trace_path": { "type": "string", "minLength": 1 },
         "ambient_c": { "type": "number", "minimum": 0, "maximum": 105 },
         "initial_hbf_junction_c": {
           "type": "number",
@@ -163,7 +171,21 @@
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "temperature_source": { "const": "constant" } }
+          },
+          "then": { "required": ["constant_gpu_c"] }
+        },
+        {
+          "if": {
+            "properties": { "temperature_source": { "const": "trace" } }
+          },
+          "then": { "required": ["trace_path"] }
+        }
+      ]
     },
     "empirical_vmem": {
       "type": "object",

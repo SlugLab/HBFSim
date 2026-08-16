@@ -160,7 +160,9 @@ The profile contains these groups:
 - `telemetry_period_ms`
 - `controller_period_ms`
 - `temperature_source`: `live_gpu`, `trace`, or `constant`
-- source identity and SHA-256 for trace or measured calibration data
+- `source_identity` and SHA-256 for trace or measured calibration data
+- `constant_gpu_c` when the source is `constant`, or `trace_path` when the
+  source is `trace`; the two are mutually exclusive
 
 ### 5.2 Thermal states
 

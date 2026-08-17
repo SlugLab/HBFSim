@@ -295,7 +295,8 @@ allocated block capacity that holds no data, and the resulting change in effecti
 bandwidth against an allocation policy that packs several requests into one block.
 
 **Effort.** Depends on items 1 and 5 being in place first. The experiment itself is a
-sweep, comparable in size to item 14 of `15-experiments-we-must-add-before-submission.md`.
+sweep, comparable in size to item 20 of `15-experiments-we-must-add-before-submission.md`
+(item 14 before that document was renumbered).
 
 **What we need from you.** Whether the request-size distribution should come from the
 vLLM run we already have or from a synthetic distribution stated in the paper.
@@ -304,7 +305,7 @@ vLLM run we already have or from a synthetic distribution stated in the paper.
 
 ## 9. How these eight sit against the sixteen experiments already agreed
 
-`15-experiments-we-must-add-before-submission.md` holds sixteen items ordered by which contribution claim each
+`15-experiments-we-must-add-before-submission.md` holds twenty-three items ordered by which contribution claim each
 supports, with three of them blocking: item 1 for the temperature claim, item 3 for the
 coverage claim, item 7 for the timing-model claim. Nothing here replaces that ordering.
 Two things change.
@@ -343,7 +344,8 @@ specification.**
   route succeeds. The reasoning is in entry `05-A-accounting-unit-is-the-kernel-launch.md`,
   question three.
 
-Everything else in `15-experiments-we-must-add-before-submission.md` stands as written, including item 13,
+Everything else in `15-experiments-we-must-add-before-submission.md` stands as written, including item 17
+(item 13 before that document was renumbered),
 which is blocked on hardware not in hand, and item 16, which has already been moved to
 future work.
 

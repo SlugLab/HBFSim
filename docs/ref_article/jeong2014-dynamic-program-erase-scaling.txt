@@ -1,0 +1,1064 @@
+   Lifetime Improvement of NAND Flash-based
+    Storage Systems Using Dynamic Program
+                and Erase Scaling
+       Jaeyong Jeong and Sangwook Shane Hahn, Seoul National University;
+           Sungjin Lee, MIT/CSAIL; Jihong Kim, Seoul National University
+        https://www.usenix.org/conference/fast14/technical-sessions/presentation/jeong
+
+
+
+         This paper is included in the Proceedings of the
+12th USENIX Conference on File and Storage Technologies (FAST ’14).
+                      February 17–20, 2014 • Santa Clara, CA USA
+                                   ISBN 978-1-931971-08-9
+
+
+
+                                               Open access to the Proceedings of the
+                                            12th USENIX Conference on File and Storage
+                                                     Technologies (FAST ’14)
+                                                         is sponsored by
+           Lifetime Improvement of NAND Flash-based Storage Systems
+                    Using Dynamic Program and Erase Scaling
+
+              Jaeyong Jeong∗ , Sangwook Shane Hahn∗ , Sungjin Lee† , and Jihong Kim∗
+   ∗ Dept. of CSE, Seoul National University, {jyjeong, shanehahn, jihong}@davinci.snu.ac.kr
+               † CSAIL, Massachusetts Institute of Technology, chamdoo@csail.mit.edu
+
+
+
+
+Abstract                                                      per-bit of NAND devices, enabling a wider adoption of
+                                                              NAND ﬂash-based storage systems. However, the poor
+The cost-per-bit of NAND ﬂash memory has been con-            endurance of NAND ﬂash memory, which deteriorates
+tinuously improved by semiconductor process scaling           further as a side effect of recent advanced technologies,
+and multi-leveling technologies (e.g., a 10 nm-node TLC       is still regarded as a main barrier for sustainable growth
+device). However, the decreasing lifetime of NAND             in the NAND ﬂash-based storage market. (We represent
+ﬂash memory as a side effect of recent advanced tech-         the NAND endurance by the maximum number of pro-
+nologies is regarded as a main barrier for a wide adop-       gram/erase (P/E) cycles that a ﬂash memory cell can tol-
+tion of NAND ﬂash-based storage systems. In this paper,       erate while preserving data integrity.) Even though the
+we propose a new system-level approach, called dynamic        NAND density doubles every two years, the storage life-
+program and erase scaling (DPES), for improving the           time does not increase as much as expected in a recent
+lifetime (particularly, endurance) of NAND ﬂash mem-          device technology [3]. For example, the NAND stor-
+ory. The DPES approach is based on our key observation        age lifetime was increased by only 20% from 2009 to
+that changing the erase voltage as well as the erase time     2011 because the maximum number of P/E cycles was
+signiﬁcantly affects the NAND endurance. By slowly            decreased by 40% during that period. In particular, in
+erasing a NAND block with a lower erase voltage, we can       order for NAND ﬂash memory to be widely adopted in
+improve the NAND endurance very effectively. By mod-          high-performance enterprise storage systems, the deteri-
+ifying NAND chips to support multiple write and erase         orating NAND endurance problem should be adequately
+modes with different operation voltages and times, DPES       resolved.
+enables a ﬂash software to exploit the new tradeoff rela-        Since the lifetime LC of a NAND ﬂash-based stor-
+tionships between the NAND endurance and erase volt-          age device with the total capacity C is proportional to
+age/speed under dynamic program and erase scaling. We         the maximum number MAXP/E of P/E cycles, and is in-
+have implemented the ﬁrst DPES-aware FTL, called aut-         versely proportional to the total written data Wday per
+oFTL, which improves the NAND endurance with a neg-           day, LC (in days) can be expressed as follows (assuming
+ligible degradation in the overall write throughput. Our      a perfect wear leveling):
+experimental results using various I/O traces show that
+autoFTL can improve the maximum number of P/E cy-                                      MAXP/E × C
+                                                                                LC =              ,                 (1)
+cles by 61.2% over an existing DPES-unaware FTL with                                   Wday × WAF
+less than 2.2% decrease in the overall write throughput.
+                                                              where WAF is a write ampliﬁcation factor which rep-
+                                                              resents the efﬁciency of an FTL algorithm. Many ex-
+1 Introduction                                                isting lifetime-enhancing techniques have mainly fo-
+                                                              cused on reducing WAF by increasing the efﬁciency
+NAND ﬂash-based storage devices are increasingly pop-         of an FTL algorithm. For example, by avoiding un-
+ular from mobile embedded systems (e.g., smartphones          necessary data copies during garbage collection, WAF
+and smartpads) to large-scale high-performance enter-         can be reduced [4]. In order to reduce Wday , vari-
+prise servers. Continuing semiconductor process scal-         ous architectural/system-level techniques were proposed.
+ing (e.g., 10 nm-node process technology) combined            For example, data de-duplication [5], data compres-
+with various recent advances in ﬂash technology (such         sion [6] and write trafﬁc throttling [7] are such exam-
+as a TLC device [1] and a 3D NAND device [2]) is ex-          ples. On the other hand, few system/software-level tech-
+pected to further accelerate an improvement of the cost-      niques were proposed for actively increasing the max-
+
+
+
+
+USENIX Association                                          12th USENIX Conference on File and Storage Technologies 61
+imum number MAXP/E of P/E cycles. For example, a                  memory is not always needed in real workloads, a DPES-
+recent study [8] suggests MAXP/E can be indirectly im-            based technique can exploit idle times between consec-
+proved by a self-recovery property of a NAND cell but             utive write requests for shortening the width of thresh-
+no speciﬁc technique was proposed yet.                            old voltage distributions so that shallowly erased NAND
+   In this paper, we propose a new approach, called dy-           blocks, which were erased by lower erase voltages, can
+namic program and erase scaling (DPES), which can sig-            be used for most write requests. Idle times can be also
+niﬁcantly improve MAXP/E . The key intuition of our ap-           used for slowing down the erase speed. If such idle times
+proach, which is motivated by a NAND device physics               can be automatically estimated by a ﬁrmware/system
+model on the endurance degradation, is that changing              software, the DPES-based technique can choose the most
+the erase voltage as well as the erase time signiﬁcantly          appropriate write speed for each write request or select
+affects the NAND endurance. For example, slowly eras-             the most suitable erase voltage/speed for each erase op-
+ing a NAND block with a lower erase voltage can im-               eration. By aggressively selecting endurance-enhancing
+prove the NAND endurance signiﬁcantly. By modify-                 erase modes (i.e., a slow erase with a lower erase volt-
+ing a NAND device to support multiple write and erase             age) when a large idle time is available, the NAND en-
+modes (which have different voltage/speed and differ-             durance can be signiﬁcantly improved because less dam-
+ent impacts on the NAND endurance) and allowing a                 aging erase operations are more frequently used.
+ﬁrmware/software module to choose the most appropri-                 In this paper, we present a novel NAND endurance
+ate write and erase mode (e.g., depending on a given              model which accurately captures the tradeoff relation-
+workload), DPES can signiﬁcantly increase MAXP/E .                ship between the NAND endurance and erase volt-
+   The physical mechanism of the endurance degradation            age/speed under dynamic program and erase scaling.
+is closely related to stress-induced damage in the tunnel         Based on our NAND endurance model, we have im-
+oxide of a NAND memory cell [9]. Since the probabil-              plemented the ﬁrst DPES-aware FTL, called autoFTL,
+ity of stress-induced damage has an exponential depen-            which dynamically adjusts write and erase modes in
+dence on the stress voltage [10], reducing the stress volt-       an automatic fashion, thus improving the NAND en-
+age (particularly, the erase voltage) is an effective way         durance with a negligible degradation in the overall
+of improving the NAND endurance. Our measurement                  write throughput. In autoFTL, we also revised key
+results with recent 20 nm-node NAND chips show that               FTL software modules (such as garbage collector and
+when the erase voltage is reduced by 14% during P/E cy-           wear-leveler) to make them DPES-aware for maximiz-
+cles, MAXP/E can increase on average by 117%. How-                ing the effect of DPES on the NAND endurance. Since
+ever, in order to write data to a NAND block erased with          no NAND chip currently allows an FTL ﬁrmware to
+the lower erase voltage (which we call a shallowly erased         change its program and erase voltages/times dynami-
+block in the paper), it is necessary to form narrow thresh-       cally, we evaluated the effectiveness of autoFTL with the
+old voltage distributions after program operations. Since         FlashBench emulation environment [12] using a DPES-
+shortening the width of a threshold voltage distribution          enabled NAND simulation model (which supports mul-
+requires a ﬁne-grained control during a program opera-            tiple write and erase modes). Our experimental results
+tion, the program time is increased if a lower erase volt-        using various I/O traces show that autoFTL can improve
+age was used for erasing a NAND block.                            MAXP/E by 61.2% over an existing DPES-unaware FTL
+   Furthermore, for a given erase operation, since a nom-         with less than 2.2% decrease in the overall write through-
+inal erase voltage (e.g., 14 V) tends to damage the cells         put.
+more than necessary in the beginning period of an erase              The rest of the paper is organized as follows. Section 2
+operation [11], starting with a lower (than the nominal)          brieﬂy explains the basics of NAND operations related
+erase voltage and gradually increasing to the nominal             to our proposed approach. In Section 3, we present the
+erase voltage can improve the NAND endurance. How-                proposed DPES approach in detail. Section 4 describes
+ever, gradually increasing the erase voltage increases the        our DPES-aware autoFTL. Experimental results follow
+erase time. For example, our measurement results with             in Section 5, and related work is summarized in Sec-
+recent 20 nm-node NAND chips show that when the ini-              tion 6. Finally, Section 7 concludes with a summary and
+tial erase voltage of 10 V is used instead of 14 V during         future work.
+P/E cycles, MAXP/E can increase on average by 17%. On
+the other hand, the erase time is increased by 300%.              2 Background
+   Our DPES approach exploits the above two tradeoff
+relationships between the NAND endurance and erase                In order to improve the NAND endurance, our proposed
+voltage/speed at the ﬁrmware-level (or the software level         DPES approach exploits key reliability and performance
+in general) so that the NAND endurance is improved                parameters of NAND ﬂash memory during run time. In
+while the overall write throughput is not affected. For ex-       this section, we review the basics of various reliabil-
+ample, since the maximum performance of NAND ﬂash                 ity parameters and their impact on performance and en-
+
+
+                                                              2
+62 12th USENIX Conference on File and Storage Technologies                                               USENIX Association
+            VRef0          VRef1           VRef2             VRead                                                                                                V end
+
+
+
+
+                                                                                 voltage
+                                                                                                                                                                    PGM
+                                                                                                                       VISPP
+      11            10               00            01
+                                                                                                                                                                           Program
+                                                                                              V start
+                                                                                                PGM
+                                                                                                                                                                           Verify
+            MP1     WP1    MP2       WP2   MP3     WP3   MRead   Vth
+                                                                                                          Loop                                                                   time
+                                   WVth
+                                                                                                                                         TPROG
+Figure 1: An example of threshold voltage distributions
+                                                                                            (a) A conceptual timing diagram of the ISPP scheme.
+for multi-level NAND ﬂash memory and primary relia-
+bility parameters.                                                                                            3.0
+                                                                                                                            Decreasing       Increasing
+
+
+
+
+                                                                                           Normalized TPROG
+                                                                                                                               WPi               WPi
+durance of NAND cells.                                                                                        2.0
+
+
+
+2.1 Threshold Voltage Distributions of                                                                        1.0
+
+    NAND Flash Memory
+                                                                                                              0.0
+Multi-level NAND ﬂash memory stores 2 bits in a cell                                                                -0.50     -0.25   0.00       0.25     0.50   0.75     1.00
+
+using four distinct threshold voltage levels (or states) as                                                                           VISPP scaling ratio
+shown in Figure 1. Four states are distinguished by dif-                                      (b) Normalized TPROG variations over different
+ferent reference voltages, VRe f 0 , VRe f 1 and VRe f 2 . The                                VISPP scaling ratios.
+threshold voltage gap MPi between two adjacent states                          Figure 2: An overview of the incremental step pulse pro-
+and the width WPi of a threshold voltage distribution are                      gramming (ISPP) scheme for NAND ﬂash memory.
+mainly affected by data retention and program time re-
+quirements [13, 14], respectively. As a result, the total
+width WVth of threshold voltage distributions should be                        voltage region. While repeating ISPP loops, once NAND
+carefully designed to meet all the NAND requirements.                          cells are veriﬁed to have been sufﬁciently programmed,
+In order for ﬂash manufacturers to guarantee the reliabil-                     those cells are excluded from subsequent ISPP loops.
+ity and performance requirements of NAND ﬂash mem-                                Since the program time is proportional to the number
+ory throughout its storage lifespan, all the reliability pa-                   of ISPP loops (which are inversely proportional to VISPP ),
+rameters, which are highly inter-related each other, are                       the program time TPROG can be expressed as follows:
+usually ﬁxed during device design times under the worst-                                                                                  end − V start
+case operating conditions of a storage product.                                                                                          VPGM      PGM
+                                                                                                                        TPROG ∝                         .                               (2)
+   However, if one performance/reliability requirement                                                                                       VISPP
+can be relaxed under speciﬁc conditions, it is possible
+to drastically improve the reliability or performance be-                      Figure 2(b) shows normalized TPROG variations over dif-
+                                                                               ferent VISPP scaling ratios. (When a VISPP scaling ratio is
+havior of the storage product by exploiting tradeoff rela-
+tionships among various reliability parameters. For ex-                        set to x%, VISPP is reduced by x% of the nominal VISPP .)
+ample, Liu et al. [13] suggested a system-level approach                       When a narrow threshold voltage distribution is needed,
+                                                                               VISPP should be reduced for a ﬁne-grained control, thus
+that improves the NAND write performance when most
+of written data are short-lived (i.e., frequently updated                      increasing the program time. Since the width of a thresh-
+data) by sacriﬁcing MPi ’s which affect the data reten-                        old voltage distribution is proportional to VISPP [14], for
+                                                                               example, if the nominal VISPP is 0.5 V and the width of a
+tion capability1 . Our proposed DPES technique exploits
+WPi ’s (which also affect the NAND write performance)                          threshold voltage distribution is reduced by 0.25 V, VISPP
+so that the NAND endurance can be improved.                                    also needs to be reduced by 0.25 V (i.e., a VISPP scaling
+                                                                               ratio is 0.5), thus increasing TPROG by 100%.
+
+2.2 NAND Program Operations
+                                                                               3 Dynamic Program and Erase Scaling
+In order to form a threshold voltage distribution within
+a desired region, NAND ﬂash memory generally uses                              The DPES approach is based on our key observation that
+the incremental step pulse programming (ISPP) scheme.                          slowly erasing (i.e., erase time scaling) a NAND block
+As shown in Figure 2(a), the ISPP scheme gradually in-                         with a lower erase voltage (i.e., erase voltage scaling)
+creases the program voltage by the VISPP step until all the                    signiﬁcantly improves the NAND endurance. In this sec-
+memory cells in a page are located in a desired threshold                      tion, we explain the effect of erase voltage scaling on im-
+   1 Since short-lived data do not need a long data retention time, M ’s       proving the NAND endurance and describe the dynamic
+                                                                     Pi
+are maintained loosely so that the NAND write performance can be               program scaling method for writing data to a shallowly
+improved.                                                                      erased NAND block (i.e., a NAND block erased with
+
+
+                                                                           3
+USENIX Association                                                         12th USENIX Conference on File and Storage Technologies 63
+a lower erase voltage). We also present the concept of                                    1.5                                                        1.5
+
+
+
+
+                                                                    Avg. normalized BER
+                                                                                                        r=0.00
+
+
+
+
+                                                                                                                                 Effective wearing
+                                                                                                                                                                           Max.
+erase time scaling and its effect on improving the NAND                                                 r=0.07
+                                                                                                        r=0.14
+                                                                                                                                                                  75%
+                                                                                                                                                                  25%
+                                                                                                                                                                           Median
+
+endurance. Finally, we present a novel NAND endurance
+                                                                                                                                                                           Min.
+                                                                                          1.0                                                        1.0
+
+model which describes the effect of DPES on the NAND
+                                                                                          0.5                                                        0.5
+endurance based on an empirical measurement study us-
+ing 20 nm-node NAND chips.                                                                0.0                                                        0.0
+                                                                                                0   1    2       3   4   5   6                             1.00 0.95 0.90 0.85 0.80
+                                                                                                    P/E cycles [K]                                   Normalized erase voltage (1-r)
+3.1 Erase Voltage Scaling and its Effect                                (a) Average BER variations                                  (b) Effective wearing over differ-
+    on NAND Endurance                                                   over different P/E cycles under                             ent erase voltage scaling ratios
+                                                                        varying erase voltage scaling ra-                           (r’s)
+The time-to-breakdown TBD of the oxide layer decreases                  tios (r’s)
+exponentially as the stress voltage increases because                   Figure 3: The effect of lowering the erase voltage on the
+the higher stress voltage accelerates the probability of                NAND endurance.
+stress-induced damage which degrades the oxide relia-
+bility [10]. This phenomenon implies that the NAND                      new endurance metric, called effective wearing per PE
+endurance can be improved by lowering the stress volt-                  (in short, effective wearing), which represents the effec-
+age (e.g., program and erase voltages) during P/E cycles                tive degree of NAND wearing after a P/E cycle. We
+because the reliability of NAND ﬂash memory primar-                     represent the effective wearing by a normalized reten-
+ily depends on the oxide reliability [9]. Although the                  tion BER after 3K P/E cycles2 . Since the normalized
+maximum program voltage to complete a program oper-                     retention BER is reduced by 54% when the erase volt-
+ation is usually larger than the erase voltage, the NAND                age is reduced by 14%, the effective wearing becomes
+endurance is mainly degraded during erase operations                    0.46. When the nominal erase voltage is used, the effec-
+because the stress time interval of an erase operation is               tive wearing is 1.
+about 100 times longer than that of a program operation.                   As shown in Figure 3(b), the effective wearing de-
+Therefore, if the erase voltage can be lowered, its impact              creases near-linearly as r increases. Based on a linear
+on the NAND endurance improvement can be signiﬁcant.                    regression model, we can construct a linear equation for
+   In order to verify our observation, we performed                     the effective wearing over different r’s. Using this equa-
+NAND cycling tests by changing the erase voltage. In                    tion, we can estimate the effective wearing for a different
+a NAND cycling test, program and erase operations are                   r. After 3K P/E cycles, for example, the total sum of the
+repeated 3,000 times (which are roughly equivalent to                   effective wearing with the nominal erase voltage is 3K.
+MAXP/E of a recent 20 nm-node NAND device [3]). Our                     On the other hand, if the erase voltage was set to 14%
+cycling tests for each case are performed with more than                less than the nominal voltage, the total sum of the effec-
+80 blocks which are randomly selected from 5 NAND                       tive wearing is only 1.38K because the effective wearing
+chips. In our tests, we used the NAND retention BER                     with r of 0.14 is 0.46. As a result, MAXP/E can be in-
+(i.e., a BER after 10 hours’ baking at 125 ◦ C) as a mea-               creased more than twice as much when the erase voltage
+sure for quantifying the wearing degree of a NAND chip                  is reduced by 14% over the nominal case. In this paper,
+[9]. (This is a standard NAND retention evaluation pro-                 we will use a NAND endurance model with ﬁve different
+cedure speciﬁed by JEDEC [15].) Figure 3(a) shows how                   erase voltage modes (as described in Section 3.5).
+the retention BER changes, on average, as the number of                    Since we did not have access to NAND chips from
+P/E cycles increases while varying erase voltages. We                   different manufacturers, we could not prove that our test
+represent different erase voltages using an voltage scal-               results can be generalized. However, since our tests are
+ing ratio r (0 ≤ r ≤ 1). When r is set to x, the erase volt-            based on widely-known device physics which have been
+age is reduced by (x × 100)% of the nominal erase volt-                 investigated by many device engineers and researchers,
+age. The retention BERs were normalized over the re-                    we are convinced that the consistency of our results
+tention BER after 3K P/E cycles when the nominal erase                  would be maintained as long as NAND ﬂash memories
+voltage was used. As shown in Figure 3(a), the more the                 use the same physical mechanism (i.e., FN-tunneling) for
+erase voltage is reduced (i.e., the higher r’s), the less the           program and erase operations. We believe that our results
+retention BERs. For example, when the erase voltage is                  will also be effective for future NAND devices as long as
+reduced by 14% of the nominal erase voltage, the nor-                       2 In this paper, we use a linear approximation model which simpli-
+malized retention BER is reduced by 54% after 3K P/E                    ﬁes the wear-out behavior over P/E cycles. Our current linear model
+cycles over the nominal erase voltage case.                             can overestimate the effective wearing under low erase voltage scaling
+   Since the normalized retention BER reﬂects the degree                ratios while it can underestimate the effective wearing under high erase
+                                                                        voltage scaling ratios. We veriﬁed that, by the combinations of over-
+of the NAND wearing, higher r’s lead to less endurance                  /under-estimations of the effective wearing in our model, the current
+degradations. Since different erase voltages degrade the                linear model achieves a reasonable accuracy with an up to 10% overes-
+NAND endurance by different amounts, we introduce a                     timation [16] while supporting a simple software implementation.
+
+
+                                                                4
+64 12th USENIX Conference on File and Storage Technologies                                                                                                   USENIX Association
+                    Erasing with a nominal erase voltage, V nominal                                             Slow                          2.0
+
+
+
+
+                                                                                                                         Normalized minimum
+                                                            ERASE                                               write                                                    EVmode4
+                                                                         VRead
+
+
+
+
+                                                                                                                            program time
+                                                                                                                                                                    EVmode3
+
+                                                MPi      WPi                                                                                  1.5             EVmode2
+
+                                                                                                                                                       EVmode1
+                          Threshold voltage window                              Vth                             Fast
+                                                                                                                write                         1.0
+
+      Saved
+                                                        nominal
+                                                      V ERASE     >     small
+                                                                      V ERASE                                                                       1.00            0.95                              0.90            0.85
+threshold voltage                                                                                                       EVmode0                            Normalized erase voltage (1-r)
+     margin                  Erasing with a small erase voltage, V small
+                                                                   ERASE                                                                        Deep                                                                Shallow
+                                                                                                                                                erase                                                                erase
+    ( WVth )                                                             VRead                                  (a) An example relationship between erase voltages and the
+                                                  MPi      WPi                                                  normalized minimum program times when the total sum of
+                                                                                                                effective wearing is in the range of 0.0 ∼ 0.5K.
+                              Threshold voltage window                          Vth
+                                                                                                                 0.6                                                                        1.0
+
+
+
+
+                                                                                          VISPP scaling ratio
+
+
+
+
+                                                                                                                                                                        MPi scaling ratio
+                                                                                                                                                     Wmode4                                                  from measurements
+Figure 4: An example of program voltage scaling for                                                                               Wmode2
+writing data to a shallowly erased NAND block.
+                                                                                                                 0.4                                                                                                A simplified
+                                                                                                                                                                                            0.5                     model
+                                                                                                                 0.2                                       Wmode3
+their operations are based on the FN-tunneling mecha-
+                                                                                                                                                           Wmode1
+nism. It is expected that current 2D NAND devices will                                                           0.0                                                                        0.0
+gradually be replaced by 3D NAND devices, but the ba-                                                                   1.0                         1.5          2.0                              0           1       2            3
+sis of 3D NAND is still the FN-tunneling mechanism.                                        Wmode0                                     Normalized                                                     Total sum of the
+                                                                                                                                     program time                                                 effective wearing [K]
+                                                                                                                 (b) VISPP scaling ratios                                                    (c) MPi scaling ratios
+3.2 Dynamic Program Scaling
+                                                                                           Figure 5: The relationship between the erase voltage and
+In order to write data to a shallowly erased NAND block,
+                                                                                           the minimum program time, and VISPP scaling and MPi
+it is necessary to change program bias conditions dy-
+                                                                                           scaling for dynamic program scaling.
+namically so that narrow threshold voltage distributions
+can be formed after program operations. If a NAND
+block was erased with a lower erase voltage, a thresh-                                     erased block would need at least twice longer program
+old voltage window for a program operation is reduced                                      time than the nominal program time. On the other hand,
+by the decrease in the erase voltage because the value of                                  if a NAND block were erased by EVmode0 , where the
+the erase voltage decides how deeply a NAND block is                                       erase voltage is same as the nominal erase voltage, the
+erased. For example, as shown in Figure 4, if a NAND                                       erased block can be programmed with the same nominal
+block is shallowly erased with a lower erase voltage                                       program time.
+  small (which is lower than the nominal erase voltage
+VERASE                                                                                        In order to satisfy the minimum program time require-
+  nominal ), the width of a threshold voltage window is re-
+VERASE                                                                                     ments of different EVmodei ’s, we deﬁne ﬁve different
+duced by a saved threshold voltage margin ∆WVth (which                                     write modes, Wmode0 , · · · , Wmode4 where Wmodei satisﬁes
+is proportional to the voltage difference between VERASE
+                                                      nominal                              the minimum program time requirement of the blocks
+and VERASE
+       small ). Since threshold voltage distributions can be                               erased by EVmodei . Since the program time of Wmode j
+formed only within the given threshold voltage window                                      is longer than that of Wmodei (where j > i), Wmodek ,
+when a lower erase voltage is used, a ﬁne-grained pro-                                     Wmode(k+1) , · · · , Wmode4 can be used when writing to the
+gram control is necessary, thus increasing the program                                     blocks erased by EVmodek . Figure 5(b) shows how VISPP
+time of a shallowly erased block.                                                          should be scaled for each write mode so that the min-
+   In our proposed DPES technique, we use ﬁve different                                    imum program time requirement can be satisﬁed. The
+erase voltage modes, EVmode0 , · · · , EVmode4 . EVmode0                                   program time is normalized over the nominal TPROG .
+uses the highest erase voltage V0 while EVmode4 uses the                                      In order to form threshold voltage distributions within
+lowest erase voltage V4 . After a NAND block is erased,                                    a given threshold voltage window, a ﬁne-grained pro-
+when the erased block is programmed again, there is a                                      gram control is necessary by reducing MPi ’s and WPi ’s.
+strict requirement on the minimum interval length of the                                   As described in Section 2.2, we can reduce WPi ’s by scal-
+program time which depends on the erase voltage mode                                       ing VISPP based on the program time requirement. Fig-
+used for the erased block. (As explained above, this min-                                  ure 5(b) shows the tradeoff relationship between the pro-
+imum program time requirement is necessary to form                                         gram time and VISPP scaling ratio based on our NAND
+threshold voltage distributions within the reduced thresh-                                 characterization study. The program time is normalized
+old voltage window.) Figure 5(a) shows these minimum                                       over the nominal TPROG . For example, in the case of
+program times for ﬁve erase voltage modes. For exam-                                       Wmode4 , when the program time is two times longer than
+ple, if a NAND block were erased by EVmode4 , where the                                    the nominal TPROG , VISPP can be maximally reduced. Dy-
+erase voltage is 89% of the nominal erase voltage, the                                     namic program scaling can be easily integrated into an
+
+                                                                                      5
+USENIX Association                                                                    12th USENIX Conference on File and Storage Technologies 65
+existing NAND controller with a negligible time over-                                 1.0                                                          1.0
+
+
+
+
+                                                                                                                              Effective wearing
+head (e.g., less than 1% of TPROG ) and a very small space
+
+
+
+
+                                                                  Effective wearing
+                                                                                      0.8                                                          0.8             ESmodefast
+overhead (e.g., 4 bits per block). On the other hand, in                              0.6         ESmodefast                                       0.6
+conventional NAND chips, MPi is kept large enough to                                  0.4                                                          0.4       ESmodeslow
+                                                                                                                                                                            -19%
+
+preserve the data retention requirement under the worst-
+                                                                                                           ESmodeslow
+                                                                                      0.2                                                          0.2
+case operating condition (e.g., 1-year data retention after                           0.0                                                          0.0
+3,000 P/E cycles). However, since the data retention re-                                    1.0      2.0       3.0      4.0                              1.00 0.95 0.90 0.85 0.80
+quirement is proportional to the total sum of the effective                                 Normalized erase time                                 Normalized erase voltage (1-r)
+wearing [9], MPi can be relaxed by removing an unnec-                (a) Effective wearing variations                            (b) Effective wearing variations
+essary data retention capability. Figure 5(c) shows our              over different erase times                                  over varying erase voltage scal-
+                                                                                                                                 ing ratios (r’s) under two different
+MPi scaling model over different total sums of the effec-                                                                        erase time settings
+tive wearing based on our measurement results. In order
+to reduce the management overhead, we change the MPi                 Figure 6: The effect of erase time scaling on the NAND
+scaling ratio every 0.5-K P/E cycle interval (as shown by            endurance.
+the dotted line in Figure 5(c)).
+                                                                     creases. The longer the erase time (i.e., the lower the
+3.3 Erase Time Scaling and its Effect                                starting erase voltage), the less the effective wearing (i.e.,
+                                                                     the higher NAND endurance.). We represent the fast
+    on NAND Endurance                                                erase mode by ESmode f ast and the slow erase mode by
+When a NAND block is erased, a high nominal erase                    ESmodeslow . Our measurement results with 20 nm-node
+voltage (e.g., 14 V) is applied to NAND memory cells. In             NAND chips show that if we increase the erase time by
+the beginning period of an erase operation, since NAND               300% by starting with a lower erase voltage, the effective
+memory cells are not yet sufﬁciently erased, an exces-               wearing is reduced, on average, by 19%. As shown in
+sive high voltage (i.e., the nominal erase voltage plus the          Figure 6(b), the effect of the slow erase mode on improv-
+threshold voltage in a programmed cell) is inevitably ap-            ing the NAND endurance can be exploited regardless of
+plied across the tunnel oxide. For example, if 14 V is               the erase voltage scaling ratio r. Since the erase voltage
+required to erase NAND memory cells, when an erase                   modes are continuously changed depending on the pro-
+voltage (i.e., 14 V) is applied to two programmed cells              gram time requirements, the endurance-enhancing erase
+whose threshold voltages are 0 V and 4 V, the total erase            mode (i.e., the lowest erase voltage mode) cannot be used
+voltages applied to two memory cells are 14 V and 18 V,              under an intensive workload condition. On the other
+respectively [16]. As described in Section 3.1, since the            hand, the erase time scaling can be effective even under
+probability of damage is proportional to the erase volt-             an intensive workload condition, if slightly longer erase
+age, the memory cell with a high threshold voltage is                times do not affect the overall write throughput.
+damaged more than that with a low threshold voltage, re-
+sulting in unnecessarily degrading the memory cell with              3.4 Lazy Erase Scheme
+a high threshold voltage.
+   In order to minimize unnecessary damage in the begin-             As explained in Section 3.2, when a NAND block
+ning period of an erase operation, it is an effective way            was erased with EVmodei , a page in the shallowly
+to start the erase voltage with a sufﬁciently low voltage            erased block can be programmed using speciﬁc Wmode j ’s
+(e.g., 10 V) and gradually increase to the nominal erase             (where j ≥ i) only because the requirement of the saved
+voltage [11]. For example, if we start with the erase volt-          threshold voltage margin cannot be satisﬁed with a faster
+age of 10 V, the memory cell whose threshold voltage                 write mode Wmodek (k < i). In order to write data with a
+is 4 V may be partially erased because the erase voltage             faster write mode to the shallowly erased NAND block,
+is 14 V (i.e., 10 V plus 4 V) without excessive damage               the shallowly erased block should be erased further be-
+to the memory cell. As we increase the erase voltage                 fore it is written. We propose a lazy erase scheme which
+in subsequent ISPE (incremental step pulse erasing [17])             additionally erases the shallowly erased NAND block,
+loops, the threshold voltage in the cell is reduced by each          when necessary, with a small extra erase time (i.e., 20%
+ISPE step, thus avoiding unnecessary damage during an                of the nominal erase time). Since the effective wear-
+erase operation. In general, the lower the starting erase            ing mainly depends on the maximum erase voltage used,
+voltage, the less damage to the cells.                               erasing a NAND block by a high erase voltage in a lazy
+   However, as an erase operation starts with a lower                fashion does not incur any extra damage than erasing it
+voltage than the nominal voltage, the erase time increases           with the initially high erase voltage3. Since a lazy erase
+because more erase loops are necessary for completing                   3 Although it takes a longer erase time, the total sum of the effective
+the erase operation. Figure 6(a) shows how the effec-                wearing by lazily erasing a shallowly erased block is less than that by
+tive wearing decreases, on average, as the erase time in-            erasing with the initially high erase voltage. This can be explained in a
+
+
+                                                              6
+66 12th USENIX Conference on File and Storage Technologies                                                                                                  USENIX Association
+                                                                                                                              Write Request
+                    1.0                           0                       1.0         Mode index i
+Effective wearing
+
+
+
+
+                                                      Effective wearing
+                    0.9                           1                       0.9         of a EVmodei
+                                                  2                                                     0                  DPES Manager                                       Garbage
+                    0.8                           3                       0.8                           1                                                      Number of      Collector
+                    0.7                           4                       0.7                           2           Circular        NAND Endurance               pages
+                                                                                                        3            Buffer             Model                 to be copied    Background
+                    0.6                                                   0.6                           4
+                                                                                                                         Utilization                                          Foreground
+                                   Mode index i
+                    0.5            of a EVmodei                           0.5
+                                                                                                                    Mode        Wmode          Emode                            Wear
+                    0.4                                                   0.4                                      Selector     Selector      Selector
+                                                                                                                                                                               Leveler
+                          0 0.5 1 1.5 2 2.5 3                                   0 0.5 1 1.5 2 2.5 3
+                              Total sum of                                          Total sum of                        Wmodei                     EVmodej , ESmodek
+                          effective wearing [K]                                 effective wearing [K]
+                                                                                                                                           Extended Mapping Table
+   (a) The endurance model for (b) The endurance model for
+   ESmode f ast .              ESmodeslow .                                                                            NAND                    Per-Block              Logical-to-Physical
+                                                                                                                    Setting Table             Mode Table                Mapping Table
+   Figure 7: The proposed NAND endurance model for
+   DPES-enabled NAND blocks.                                                                                         DeviceSettings                      Program     Erase    Read
+
+                                                                                                                                           NAND Flash Memory
+   cancels an endurance beneﬁt of a shallow erase while in-
+   troducing a performance penalty, it is important to accu-
+                                                                                                                   Figure 8: An organizational overview of autoFTL.
+   rately estimate the write speed of future write requests
+   so that correct erase modes can be selected when erasing                                                     (which uses the smallest erase voltage) supports only the
+   NAND blocks, thus avoiding unnecessary lazy erases.                                                          slowest write mode (i.e., Wmode4 ) with the largest wear-
+                                                                                                                ing gain. Similarly, ESmode f ast is the fast erase mode
+   3.5 NAND Endurance Model                                                                                     with no additional wearing gain while ESmodeslow rep-
+                                                                                                                resents the slow erase mode with the improved wearing
+   Combining erase voltage scaling, program time scaling                                                        gain. Our proposed NAND endurance model takes ac-
+   and erase time scaling, we developed a novel NAND                                                            count of both VISPP scaling and MPi scaling described in
+   endurance model that can be used with DPES-enabled                                                           Figures 5(b) and 5(c).
+   NAND chips. In order to construct a DPES-enabled
+   NAND endurance model, we calculate saved threshold
+   voltage margins for each combination of write modes (as
+                                                                                                                4 Design and Implementation of AutoFTL
+   shown in Figure 5(b)) and MPi scaling ratios (as shown
+   in Figure 5(c)). Since the effective wearing has a near-
+                                                                                                                4.1 Overview
+   linear dependence on the erase voltage and time as shown                                                     Based on our NAND endurance model presented in
+   in Figures 3(b) and 6(b), respectively, the values of the                                                    Section 3.5, we have implemented autoFTL, the ﬁrst
+   effective wearing for each saved threshold voltage mar-                                                      DPES-aware FTL, which automatically changes write
+   gin can be estimated by a linear equation as described                                                       and erase modes depending on write throughput require-
+   in Section 3.1. All the data in our endurance model are                                                      ments. AutoFTL is based on a page-level mapping
+   based on measurement results with recent 20 nm-node                                                          FTL with additional modules for DPES support. Fig-
+   NAND chips. For example, when the number of P/E cy-                                                          ure 8 shows an organizational overview of autoFTL. The
+   cles is less than 500, and a block is slowly erased before                                                   DPES manager, which is the core module of autoFTL,
+   writing with the slowest write mode, a saved threshold                                                       selects a write mode Wmodei for a write request and de-
+   voltage margin can be estimated to 1.06 V (which corre-                                                      cides both an appropriate erase voltage mode EVmode j
+   sponds to the erase voltage scaling ratio r of 0.14 in Fig-                                                  and erase speed mode ESmodek for each erase opera-
+   ure 6(b)). As a result, we can estimate the value of the                                                     tion. In determining appropriate modes, the mode selec-
+   effective wearing as 0.45 by a linear regression model for                                                   tor bases its decisions on the estimated write throughput
+   the solid line with squared symbols in Figure 6(b).                                                          requirement using a circular buffer. AutoFTL maintains
+      Figure 7 shows our proposed NAND endurance                                                                per-block mode information and NAND setting informa-
+   model with ﬁve erase voltage modes (i.e., EVmode0 ∼                                                          tion as well as logical-to-physical mapping information
+   EVmode4 ) and two erase speed modes (i.e., ESmodeslow                                                        in the extended mapping table. The per-block mode ta-
+   and ESmode f ast ). EVmode0 (which uses the largest erase                                                    ble keeps track of the current write mode and the total
+   voltage) supports the fastest write mode (i.e., Wmode0 )                                                     sum of the effective wearing for each block. The NAND
+   with no slowdown in the write speed while EVmode4                                                            setting table is used to choose appropriate device settings
+                                                                                                                for the selected write and erase modes, which are sent to
+   similar fashion as why the erase time scaling is effective in improving
+   the NAND endurance as discussed in the previous section. The en-
+                                                                                                                NAND chips via a new interface DeviceSettings between
+   durance gain from using two different starting erase voltages is higher                                      autoFTL and NAND chips. AutoFTL also extends both
+   than the endurance loss from a longer erase time.                                                            the garbage collector and wear leveler to be DPES-aware.
+
+
+                                                                                                            7
+    USENIX Association                                                                                      12th USENIX Conference on File and Storage Technologies 67
+                                                                  of blocks which were erased using the same erase voltage
+Table 1: The write-mode selection rules used by the               mode. When the DPES manager decides a write mode
+DPES manager.                                                     for a write request, the corresponding linked list is con-
+             Buffer utilization u   Write mode                    sulted to locate a destination block for the write request.
+                 u > 80%             Wmode0                       Also, the DPES manager informs a NAND chip how to
+              60% < u ≤ 80%          Wmode1                       conﬁgure appropriate device settings (e.g., ISPP/ISPE
+              40% < u ≤ 60%          Wmode2                       voltages, the erase voltage, and reference voltages for
+              20% < u ≤ 40%          Wmode3                       read/verify operations) for the current write mode using
+                 u ≤ 20%             Wmode4                       the per-block mode table. Once NAND chips are set to
+                                                                  a certain mode, an additional setting is not necessary as
+                                                                  long as the write and the erase modes are maintained.
+   As semiconductor technologies reach their physical             For a read request, since different write modes require
+limitations, it is necessary to use cross-layer optimiza-         different reference voltages for read operations, the per-
+tion between system software and NAND devices. As                 block mode table keeps track of the current write mode
+a result, some of internal device interfaces are gradually        for each block so that a NAND chip changes its read ref-
+opened to public in the form of additional ‘user inter-           erences before serving a read request.
+face’. For example, in order to track bit errors caused
+by data retention, a new ‘device setting interface’ which
+adjusts the internal reference voltages for read opera-           4.4 Erase Voltage Mode Selection
+tions is recently opened to public [18, 19]. There are
+                                                                  Since the erase voltage has a signiﬁcant impact on the
+already many set and get functions for modifying or
+                                                                  NAND endurance as described in Section 3.1, selecting
+monitoring NAND internal conﬁgurations in the up-to-
+                                                                  a right erase voltage is the most important step in improv-
+date NAND speciﬁcations such as the toggle mode in-
+                                                                  ing the NAND endurance using the DPES technique. As
+terface and ONFI. For the measurements presented here,
+                                                                  explained in Section 4.2, since autoFTL decides a write
+we were fortunately able to work in conjunction with a
+                                                                  mode of a given write request based on the utilization of
+ﬂash manufacturer to adjust erase voltage as we wanted.
+                                                                  the circular buffer of incoming write requests, when de-
+                                                                  ciding the erase voltage mode of a victim block, autoFTL
+4.2 Write Mode Selection                                          takes into account of the future utilization of the circular
+                                                                  buffer. If autoFTL could accurately predict the future uti-
+In selecting a write mode for a write request, the Wmode          lization of the circular buffer and erase the victim block
+selector of the DPES manager exploits idle times be-              with the erase voltage that can support the future write
+tween consecutive write requests so that autoFTL can              mode, the NAND endurance can be improved without
+increase MAXP/E without incurring additional decrease             a lazy erase operation. In the current version, we use
+in the overall write throughput. In autoFTL, the Wmode            the average buffer utilization of 105 past write requests
+selector uses a simple circular buffer for estimating the         for predicting the future utilization of the circular buffer.
+maximum available program time (i.e., the minimum re-             In order to reduce the management overhead, we divide
+quired write speed) for a given write request. Table 1            105 past write requests into 100 subgroups where each
+summarizes the write-mode selection rules used by the             subgroup consists of 1000 write requests. For each sub-
+Wmode selector depending on the utilization of a cir-             group, we compute the average utilization of 1000 write
+cular buffer. The circular buffer queues incoming write           requests in the subgroup, and use the average of 100 sub-
+requests before they are written, and the Wmode selec-            group’s utilizations to calculate the estimate of the future
+tor adaptively decides a write mode for each write re-            utilization of the buffer.
+quest. The current version of the Wmode selector, which              When a foreground garbage collection is invoked,
+is rather conservative, chooses the write mode, Wmodei ,          since the write speed of a near-future write request is al-
+depending on the buffer utilization u. The buffer utiliza-        ready chosen based on the current buffer utilization, the
+tion u represents how much of the circular buffer is ﬁlled        victim block can be erased with the corresponding erase
+by outstanding write requests. For example, if the utiliza-       voltage mode. On the other hand, when a background
+tion is lower than 20%, the write request in the head of          garbage collection is invoked, it is difﬁcult to use the cur-
+the circular buffer is programmed to a NAND chip with             rent buffer utilization because the background garbage
+Wmode4 .                                                          collector is activated when there are no more write re-
+                                                                  quests waiting in the buffer. For this case, we use the
+4.3 Extended Mapping Table                                        estimated average buffer utilization of the circular buffer
+                                                                  to predict the buffer utilization when the next phase of
+Since erase operations are performed at the NAND block            write requests (after the background garbage collection)
+level, the per-block mode table maintains ﬁve linked lists        ﬁlls in the circular buffer.
+
+
+                                                              8
+68 12th USENIX Conference on File and Storage Technologies                                                USENIX Association
+4.5 Erase Speed Mode Selection
+                                                                    Table 2: Examples of selecting write and erase modes
+In selecting an erase speed mode for a block erase oper-            in the garbage collector assuming that the circular buffer
+ation, the DPES manager selects an erase speed mode                 has 200 pages and the current buffer utilization u is 70%.
+which does not affect the write throughput. An erase                 (Case 1) The number of valid pages in a victim block is 30.
+speed mode for erasing a NAND block is determined by
+                                                                                                                       Selected
+estimating the effect of a block erase time on the buffer            ucopy     u∗       ∆uerase         u′              modes
+utilization. Since write requests in the circular buffer                              Slow     8%      93%      EVmode0 & ESmodeslow
+cannot be programmed while erasing a NAND block,                     15%     85%
+                                                                                      Fast     2%      87%            Wmode0
+the buffer utilization is effectively increased by the block
+erase time. The effective buffer utilization u′ consider-            (Case 2) The number of valid pages in a victim block is 50.
+ing the effect of the block erase time can be expressed as                                                             Selected
+                                                                     ucopy     u∗       ∆uerase         u′
+follows:                                                                                                                modes
+                      u′ = u + ∆uerase ,                  (3)                         Slow     8%     103%      EVmode0 & ESmode f ast
+                                                                     25%     95%
+where u is the current buffer utilization and ∆uerase is                              Fast     2%      97%            Wmode0
+the increment in the buffer utilization by the block erase
+time. In order to estimate the effect of a block erase op-
+eration on the buffer utilization, we convert the block
+erase time to a multiple M of the program time of the               described in Section 4.4) with the erase speed (chosen
+current write mode. ∆uerase corresponds to the increment            by the rules described in Section 4.5). For example, as
+in the buffer utilization for these M pages. For select-            shown in the case 1 of Table 2, if garbage collection is
+ing an erase speed mode of a NAND block, the mode                   invoked when u is 70%, and the number of valid pages to
+selector checks if ESmodeslow can be used. If erasing               be copied is 30 (i.e., ∆ucopy = 30/200 = 15%), Wmode0
+with ESmodeslow does not increase u′ larger than 100%               is selected because u∗ is 85% (= 70% + 15%), and
+(i.e., no buffer overﬂow), ESmodeslow is selected. Other-           ESmodeslow is selected because erasing with ESmodeslow
+wise, the fast erase mode ESmode f ast is selected. On the          does not overﬂow the circular buffer. (We assume that
+other hand, when the background garbage collection is               ∆uerase for ESmodeslow and ∆uerase for ESmode f ast are 8%
+invoked, ESmodeslow is always selected in erasing a vic-            and 2%, respectively.) On the other hand, as shown in the
+tim block. Since the background garbage collection is               case 2 of Table 2, when the number of valid pages to be
+invoked when an idle time between consecutive write re-             copied is 50 (i.e., ∆ucopy = 50/200 = 25%), ESmodeslow
+quests is sufﬁciently long, the overall write throughput is         cannot be selected because u′ becomes larger than 100%.
+not affected even with ESmodeslow .                                 As shown in the case 1, ESmodeslow can still be used even
+                                                                    when the buffer utilization is higher than 80%. When
+                                                                    the buffer utilization is higher than 80% (i.e., an inten-
+4.6 DPES-Aware Garbage Collection                                   sive write workload condition), the erase voltage scaling
+When the garbage collector is invoked, the most appro-              is not effective because the highest erase voltage is se-
+priate write mode for copying valid data to a free block is         lected. On the other hand, even when the buffer utiliza-
+determined by using the same write-mode selection rules             tion is above 90%, the erase speed scaling can be still
+summarized in Table 1 with a slight modiﬁcation to com-             useful.
+puting the buffer utilization u. Since the write requests in
+the circular buffer cannot be programmed while copying
+valid pages to a free block by the garbage collector, the
+buffer utilization is effectively increased by the number
+of valid pages in a victim block. By using the informa-
+tion from the garbage collector, the mode selector recal-           4.7 DPES-Aware Wear Leveling
+culates the effective buffer utilization u∗ as follows:
+
+                     u∗ = u + ∆ucopy,                    (4)        Since different erase voltage/time affects the NAND en-
+                                                                    durance differently as described in Section 3.1, the relia-
+where u is the current buffer utilization and ∆ucopy is the         bility metric (based on the number of P/E cycles) of the
+increment in the buffer utilization taking the number of            existing wear leveling algorithm [20] is no longer valid
+valid pages to be copied into account. The mode selector            in a DPES-enabled NAND ﬂash chip. In autoFTL, the
+decides the most appropriate write mode based on the                DPES-aware wear leveler uses the total sum of the ef-
+write-mode selection rules with u∗ instead of u. After              fective wearing instead of the number of P/E cycles as a
+copying all the valid pages to a free block, a victim block         reliability metric, and tries to evenly distribute the total
+is erased by the erase voltage mode (selected by the rules          sum of the effective wearing among NAND blocks.
+
+
+                                                                9
+USENIX Association                                              12th USENIX Conference on File and Storage Technologies 69
+5 Experimental Results
+                                                                    Table 3: Summary of two FlashBench conﬁgurations.
+                                                                            Environments   Channels   Chips     Buffer
+5.1 Experimental Settings
+                                                                               Mobile         2        2        80 KB
+In order to evaluate the effectiveness of the proposed aut-                  Enterprise       8        32      32 MB
+oFTL, we used an extended version of a uniﬁed develop-
+ment environment, called FlashBench [12], for NAND
+ﬂash-based storage devices. Since the efﬁciency of our             and 4, so it can maximally exploit the beneﬁts of dy-
+DPES is tightly related to the temporal characteristics            namic program and erase scaling.
+of write requests, we extended the existing FlashBench                Our evaluations were conducted with various I/O
+to be timing-accurate. Our extended FlashBench em-                 traces from mobile and enterprise environments. (For
+ulates the key operations of NAND ﬂash memory in a                 more details, please see Section 5.2). In order to re-
+timing-accurate fashion using high-resolution timers (or           play I/O traces on top of the extended FlashBench, we
+hrtimers) (which are available in a recent Linux kernel            developed a trace replayer. The trace replayer fetches
+[21]). Our validation results on an 8-core Linux server            I/O commands from I/O traces and then issues them to
+system show that the extended FlashBench is very accu-             the extended FlashBench according to their inter-arrival
+rate. For example, variations on the program time and              times to a storage device. After running traces, we mea-
+erase time of our DRAM-based NAND emulation mod-                   sured the maximum number of P/E cycles, MAXP/E ,
+els are less than 0.8% of TPROG and 0.3% of TERASE , re-           which was actually conducted until ﬂash memory be-
+spectively.                                                        came unreliable. We then compared it with that of base-
+   For our evaluation, we modiﬁed a NAND ﬂash model                line. The overall write throughput is an important metric
+in FlashBench to support DPES-enabled NAND ﬂash                    that shows the side-effect of autoFTL on storage perfor-
+chips with ﬁve write modes, ﬁve erase voltage modes,               mance. For this reason, we also measured the overall
+and two erase speed modes as shown in Figure 7. Each               write throughput while running each I/O trace.
+NAND ﬂash chip employed 128 blocks which were com-
+posed of 128 8-KB pages. The maximum number of
+P/E cycles was set to 3,000. The nominal page program              5.2 Benchmarks
+time (i.e., TPROG ) and the nominal block erase time (i.e.,        We used 8 different I/O traces collected from Android-
+TERASE ) were set to 1.3 ms and 5.0 ms, respectively.              based smartphones and real-world enterprise servers.
+   We evaluated the proposed autoFTL in two differ-                The m down trace was recorded while downloading a
+ent environments, mobile and enterprise environments.              system installation ﬁle (whose size is about 700 MB)
+Since the organizations of mobile storage systems and              using a mobile web-browser through 3G network. The
+enterprise storage systems are quite different, we used            m p2p1 trace included I/O activities when downloading
+two FlashBench conﬁgurations for different environ-                multimedia ﬁles using a mobile P2P application from a
+ments as summarized in Table 3. For a mobile envi-                 lot of rich seeders. Six enterprise traces, hm 0, proj 0,
+ronment, FlashBench was conﬁgured to have two chan-                prxy 0, src1 2, stg 0, and web 0, were from the MS-
+nels, and each channel has a single NAND chip. Since               Cambridge benchmarks [22]. However, since enterprise
+mobile systems are generally resource-limited, the size            traces were collected from old HDD-based server sys-
+of a circular buffer for a mobile environment was set              tems, their write throughputs were too low to evaluate
+to 80 KB only (i.e., equivalently 10 8-KB pages). For              the performance of modern NAND ﬂash-based storage
+an enterprise environment, FlashBench was conﬁgured                systems. In order to partially compensate for low write
+to have eight channels, each of which was composed of              throughput of old HDD-based storage traces, we accel-
+four NAND chips. Since enterprise systems can utilize              erated all the enterprise traces by 100 times so that the
+more resources, the size of a circular buffer was set to 32        peak throughput of the most intensive trace (i.e., src1 2)
+MB (which is a typical size of data buffer in HDD) for             can fully consume the maximum write throughput of our
+enterprise environments.                                           NAND conﬁguration. (In our evaluations, therefore, all
+   We carried out our evaluations with two different tech-         the enterprise traces are 100x-accelerated versions of the
+niques: baseline and autoFTL. Baseline is an existing              original traces.)
+DPES-unaware FTL that always uses the highest erase                   Since recent enterprise SSDs utilize lots of inter-
+voltage mode and the fast erase mode for erasing NAND              chip parallelism (multiple channels) and intra-chip paral-
+blocks, and the fastest write mode for writing data to             lelism (multiple planes), peak throughput is signiﬁcantly
+NAND blocks. AutoFTL is the proposed DPES-aware                    higher than that of conventional HDDs. We tried to ﬁnd
+FTL which decides the erase voltage and the erase time             appropriate enterprise traces which satisﬁed our require-
+depending on the characteristic of a workload and fully            ments to (1) have public conﬁdence; (2) can fully con-
+utilizes DPES-aware techniques, described in Sections 3            sume the maximum throughput of our NAND conﬁgura-
+
+
+                                                              10
+70 12th USENIX Conference on File and Storage Technologies                                                  USENIX Association
+                                                                                                           3.0
+
+
+
+
+                                                                                 Normalized MAXP/E ratio
+                                                                                                                                                      Baseline     AutoFTL
+Table 4: Normalized inter-arrival times of write requests                                                  2.5                 Avg. +69%
+for 8 traces used for evaluations.                                                                         2.0                 +76% +82% +78% +80%                 Avg. +38%
+                            Distributions of normalized                                                    1.5
+                                                                                                                  +46% +50%
+                                                                                                                                                                  +39% +37%
+                                                  e f f ective
+           Trace      inter-arrival times t over TPROG         [%]
+                                                                                                           1.0
+                       t ≤1      1 <t≤ 2             t >2
+                                                                                                           0.5
+          proj 0      40.6%       47.0%              12.4%                                                 0.0
+          src1 2      41.0%       55.6%              3.4%
+           hm 0       14.2%       72.1%              13.7%
+          prxy 0      8.9%        34.6%              56.5%
+          stg 0       7.1%        81.5%              11.4%                         Figure 9: Comparisons of normalized MAXP/E ratios for
+                      5.4%        36.7%              56.9%
+                                                                                   eight traces.
+          web 0
+          m down      45.9%        0.0%              54.1%
+          m p2p1      49.5%        0.0%              50.5%
+                                                                                                            1.5
+                                                                                                                      Avg. -0.91%          Baseline     AutoFTL    Avg. -0.06%
+
+
+
+
+                                                                                 Normalized overall
+                                                                                  write throughput
+                                                                                                                  -2.17% -0.66% -0.64% -1.49% -0.14% -0.36%       -0.09% -0.03%
+tion; (3) reﬂect real user behaviors in enterprise environ-
+                                                                                                            1.0
+
+ments; (4) are extracted from under SSD-based storage
+systems. To the best of our knowledge, we could not ﬁnd                                                     0.5
+
+any workload which met all of the requirements at the
+same time. In particular, there are few enterprise SSD                                                      0.0
+
+workloads which are opened to public.
+   Table 4 summarizes the distributions of inter-arrival
+times of our I/O traces. Inter-arrival times were normal-                          Figure 10: Comparisons of normalized overall write
+ized over TPROG e f f ective
+                             which reﬂects parallel NAND opera-                    throughputs for eight traces.
+tions supported by multiple channels and multiple chips
+per channel in the extended FlashBench. For example,                               use the lowest erase voltage mode. For the other enter-
+for an enterprise environment, since up to 32 chips can                            prise traces, MAXP/E is improved by 79%, on average,
+                                                    e f f ective                   over baseline.
+serve write requests simultaneously, TPROG                       is about
+40 us (i.e., 1300 us of TPROG is divided by 32 chips.).                               On the other hand, for the mobile traces, AutoFTL im-
+On the other hand, for a mobile environment, since there                           proves MAXP/E by only 38%, on average, over baseline.
+are only 2 chips can serve write requests at the same                              Although more than 50% of write requests have inter-
+                                                                                                                       e f f ective
+         e f f ective
+time, TPROG             is 650 us. Although the mobile traces                      arrival times twice longer than TPROG , autoFTL could
+collected from Android smartphones (i.e., m down [23]                              not improve MAXP/E as much as expected. This is be-
+and m p2p1) exhibit very long inter-arrival times, nor-                            cause the size of the circular buffer is too small for buffer-
+                                           e f f ective                            ing the increase in the buffer utilization caused by the
+malized inter-arrival times over TPROG                    are not much
+                                                                                   garbage collection. For example, when a NAND block is
+different from the enterprise traces, except that the mo-
+                                                                                   erased by the fast speed erase mode, the buffer utilization
+bile traces show distinct bimodal distributions which no
+                                                                                   is increased by 40% for the mobile environment while
+write requests in 1 <t≤ 2.
+                                                                                   the effect of the fast erase mode on the buffer utilization
+                                                                                   is less than 0.1% for the enterprise environment. More-
+5.3 Endurance Gain Analysis                                                        over, by the same reason, the slow erase speed mode can-
+                                                                                   not be used in the mobile environment.
+In order to understand how much MAXP/E is improved
+by DPES, each trace was repeated until the total sum
+                                                                                   5.4 Overall Write Throughput Analysis
+of the effective wearing reached 3K. Measured MAXP/E
+values were normalized over that of baseline. Figure 9                             Although autoFTL uses slow write modes frequently, the
+shows normalized MAXP/E ratios for eight traces with                               decrease in the overall write throughput over baseline is
+two different techniques. Overall, the improvement on                              less than 2.2% as shown in Figure 10. For proj 0 trace,
+MAXP/E is proportional to inter-arrival times as summa-                            the overall write throughput is decreased by 2.2%. This
+rized in Table 4; the longer inter-arrival times are, the                          is because, in proj 0 trace, the circular buffer may be-
+more likely slow write modes are selected.                                         come full by highly clustered write requests. When the
+   AutoFTL improves MAXP/E by 69%, on average, over                                circular buffer becomes full, if the foreground garbage
+baseline for the enterprise traces. For proj 0 and src1 2                          collection should be invoked, the write response time of
+traces, improvements on MAXP/E are less than 50% be-                               NAND chips can be directly affected. Although inter-
+cause inter-arrival times of more than 40% of write re-                            arrival times in prxy 0 trace are relatively long over
+                            e f f ective
+quests are shorter than TPROG            so that it is difﬁcult to                 other enterprise traces, the overall write throughput is
+
+                                                                            11
+USENIX Association                                                          12th USENIX Conference on File and Storage Technologies 71
+Distributions of EVmode's         EVmode0   EVmode1   EVmode2   EVmode3   EVmode4                                                              ESmode fast               ESmode slow
+
+
+
+
+                                                                                               Distributions of ESmode's
+                            1.0                                                                                             1.0
+
+                            0.8                                                                                             0.8
+
+                            0.6                                                                                             0.6
+
+                            0.4                                                                                             0.4
+
+                            0.2                                                                                             0.2
+
+                            0.0                                                                                             0.0
+
+
+
+
+                              Figure 11: Distributions of EVmode’s used.                                                               (a) Distributions of ESmode’s used.
+                                                                                                                           3.0                                     _
+
+
+
+
+                                                                                         Normalized MAXP/E ratio
+degraded more than the other enterprise traces. This is                                                                    2.5
+                                                                                                                                                         AutoFTL             AutoFTL
+because almost all the write requests exhibit inter-arrival                                                                2.0                        +17%      +17%       +18%        +17%
+times shorter than 10 ms so that the background garbage                                                                    1.5
+                                                                                                                                   +14%      +13%
+
+collection is not invoked at all4 . As a result, the fore-                                                                 1.0
+ground garbage collection is more frequently invoked,
+                                                                                                                           0.5
+thus increasing the write response time.
+   We also evaluated if there is an extra delay from a
+                                                                                                                           0.0
+                                                                                                                                  proj_0   src1_2    hm_0     prxy_0      stg_0    web_0
+host in sending a write request to the circular buffer be-                                                                   (b) The effect of ESmodeslow on improving MAXP/E .
+cause of DPES. Although autoFTL introduced a few ex-
+tra queueing delay for the host, the increase in the aver-                                 Figure 12: Distributions of ESmode’s used and the effect
+age queueing delay per request was negligible compared                                     of ESmode’s on MAXP/E .
+     e f f ective
+to TPROG . For example, for src1 2 trace, 0.4% of the
+total programmed pages were delayed, and the average                                       we modiﬁed our autoFTL so that ESmode f ast is always
+queueing delay per request was 2.6 us. For stg 0 trace,                                    used when NAND blocks are erased. (We represent this
+less than 0.1% of the total programmed pages were de-                                      technique by autoFTL− .) As shown in Figure 12(b), the
+layed, and the average queueing delay per request was                                      slow erase mode can improve the NAND endurance gain
+0.1 us.                                                                                    up to 18%. Although the slow erase mode can increase
+                                                                                           the buffer utilization, its effect on the write throughput
+                                                                                           was almost negligible.
+5.5 Detailed Analysis
+We performed a detailed analysis on the relationship be-                                   6 Related Work
+tween the erase voltage/speed modes and the improve-
+ment of MAXP/E . Figure 11 presents distributions of                                       As the endurance of recent high-density NAND ﬂash
+EVmode’s used for eight I/O traces. Distributions of                                       memory is continuously reduced, several system-level
+EVmode’s exactly correspond to the improvements of                                         techniques which exploit the physical characteristics of
+MAXP/E as shown in Figure 9; the more frequently a low                                     NAND ﬂash memory have been proposed for improv-
+erase voltage mode is used, the higher the endurance gain                                  ing the endurance and lifetime of ﬂash-based storage sys-
+is. In our evaluations for eight I/O traces, lazy erases are                               tems [8, 7, 24, 25].
+rarely used for all the traces.                                                               Mohan et al. investigated the effect of the damage
+   Figure 12(a) shows distributions of ESmode’s for eight                                  recovery on the SSD lifetime for enterprise servers [8].
+I/O traces. Since the slow erase mode is selected by us-                                   They showed that the overall endurance of NAND ﬂash
+ing the effective buffer utilization, there are little chances                             memory can be improved with its recovery nature. Our
+for selecting the slow erase mode for the mobile traces                                    DPES technique does not consider the self-recovery ef-
+because the size of the circular buffer is only 80 KB.                                     fect, but it can be easily extended to exploit the physical
+On the other hand, for the enterprise environment, there                                   characteristic of the self-recovery of ﬂash memory cells.
+are more opportunities for selecting the slow erase mode.                                     Lee et al. proposed a novel lifetime management tech-
+Even for the traces with short inter-arrival times such as                                 nique that guarantees the lifetime of storage devices by
+proj 0 and src1 2, only 5%∼10% of block erases used                                        intentionally throttling write performance [7]. They also
+the fast erase mode.                                                                       exploited the self-recovery effect of NAND devices, so
+   We also evaluated the effect of the slow erase mode                                     as to lessen the performance penalty caused by write
+on the improvement of MAXP/E . For this for evaluation,                                    throttling. Unlike Lee’s work (which sacriﬁces write
+   4 In our autoFTL setting, the background garbage collection is in-                      performance for guaranteeing the storage lifetime), our
+voked when a idle time between two consecutive requests is longer than                     DPES technique improves the lifetime of NAND devices
+300 ms.                                                                                    without degrading the performance of NAND-based stor-
+
+
+                                                                                    12
+  72 12th USENIX Conference on File and Storage Technologies                                                                                                           USENIX Association
+age systems.                                                       Acknowledgements
+   Wu et al. presented a novel endurance enhancement
+                                                                   We would like to thank Erik Riedel, our shepherd, and
+technique that boosts recovery speed by heating a ﬂash
+                                                                   anonymous referees for valuable comments that greatly
+chip under high temperature [24]. By leveraging the                improved our paper. This work was supported by the
+temperature-accelerated recovery, it improved the en-
+                                                                   National Research Foundation of Korea (NRF) grant
+durance of SSDs up to ﬁve times. The major drawback of             funded by the Ministry of Science, ICT and Future Plan-
+this approach is that it requires extra energy consumption
+                                                                   ning (MSIP) (NRF-2013R1A2A2A01068260). This re-
+to heat ﬂash chips and lowers the reliability of a storage
+                                                                   search was also supported by Next-Generation Infor-
+device. Our DPES technique improves the endurance of               mation Computing Development Program through NRF
+NAND devices by lowering the erase voltage and slow-
+                                                                   funded by MSIP (No. 2010-0020724). The ICT at Seoul
+ing down the erase speed without any serious side effect.
+                                                                   National University and IDEC provided research facili-
+   Jeong et al. proposed an earlier version of the                 ties for this study.
+DPES idea and demonstrated that DPES can improve the
+NAND endurance signiﬁcantly without sacriﬁcing the
+overall write throughput [25]. Unlike their work, how-
+                                                                   References
+ever, our work treats the DPES approach in a more com-
+                                                                    [1] S.-H. Shin et al., “A New 3-bit Programming Al-
+plete fashion, extensively extending the DPES approach
+                                                                        gorithm Using SLC-to-TLC Migration for 8 MB/s
+in several dimensions such as the erase speed scaling,
+                                                                        High Performance TLC NAND Flash Memory,” in
+shallow erasing and lazy erase scheme. Furthermore,
+                                                                        Proc. IEEE Symp. VLSI Circuits, 2012.
+more realistic and detailed evaluations using the timing-
+accurate emulator are presented in this paper.                      [2] J. Choi et al., “3D Approaches for Non-volatile
+                                                                        Memory,” in Proc. IEEE Symp. VLSI Technology,
+                                                                        2011.
+
+                                                                    [3] A. A. Chien et al., “Moore’s Law: The First End-
+7 Conclusions                                                           ing and A New Beginning,” Tech. Report, Dept. of
+                                                                        Computer Science, the Univ. of Chicago, TR-2012-
+                                                                        06.
+We have presented a new system-level approach for im-
+proving the lifetime of ﬂash-based storage systems using            [4] J.-W. Hsieh et al., “Efﬁcient Identiﬁcation of Hot
+dynamic program and erase scaling (DPES). Our DPES                      Data for Flash Memory Storage Systems,” ACM
+approach actively exploits the tradeoff relationship be-                Trans. Storage, vol. 2, no. 1, pp. 22-40, 2006.
+tween the NAND endurance and the erase voltage/speed
+                                                                    [5] F. Chen et al., “CAFTL: A Content-Aware Flash
+so that directly improves the NAND endurance with a
+                                                                        Translation Layer Enhancing the Lifespan of Flash
+minimal decrease in the write performance. Based on
+                                                                        Memory Based Solid State Drives,” in Proc.
+our novel NAND endurance model and the newly deﬁned
+                                                                        USENIX Conf. File and Storage Tech., 2011.
+interface for changing the NAND behavior, we have im-
+plemented autoFTL, which changes the erase voltage and              [6] S. Lee et al., “Improving Performance and Lifetime
+speed in an automatic fashion. Moreover, by making                      of Solid-State Drives Using Hardware-Accelerated
+the key FTL modules (such as garbage collection and                     Compression,” IEEE Trans. Consum. Electron.,
+wear leveling) DPES-aware, autoFTL can signiﬁcantly                     vol. 57, no. 4, pp. 1732-1739, 2011.
+improve the NAND endurance. Our experimental results
+show that autoFTL can improve the maximum number of                 [7] S. Lee et al., “Lifetime Management of Flash-
+P/E cycles by 69% for enterprise traces and 38% for mo-                 Based SSDs Using Recovery-Aware Dynamic
+bile traces, on average, over an existing DPES-unaware                  Throttling,” in Proc. USENIX Conf. File and Stor-
+FTL.                                                                    age Tech., 2012.
+   The current version of autoFTL can be further im-                [8] V. Mohan et al., “How I Learned to Stop Worry-
+proved in several ways. For example, we believe that the                ing and Love Flash Endurance,” in Proc. USENIX
+current mode selection rules are rather too conservative                Workshop Hot Topics in Storage and File Systems,
+without adequately reﬂecting the varying characteristics                2010.
+of I/O workload. As an immediate future task, we plan
+to develop more adaptive mode selection rules that may              [9] N. Mielke et al., “Bit Error Rate in NAND Flash
+adaptively adjust the buffer utilization boundaries for se-             Memories,” in Proc. IEEE Int. Reliability Physics
+lecting write modes.                                                    Symp., 2008.
+
+
+                                                              13
+USENIX Association                                            12th USENIX Conference on File and Storage Technologies 73
+[10] K. F. Schuegraf et al., “Effects of Temperature and        [24] Q. Wu et al., “Exploiting Heat-Accelerated Flash
+     Defects on Breakdown Lifetime of Thin SiO2 at                   Memory Wear-Out Recovery to Enable Self-
+     Very Low Voltages,” IEEE Trans. Electron Devices,               Healing SSDs,” in Proc. USENIX Workshop Hot
+     vol. 41, no. 7, pp. 1227-1232, 1994.                            Topics in Storage and File Systems, 2011.
+
+[11] S. Cho, “Improving NAND Flash Memory Relia-                [25] J. Jeong et al., “Improving NAND Endurance by
+     bility with SSD Controllers,” in Proc. Flash Mem-               Dynamic Program and Erase scaling,” in Proc.
+     ory Summit, 2013.                                               USENIX Workshop Hot Topics in Storage and File
+                                                                     Systems, 2013.
+[12] S. Lee et al., “FlashBench: A Workbench for a
+     Rapid Development of Flash-Based Storage De-
+     vices,” in Proc. IEEE Int. Symp. Rapid System Pro-
+     totyping, 2012.
+
+[13] R.-S. Liu et al., “Optimizing NAND Flash-Based
+     SSDs via Retention Relaxation,” in Proc. USENIX
+     Conf. File and Storage Tech., 2012.
+
+[14] K.-D. Suh et al., “A 3.3 V 32 Mb NAND Flash
+     Memory with Incremental Step Pulse Programming
+     Scheme,” IEEE J. Solid-State Circuits, vol. 30, no.
+     11, pp. 1149-1156, 1995.
+
+[15] JEDEC Standard, ”Stress-Test-Driven Qualiﬁca-
+     tion of Integrated Circuits,” JESD47H.01, 2011.
+
+[16] J. Jeong and J. Kim, “Dynamic Program and
+     Erase Scaling in NAND Flash-based Storage
+     Systems,” Tech. Report, Seoul National Univ.,
+     http://cares.snu.ac.kr/download/TR-CARES-01-
+     14, 2014.
+
+[17] D.-W. Lee et al., “The Operation Algorithm for Im-
+     proving the Reliability of TLC (Triple Level Cell)
+     NAND Flash Characteristics,” in Proc. IEEE Int.
+     Memory Workshop, 2011.
+
+[18] J. Yang, “High-Efﬁciency SSD for Reliable Data
+     Storage Systems,” in Proc. Flash Memory Summit,
+     2011.
+
+[19] R. Frickey, “Data Integrity on 20 nm NAND SSDs,”
+     in Proc. Flash Memory Summit, 2012.
+
+[20] L.-P. Chang, “On Efﬁcient Wear Leveling for
+     Large-Scale Flash-Memory Storage Systems,” in
+     Proc. ACM Symp. Applied Computing, 2007.
+
+[21] IBM “Kernel APIs, Part 3: Timers and Lists in the
+     2.6 Kernel,” http://www.ibm.com/developerworks/
+     library/l-timers-list/.
+
+[22] D. Narayanan et al., “Write Off-Loading: Practi-
+     cal Power Management for Enterprise Storage,” in
+     Proc. USENIX Conf. File and Storage Tech., 2008.
+
+[23] http://www.ubuntu.com/download
+
+
+                                                           14
+74 12th USENIX Conference on File and Storage Technologies                                         USENIX Association
+

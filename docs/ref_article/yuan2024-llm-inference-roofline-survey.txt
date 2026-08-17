@@ -1,0 +1,4169 @@
+LLM Inference Unveiled: Survey and Roofline Model Insights
+Yuzhang Shang2,∗
+Yang Zhou3,∗
+Zhen Dong8
+Zhihang Yuan1, *
+Zhe Zhou4
+Chenhao Xue4
+Bingzhe Wu5
+Zhikai Li6
+Qingyi Gu6
+7
+2
+3
+4
+Yong Jae Lee
+Yan Yan
+Beidi Chen
+Guangyu Sun
+Kurt Keutzer8
+
+arXiv:2402.16363v6 [cs.CL] 1 May 2024
+
+1 Infinigence-AI , 2 Illinois Institute of Technology, 3 Carnegie Mellon University, 4 Peking University, 5 Tencent AI Lab,
+6 Institute of Automation, CAS, 7 University of Wisconsin, Madison, 8 University of California, Berkeley.
+
+Abstract
+The field of efficient Large Language Model (LLM) inference is rapidly evolving, presenting a unique blend of opportunities and challenges. Although the field has expanded
+and is vibrant, there hasn’t been a concise framework that
+analyzes the various methods of LLM Inference to provide
+a clear understanding of this domain. Our survey stands
+out from traditional literature reviews by not only summarizing the current state of research but also by introducing a
+framework based on Roofline model for systematic analysis
+of LLM inference techniques. This framework identifies the
+bottlenecks when deploying LLMs on hardware devices and
+provides a clear understanding of practical problems, such
+as why LLMs are memory-bound, how much memory and
+computation they need, and how to choose the right hardware. We systematically collate the latest advancements
+in efficient LLM inference, covering crucial areas such as
+model compression (e.g., quantization), algorithm improvements (e.g., speculative decoding), and both system and
+hardware-level enhancements (e.g., operator fusion). Our
+survey stands out by analyzing these methods with Roofline
+model, helping us understand their impact on memory access and computation. This distinctive approach not only
+showcases the current research landscape but also delivers
+valuable insights for practical implementation, positioning
+our work as an indispensable resource for researchers new
+to the field as well as for those seeking to deepen their understanding of efficient LLM deployment. The analyze tool,
+LLM-Viewer, is open-sourced.
+
+1. Introduction
+Large Language Models (LLMs) have become a cornerstone of AI advancement in recent years, reshaping the
+landscape of machine learning and natural language pro* Equal contribution.
+project leader.
+
+Zhihang Yuan (hahnyuan@gmail.com) is the
+
+LLM
+(e.g., LLaMA, Vicuna)
+
+Layer Information
+
+Inference Config
+
+Optimization Config
+
+Batch size
+
+Quantization bitwidth
+
+Sequence length
+
+FlashAttention
+
+Inference Stage
+
+Decoding Method
+
+Computation
+Input/Ouput shape
+
+LLM-Viewer
+
+Dependency
+
+Roofline Model
+Computation
+capacity
+Memory bandwidth
+
+Hardware
+(e.g., Nvidia A100,
+Intel 13900K)
+
+Report
+
+Web Viewer
+
+Max performance
+Performance
+bottleneck
+Memory footprint
+Batchsize-perf curve
+...
+
+Figure 1. Workflow of our designed LLM-Viewer. Input: the
+configuration details for the intended LLM deployment and specific hardware device information. Upon receiving these inputs,
+the LLM-Viewer is designed to precisely analyze and identify the
+bottlenecks associated with deploying the given LLM on the specified hardware device, facilitating targeted optimizations for efficient LLM inference.
+
+cessing (NLP) [Zhao et al., 2023]. This trend can be
+traced to the success of revolutionary models like ChatGPT [Brown et al., 2020, Ouyang et al., 2022], which produce very human-like text through their exceptional understanding and generation abilities. Following ChatGPT,
+other notable LLMs such as OPT [Zhang et al., 2022],
+BLOOM [Scao et al., 2022], and Llama [Touvron et al.,
+2023a,b] have emerged, further solidifying the consensus that larger models often lead to enhanced capabilities.
+Therefore, models with tens of billions of parameters are
+becoming increasingly common. As a result of the vast size
+of these models, they present considerable inference challenges, not only for devices with limited computational capabilities, but also for the most advanced hardware. Because of their complexity and scale, as well as their energy and computational demands, these models are diffi-
+
+Inference
+Considerations
+LLM
+Inference
+
+Roofline
+Model
+
+(Sec.2.2)
+
+(Sec.2.3)
+
+(Sec.2.1)
+Early Exiting
+
+Structured
+
+Inference
+Bottleneck
+Analysis
+
+Unstructured
+
+QAT
+
+PTQ
+
+Q-PEFT
+
+(LLM-Viewer Sec.2.4)
+
+Pruning
+
+Model
+Compression
+
+Black-box
+
+Speculative
+Decoding
+
+(Sec.3.4)
+Factorization
+
+Parameter
+Level
+(Sec.3)
+
+Algorithm
+Level
+(Sec.4)
+
+Efficient
+Inference of
+LLM
+
+System
+Level
+(Sec.5)
+
+(Sec.4.2)
+Fast
+Decoding
+Algorithm
+
+Hardware
+Level
+(Sec.6)
+
+White-box
+
+(Sec.5.1)
+
+(Sec.5.2)
+
+(Sec.6.1)
+
+Operator
+Fusion
+
+Workload
+Offloading
+
+Spatial
+Architecture
+
+Compiler/
+System
+Optimization
+
+(Sec.5.2)
+
+(Sec.5.3)
+
+Memory
+Management
+
+Parallel
+Serving
+
+(Sec.6.3)
+Hardware
+Optimization
+
+Parallel
+Decoding
+
+Maximizing
+Decoding
+Tokens
+
+Quantization
+
+(Sec.3.1)
+
+Knowledge
+Distillation
+
+Parameter
+Usage
+Reduction
+
+MoE
+
+(Sec.4.1)
+
+(Sec.3.2)
+
+(Sec.3.3)
+
+Contextual
+Sparsity
+
+New Data
+Format
+
+(Sec.6.2)
+
+(Sec.6.4)
+
+PIM and NMC
+
+New Processing
+Element
+
+Dicussion
+(Sec. 7)
+Safety &
+Reliability
+Large
+Multimodal
+Model
+Long
+Sequence
+
+Figure 2. Mind-map of the Survey on Efficient LLM Inference. Our survey diverges from traditional surveys by focusing on the practical
+aspects of LLM inference. Specifically, we identify and analyze the challenges associated with LLM inference. Subsequently, we introduce
+a specially developed Roofline model to pinpoint the bottlenecks in LLM inference processes (Sec.2). The survey categorizes strategies
+for improving LLM inference efficiency into four main areas: Parameter Reduction (Sec.3), Fast Decoding Algorithm Design (Sec.4),
+System-Level Optimization (Sec.5), and Hardware-Level Optimization (Sec.6), providing a comprehensive framework for addressing the
+complexities of efficient LLM deployment.
+
+cult to deploy in real-world situations. Additionally, the
+resource-intensive nature of these models raises concerns
+about energy consumption, scalability, and accessibility.
+The situation is particularly challenging for smaller organizations and communities with fewer computing resources
+than large corporations. Therefore, these challenges emphasize the need for innovative solutions to make LLM inference more universally accessible and sustainable.
+Numerous methods have been developed to address the
+challenges of deploying LLM. The field of efficient LLM
+inference has grown exponentially in the last two years,
+presenting both opportunities and challenges. While the
+burgeoning volume of research demonstrates the field’s vibrancy, it can inadvertently mask key trends and slow advancements. A critical gap in existing literature is the
+absence of a systematic and practical framework for unified analysis and comprehensive solution development. To
+bridge this gap, our work offers a comprehensive overview
+
+of the current state of research in efficient LLM inference,
+with a unique focus on its practice-driven characteristics.
+Diverging from traditional literature reviews, our work not
+only discusses existing research but also introduces a specifically developed Roofline model. This model is designed
+to analyze bottlenecks in LLM deployments, a crucial step
+we believe is vital for practical application and optimization as shown in Figure 1. Our work is the first, to our
+knowledge, that provides such a tool for analyzing the intricacies of inferring LLMs on hardware devices, systematically collating the latest advancements in efficient LLM
+inference. We delve deep into deployment challenges, particularly emphasizing inference efficiency. Our discussion
+spans various areas, including model compression, decoding algorithm refinement, system-level and hardware-level
+enhancements, as illustrated in Figure 2. While there are
+concurrently related surveys in this domain, such as [Zhu
+et al., 2023] on LLM compression and [Miao et al., 2023a],
+
+[Ding et al., 2023] and [Wang et al., 2024a] on holistic LLM
+serving, our work stands out by incorporating a Roofline
+model analysis.
+In this paper, we first discuss the foundations of
+LLMs and develop a tool named LLM-Viewer, which uses
+Roofline model to analyze the bottleneck of deploying
+LLMs (Sec.2). LLM-Viewer can be used to analyze the
+deployment of any LLM architecture on various hardware
+platform, as shown in Figure 1. For the literature review, this survey categorizes strategies for improving LLM
+inference efficiency into four main areas: Model Compression (Sec.3), Algorithmic Methods for Fast Decoding
+(Sec.4), Compiler/System-Level Optimization (Sec.5), and
+Hardware-Level Optimization (Sec.6).
+
+2. Delve into LLM Inference and Deployment
+2.1. LLM Inference
+Nowadays, the prevailing architecture adopted by most
+large language models (LLMs) is the Transformer decoder
+architecture. Here we will provide a concise overview of its
+fundamental structure, with the option to refer to this survey Zhao et al. [2023] for a more in-depth understanding.
+This structure comprises an embedding layer, a series of sequential Transformer layers, and a prediction head. Figure 3
+demonstrated the architecture.
+The embedding layer transform input tokens into the hidden states. The hidden states are sent to the Transformer
+layers. Each Transformer layer consists of two components.
+Firstly, there is a masked multi-head attention module, denoted as MHA. Following MHA is a multi-layer perceptron submodule, labeled as MLP. The output from the last
+Transformer layer is then sent to the prediction head, which
+is responsible for predicting the next token after the input
+tokens.
+Inference represents the process opposite to the training process. During training, a model learns from a vast
+dataset to capture the intricacies of language and context.
+The weights in model are updated. In contrast, during inference, a user inputs a prompt, and the LLM engages in a
+process of generating responses. This process involves the
+model utilizing its fixed pre-trained weights to comprehend
+the input text and produce text as output. The inference process of Large Language Models (LLMs) is divided into two
+stages: the Prefill Stage and the Decode Stage.
+The Prefill Stage serves as the initial step in LLM inference. In this stage, the model takes a prompt sequence as
+input and engages in the generation of a key-value cache
+(KV cache) for each Transformer layer within the LLM.
+The KV cache plays a crucial role in storing and organizing
+information that the model deems relevant for subsequent
+token generation. Each Transformer layer is equipped with
+its own unique KV cache, and this prefilling process estab-
+
+lishes the foundation for the subsequent decoding stage.
+In the Prefill Stage, the Multi-Head Attention (MHA)
+creats key-value (KV) pairs that will be stored in the KV
+cache. Let’s denote the input to a Transformer layer as
+Xpre ∈ Rn×d , where d is the hidden size and n is the length
+of prompt token sequence. The layers in the MHA have
+weights represented by Wq , Wk , Wv , and Wo . The query,
+key and value are computed through the following process:
+Query:
+
+Qpre = Xpre · Wq
+
+Key: Kpre = Xpre · Wk
+Value: Vpre = Xpre · Wv
+The generated Kpre and Vpre are stored in the KV cache.
+The other computation in MHA can be formulated as 1 :
+Opre = softmax
+
+Qpre · KTpre
+√
+d
+
+!
+· Vpre · Wo + Xpre ,
+
+where the output of MHA Opre ∈ Rn×d is sent to the MLP.
+The output of the MLP serves as the input for the next
+Transformer layer.
+The Decode Stage represents the core of the LLM inference process. In the Decode Stage, the model uses the KV
+caches prepared earlier and might add new information to
+them. The goal here is to generate tokens, which are essentially words or parts of words. This happens step by step.
+The creation of each new token is influenced by the tokens
+that were generated before it, like building a sentence word
+by word.
+In the Decode Stage, the MHA loads the previously
+stored KV cache Kcache and Vcache . The input is Xdec ∈
+R1×d . New key and value pairs are computed and concatenated to the existing cache:
+Query: Qdec = Xdec · Wq
+Key: Kcat = [Kcache , Xdec · Wk ]
+Value: Vcat = [Vcache , Xdec · Wv ]
+These newly computed Xdec · Wk and Xdec · Wv are then
+appended to the KV cache. The other computation in MHA
+is carried out as follows:
+
+
+Qdec · KTcat
+√
+· Vcat · Wo + Xdec
+Odec = softmax
+d
+where the output of MHA Odec ∈ R1×d is sent to the MLP.
+The output of the last Transformer layer is sent to the final
+prediction layer to predict the next token.
+1 We omit layer norm, position mask, and positional embedding for simplicity.
+
+Input Tokens
+
+Transformer Layer (LLaMA)
+
+Embedding
+Q
+WQ
+
+×
+
+Kcache
+
+O
+WO
+
++
+
+Gate
+WG
+
+SiLU
+
+…
+
+K
+WK
+
+Normalization
+
+Hidden
+States
+
+Normalization
+
+Transformer
+Layer 2
+
+×
+
+Softmax
+
+Transformer
+Layer 1
+
+×
+
+Down
+WD
+
++
+
+Up
+WU
+
+V
+
+Transformer
+Layer L
+
+WV
+Vcache
+
+MHA
+
+Prediction Head
+
+× Batched Matrix Matmul
+
+Next Token
+
+MLP
+×
+
++
+
+Elementwise Multiply
+
+Elementwise Add
+
+Figure 3. Demonstration of the architecture of LLMs.
+
+1. Load data
+
+2. Compute
+On-chip Buffer
+
+1.50
+Computation
+Units
+
+3. Store data
+
+Figure 4. Execution of an operation on hardware.
+
+Performance (OPS)
+
+Off-chip Memorry
+(GDDR/DDR/HBM)
+
+1e14
+
+Chip
+
+1.00
+0.75
+0.50
+0.25
+0.00
+
+2.2. Roofline Model
+Assessing the efficiency at which LLMs deploy onto specific hardware involves a comprehensive consideration of
+both hardware and model characteristics. To conduct this
+evaluation, we employ the Roofline model. The Roofline
+model serves as an effective theoretical framework to assess
+the potential performance of deploying a model on particular hardware.
+As shown in Figure 4, the execution of a neural network
+layer on hardware devices entails the transfer of data from
+memory (DDR or HBM) to on-chip buffers, followed by
+computations performed by on-chip processing units, ultimately outputting results back to memory. Therefore, evaluating performance requires simultaneous consideration of
+memory access and processing unit capabilities. If a layer
+involves extensive computations but minimal memory access, it is termed a computation bottleneck. This scenario
+leads to idle on the memory access. On the contrary, when
+a layer requires substantial memory access with fewer computational demands, it is referred to as a memory bottleneck. In this case, computational units remain underutilized. We can clearly distinguish between these two scenarios according to the Roofline model and provide perfor-
+
+turning point
+
+1.25
+
+memory-bound
+0
+
+100
+
+compute-bound
+
+200
+300
+400
+500
+Arithmetic Intensity (OPs/byte)
+
+600
+
+Figure 5. Demonstration of the Roofline model of Nvidia A6000
+GPU. The computation is in FP16.
+
+mance upper bounds for different situations.
+There are two steps to using the Roofline model:
+1. Plot the Roofline: Determine the peak computational
+performance (operations per second, OPS) and peak memory bandwidth (bytes per second) specific to the target hardware device.2 Then create a graph with performance (OPS)
+on the y-axis and arithmetic intensity (OPs/byte) on the xaxis: Draw a horizontal line equal to the peak computational
+performance. This line represents the maximum achievable
+performance by the hardware device. And draw a diagonal
+line from the origin with a slope equal to the peak memory bandwidth. This line represents the maximum memory bandwidth available on the system, known as the memory Roofline. Figure 5 demonstrates the Roofline model of
+Nvidia A6000 GPU.
+2 OPS refer to the number of operations per second. Each MultiplyAccumulate (MAC) operation counts two operations.
+
+Table 1. Analysis for layers in Llama-2-7b using the Roofline
+model of Nvidia A6000 GPU. In this example, the sequence length
+is 2048 and the batch size is 1.
+Layer Name
+
+OPs
+
+Memory
+Access
+
+Arithmetic
+Intensity
+
+Max
+Performance
+
+Bound
+
+155T
+155T
+155T
+155T
+155T
+155T
+155T
+87T
+87T
+960G
+1T
+192G
+
+compute
+compute
+compute
+compute
+compute
+compute
+compute
+memory
+memory
+memory
+memory
+memory
+
+768G
+768G
+768G
+768G
+768G
+768G
+768G
+762G
+762G
+960G
+1T
+192G
+
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+memory
+
+Prefill
+q proj
+k proj
+v proj
+o proj
+gate proj
+up proj
+down proj
+qk matmul
+sv matmul
+softmax
+norm
+add
+
+69G
+69G
+69G
+69G
+185G
+185G
+185G
+34G
+34G
+671M
+59M
+8M
+
+67M
+67M
+67M
+67M
+152M
+152M
+152M
+302M
+302M
+537M
+34M
+34M
+
+q proj
+k proj
+v proj
+o proj
+gate proj
+up proj
+down proj
+qk matmul
+sv matmul
+softmax
+norm
+add
+
+34M
+34M
+34M
+34M
+90M
+90M
+90M
+17M
+17M
+328K
+29K
+4K
+
+34M
+34M
+34M
+34M
+90M
+90M
+90M
+17M
+17M
+262K
+16K
+16K
+
+1024
+1024
+1024
+1024
+1215
+1215
+1215
+114
+114
+1.25
+1.75
+0.25
+Decode
+1
+1
+1
+1
+1
+1
+1
+0.99
+0.99
+1.25
+1.75
+0.25
+
+2. Analyze performance for layers: Evaluate the performance of each layer in the model by quantifying both
+the number of operations (OPs) and the volume of data accessed from memory (bytes). Calculate the arithmetic intensity (OPs/byte) of each layer by dividing the required
+operations by the amount of data transferred. According to
+the graph created in the first step, the theoretical max performance for each layer is determined by the position on
+the graph corresponding to the x-axis value of arithmetic
+intensity. It allows us to ascertain whether the system is
+memory-bound or compute-bound at this point, guiding the
+determination of the subsequent optimization strategy.
+There are two scenarios where resources are not fully
+utilized: When the model’s computational intensity is below the turning point, residing in the red zone, it implies
+that the computational workload required per memory access is low. Even saturating the peak bandwidth does not
+fully utilize all computational resources. In such cases, the
+layer is constrained by memory access (memory-bound),
+and some computational units may remain idle. If the layer
+is memory-bound, consider optimization techniques such as
+quantization, kernel fusion and increasing batch size to alleviate the memory footprint. Conversely, if the model’s
+computational intensity is above the turning point, situated
+
+in the green zone, it suggests that the model requires only
+a small amount of memory access to consume a significant
+amount of computational capability. It implies that the layer
+is constrained by computation (compute-bound), with some
+memory units potentially remaining idle. In this case, we
+should investigate strategies such as enabling low-bit computation to enhance computational efficiency. Detailed explanations of these methods will be provided in the subsequent sections.
+As an example, Table 1 presents the analysis of layers in Llama-2-7b using the Roofline model on the Nvidia
+A6000 GPU. From the table, we observe that during the prefill stage, the majority of computations are compute-bound,
+leading to high performance. Conversely, in the decode
+stage, all computations are memory-bound, resulting in performance significantly below the computational capacity of
+the GPU’s computation units. During the user’s interaction with large models, the prefill stage executes only once,
+while the decode stage is repeatedly performed to generate a
+continuous output. Therefore, optimizing for the memorybound characteristics of the decode stage becomes crucial
+for enhancing the inference performance of large models.
+
+2.3. LLM-Viewer
+There are multiple Transformer layers in LLMs, each containing various operations. Moreover, different LLMs have
+different sets of operations. Additionally, we need to track
+information like memory footprint to calculate the peak
+memory usage and total inference time. Hence, analyzing
+LLMs involves examining network-wide concerns. In this
+section, we propose a powerful tool, LLM-Viewer 3 , to execute the network-wise analysis. It enables the analysis of
+LLM performance and efficiency on various hardware platforms, offering valuable insights into LLM inference and
+performance optimization.
+The workflow of LLM-Viewer is depicted in Figure 1.
+It consists of the following steps: (1) Input the LLM and
+gather essential information about each layer, such as the
+computation count, input and output tensor shapes, and data
+dependencies. (2) Provide input for the hardware and generate a Roofline model that takes into account the computation capacity and memory bandwidth of the hardware. (3)
+Configure the inference settings, including the batch size,
+prompt token length, and generation token length. (4) Configure the optimization settings, such as the quantization
+bitwidth, utilization of FlashAttention, decoding methods,
+and other system optimization techniques. (5) The LLMViewer Analyzer utilizes the Roofline model and layer information to analyze the performance of each layer. It also
+tracks the memory usage of each layer and calculates the
+peak memory consumption based on data dependencies. By
+aggregating the results of all layers, the overall network
+3 The tool is open-sourced at https://github.com/hahnyuan/LLM-Viewer
+
+1e14
+FP16
+INT8
+
+3.0
+Performance (OPS)
+
+performance of LLM can be obtained. (6) Generate a report that provides information such as the maximum performance and performance bottlenecks of each layer and
+the network, as well as the memory footprint. Analyzing curves, such as batch size-performance and sequence
+length-performance curves, can be plotted from the report to
+understand how different settings impact performance. (7)
+LLM-Viewer offers a web viewer that allows convenient visualization of the network architecture and analysis results.
+This tool facilitates easy configuration adjustment and provides access to various data for each layer.
+
+2.5
+
+turning point of INT8
+
+2.0
+1.5
+
+turning point of FP16
+
+1.0
+0.5
+0.0
+
+0
+
+200
+
+400
+600
+800 1000
+Arithmetic Intensity (OPs/byte)
+
+1200
+
+3. Model Compression
+The formidable size and computational demands of Large
+Language Models (LLMs) present significant challenges
+for practical deployment, especially in resource-constrained
+environments. To alleviate these limitations, the most
+straightforward solution is to compress the LLMs. In this
+section, we review the concept of neural network compression for LLMs. This exploration encompasses a thorough
+examination of well-established techniques, including but
+not limited to quantization, pruning, knowledge distillation,
+and low-rank factorization. In each subsection, we will utilize LLM-Viewer to analyze the impact of network compression on LLM inference. Based on our analysis, we will
+provide optimization recommendations.
+
+3.1. Quantization
+In the realm of LLM compression, quantization has become a pivotal technique for mitigating the substantial storage and computational overhead associated with these models. Essentially, quantization involves transforming the
+floating-point values in original LLMs into integers or other
+discrete forms, a process that considerably reduces both
+storage requirements and computational complexity [Gholami et al., 2022]. While some degree of precision loss
+is inherent in this process, carefully designed quantization techniques can achieve significant model compression
+with minimal impact on accuracy. Quantization in the context of LLMs can be primarily categorized into two directions: Quantization for Compressing Pre-trained LLMs
+and Quantization for Parameter-Efficient Fine-Tuning (QPEFT). The first category encompasses approaches that apply quantization to LLMs for using the quantized LLMs
+as pre-trained models. This category can be further divided into two subcategories: Quantization-Aware Training (QAT) and Post-Training Quantization (PTQ). QAT integrates quantization into the model’s training process or
+during the fine-tuning/re-training of a pre-trained LLM, allowing the model to adapt to the quantization from the onset. In contrast, PTQ applies quantization to a model after
+it has completed its training phase, offering a more straightforward approach to model compression without the need
+
+Figure 6. Demonstration of the Roofline model of Nvidia A6000
+GPU for different computation data types.
+
+for retraining. These distinct methodologies highlight the
+versatility of quantization techniques in addressing the specific needs and constraints of LLM deployment.
+3.1.1
+
+A Use Case of LLM-Viewer:
+Roofline Analysis for Quantization
+
+Here we provide an example of how to use our LLM-Viewer
+(Section 2.3) to analyze the bottlenecks of LLM deployments. In LLMs, tensors consist of weights and activations, with activations including temporary activations and
+KV cache. (1) LLM weights must be stored in memory.
+For example, Llama-13b [Touvron et al., 2023a], which has
+13 billion weights, occupies approximately 26GB of memory in FP16 format. (2) temporary activations are generated
+during inference. For example, the inputs of each transformer layer are kept in memory until the residual addition
+is executed. (3) for auto-regressive LLMs, caching key and
+value activations (KV cache) into memory is necessary for
+subsequent token generation. We utilize LLM-Viewer to
+analyze the effects of quantization on these tensors from
+three perspectives: computation, memory consumption, and
+memory access.
+Computation: The latest computing devices, such as
+NVIDIA GPUs, generally support FP32, FP16, and INT8
+data types for computation. Hardware devices generally perform better when processing data with smaller bit
+widths. NVIDIA’s A6000 GPU, for example, is capable of
+performing twice as fast as FP16 with 155 TOP/s and 310
+TOP/s, respectively. In the Roofline model, when enabling
+quantization for faster computation, the roofline height
+increases, indicating improved performance for computebound layers. As shown in Figure 6, the max performance
+improved when using INT8 computation. However, to utilize the computational power of INT8, all input operands
+must be in INT8 format. Consequently, if only the weights
+are quantized to INT8 while the activations remain in FP16
+
+FP16
+W4
+W4KV4
+W4A4
+
+FP16
+W4
+W4KV4
+W4A4
+prefill
+batchsize=1
+seqlen=4096
+
+prefill
+batchsize=16
+seqlen=1024
+
+Figure 7. Relative memory consumption for different quantization
+settings for Llama-2-13b. Tmp Act means temporary activations.
+
+format, the INT8 computational power cannot be utilized.
+Instead, the INT8 weights would need to be converted to
+FP16 for multiplication with FP16 activations. Furthermore, when tensors are quantized to a bitwidth that is
+not supported by the hardware, they need to be converted
+to higher bit widths for computation. For example, the
+NVIDIA H100 GPU does not support INT4 computation.
+Consequently, if the weight or activation is quantized to
+INT4, it would require conversion to a higher bit width,
+such as INT8 or FP16, for computation.
+Memory Consumption: The memory consumption reduction resulting from quantizing different tensors varies, as
+shown in Figure 7 4 . Notably, the memory usage of temporary activations is relatively low, especially during the decode stage. This can be attributed to their short lifespan,
+allowing their memory to be released once their purpose
+is fulfilled. On the other hand, the memory allocated for
+the KV cache behaves differently. It cannot be freed until
+the entire process of generating a complete answer is finished, which entails multiple inference passes through the
+network. Additionally, the memory consumption of the KV
+cache increases as the batch sizes grow larger and the input sequences become longer. This is because the model
+needs to store a greater number of key-value (KV) pairs to
+facilitate its operations.
+4 In our notation, W4 represents the quantization of weights to 4 bits
+while keeping activations in FP16 format. W4A4 indicates both weights
+and activations quantized to 4 bits. In the case of W4KV4, weights and
+the KV cache are quantized, while temporary activations remain in FP16
+format.
+
+Inference Time (s)
+
+decode
+batchsize=16
+seqlen=1024
+
+FP16
+W4
+W4KV4
+W4A4
+
+prefill
+batchsize=1
+seqlen=1024
+Weight
+KV cache
+Tmp Act
+
+decode
+batchsize=1
+seqlen=4096
+
+FP16
+W4
+W4KV4
+W4A4
+
+FP16
+W4
+W4KV4
+W4A4
+
+Relative Memory Consumption
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+
+decode
+batchsize=1
+seqlen=1024
+Weight
+KV cache
+Tmp Act
+
+FP16
+W4
+W4KV4
+W4A4
+
+Relative Memory Consumption
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+
+0.100
+
+FP16
+W8
+W4
+W2
+W1
+
+0.075
+0.050
+0.025
+0.000
+
+0
+
+10
+
+20
+
+30
+40
+Batch Size
+
+50
+
+60
+
+Figure 8. Inference time of decoding stage for different quantization settings on Llama-2-13b. (Sequence length=1024)
+
+Memory Access: Quantizing tensors in LLM can significantly reduce memory access, resulting in fewer data bytes
+to be moved for the same amount of computation. This
+increase in arithmetic intensity contributes to the Roofline
+model, leading to three scenarios: (1) After quantization,
+the arithmetic intensity remains within the memory-bound
+range. With the improvement in arithmetic intensity, the
+average data access per computation is reduced, alleviating
+the pressure on data memory access. Consequently, the theoretical performance is enhanced. This can greatly boost
+the performance during the memory-bound decode stage.
+(2) The arithmetic intensity transitions from being memorybound to compute-bound. This shift also reduces the pressure on data memory access, resulting in improved theoretical performance. (3) Both before and after quantization,
+the arithmetic intensity remains within the compute-bound
+range. In this case, there is no performance improvement.
+For example, this scenario can occur during the computebound prefill stage or when the batch size is large in the
+decode stage.
+As depicted in Figure 8, when the batch size is small, the
+layers in the network are memory-bound both before and after quantization. Therefore, quantization can enhance performance and reduce the network’s inference time. However, when the batch size is large, compressing the network’s weights from 4 bits to 2 bits or 1 bit does not lead
+to a decrease in the inference time. This is because, at this
+point, the network is already compute-bound, and quantizing the weights becomes ineffective. Similar to the previous scenario, the behavior of the system can exhibit saturation effects in prefill stage. As shown in Figure 9, when
+the sequence length is relatively small, the prefill stage is
+memory-bound. In this case, applying quantization can enhance the performance by reducing the memory access requirements of the network. However, as the sequence length
+increases, the prefill stage becomes more compute-bound.
+Consequently, quantizing the weights may not yield significant improvements in performance when the network is already compute-bound during the prefill stage with large sequence lengths.
+
+Inference Time (s)
+
+0.20
+
+FP16
+W8
+W4
+W2
+W1
+
+0.15
+0.10
+0.05
+0.00
+
+24
+
+25
+
+26
+28
+27
+Sequence Length
+
+29
+
+210
+
+Figure 9. Inference time of prefill stage for different quantization
+settings on Llama-2-13b. (Batch size=1)
+
+3.1.2
+
+Quantization
+LLMs
+
+for
+
+Compressing
+
+Pre-trained
+
+In Quantization-Aware Training (QAT) [Choi et al., 2018,
+Courbariaux et al., 2015, Dong et al., 2019], the quantization process is seamlessly integrated into the training of
+Large Language Models (LLMs), enabling them to adapt to
+low-precision representations and thus mitigating precision
+loss. LLM-QAT [Liu et al., 2023b] innovatively addresses
+the challenge of training data acquisition for LLMs through
+data-free distillation, which leverages outputs from a pretrained model to obviate the need for extensive data collection. Furthermore, LLM-QAT expands quantization beyond
+weights and activations to include key value (KV) caches,
+enhancing throughput and supporting longer sequence dependencies. Its successful distillation of large Llama models to 4-bit quantized weights and KV caches underscores
+the potential for accurately quantized 4-bit LLMs.
+To attain lower-bit quantization, such as below 2-bit,
+Kim et al. [2023b] introduce Token-Scaled Logit Distillation (TSLD) for ternary QAT in LLMs. This method
+employs an adaptive knowledge distillation technique that
+modifies Logit Knowledge Distillation based on token confidence, providing tailored guidance during LLM QAT. Furthermore, Shang et al. [2024] focus on salient weights with
+their concept of partially binarized matrices in PB-LLM. By
+preserving these crucial weights in higher bits, PB-LLM effectively maintains the reasoning capacity of heavily quantized LLMs. Additionally, PB-LLM explores minimizing
+quantization error by determining the optimal scaling factors for binarized LLMs, a vital step in preserving the effectiveness of models under aggressive quantization.
+Post-Training Quantization (PTQ)
+Post-Training Quantization (PTQ) represents a crucial
+technique in optimizing Large Language Models (LLMs),
+entailing the quantization of model parameters post the
+LLM’s training phase. The primary goal of PTQ is to reduce both the storage requirements and computational complexity of the LLM, without necessitating alterations to the
+model’s architecture or embarking on a retraining process.
+
+This approach stands out for its simplicity and efficiency,
+particularly in achieving significant model compression. In
+the context of LLMs, which typically contain billions of
+parameters, Quantization-Aware Training (QAT) often becomes impractical due to excessive training costs. Hence,
+PTQ emerges as a more viable solution for these large-scale
+models. However, it’s crucial to acknowledge that PTQ can
+lead to a certain degree of precision loss as a consequence of
+the quantization process. Despite this, PTQ serves as an effective method to enhance the efficiency of LLMs, offering
+a straightforward solution that avoids major modifications
+or extensive additional training.
+In PTQ, various approaches focus on weight-only
+quantization to enhance efficiency. For instance, LUTGEMM [Park et al., 2023] optimizes matrix multiplications in LLMs using weight-only quantization and the BCQ
+format, thereby reducing latency and improving computational efficiency. LLM.int8() [Dettmers et al., 2022] employs 8-bit quantization, which halves GPU memory usage
+during inference and maintains precision through vectorwise quantization and mixed-precision decomposition. This
+method enables efficient inference in models up to 175 billion parameters. ZeroQuant [Yao et al., 2022] combines a
+hardware-friendly quantization scheme with layer-by-layer
+knowledge distillation, optimizing both weights and activations to INT8 with minimal accuracy loss. Addressing
+higher compression targets, GPTQ [Frantar et al., 2022] introduces a layer-wise quantization technique based on approximate second-order information, achieving a reduction
+to 3-4 bits per weight with minimal accuracy loss. Additionally, the study by Dettmers and Zettlemoyer [2023] explores
+the balance between model size and bit precision, particularly for zero-shot performance, finding that 4-bit precision generally offers the optimal balance. Innovations like
+AWQ [Kim et al., 2023c, Lin et al., 2023] highlight that
+protecting a small percentage of salient weights can significantly reduce quantization error. AWQ uses an activationaware approach, focusing on weight channels with larger
+activation magnitudes, and incorporates per-channel scaling
+for optimal quantization. OWQ [Lee et al., 2023] analyzes
+how activation outliers amplify quantization error, introducing a mixed-precision scheme to assign higher precision to
+weights affected by these outliers. SpQR [Dettmers et al.,
+2023b] takes a unique approach by isolating outlier weights
+for storage in higher precision, while compressing the remainder to 3-4 bits. This technique allows for more efficient
+compression while maintaining near-lossless performance.
+QuantEase [Behdin et al., 2023] suggests using a coordinate
+descent approach to optimize all of the weights in network,
+improving the efficiency of quantization.
+To achieve even lower-bit quantization (e.g., below 2bit), QuIP [Chee et al., 2023] introduces an innovative approach that accounts for the even distribution of weight
+
+2022
+July
+ZeroQuant
+[Yao et al.]
+LUT-GEMM
+[Park et al.]
+LLM.int8()
+[Detterms et
+al.]
+
+Sep
+
+2023
+Nov
+
+GPTQ
+Smooth[Frantar et
+Quant
+al.]
+[Xiao et al.]
+OutlierSuppression
+[Wei et al.]
+
+Jan
+
+Mar
+
+May
+
+2024
+July
+
+OliVe
+ZeroQuant- SpQR
+[Guo et al.]
+v2
+[Dettmers et
+Outlier[Yao et al.] al.]
+Suppression+ LLM-QAT
+OWQ
+[Detterms et [Liu et al.]
+[Lee et al.]
+al.]
+AWQ
+RPTQ
+[Lin et al.]
+[Yuan et al.]
+SqueezeLLM MoFQ
+[Kim et al.] [Zhang et
+QLoRA
+al.]
+[Dettmers et INT2.1
+al.]
+[Chai et al.]
+
+QuIP
+[Chee et al.]
+OmniQuant
+[Shao et al.]
+INT-FPQSim
+[Nair et al.]
+NUPES
+[Yvinec et
+al.]
+TSLD
+[Kim et al.]
+
+FPTQ
+[Li et al.]
+OmniQuant
+[Shao et al.]
+INT-FPQSim
+[Nair et al.]
+ZeroQuantFP
+[Wu et al.]
+
+Sep
+
+Nov
+
+Jan
+
+QuantEase AdaDim
+[Behdin et
+[Heo et al.]
+al.]
+DFQ
+NTweaking [Li et al.]
+[Li et al.]
+QLLM
+SGDrounding [Liu et al.]
+[Cheng et al.] LLM-FP4
+PB-LLM
+[Liu et al.]
+[Shang et al.] DGQ
+QA-LoRA
+[Zhang et
+[Xu et al.]
+al.]
+
+LoftQ
+[Li et al.]
+LQ-LoRA
+[Guo et al.]
+AWEQ
+[Li et al.]
+AFPQ
+[Zhang et
+al.]
+
+BiLLM
+[Huang et
+al.]
+KVQuant
+[Hopper et
+al.]
+KIVI
+[Liu et al.]
+WKVQuant
+[Yue et al.]
+
+Figure 10. Timeline of Quantization for LLM methods from 2022 to 2024. The red-highlighted methods represent they belonging to Quantization for Parameter Efficient Fine-Tuning (Q-PEFT), the green-highlighted methods represent they belonging to QAT-related methods,
+and others are PTQ-based methods.
+
+magnitudes and the significance of accurately rounding directions unaligned with coordinate axes. QuIP comprises
+an adaptive rounding procedure that minimizes a quadratic
+proxy objective, essential for optimizing the quantization
+process. Additionally, it employs efficient pre- and postprocessing techniques that ensure weight and Hessian incoherence through multiplication by random orthogonal matrices, crucial for maintaining quantization effectiveness.
+Further advancing PTQ methods, Li et al. [2023a] are inspired by the observation that aligning the quantized activation distribution with its floating-point counterpart can
+restore accuracy in LLMs. Their proposed ’Norm Tweaking’ strategy involves a meticulous calibration data generation process and a channel-wise distance constraint. This
+approach updates the weights of normalization layers, leading to enhanced generalization capabilities. [Shang et al.,
+2024] propose partial-binarized LLM (PB-LLM) by introducing binarization [Hubara et al., 2016] into LLM quantization to push weight quantization under 2 bits. Following
+PB-LLM, BiLLM [Huang et al., 2024] pushes weight quantization to almost 1 bit.
+Apart from efforts that focus solely on weight quantization in LLMs, numerous PTQ approaches focus on weights
+and activations quantization. SmoothQuant [Xiao et al.,
+2023a] addresses the challenge of quantizing activations,
+which can be complex due to the presence of outliers.
+It introduces a per-channel scaling transformation that effectively smooths out activation magnitudes, rendering the
+model more receptive to quantization. Recognizing the intricacies of quantizing activations in LLMs, RPTQ [Yuan
+et al., 2023c] highlights the uneven ranges across channels
+and the prevalence of outliers. RPTQ’s innovative approach
+involves clustering channels for quantization, thereby reducing discrepancies in channel ranges. This method
+smartly integrates channel reordering into layer normalization and linear layer weights to minimize overhead.
+OliVe [Guo et al., 2023a] adopts an outlier-victim pair
+
+(OVP) quantization strategy, focusing on local handling of
+outliers with low hardware overhead and significant performance benefits. This approach stems from the understanding that outliers are crucial, while adjacent normal values
+are less so. Building on this, Outlier Suppression+ extends
+the concept by addressing asymmetrically distributed harmful outliers in specific channels. It introduces channel-wise
+shifting and scaling operations to balance the outlier distribution and reduce the impact of problematic channels,
+considering both the nature of the outliers and the subsequent quantization errors. ZeroQuant-FP [Wu et al., 2023d]
+delves into floating-point (FP) quantization, specifically exploring FP8 and FP4 formats. This study finds that FP8
+activation quantization in LLMs outperforms the traditional
+INT8 format, while FP4 weight quantization shows comparable efficacy to INT4. ZeroQuant-FP addresses the divergence between weights and activations by standardizing all
+scaling factors as powers of 2 and restricting them within a
+single compute group, ensuring consistency and efficiency
+in the quantization process. Li et al. [2023c] propose FPTQ,
+in which they employ a layerwise strategy to cope with different levels of quantization difficulty. Particularly, they devises an offline logarithmic activation equalization to render a quantization-friendly distribution for previously intractable layers.
+Since the end of 2023, the length of tokens has been
+significantly increasing, causing the KV cache to consume
+more memory. For instance, Google Gemini 1.5 [Sundar Pichai, 2024] can handle up to 1 million tokens in
+production, and LLMs processing books, large images or
+videos will require tens of thousands of tokens. As a result,
+the optimization of KV Cache Quantization has become
+increasingly important. Several recent papers in 2024 have
+focused on improving KV cache quantization. For example, Hooper et al. [2024] propose a solution for achieving
+10 million context length LLM inference with KV Cache
+Quantization. KIVI [Liu et al., 2024b] pushes the quan-
+
+seqlen=10k
+
+seqlen=50k
+
+seqlen=200k
+Weight
+KV cache
+Tmp Act
+
+FP16
+KV4
+W4KV4
+KV2
+
+FP16
+KV4
+W4KV4
+KV2
+
+FP16
+KV4
+W4KV4
+KV2
+
+Relative Memory Consumption
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+
+Figure 11. Memory Consumption of decode stage for different
+quantization settings on Llama-2-13b. (Batch size=1).
+
+tization of KV cache to 2-bit. Yue et al. [2024] proposes
+WKVQuant as to jointly optimize the quantization of both
+the weights and the KV cache in LLMs, making W4KV4
+have the same performance as W4. As shown in Figure 11,
+we use LLM-Viewer to analyze the memory reduction of
+KV cache quantization. We can observe that when the sequence length is larger than 50k, the KV cache takes most of
+the memory and its quantization can significantly decrease
+the memory consumption.
+3.1.3
+
+Quantization for Parameter Efficient FineTuning (Q-PEFT)
+
+Parameter Efficient Fine-Tuning (PEFT) is an important
+topic for LLMs. One of the most popular approaches is lowrank adaptation (LoRA) [Hu et al., 2021, Valipour et al.,
+2022], where the key insight is to decompose the adapter
+weights into the multiplication of two low-rank (and thus
+parameter-efficient) matrices. LoRA has claimed comparable performance to full fine-tuning while using much fewer
+learnable parameters. Please refer to the review paper [Hu
+et al., 2023] for more details about this adaptor.
+In addition to the well-defined quantization paradigms,
+a novel paradigm in LLM efficiency is emerging: Quantization for Parameter-Efficient Fine-Tuning (Q-PEFT). This
+approach integrates quantization into the fine-tuning process of LLMs, offering a unique and efficient method, particularly relevant in the era of large models. Pioneering
+works in this paradigm, such as PEQA [Kim et al., 2023a],
+DFT [Li et al., 2023e], and QLORA [Dettmers et al., 2023a]
+demonstrate the feasibility and effectiveness of this approach. PEQA employs a dual-stage process where the first
+stage involves quantizing the parameter matrix of each fully
+connected layer into a matrix of low-bit integers coupled
+with a scalar vector. The second stage focuses on finetuning the scalar vector for specific downstream tasks, allowing for more efficient task-specific adjustments. DFT
+adopts the efficient Lion optimizer, which only keeps track
+
+of the momentum and has consistent update magnitudes for
+each parameter, an inherent advantage for robust quantization; and (ii) we quantize all model states and store them
+as integer values, and present a gradient flow and parameter update scheme for the quantized weights. On the other
+hand, QLORA introduces novel concepts such as a new data
+type, double quantization, and paged optimizers. These innovations aim to conserve memory efficiently while maintaining LLM fine-tuning performance. Notably, QLORA
+facilitates large model fine-tuning on a single GPU, achieving state-of-the-art results on the Vicuna benchmark, a testament to its effectiveness in balancing memory efficiency
+and model performance.
+However, a limitation of QLoRA is its restriction to at
+most 4-bit quantization during fine-tuning; lower-bit quantization, such as 2-bit, can significantly deteriorate the performance. Addressing this challenge, several studies have ventured into the realm of Q-PEFT to enable lower-bit quantization. LQ-LoRA [Guo et al., 2023b] introduces an iterative algorithm that decomposes each pretrained matrix
+into a high-precision, low-rank component and a memoryefficient quantized component. During fine-tuning, only
+the low-rank component is updated, keeping the quantized
+component fixed. This method presents an integer linear
+programming approach for the quantization component, allowing dynamic configuration of quantization parameters
+like bit-width and block size within a given memory budget. Another notable approach, Loft-Q [Li et al., 2023d],
+simultaneously quantizes an LLM and establishes a suitable
+low-rank initialization for LoRA fine-tuning. This strategy
+effectively bridges the gap between the quantized and fullprecision models, significantly enhancing generalization in
+downstream tasks. QA-LoRA [Xu et al., 2023c] leverages
+the benefits of quantizing the LLM’s weights into low-bit
+integers, facilitating an efficient fine-tuning stage. Additionally, it produces a lightweight, fine-tuned model, circumventing the accuracy loss often associated with PTQ.
+
+3.1.4
+
+Discussion on LLM Quantiztaion
+
+Figure 10 presents a timeline of LLM quantization techniques, highlighting the evolution from Post-Training
+Quantization (PTQ) as the initial mainstream approach
+to the rising prominence of Quantization-Aware Training (QAT) and Quantization for Parameter-Efficient FineTuning (Q-PEFT). This shift underscores the community’s
+adaptation in response to the performance bottlenecks encountered with PTQ, marking QAT and Q-PEFT as the burgeoning areas of focus in the quest for efficient LLM inference.
+
+3.2. Pruning
+Pruning [LeCun et al., 1989, Liang et al., 2021], which concentrates on identifying and eliminating model parameters
+that are deemed unnecessary or redundant, is another popular technique for compressing LLMs. In the context of
+LLMs, the parameters often account for a considerable portion of the model size and computational demand. By carefully pruning these parameters, it’s possible to streamline
+the model, making it more efficient without significantly
+compromising its performance. Pruning methods can be
+broadly classified into two categories: unstructured pruning and structured pruning, and we describe the research
+progress of each category in turn below.
+3.2.1
+
+Unstructured pruning
+
+Unstructured pruning selectively eliminates individual
+weights or neurons from a model, leading to a sparser, yet
+more irregularly structured network. This form of pruning
+excels in ensuring model accuracy, however, the resultant irregularity in the weight distribution necessitates specialized
+handling or software optimizations. SparseGPT [Frantar
+and Alistarh, 2023] is a groundbreaking one-shot pruning
+method tailored for LLMs. It tackles the pruning challenge
+by reconceptualizing it into a series of extensive sparse regression problems, efficiently solved by a newly developed
+solver. Notably, SparseGPT can efficiently process a model
+with 175 billion parameters in just a few hours on a single GPU, and it can induce significant sparsity (50-60%) in
+LLMs without significantly sacrificing accuracy or necessitating fine-tuning. To tackle the challenge of reconstruction cost in SparseGPT, Sun et al. [2023a] propose Wanda,
+which assesses the significance of each weight by evaluating its magnitude and the norm of the corresponding input,
+significantly increasing the computational efficiency. Further, Yin et al. [2023a] design a set of non-uniform hierarchical sparsity ratios to pay more attention to the layers with
+higher outlier occurrences, thus boosting the pruning performance. Moreover, Considering the hardware support for
+unstructured pruning, Flash-LLM [Xia et al., 2023a] proposes an unstructured sparse matrix multiplication method,
+which is characterized by sparse loading and dense computation, to implement the GPU Tensor Core’s sophisticated
+support for unstructured sparsity.
+3.2.2
+
+Structured pruning
+
+Structured pruning removes entire neurons or layers, resulting in a cleaner, more regular structure. The pruned model
+is generally more compatible with conventional hardware,
+however, the simplicity and regularity come at a cost: this
+form of pruning can have a more pronounced impact on
+the model’s performance, as it involves removing larger,
+
+potentially more critical components. LLM-Pruner [Ma
+et al., 2023] represents a pioneering approach in structural
+pruning for LLMs. It employs a one-shot pruning technique, which relies on first-order and estimated Hessian
+data and necessitates subsequent fine-tuning using LoRA to
+restore the weights. This work is advantageous as it significantly reduces both computational demands and memory
+requirements, while preserving the fundamental structure
+of LLMs. Sheared Llama [Xia et al., 2023b] proposes another noteworthy solution by combining targeted structured
+pruning with a dynamic batch loading algorithm. First, it
+meticulously prunes a source model into a desired target
+architecture, meticulously chosen by analyzing the configurations of the pre-trained model. Then, it enhances training efficiency through the dynamic batch loading algorithm,
+which adjusts the proportion of training data from various domains. Compresso [Guo et al., 2023c] establishes
+a collaborative learning framework, where the LLM and a
+resource-efficient pruning algorithm work in tandem, with
+the ability to prune Llama-7B to 5.4B while preserving the
+original performance.
+
+3.3. Knowledge Distillation
+Knowledge distillation [Gou et al., 2021, Hinton et al.,
+2015] is a technique that facilitates the transfer of capabilities from a larger model (referred to as the “teacher”)
+to a smaller model (referred to as the “student”), allowing the smaller model to perform tasks with similar proficiency as the larger model but with reduced computational
+resources [Gou et al., 2021, Shang et al., 2021]. For LLM
+compression, there are two main categories of knowledge
+distillation: white-box and black-box distillation. Within
+these categories, researchers have developed a range of distillation methods tailored for LLMs, which are described
+in detail below. Moreover, a more detailed and specific survey regarding knowledge distillation of LLMs has also been
+carried out [Xu et al., 2024].
+3.3.1
+
+White-Box Knowledge Distillation
+
+In white-box distillation, the architecture and weights of the
+teacher model are fully accessible. This transparency allows
+the student model to learn not just the output of the teacher
+model but also its internal representations and decisionmaking processes. MiniLLM [Gu et al., 2023] critiques
+the limitations of standard knowledge distillation objectives and suggests that reverse Kullback-Leibler divergence
+is more effective for capturing the complexity of generative tasks, which can enhance the student model’s response
+quality and reliability. MiniLLM also introduces single-step
+regularization, teacher-mixed sampling, and length normalization to address challenges in training, thus demonstrating
+great performance potential for distilling LLMs on the stan-
+
+dard benchmarks. In contrast to MiniLLM, GKD [Agarwal et al., 2023] presents a more straightforward and stable method. It aligns more with supervised training by
+avoiding backpropagation through the student model’s sampling. Instead of using predetermined output sequences,
+GKD trains the student model on its own created sequences,
+utilizing the teacher’s probabilities as guidance, which leads
+to notable improvements in the student’s performance. Homotopic distillation [Liang et al., 2023a] aims to facilitate the alignment of the student model’s predictions with
+those of the teacher model across extensive open-domain
+data. It involves starting the student model with the teacher
+model’s configuration and progressively reducing the student model’s neurons to reach a specified model complexity.
+Furthermore, Liang et al. [2023b] present a layerwise distillation approach that involves creating unique task-aware filters for each layer of teacher and student models. These filters, essentially neural networks equipped with task-specific
+heads, are designed to distill and capture the predictive
+knowledge from the hidden layers of the respective models. AD-KD [Wu et al., 2023b] analyzes the teacher model’s
+token-level rationale using integrated gradients and transfers attributional knowledge to the student model, which enables the student model to imitate the teacher’s underlying
+reasoning, not just its behaviors.
+
+”hard” instructions for the student model, resulting in a dynamic three-step adversarial cycle.
+Black-box distillation is also identified as a promising tool to transfer the power of chain-of-thought (CoT)
+prompting from larger models to smaller ones. Fu et al.
+[2023b] observe a trade-off in language models between
+their diverse capabilities, and focus on moving the teacher
+model’s capability from general abilities towards enhancing the student model’s proficiency in the targeted mathematical CoT. SCOTT [Wang et al., 2023] uses contrastive
+decoding for better rationale supervision and a counterfactual reasoning objective for faithful distillation, resulting in
+more faithful CoT rationales. Distilling step-by-step [Hsieh
+et al., 2023] introduces a novel training method for smaller
+models, surpassing LLMs with less data. It uses LLM rationales as extra training material in a multi-task framework,
+cutting down data needs versus standard fine-tuning and distillation. Similarly, Li et al. [2023b] propose symbolic CoT
+distillation, where they obtain CoT rationales for unlabeled
+dataset instances from the teacher model and then train the
+student model to forecast both the rationale and the label
+based on these instances. To promote complex, multi-step
+reasoning within a dialogue context, i.e., dialogue CoT reasoning, Chae et al. [2023] utilize LLMs as inconsistent
+teachers and strategically distill valuable and logical rationales through alignment filters.
+
+3.3.2
+
+3.4. Factorization
+
+Black-Box Knowledge Distillation
+
+Contrary to white-box distillation, black-box distillation
+does not require access to the internal information of the
+teacher model. Instead, it focuses on replicating the output behavior of the teacher model. The student model
+learns solely from the input-output pairings produced by
+the teacher, without any insight into its internal operations.
+Multitask-ICT [Huang et al., 2022] introduces in-context
+learning distillation, which merges the objectives of incontext learning with those of language modeling, intending to distill into smaller models both the capability to comprehend in-context examples and the knowledge required
+for specific tasks. LaMini-LM [Wu et al., 2023a] creates a
+set of 2.58 million instructions and employs GPT-3.5 Turbo
+to produce responses to these instructions. Subsequently,
+it uses these instructions as a basis to fine-tune a range of
+student models. Similarly proceeding from creating examples, Sahu et al. [2023] proposes PromptMix, which involves a two-step method based on prompting to create labeled examples for text classification. In PromptMix, the
+borderline examples can enhance the knowledge transfer
+from teacher models like GPT-3.5 to student models. In
+contrast to the traditional unidirectional knowledge distillation, Lion [Jiang et al., 2023] introduces an adversarial distillation framework, which encourages the teacher model to
+identify ”hard” instructions and subsequently generate new
+
+The use of low-rank matrix decomposition [Kishore Kumar
+and Schneider, 2017] as a technique for compressing Deep
+Neural Networks (DNNs) represents a straightforward yet
+effective approach, garnering considerable attention within
+both scientific computing and machine learning domains.
+In recent years, the challenge of efficiently compressing and
+accelerating large-scale neural networks via low-rank methods has become a focal point of research. This has led to
+significant advancements in developing and refining lowrank factorization strategies tailored for DNNs [Schotthöfer
+et al., 2022].
+Activation-aware Singular Value Decomposition
+(ASVD) [Yuan et al., 2023d] is the first work using
+factorization techniques to compress LLM. ASVD effectively manages activation outliers by adjusting the weight
+matrix based on the activation distribution, improving
+decomposition accuracy and efficiency.
+ASVD also
+addresses the varying sensitivity of different LLM layers
+to decomposition, with an iterative calibration process
+for optimal layer-specific decomposition. Concurrently,
+LAyer-SElective Rank reduction (LASER) [Sharma et al.,
+2023] demonstrates the surprising result that it is often
+possible to significantly improve the performance of LLMs
+by selectively removing higher-order components1 of their
+weight matrices. Apart from targeting the LLMs’ weights,
+
+TensorGPT [Xu et al., 2023b], in which the embedding
+layer of LLMs is compressed through Tensor-Train Decomposition (TTD) [Oseledets, 2011] in order to store large
+embeddings in a low-rank tensor format, with much fewer
+parameters.
+
+4. Algorithmic Methods for Fast Decoding
+LLMs have achieved astonishing performance in various
+text generation tasks. They typically contain the decoder
+stage that generates tokens one after another, following
+an autoregressive relation with all preceding tokens. During the decoding of every token, decoder weights have to
+be repeatedly loaded into memory. As the parameter size
+of LLM becomes colossal, the decoding process becomes
+heavily memory-bound [de Jong et al., 2023] and experiences low hardware utilization, leading to severely long latency [Kim et al., 2023d]. This is particularly problematic
+in real-world applications like ChatBot, where quick and
+even real-time responses are crucial. Therefore, there is a
+strong need to optimize the decoding process to improve
+performance in such applications.
+This section focuses on the discussion of prior efforts to
+reduce the LLM inference cost from an algorithm perspective. Specifically, this section intends to develop the discussion from two directions:
+• In section 4.1, for every single token decoded (fixed #tokens decoded), how to utilize the minimum number of
+parameters of the LLM.
+• In section 4.2, for every single forward propagation of the
+LLM (fixed #parameters used) how to decode the maximum number of tokens.
+
+4.1. Minimum Parameter Used Per Token Decoded
+Interestingly, Simoulin and Crabbé [2021] has shown that
+although language models tend to have a huge number of
+parameters, not all parameters are needed to generate the
+accurate tokens. LLM inference latency can be reduced
+by selecting only a subset of necessary parameters to use
+(load) per input token and still preserving the decoded token’s accuracy. In this section, we look at input-dependent
+dynamic weights dropping scheme for LLM from three different perspectives: 4.1.1 looks at early exiting, or dynamically choosing weights in the layer, depth, dimension; 4.1.2
+introduces methods that dynamically detects sparsity in the
+width dimension of the LLM, pruning out heads and MLP
+columns; 4.1.3 present Mixture-of-Experts (MoE) which
+pretrains a sparse model and chooses the correct experts for
+the different input during runtime.
+4.1.1
+
+Early Exiting
+
+Early exiting (or layer skipping) has been a well-explored
+idea in various network architectures, particularly for the
+
+encoder-only models [Baier-Reinio and Sterck, 2020, Hou
+et al., 2020, Li et al., 2021, Liu et al., 2020, 2022, Schuster et al., 2021, Schwartz et al., 2020, Stickland and Murray, 2019, Xin et al., 2020, Zhou et al., 2020, Zhu, 2021].
+Early exiting for decoder architecture requires consistency
+and quality retaining on the sequence level where each token depends on the previous tokens, which are considerations lacking in the previous abundant encoder-only earlyexiting literature. The decoder contains layers of identical
+structure. Benefiting from this trait, the output hidden states
+of every layer can be used to pass in the LM Head to get
+a probability distribution prediction of the next token decoded. Geva et al. [2022] and Simoulin and Crabbé [2021]
+observe that for some tokens, the hidden states saturate during the intermediate layers. In other words, early exiting in
+the middle would, for some tokens, output the correct top-1
+prediction as running through the full model. This observation lays the basis for the success of decoder early exiting
+methods.
+Elbayad et al. [2020] conducts an early effort for efficient machine translation tasks to use early exiting on the
+decoder architecture. It proposes a general approach to follow. Shown in Figure 12 (b), during the forward propagation, after every layer, there is an internal confidence function, usually a fixed metric or an MLP with a small number
+of layers, that computes a confidence score based on the
+hidden states on how likely it is to saturate at the current
+layer. The score is used to decide whether to exit through
+some carefully designed criteria. The LM Head is then used
+to output the next token-predicted probability distribution.
+Due to the high similarity of the newer follow-up works, we
+extend the discussion by looking at the key challenges of designing early exiting schemes for language models, where
+they introduce different novel techniques.
+Modeling the Confidence of Saturation. CALM
+[Schuster et al., 2022] studies three different ways to output
+the confidence score to exit: the softmax response, or the
+difference between the top two values after the softmax; the
+saturation of hidden states, or the cosine similarity between
+the current layer’s hidden states with the last layer; the output of a linear classifier inserted to every layer. The linear classifier is trained by simply using a cross-entropy loss
+to align MLP output when inputting the hidden states with
+whether the top-1 token decoded as exiting on the current
+layer matches the top-1 token decoded of the full model.
+The experiments presented suggest that despite not being
+the most accurate predictor, the classifier method reaches
+the optimal trade-off between additional FLOPs overhead
+with prediction accuracy on score generating. Building up
+from CALM, [Bae et al., 2023] observed that when consistently exiting from shallow layers will result in an abnormally long length. Also, the confidence score computation on every layer injects high overhead and diminishes the
+
+Me
+
+To
+School
+LM Head
+
+<\s>
+
+Me
+
+To
+School
+LM Head
+
+<\s>
+
+To
+
+Exit Now?
+
+Layer L
+
+To
+
+<\s>
+School
+LM Head
+
+<\s>
+School
+LM Head
+
+Layer L
+
+Layer L
+
+Layer L
+Layer 2
+
++
+
+Exit Now?
+
+Feed Forward Networks
+(FFN)
+
+FFN
+
+Skip Connection
+Masked Multi-Head (MHA)
+Self-Attention
+
+Layer 1
+Me
+
+To
+
+(a) Normal Transformer Decoding
+
+Take
+
+Me
+
+To
+
+Expert n
+
+MHA
+
+Sparse Predictor
+Layer 1
+
+Layer 1
+School
+
+Expert 0 Expert 1
+Router
+
+MHA
+Exit Now?
+
+Take
+
+Sparse Predictor
+
+Exit Now?
+
+School
+
+(b) Early Exiting (Depth-wise)
+
+Me
+
+To
+
+School
+
+(c) Contextual Sparsity (Width-wise)
+
+Layer 1
+Me
+
+To
+
+School
+
+(d) Mixture of Expert
+
+For some tokens, only a necessary subset of weights is needed to decode correctly. (a) presents the normal decoder-only autoregressive model
+architecture; (b) Early Exiting aims to only use the necessary transformer layers that already produce correct decoded tokens and skip the rest of the
+layers, but challenges arises when different tokens exit at different layer across. Same gist also applies to the width dimension of the LLM. (c)
+represents a line of works that predicts the dynamic sparsity on attention head and linear layers column dimension in the input-dependent way. (d)
+presents the Mixture of Expert method which has the sparsity built-in to the pretrained model. During inference, a router aims to choose concise and
+proficient expert networks that depending on the input. (Illustration best viewed with color)
+
+Figure 12. Illustration of Input-Dependent Dynamic Network Technique
+
+benefit of early exiting. Therefore, it proposes to only have
+two choices for early exiting: either exit from the so-called
+”shallow module” or a group of shallow layers, or go all the
+way to the full model, or ”deep module”, drastically reducing the number of classifiers needed inside the model. Such
+design enables it to achieve more speedup than CALM,
+reaching 2x for certain tasks. On the other hand, ConsistentEE Zeng et al. [2023] proposes a different method to
+predict when to exit. It uses an RL policy network that is
+iteratively trained with the per-layer output classifier head.
+The policy networks are trained with the goal of balancing
+the optimization of both efficiency (the early layer receives
+rewards) and accuracy (the reward function has a term that
+is the early exit output CE loss).
+Early Exit Criteria. CALM Schuster et al. [2022] proposes a distribution-free calibration technique that uses the
+fixed sequence testing procedure (Family-wise Error Rate
+procedure) to output the suitable threshold. The threshold
+is exponentially decreasing to allow more aggressive exiting for tokens later in the sequence. Bae et al. [2023], on
+the other hand, observes that the pattern of confidence criteria resembles a beta distribution and uses the on-the-fly
+data to update a beta distribution model through MLE and
+use such probability model to guide its decision. Zeng et al.
+[2023] bypasses this issue by letting the policy network directly output the exit decision.
+
+Hidden States Propagation. Hidden states of the
+skipped layers can pose a technical challenge. As shown in
+the 12 (b), the token position at ”school” exits later than previous tokens. However, the last self-attention layer doesn’t
+have the previous key-value pairs of the previous early exited tokens. Elbayad et al. [2020] and Schuster et al. [2022]
+proposes the ”hidden states propagation” technique. For example, the hidden states of token ”Max” at the exited layer
+l1 are stored. When the later token ”school” reaches deeper
+layer l2 , the hidden state for ”Max” is copied for all layers
+between l1 and l2 , and the key-value pairs are then computed on the copied hidden states. Basically, to approximate
+the deep layer’s hidden state with the ones from the early
+layer. Later works Bae et al. [2023] and Ding et al. [2023]
+found that state propagation leads to performance degradation. Since LLM inferences are dominated mostly by memory loading, computation is relatively ”free”. These two
+methods proposed to recompute the later hidden states directly on the fly. Chen et al. [2023b] proposes to run the full
+large model in parallel to the early exit stream to efficiently
+parallel the computation of the missing kv cache. Din et al.
+[2023] conducts a systematic study on using a linear network to jump across layers for transformer architecture and
+shows that linear layers can be added to effectively bridge
+the performance gap between directly copying and computing the hidden states with low memory and compute cost.
+
+SkipDecode Corro et al. [2023] chooses an aggressive approach to prioritize the speedup and relax the performance
+preservation goal. By utilizing the observation that a token
+coming later in the same sequence on average requires less
+number of layers to decode the correct tokens, it completely
+bypasses the need for state propagation by forcing the maximum layer used to be monotonically decreasing for deeper
+positions. Besides, SkipDecode also introduces fixed exit
+points to optimize for batched early exit.
+Output Classifier Training. When exiting from intermediate layers, the intermediate hidden states need to go
+through an output classifier head to output prediction of
+the next token probability distribution. The output classifier can either be shared as shown in Figure 12 or per-layer
+independent. These classifiers are usually trained to better adapt to the early exiting pattern. Elbayad et al. [2020]
+proposed to have an average CE loss of all layers to be the
+training loss of the classifier. On the other hand, Schuster et al. [2022] uses a weighted average where weights increase as the layer number increases, assigning more contribution to deeper layers. Bae et al. [2023] introduces a
+dynamic knowledge distillation loss which dynamically assigns the ”shallow module” a suitable hidden state from the
+”deep module”. Both Rotem et al. [2023] and Ji et al. [2023]
+find a ”conflicting gradient” issue when joint training with
+the same loss across all models: Rotem et al. [2023] detects the gradient conflict between early and later layers of
+language models, while Ji et al. [2023] spots the ”orthogonal gradient” between the objective to improve semantic
+awareness and the objective to improve early exciting decision. Both methods propose adding an additional block of
+parameters and iterative training to alleviate the issue. Besides the above-mentioned perspectives, Chen et al. [2023b]
+studies system-level optimization techniques to efficiently
+run LLM early exit under the 3D parallelism setting.
+4.1.2
+
+Contextual Sparsity
+
+While early exiting aims to select parameters on the depth
+dimension, some techniques have also been proposed to exploit the dynamic sparsity on the width dimension. Deja
+Vu Liu et al. [2023c] conducts a comprehensive study on
+dynamic sparsity on the LLM width dimension. The paper reveals that contextual sparsity can go up as high as
+80%, meaning that the majority of the weights can be left
+out while still preserving the original model performance.
+However, the chosen weights are dynamic and different for
+different input tokens. The paper formulates this problem
+as a nearly neighbor search problem that for a given hidden state from the embedding layer of previous layers, how
+to find the attention heads and the MLP columns that are
+the most similar to these tokens. To save compute, the paper proposes to train a small MLP network as the Sparse
+
+Predictor in front of the Multi-Head Attention (MHA) and
+the Feed-Forward Networks (FFN) of the LLM, shown in
+Figure 12 (c). By using only a subset of weights and reducing the memory IO overhead, Deja Vu manages to achieve
+over 2x speedup of LLM inference. Building on Deja Vu,
+PowerInfer (Song et al. [2023]) brings the contextual sparsity finding to the LLM inference across heterogeneous devices (CPUs and GPUs). PowerInfer discovers a substantial portion of weights are heavily used and activated in the
+input-independent setting, thus stored on the GPU memory,
+while others are on the CPU memory. Then, to specifically
+find the weights to use for a given input token, it trains
+a smaller sparse prediction than Deja Vu. To make the
+sparse predictor, it initializes the sparse predictor to have
+a dynamic structure and iteratively trains and modifies the
+sparse predictor. To better do inference of the model deployed on the mixed CPU and GPU environment, it introduces a novel memory placement scheme and implements
+a vector-based sparse computation library. Concurrently,
+MatFormer (Devvrit et al. [2023]) studies the problem of
+LLM deployment on various heterogenous devices of different hardware capabilities. They added dynamic structure
+only on the FFN, which occupies 60% of total weights. The
+model is specially trained so that during inference, based
+on the target hardware properties, MLP layers are sampled
+on the row dimension to give a model of various sizes with
+reasonable performance. To diversify the model size selection, it imposes a Mix’n’Match method to choose different
+settings for different layers, so combined would give a more
+variable model size.
+
+4.1.3
+
+Mixture-of-Expert Models
+
+Language Models, especially transformer architecture, exhibit strong power-law scaling (Kaplan et al. [2020], Hoffmann et al. [2022]) of performance when the training
+dataset is scaled up. On the other hand, though bringing
+strong performance gain, the large parameter count makes
+training and inference of the model inefficient. The mixture
+of expert (MoE) technique is a well-studied topic (Yuksel
+et al. [2012]) that effectively decouples the parameter count
+of the model and the computation FLOPs required by the
+model training and inference, thus bringing huge gains of
+efficiency under certain conditions. Further, MoE is shown
+to effectively scale up the language model size and increase
+its performance without the concern of increasing compute during inference (Lepikhin et al. [2020], Fedus et al.
+[2021]). Shown in Figure 12 (d), an expert network is inserted into the transformer architecture to replace the FFN
+layers. Also, a gating function is introduced between the
+Multi-Head Attention and the expert network which aims to
+select the best-fit expert or experts for the given input token.
+For in-depth analysis and discussion about the MoE scaling
+
+LLM Accepts 2 tokens “With”, ”my”
+2 tokens generated with 1 LLM forward pass
+Prompt
+
+With
+
+my
+
+kids
+
+and
+
+LLM then
+verifies è <With>
+
+<My>
+
+<Friends>
+
+LM Head
+
+f(With)
+
+Large Language Model (LLM)
+
+f(my)
+
+With
+
++
+
+With
+
+my
+
+Prefilling Prompt
+Take
+
+Me
+
+To
+
+(a) Speculative Decoding
+
+With
+
+Take
+
+Me
+
+my
+
+<unk>
+
+People
+
+Large Language Model (LLM)
+Using Jacobi Iterations
+Predicts Multiple Tokens
+
+Decoder Layers
+
+Hidden States
+
+To
+
+School
+
+(b) Last Layer Projection
+
+Take
+
+Me
+
+Decoder
+without Causal
+restrictions
+
+FeedForward
+Layers (FFN)
+
+FFN
+CrossAttention
+
+SelfAttention
+Layers (SA)
+
+SA
+<m> <m> <m> <m>
+
+Prefilling Prompt
+
+Prefilling Prompt
+School
+
+<m> <m> <moi> <m> <l'école>
+5
+
+First-Round Guesses
+
+pmpt
+
+and
+
+Autoregressively
+Generate
+Multiple Draft
+Tokens
+
+Small Draft Model
+(Autoregressive)
+
+and
+
+Encoder
+
+Large Language Model
+kids
+
+kids
+
+Large Language Model (LLM)
+Draft and Verify in Parallel
+
+MLP Projection
+
+Draft Tokens
+
+my
+
+Fertility predictor
+
+f(Friends)
+
+f(With)
+Prompt
+
+Unmask tokens of <Emmenez> <-> <moi> <m> <l'école>
+strong confidence
+
+Second-Round Guesses
+pmpt
+
+To
+
+School
+
+(c) Jacobi Iteration
+
+[LEN]
+
+Take
+
+Me
+
+To
+
+School
+
+(d) Non-Autoregressive Transformers
+
+Several methods have been proposed to generate more than one token per LLM forward prop: (a) shows the speculative decoding which asks the LLM
+to, instead of generate tokens autoregressively, evaluate tokens generated by the small model all at once to parallelize the memory loading; (b) introduces
+another approach to have a last layer projection on the large model hidden state vector to generate tokens at subsequent positions; (c) presents another
+method to treat decoding as solving a system of nonlinear equations and use Jacobi and Gaussian-Seidel iteration algorithm to parallelize the decoding
+process of a number of token positions; (d) presents the Non-Autoregressive Transformers which targets the seq-to-seq model. The decoder relaxes the
+autoregressive constraints and iteratively decode all the tokens from masked tokens based on the information from the encoder model hidden states.
+
+Figure 13. Illustration of the Parallel Decoding Methods
+
+generalization, routing algorithms, training techniques, etc.,
+we refer the readers to the survey on Sparse Expert Models
+(Fedus et al. [2022]). Although both rely on the input token to determine sparse structure, We deliberately separate
+MoE and the contextual sparsity techniques because the latter operates on pre-trained dense language models and exploits the sparsity from the dense neural networks, while the
+prior trains a sparse model from the beginning. More recently, MoE techniques have achieved substantial success.
+Sparse Mixer (Lee-Thorp and Ainslie [2022]) brings 89%
+and 98% speedup in both training and inference to BERT
+(Devlin et al. [2019]) models. Du et al. [2022] uses only
+49% FLOPs but beats GPT-3 (Brown et al. [2020]) in performance. ST-MoE (Zoph et al. [2022]) brings MoE to the
+encoder-decoder models, even becoming the state-of-theart model for many reasoning and generation tasks. STMoE, using 20x and 40x fewer FLOPs in training and inference, beats 540B PaLM (Chowdhery et al. [2022]) in performance. Mixtral 8x7B (Jiang et al. [2024]), while only
+actively using 13B parameters during inference, performs
+on par with Llama2-70B models (Touvron et al. [2023b])
+across various evaluation benchmarks.
+
+ing that some neurons are much more heavily used in the
+MoE models than others.
+
+Besides, various attempts have been made to optimize
+MoE model inference. Kossmann et al. [2022] builds an
+efficient compiler library RECOMPILE for MoE models
+that introduce dynamic recompiling and optimization according to varying inference batch sizes. Rajbhandari et al.
+[2022] extends the ZeRO distributed inference method to
+MoE models. Jawahar et al. [2023] conducts Neural Architecture Search (NAS) on the expert network architecture.
+Yi et al. [2023] deploys large MoE language models on the
+edge devices. It optimizes the deployment around the find-
+
+4.2. Maximum Tokens Decoded Per LLM Forward
+Propagation
+
+4.1.4
+
+Roofline Model Analysis for Dynamic Parameter
+Reducing
+
+The Minimum Parameter Used Per Token Decoded methods simultaneously decrease computational and memory
+access overhead. From the viewpoint of roofline model,
+these methods result in small changes to the arithmetic intensity of each operator and the type of bound.
+For Early Exiting or Layer Skipping methods, entire
+Transformer layers are skipped, leading to a proportional
+reduction in overall computation, memory access, and inference time. In other words, the inference time decreases
+proportionally to the number of layers skipped in the network. However, for methods like Contextual Sparsity and
+Mixture of Experts, the arithmetic intensity varies across
+different operations. Consequently, dynamically choose to
+activate these layers leads to varying reductions in computation and memory access, resulting in different impacts on
+the overall inference time.
+
+Another angle to reduce the latency of LLM inference is to
+relax the LLM from the limitation of autoregressive decoding and have more than one token decoded per one LLM
+forward propagation. We look at two ways to achieve it:
+4.2.1 presents the speculative decoding method which introduces a computationally efficient draft model to propose
+candidates for the next few token positions, while the LLM
+
+is used to evaluate the draft model’s proposed draft tokens,
+instead of generating next tokens. On the other hand, 4.2.2
+presents works that enable the LLM to directly decode multiple tokens from a single forward propagation. Due to some
+methods combining the benefits from both directions and
+lying in the middle, we manually add a distinction just for
+the sense of nomenclature that speculative decoding methods here all have the draft model to be in the transformer
+architecture.
+4.2.1
+
+Speculative Decoding
+
+Due to the demanding memory loading challenges and autoregressive properties, LLMs are inefficient in inference.
+However, models that are much smaller in size are shown
+(Kim et al. [2023e]) to have the ability to decode the correct sequences as the LLM, as long as some key tokens in
+the sequence of the small model generation are corrected.
+Then, shown in Figure 13 (a), when the small model is
+asked to infer (speculate) and output a sequence of draft
+tokens, memory loading of model weights is less of a problem, resulting in much higher utilization in hardware computation units. To ensure the quality of the text generated by
+the small model, the LLM can ”periodically” evaluate and
+correct tokens from the small model’s draft. Then, although
+the large model needs to sometimes evaluate the wrong draft
+tokens, potentially leading to larger FLOPs spent than LLM
+autoregressive decoding, the memory loading of weights is
+parallelized on the token dimension and drastically reduces
+the memory IO overhead. Since the LLM inference is memory bottlenecked, the speculative decoding will potentially
+reduce the LLM inference latency greatly.
+LLM Distribution Preserving During early exploration
+of this idea, two different paths emerged concurrently. Kim
+et al. [2023e] proposed to have the small model speculate
+and generate draft tokens until the token decoded confidence falls below a threshold. Then, the small model ”fallback” to the large model to evaluate the draft tokens generated and hand over to the small model. Some of the tokens are rejected, so the large model asks the small model
+to ”roll back” these wrong tokens and resume speculating.
+In the paper’s setting, all decoding is ”greedy”. The paper
+show that the large and small model pair can generate text
+with quality on par with the original large model autoregressive generated text. However, Leviathan et al. [2023]
+and Chen et al. [2023a], upon the small model speculate
+paradigm, points out a technique of resampling that at the
+position where the LLM rejects the small model’s prediction that provably enables the large and the small model
+predictions to be in the same probability distribution as
+the large model’s autoregressive generation. The following techniques generally follow the paradigm of speculating
+then evaluating and resampling to preserve the LLM autore-
+
+gressive decoding quality while enabling speedup.
+Building a Tree of Draft Tokens Since the LLM generates in the autoregressive order, every token is dependent
+on all previous tokens generated, and the length of the accepted tokens in the small model’s draft is usually modest
+and bounded. It is exponentially more difficult to speculate on tokens more distant in the future. For example, if
+the small model is asked to output the length m draft sequence, and the LLM accepts n, n < m, the (m - n) tokens are automatically discarded. Thus, the speedup ratio of
+speculative decoding is modest, since every LLM forward
+leads to only a limited number of tokens being decoded.
+There are two ways to improve the speedup of speculative
+decoding. First, Sun et al. [2023b], Miao et al. [2023b],
+and Xu et al. [2023a] all proposed to boost the draft on
+the batch size direction, or letting the small model sample
+multiple plausible draft sequences for the LLM to evaluate in parallel. Specifically, Sun et al. [2023b] proposes a
+way and theoretical guarantees for the LLMs to batch verify and resample from the multiple small model drafts so
+that the LLM distribution is preserved and no loss of generation quality is incurred. The paper first connects speculative decoding to the broader problem of discrete optimal
+transport. The small model is asked to sample multiple draft
+sequences using topk sampling. Based on the properties of
+the discrete optimal transport, finding the optimal method
+to evaluate and resample becomes finding the optimal transport path. On the other hand, besides from maintaining the
+speculative decoding consistency of draft trees, Miao et al.
+[2023b] constructs the token tree not based on the top predictions from the small draft model, but based on multiple
+diversely trained small draft models, each running in parallel and output diverse but powerful draft sequences. The
+paper proposes a novel draft token tree construction algorithm that builds a tree of candidate tokens based on the
+diverse draft sequences through predefined expanding and
+merging schemes. Then, the large model is asked to parallel verify the constructed tree using a carefully designed tree
+attention to maximize the reuse of the key-value cache and
+maintain a tree-based causal mask. Xu et al. [2023a] innovatively applies the benefit of speculative decoding to edge
+devices. The paper builds an LLM serving engine for the
+edge, where a smaller draft LLM is sitting consistently in
+memory, while a larger robust LLM is occasionally loaded
+in memory to do verification. To boost the acceptance rate
+from the large LLM, it also constructs a tree using topk tokens. To cater to the edge hardware characteristics, it implements a tree-based parallel verification decoder equipped
+with masking and a customized large-small LLM computation pipeline to avoid memory contention.
+Knowledge Distillation and Self-Speculative Decoding Another way to improve the acceptance rate is to improve the small draft model’s ability to align with the LLM’s
+
+generation distribution, which can be done through finetuning the small models on corpus generated by the large models with knowledge distillation. Zhou et al. [2023c] establishes a mathematical connection between the acceptance
+rate and natural divergence between the small model and
+the LLM: minimizing the divergence is maximizing the acceptance rate. The paper also studies a range of different
+knowledge distillation losses and shows that adding knowledge distillation brings consistent 10-45% improvement in
+latency speedup. However, the paper generally finds that the
+optimal knowledge distillation loss choices vary model by
+model and should be tuned as a hyperparameter. Liu et al.
+[2023a] also shows that knowledge distillation boosts the
+small model training. Besides, the paper brings speculative
+decoding to the cloud online learning settings. LLM inference is memory-bottlenecked, which means that there is always a surplus in computation resources. The compute can
+be used to train a draft model continously on server, which
+brings two benefits: Continuously training with knowledge
+distillation boosts its acceptance rate and, thus, reduces
+the LLM inference latency; 2) serving input is constantly
+shifting in domains, and continuous training helps the draft
+models maintain the strong performance in different domains. Zhang et al. [2023] avoids storing a separate draft
+model by selectively sampling a smaller draft model from
+the large model itself. Before deployment, the paper utilizes
+a Bayesian optimization method to search for a draft model
+by skipping intermediate layers within the pretrained large
+model. Besides, it proposes an adaptive threshold selection
+technique tailored for the decoding of the draft model sampled from the large models.
+4.2.2
+
+Parallel Decoding
+
+Alternatively, abundant works have been proposed to enable the large model to directly perform parallel decoding
+without the help of a small transformer model.
+Simultaneously Predicting Multiple Future Tokens A
+wide variety of works are exploring the subject of enabling
+multiple token predictions directly from one forward pass
+of the Large Language Model. Stern et al. [2018] pioneers
+the design of inserting a linear projecting layer between the
+last hidden states output and the input of the language modeling head to enable multiple future tokens to be projected
+solely based on the current token’s last hidden states as input. Evaluation is subsequently made by the LLM to decide
+whether to accept or reject these projected tokens. The proposed technique focuses on the sequence-to-sequence models that have the decoder structure. More recently, Cai et al.
+[2024] extends the previous work to the decoder-only language models as shown in Figure 13 (b). Besides the last
+layer projection, to further improve the decoded acceptance
+rate, the paper proposes to add a tree-based decoding struc-
+
+ture and the associate attention mask design to propose multiple drafts simultaneously for the large model to evaluate.
+Besides, concurrently Monea et al. [2023] proposes to add
+several dummy tokens at the end of the input sequence are
+called ”lookahead embeddings” in work. During the forward pass of each layer, the information of previous prompt
+tokens and already decoded tokens can be used to parallel decode several consecutive future tokens. To enable
+this design, the work trains a separate embedding layer that
+specifically serves these lookahead embeddings. Li et al.
+[2024] also aims to do parallel decoding with LLM evaluation. Like previous works, it also adds a lightweight structure FeatExtrapolator. Differently, the structure takes both
+the previous token’s last layer hidden states and the actual
+decoded token embedding as input and output the hidden
+states prediction of the next layer. The LM head of the LLM
+is used, and several tokens are sampled, which are then used
+to build a decoding tree for the LLM to evaluate in parallel.
+Retrieval of Frequent N-grams Besides directly using
+the LLM to output several following tokens, some works
+use the frequently appeared n-grams in natural language to
+enable multiple future tokens to be generated within one
+forward pass of the large model. LLMA (Yang et al. [2023])
+first observes that the generation tasks tend to ask the LLM
+to repeat tokens that appeared in the previous contexts.
+Based on this information, the paper set out to use the decoded tokens and the prompt to do prefix matching with a
+set of reference documents so that if a repetition occurs, tokens that are repeated can be directly copied to the current
+place. Then, an LLM will evaluate these found candidate
+tokens from the previous context to decide whether to use
+them. He et al. [2023] further extends LLMA and proposes
+to first construct a database of common phrases based on
+the LLM pretrained or finetuned dataset and corpus. Then,
+during decoding, the previous context prompts or tokens are
+used as the query to be used to retrieve into the constructed
+database. The candidates retrieved are organized into a prefix tree structure or a trie, which the LLM can then evaluate
+efficiently. Lan et al. [2023] similarly follows to use the retrieval methods to speed up inference. In contrast, it adds an
+extra attention layer at the end of the LLM to use the current
+context represented by the hidden states of the current token
+as the query to attend to relevant phrases retrieved from the
+documents of reference and select top phrases based on the
+attention scores.
+Hierarchical Structure In Language Hierarchical
+Structure exists in language. For writing a long piece of
+article, the usual approach is to first write out the general
+outline of the paper, as in the format of bulletin points.
+Then, for every bulletin point, arguments can be extended
+to encapsulate the full intent of the bulletin point. Based on
+the observation that arguments for different bulletin points
+are relatively independent in semantics, some methods are
+
+proposed to parallelize the generation process for different
+bulletin points. Skeleton-of-Thoughts (Ning et al. [2023])
+proposed to first ask the LLM to generate concise bulletin
+points for an article, and then collect these bulletin points on
+the batch axis and feed them into the LLM again as a prompt
+to ask the LLM to expand the arguments for each bulletin
+points in parallel. The achieved speedup is approximately
+2x, but with the caveat that the method cannot easily generalize to all text generation tasks. More recently, APAR
+(Liu et al. [2024a]) extends upon this direction. The paper adds specific soft tokens that explicitly inform the LLM
+of the hierarchical information during the generation. The
+LLM is further instruct-tuned to incorporate the added special tokens, and the generation is boosted with the Medusa
+(Cai et al. [2024]) technique to achieve 4x speedup on text
+generation with the hierarchical structure.
+Jacobi and Gaussian-Seidel Iterative Algorithms
+Song et al. [2021] pioneers the study of using parallelizable
+methods to approximate the results from iterative and sequential inferences of fully connected networks or CNNs.
+Though seemingly in-viable, the paper finds that neural
+networks can tolerate numerical approximation errors and
+the data patterns that neural networks learn expose parallel structures to some extent, which makes it possible in
+some scenarios to parallelize the sequential inference of
+neural networks. Jacobi and Gaussian-Seidel Algorithms
+were previously proposed to solve a system of non-linear
+equations (Ortega and Rheinboldt [2000]) and are shown to
+effectively parallelize the sequential neural network inference. Santilli et al. [2023] extends the Jacobi and GaussianSeidel algorithms to parallelize the autoregressive decoding
+in the Machine Translation tasks. Specifically, this work is
+built on top of the previous Non-Autoregressive Transformers architecture (which we will cover later in the chapter) to
+enhance the parallel decoding with GS-Jacobi algorithms.
+The parallel decoding process stops when a [EOS] token is
+found in the decoded text. Concurrently, Lookahead decoding (Fu et al. [2023a]) shown in Figure 13 (c) extends this
+method to parallelize the LLM generation of subsequent tokens. Besides using the vanilla Jacobi iterative algorithm,
+it also boosts its speed with a retrieval-based algorithm to
+reuse the previously seen n-grams. In addition, it parallelizes the lookahead step and LLM verification step by introducing a carefully designed attention mask to the original
+LLM model to further improve decoding efficiency.
+Non-Autoregressive Transformers For Machine Translation tasks that require autoregressive decoding of the
+sequence-to-sequence model, Non-Autoregressive Transformers (NAT) has been proposed to iteratively decode all
+of the output tokens together, as shown in Figure 13 (d).
+NAT has been relatively well-explored (Gu et al. [2017],
+Wang et al. [2019], Li et al. [2019], Sun et al. [2019b],
+Wei et al. [2019], Shao et al. [2020], Lee et al. [2018],
+
+Ghazvininejad et al. [2019], Guo et al. [2020], Gu and Kong
+[2020], Savinov et al. [2021]), and we point the readers
+to the following survey paper that covers specifically NAT
+models Xiao et al. [2023c] for an in-depth review and analysis on the subject. Coarsely, the speedup of text decoding
+comes from making a single forward pass of the decoder
+output more than one token. The input sequence is first fed
+into the encoder, which outputs the hidden states that extract
+the input semantics. The output hidden states of the encoder
+are then used as the condition for the decoder pass. To speed
+up the text generation, the decoder side relaxes the autoregressive constraints and takes a sequence full of dummy tokens [pad] as the input to start the iterative parallel decoding
+process. During each iteration, based on the condition set
+by the encoder output hidden states, some tokens can be
+confidently predicted, which are unmasked. The sequence
+is mixed with unmasked decoded tokens and the remaining
+masked tokens are fed to the decoder again until every token
+is decoded. The length of the sequence fed into the decoder,
+or fertility, is usually learned either inside the encoder as a
+special [CLS] token or by a specialized fertility predictor
+between the encoder and the decoder. More recently, Savinov et al. [2021] treats the decoder as a diffusion model and
+trains it to denoise the noisy initial sequence based on the
+conditions given. However, because of the requirement to
+use encoder hidden states as the condition for parallel decoding, NAT methods face natural difficulties in extending
+directly to decoder-only architectures.
+
+5. Compiler/System Optimization
+After model compression and algorithm optimization for
+LLMs, the next step is to compile and deploy them on hardware devices. To ensure efficient inference of LLMs, there
+are various compiler optimizations that can be employed.
+Moreover, due to the increasing scale of LLMs, multiple
+hardware devices may be required for deployment and execution, forming a complex inference infrastructure system.
+As a result, system-level optimization for efficient inference
+has become a hot topic. In this section, we will explore
+some widely used compiler optimization and system optimization techniques. These include operator fusion, memory management, workload offloading, and parallel serving.
+
+5.1. Operator Fusion
+Operator fusion is an important compile-time optimization
+technique in deep learning frameworks to improve computational efficiency. It combines together multiple operators or layers that are directly connected in the computation
+graph. This eliminates redundant data movement and intermediate representations. For example, a linear operator
+followed by a SiLU operator can be fused together into a
+single operator. As shown in Figure 14, this avoids having
+to store and load the intermediate activations between each
+
+Linear
+Operation
+
+Load
+Weight
+
+Load
+Activation
+
+SiLU Operation
+
+Compute
+Linear
+
+Store
+Activation
+
+Load
+Activation
+
+Compute
+SiLU
+
+Store
+Activation
+
+(a) Linear operation and SiLU Operation
+Fused
+Operation
+Load
+Activation
+
+Load
+Weight
+Compute
+Linear
+
+Compute
+SiLU
+
+Store
+Activation
+
+(b) Fused Operation
+
+Figure 14. Demonstration of operator fusion for a linear operator
+followed by a SiLU operator.
+
+Performance (OPS)
+
+1e14 Memory-bound Case
+1.5
+before
+fusion
+
+1.0
+
+0
+
+before
+fusion
+
+1.0
+after
+fusion
+
+0.5
+0.0
+
+1e14 Compute-bound Case
+1.5
+
+50 100 150 200 250
+Arithmetic Intensity (OPs/byte)
+
+0.5
+0.0
+
+0
+
+after
+fusion
+
+200
+400
+600
+Arithmetic Intensity (OPs/byte)
+
+Figure 15. Demonstration of the memory-bound case and
+compute-bound case for operator fusion.
+
+Reduction (%)
+
+40
+30
+
+decode
+Memory Access
+Inference Time
+
+20
+10
+0
+
+bs=1
+len=1k
+
+bs=1
+bs=1
+len=10k len=100k
+
+bs=16
+len=1k
+
+bs=64
+len=1k
+
+Reduction (%)
+
+prefill
+Memory Access
+Inference Time
+
+20
+10
+0
+
+bs=1
+len=1k
+
+bs=1
+bs=1
+len=10k len=100k
+
+bs=16
+len=1k
+
+bs=64
+len=1k
+
+Figure 16. The memory access reduction and inference time reduction for FlashAttention on Nvidia A6000.
+
+operator, reducing both the memory consumption and the
+memory access. As shown in Figure 15, the roofline model
+suggests that kernel fusion can increase arithmetic intensity and enhance inference performance in memory-bound
+areas. However, when operators are already in a compute-
+
+bound area, memory fusion provides little benefit.
+While operator fusion can provide significant performance benefits in many cases, it is not applicable to all operators. Operator fusion may not be possible or beneficial for
+certain operators: (1) Operator fusion requires that the intermediate results of the fused operations are not needed elsewhere in the computation graph. If a subsequent operation
+depends on the output of an intermediate operation, fusion
+is not possible without introducing additional complexity or
+recomputation. (2) Operator fusion can potentially increase
+the on-chip buffer requirements of the fused operation. If
+the available on-chip buffer is limited, it may not be feasible to fuse certain operations. (3) Some frameworks or
+hardware architectures may have limitations or restrictions
+on which operations can be fused together, depending on
+their implementation details.
+Some compilation tools, such as TVM [Chen et al.,
+2018], are capable of identifying operators that can be fused
+together and replacing them with a fused operator. However, for LLMs, automatically detecting and fusing operators is both unnecessary and complex because LLMs have
+a fixed architecture. Instead, specific fusion patterns can
+be used to improve efficiency. For instance, the attention
+mechanism is an essential part of LLMs. Automatically fusing attention mechanism can be a complex task for compilation tools. FlashAttention [Dao, 2023, Dao et al., 2022] and
+Flash-Decoding [Dao et al., 2023] proposed fusing the matrix multiplications and softmax operator in self-attention
+into one operator. This fusion technique eliminates the need
+to store and load the intermediate attention matrix, which
+can be very large when the sequence length or batchsize is
+large. As shown in Figure 16, fusing them can significantly
+decrease the memory access and inference time. We can observe that there are differences between the prefill stage and
+decode stage. In the decode stage, the memory access reduction is the same as inference time reduction. However,
+in the prefill stage, inference time reduction is lower than
+memory access reduction. This is because some operations
+in the prefill stage are compute-bound, so reducing memory
+access by operator fusion provides little benefit.
+DeepSpeed-inference [Aminabadi et al., 2022] introduces a technique called Deep-Fusion. It specifically fuses
+four main regions within a transformer layer: the QKV
+GeMM and input layer normalization; transposition and attention operations; post-attention layer normalization and
+intermediate GeMM; bias addition and residual addition.
+xFormers [Lefaudeux et al., 2022] offers various fused kernels that can enhance the performance of transformers.
+These include fused softmax, fused linear layer, fused layer
+norm, and fused SwiGLU. TensorRT-LLM [Vaidya et al.,
+2023] is another framework that offers a wide range of
+high-performance fused kernels. It incorporates a powerful
+pattern-matching algorithm that can detect potential fusions
+
+GPU Chip
+400-2000GB/s
+
+GDDR/HBM
+(10-100GB)
+
+Buffer
+(5-30MB)
+
+Computation
+Units
+
+10-30GB/s
+
+CPU
+50-200GB/s
+
+CPU DDR
+(20-200GB)
+
+~2GB/s
+
+Disk
+(HDD/SSD)
+
+Performance (OPS)
+
+Figure 17. In typical computer architectures, the memory system
+consists of different types of memory spaces.
+
+1.5
+
+1e14
+GDDR/HBM access
+GPU compute
+DDR access
+GPU compute
+DDR access
+CPU compute
+
+1.0
+0.5
+0.0
+
+0
+
+500
+
+1000 1500 2000 2500 3000
+Arithmetic Intensity (OPs/byte)
+
+Figure 18. Roofline model for different offload settings.
+
+in various LLMs.
+In addition to kernel fusion, we can enhance the performance of the LLM by further optimizing operators’
+implementation. For example, FlashDecoding++ [Hong
+et al., 2023] proposes using asynchronized softmax and flat
+GEMM optimization with double buffering to improve efficiency.
+
+5.2. Memory Management and Workload Offloading
+When using an LLM to generate responses, the number of
+input and output tokens can change each time. The length
+of the user’s input prompt may vary, affecting the length of
+the sequence in the prefill phase. Additionally, the sequence
+length increases incrementally during the decode phase as
+tokens are generated. This means that the shapes of the activations are not fixed like in a normal neural network. How
+to manage the memory efficiently as the tensor sizes change
+is a problem. PagedAttention [Kwon et al., 2023] efficiently
+handles the KV cache by dividing it into blocks. The KV
+cache of each sequence is divided into blocks, with each
+block containing the keys and values for a fixed number of
+tokens. To manage these blocks, a table is used to map the
+logical blocks of a sequence to the physical blocks in GPU
+memory. This mapping is similar to how virtual memory
+works in a CPU’s memory management system.
+When the GPU has limited memory capacity and the network is too large to fit, it may be necessary to employ work-
+
+load offloading to store the network in alternative memory spaces. As depicted in Figure 17, a computer system
+consists of various memory spaces, including CPU’s DDR,
+GPU’s GDDR/HBM, and hard disk. However, these different memory spaces have distinct access bandwidths. Figure 18 illustrates that when the data is offloaded to CPU’s
+DDR and transferred to the GPU for computation when
+needed, it is better than performing the computation on
+the CPU. When the batch size is large enough, the arithmetic intensity increases significantly, allowing the GPU to
+fully utilize its computation capacity and achieve good results. DeepSpeed-inference [Aminabadi et al., 2022] introduces ZeRO-Inference, which offloads the weights of large
+models to CPU memory. This mechanism performs well
+with large batch sizes because the increased batch size increase the computation requirement and make the computation latency overlap the latency of fetching model weights,
+thereby improving overall efficiency. Huggingface Accelerate [HuggingFace, 2022] can also move certain modules to
+the CPU or disk if there is not enough GPU space to store
+the entire model. FlexGen [Sheng et al., 2023] provides a
+way to explore different ways of offloading computations
+considering constraints imposed by available hardware resources from the GPU, CPU, and disk. To find the best
+strategy in terms of throughput, FlexGen employs a linear programming-based search algorithm. Alizadeh et al.
+[2023] takes advantage of the larger capacity of flash memory compared to DRAM. It efficiently performs inference
+by storing model parameters in flash memory and transferring them to DRAM when needed.
+
+5.3. Parallel Serving
+Parallel serving handles multiple user requests to a server
+at the same time. One goal is to respond to each request
+quickly. To achieve this, we need to reduce the time it takes
+to respond to each user, known as the response latency. Another important factor to consider is throughput, which is
+the number of requests the server can process in a given
+time. By increasing the server’s throughput capacity, we
+can serve more users simultaneously, leading to better overall system performance. By increasing the server’s throughput capacity, more users can be served simultaneously, resulting in improved system performance. The serving system should be optimized to maximize throughput, while
+still ensuring that the response latency is within acceptable limits. Batching is a fundamental approach to improve
+throughput by processing multiple user requests together.
+Figure 19 shows that increasing the batch size during the
+decode stage significantly enhances throughput. However,
+increasing batch size can increase the response latency and
+memory consumption.
+Several techniques have been proposed to optimize the
+batching method. For example, ORCA [Yu et al., 2022]
+
+2000
+1000
+0
+
+0
+
+Latency
+
+0.15
+
+20
+
+40
+
+60
+
+seqlen=256
+seqlen=512
+
+0.10
+
+80
+
+100
+
+120
+
+seqlen=1024
+seqlen=2048
+
+1.5
+1.0
+0.5
+0.0
+
+1e14 Roofline Model
+high
+bandwidth
+low
+bandwidth
+0 50 100 150 200
+Arithmetic Intensity (OPs/byte)
+
+LLaMA-2-13b
+Decode Time (s)
+
+seqlen=1024
+seqlen=2048
+
+Performance (OPS)
+
+Throughput
+
+seqlen=256
+seqlen=512
+
+3000
+
+0.10
+0.05
+1
+2
+3
+4
+Bandwidth (byte/s) 1e12
+
+Figure 20. Effect of bandwidth on roofline model and Llama-213b. (Batch size=1, sequence length=1024)
+
+0.05
+
+Memory (GB)
+
+0
+
+20
+
+40
+
+60
+
+seqlen=256
+seqlen=512
+seqlen=1024
+
+100
+75
+50
+25
+0
+
+20
+
+40
+
+80
+
+100
+
+120
+
+seqlen=2048
+GPU Memory
+
+60
+80
+Sequence length
+
+100
+
+120
+
+Figure 19. The parallel serving settings have an impact on the
+throughput, latency, and memory usage of the Nvidia A6000 GPU
+(Llama-2-13b).
+
+introduces continuous batching (also known as iterative
+or rolling batching) to combine inferences from different
+users. SARATHI [Agrawal et al., 2023] employs chunkedprefills and decode-maximal batching. It combines prefill
+chunks and decode requests to create batches, which increases the arithmetic intensity and improves throughput.
+Similarly, DeepSpeed-FastGen [Holmes et al., 2024] and
+LightLLM [ModelTC, 2024] also employ a split and fuse
+technique.
+
+6. Hardware Optimization
+Designing hardware to efficiently support inference for
+LLMs is a challenging task due to the varying arithmetic
+intensity5 under different inference stages and workload
+conditions. Specifically, the prefill stage usually leverages
+GEMM operators to process the batched tokens, which exhibits high arithmetic intensity. On the contrary, the decoding stage calculates output tokens one at a time, which necessitates the use of either GEMV operators or lean GEMM
+operators to process the attention and FFN layers. These
+operators are characterized by low arithmetic intensity.
+Furthermore, the arithmetic intensity can exhibit substantial variation depending on the batch sizes and sequence
+lengths. For instance, a large batch size could significantly
+5 Arithmetic intensity refers to the ratio of arithmetic operations to
+memory access, which has been described in Roofline model (Section 2.2).
+
+alter the arithmetic intensity, and a long sequence length
+may increase the memory access overhead of KV-cache
+reading in each decoding step. This variability introduces
+additional complexity into the hardware design process, as
+different stages or configurations may necessitate distinct
+optimization strategies. Hence, it’s crucial to consider these
+factors when designing hardware to ensure efficient performance across a wide range of scenarios.
+Considering these challenges, careful consideration and
+optimization of hardware designs are necessary. In this section, we will survey and analyze various hardware optimizations tailored for efficient LLM inference, with a focus on
+addressing the issues related to varying arithmetic intensity.
+
+6.1. Spatial Architecture
+The decoding process of LLM involves predicting words
+one at a time based on previously generated ones. However, this process can be costly, especially during tasks in
+long sequence generation. This is because the model needs
+to access large amount of weights and the key-value (KV)
+cache to generate each token, resulting in low arithmetic intensity.
+There are several solutions that have been developed to
+address this issue. One such solution is the implementation
+of a ”Spatial Architecture”. In contrast to traditional computer architectures, spatial architectures utilize a different
+approach to computing. Instead of folding the computation process into multiple interactions between processing
+elements (PEs) and main memory, spatial architectures distribute the computation across multiple PEs. This design
+allows for the exploitation of parallelism, as each PE simultaneously performs a portion of the computation. Additionally, the intermediate data flows between the PEs, avoiding
+writing back to DRAM each time.
+In a spatial architecture, each PE is responsible for a specific portion of the computation. To facilitate efficient communication, data is typically moved between neighboring
+PEs. This allows for improved performance and efficient
+utilization of resources. In a spatial setup, each PE has its
+own direct access to memory. This enables multiple processing units to access memory simultaneously, improving
+
+the overall speed at which information can move in and out
+of memory. This results in enhanced memory bandwidth
+and overall LLM inference performance. As shown in Figure 20, as the total memory bandwidth increase, the performance for the linear layer in decoding stage can significantly increase.
+In one case, Groq employs their LPU [Abts et al., 2022]
+to create a spatial system for LLM inference. This system
+achieves a remarkable speed of over 300 tokens per second
+per user on the Llama-2-70b model [Groq, 2023]. Another
+example is Graphcore’s Intelligence Processing Unit (IPU),
+which is another type of spatial architecture that efficiently
+executes LLMs [Graphcore, 2024].
+
+6.2. Processing in Memory
+The decoding phase of LLM inference experiences the socalled ”Memory Wall” problem, primarily due to its low
+arithmetic intensity. This issue is not new, the computer architecture community has been struggling with the ”Memory Wall” problem for several decades. Among various potential solutions, processing in-memory techniques (PIM)
+have garnered significant interest in recent years. By placing compute units directly in memory chips, we can leverage the much higher internal memory bandwidth and reduce the data movement overhead between memory and
+CPU/GPU cores.
+In recent years, DRAM-based PIM has entered the commercialization phase, which can potentially mitigate the
+memory bandwidth bottleneck of LLM inference. As listed
+in Table 2, UPMEM’s PIM-DIMM Devaux [2019a] is the
+first commercialized DRAM-PIM product, which places
+general-purpose RISC cores in DDR4-DIMMs. However,
+this product was not intended for deep-learning applications, thus the peak bandwidth and throughput can hardly
+meet the requirements of LLM inference. Compared to
+UPMEM’s PIM-DIMM, Samsung proposes to place MAC
+units into HBM memory, achieving 2TB/s of internal memory bandwidth, which is much higher than that of traditional
+HBM2 (307GB/s per cube) memory. Since the processing units are tailored for deep learning workloads, the peak
+compute throughput of HBM-PIM can reach 1.2TFLOPS.
+In other words, HBM-PIM is suitable for accelerating operators with 1-2 Ops/Byte of arithmetic intensity.
+Choi et al has proposed to accelerate the KV-Cache processing using HBM-PIM, which has low arithmetic intensity in batched LLM inference. According to their evaluation Choi et al. [2023], A GPU+HBM-PIM system for
+LLM inference can achieve 3.24× speedup over traditional
+monolithic GPU system.
+Similar to Samsung’s HBM-PIM, SK-hynix has also
+proposed a GDDR6-based PIM accelerator Kwon et al.
+[2022] called AiM. As shown in Table 2, the compute units
+of AiM adopts the BF16 data format, which is more efficient
+
+for deep-learning acceleration. With optimized MAC units,
+AiM offers 1TFLOPS per chip of compute capacity, while
+the peak bandwidth is 1TB/s per chip. Although AiM has
+not reported its performance on LLM, it can achieve up to
+10× speed improvement compared to GPU+HBM2 system
+on LSTM tasks.
+Note that, although DRAM-based PIM techniques have
+demonstrated promising potential of accelerating memoryintensive operators in LLM inference, there are still some
+limitations that should be addressed in the future.
+• Limited Computation Power. A key restriction of
+DRAM-PIMs in accelerating LLMs stems from their constrained computational capabilities. DRAM-PIMs utilize
+compute units crafted using the DRAM process, resulting in transistors that are 3 times slower and logic density several times lower compared to CMOS in the same
+technology node Devaux [2019b]. Even worse, DRAM
+chips usually have fewer metal layers, leading to a lower
+routing density at the same time. Due to these technical
+constraints, DRAM-PIMs can hardly incorporate powerful compute units. As a consequence, DRAM-PIMs is
+only suitable for small-batch inference or KV-cache processing. For computation-intensive large-batch inference,
+a powerful host is still necessary.
+• Capacity Constraints. Another significant limitation
+of DRAM-PIMs is their restricted capacity. Given that
+DRAM-PIMs allocate some memory capacity to construct the computation units, the total memory capacity
+is typically 50% less than that of standard memory Kwon
+et al. [2021]. For LLM applications that necessitate substantial memory capacity to accommodate the weights
+and KV-cache, DRAM-PIMs may encounter capacityrelated challenges.
+• Inadequate Inter-PIM Communication. In addition to
+the constraints imposed by computation power and capacity, another limitation of DRAM-PIMs is their suboptimal
+inter-PIM communication capability. Given that there
+are distributed computing units located near each DRAM
+bank, data aggregation and computation synchronization
+among these units are unavoidable. However, DRAMPIMs lack robust interconnects Jonatan et al. [2024],
+Zhou et al. [2023d], and they typically depend on the host
+CPU/GPU for data exchange between PIM units. This reliance can lead to inefficiencies in the system. Therefore,
+to enhance LLM inference, future iterations of DRAMPIMs should aim to improve their inter-PIM communication abilities.
+
+6.3. New Data Format
+Neural networks typically employ high-precision floatingpoint numbers (16 or 32 bits) for training. While highprecision FP numbers can accommodate both representation precision and range, the complex hardware implemen-
+
+Table 2. Comparison of Commodity DRAM NMC Products
+Product
+Technique
+PIM Units
+Peak Bandwidth
+Peak Throughput
+
+PIM-DIMM
+DDR4
+RISC Cores
+80.4 GB/s per DIMM
+43.8 GOP/s per DIMM
+
+HBM-PIM
+HBM2
+FP16 MAC
+2 TB/s per cube
+1.2 TFLOPS
+
+AiM
+GDDR6
+BF16 MAC
+1 TB/s per chip
+1 TFLOPS
+
+tation required for FP arithmetic is not conducive to efficient inference. To mitigate the hardware overhead, uniform quantization casts high-precision floating-point numbers to low-precision integer representations, substituting
+expensive floating-point logic with efficient integer logic.
+However, uniform quantization struggles to balance representation precision and range simultaneously, leading to
+substantial degradation in model accuracy. Moreover, preserving model accuracy without degradation necessitates
+well-designed quantization algorithms, introducing additional casting efforts. Non-uniform quantization attempts
+to enhance the precision of data representation under lowbit conditions by assigning bits and discretizing the range
+of parameters non-uniformly. Yet a critical drawback of
+non-uniform quantization is its challenging deployment on
+general computation hardware, e.g. CPUs and GPUs [Gholami et al., 2022]. In summary, existing data formats fail to
+concurrently achieve fine precision, extensive range, high
+efficiency, and low tuning costs for inference. Given the
+criticality of reducing the deployment costs of LLMs, a substantial amount of work investigate into exploring the most
+balanced data format tailored to LLMs.
+Aspect
+Precision
+Range
+HW Efficiency
+Casting Effort
+
+Floating
+Point
+Good
+Good
+Bad
+Good
+
+Uniform
+Quantization
+Bad
+Bad
+Good
+Bad
+
+Non-Uniform
+Quantization
+Medium
+Medium
+Bad
+Medium
+
+Table 3. Comparison of Floating Point, Uniform Quantization, and
+Non-Uniform Quantization
+
+To trade for better hardware efficiency from the original FP model, a natural progression is to reduce the exponent & mantissa bits in the high-resolution floating-point
+format. As demonstrated by recent works [Micikevicius
+et al., 2022, Sun et al., 2019a], models of various categories pre-trained in FP16 (including LLMs) can be directly quantized to FP8 without significant accuracy degradation. Moreover, on a wide spectrum of tasks, training
+with FP8 can effectively match the result quality achieved
+by 16-bit training sessions. The significant gain of hardware efficiency and little demand of user efforts envisioned
+by low-resolution float-point formats have garnered the attention from AI hardware manufacturers. For instance,
+NVIDIA implements FP8 Tensor Core in their latest H100
+
+GPUs [NVIDIA, 2022]. Tesla also introduces configurable
+floating point format, namely CFloat8, in their Tesla Dojo
+chip [Tesla, 2023].
+Beyond the noval architectures introduced by the industry, academia has also initiated efforts to exploiting the
+potential of low-precision floating-point format on LLMs.
+ZeroQuant-FP [Wu et al., 2023d] proposes FP4 and FP8
+for weight/activation quantization of LLMs. The authors
+adopt scaling constraints for weight quantization, achieving efficient weight conversion from FP4 to FP8 and better
+utilization of the FP8 Tensor Core. ZeroQuant-(4+2) [Wu
+et al., 2023c] and FP6-LLM [Xia et al., 2024] proposes
+weight quantization of LLMs with FP6, and provides efficient implementation on CUDA Core and Tensor Core, respectively. LLM-FP4 [Liu et al., 2023b] proposes quantizing both weights and activations of LLMs down to FP4. In
+summary, these efforts demonstrates the feasibility of applying floating-point formats at even lower bit-widths for
+quantization, as well as the potential for achieving greater
+efficiency gains on existing or new hardware platforms.
+On the other hand, researchers are delving into the refinement of low-precision quantization formats to augment
+the adaptability of data representation whilst preserving
+hardware efficiency. One line of works propose to explore
+new encoding schemes within single value representation.
+Contrary to INT and FP numbers, which utilize fixed-length
+sub-fields for encoding distinct pieces of information, such
+as exponents and mantissas, the newly-proposed rule-based
+quantization formats enable dynamic adjustment of subfield bit-widths. ALPS [Langroudi et al., 2021] proposes
+a generalized posit format along with a new adaptive quantization algorithm to optimally represent the dynamic range
+and distribution of DNN parameters. ANT [Guo et al.,
+2022a] proposes a new data format called flint with leading1 encoding for exponent fields. Dybit [Zhou et al., 2023a]
+proposes to separate exponent and mantissa fields with the
+first encountered 0 as delimiter. The flexibility of these
+variable-length data formats presents the chance to compromise between range and precision more effectively and
+allows for customization to more closely align with the distribution of LLMs’ weights and activations.
+Another line of works exploit similarity and discrepancy across values. Outlier-aware quantization capitalizes
+on the observation that values with large magnitudes have
+a significant impact on model performance. In this approach, important values are identified as outliers and are
+treated differently from normal values to ensure a more
+accurate representation. OLAccel [Park et al., 2018] and
+GOBO [Zadeh et al., 2020] separately store and allocate
+higher bit-width to the outlier values. OliVe [Guo et al.,
+2023a] refines the concept with outlier-victim pair encoding scheme to ensure aligned memory access and improved
+efficiency. Bit-sharing encoding concentrates on the inher-
+
+ent similarity among values and annotates additional information in coarse granularity, thereby achieving a balance
+between representation accuracy and hardware efficiency.
+AdaptivFloat [Tambe et al., 2020] proposes to optimally
+shift the available range of FP values with a common tensorwise exponent bias. MX [Darvish Rouhani et al., 2023] extends AdaptivFloat’s observation into finer granularity, and
+proposes Block Data Representation (BDR) framework to
+explore the optimal tradeoff between representation accuracy and hardware efficiency.
+Method
+Low-bit floating-point
+Variable-length encoding
+Outlier-aware quantization
+Bit-sharing encoding
+
+Description
+Reduce exponent & mantissa bits
+Dynamically adjust sub-field bit-width
+Customize quantization for outliers
+Share common information within a block
+
+Benefits
+Efficiency ↑
+Precision ↑
+Precision ↑
+Precision ↑
+
+Table 4. Summary of improvements in data formats. The benefits
+comes with negligible negative impacts on other factors.
+
+6.4. New Processing Element
+Except for the high demand for memory access, there has
+been a growing interest in developing specialized processing elements (PEs) to boost the computation. These specialized architectures aim to provide significant computational enhancements over general-purpose processing element, such as CUDA core, for the specific operations associated with LLMs.
+NVIDIA has developed a special hardware acceleration
+engine called the Transformer Engine in their H100 GPU.
+This engine uses statistical analysis to determine the optimal precision (FP16 or FP8) for each layer of the model,
+achieving the best performance while maintaining accuracy.
+Some researchers have designed accelerators specifically
+for efficiently executing the attention mechanism in language models (LLMs) [Kao et al., 2023, Qin et al., 2023].
+Several companies and research groups have been exploring
+the use of FPGAs to speed up LLM computations. Examples include DFX [Hong et al., 2022] and LightLLM [Zeng
+et al., 2024].
+
+7. Discussion
+7.1. Reliability
+The discussion above significantly enhances the inference
+and training efficiency of LLMs in practical scenarios.
+However, these compression methods also lead to subtle
+changes in model reliability. Overall, the various compression techniques discussed in Section 3 will have a significant impact on model reliability. Therefore, this section
+primarily focuses on how key design choices within these
+different compression techniques affect the following three
+aspects of reliability: hallucination, safety alignment, and
+out-of-distribution generalization.
+
+Hallucination primarily refers to cases where the outputs of LLMs do not align with real-world knowledge, often
+generating content that is either factually incorrect or nonsensical Huang et al. [2023a]. Safety alignment focuses on
+the model’s inherent ability to autonomously recognize and
+refuse to respond to harmful inquiries, thereby safeguarding against generating inappropriate or dangerous content
+Ouyang et al. [2022]. Reliability pertains to the model’s
+stability when confronted with unconventional data in longtail scenarios, such as interference from adversarial examples or with decision shortcuts Geirhos et al. [2020]. In the
+following parts, we will delve into how different compression methods impact these three crucial aspects of model
+performance.
+7.1.1
+
+Hallucination
+
+The ability of an LLM to suppress hallucinations is critically affected by modifications to its parameters. According to previous research findings, factual knowledge is often
+stored within the Feed-Forward Networks (FFNs) of Transformer modules. Therefore, when employing quantization
+or structured compression methods, special attention should
+be paid to the output calibration of the FFN layers. A viable
+approach to addressing this concern involves identification
+of key FFN layers, i.e., utilizing neuron-level interpretation
+techniques from prior research Meng et al. [2022] to identify the FFN layers that are crucial for storing knowledge.
+These layers are deemed important because they contain
+weights and representations that are integral to the model’s
+ability to recall and utilize factual information accurately.
+For parts identified as crucial in storing knowledge, the
+quantization precision should be selectively enhanced. This
+means that while the overall model undergoes quantization
+to reduce its size and computational requirements, the quantization process for these critical FFN layers is adjusted to
+maintain a higher level of precision. This selective approach
+helps in preserving the integrity and accuracy of the stored
+factual knowledge, thereby mitigating the risk of output hallucinations.
+In the context of pruning, which involves removing
+weights or neurons deemed less important to streamline the
+model, it is essential to retain the identified important FFN
+layers. By preserving these layers, the model maintains
+its core capability to recall and process factual knowledge,
+which is essential for ensuring the accuracy of its outputs
+and reducing the likelihood of generating hallucinated content.
+
+7.2. Safety Alignment
+Based on previous research findings Yuan et al. [2023c],
+moderate model compression, such as 8-bit quantization,
+does not significantly compromise the safety capabilities
+
+of models. However, it may render models more susceptible to certain jailbreak attacks—a direction that prior studies have seldom covered Deng et al. [2023]. Consequently,
+we recommend conducting comprehensive red teaming before deploying these compressed models. Moreover, knowledge transfer-based approaches can substantially weaken
+the safety of models. Therefore, we advise re-finetune
+smaller models after completing knowledge transfer.
+
+7.3. OOD Generalization
+Large language models, when deployed in real-world scenarios, are often influenced by decision shortcuts, leading
+to erroneous decisions within the long-tail subgroup distributions Geirhos et al. [2020]. As demonstrated by previous research Yuan et al. [2023b], neural networks subjected to quantization compression exhibit significant performance disparities across different subgroups within the
+same task, with errors in judgment frequently occurring in
+long-tail subgroups that rely on decision shortcuts present
+in the context. Furthermore, kv-cache compression, a commonly used technique to enhance the inference efficiency of
+large language models in practice, relies on randomly discarding tokens in the attention matrix during inference. This
+method further exacerbates the model’s reliance on decision
+shortcuts. Therefore, it is advisable to consider integrating
+corresponding robustness enhancement methods in downstream specific scenarios, such as the invariant test-time optimization techniques mentioned in prior studies Ma et al.
+[2024].
+
+7.4. Efficient Large Multimodal Models
+7.4.1
+
+Large Multimodal Models (LMMs)
+
+Large Multimodal Models (LMMs), particularly Visual
+Language Models (VLMs), have emerged as a promising
+avenue for creating general-purpose assistants, showcasing
+significant enhancements in perception and reasoning capabilities. These models leverage LLMs as their cognitive core, enriching multimodal (MM) tasks with robust
+language generation, zero-shot transfer capabilities, and
+In-Context Learning. Foundation models across different
+modalities provide high-quality representations. A critical
+challenge for LMMs is integrating LLMs with models from
+other modalities to facilitate collaborative inference effectively. The primary focus has been on improving modality alignment and aligning with human intentions through a
+MM Pre-Training + MM Instruction-Tuning pipeline. Two
+surveys, [Yin et al., 2023b, Zhang et al., 2024a], delve into
+LMMs in detail.
+7.4.2
+
+Efficient LMMs
+
+The need for cross-modality capabilities in resource-limited
+scenarios has become increasingly apparent. Despite
+
+LMMs’ advancements, their large-scale training and deployment incur significant computational costs, necessitating efficient parallel device implementations. Google’s
+Gemini [Team et al., 2023] leads in efficient LMMs, achieving state-of-the-art performance on multimodal benchmarks
+and introducing mobile-scale LMMs suitable for lowmemory devices. However, Gemini remains closed-source.
+Open-source initiatives, like LLaVA-v1.5, utilize advanced
+compression techniques, such as 4/8 bit quantization via bitsandbytes [Dettmers et al., 2022], for more on compression
+techniques, see Section 3.
+Further efforts towards efficient LMMs include MobileVLM [Chu et al., 2023], which develops compact LLMs
+and an efficient multimodal feature projector, and its successor, MobileVLM-v2 [Chu et al., 2024], which explores improved training strategies for mobile scenarios. TinyGPTV [Yuan et al., 2023a] leverages the advanced Phi-2 [Javaheripi et al., 2023] LLM to surpass the performance of significantly larger models. Similarly, LLaVA-Phi [Zhu et al.,
+2024] and Vary-toy [Wei et al., 2024] introduce smaller
+backbones and enhanced vocabularies for broader generalizability. TinyLLaVA [Zhou et al., 2024] investigates the
+impacts of architectural choices, data quality, and training strategies, demonstrating that smaller LMMs can match
+the performance of their larger counterparts with optimized
+data and training. MoE-LLaVA [Lin et al., 2024] adapts
+Mixture of Experts (MoE) [Yuksel et al., 2012] to mitigate
+model degradation due to sparsity.
+
+7.5. Long Context Modeling
+When used for tasks like Chatbot or document summarization tools, Large Language Models’ long context language
+modeling and reasoning capabilities are challenged. The
+model, however, are usually trained on the general pretraining corpus that usually comprises text snippets, not long
+enough to serve as high-quality training examples for LLM
+to learn. To alleviate the insufficient long context capabilities of the pre-trained models, abundant works have attempted to attach the problem from different angles. For
+this section of the discussion, we mainly focus on alternative attention mechanisms in 7.5.1, cache compression and
+context retrieval, and position encoding modifications. For
+more detailed studies and a more comprehensive review of
+the issue of LLM long-context modeling, we refer interested
+readers to the recent survey specifically on this topic Huang
+et al. [2023b].
+7.5.1
+
+Alternative Attention Design
+
+Lying in the core of transformer architecture is the selfattention mechanism. For decoder-only model inference
+with KV cache, if the past context is long, attending to all
+past keys computing with past values incurs both compu-
+
+tation and memory bottleneck. Prior works found that not
+all past tokens need to be attended to preserve the model
+inference performance. Landmark Attention (Mohtashami
+and Jaggi [2023]) introduced the special landmark attention into the sequence to summarize the following block
+of the tokens’ information. The new query would attend
+to the landmark tokens first to determine whether the following tokens inside the block are needed for predicting the
+next word, thus reducing the attention computation while
+maintaining the random-access nature of attention. Earlier, Funnel-Transformer (Dai et al. [2020]) also approaches
+the same goal of conducting attention in the block level.
+Differently, they introduce a down-sampling during the encoder portion and an up-sampling method during the decoder portion. The reduced FLOPs allow them to build
+a deeper and wider model that outperforms the original
+model with the same compute budget. On the other hand,
+Longformer (Beltagy et al. [2020]) gives an early attempt
+to combine sliding window attention and global attention,
+in which they only allow a few pre-defined tokens to attend to all tokens in the sequence, while other tokens do
+sliding window attention and also attend to these selected
+global attending tokens. Concurrently, ETC (Ainslie et al.
+[2020]) introduces a 2-level hierarchy to the input so that
+the plain long input tokens can do sliding window attention, while a global input of auxiliary tokens extracted and
+downsampled from the original input can do normal attention. The plain inputs are allowed to attend to the global
+inputs, thus acquiring the global context information. Similarly, LongT5 (Guo et al. [2022b]) proposes an even simpler
+method to directly downsampled the long and prior context
+using mean pooling with chunksize of 16, the downsampled keys and values are directly appended in front of the
+rest of the input sequence. Then the rest of the model can
+do sliding window attention with the additional attention to
+the downsampled context summary tokens at the front. Under the LLM era when pretraining becomes prohibitively
+costly, StreamingLLM (Xiao et al. [2023b]) and LM Infinite (Han et al. [2023]) concurrently propose a sink plus
+sliding window attention pattern to LLM as a plug-in tool
+to boost the LLM’s long context ability. StreamingLLM
+in particular points out that due to the mechanism of softmax operation in the transformer, the beginning tokens of
+the input are crucial to maintaining the self-attention performance. The modified attention mask is shown to achieve
+strong results in long-context language modeling without
+additional model finetuning. Besides, H2 O (Zhang et al.
+[2024b]) reduces the self-attention computational complexity by only attending to tokens of interest out from the prior
+prefilled input context. To do that, they build an empirical
+oracle for selecting tokens. The method is shown to benefit
+LLM in long-context regime.
+
+7.5.2
+
+Recurrence and Retrieval
+
+Transformer-XL Dai et al. [2019] proposes to introduce
+the segment-level recurrence structure to the Language
+Model to boost the current language model in long-context
+capabilities. The method stores the last layer output of
+one previous segment to append to the current layer,
+thus drastically increasing the dependency distance of
+the model. Segatron (Bai et al. [2021]) and Compressive
+Transformer (Rae et al. [2019]) extend upon the previous
+idea. Segatron boosts the segment-level recurrence from
+the position embeddings on the token level, sentence
+level, and beyond through segment-aware mechanisms.
+Compressive Transformer proposes a second-level compressed memory FIFO queue so that the past segment
+context should not be discarded but compressed by their
+customized function and stored in the queue to elongate
+the length of context dependency. In the LLM era, Dynamic Memory Compression Nawrot et al. [2024] also
+follows the recurrence idea with compressed context to
+dynamically decide how to compress the previous context
+information, thus reducing the sequence length of the
+attention while preserving the distant information. Besides,
+other than segment-level, Fan et al. [2020] studies the
+retrospective recurrence. Memorizing Transformer (Wu
+et al. [2022]) and Memformer (Wu et al. [2020]) combines retrieval and local cache with a forgetting mechanism.
+On the other hand, following on trend that not every past
+token is needed for the current token generation next, the
+past KV cache can be placed physically further in distance,
+i.e. secondary memory, so that when only needed, the specific key-value pair will be retrieved. Thus, another way
+to boost the LLM is through Retrieval-Augmented Generation (RAG). RAG is a heated topic in its own light and
+contains abundant techniques and past works. Due to the
+limited scope of our paper, we kindly refer to the following
+comprehensive surveys on RAG for interested readers: Gao
+et al. [2023] and Zhao et al. [2024]. To address the particular motivation underlined long-context capabilities brought
+up at the beginning of this section, LangChain Pandya and
+Holia [2023] is the popular way to mitigate the Chatbot’s
+past long conversation through retrieval. LangChain is an
+open-source tool that specializes in using LLM to compute
+embedding for user-input long documents and files, so that
+later according to the user’s prompt, top-relevant contents
+will be retrieved through the cosine-similarity metrics. Besides, there are fast-growing other relevant works(Borgeaud
+et al. [2021], Bertsch et al. [2024], Zhong et al. [2023],
+Zhou et al. [2023b], Kynoch et al. [2023], Modarressi et al.
+[2023], Guu et al. [2020], Wang et al. [2024b]) under the
+retrieval for long-context settings.
+
+7.5.3
+
+Maneuvering Position Encodings
+
+During pretraining, the position encoding of the transformer hasn’t seen an input sequence length longer than a
+fixed limit. Also, because the position encoding is usually
+based on a triangular function, the vanilla transformer
+is unable to extrapolate to unfamiliar longer sequence
+lengths. Earlier techniques add attention bias to the
+attention map before the softmax operation. ALiBi (Press
+et al. [2021]) introduces heuristics to design such attention
+bias, achieving early success in long-context extrapolation
+tasks for transformer architecture. Besides, Kerple (Chi
+et al. [2022]) and Sandwich building on the prior works,
+introduce trainable parameters to construct the attention
+bias matrix or construct attention bias through sinusoidal
+properties of position encoding.
+On the other hand, another lively line of work delves into
+adjusting the RoPE. Inspired by the Neural Tangent Kernel (NTK) theory, NTK-aware Scaled RoPE (Xiong et al.
+[2023]) modifies the base parameter of the RoPE; LEX (Sun
+et al. [2022]) and PermuteFormer (Chen [2021]) adds an
+exponential decay term; Positional Interpolation places linear scaling to every token; Dynamic-NTK (Huang and Yau
+[2019]) gradually increases the scaling ratio. In the LLM
+era, YaRN (Peng et al. [2023]) linearly scales query and key
+with a temperature factor. Giraffe (Pal et al. [2023]) finds
+that high-frequency terms are hurt by the low-frequency
+terms that are usually ill-trained and proposes a scaling
+mechanism based on the power law to protect the welltrained high-frequency information.
+
+8. Conclusion
+In this work, we review on efficient large language model
+(LLM) inference. For this practice-driven topic, our comprehensive study goes beyond conventional literature reviews by providing both an overview of existing research
+and the development of a roofline model. Our first step is
+to develop a roofline model, which enables us to pinpoint
+bottlenecks in LLM deployments, allowing researchers to
+resort to more specific deployment strategies. By meticulously assembling the latest developments in the field, our
+survey spans an array of pivotal areas, including innovations
+in weight optimization techniques, enhancements in decoding algorithms, as well as advancements in hardware and
+system-level optimizations. It is important to note that this
+project will be updated and maintained.
+
+References
+Abts, D., Kimmell, G., Ling, A., Kim, J., Boyd, M., Bitar, A.,
+Parmar, S., Ahmed, I., DiCecco, R., Han, D., et al. (2022).
+A software-defined tensor streaming multiprocessor for largescale machine learning. In Proceedings of the 49th Annual International Symposium on Computer Architecture, pages 567–
+580. 23
+
+Borgeaud, S. et al. (2021). Improving language models by retrieving from trillions of tokens. arxiv e-prints, art. arXiv preprint
+arXiv:2112.04426. 27
+Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J. D., Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G., Askell, A., et al.
+(2020). Language models are few-shot learners. Advances in
+neural information processing systems, 33:1877–1901. 1, 16
+
+Agarwal, R., Vieillard, N., Stanczyk, P., Ramos, S., Geist, M.,
+and Bachem, O. (2023). Gkd: Generalized knowledge distillation for auto-regressive sequence models. arXiv preprint
+arXiv:2306.13649. 12
+
+Cai, T., Li, Y., Geng, Z., Peng, H., Lee, J. D., Chen, D., and
+Dao, T. (2024). Medusa: Simple llm inference acceleration framework with multiple decoding heads. arXiv preprint
+arXiv:2401.10774. 18, 19
+
+Agrawal, A., Panwar, A., Mohan, J., Kwatra, N., Gulavani, B. S.,
+and Ramjee, R. (2023). Sarathi: Efficient llm inference by
+piggybacking decodes with chunked prefills. arXiv preprint
+arXiv:2308.16369. 22
+
+Chae, H., Song, Y., Ong, K. T.-i., Kwon, T., Kim, M., Yu,
+Y., Lee, D., Kang, D., and Yeo, J. (2023). Dialogue chainof-thought distillation for commonsense-aware conversational
+agents. arXiv preprint arXiv:2310.09343. 12
+
+Ainslie, J., Ontanon, S., Alberti, C., Cvicek, V., Fisher, Z., Pham,
+P., Ravula, A., Sanghai, S., Wang, Q., and Yang, L. (2020).
+Etc: Encoding long and structured inputs in transformers. arXiv
+preprint arXiv:2004.08483. 27
+
+Chee, J., Cai, Y., Kuleshov, V., and De Sa, C. (2023). Quip: 2-bit
+quantization of large language models with guarantees. Advances in Neural Information Processing Systems. 8
+
+Alizadeh, K., Mirzadeh, I., Belenko, D., Khatamifard, K., Cho,
+M., Del Mundo, C. C., Rastegari, M., and Farajtabar, M. (2023).
+Llm in a flash: Efficient large language model inference with
+limited memory. arXiv preprint arXiv:2312.11514. 21
+Aminabadi, R. Y., Rajbhandari, S., Awan, A. A., Li, C., Li, D.,
+Zheng, E., Ruwase, O., Smith, S., Zhang, M., Rasley, J., et al.
+(2022). Deepspeed-inference: enabling efficient inference of
+transformer models at unprecedented scale. In SC22: International Conference for High Performance Computing, Networking, Storage and Analysis, pages 1–15. IEEE. 20, 21
+Bae, S., Ko, J., Song, H., and Yun, S.-Y. (2023). Fast and robust early-exiting framework for autoregressive language models with synchronized parallel decoding. 13, 14, 15
+Bai, H., Shi, P., Lin, J., Xie, Y., Tan, L., Xiong, K., Gao, W.,
+and Li, M. (2021). Segatron: Segment-aware transformer for
+language modeling and understanding. In Proceedings of the
+AAAI Conference on Artificial Intelligence, volume 35, pages
+12526–12534. 27
+Baier-Reinio, A. and Sterck, H. D. (2020). N-ode transformer: A
+depth-adaptive variant of the transformer using neural ordinary
+differential equations. 13
+Behdin, K., Acharya, A., Gupta, A., Keerthi, S., and Mazumder,
+R. (2023). Quantease: Optimization-based quantization for
+language models–an efficient and intuitive algorithm. arXiv
+preprint arXiv:2309.01885. 8
+Beltagy, I., Peters, M. E., and Cohan, A. (2020). Longformer: The
+long-document transformer. arXiv preprint arXiv:2004.05150.
+27
+Bertsch, A., Alon, U., Neubig, G., and Gormley, M. (2024). Unlimiformer: Long-range transformers with unlimited length input. Advances in Neural Information Processing Systems, 36.
+27
+
+Chen, C., Borgeaud, S., Irving, G., Lespiau, J.-B., Sifre,
+L., and Jumper, J. (2023a). Accelerating large language
+model decoding with speculative sampling. arXiv preprint
+arXiv:2302.01318. 17
+Chen, P. (2021). Permuteformer: Efficient relative position encoding for long sequences. 28
+Chen, T., Moreau, T., Jiang, Z., Zheng, L., Yan, E., Shen, H.,
+Cowan, M., Wang, L., Hu, Y., Ceze, L., et al. (2018). Tvm: An
+automated end-to-end optimizing compiler for deep learning.
+In 13th USENIX Symposium on Operating Systems Design and
+Implementation (OSDI 18), pages 578–594. 20
+Chen, Y., Pan, X., Li, Y., Ding, B., and Zhou, J. (2023b). Ee-llm:
+Large-scale training and inference of early-exit large language
+models with 3d parallelism. 14, 15
+Chi, T.-C., Fan, T.-H., Ramadge, P. J., and Rudnicky, A. (2022).
+Kerple: Kernelized relative positional embedding for length extrapolation. Advances in Neural Information Processing Systems, 35:8386–8399. 28
+Choi, J., Park, J., Kyung, K., Kim, N. S., and Ahn, J. H. (2023).
+Unleashing the potential of pim: Accelerating large batched inference of transformer-based generative models. IEEE Computer Architecture Letters. 23
+Choi, J., Wang, Z., Venkataramani, S., Chuang, P. I.-J., Srinivasan,
+V., and Gopalakrishnan, K. (2018). Pact: Parameterized clipping activation for quantized neural networks. arXiv preprint
+arXiv:1805.06085. 8
+Chowdhery, A., Narang, S., Devlin, J., Bosma, M., Mishra, G.,
+Roberts, A., Barham, P., Chung, H. W., Sutton, C., Gehrmann,
+S., Schuh, P., Shi, K., Tsvyashchenko, S., Maynez, J., Rao, A.,
+Barnes, P., Tay, Y., Shazeer, N., Prabhakaran, V., Reif, E., Du,
+N., Hutchinson, B., Pope, R., Bradbury, J., Austin, J., Isard,
+M., Gur-Ari, G., Yin, P., Duke, T., Levskaya, A., Ghemawat,
+
+S., Dev, S., Michalewski, H., Garcia, X., Misra, V., Robinson,
+K., Fedus, L., Zhou, D., Ippolito, D., Luan, D., Lim, H., Zoph,
+B., Spiridonov, A., Sepassi, R., Dohan, D., Agrawal, S., Omernick, M., Dai, A. M., Pillai, T. S., Pellat, M., Lewkowycz, A.,
+Moreira, E., Child, R., Polozov, O., Lee, K., Zhou, Z., Wang,
+X., Saeta, B., Diaz, M., Firat, O., Catasta, M., Wei, J., MeierHellstern, K., Eck, D., Dean, J., Petrov, S., and Fiedel, N.
+(2022). Palm: Scaling language modeling with pathways. 16
+
+Deng, G., Liu, Y., Li, Y., Wang, K., Zhang, Y., Li, Z., Wang, H.,
+Zhang, T., and Liu, Y. (2023). Jailbreaker: Automated jailbreak
+across multiple large language model chatbots. arXiv preprint
+arXiv:2307.08715. 26
+
+Chu, X., Qiao, L., Lin, X., Xu, S., Yang, Y., Hu, Y., Wei, F., Zhang,
+X., Zhang, B., Wei, X., et al. (2023). Mobilevlm: A fast, reproducible and strong vision language assistant for mobile devices.
+arXiv preprint arXiv:2312.16886. 26
+
+Dettmers, T., Pagnoni, A., Holtzman, A., and Zettlemoyer, L.
+(2023a). Qlora: Efficient finetuning of quantized llms. arXiv
+preprint arXiv:2305.14314. 10
+
+Chu, X., Qiao, L., Zhang, X., Xu, S., Wei, F., Yang, Y., Sun, X.,
+Hu, Y., Lin, X., Zhang, B., et al. (2024). Mobilevlm v2: Faster
+and stronger baseline for vision language model. arXiv preprint
+arXiv:2402.03766. 26
+Corro, L. D., Giorno, A. D., Agarwal, S., Yu, B., Awadallah, A.,
+and Mukherjee, S. (2023). Skipdecode: Autoregressive skip
+decoding with batching and caching for efficient llm inference.
+15
+Courbariaux, M., Bengio, Y., and David, J.-P. (2015). Binaryconnect: Training deep neural networks with binary weights during
+propagations. Advances in neural information processing systems, 28. 8
+Dai, Z., Lai, G., Yang, Y., and Le, Q. (2020). Funnel-transformer:
+Filtering out sequential redundancy for efficient language processing. Advances in neural information processing systems,
+33:4271–4282. 27
+Dai, Z., Yang, Z., Yang, Y., Carbonell, J., Le, Q. V., and
+Salakhutdinov, R. (2019). Transformer-xl: Attentive language models beyond a fixed-length context. arXiv preprint
+arXiv:1901.02860. 27
+Dao, T. (2023). Flashattention-2: Faster attention with better parallelism and work partitioning. 20
+Dao, T., Fu, D., Ermon, S., Rudra, A., and Ré, C. (2022). Flashattention: Fast and memory-efficient exact attention with ioawareness. Advances in Neural Information Processing Systems, 35:16344–16359. 20
+Dao, T., Haziza, D., Massa, F., and Sizov, G. (2023). Flashdecoding for long-context inference. 20
+Darvish Rouhani, B., Zhao, R., Elango, V., Shafipour, R., Hall,
+M., Mesmakhosroshahi, M., More, A., Melnick, L., Golub, M.,
+Varatkar, G., et al. (2023). With shared microexponents, a little
+shifting goes a long way. In Proceedings of the 50th Annual
+International Symposium on Computer Architecture, pages 1–
+13. 25
+de Jong, M., Zemlyanskiy, Y., Ainslie, J., FitzGerald, N., Sanghai,
+S., Sha, F., and Cohen, W. (2023). Fido: Fusion-in-decoder
+optimized for stronger performance and faster inference. 13
+
+Dettmers, T., Lewis, M., Belkada, Y., and Zettlemoyer, L. (2022).
+Llm. int8 (): 8-bit matrix multiplication for transformers at
+scale. arXiv preprint arXiv:2208.07339. 8, 26
+
+Dettmers, T., Svirschevski, R., Egiazarian, V., Kuznedelev, D.,
+Frantar, E., Ashkboos, S., Borzunov, A., Hoefler, T., and
+Alistarh, D. (2023b). Spqr: A sparse-quantized representation for near-lossless llm weight compression. arXiv preprint
+arXiv:2306.03078. 8
+Dettmers, T. and Zettlemoyer, L. (2023). The case for 4-bit precision: k-bit inference scaling laws. In International Conference
+on Machine Learning, pages 7750–7774. PMLR. 8
+Devaux, F. (2019a). The true processing in memory accelerator. In
+2019 IEEE Hot Chips 31 Symposium (HCS), pages 1–24. IEEE
+Computer Society. 23
+Devaux, F. (2019b). The true processing in memory accelerator. In
+2019 IEEE Hot Chips 31 Symposium (HCS), pages 1–24. IEEE
+Computer Society. 23
+Devlin, J., Chang, M.-W., Lee, K., and Toutanova, K. (2019). Bert:
+Pre-training of deep bidirectional transformers for language understanding. 16
+Devvrit, Kudugunta, S., Kusupati, A., Dettmers, T., Chen, K.,
+Dhillon, I., Tsvetkov, Y., Hajishirzi, H., Kakade, S., Farhadi,
+A., and Jain, P. (2023). Matformer: Nested transformer for
+elastic inference. 15
+Din, A. Y., Karidi, T., Choshen, L., and Geva, M. (2023). Jump
+to conclusions: Short-cutting transformers with linear transformations. 14
+Ding, T., Chen, T., Zhu, H., Jiang, J., Zhong, Y., Zhou, J., Wang,
+G., Zhu, Z., Zharkov, I., and Liang, L. (2023). The efficiency
+spectrum of large language models: An algorithmic survey.
+arXiv preprint arXiv:2312.00678. 3, 14
+Dong, Z., Yao, Z., Gholami, A., Mahoney, M. W., and Keutzer,
+K. (2019). Hawq: Hessian aware quantization of neural networks with mixed-precision. In Proceedings of the IEEE/CVF
+International Conference on Computer Vision, pages 293–302.
+8
+Du, N., Huang, Y., Dai, A. M., Tong, S., Lepikhin, D., Xu, Y.,
+Krikun, M., Zhou, Y., Yu, A. W., Firat, O., et al. (2022). Glam:
+Efficient scaling of language models with mixture-of-experts.
+In International Conference on Machine Learning, pages 5547–
+5569. PMLR. 16
+
+Elbayad, M., Gu, J., Grave, E., and Auli, M. (2020). Depthadaptive transformer. 13, 14, 15
+Fan, A., Lavril, T., Grave, E., Joulin, A., and Sukhbaatar, S.
+(2020). Addressing some limitations of transformers with feedback memory. arXiv preprint arXiv:2002.09402. 27
+Fedus, W., Dean, J., and Zoph, B. (2022). A review of sparse expert models in deep learning. arXiv preprint arXiv:2209.01667.
+16
+Fedus, W., Zoph, B., and Shazeer, N. (2021). Switch transformers:
+Scaling to trillion parameter models with simple and efficient
+sparsity.(2021). arXiv preprint cs.LG/2101.03961. 15
+Frantar, E. and Alistarh, D. (2023). Sparsegpt: Massive language
+models can be accurately pruned in one-shot. ICML. 11
+Frantar, E., Ashkboos, S., Hoefler, T., and Alistarh, D. (2022).
+Gptq: Accurate post-training quantization for generative pretrained transformers. arXiv preprint arXiv:2210.17323. 8
+Fu, Y., Bailis, P., Stoica, I., and Zhang, H. (2023a). Breaking the
+sequential dependency of llm inference using lookahead decoding. 19
+Fu, Y., Peng, H., Ou, L., Sabharwal, A., and Khot, T. (2023b).
+Specializing smaller language models towards multi-step reasoning. arXiv preprint arXiv:2301.12726. 12
+Gao, Y., Xiong, Y., Gao, X., Jia, K., Pan, J., Bi, Y., Dai, Y., Sun, J.,
+and Wang, H. (2023). Retrieval-augmented generation for large
+language models: A survey. arXiv preprint arXiv:2312.10997.
+27
+Geirhos, R., Jacobsen, J.-H., Michaelis, C., Zemel, R., Brendel,
+W., Bethge, M., and Wichmann, F. A. (2020). Shortcut learning in deep neural networks. Nature Machine Intelligence,
+2(11):665–673. 25, 26
+Geva, M., Caciularu, A., Wang, K. R., and Goldberg, Y. (2022).
+Transformer feed-forward layers build predictions by promoting concepts in the vocabulary space. 13
+Ghazvininejad, M., Levy, O., Liu, Y., and Zettlemoyer, L. (2019).
+Mask-predict: Parallel decoding of conditional masked language models. 19
+Gholami, A., Kim, S., Dong, Z., Yao, Z., Mahoney, M. W., and
+Keutzer, K. (2022). A survey of quantization methods for efficient neural network inference. In Low-Power Computer Vision,
+pages 291–326. Chapman and Hall/CRC. 6, 24
+
+Groq (2023). Groq sets new large language model performance record of 300 tokens per second per user on meta
+ai foundational llm llama 2.70b. https://wow.groq.
+com / groq - sets - new - large - language - model performance - record - of - 300 - tokens - per second- per- user- on- meta- ai- foundationalllm-llama-2-70b/. 23
+Gu, J., Bradbury, J., Xiong, C., Li, V. O., and Socher, R. (2017).
+Non-autoregressive neural machine translation. arXiv preprint
+arXiv:1711.02281. 19
+Gu, J. and Kong, X. (2020). Fully non-autoregressive neural machine translation: Tricks of the trade. 19
+Gu, Y., Dong, L., Wei, F., and Huang, M. (2023). Knowledge distillation of large language models. arXiv preprint
+arXiv:2306.08543. 11
+Guo, C., Tang, J., Hu, W., Leng, J., Zhang, C., Yang, F., Liu, Y.,
+Guo, M., and Zhu, Y. (2023a). Olive: Accelerating large language models via hardware-friendly outlier-victim pair quantization. In Proceedings of the 50th Annual International Symposium on Computer Architecture, pages 1–15. 9, 24
+Guo, C., Zhang, C., Leng, J., Liu, Z., Yang, F., Liu, Y., Guo,
+M., and Zhu, Y. (2022a). Ant: Exploiting adaptive numerical data type for low-bit deep neural network quantization. In
+2022 55th IEEE/ACM International Symposium on Microarchitecture (MICRO), pages 1414–1433. IEEE. 24
+Guo, H., Greengard, P., Xing, E. P., and Kim, Y. (2023b). Lq-lora:
+Low-rank plus quantized matrix decomposition for efficient
+language model finetuning. arXiv preprint arXiv:2311.12023.
+10
+Guo, J., Xu, L., and Chen, E. (2020). Jointly masked sequence-tosequence model for non-autoregressive neural machine translation. In Jurafsky, D., Chai, J., Schluter, N., and Tetreault, J.,
+editors, Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, pages 376–385, Online.
+Association for Computational Linguistics. 19
+Guo, M., Ainslie, J., Uthus, D., Ontanon, S., Ni, J., Sung, Y.-H.,
+and Yang, Y. (2022b). Longt5: Efficient text-to-text transformer
+for long sequences. 27
+Guo, S., Xu, J., Zhang, L. L., and Yang, M. (2023c). Compresso:
+Structured pruning with collaborative prompting learns compact large language models. arXiv preprint arXiv:2310.05015.
+11
+
+Gou, J., Yu, B., Maybank, S. J., and Tao, D. (2021). Knowledge
+distillation: A survey. International Journal of Computer Vision, 129:1789–1819. 11
+
+Guu, K., Lee, K., Tung, Z., Pasupat, P., and Chang, M. (2020).
+Retrieval augmented language model pre-training. In International conference on machine learning, pages 3929–3938.
+PMLR. 27
+
+Graphcore (2024). Tasks and tutorials using graphcore’s ipu
+with hugging face. https://github.com/graphcore/
+Gradient-HuggingFace. Accessed on March 10, 2024.
+23
+
+Han, C., Wang, Q., Xiong, W., Chen, Y., Ji, H., and Wang, S.
+(2023). Lm-infinite: Simple on-the-fly length generalization
+for large language models. arXiv preprint arXiv:2308.16137.
+27
+
+He, Z., Zhong, Z., Cai, T., Lee, J. D., and He, D. (2023).
+Rest: Retrieval-based speculative decoding. arXiv preprint
+arXiv:2311.08252. 18
+
+Huang, W., Liu, Y., Qin, H., Li, Y., Zhang, S., Liu, X., Magno,
+M., and Qi, X. (2024). Billm: Pushing the limit of post-training
+quantization for llms. arXiv preprint arXiv:2402.04291. 9
+
+Hinton, G., Vinyals, O., and Dean, J. (2015). Distilling the knowledge in a neural network. arXiv preprint arXiv:1503.02531. 11
+
+Huang, Y., Chen, Y., Yu, Z., and McKeown, K. (2022). In-context
+learning distillation: Transferring few-shot learning ability of
+pre-trained language models. arXiv preprint arXiv:2212.10670.
+12
+
+Hoffmann, J., Borgeaud, S., Mensch, A., Buchatskaya, E., Cai,
+T., Rutherford, E., de Las Casas, D., Hendricks, L. A., Welbl,
+J., Clark, A., Hennigan, T., Noland, E., Millican, K., van den
+Driessche, G., Damoc, B., Guy, A., Osindero, S., Simonyan, K.,
+Elsen, E., Rae, J. W., Vinyals, O., and Sifre, L. (2022). Training
+compute-optimal large language models. 15
+Holmes, C., Tanaka, M., Wyatt, M., Awan, A. A., Rasley,
+J., Rajbhandari, S., Aminabadi, R. Y., Qin, H., Bakhtiari,
+A., Kurilenko, L., et al. (2024). Deepspeed-fastgen: Highthroughput text generation for llms via mii and deepspeedinference. arXiv preprint arXiv:2401.08671. 22
+Hong, K., Dai, G., Xu, J., Mao, Q., Li, X., Liu, J., Chen, K.,
+Dong, H., and Wang, Y. (2023). Flashdecoding++: Faster
+large language model inference on gpus. arXiv preprint
+arXiv:2311.01282. 21
+Hong, S., Moon, S., Kim, J., Lee, S., Kim, M., Lee, D., and
+Kim, J.-Y. (2022). Dfx: A low-latency multi-fpga appliance
+for accelerating transformer-based text generation. In 2022
+55th IEEE/ACM International Symposium on Microarchitecture (MICRO), pages 616–630. IEEE. 25
+Hooper, C., Kim, S., Mohammadzadeh, H., Mahoney, M. W.,
+Shao, Y. S., Keutzer, K., and Gholami, A. (2024). Kvquant:
+Towards 10 million context length llm inference with kv cache
+quantization. arXiv preprint arXiv:2401.18079. 9
+Hou, L., Huang, Z., Shang, L., Jiang, X., Chen, X., and Liu, Q.
+(2020). Dynabert: Dynamic bert with adaptive width and depth.
+13
+
+Huang, Y., Xu, J., Jiang, Z., Lai, J., Li, Z., Yao, Y., Chen, T.,
+Yang, L., Xin, Z., and Ma, X. (2023b). Advancing transformer
+architecture in long-context large language models: A comprehensive survey. arXiv preprint arXiv:2311.12351. 26
+Hubara, I., Courbariaux, M., Soudry, D., El-Yaniv, R., and Bengio, Y. (2016). Binarized neural networks. Advances in neural
+information processing systems, 29. 9
+HuggingFace (2022). Hugging face accelerate. 21
+Javaheripi, M., Bubeck, S., Abdin, M., Aneja, J., Bubeck, S.,
+Mendes, C. C. T., Chen, W., Del Giorno, A., Eldan, R., Gopi,
+S., et al. (2023). Phi-2: The surprising power of small language
+models. Microsoft Research Blog. 26
+Jawahar, G., Mukherjee, S., Liu, X., Kim, Y. J., Mageed, M. A.,
+Laks Lakshmanan, V., Hassan, A., Bubeck, S., and Gao, J.
+(2023). Automoe: Heterogeneous mixture-of-experts with
+adaptive computation for efficient neural machine translation.
+In Findings of the Association for Computational Linguistics:
+ACL 2023, pages 9116–9132. 16
+Ji, Y., Wang, J., Li, J., Chen, Q., Chen, W., and Zhang, M.
+(2023). Early exit with disentangled representation and equiangular tight frame. In Rogers, A., Boyd-Graber, J., and Okazaki,
+N., editors, Findings of the Association for Computational Linguistics: ACL 2023, pages 14128–14142, Toronto, Canada. Association for Computational Linguistics. 15
+
+Hsieh, C.-Y., Li, C.-L., Yeh, C.-K., Nakhost, H., Fujii, Y., Ratner, A., Krishna, R., Lee, C.-Y., and Pfister, T. (2023). Distilling step-by-step! outperforming larger language models with
+less training data and smaller model sizes. arXiv preprint
+arXiv:2305.02301. 12
+
+Jiang, A. Q., Sablayrolles, A., Roux, A., Mensch, A., Savary, B.,
+Bamford, C., Chaplot, D. S., Casas, D. d. l., Hanna, E. B.,
+Bressand, F., et al. (2024). Mixtral of experts. arXiv preprint
+arXiv:2401.04088. 16
+
+Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S.,
+Wang, L., and Chen, W. (2021). Lora: Low-rank adaptation of
+large language models. arXiv preprint arXiv:2106.09685. 10
+
+Jiang, Y., Chan, C., Chen, M., and Wang, W. (2023). Lion: Adversarial distillation of closed-source large language model. arXiv
+preprint arXiv:2305.12870. 12
+
+Hu, Z., Lan, Y., Wang, L., Xu, W., Lim, E.-P., Lee, R. K.-W., Bing,
+L., and Poria, S. (2023). Llm-adapters: An adapter family for
+parameter-efficient fine-tuning of large language models. arXiv
+preprint arXiv:2304.01933. 10
+
+Jonatan, G., Cho, H., Son, H., Wu, X., Livesay, N., Mora, E.,
+Shivdikar, K., Abellán, J. L., Joshi, A., Kaeli, D., et al. (2024).
+Scalability limitations of processing-in-memory using real system evaluations. Proceedings of the ACM on Measurement and
+Analysis of Computing Systems, 8(1):1–28. 23
+
+Huang, J. and Yau, H.-T. (2019). Dynamics of deep neural networks and neural tangent hierarchy. 28
+Huang, L., Yu, W., Ma, W., Zhong, W., Feng, Z., Wang, H.,
+Chen, Q., Peng, W., Feng, X., Qin, B., et al. (2023a). A
+survey on hallucination in large language models: Principles,
+taxonomy, challenges, and open questions. arXiv preprint
+arXiv:2311.05232. 25
+
+Kao, S.-C., Subramanian, S., Agrawal, G., Yazdanbakhsh, A., and
+Krishna, T. (2023). Flat: An optimized dataflow for mitigating
+attention bottlenecks. In Proceedings of the 28th ACM International Conference on Architectural Support for Programming
+Languages and Operating Systems, Volume 2, pages 295–310.
+25
+
+Kaplan, J., McCandlish, S., Henighan, T., Brown, T. B., Chess,
+B., Child, R., Gray, S., Radford, A., Wu, J., and Amodei, D.
+(2020). Scaling laws for neural language models. 15
+Kim, J., Lee, J. H., Kim, S., Park, J., Yoo, K. M., Kwon, S. J., and
+Lee, D. (2023a). Memory-efficient fine-tuning of compressed
+large language models via sub-4-bit integer quantization. arXiv
+preprint arXiv:2305.14152. 10
+Kim, M., Lee, S., Lee, J., Hong, S., Chang, D.-S., Sung,
+W., and Choi, J. (2023b). Token-scaled logit distillation for
+ternary weight generative language models. arXiv preprint
+arXiv:2308.06744. 8
+Kim, S., Hooper, C., Gholami, A., Dong, Z., Li, X., Shen, S.,
+Mahoney, M. W., and Keutzer, K. (2023c). Squeezellm: Denseand-sparse quantization. arXiv preprint arXiv:2306.07629. 8
+Kim, S., Hooper, C., Wattanawong, T., Kang, M., Yan, R., Genc,
+H., Dinh, G., Huang, Q., Keutzer, K., Mahoney, M. W., Shao,
+Y. S., and Gholami, A. (2023d). Full stack optimization of
+transformer inference: a survey. 13
+Kim, S., Mangalam, K., Moon, S., Malik, J., Mahoney, M. W.,
+Gholami, A., and Keutzer, K. (2023e). Speculative decoding
+with big little decoder. 17
+Kishore Kumar, N. and Schneider, J. (2017). Literature survey on
+low rank approximation of matrices. Linear and Multilinear
+Algebra, 65(11):2212–2244. 12
+Kossmann, F., Jia, Z., and Aiken, A. (2022). Optimizing mixture of experts using dynamic recompilations. arXiv preprint
+arXiv:2205.01848. 16
+Kwon, W., Li, Z., Zhuang, S., Sheng, Y., Zheng, L., Yu, C. H.,
+Gonzalez, J., Zhang, H., and Stoica, I. (2023). Efficient memory management for large language model serving with pagedattention. In Proceedings of the 29th Symposium on Operating
+Systems Principles, pages 611–626. 21
+Kwon, Y., Lee, S. H., Lee, J., Kwon, S., Ryu, J., Son, J., O, S.,
+Yu, H., Lee, H., Kim, S. Y., Cho, Y., Kim, J. G., Choi, J., Shin,
+H., Kim, J., Phuah, B., Kim, H., Song, M. J., Choi, A., Kim,
+D., Kim, S., Kim, E., Wang, D., Kang, S., Ro, Y., Seo, S.,
+Song, J., Youn, J., Sohn, K., and Kim, N. S. (2021). 25.4 A
+20nm 6gb function-in-memory dram, based on HBM2 with a
+1.2tflops programmable computing unit using bank-level parallelism, for machine learning applications. In IEEE International Solid-State Circuits Conference, ISSCC 2021, San Francisco, CA, USA, February 13-22, 2021, pages 350–352. IEEE.
+23
+
+Lan, T., Cai, D., Wang, Y., Huang, H., and Mao, X.-L. (2023).
+Copy is all you need. 18
+Langroudi, H. F., Karia, V., Carmichael, Z., Zyarah, A., Pandit, T.,
+Gustafson, J. L., and Kudithipudi, D. (2021). Alps: Adaptive
+quantization of deep neural networks with generalized posits. In
+Proceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, pages 3100–3109. 24
+LeCun, Y., Denker, J., and Solla, S. (1989). Optimal brain damage.
+Advances in neural information processing systems, 2. 11
+Lee, C., Jin, J., Kim, T., Kim, H., and Park, E. (2023). Owq:
+Lessons learned from activation outliers for weight quantization
+in large language models. arXiv preprint arXiv:2306.02272. 8
+Lee, J., Mansimov, E., and Cho, K. (2018). Deterministic nonautoregressive neural sequence modeling by iterative refinement. 19
+Lee-Thorp, J. and Ainslie, J. (2022). Sparse mixers: Combining
+moe and mixing to build a more efficient bert. arXiv preprint
+arXiv:2205.12399. 16
+Lefaudeux, B., Massa, F., Liskovich, D., Xiong, W., Caggiano, V.,
+Naren, S., Xu, M., Hu, J., Tintore, M., Zhang, S., Labatut, P.,
+Haziza, D., Wehrstedt, L., Reizenstein, J., and Sizov, G. (2022).
+xformers: A modular and hackable transformer modelling library. https://github.com/facebookresearch/
+xformers. 20
+Lepikhin, D., Lee, H., Xu, Y., Chen, D., Firat, O., Huang, Y.,
+Krikun, M., Shazeer, N., and Chen, Z. (2020). Gshard: Scaling giant models with conditional computation and automatic
+sharding. arXiv preprint arXiv:2006.16668. 15
+Leviathan, Y., Kalman, M., and Matias, Y. (2023). Fast inference
+from transformers via speculative decoding. 17
+Li, L., Li, Q., Zhang, B., and Chu, X. (2023a). Norm tweaking:
+High-performance low-bit quantization of large language models. arXiv preprint arXiv:2309.02784. 9
+Li, L., Lin, Y., Chen, D., Ren, S., Li, P., Zhou, J., and Sun, X.
+(2021). Cascadebert: Accelerating inference of pre-trained language models via calibrated complete models cascade. 13
+Li, L. H., Hessel, J., Yu, Y., Ren, X., Chang, K.-W., and
+Choi, Y. (2023b). Symbolic chain-of-thought distillation:
+Small models can also” think” step-by-step. arXiv preprint
+arXiv:2306.14050. 12
+
+Kwon, Y., Vladimir, K., Kim, N., Shin, W., Won, J., Lee, M., Joo,
+H., Choi, H., Kim, G., An, B., et al. (2022). System architecture
+and software stack for gddr6-aim. In 2022 IEEE Hot Chips 34
+Symposium (HCS), pages 1–25. IEEE. 23
+
+Li, Q., Zhang, Y., Li, L., Yao, P., Zhang, B., Chu, X., Sun,
+Y., Du, L., and Xie, Y. (2023c). Fptq: Fine-grained posttraining quantization for large language models. arXiv preprint
+arXiv:2308.15987. 9
+
+Kynoch, B., Latapie, H., and van der Sluis, D. (2023). Recallm:
+An adaptable memory mechanism with temporal understanding
+for large language models. 27
+
+Li, Y., Wei, F., Zhang, C., and Zhang, H. (2024). Eagle: Speculative sampling requires rethinking feature uncertainty. arXiv
+preprint arXiv:2401.15077. 18
+
+Li, Y., Yu, Y., Liang, C., He, P., Karampatziakis, N., Chen, W., and
+Zhao, T. (2023d). Loftq: Lora-fine-tuning-aware quantization
+for large language models. arXiv preprint arXiv:2310.08659.
+10
+Li, Z., Lin, Z., He, D., Tian, F., Qin, T., Wang, L., and Liu, T.Y. (2019). Hint-based training for non-autoregressive machine
+translation. arXiv preprint arXiv:1909.06708. 19
+Li, Z., Liu, X., Zhu, B., Dong, Z., Gu, Q., and Keutzer, K. (2023e).
+Qft: Quantized full-parameter tuning of llms with affordable
+resources. arXiv preprint arXiv:2310.07147. 10
+Liang, C., Jiang, H., Li, Z., Tang, X., Yin, B., and Zhao, T.
+(2023a). Homodistil: Homotopic task-agnostic distillation of
+pre-trained transformers. arXiv preprint arXiv:2302.09632. 12
+Liang, C., Zuo, S., Zhang, Q., He, P., Chen, W., and Zhao, T.
+(2023b). Less is more: Task-aware layer-wise distillation for
+language model compression. In International Conference on
+Machine Learning, pages 20852–20867. PMLR. 12
+Liang, T., Glossner, J., Wang, L., Shi, S., and Zhang, X. (2021).
+Pruning and quantization for deep neural network acceleration:
+A survey. Neurocomputing, 461:370–403. 11
+Lin, B., Tang, Z., Ye, Y., Cui, J., Zhu, B., Jin, P., Zhang,
+J., Ning, M., and Yuan, L. (2024). Moe-llava: Mixture
+of experts for large vision-language models. arXiv preprint
+arXiv:2401.15947. 26
+Lin, J., Tang, J., Tang, H., Yang, S., Dang, X., and Han, S. (2023).
+Awq: Activation-aware weight quantization for llm compression and acceleration. arXiv preprint arXiv:2306.00978. 8
+Liu, M., Zeng, A., Wang, B., Zhang, P., Tang, J., and Dong, Y.
+(2024a). Apar: Llms can do auto-parallel auto-regressive decoding. 19
+Liu, W., Zhou, P., Zhao, Z., Wang, Z., Deng, H., and Ju, Q. (2020).
+Fastbert: a self-distilling bert with adaptive inference time. 13
+Liu, X., Hu, L., Bailis, P., Stoica, I., Deng, Z., Cheung, A., and
+Zhang, H. (2023a). Online speculative decoding. arXiv preprint
+arXiv:2310.07177. 18
+Liu, X., Sun, T., He, J., Wu, J., Wu, L., Zhang, X., Jiang, H., Cao,
+Z., Huang, X., and Qiu, X. (2022). Towards efficient NLP:
+A standard evaluation and a strong baseline. In Carpuat, M.,
+de Marneffe, M.-C., and Meza Ruiz, I. V., editors, Proceedings
+of the 2022 Conference of the North American Chapter of the
+Association for Computational Linguistics: Human Language
+Technologies, pages 3288–3303, Seattle, United States. Association for Computational Linguistics. 13
+
+Liu, Z., Yuan, J., Jin, H., Zhong, S., Xu, Z., Braverman, V., Chen,
+B., and Hu, X. (2024b). Kivi: A tuning-free asymmetric 2bit
+quantization for kv cache. arXiv preprint arXiv:2402.02750. 9
+Ma, H., Zhu, Y., Zhang, C., Zhao, P., Wu, B., Huang, L.K., Hu, Q., and Wu, B. (2024). Invariant test-time adaptation for vision-language model generalization. arXiv preprint
+arXiv:2403.00376. 26
+Ma, X., Fang, G., and Wang, X. (2023). Llm-pruner: On the
+structural pruning of large language models. arXiv preprint
+arXiv:2305.11627. 11
+Meng, K., Bau, D., Andonian, A., and Belinkov, Y. (2022). Locating and editing factual associations in GPT. In Koyejo, S., Mohamed, S., Agarwal, A., Belgrave, D., Cho, K., and Oh, A., editors, Advances in Neural Information Processing Systems 35:
+Annual Conference on Neural Information Processing Systems
+2022, NeurIPS 2022, New Orleans, LA, USA, November 28 December 9, 2022. 25
+Miao, X., Oliaro, G., Zhang, Z., Cheng, X., Jin, H., Chen, T.,
+and Jia, Z. (2023a). Towards efficient generative large language
+model serving: A survey from algorithms to systems. arXiv
+preprint arXiv:2312.15234. 2
+Miao, X., Oliaro, G., Zhang, Z., Cheng, X., Wang, Z., Wong,
+R. Y. Y., Chen, Z., Arfeen, D., Abhyankar, R., and Jia, Z.
+(2023b). Specinfer: Accelerating generative llm serving with
+speculative inference and token tree verification. arXiv preprint
+arXiv:2305.09781. 17
+Micikevicius, P., Stosic, D., Burgess, N., Cornea, M., Dubey, P.,
+Grisenthwaite, R., Ha, S., Heinecke, A., Judd, P., Kamalu, J.,
+et al. (2022). Fp8 formats for deep learning. arXiv preprint
+arXiv:2209.05433. 24
+Modarressi, A., Imani, A., Fayyaz, M., and Schütze, H. (2023).
+Ret-llm: Towards a general read-write memory for large language models. 27
+ModelTC (2024). Lightllm: A python-based llm inference and
+serving framework. https://github.com/ModelTC/
+lightllm. 22
+Mohtashami, A. and Jaggi, M. (2023). Landmark attention:
+Random-access infinite context length for transformers. arXiv
+preprint arXiv:2305.16300. 27
+Monea, G., Joulin, A., and Grave, E. (2023). Pass: Parallel speculative sampling. arXiv preprint arXiv:2311.13581. 18
+
+Liu, Z., Oguz, B., Zhao, C., Chang, E., Stock, P., Mehdad, Y.,
+Shi, Y., Krishnamoorthi, R., and Chandra, V. (2023b). Llmqat: Data-free quantization aware training for large language
+models. arXiv preprint arXiv:2305.17888. 8, 24
+
+Nawrot, P., Łańcucki, A., Chochowski, M., Tarjan, D., and Ponti,
+E. M. (2024). Dynamic memory compression: Retrofitting llms
+for accelerated inference. arXiv preprint arXiv:2403.09636. 27
+
+Liu, Z., Wang, J., Dao, T., Zhou, T., Yuan, B., Song, Z., Shrivastava, A., Zhang, C., Tian, Y., Re, C., and Chen, B. (2023c). Deja
+vu: Contextual sparsity for efficient llms at inference time. 15
+
+Ning, X., Lin, Z., Zhou, Z., Wang, Z., Yang, H., and Wang, Y.
+(2023). Skeleton-of-thought: Large language models can do
+parallel decoding. 19
+
+NVIDIA (2022).
+Inside the nvidia hopper architecture.
+https://www.nvidia.com/en-us/data-center/
+technologies/hopper- architecture/. Accessed
+on March 11, 2024. 24
+
+Sahu, G., Vechtomova, O., Bahdanau, D., and Laradji, I. H.
+(2023).
+Promptmix: A class boundary augmentation
+method for large language model distillation. arXiv preprint
+arXiv:2310.14192. 12
+
+Ortega, J. M. and Rheinboldt, W. C. (2000). Iterative solution of
+nonlinear equations in several variables. SIAM. 19
+
+Santilli, A., Severino, S., Postolache, E., Maiorca, V., Mancusi,
+M., Marin, R., and Rodolà, E. (2023). Accelerating transformer
+inference for translation via parallel decoding. arXiv preprint
+arXiv:2305.10427. 19
+
+Oseledets, I. V. (2011). Tensor-train decomposition. SIAM Journal
+on Scientific Computing, 33(5):2295–2317. 13
+Ouyang, L., Wu, J., Jiang, X., Almeida, D., Wainwright, C.,
+Mishkin, P., Zhang, C., Agarwal, S., Slama, K., Ray, A., et al.
+(2022). Training language models to follow instructions with
+human feedback. Advances in Neural Information Processing
+Systems, 35:27730–27744. 1, 25
+Pal, A., Karkhanis, D., Roberts, M., Dooley, S., Sundararajan, A.,
+and Naidu, S. (2023). Giraffe: Adventures in expanding context
+lengths in llms. 28
+Pandya, K. and Holia, M. (2023). Automating customer service
+using langchain: Building custom open-source gpt chatbot for
+organizations. arXiv preprint arXiv:2310.05421. 27
+Park, E. et al. (2018). Energy-efficient neural network accelerator
+based on outlier-aware low-precision computation. In ISCA,
+pages 688–698. IEEE. 24
+Park, G., Park, B., Kim, M., Lee, S., Kim, J., Kwon, B., Kwon,
+S. J., Kim, B., Lee, Y., and Lee, D. (2023). Lut-gemm: Quantized matrix multiplication based on luts for efficient inference in large-scale generative language models. arXiv preprint
+arXiv:2206.09557. 8
+Peng, B., Quesnelle, J., Fan, H., and Shippole, E. (2023). Yarn:
+Efficient context window extension of large language models.
+28
+Press, O., Smith, N. A., and Lewis, M. (2021). Train short, test
+long: Attention with linear biases enables input length extrapolation. arXiv preprint arXiv:2108.12409. 28
+Qin, Y., Wang, Y., Deng, D., Zhao, Z., Yang, X., Liu, L., Wei, S.,
+Hu, Y., and Yin, S. (2023). Fact: Ffn-attention co-optimized
+transformer architecture with eager correlation prediction. In
+Proceedings of the 50th Annual International Symposium on
+Computer Architecture, pages 1–14. 25
+Rae, J. W., Potapenko, A., Jayakumar, S. M., and Lillicrap, T. P.
+(2019). Compressive transformers for long-range sequence
+modelling. 27
+Rajbhandari, S., Li, C., Yao, Z., Zhang, M., Aminabadi, R. Y.,
+Awan, A. A., Rasley, J., and He, Y. (2022). Deepspeed-moe:
+Advancing mixture-of-experts inference and training to power
+next-generation ai scale. In International Conference on Machine Learning, pages 18332–18346. PMLR. 16
+Rotem, D., Hassid, M., Mamou, J., and Schwartz, R. (2023). Finding the sweet spot: Analysis and improvement of adaptive inference in low resource settings. 15
+
+Savinov, N., Chung, J., Binkowski, M., Elsen, E., and Oord, A.
+v. d. (2021). Step-unrolled denoising autoencoders for text generation. arXiv preprint arXiv:2112.06749. 19
+Scao, T. L., Fan, A., Akiki, C., Pavlick, E., Ilić, S., Hesslow, D.,
+Castagné, R., Luccioni, A. S., Yvon, F., Gallé, M., et al. (2022).
+Bloom: A 176b-parameter open-access multilingual language
+model. arXiv preprint arXiv:2211.05100. 1
+Schotthöfer, S., Zangrando, E., Kusch, J., Ceruti, G., and Tudisco,
+F. (2022). Low-rank lottery tickets: finding efficient low-rank
+neural networks via matrix differential equations. Advances in
+Neural Information Processing Systems, 35:20051–20063. 12
+Schuster, T., Fisch, A., Gupta, J., Dehghani, M., Bahri, D., Tran,
+V. Q., Tay, Y., and Metzler, D. (2022). Confident adaptive language modeling. 13, 14, 15
+Schuster, T., Fisch, A., Jaakkola, T., and Barzilay, R. (2021). Consistent accelerated inference via confident adaptive transformers. 13
+Schwartz, R., Stanovsky, G., Swayamdipta, S., Dodge, J., and
+Smith, N. A. (2020). The right tool for the job: Matching
+model and instance complexities. In Jurafsky, D., Chai, J.,
+Schluter, N., and Tetreault, J., editors, Proceedings of the 58th
+Annual Meeting of the Association for Computational Linguistics, pages 6640–6651, Online. Association for Computational
+Linguistics. 13
+Shang, Y., Duan, B., Zong, Z., Nie, L., and Yan, Y. (2021). Lipschitz continuity guided knowledge distillation. In Proceedings of the IEEE/CVF International Conference on Computer
+Vision, pages 10675–10684. 11
+Shang, Y., Yuan, Z., and Dong, Z. (2024). Pb-llm: Partially binarized large language models. In ICLR. 8, 9
+Shao, C., Zhang, J., Feng, Y., Meng, F., and Zhou, J. (2020). Minimizing the bag-of-ngrams difference for non-autoregressive
+neural machine translation. In Proceedings of the AAAI conference on artificial intelligence, volume 34, pages 198–205.
+19
+Sharma, P., Ash, J. T., and Misra, D. (2023). The truth is in there:
+Improving reasoning in language models with layer-selective
+rank reduction. arXiv preprint arXiv:2312.13558. 12
+Sheng, Y., Zheng, L., Yuan, B., Li, Z., Ryabinin, M., Chen, B.,
+Liang, P., Ré, C., Stoica, I., and Zhang, C. (2023). Flexgen:
+High-throughput generative inference of large language models
+
+with a single GPU. In Krause, A., Brunskill, E., Cho, K., Engelhardt, B., Sabato, S., and Scarlett, J., editors, International Conference on Machine Learning, ICML 2023, 23-29 July 2023,
+Honolulu, Hawaii, USA, volume 202 of Proceedings of Machine Learning Research, pages 31094–31116. PMLR. 21
+Simoulin, A. and Crabbé, B. (2021). How many layers and why?
+An analysis of the model depth in transformers. In Kabbara, J.,
+Lin, H., Paullada, A., and Vamvas, J., editors, Proceedings of
+the 59th Annual Meeting of the Association for Computational
+Linguistics and the 11th International Joint Conference on Natural Language Processing: Student Research Workshop, pages
+221–228, Online. Association for Computational Linguistics.
+13
+Song, Y., Meng, C., Liao, R., and Ermon, S. (2021). Accelerating feedforward computation via parallel nonlinear equation
+solving. In Meila, M. and Zhang, T., editors, Proceedings of
+the 38th International Conference on Machine Learning, volume 139 of Proceedings of Machine Learning Research, pages
+9791–9800. PMLR. 19
+Song, Y., Mi, Z., Xie, H., and Chen, H. (2023). Powerinfer: Fast
+large language model serving with a consumer-grade gpu. 15
+Stern, M., Shazeer, N., and Uszkoreit, J. (2018). Blockwise parallel decoding for deep autoregressive models. Advances in Neural Information Processing Systems, 31. 18
+Stickland, A. C. and Murray, I. (2019). Bert and pals: Projected
+attention layers for efficient adaptation in multi-task learning.
+13
+Sun, M., Liu, Z., Bair, A., and Kolter, J. Z. (2023a). A simple and
+effective pruning approach for large language models. arXiv
+preprint arXiv:2306.11695. 11
+Sun, X., Choi, J., Chen, C.-Y., Wang, N., Venkataramani, S.,
+Srinivasan, V. V., Cui, X., Zhang, W., and Gopalakrishnan, K.
+(2019a). Hybrid 8-bit floating point (hfp8) training and inference for deep neural networks. Advances in neural information
+processing systems, 32. 24
+Sun, Y., Dong, L., Patra, B., Ma, S., Huang, S., Benhaim, A.,
+Chaudhary, V., Song, X., and Wei, F. (2022). A lengthextrapolatable transformer. 28
+Sun, Z., Li, Z., Wang, H., He, D., Lin, Z., and Deng, Z. (2019b).
+Fast structured decoding for sequence models. Advances in
+Neural Information Processing Systems, 32. 19
+Sun, Z., Suresh, A. T., Ro, J. H., Beirami, A., Jain, H., and Yu, F.
+(2023b). Spectr: Fast speculative decoding via optimal transport. arXiv preprint arXiv:2310.15141. 17
+Sundar Pichai, D. H. (2024). Our next-generation model: Gemini
+1.5. 9
+Tambe, T., Yang, E.-Y., Wan, Z., Deng, Y., Reddi, V. J., Rush, A.,
+Brooks, D., and Wei, G.-Y. (2020). Algorithm-hardware codesign of adaptive floating-point encodings for resilient deep
+learning inference. In 2020 57th ACM/IEEE Design Automation
+Conference (DAC), pages 1–6. IEEE. 25
+
+Team, G., Anil, R., Borgeaud, S., Wu, Y., Alayrac, J.-B., Yu, J.,
+Soricut, R., Schalkwyk, J., Dai, A. M., Hauth, A., et al. (2023).
+Gemini: a family of highly capable multimodal models. arXiv
+preprint arXiv:2312.11805. 26
+Tesla (2023). Tesla dojo technology: A guide to tesla’s configurable floating point formats & arithmetic. https://
+cdn.motor1.com/pdf-files/535242876-tesladojo-technology.pdf/. 24
+Touvron, H., Lavril, T., Izacard, G., Martinet, X., Lachaux, M.A., Lacroix, T., Rozière, B., Goyal, N., Hambro, E., Azhar, F.,
+et al. (2023a). Llama: Open and efficient foundation language
+models. arXiv preprint arXiv:2302.13971. 1, 6
+Touvron, H., Martin, L., Stone, K., Albert, P., Almahairi, A.,
+Babaei, Y., Bashlykov, N., Batra, S., Bhargava, P., Bhosale, S.,
+et al. (2023b). Llama 2: Open foundation and fine-tuned chat
+models. arXiv preprint arXiv:2307.09288. 1, 16
+Vaidya, N., Oh, F., and Comly, N. (2023). Optimizing inference
+on large language models with nvidia tensorrt-llm, now publicly
+available. 20
+Valipour, M., Rezagholizadeh, M., Kobyzev, I., and Ghodsi, A.
+(2022). Dylora: Parameter efficient tuning of pre-trained models using dynamic search-free low-rank adaptation. arXiv
+preprint arXiv:2210.07558. 10
+Wang, P., Wang, Z., Li, Z., Gao, Y., Yin, B., and Ren, X.
+(2023). Scott: Self-consistent chain-of-thought distillation.
+arXiv preprint arXiv:2305.01879. 12
+Wang, W., Chen, W., Luo, Y., Long, Y., Lin, Z., Zhang, L., Lin, B.,
+Cai, D., and He, X. (2024a). Model compression and efficient
+inference for large language models: A survey. arXiv preprint
+arXiv:2402.09748. 3
+Wang, W., Dong, L., Cheng, H., Liu, X., Yan, X., Gao, J., and
+Wei, F. (2024b). Augmenting language models with long-term
+memory. Advances in Neural Information Processing Systems,
+36. 27
+Wang, Y., Tian, F., He, D., Qin, T., Zhai, C., and Liu, T.-Y. (2019).
+Non-autoregressive machine translation with auxiliary regularization. In Proceedings of the AAAI conference on artificial
+intelligence, volume 33, pages 5377–5384. 19
+Wei, B., Wang, M., Zhou, H., Lin, J., Xie, J., and Sun, X. (2019).
+Imitation learning for non-autoregressive neural machine translation. arXiv preprint arXiv:1906.02041. 19
+Wei, H., Kong, L., Chen, J., Zhao, L., Ge, Z., Yu, E., Sun, J., Han,
+C., and Zhang, X. (2024). Small language model meets with
+reinforced vision vocabulary. arXiv preprint arXiv:2401.12503.
+26
+Wu, M., Waheed, A., Zhang, C., Abdul-Mageed, M., and Aji, A. F.
+(2023a). Lamini-lm: A diverse herd of distilled models from
+large-scale instructions. arXiv preprint arXiv:2304.14402. 12
+
+Wu, Q., Lan, Z., Qian, K., Gu, J., Geramifard, A., and Yu, Z.
+(2020). Memformer: A memory-augmented transformer for
+sequence modeling. arXiv preprint arXiv:2010.06891. 27
+
+Xu, M., Xu, Y. L., and Mandic, D. P. (2023b). Tensorgpt: Efficient
+compression of the embedding layer in llms based on the tensortrain decomposition. arXiv preprint arXiv:2307.00526. 13
+
+Wu, S., Chen, H., Quan, X., Wang, Q., and Wang, R. (2023b).
+Ad-kd: Attribution-driven knowledge distillation for language
+model compression. arXiv preprint arXiv:2305.10010. 12
+
+Xu, X., Li, M., Tao, C., Shen, T., Cheng, R., Li, J., Xu, C., Tao,
+D., and Zhou, T. (2024). A survey on knowledge distillation of
+large language models. 11
+
+Wu, X., Xia, H., Youn, S., Zheng, Z., Chen, S., Bakhtiari, A.,
+Wyatt, M., He, Y., Ruwase, O., Song, L., et al. (2023c). Zeroquant (4+ 2): Redefining llms quantization with a new fp6centric strategy for diverse generative tasks. arXiv preprint
+arXiv:2312.08583. 24
+
+Xu, Y., Xie, L., Gu, X., Chen, X., Chang, H., Zhang, H., Chen, Z.,
+Zhang, X., and Tian, Q. (2023c). Qa-lora: Quantization-aware
+low-rank adaptation of large language models. arXiv preprint
+arXiv:2309.14717. 10
+
+Wu, X., Yao, Z., and He, Y. (2023d). Zeroquant-fp: A leap forward
+in llms post-training w4a8 quantization using floating-point formats. arXiv preprint arXiv:2307.09782. 9, 24
+
+Yang, N., Ge, T., Wang, L., Jiao, B., Jiang, D., Yang, L., Majumder, R., and Wei, F. (2023). Inference with reference:
+Lossless acceleration of large language models. arXiv preprint
+arXiv:2304.04487. 18
+
+Wu, Y., Rabe, M. N., Hutchins, D., and Szegedy, C. (2022). Memorizing transformers. arXiv preprint arXiv:2203.08913. 27
+Xia, H., Zheng, Z., Li, Y., Zhuang, D., Zhou, Z., Qiu, X., Li, Y.,
+Lin, W., and Song, S. L. (2023a). Flash-llm: Enabling costeffective and highly-efficient large generative model inference
+with unstructured sparsity. arXiv preprint arXiv:2309.10285.
+11
+Xia, H., Zheng, Z., Wu, X., Chen, S., Yao, Z., Youn, S., Bakhtiari,
+A., Wyatt, M., Zhuang, D., Zhou, Z., et al. (2024). Fp6-llm:
+Efficiently serving large language models through fp6-centric
+algorithm-system co-design. arXiv preprint arXiv:2401.14112.
+24
+Xia, M., Gao, T., Zeng, Z., and Chen, D. (2023b). Sheared llama:
+Accelerating language model pre-training via structured pruning. arXiv preprint arXiv:2310.06694. 11
+Xiao, G., Lin, J., Seznec, M., Wu, H., Demouth, J., and Han,
+S. (2023a). Smoothquant: Accurate and efficient post-training
+quantization for large language models. In International Conference on Machine Learning, pages 38087–38099. PMLR. 9
+Xiao, G., Tian, Y., Chen, B., Han, S., and Lewis, M. (2023b).
+Efficient streaming language models with attention sinks. arXiv
+preprint arXiv:2309.17453. 27
+Xiao, Y., Wu, L., Guo, J., Li, J., Zhang, M., Qin, T., and Liu, T.-y.
+(2023c). A survey on non-autoregressive generation for neural
+machine translation and beyond. IEEE Transactions on Pattern
+Analysis and Machine Intelligence. 19
+Xin, J., Tang, R., Lee, J., Yu, Y., and Lin, J. (2020). Deebert:
+Dynamic early exiting for accelerating bert inference. 13
+Xiong, W., Liu, J., Molybog, I., Zhang, H., Bhargava, P., Hou, R.,
+Martin, L., Rungta, R., Sankararaman, K. A., Oguz, B., Khabsa,
+M., Fang, H., Mehdad, Y., Narang, S., Malik, K., Fan, A., Bhosale, S., Edunov, S., Lewis, M., Wang, S., and Ma, H. (2023).
+Effective long-context scaling of foundation models. 28
+Xu, D., Yin, W., Jin, X., Zhang, Y., Wei, S., Xu, M., and Liu, X.
+(2023a). Llmcad: Fast and scalable on-device large language
+model inference. arXiv preprint arXiv:2309.04255. 17
+
+Yao, Z., Yazdani Aminabadi, R., Zhang, M., Wu, X., Li, C., and
+He, Y. (2022). Zeroquant: Efficient and affordable post-training
+quantization for large-scale transformers. Advances in Neural
+Information Processing Systems, 35:27168–27183. 8
+Yi, R., Guo, L., Wei, S., Zhou, A., Wang, S., and Xu, M. (2023).
+Edgemoe: Fast on-device inference of moe-based large language models. arXiv preprint arXiv:2308.14352. 16
+Yin, L., Wu, Y., Zhang, Z., Hsieh, C.-Y., Wang, Y., Jia, Y., Pechenizkiy, M., Liang, Y., Wang, Z., and Liu, S. (2023a). Outlier
+weighed layerwise sparsity (owl): A missing secret sauce for
+pruning llms to high sparsity. arXiv preprint arXiv:2310.05175.
+11
+Yin, S., Fu, C., Zhao, S., Li, K., Sun, X., Xu, T., and Chen, E.
+(2023b). A survey on multimodal large language models. arXiv
+preprint arXiv:2306.13549. 26
+Yu, G.-I., Jeong, J. S., Kim, G.-W., Kim, S., and Chun, B.-G.
+(2022). Orca: A distributed serving system for {TransformerBased} generative models. In 16th USENIX Symposium on Operating Systems Design and Implementation (OSDI 22), pages
+521–538. 21
+Yuan, Z., Li, Z., and Sun, L. (2023a). Tinygpt-v: Efficient
+multimodal large language model via small backbones. arXiv
+preprint arXiv:2312.16862. 26
+Yuan, Z., Liu, J., Wu, J., Yang, D., Wu, Q., Sun, G., Liu, W.,
+Wang, X., and Wu, B. (2023b). Benchmarking the reliability
+of post-training quantization: a particular focus on worst-case
+performance. arXiv preprint arXiv:2303.13003. 26
+Yuan, Z., Niu, L., Liu, J., Liu, W., Wang, X., Shang, Y., Sun, G.,
+Wu, Q., Wu, J., and Wu, B. (2023c). Rptq: Reorder-based posttraining quantization for large language models. arXiv preprint
+arXiv:2304.01089. 9, 25
+Yuan, Z., Shang, Y., Song, Y., Wu, Q., Yan, Y., and Sun, G.
+(2023d). Asvd: Activation-aware singular value decomposition for compressing large language models. arXiv preprint
+arXiv:2312.05821. 12
+
+Yue, Y., Yuan, Z., Duanmu, H., Zhou, S., Wu, J., and Nie,
+L. (2024). Wkvquant: Quantizing weight and key/value
+cache for large language models gains more. arXiv preprint
+arXiv:2402.12065. 10
+
+Zhou, W., Jiang, Y. E., Cui, P., Wang, T., Xiao, Z., Hou, Y.,
+Cotterell, R., and Sachan, M. (2023b). Recurrentgpt: Interactive generation of (arbitrarily) long text. arXiv preprint
+arXiv:2305.13304. 27
+
+Yuksel, S. E., Wilson, J. N., and Gader, P. D. (2012). Twenty years
+of mixture of experts. IEEE Transactions on Neural Networks
+and Learning Systems, 23(8):1177–1193. 15, 26
+
+Zhou, W., Xu, C., Ge, T., McAuley, J., Xu, K., and Wei, F. (2020).
+Bert loses patience: Fast and robust inference with early exit.
+13
+
+Zadeh, A. H. et al. (2020). Gobo: Quantizing attention-based nlp
+models for low latency and energy efficient inference. In MICRO, pages 811–824. IEEE. 24
+
+Zhou, Y., Lyu, K., Rawat, A. S., Menon, A. K., Rostamizadeh,
+A., Kumar, S., Kagy, J.-F., and Agarwal, R. (2023c). Distillspec: Improving speculative decoding via knowledge distillation. arXiv preprint arXiv:2310.08461. 18
+
+Zeng, S., Liu, J., Dai, G., Yang, X., Fu, T., Wang, H., Ma, W.,
+Sun, H., Li, S., Huang, Z., et al. (2024). Flightllm: Efficient
+large language model inference with a complete mapping flow
+on fpga. arXiv preprint arXiv:2401.03868. 25
+Zeng, Z., Hong, Y., Dai, H., Zhuang, H., and Chen, C. (2023).
+Consistentee: A consistent and hardness-guided early exiting
+method for accelerating language models inference. 14
+Zhang, D., Yu, Y., Li, C., Dong, J., Su, D., Chu, C., and Yu, D.
+(2024a). Mm-llms: Recent advances in multimodal large language models. arXiv preprint arXiv:2401.13601. 26
+Zhang, J., Wang, J., Li, H., Shou, L., Chen, K., Chen, G., and
+Mehrotra, S. (2023). Draft & verify: Lossless large language model acceleration via self-speculative decoding. arXiv
+preprint arXiv:2309.08168. 18
+Zhang, S., Roller, S., Goyal, N., Artetxe, M., Chen, M., Chen, S.,
+Dewan, C., Diab, M., Li, X., Lin, X. V., et al. (2022). Opt:
+Open pre-trained transformer language models. arXiv preprint
+arXiv:2205.01068. 1
+Zhang, Z., Sheng, Y., Zhou, T., Chen, T., Zheng, L., Cai, R., Song,
+Z., Tian, Y., Ré, C., Barrett, C., et al. (2024b). H2o: Heavyhitter oracle for efficient generative inference of large language
+models. Advances in Neural Information Processing Systems,
+36. 27
+Zhao, P., Zhang, H., Yu, Q., Wang, Z., Geng, Y., Fu, F., Yang,
+L., Zhang, W., and Cui, B. (2024). Retrieval-augmented generation for ai-generated content: A survey. arXiv preprint
+arXiv:2402.19473. 27
+Zhao, W. X., Zhou, K., Li, J., Tang, T., Wang, X., Hou, Y., Min,
+Y., Zhang, B., Zhang, J., Dong, Z., et al. (2023). A survey of
+large language models. arXiv preprint arXiv:2303.18223. 1, 3
+Zhong, W., Guo, L., Gao, Q., and Wang, Y. (2023). Memorybank: Enhancing large language models with long-term memory. arXiv preprint arXiv:2305.10250. 27
+Zhou, B., Hu, Y., Weng, X., Jia, J., Luo, J., Liu, X., Wu, J., and
+Huang, L. (2024). Tinyllava: A framework of small-scale large
+multimodal models. arXiv preprint arXiv:2402.14289. 26
+Zhou, J., Wu, J., Gao, Y., Ding, Y., Tao, C., Li, B., Tu, F., Cheng,
+K.-T., So, H. K.-H., and Wong, N. (2023a). Dybit: Dynamic
+bit-precision numbers for efficient quantized neural network inference. arXiv preprint arXiv:2302.12510. 24
+
+Zhou, Z., Li, C., Yang, F., and Suny, G. (2023d). Dimm-link:
+Enabling efficient inter-dimm communication for near-memory
+processing. In 2023 IEEE International Symposium on HighPerformance Computer Architecture (HPCA), pages 302–316.
+IEEE. 23
+Zhu, W. (2021). LeeBERT: Learned early exit for BERT with
+cross-level optimization. In Zong, C., Xia, F., Li, W., and Navigli, R., editors, Proceedings of the 59th Annual Meeting of
+the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing
+(Volume 1: Long Papers), pages 2968–2980, Online. Association for Computational Linguistics. 13
+Zhu, X., Li, J., Liu, Y., Ma, C., and Wang, W. (2023). A survey on
+model compression for large language models. arXiv preprint
+arXiv:2308.07633. 2
+Zhu, Y., Zhu, M., Liu, N., Ou, Z., Mou, X., and Tang, J. (2024).
+Llava-phi: Efficient multi-modal assistant with small language
+model. arXiv preprint arXiv:2401.02330. 26
+Zoph, B., Bello, I., Kumar, S., Du, N., Huang, Y., Dean, J.,
+Shazeer, N., and Fedus, W. (2022). St-moe: Designing stable and transferable sparse expert models. arXiv preprint
+arXiv:2202.08906. 16
+
+

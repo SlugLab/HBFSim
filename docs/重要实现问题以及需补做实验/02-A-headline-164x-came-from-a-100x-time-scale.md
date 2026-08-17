@@ -9,8 +9,9 @@ that apply them, and the two timing figures in the proof document. **Needs your
 confirmation:** that the run reporting 164.70x used `configs/profiles/nominal.json`. We
 read that binding from the run configuration, and you know the run.
 
-**Does this conflict with the OCP specification? No.** But it does interact with item 11
-of `15-experiments-we-must-add-before-submission.md`, which asks for the timing profiles to be re-anchored to
+**Does this conflict with the OCP specification? No.** But it does interact with item 15
+of `15-experiments-we-must-add-before-submission.md` (item 11 before that document was
+renumbered), which asks for the timing profiles to be re-anchored to
 the three bandwidth points of the specification, 0.384, 1.536 and 3.072 TB/s (Table 4,
 page 16). A profile with a scaling factor of 100 does not correspond to any of the
 three.
@@ -50,7 +51,8 @@ by whatever share of the 44.2 s of extra time came from charged accesses. We can
 divide the 44.2 s between charged delay and the overhead of the instrumentation itself,
 because the three request counters were not exported for that run — see entry
 `05-A-accounting-unit-is-the-kernel-launch.md` — and because no zero-delay baseline run
-exists, which is item 8 of `15-experiments-we-must-add-before-submission.md`.
+exists, which is item 12 of `15-experiments-we-must-add-before-submission.md`
+(item 8 before that document was renumbered).
 
 ## Where we may have read it wrong
 

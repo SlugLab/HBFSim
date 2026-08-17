@@ -1,0 +1,1124 @@
+           Optimizing NAND Flash-Based SSDs via Retention Relaxation
+                                     Ren-Shuo Liu∗ , Chia-Lin Yang∗ , and Wei Wu†
+                                  ∗ National Taiwan University and † Intel Corporation
+
+                         {renshuo@ntu.edu.tw, yangc@csie.ntu.edu.tw, wei.a.wu@intel.com}
+
+
+
+Abstract                                                       durance have to retain data for 1 year. As NAND Flash
+                                                               technology continues to scale down and more bits are
+As NAND Flash technology continues to scale down and           stored in a cell, the raw reliability of NAND Flash de-
+more bits are stored in a cell, the raw reliability of NAND    creases substantially. To meet the retention specifica-
+Flash memories degrades inevitably. To meet the reten-         tion for a reliable storage system, we see a trend of
+tion capability required for a reliable storage system, we     longer write latency and more complex ECCs required in
+see a trend of longer write latency and more complex           SSDs. For example, comparing recent 2-bit MLC NAND
+ECCs employed in an SSD storage system. These greatly          Flash memories with previous SLC ones, page write la-
+impact the performance of future SSDs. In this paper, we       tency increased from 200 µs [34] to 1800 µs [39], and
+present the first work to improve SSD performance via          the required strength of ECCs went from single-error-
+retention relaxation. NAND Flash is typically required         correcting Hamming codes [34] to 24-error-correcting
+to retain data for 1 to 10 years according to industrial       Bose-Chaudhuri-Hocquenghem (BCH) codes [8, 18, 28].
+standards. However, we observe that many data are over-        In the near future, more complex ECC codes such as low-
+written in hours or days in several popular workloads in       density parity-check (LDPC) [15] codes will be required
+datacenters. The gap between the specification guarantee       to reliably operate NAND Flash memories [13, 28, 41].
+and actual programs’ needs can be exploited to improve            To overcome the design challenge for future SSDs, in
+write speed or ECCs’ cost and performance. To exploit          this paper, we present retention relaxation, the first work
+this opportunity, we propose a system design that allows       on optimizing SSDs via relaxing NAND Flash’s reten-
+data to be written in various latencies or protected by dif-   tion capability. We observe that in typical datacenter
+ferent ECC codes without hampering reliability. Simula-        workloads, e.g., proxy and MapReduce, many data writ-
+tion results show that via write speed optimization, we        ten into storage are updated quite soon, thereby, requir-
+can achieve 1.8–5.7× write response time speedup. We           ing only days or even hours of data retention, which is
+also show that for future SSDs, retention relaxation can       much shorter than the retention time typically specified
+bring both performance and cost benefits to the ECC ar-        for NAND Flash. In this paper, we exploit the gap be-
+chitecture.                                                    tween the specification guarantee and actual programs’
+                                                               needs for SSD optimization. We make the following con-
+1   Introduction                                               tributions:
+For the past few years, NAND Flash memories have been
+widely used in portable devices such as media players          • We propose a NAND Flash model that captures the
+and mobile phones. Due to their high density, low power          relationship between raw bit error rates and reten-
+and high I/O performance, in recent years, NAND Flash            tion time based on empirical measurement data. This
+memories begun to make the transition from portable de-          model allows us to explore the interplay between re-
+vices to laptops, PCs and datacenters [6, 35]. As the            tention capability and other NAND Flash parameters
+semiconductor industry continues scaling memory tech-            such as the program step voltage for write operations.
+nology and lowering per-bit cost, NAND Flash is ex-            • A set of datacenter workloads are characterized for
+pected to replace the role of hard disk drives and funda-        their retention time requirements. Since I/O traces are
+mentally change the storage hierarchy in future computer         usually gathered in days or weeks, to analyze reten-
+systems [14, 16].                                                tion time requirements in a time span beyond the trace
+   A reliable storage system needs to provide a retention        period, we present a retention time projection method
+guarantee. Therefore, Flash memories have to meet the            based on two characteristics obtained from the traces,
+retention specification in industrial standards. For exam-       the write amount and the write working set size. Char-
+ple, according to the JEDEC standard JESD47G.01 [19],            acterization results show that for 15 of the 16 traces
+NAND Flash blocks cycled to 10% of the maximum                   analyzed, 49–99% of writes require less than 1-week
+specified endurance must retain data for 10 years, and           retention time.
+blocks cycled to 100% of the maximum specified en-             • We explore the benefits of retention relaxation for
+                 Erase   10's Verify   00's Verify   01's Verify                 Erase   10's Verify   00's Verify   01's Verify
+                 State     Level         Level         Level                     State     Level         Level         Level
+
+                  11              10            00            01                  11             10           00            01
+
+
+
+
+                                                            Target    Vth                                                 Target      Vth
+                                                             Level                                                         Level
+
+
+                  11              10            00            01                  11             10           00            01
+
+
+
+
+                                                                      Vth                                                             Vth
+                   Increment =                          Precision =                Increment =                          Precision =
+                     ΔVP_large                           ΔVP_large                   ΔVP_small                           ΔVP_small
+
+
+                            (a) ISPP with large ∆VP                                         (b) ISPP with small ∆VP
+
+                 Figure 1: Incremental step pulse programming (ISPP) for programming NAND Flash
+
+  speeding up write operations. We increase the pro-                        age increment (i.e., ∆VP ) and stops once Vth is greater
+  gram step voltage so that NAND Flash memories are                         than the desired threshold voltage. Because NAND Flash
+  programmed faster but with shorter retention guaran-                      cells have different starting Vth , the resulting Vth spreads
+  tees. Experimental results show that 1.8–5.7× SSD                         across a range, which determines the precision of cells’
+  write response time speedup is achievable.                                Vth distributions. The smaller ∆VP is, the more precise the
+• We show how retention relaxation can benefit ECC                          resulting Vth is. On the other hand, smaller ∆VP means
+  designs for future SSDs which require concatenated                        more steps are required to reach the target Vth , thereby,
+  BCH-LDPC codes. We propose an ECC architecture                            resulting in longer write latency [26].
+  where data are encoded by variable ECC codes based                           NAND Flash memories are prone to errors. That is,
+  on their retention requirements. In our ECC architec-                     the Vth level of a cell may be different from the intended
+  ture, time-consuming LDPC is removed from the crit-                       one. The fraction of bits which contain incorrect data is
+  ical performance path. Therefore, retention relaxation                    referred to as the raw bit error rate (RBER). Figure 2(a)
+  can bring both performance and cost benefits to the                       shows measured RBER of 63–72nm 2-bit MLC NAND
+  ECC architecture.                                                         Flash memories under room temperature following 10K
+                                                                            program/erase (P/E) cycles [27]. The RBER at reten-
+   The rest of the paper is organized as follows. Sec-                      tion time = 0 is attributed to write errors. Write errors
+tion 2 provides background about NAND Flash. Sec-                           have been shown mostly caused by cells with higher Vth
+tion 3 presents our NAND Flash model and the benefits                       than intended because the causes of write errors, such
+of retention relaxation. Section 4 analyzes data reten-                     as program disturb and random telegraph noise, tend to
+tion requirements in real-world workloads. Section 5 de-                    over-program Vth . The increment of RBER after writing
+scribes the proposed system designs. Section 6 presents                     data (retention time > 0) is attributed to retention errors.
+evaluation results regarding the designs in the previous                    Retention errors are caused by charge losses which de-
+section. Section 7 describes related work, and Section 8                    crease Vth . Therefore, retention errors are dominated by
+concludes the paper.                                                        cells with lower Vth than intended. Figure 2(b) illustrates
+                                                                            these two error sources: write errors mainly correspond
+2   Background                                                              to the tail at the high-Vth side; retention errors correspond
+NAND Flash memories comprise an array of floating                           to the tail at the low-Vth side. In Section 3.1, we model
+gate transistors. The threshold voltage (Vth ) of the tran-                 NAND Flash considering these error characteristics.
+sistors can be programmed to different levels by injecting                     A common approach to handle NAND Flash errors is
+different amounts of charge on the floating gates. Differ-                  to adopt ECCs (error correction codes). ECCs supple-
+ent Vth levels represent different data. For example, to                    ment user data with redundant parity bits to form code-
+store N bits data in a cell, its Vth is programmed to one of                words. With ECC protection, a codeword with a certain
+its 2N different Vth levels.                                                amount of bits corrupted can be reconstructed. There-
+   To program Vth to the desired level, the incremen-                       fore, ECCs can greatly reduce the bit error rate. We refer
+tal step pulse programming (ISPP) scheme is commonly                        to the bit error rate after applying ECCs as the uncor-
+used [26, 37]. As shown in Figure 1, ISPP increases the                     rectable bit error rate (UBER). The following equation
+Vth of NAND Flash cells step-by-step by a certain volt-                     gives the relationship between UBER and RBER [27]:
+                         1.00E-04
+
+                                                                                                         P(v)
+                         1.00E-05
+    Raw Bit Error Rate
+
+
+
+
+                         1.00E-06                                                                                                                                        Write errors
+                                                                                                                  Lower          Intended            Higher
+                                                                                                                  Level            Level             Level
+
+                         1.00E-07                                                                                                                                  Vth
+                                                              Measured (Manufacturer-1)
+                                                              Measured (Manufacturer-2)
+                                                                                                         P(v)
+                                                              Measured (Manufacturer-3)
+                         1.00E-08
+                                                              Fitting (m=1.08)
+                                                              Fitting (m=1.33) fit y = a + bxm
+                                                              Fitting (m=1.25)
+                         1.00E-09                                                                                                                                        Retention errors
+                                                                                                                  Lower          Intended            Higher
+                                    0        100      200         300         400         500                     Level            Level             Level
+                                                    Retention Time (Days)
+                                                                                                                                                                   Vth
+
+
+                (a) Measured RBER(t) and fitting to power-law trends for                                                  (b) Write errors and retention errors
+                63–72 nm 2-bit MLC NAND Flash. Data are aligned to t = 0.
+
+                                                                 Figure 2: Bit error rate in NAND Flash memories
+
+
+                                        NCW
+                                                                                                       3.1.1    Base Vth Distribution Model
+                                                NCW 
+                                         ∑            · RBERn · (1 − RBER)(NCW −n)
+                                        n=t+1
+                                                 n                                                     The Vth distribution is critical to NAND Flash. It de-
+                            UBER =                                                               (1)
+                                                           NUser                                       scribes the probability density function (PDF) of Vth for
+Here, NCW is the number of bits per codeword, NUser is                                                 each data state. Given a Vth distribution, one can evaluate
+the number of user data bits per codeword, and t is the                                                the corresponding RBER by calculating the probability
+maximum number of error bits the ECC code can correct                                                  that a cell contains incorrect Vth , i.e., Vth higher or lower
+per codeword.                                                                                          than the intended level.
+   UBER is an important reliability metric for storage                                                    Vth distributions have been modeled using bell-shape
+systems and is typically required to be under 10−13 to                                                 functions in previous studies [23, 42]. For MLC NAND
+10−16 [27]. As mentioned earlier, NAND Flash’s RBER                                                    Flash memories with q states per cell, q bell-shape func-
+increases with time due to retention errors. Therefore, to                                             tions, Pk (v) where 0 ≤ k ≤ (q − 1), are employed in the
+satisfy both the retention and reliability specifications in                                           model as follows.
+storage systems, ECCs must be strong enough to tolerate                                                   First, the Vth distribution of the erased state is modeled
+not only write errors presenting in the beginning but also                                             as a Gaussian function, P0 (v):
+retention errors accumulating over time.                                                                                                            −
+                                                                                                                                                        (v−µ0 )2
+                                                                                                                                                          2σ0 2
+                                                                                                                                 P0 (v) = α0 · e                                            (2)
+3                        Retention Relaxation for NAND Flash
+                                                                                                       Here, σ0 is the standard deviation of the distribution and
+The key observation we make in this paper is that since                                                µ0 is the mean. Because data are assumed to be in one of
+retention errors increase over time, if we could relax the                                             the q states with equal probability, a normalization coef-
+retention capability of NAND Flash memories, fewer re-                                                 ficient, α0 , is employed so that v P0 (v) = q1 .
+                                                                                                                                         R
+tention errors need to be tolerated. These error mar-
+                                                                                                          Furthermore, the Vth distribution of each non-erased
+gins can then be utilized to improve other performance
+                                                                                                       state (i.e., 1 ≤ k ≤ (q − 1)) is modeled as a combination
+metrics. In this section, we first present a Vth distribu-
+                                                                                                       of a uniform distribution with width equal to ∆VP in the
+tion modeling methodology which captures the RBER of
+                                                                                                       middle and two identical Gaussian tails on both sides:
+NAND Flash. Based on the model, we elaborate on the
+                                                                                                                                    (v−µk +0.5∆VP )2
+                                                                                                                           
+strategies to exploit the benefits of retention relaxation in                                                                     −
+                                                                                                                                                               v < µk − ∆V2P
+                                                                                                                            α ·e         2σ 2       ,
+                                                                                                                           
+                                                                                                                           
+detail.                                                                                                         Pk (v) =            −
+                                                                                                                                        (v−µk −0.5∆VP )2                                    (3)
+                                                                                                                            α ·e
+                                                                                                                           
+                                                                                                                                             2σ 2         ,   v > µk + ∆V2P
+3.1                        Modeling Methodology                                                                              α,                                otherwise
+
+We first present the base Vth distribution model for                                                   Here, ∆VP is the voltage increment in ISPP, µk is the
+NAND Flash. Then we present how we extend the model                                                    mean of each state, σ is the standard deviation of the
+to capture the characteristics of different error causes.                                              two Gaussian tails, and α is again theR normalization co-
+Last, we determine the parameters of the model by fitting                                              efficient to satisfy the condition that v Pk (v) = 1q for the
+the model to the error-rate behavior of NAND Flash.                                                    k − 1 states.
+   Given the Vth distribution, the RBER can be evaluated                                                   We should note that keeping σhigh time-independent
+by calculating the probability that a cell contains incor-                                              does not imply that cells with high Vth are time-
+rect Vth , i.e., Vth higher or lower than the intended read                                             independent and never leak charge. Since the integral
+voltage levels, using the following equation:                                                           of PDF for each data state remains q1 , the probability that
+                      q−1       Z V                           Z ∞
+                                                                                        !               a cell belongs to the high-Vth tail drops as the low-Vth tail
+                                    R,k
+        RBER = ∑                     Pk (v)dv +            Pk (v)dv                               (4)   widens over time. The same phenomenon happens to the
+                      k=0         −∞              VR,(k+1)
+                                |    {z     }   |        {z       }                                     middle part, too.
+                              Vth lower than intended        Vth higher than intended                      Given the Vth distribution in the extended model,
+Here, VR,k is the lower bound of the correct read voltage                                               RBER(t) can be evaluated using the following formula:
+for the kth state and VR,k+1 is the upper bound as shown
+                                                                                                                                                                                      !
+                                                                                                                         q−1     Z V
+                                                                                                                                      R,k
+                                                                                                                                                           Z ∞
+                                                                                                                RBER(t) = ∑                 Pk (v,t)dv +         Pk (v,t)dv               (6)
+in Figure 3.                                                                                                             k=0     |
+                                                                                                                                     −∞
+                                                                                                                                            {z
+                                                                                                                                                         V
+                                                                                                                                                     } | R,(k+1) {z       }
+                                                                                                                                Vth lower than intended    Vth higher than intended
+               State 0                     State 1 State 2 State 3
+                                                                                                        3.1.3    Model Parameter Fitting
+                                               σlow (t) σhigh
+                                                                       ΔVP
+                                                                                                        In the proposed Vth distribution model, ∆VP , VR,k , µk ,
+                                                                                                        and σ0 are set to the values shown in Figure 4 according
+                         σ0
+                                                                                                        to [9]. The two new parameters in the extended model,
+                                                                                                        σhigh and σlow (t), are determined through parameter fit-
+                                                                                            Vth
+        VR,0     μ0                   VR,1 μ1 VR,2 μ2 VR,3 μ3                    VR,4                   ting such that the resulting RBER(t) follows the error-
+         Figure 3: Illustration of model parameters                                                     rate behavior of NAND Flash. Below we describe the
+                                                                                                        parameter fitting procedure.
+                                                                                                           We adopt the power-law model [20] to describe the
+3.1.2     Model Extension                                                                               error-rate behavior of NAND Flash:
+As mentioned in Section 2, the two tails of a Vth dis-                                                               RBER(t) = RBERwrite + RBERretention × t m                            (7)
+tribution are from different causes. The high-Vth tail of                                               Here, t is time, m is a coefficient, 1 ≤ m ≤ 2, RBERwrite
+a distribution is mainly caused by Vth over-programming                                                 corresponds to the error rate at t = 0 (i.e., write errors),
+(i.e., write errors); the low-Vth tail is mainly due to charge                                          and RBERretention is the incremental error rate per unit of
+losses over time (i.e., retention errors) [27]. Therefore,                                              time due to retention errors.
+the two Gaussian tails may not be identical. To capture                                                    We determine m in the power-law model based on the
+this difference, we extend the base model by setting dif-                                               curve-fitting values shown in Figure 2(a). In the figure,
+ferent standard deviations to the two tails as shown in                                                 the power-law curves fit the empirical error-rate data very
+Figure 3.                                                                                               well with m equal to 1.08, 1.25, and 1.33. We consider
+   The two standard deviations are set based on the ob-                                                 1.25 as the typical case of m and consider the other two
+servation in the previous study on Flash’s retention pro-                                               values as the corner cases.
+cess [7]. Under room temperature1 , a small portion of                                                     The other two coefficients in the power-law model,
+cells have a much larger charge-loss rate than others. As                                               RBERwrite and RBERretention , can be solved given RBER
+such charge losses accumulate over time, the distribution                                               at t = 0 and RBER at the maximum retention time, tmax .
+tends to form a wider tail at the low-Vth side. There-                                                  According to the JEDEC standard JESD47G.01 [19],
+fore, we extend the base model by setting the standard                                                  NAND Flash blocks cycled to the maximum specified
+deviation of the low-Vth tail to be a time-increasing func-                                             endurance have to retain data for 1 year, so we set tmax to
+tion, σlow (t), but keeping σhigh time-independent. The                                                 1 year. Moreover, recent NAND Flash requires 24-bit er-
+extended model is as follows:                                                                           ror correction for 1080-byte data [4, 28]. Assuming that
+                                   (v−µk +0.5∆VP )2                                                     the target UBER(tmax ) requirement is 10−16 , by Equa-
+                      
+                                 −
+                                      2σlow (t)2
+                                                                   v < µk − ∆V2P
+                      
+                       α(t) · e                    ,
+                      
+                                                                                                        tion (1), we have:
+                      
+         Pk (v,t) =                       (v−µk −0.5∆VP )2                                        (5)
+                                      −
+                                              2σhigh 2
+                       α(t) · e
+                      
+                      
+                                                            ,     v > µk + ∆V2P                                               RBER(tmax ) = 4.5 × 10−4                                   (8)
+                        α(t),                                      otherwise
+                                                                                                           As shown in Figure 2(a), RBER(0) is typically orders
+Here, the normalization  term becomes a function of time,                                               of magnitude lower than RBER(tmax ). Tanakamaru et
+α(t), to keep v Pk (v,t) = 1q .
+             R
+                                                                                                        al. [41] also show that write errors are between 150×
+                                                                                                        to 450× fewer than retention errors. This is because re-
+   1 According to the previous study [32], in datacenters, HDDs’ av-
+                                                                                                        tention errors accumulate over time and eventually dom-
+erage temperatures range between 18–51◦ C and stay around 26–30◦C                                       inate. Therefore, we set RBERwrite accordingly:
+most of the time. Since SSDs do not contain motors and actuators, we
+expect SSDs should be in lower temperature than HDDs. Therefore,                                                                                          RBER(tmax )
+                                                                                                                       RBERwrite = RBER(0) =                                              (9)
+we only consider room temperature in our current model.                                                                                                     Cwrite
+      Parameter   Value (V)
+                                                                               from the Vth model with NAND Flash’s error-rate behav-
+         VR,0        -∞                                                        ior described in Equations (7) to (10) at a fine time step.
+         VR,1         0
+         VR,2        1.2
+                                                                                  Figure 5 shows the modeling results of the Vth distri-
+         VR,3        2.4                                                       bution for the typical-case NAND Flash. In this figure,
+
+
+                              σlow(t) (V)
+         VR,4         6
+         ΔVP         0.2
+                                                                               the solid line stands for the Vth distribution at t = 0; the
+           μ0        -3                                                        dashed line stands for the Vth distribution at t = 1 year.
+           μ1        0.6                                                       We can see that the 1-year distribution is flatter than the
+           μ2        1.8
+           μ3         3
+                                                                               distribution at t = 0. We can also see that as the low-Vth
+           σ0       0.48                                                       tail widens over a year, the probability of both the middle
+         σhigh     0.1119
+        σlow(0)    0.1039                                Time (Years)          part and the high-Vth tail drops correspondingly.
+
+              Figure 4: Modeled 2-bit MLC NAND Flash                           3.2     Benefits of Retention Relaxation
+                                                                               In this section, we elaborate on the benefits of reten-
+                                                                               tion relaxation from two perspectives — improving write
+                   σlow(t=0) = 0.1039
+                   σlow(t=1 year) = 0.1587
+                                                                               speed and improving ECCs’ cost and performance. The
+                                                                               analysis is based on NAND Flash memories cycled to
+Probability
+
+
+
+
+                                                                               the maximum specified endurance (i.e., 100% wear-out)
+                                                                               with data retention capability set to 1 year [19]. Since
+                                                                               NAND Flash’s reliability typically degrades monotoni-
+                                                                               cally in terms of P/E cycles, considering such an extreme
+                                                                               case is conservative for the following benefit evaluation.
+                                        Threshold Voltage (V)                  In other words, NAND Flash in its early lifespan has
+                        Figure 5: Modeling results                             more head room for optimization.
+                                                                               3.2.1   Improving Write Speed
+Here, Cwrite is the ratio of RBER(tmax ) to RBER(0). We
+set Cwrite to 150, 300, and 450, where 300 is considered                       As presented earlier, NAND Flash memories use the
+as the typical case and the other two are considered as                        ISPP scheme to incrementally program memory cells.
+the corner cases.                                                              The Vth step increment, ∆VP , directly affects write speed
+   We also have RBERretention as follows:                                      and data retention. Write speed is proportional to ∆VP
+                                                                               because with larger ∆VP , less steps are required during
+                                            (RBER(tmax ) − RBER(0))            the ISPP procedure. On the other hand, data retention
+                   RBERretention =                                      (10)
+                                                    tmax m
+                                                                               decreases as ∆VP gets larger because large ∆VP widens
+   We note that among write errors (i.e., RBERwrite ), a                       Vth distributions and reduces the margin for tolerating re-
+major fraction of them correspond to cells with higher                         tention errors.
+Vth than intended. This is because the root causes of                             Algorithm 1 shows the procedure to quantitatively
+write errors tend to make Vth over-programmed. Mielke                          evaluate the write speedup if data retention time require-
+et al. [27] show that this fraction is between 62% to about                    ments are reduced. The analysis is based on the extended
+100% for the NAND Flash devices in their experiments.                          NAND Flash model presented in Section 3.1. For all
+Therefore, we give the following equations:                                    the typical and corner cases we consider, we first enlarge
+                  RBERwrite high = RBERwrite ×Cwrite high               (11)
+                                                                               ∆VP by various ratios between 1× to 3×, thereby, speed-
+                                                                               ing up NAND Flash writes proportionately. For each ra-
+                  RBERwrite low = RBERwrite × (1 −Cwrite high )         (12)
+                                                                               tio, we test RBER(t) at different retention time from 0 to
+Here, RBERwrite high and RBERwrite low correspond to                           1 year to find the maximum t such that RBER(t) is within
+cells with Vth higher and lower than intended levels, re-                      the base ECC strength.
+spectively. Cwrite high stands for the ratio of total write                       Figure 6 shows the write speedup vs. data reten-
+errors to write errors which are higher than the intended                      tion. Both the typical case (black line) and the corner
+levels. We set Cwrite high to 62%, 81%, and 99%, where                         cases (gray dashed lines) we consider in Section 3.1 are
+81% is considered as the typical case and the other two                        shown. For the typical case, if data retention is relaxed
+are considered as the corner cases.                                            to 10 weeks, 1.86× speedup for NAND Flash page write
+   Now we have the error-rate behavior of NAND Flash.                          is achievable; if data retention is relaxed to 2 weeks, the
+σhigh and σlow (0) are first determined so that the error                      speedup is 2.33×. Furthermore, the speedup for the cor-
+rate for Vth being higher and lower than intended equals                       ner cases are close to the typical case. This means the
+RBERwrite high and RBERwrite low , respectively. Then,                         speedup numbers are not very sensitive to the values of
+σlow (t) is determined by matching the RBER(t) derived                         the parameters we obtain using parameter fitting.
+                                            10 weeks         2 weeks
+
+
+
+
+                                                                                        Data Retention for Baseline BCH (Year)
+                                                                                                                                                                         Typical case
+                                      Typical case
+    NAND Flash Write Speedup
+                                                                                                                                                                         Corner cases
+                                      Corner cases
+
+
+
+
+                                                                                                                                                                                        10 weeks
+                                                                                                                                        1-Year RBER   Retention
+
+
+
+
+                                                                                                                                                                                        2 weeks
+                                                        Retention   Speedup
+                                                                                                                                          4.5E-4       1 year
+                                                         1 year         1×
+                                                                                                                                          3.5E-3      10 weeks
+                                                        10 weeks       1.86×
+                                                                                                                                          2.2E-2      2 weeks
+                                                         2 weeks       2.33×
+
+
+
+                                            Data Retention (Year)                                                                                       RBER at 1 Year
+
+Figure 6: NAND page write speedup vs. data reten-                                    Figure 7: Data retention capability of 24 error correc-
+tion                                                                                 tion per 1080 bytes BCH codes
+
+
+Algorithm 1 Write speedup vs. data retention                                   because hardware parallelization is one basic approach to
+                                                                               increase the throughput of LDPC encoders [24]. In this
+ 1: CBCH = 4.5 × 10−4
+ 2: for all typical and corner cases do
+                                                                               paper, we exploit retention relaxation to alleviate such
+ 3:    for VoltageRatio = 1 to 3 step = 0.01 do                                cost and performance dilemma. That is, with retention
+ 4:       Enlarge ∆VP by VoltageRatio times                                    relaxation, fewer retention errors need to be tolerated;
+ 5:       WriteSpeedUp = VoltageRatio                                          therefore, BCH codes could be still strong enough to pro-
+ 6:       for Time t = 0 to 1 year step = δ do                                 tect data even if NAND Flash’s 1-year RBER soars.
+ 7:           Find RBER(t) according to σlow (t) and α(t)                         Algorithm 2 analyzes the achievable data retention
+ 8:       end for                                                              time of BCH codes with 24 bits per 1080 bytes
+ 9:       DataRetention = max{t:RBER(t) ≤ CBCH }                               error-correction capability under different NAND Flash
+10:       plot (DataRetention, WriteSpeedUp)
+                                                                               RBER(1 year) values. Here we assume that RBER(t) fol-
+11:    end for
+12: end for
+                                                                               lows the power-law trend described in Section 3.1.3. We
+                                                                               vary RBER(1 year) from 4.5 × 10−4 to 1 × 10−1 , and de-
+                                                                               rive the corresponding write error rate (RBERwrite ) and
+3.2.2                          Improving ECCs’ Cost and Performance            retention error increment per unit of time (RBERretention ).
+                                                                               The achievable data retention time of the BCH codes is
+ECC design is emerging as a critical issue in SSDs.
+                                                                               the time when RBER exceeds the capability of the BCH
+Nowadays, NAND Flash-based systems heavily rely on
+                                                                               codes (i.e., 4.5 × 10−4 ).
+BCH codes to tolerate RBER. Unfortunately, BCH de-
+grades memory storage efficiency significantly once the
+RBER of NAND Flash reaches 10−3 [22]. Recent                                   Algorithm 2 Data retention vs. maximum RBER for
+NAND Flash has RBER around 4.5 × 10−4 . As the den-                            BCH (24-bit per 1080 bytes)
+sity of NAND Flash memories continues to increase,                              1: tmax = 1 year
+RBER will exceed the BCH limitation inevitably. There-                          2: CBCH = 4.5 × 10−4
+                                                                                3: for all typical and corner cases do
+fore, BCH codes will become inapplicable in the near
+                                                                                4:    for RBER(tmax ) = 4.5 × 10−4 to 1 × 10−1 step = δ do
+future.                                                                                                                                        RBER(tmax )
+                                                                                5:                                               RBERwrite =     Cwrite
+   LDPC codes are promising ECCs for future NAND                                                                                                  (RBER(tmax )−RBERwrite )
+                                                                                6:                                               RBERretention =            tmax m
+Flash memories [13, 28, 41]. The main advantage of
+                                                                                                                                                          −RBERwrite m1
+LDPC is that they can provide correction performance                            7:                                               RetentionTime = ( CBCH RBERretention )
+very close to the theoretical limits. However, LDPC                             8:                                               plot (RBER(tmax ), RetentionTime)
+                                                                                9:   end for
+incurs much higher encoding complexity than BCH
+                                                                               10: end for
+does [21, 25]. For example, an optimized LDPC en-
+coder [44] consumes 3.9 M bits of memory and 11.4 k
+FPGA Logic Elements to offer 45 MB/s throughput. To                               Figure 7 shows the achievable data retention time of
+sustain write throughput of high-performance SSDs, e.g.,                       the BCH code given different RBER(1 year) values. The
+1 GB/s ones [1], high-throughput LDPC encoders are re-                         black line stands for the typical case and the gray dashed
+quired, otherwise the LDPC encoders may become the                             lines stand for the corner cases. As can be seen, for the
+throughput bottleneck. This leads to high hardware cost                        typical case, the baseline BCH code can retain data for
+                    0   1   2   3   4   5   6   7   Time (A.U.)                 Table 1: Workload summary
+                    a   b   b   a   c   a
+                                                                    Category   Name             Description             Span
+      LBA written
+       Retention
+                                                                               prn_0            Print server
+                    3   1   ?   2   ?   ?                                      proj_0, proj_2   Project directories
+    requirement
+                                                                               prxy_0, prxy_1   Web proxy
+Figure 8: Data retention requirements in a write stream              MSRC                                               1 week
+                                                                               src1_0, src1_2   Source control
+                                                                               src2_2           Source control
+                                                                               usr_1, usr_2     User home directories
+10 weeks even if RBER(1 year) reach 3.5 × 10−3 . Even
+if RBER(1 year) reaches 2.2 × 10−2 , the baseline BCH                          hd1
+                                                                   MapReduce                    WordCount benchmark     1 day
+                                                                               hd2
+code can still retain data for 2 weeks. We can also see
+                                                                               tpcc1
+similar trends for the corner cases.                                 TPC-C
+                                                                               tpcc2
+                                                                                                OLTP benchmark          1 day
+
+4     Data Retention Requirements Analysis
+In this section, we first analyze real-world traces from          8 GB RAM and a SATA hard disk and runs 64-bit Linux
+enterprise datacenters to show that many writes into stor-        2.6.35 with the ext4 filesystem. We test two MapRe-
+age require days or even shorter retention time. Since I/O        duce usage models. In the first model, we repeatedly re-
+traces are usually gathered in days or weeks, to estimate         place 140 GB text data in the Hadoop cluster and invoke
+the percentage of writes with retention requirements be-          word counting jobs. In the second model, we interleave
+yond the trace period, we present a retention-time projec-        performing word counting jobs on two sets of 140 GB
+tion method based on two characteristics obtained from            text data which have been pre-loaded in the cluster. The
+the traces, the write amount and the write working set            third workload is the TPC-C benchmark. We use Ham-
+size.                                                             merora [3] to generate the TPC-C workload on a MySql
+                                                                  server which has a Core-i7 CPU, 12 GB RAM, and a
+4.1      Real Workload Analysis                                   SATA SSD and runs 64-bit Linux 2.6.32 with the ext4
+In this subsection, we analyze real disk traces to under-         filesystem. We configure the benchmarks as having 40
+stand the data retention requirements of real-world ap-           and 80 warehouses. Each warehouse has 10 users with
+plications. The data retention requirement of a sector            keying and thinking time. Both MapReduce and TPC-C
+written into a disk is defined as: the interval from the          workloads span 1 day.
+time the sector is written to the time the sector is over-           For each trace, we analyze the data retention require-
+written. Let’s take Figure 8 for example. The disk is             ment of every sector written into the disk. Figure 9 shows
+written by the address stream a, b, b, a, c, a, ... and           the cumulative percentage of data retention requirements
+so on. The first write is to address a at time 0, and the         less than or equal to the following values — a second,
+same address is overwritten at time 3; therefore, the data        a minute, an hour, a day, and a week. As can be seen,
+retention requirement for the first write is (3 − 0) = 3.         the data retention requirements of the workloads are usu-
+Usually disk traces only cover a limited period of time,          ally low. For example, more than 95% of sectors written
+for those writes whose next write does not appear before          into the disk for proj 0, prxy 1, tpcc1, and tpcc2 need
+the observation ends, the retention requirements cannot           less than 1-hour data retention. Furthermore, for all the
+be determined. For example, for the write to address b at         traces except proj 2, 49–99.2% of sectors written into
+time 2, the overwritten time is unknown. We denote its            the disk need less than 1-week data retention. For tpcc2,
+retention requirement with ‘?’ as a conservative estima-          up to 44% of writes require less than 1-second retention.
+tion. It is important to note that we are focusing on data        This is because MySql’s storage engine, InnoDB, writes
+retention requirements for data blocks in write streams           data to a fixed-size log, called the doublewrite buffer, be-
+rather than that in the entire disk.                              fore writing to the data file to guard against partial page
+   Table 1 shows the three sets of traces we analyze.             writes; therefore, all writes to the doublewrite buffer are
+The first is from an enterprise datacenter in Microsoft           overwritten very quickly.
+Research Cambridge (MSRC) [29]. This set covers 36
+volumes from various servers and we select 12 of them
+                                                                  4.2    Retention Requirement Projection
+which have the largest write amounts. These traces span           The main challenge of retention time characterization for
+1 week and 7 hours. We skip the first 7 hours which               real-world workloads is that I/O traces are usually gath-
+do not form a complete day and use the remaining 1-               ered in a short period of time, e.g., days or weeks. To
+week part. The second set of traces is MapReduce which            estimate the percentage of writes with retention require-
+has been shown to benefit from the increased bandwidth            ments beyond the trace period, we derive a projection
+and reduced latency of NAND Flash-based SSDs [11].                method based on two characteristics obtained from the
+We use Hadoop [2] to run the MapReduce benchmark                  traces, the write amount and the write working set size.
+on a cluster of two Core-i7 machines each of which has               We denote the percentage of writes with retention time
+                             100%                                                                                           100%
+                                                                                      prn_0                                                                                         hd1
+                                                                                      prn_1                                                                                         hd2
+                                                                                      proj_0                                                                                        tpcc1
+ Cumulative Percentage (%)
+
+
+
+
+                                                                                                Cumulative Percentage (%)
+                             75%                                                                                            75%
+                                                                                      proj_2                                                                                        tpcc2
+                                                                                      prxy_0
+                             50%                                                      prxy_1                                50%
+                                                                                      src1_0
+                                                                                      src1_1
+                             25%                                                      src1_2                                25%
+
+                                                                                      src2_2
+                                                                                      usr_1
+                              0%                                                                                             0%
+                                    sec.     min.       hour      day          week   usr_2                                          sec.     min.       hour      day       week
+                                            Retention Time Requirement                                                                       Retention Time Requirement
+
+
+
+                                                   (a) MSRC workloads                                                                   (b) MapReduce and TPC-C workloads
+
+                                                                     Figure 9: Data retention requirement distribution
+
+requirements less than X within a time period of Y as                                                                                                       kN − A       A
+SX,Y %. We first formulate ST1 ,T1 % in the write amount                                                                                      ST2 ,T2 % ≥          = 1−                     (16)
+                                                                                                                                                              kN        kN
+and the write working set size, where T1 is the time span                                         Combining Equation (15) and (16), the lower bound
+of the trace. Let N be the amount of data sectors written                                       on ST2 ,T2 % is given by:
+into the disk during T1 and W be the write working set                                                                                                             A
+size (i.e., the number of distinct sector addresses being                                                                                   ST2 ,T2 % ≥ max(1 −      , ST1 ,T1 %)           (17)
+                                                                                                                                                                  kN
+written) during T1 . We have the following formula (the                                            Table 2 shows the data retention requirements anal-
+proof is similar to the pigeonhole principle):                                                  ysis using the above equations. First, we can see that
+                                                         N −W      W
+                                           ST1 ,T1 % =        = 1−                       (13)   the ST1 ,T1 % obtained from Equation (13) matches Fig-
+                                                           N       N
+                                                                                                ure 9. Let’s take hd2 for example. There are a total
+   With this formula, the first projection we make is the                                       of 726 GB of writes in 1 day whose write working set
+percentage of writes that have retention time require-                                          size is 313 GB. According to Equation (13), 57% of the
+ments less than T1 in an observation period of T2 , where                                       writes whose retention time requirements are less than
+T2 = k × T1 , k ∈ N. The projection is based on the as-                                         1 day. This is the case shown in Figure 9. Furthermore,
+sumption that for each T1 period, the write amount and                                          if we can observe the hd 2 workload for 1 week, more
+the write working set size remain N and W , respectively.                                       than 86% of writes whose retention time requirements
+We derive the lower bound on ST1 ,T2 % as follows:                                              are expected to be less than 1 weeks. This again shows
+                                                               k−1
+                                                   k(N −W ) + ∑ ui                              the gap between the specification guarantee and actual
+                                     ST1 ,T2 % =               i=1
+                                                                      ≥ ST1 ,T1 %        (14)   programs’ needs in terms of data retention.
+                                                          kN
+where ui is the number of sectors whose lifetime is across                                      5                             System Design
+two periods and their retention time requirements are less                                      5.1                                Retention-Aware FTL (Flash Transla-
+than T1 . Equation (14) implies that we do not overesti-
+                                                                                                                                   tion Layer)
+mate the percentage of writes that have retention time
+requirements less than T1 by characterizing a trace gath-                                       In this section, we present the SSD design which lever-
+ered in a T1 period.                                                                            ages retention relaxation for improving either write
+   With the first projection, we can then derive the lower                                      speed or ECCs’ cost and performance. Specifically, in
+bound on ST2 ,T2 %. Clearly, ST2 ,T2 % ≥ ST1 ,T2 %. Combined                                    the proposed SSD, data written into NAND Flash mem-
+with Equation (14), we have:                                                                    ories could occur in variable write latencies or be en-
+                                                                                                coded by different ECC codes, which provide different
+                                           ST2 ,T2 % ≥ ST1 ,T2 % ≥ ST1 ,T1 %             (15)
+                                                                                                levels of retention guarantees. We refer to the data writ-
+   The lower bound on ST2 ,T2 % also depends on disk ca-                                        ten by these different methods as in different “modes”.
+pacity, A. During T2 , the write amount is equal to k × N,                                      In our design, data in a physical NAND Flash block
+and the write working set size must be less than or equal                                       are in the same mode. To correctly retrieve data from
+to the disk capacity, i.e, k × W ≤ A. By with Equa-                                             NAND Flash, we need to record the mode of each phys-
+tion (13), we have:                                                                             ical block. Furthermore, to avoid data losses due to a
+       Table 2: Data retention requirements analysis                                                                      Disk I/O
+                                                                                                                          Request
+           Disk        Write        Write
+ Volume                                         S1d,1d   S1w,1w   S5w,5w
+        Capacity (A) Amount (N) Working Set (W)                                                                 Disk Interface
+  Name
+            GB           GB          GB          %         %       %
+                                                                                      Logical Addr.,                                 Logical Addr.,         Logical
+  prn_0     66.3         44.2        12.1                 72.6    ≧72.6    FTL        I/O Command                                    I/O Command             Addr.
+  prn_1    385.2         28.8        11.1                 61.6    ≧61.6
+ proj_0     16.2        143.8         1.6                 98.9    ≧98.9          Retention             Background           Mode                       Address        I/O
+                                                                                  Tracker       Blk.    Cleaning           Selector                   Translation     Data
+ proj_2    816.2        168.4       155.1                  7.9    ≧7.9                         Addr.
+ prxy_0     20.7         52.7         0.7                 98.7    ≧98.7                                      Background
+                                                                                                                                     Command
+                                                                                                                                                           Physical
+                                                                  ≧98.2                                       I/O Data                                      Addr.
+ prxy_1     67.8        695.3        12.5                 98.2
+ src1_0    273.5        808.6       114.1                 85.9    ≧93.2                                     NAND Flash Interface
+ src1_1    273.5         29.6         4.2                 85.9    ≧85.9
+                                                                                        NAND Requests                                         NAND Requests
+ src1_2      8.0         43.4         0.7                 98.5    ≧98.5
+ src2_2    169.6         39.3        20.0                 49.2    ≧49.2
+  usr_1    820.3         54.8        24.5                 55.2    ≧55.2                                     NAND Flash Memories
+  usr_2    530.4         25.6        10.0                 61.1    ≧61.1
+   hd1     737.6       1564.9       410.1       73.8     ≧93.3    ≧98.7
+   hd2     737.6        726.3       313.3       56.9     ≧85.5    ≧97.1             Figure 10: Proposed retention-aware FTL
+  tpcc1     149         310.3         3.1       99.0     ≧99.0    ≧99.0
+  tpcc2     149         692.8         6.0       99.1     ≧99.1    ≧99.4
+1 The disk capacity of the MSRC traces are estimated using their max-
+                                                                           tion in workloads and the cost for supporting multiple
+imum R/W address. The estimation results conform to the previous           write modes. In this work, we present a coarse-grained
+study [30].                                                                management method. There are two kinds of NAND
+2 1d, 1w, and 5w stand for a day, a week, and 5 weeks, respectively.
+                                                                           Flash writes in SSD systems: host writes and background
+3 GB stands for 230 bytes.
+                                                                           writes. Host writes correspond to write requests sent
+                                                                           from the host to the SSDs; background writes comprise
+shortage of data retention capability, we have to monitor                  cleaning, wear-leveling, and data movement internal to
+the remaining retention capability of each NAND Flash                      the SSDs. Performance is usually important to the host
+block. We implement the proposed retention-aware de-                       writes. Moreover, host writes usually require short data
+sign in the Flash Translation Layer (FTL) in SSDs rather                   retention as shown in Section 4. In contrast, background
+than in OSes. FTL-based implementation requires mini-                      writes are less sensitive to performance and usually in-
+mum OS/application modification, which we think is im-                     volve data which have been stored in the storage for a
+portant for easy deployment and wide adoption of the                       long time; therefore, their data are expected to remain
+proposed scheme.                                                           for a long time in the future (commonly referred to as
+   Figure 10 shows the block diagram of the proposed                       cold data). Based on this observation, we propose to em-
+FTL. The proposed FTL is based on the page-level                           ploy two levels of retention guarantees for the two kinds
+FTL [5] with two additional components, Mode Selec-                        of writes. For host writes, retention-relaxed writes are
+tor (MS) and Retention Tracker (RT). For writes, MS                        used to exploit their high probability of short retention
+sends different write commands to NAND Flash chips                         requirements and gain performance benefits; for back-
+or invokes different ECC encoders. As discussed in Sec-                    ground writes, normal writes are employed to preserve
+tion 3.2.1, write speed could be improved by adopting                      the retention guarantee.
+larger ∆VP . In current Flash chips, only one write com-                      In the proposed two-level framework, to optimize
+mand is supported. To support the proposed mechanism,                      write performance, host writes occur in fast write speed
+NAND Flash chips need to provide multiple write com-                       with reduced retention capability. If data are not over-
+mands with different ∆VP values. MS keeps the mode                         written within their retention guarantee, background
+of each NAND Flash block in memories so that during                        writes with normal write speed are issued. To optimize
+reads, it can invoke the right ECC decoder to retrieve                     ECCs’ cost and performance, a new ECC architecture
+data. RT is responsible for ensuring that every NAND                       is proposed. As mentioned earlier, NAND Flash RBER
+Flash block in the SSD does not run out of its retention                   will soon exceed BCH’s limitation (i.e., RBER ≥ 10−3 );
+capability. RT uses one counter per NAND Flash block                       therefore, advanced ECC designs will be required for fu-
+to keep track of its remaining retention time. When the                    ture SSDs. Figure 11 shows such an advanced ECC de-
+first page of a block is written, the retention capability of              sign for future SSDs which employs multi-layer ECCs
+this write is stored in the counter. These retention coun-                 with code concatenations: the inner code is BCH, and
+ters are periodically updated. If a block is found to ap-                  the outer code is LDPC. Concatenating BCH and LDPC
+proach its data retention limit, RT schedules background                   exploits the advantages of both [43]: LDPC greatly im-
+operations to move valid data in this block to another new                 proves the maximum correcting capability, while BCH
+block and then invalidates the old one.                                    complements LDPC for eliminating LDPC’s error floor.
+  One main parameter in the proposed SSD design is                         The main issue with this design is since every write needs
+how many write modes we should employ in the SSD.                          to be encoded in LDPC, a high-throughput LDPC en-
+The optimal setting depends on retention time varia-                       coder is required to prevent the LDPC encoder from be-
+                      Host Writes
+                                                                                                                          Host Writes                                                 Background Writes
+                       BCH Encoder     Background                                                                                                                                     N        Already LDPC
+                                                                                                                                                                                                 Encoded?
+                                         Writes
+                     LDPC Encoder                                                                                               BCH Encoder                               LDPC                                 Y
+                                                                                                                                                                         Encoder
+
+
+
+
+          NAND     NAND        NAND     NAND                                                               NAND                          NAND                            NAND                          NAND
+          Flash    Flash       Flash    Flash                                                              Flash                         Flash                           Flash                         Flash
+
+
+Figure 11: Baseline concatenated BCH-LDPC codes                  Figure 12: Proposed ECC architecture leveraging re-
+in an SSD                                                        tention relaxation in an SSD
+
+ing the bottleneck. In the proposed ECC architecture                                              60
+                                                                                                                                         RR-10week                                                RR-2week
+
+
+
+
+                                                                   Annual Average Extra Write #
+shown in Figure 12, host writes are protected by BCH                                              50
+only since they tend to have short retention requirements.                                        40
+If data are not overwritten within the retention guaran-                                          30
+tee provided by BCH, background writes are issued. All                                            20
+background writes are protected by LDPC. In this way,
+                                                                                                  10
+the LDPC encoder is kept out of the critical performance
+                                                                                                  0
+path. Its benefits are two-fold. First, write performance
+
+
+
+
+                                                                                                                                                                                               usr_1
+                                                                                                                                                                                                       usr_2
+                                                                                                                       proj_0
+                                                                                                                                proj_2
+
+
+
+
+                                                                                                                                                                                                               hd1
+                                                                                                                                                                                                                     hd2
+                                                                                                                                                           src1_0
+                                                                                                                                                                    src1_1
+                                                                                                                                                                             src1_2
+                                                                                                                                                                                      src2_2
+
+
+
+
+                                                                                                                                                                                                                           tpcc1
+                                                                                                                                                                                                                                   tpcc2
+                                                                                                       prn_0
+                                                                                                               prn_1
+
+
+
+
+                                                                                                                                         prxy_0
+                                                                                                                                                  prxy_1
+is improved since host writes do not go through time-
+consuming LDPC encoding. Second, since BCH filters                                                                                                              Workload
+
+out short-lifetime data and LDPC encoding can be amor-         Figure 15: Wear-out overhead of retention relaxation
+tized in the background, the throughput requirements of
+LDPC are less than the baseline design. Therefore, the        an SSD having 128 GB NAND Flash with 2 MB block
+LDPC hardware cost can be reduced.                            size, the memory overhead is 16 KB .
+   We present two specific implementation of retention        Reprogramming Overhead
+relaxation. The first one relaxes the retention capabil-
+ity of host writes to 10 weeks and periodically checks        In the proposed schemes, data that are not overwrit-
+the remaining retention capability of each NAND Flash         ten in the guaranteed retention time need to be repro-
+block at the end of every 5 weeks. Therefore, FTL al-         grammed. These extra writes affect both the performance
+ways has another 5 weeks at least to reprogram those          and the life time of SSDs. To analyze its performance
+data which have not been overwritten in the past period       impact, we estimate reprogramming amounts per unit of
+and can amortize the re-programming task in the back-         time based on the projection method described in Sec-
+ground over the 5 weeks without causing burst writes.         tion 4.2. Here, we let T2 be the checking period in the
+We set the period of invoking the reprogramming tasks         proposed schemes. For example, for RR-10week, T2
+to 100 ms. The second one is similar to the first one ex-     equals 5 weeks. Therefore, at the end of each period, the
+cept that the retention capability and checking period are    total write amount is kN, the percentage of writes which
+2 weeks and 1 week, respectively. These two designs are       require reprogramming is at most (1 − ST2 ,T2 %), and the
+referred to as RR-10week and RR-2week in this paper.          reprogramming tasks can be amortized over the upcom-
+                                                              ing period of T2 . The reprogramming amounts per unit
+5.2    Overhead Analysis                                      of time are as follows:
+                                                                                                                                 (1 − ST2 ,T2 %) × k × N
+Memory Overhead                                                                                                                                                                                                                            (18)
+                                                                                                                                            T2
+The proposed mechanism requires extra memory re-                 The results show that the amount of reprogramming
+sources to store write modes and retention time infor-        tasks range between 1.13 kB/s to 1.25 MB/s for RR-
+mation for each block. Since we only have two write           2week, and between 1.13 kB/s to 0.26 MB/s for RR-
+modes, i.e., the normal mode and the retention-relaxed        10week. Since each NAND Flash plane can provide
+one, each block requires only a 1-bit flag to record its      6.2 MB/s write throughput (i.e., writing a 8 kB page in
+write mode. As for the size of the counter for keeping        1.3 ms), we anticipate that reprogramming does not lead
+track of the remaining retention time, both RR-2week          to high performance overhead. In Section 6, we evaluate
+and RR-10week require only a 1-bit counter per block          its actual performance impact.
+because all retention-relaxed blocks written in the nth pe-      To quantify the wear-out effect caused by reprogram-
+riod are reprogrammed during the (n + 1)th period. For        ming, we show extra writes per cell per year assuming
+                                               Baseline                   RR-10week                        RR-2week                                                                     Baseline                   RR-10week                        RR-2week
+
+
+
+
+                                                                                                                                            Overall Response Time Speedup
+     Write Response Time Speedup
+                                   6                                                                                                                                        6
+                                   5                                                                                                                                        5
+                                   4                                                                                                                                        4
+                                   3                                                                                                                                        3
+                                   2                                                                                                                                        2
+                                   1                                                                                                                                        1
+                                   0                                                                                                                                        0
+                                                                          src1_0
+                                                                                   src1_2
+                                                                                            src2_2
+                                               proj_0
+                                                        proj_2
+
+
+
+
+                                                                                                     hd1
+                                                                                                            hd2
+                                                                                                                  tpcc1
+                                                                                                                          tpcc2
+                                       prn_0
+
+
+
+
+                                                                 prxy_0
+
+
+
+
+                                                                                                                                                                                        proj_0
+                                                                                                                                                                                                 proj_2
+
+
+
+
+                                                                                                                                                                                                                                              hd1
+                                                                                                                                                                                                                                                     hd2
+                                                                                                                                                                                                                            src1_2
+                                                                                                                                                                                                                   src1_0
+
+
+                                                                                                                                                                                                                                     src2_2
+
+
+
+
+                                                                                                                                                                                                                                                           tpcc1
+                                                                                                                                                                                                                                                                   tpcc2
+                                                                                                                                                                                prn_0
+
+
+
+
+                                                                                                                                                                                                          prxy_0
+                                                                           Workload                                                                                                                                 Workload
+
+    Figure 13: SSD write response time speedup                                                                                            Figure 14: SSD overall response time speedup
+
+perfect wear-leveling. We first give the upper bound on                                                                                 Table 3: NAND Flash and SSD configurations
+this metric. Let’s take RR-2week for example. In the ex-                                                                              Parameter         Value                                                          Parameter                                     Value
+treme case, RR-2week reprograms the entire disk every                                                                              Over-provisioning    15%                                                          Page read latency                               75 μs
+                                                                                                                                   Cleaning threshold    5%                                                         Page write latency                              1.3 ms
+week, which leads to 52.1 extra writes per cell per year.
+                                                                                                                                       Page size        8 KB                                                        Block erase latency                             3.8 ms
+Similarly, RR-10week causes 10.4 extra writes per cell                                                                              Pages per block      256                                                       NAND bus bandwidth                              200 MB/s
+per year at most. These extra writes are not significant                                                                            Blocks per plane    2000
+compared to NAND Flash’s endurance which is usually                                                                                  Planes per die        2
+                                                                                                                                    Dies per channel     1~8
+a few thousands P/E cycles. Therefore, even in the worst                                                                           Number of channel      16
+case, the proposed mechanism does not cause significant                                                                             Mapping policy    Full stripe
+wear-out effect. For real workloads, the wear-out over-                                                                                      Trace Name                                                      Dies per Disk Exported Capacity (GB)
+head is usually smaller than the worst case as shown in                                                                             prn_0, proj_0, prxy_0, src1_2                                                  16               106
+Figure 15. The wear-out overhead for each workload is                                                                                          src2_2                                                              32               212
+                                                                                                                                               src1_0                                                              64               423
+evaluated based on the disk capacity and the reprogram-                                                                             proj_2, hd1, hd2, tpcc1, tpcc2                                                128               847
+ming amounts per unit of time presented above.
+6   System Evaluation                                                                                                             mined by write requests due to the significant amount of
+                                                                                                                                  write requests in the tested workloads and the long write
+We conduct simulation-based experiments using
+                                                                                                                                  latency. Therefore, we can see that the speedup trend is
+SSDsim [5] and Disksim-4.0 [10] to evaluate the RR-
+                                                                                                                                  similar to that of write response time.
+10week and RR-2week designs. SSDs are configured to
+                                                                                                                                     To show how retention relaxation benefits ECC design
+have 16 channels. Detailed configurations and parame-
+                                                                                                                                  in future SSDs, we consider SSDs comprising NAND
+ters are listed in Table 3. Eleven of the 16 traces listed in
+                                                                                                                                  Flash whose 1-year RBER approaches 2.2 × 10−2 . We
+Table 2 are used and simulated for the whole trace. We
+                                                                                                                                  compare the proposed RR-2week design with the base-
+omit prxy 1 because the simulated SSD can not sustain
+                                                                                                                                  line design which employs concatenated BCH-LDPC
+its load, and prn 1, src1 1, usr 1, usr 2 are also omitted
+                                                                                                                                  codes. The LDPC encoder is modeled as a FIFO and its
+because they contain write amounts less than 15% of the
+                                                                                                                                  throughput is chosen among 5, 10, 20, 40, 80, 160, 320,
+total raw NAND Flash capacity. SSD write speedup and
+                                                                                                                                  and ∞ MB/s. Since the I/O queue of the simulated SSDs
+ECCs’ cost and performance improvement are evaluated
+                                                                                                                                  could saturate if LDPC’s throughput is insufficient, we
+separately. The reprogramming overhead described in
+                                                                                                                                  first report the minimum required throughput configura-
+Section 5.2 are considered in the experiments.
+                                                                                                                                  tions without causing saturation in Figure 16. As can be
+   Figure 13 shows the speedup of write response time
+                                                                                                                                  seen, for the baseline ECC architecture, throughput up
+for different workloads if we leverage retention relax-
+                                                                                                                                  to 160 MB/s is required. In contrast, for RR-2week, the
+ation to improve write speed. We can see that RR-
+                                                                                                                                  lowest throughput configuration (i.e., 5MB/s) is enough
+10week and RR-2week typically achieve 1.8–2.6× write
+                                                                                                                                  to sustain the write rates in all tested workloads. Fig-
+response time speedup. hd1 and hd2 show up to
+                                                                                                                                  ure 17 shows the response time of the baseline and RR-
+3.9–5.7× speedup. These two workloads have high
+                                                                                                                                  2week under various LDPC throughput configurations.
+queuing delay due to high I/O throughput. With reten-
+                                                                                                                                  The response time reported in this figure is the average
+tion relaxation, the queuing time is greatly reduced, be-
+                                                                                                                                  of the response time normalized to that with unlimited
+tween 3.7× to 6.1×. Moreover, for all workloads, RR-
+                                                                                                                                  LDPC throughput:
+2week gives about 20% extra performance gain over RR-
+                                                                                                                                                                                    1 N
+                                                                                                                                                                                                          
+10week. Figure 14 shows the speedup in terms of overall                                                                                                                                     ResponseTimei
+                                                                                                                                                                                      ∑ IdealResponseTimei                                                                 (19)
+response time. The overall response time is mainly deter-                                                                                                                           N i=1
+                                                  Baseline                                 RR-2week                                                                              Baseline              RR-2week
+
+
+
+
+                                                                                                                               Average Normalized Response Time
+                                                                                                                                                                  1.6
+                       100
+    Througput (MB/s)
+
+
+                                                                                                                                                                  1.4
+
+
+                       10
+                                                                                                                                                                  1.2
+
+
+
+                        1                                                                                                                                          1
+                                     proj_0
+
+                                              proj_2
+
+
+
+
+                                                                                            hd1
+
+                                                                                                  hd2
+                                                                src1_0
+
+                                                                         src1_2
+
+                                                                                  src2_2
+
+
+
+
+                                                                                                        tpcc1
+
+                                                                                                                tpcc2
+                             prn_0
+
+
+
+
+                                                       prxy_0
+
+                                                                                                                                                                        5   10   20     40    80    160     320   ∞
+
+
+                                                                     Workload                                                                                                    LDPC's Throughput (MB/s)
+
+
+Figure 16: Minimum required LDPC throughput                                                                                 Figure 17: Average normalized response time given
+configurations without causing I/O queue saturation                                                                         various LDPC throughput configurations
+
+where N is the number of workloads which do not in-                                                                     work considers the retention requirements of real work-
+cur I/O queue saturation given specific LDPC through-                                                                   loads and relaxes NAND Flash’s data retention to op-
+put. In the figure, the curve of the baseline presents                                                                  timize SSDs, which is orthogonal to the above device-
+a zigzag appearance between 5 MB/s to 80 MB/s be-                                                                       aware optimization.
+cause several traces are excluded due to the saturation                                                                    Smullen et al. [36] and Sun et al. [38] improve energy
+in the I/O queue. This may inflate the performance of the                                                               and latency of STTRAM-based CPU caches through re-
+baseline. Even so, we see RR-2week outperforms the                                                                      designing STTRAM cells with relaxed non-volatility. In
+baseline significantly with the same LDPC throughput                                                                    contrast, we focus on NAND Flash memories used in
+configuration. For example, with 10MB/s throughput,                                                                     storage systems.
+RR-2week performs 43% better than the baseline. Only
+when the LDPC throughput approaches infinite does RR-                                                                   8    Conclusions
+2week perform a bit worse than the baseline due to re-                                                                  We present the first work on optimizing SSDs via re-
+programming overhead. We can also see that with a                                                                       laxing NAND Flash’s data retention capability. We de-
+20 MB/s LDPC, RR-2week already approaches the per-                                                                      velop a NAND Flash model to evaluate the benefits if
+formance of unlimited LDPC throughput, while the base-                                                                  NAND Flash’s original multi-year data retention can
+line requires 160 MB/s to achieve the similar level. Be-                                                                be reduced. We also demonstrate that in real systems,
+cause hardware parallelization is one basic approach to                                                                 write requests usually require days or even shorter re-
+increase the throughput of a LDPC encoder [24], in this                                                                 tention times. To optimize the write speed and ECCs’
+point of view, retention relaxation can reduce the hard-                                                                cost and performance, we design SSD systems which
+ware cost of LDPC encoders by 8×.                                                                                       handle host writes with shortened retention time while
+                                                                                                                        handling background writes as usual and present corre-
+7   Related Work                                                                                                        sponding retention tracking schemes to guarantee that no
+Access frequencies are usually considered in storage op-                                                                data loss happens due to a shortage of retention capa-
+timization. Chiang et al. [12] propose to cluster data                                                                  bility. Simulation results show that the proposed SSDs
+with similar write frequencies together to increase SSDs’                                                               achieve 1.8–5.7× write response time speedup. We also
+cleaning efficiency. Pritchett and Thottethodi [33] ob-                                                                 show that for future SSDs, retention relaxation can bring
+serve the skewness of disk access frequencies in datacen-                                                               both performance and cost benefits to the ECC architec-
+ters and propose novel ensemble-level SSD-based disk                                                                    ture. We leave simultaneously optimizing write speed
+caches. In contrast, we focus on the time interval be-                                                                  and ECCs as our future work.
+tween two successive writes to the same address which
+defines the data retention requirement.                                                                                 Acknowledgements
+   Several device-aware optimizations for NAND Flash-                                                                   We would like to thank our program committee shep-
+based SSDs were proposed recently. Grupp et al. [17]                                                                    herd Bill Bolosky and the anonymous reviewers for
+exploit the variation in page write speed in MLC NAND                                                                   their insightful comments and constructive suggestions.
+Flash to improve SSDs’ responsiveness. Tanakamaru et                                                                    This research is supported in part by research grants
+al. [40] propose wear-out-aware ECC schemes to im-                                                                      from ROC National Science Council 100-2219-E-002-
+prove the ECC capability. Xie et al. [42] improve write                                                                 027, 100-2219-E-002-030, 100-2220-E-002-015; Excel-
+speed through compressing user data and employing                                                                       lent Research Projects of National Taiwan University
+stronger ECC codes. Pan et al. [31] improve write speed                                                                 10R80919-2; Macronix International Co., Ltd. 99-S-
+and defect tolerance using wear-out-aware policies. Our                                                                 C25; and Etron Technology Inc., 10R70152, 10R70156.
+References                                                    [14] D. Floyer. Flash pricing trends disrupt storage.
+                                                                   Technical report, May 2010.
+ [1] Fusion-IO              ioDrive              Duo.
+     http://www.fusionio.com/products/iodrive-duo/.           [15] R. Gallager. Low-density parity-check codes. IRE
+ [2] Hadoop. http://hadoop.apache.org/.                            Trans. Inf. Theory, 8(1):21 –28, January 1962.
+
+ [3] Hammerora. http://hammerora.sourceforge.net/.            [16] J. Gray. Tape is dead. Disk is tape. Flash is disk.
+                                                                   RAM locality is king. Presented at the CIDR Gong
+ [4] NAND Flash support table, July                  2011.         Show, January 2007.
+     http://www.linux-mtd.infradead.org/nand-
+     data/nanddata.html.                                      [17] L. M. Grupp, A. M. Caulfield, J. Coburn, S. Swan-
+                                                                   son, E. Yaakobi, P. H. Siegel, and J. K. Wolf. Char-
+ [5] N. Agrawal, V. Prabhakaran, T. Wobber, J. D.                  acterizing Flash memory: anomalies, observations,
+     Davis, M. Manasse, and R. Panigrahy. Design                   and applications. In Proc. 42nd IEEE/ACM Inter-
+     tradeoffs for SSD performance. In Proc. 2008                  national Symposium on Microarchitecture (MICRO
+     USENIX Annual Technical Conference (USENIX                    ’09), December 2009.
+     ’08), June 2008.
+ [6] D. G. Andersen and S. Swanson. Rethinking Flash          [18] A. Hocquenghem. Codes correcteurs d’Erreurs.
+     in the data center. IEEE Micro, 30:52–54, July                Chiffres (paris), 2:147–156, September 1959.
+     2010.                                                    [19] JEDEC Solid State Technology Associa-
+ [7] F. Arai, T. Maruyama, and R. Shirota. Extended                tion.    Stress-Test-Driven Qualification of In-
+     data retention process technology for highly reli-            tegrated Circuits, JESD47G.01, April 2010.
+     able Flash EEPROMs of 106 to 107 W/E cycles. In               http://www.jedec.org/.
+     Proc. 1998 IEEE International Reliability Physics
+     Symposium (IRPS ’98), April 1998.                        [20] JEDEC Solid State Technology Association.
+                                                                   Failure Mechanisms and Models for Semi-
+ [8] R. C. Bose and D. K. R. Chaudhuri. On a class of              conductor Devices, JEP122G, October 2011.
+     error correcting binary group codes. Information              http://www.jedec.org/.
+     and Control, 3(1):68–79, March 1960.
+                                                              [21] S. Kopparthi and D. Gruenbacher. Implementa-
+ [9] J. Brewer and M. Gill. Nonvolatile Memory Tech-               tion of a flexible encoder for structured low-density
+     nologies with Emphasis on Flash: A Compre-                    parity-check codes. In Proc. 2007 IEEE Pacific Rim
+     hensive Guide to Understanding and Using Flash                Conference on Communications, Computers and
+     Memory Devices. Wiley-IEEE Press, 2008.                       Signal Processing (PACRIM’07), Auguest 2007.
+[10] J. S. Bucy, J. Schindler, S. W. Schlosser, and G. R.     [22] S. Li and T. Zhang. Approaching the information
+     Ganger. The DiskSim simulation environment ver-               theoretical bound of multi-level NAND Flash mem-
+     sion 4.0 reference manual reference manual (CMU-              ory storage efficiency. In Proc. 2009 IEEE Interna-
+     PDL-08-101). Technical report, Parallel Data Lab-             tional Memory Workshop (IMW ’09), May 2009.
+     oratory, 2008.
+[11] A. M. Caulfield, L. M. Grupp, and S. Swanson.            [23] S. Li and T. Zhang. Improving multi-level NAND
+     Gordon: using Flash memory to build fast, power-              Flash memory storage reliability using concate-
+     efficient clusters for data-intensive applications. In        nated BCH-TCM coding. IEEE Trans. Very Large
+     Proc. 14th International Conference on Architec-              Scale Integr. VLSI Syst., 18(10):1412 –1420, Octo-
+     tural Support for Programming Languages and Op-               ber 2010.
+     erating Systems (ASPLOS ’09), March 2009.                [24] Z. Li, L. Chen, L. Zeng, S. Lin, and W. Fong. Ef-
+[12] M.-L. Chiang, P. C. H. Lee, and R.-C. Chang.                  ficient encoding of quasi-cyclic low-density parity-
+     Using data clustering to improve cleaning perfor-             check codes. IEEE Trans. Commun., 54(1):71 – 81,
+     mance for Flash memory. Softw. Pract. Exper.,                 January 2006.
+     29:267–290, March 1999.
+                                                              [25] C.-Y. Lin, C.-C. Wei, and M.-K. Ku. Efficient en-
+[13] G. Dong, N. Xie, and T. Zhang. On the use                     coding for dual-diagonal structured LDPC codes
+     of soft-decision error-correction codes in NAND               based on parity bit prediction and correction. In
+     Flash memory. IEEE Trans. Circuits Syst. Regul.               Proc. 2008 IEEE Asia Pacific Conference on Cir-
+     Pap., 58(2):429 –439, February 2011.                          cuits and Systems (APCCAS ’08), December 2008.
+[26] R. Micheloni, L. Crippa, and A. Marelli. Inside         [37] K.-D. Suh, B.-H. Suh, Y.-H. Lim, J.-K. Kim, Y.-
+     NAND Flash Memories. Springer, 2010.                         J. Choi, Y.-N. Koh, S.-S. Lee, S.-C. Kwon, B.-S.
+                                                                  Choi, J.-S. Yum, J.-H. Choi, J.-R. Kim, and H.-K.
+[27] N. Mielke, T. Marquart, N. Wu, J. Kessenich,                 Lim. A 3.3 V 32 Mb NAND Flash memory with in-
+     H. Belgal, E. Schares, F. Trivedi, E. Goodness, and          cremental step pulse programming scheme. IEEE
+     L. Nevill. Bit error rate in NAND Flash memo-                J. Solid-State Circuits, 30(11):1149 –1156, Novem-
+     ries. In Proc. 2008 IEEE International Reliability           ber 1995.
+     Physics Symposium (IRPS ’08), May 2008.
+                                                             [38] Z. Sun, X. Bi, H. L. nad Weng-Fai Wong, Z. liang
+[28] R. Motwani, Z. Kwok, and S. Nelson. Low den-                 Ong, X. Zhu, and W. Wu. Multi retention level
+     sity parity check (LDPC) codes and the need for              STT-RAM cache designs with a dynamic refresh
+     stronger ECC. Presented at the Flash Memory                  scheme. In Proc. 44th IEEE/ACM International
+     Summit, August 2011.                                         Symposium on Microarchitecture (MICRO ’11),
+                                                                  December 2011.
+[29] D. Narayanan, A. Donnelly, and A. Rowstron.
+     Write off-loading: Practical power management for       [39] S. Swanson. Flash memory overview. cse240a:
+     enterprise storage. Trans. Storage, 4:10:1–10:23,            Graduate Computer Architecture, University
+     November 2008.                                               of California, San Diego, November 2011.
+                                                                  http://cseweb.ucsd.edu/classes/fa11/cse240A-
+[30] D. Narayanan, E. Thereska, A. Donnelly, S. El-               a/Slides1/18-FlashOverview.pdf.
+     nikety, and A. Rowstron. Migrating server storage
+     to SSDs: analysis of tradeoffs. In Proc. 4th ACM        [40] S. Tanakamaru, A. Esumi, M. Ito, K. Li, and
+     European Conference on Computer Systems (Eu-                 K. Takeuchi. Post-manufacturing, 17-times accept-
+     roSys ’09), April 2009.                                      able raw bit error rate enhancement, dynamic code-
+                                                                  word transition ECC scheme for highly reliable
+[31] Y. Pan, G. Dong, and T. Zhang. Exploiting mem-               solid-state drives, SSDs. In Proc. 2010 IEEE Inter-
+     ory device wear-out dynamics to improve NAND                 national Memory Workshop (IMW ’10), May 2010.
+     Flash memory system performance. In Proc. 9th
+     USENIX Conference on File and Stroage Technolo-         [41] S. Tanakamaru, C. Hung, A. Esumi, M. Ito, K. Li,
+     gies (FAST ’11), February 2011.                              and K. Takeuchi. 95%-lower-BER 43%-lower-
+                                                                  power intelligent solid-state drive (SSD) with
+[32] E. Pinheiro, W.-D. Weber, and L. A. Barroso. Fail-           asymmetric coding and stripe pattern elimination
+     ure trends in a large disk drive population. In Proc.        algorithm. In Proc. 2011 IEEE International Solid-
+     5th USENIX Conference on File and Stroage Tech-              State Circuits Conference (ISSCC ’11), February
+     nologies (FAST ’07), February 2007.                          2011.
+
+[33] T. Pritchett and M. Thottethodi.       SieveStore:      [42] N. Xie, G. Dong, and T. Zhang. Using lossless
+     a highly-selective, ensemble-level disk cache for            data compression in data storage systems: Not for
+     cost-performance. In Proc. 37th annual Interna-              saving space. IEEE Trans. Comput., 60:335–345,
+     tional Symposium on Computer Architecture (ISCA              2011.
+     ’10), June 2010.
+                                                             [43] N. Xie, W. Xu, T. Zhang, E. Haratsch, and J. Moon.
+[34] Samsung Electronics. K9F8G08UXM Flash mem-                   Concatenated low-density parity-check and BCH
+     ory datasheet, March 2007.                                   coding system for magnetic recording read chan-
+                                                                  nel with 4 kB sector format. IEEE Trans. Magn.,
+[35] J.-Y. Shin, Z.-L. Xia, N.-Y. Xu, R. Gao, X.-F. Cai,          44(12):4784 –4789, December 2008.
+     S. Maeng, and F.-H. Hsu. FTL design exploration
+     in reconfigurable high-performance SSD for server       [44] H. Yasotharan and A. Carusone. A flexible hard-
+     applications. In Proc. 23rd International Confer-            ware encoder for systematic low-density parity-
+     ence on Supercomputing (ICS ’09), 2009.                      check codes.     In Proc. 52nd IEEE Interna-
+                                                                  tional Midwest Symposium on Circuits and Systems
+[36] C. Smullen, V. Mohan, A. Nigam, S. Gurumurthi,               (MWSCAS ’09), Auguest 2009.
+     and M. Stan. Relaxing non-volatility for fast and
+     energy-efficient STT-RAM caches. In Proc. 17th
+     IEEE International Symposium on High Perfor-
+     mance Computer Architecture (HPCA ’11), Febru-
+     ary 2011.
+

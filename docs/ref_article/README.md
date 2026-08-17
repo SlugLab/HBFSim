@@ -18,15 +18,22 @@ page count, and what this project actually uses from it.
 
 Every PDF in this directory has a `.txt` file of the same name beside the PDF:
 the plain text of that PDF, extracted with `pdftotext`. The words are the same
-as in the PDF; only the layout is gone. Seven files, with sizes:
+as in the PDF; only the layout is gone. Eleven files, with sizes:
 
 - `luo2018-heatwatch-nand-temperature.txt`, 91 KB
 - `wang2026-flashaccel-hbf-llm-inference.txt`, 88 KB
 - `yoon2026-cylon-cxl-ssd-emulation.txt`, 78 KB
 - `semiinsights2026-hbf-standard-release-cn.txt`, 77 KB
 - `yang2023-cxlmemsim.txt`, 71 KB
+- `ju2026-tilelens-two-dimensional-memory-layout.txt`, 75 KB
+- `sano2023-cxl-microsecond-latency-gpu-graph.txt`, 61 KB
 - `yang2025-egpu-ebpf-ptx-injection.txt`, 39 KB
+- `semiinsights2026-can-hbf-work-cn.txt`, 34 KB
+- `micron2026-is-hbf-all-you-need.txt`, 22 KB
 - `zhihu2026-hbf-protocol-and-market-analysis-cn.txt`, 7 KB
+
+One of these eleven has no PDF beside it: `semiinsights2026-can-hbf-work-cn.txt`
+was captured from a WeChat page as text, not as a PDF.
 
 Web pages captured into this directory follow the same rule: the capture is
 stored as a PDF, and the same-name `.txt` beside the capture keeps the body text
@@ -234,19 +241,38 @@ per-channel scratchpad SRAM at 64B granularity; channel partitioning (e.g. 12
 weights + 4 KV-cache); MAXPEC/AVGPEC wear registers; Zone Remapping (0x08);
 REDCAP (0x0A) with a 1024-bit failure bitmap at MMIO 0x14C.
 
-## Not available: the OCP HBF specification itself
+## The OCP HBF specification: in this repository, under `docs/HBF_OCP/`
 
 The normative document -- the first HBF technical specification, released
-through the Open Compute Project on 2026-08-03/04 by Sandisk and SK hynix --
-is **not** in this directory. `opencompute.org` sits behind bot protection that
-returns HTTP 403 to command-line fetches and shows a "Performing security
-verification" page to reader proxies, and neither the Sandisk nor the SK hynix
-press release links a downloadable file. Getting it needs a browser session and
-most likely an OCP account.
+through the Open Compute Project -- is now held in this repository. The user
+downloaded it through a browser on 2026-08-13 and put it outside this
+directory, in `docs/HBF_OCP/`. An earlier version of this section said the
+specification could not be fetched because `opencompute.org` returns HTTP 403
+to command-line requests; that is no longer the situation anyone should act on.
 
-Until someone drops the real PDF here, the two Chinese articles above are the
-best secondary account we have, and every number taken from them should be
-marked as second-hand in the paper.
+> *HIGH BANDWIDTH FLASH (HBF™) HIGH-LEVEL BASE DIE SPECIFICATION.*
+> VERSION 0.7.0. DATE: August 3, 2026. Open Compute Project.
+> (Copied from the title page.)
+
+- File: `docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf`
+- SHA-256: `307531eb8053f00cbeccbc907ddff0a9c4fe6f9d0066a077ce33b0ac99312da3`
+- 4.67 MB; 130 pages of body text.
+- Companion plain text: a `.txt` extraction of the same name sits beside the
+  PDF in `docs/HBF_OCP/`, 216 KB.
+
+**Citation discipline: every citation of the specification gives a section
+number and a page number from the English original. No statement about what the
+specification says is ever sourced to a Chinese retelling of it.** This is not a
+preference for primary sources in the abstract. Checking the file this round
+turned up at least four facts that are in the English specification and in none
+of the Chinese accounts; which four they are is not recorded in this entry.
+
+That leaves the Chinese articles above a narrower job: a map of the
+specification's structure and a list of questions worth looking up. The
+mechanisms listed in the `hbf2026-five-questions-answered-cn.md` entry above --
+the 24-48 hour host refresh patrol, the thermal ladder, Zone Remapping,
+REDCAP -- can now be checked against the file itself, and the paper cites the
+file, not the article.
 
 ---
 
@@ -584,3 +610,195 @@ socket into which a stand-in device could be inserted. This entry is also the
 most direct support for narrowing the first challenge from "there is no place to
 insert instrumentation" to "there is no place when three conditions hold at the
 same time"; this entry does not enumerate the three conditions.
+
+---
+
+## `micron2026-is-hbf-all-you-need.pdf`
+
+The published work that argues most directly against HBF, and the one the paper
+from this project has to answer. It takes SK hynix's H3 as its opponent by name
+and concludes that LPDDR placed inside the same package as the GPU matches or
+beats HBF at every operating point it evaluates.
+
+> "Is High-Bandwidth Flash All You Need?"
+> In *HotInfra '26*, co-located with ISCA '26, 2026-06-28.
+> Vinicius Petrucci, Felippe Zacarias, and Vishal Tanna, Micron Technology,
+> San Jose, CA, USA. Read from page 1 of the PDF.
+
+- Source: <https://hotinfra.org/2026/papers/hotinfra26-final83.pdf> -- fetched
+  this round, HTTP 200, `application/pdf`, 348,270 bytes. The address was
+  retrieved and used, not inferred from a naming pattern.
+- SHA-256: `e0333b59a3a89a8ca6b9546c92d765db4bc46c4bd6297fd1945b2e5bc2e685b6`.
+- 5 pages, 348,270 bytes.
+- Companion plain text: `micron2026-is-hbf-all-you-need.txt`, 22,975 bytes.
+
+What this project uses, and why this is the most important new file here:
+
+1. **Its power numbers.** In-package LPDDR at 2 TB/s draws 95 W, against 549 W
+   per GPU for HBF -- 5.8 times lower. Against HBM alone the factor reaches 5.6
+   at most.
+2. **Its result on when HBF is used at all.** Under the allocation policy
+   production systems run by default, the one that places weights first, HBM
+   plus HBF and HBM alone differ by less than 0.4% at every operating point.
+   HBF only starts doing work once expert offloading is turned on -- that is,
+   once the expert weight sets of a mixture-of-experts model are kept outside
+   GPU memory and fetched when a request selects them.
+3. **It turns the objections into numbers.** Its reasons are the same ones the
+   Chinese commentary listed below uses -- swapping LoRA adapters (small
+   fine-tuning weight sets loaded on top of a base model), model versions,
+   drift in which experts a workload selects -- but where the commentary
+   argues, this paper computes.
+
+Boundaries, all four of which have to travel with any citation of it:
+
+- 5 pages, a workshop paper, not a full evaluation.
+- The method is a purely analytical roofline model: performance is bounded on
+  paper by whichever runs out first, compute rate or memory bandwidth, with no
+  code run.
+- It is built on public information and carries its own disclaimer saying so.
+- Micron sells both DRAM and NAND, so advocating in-package LPDDR is not a
+  neutral position.
+
+None of that makes it settled. It does make it a paper that must be cited and
+answered before submission.
+
+---
+
+## `kim2026-hbf-workload-and-roadmap-slides.pdf`
+
+Seminar slides on HBF workloads and the roadmap for the technology. Slides, not
+a paper: the one page this project cares about carries curves with no numbers on
+either axis, so nothing here can be used as a measurement.
+
+> Joungho Kim (김정호), Professor, School of Electrical Engineering, Korea
+> Advanced Institute of Science and Technology (KAIST).
+> *HBF Technology: Workload Analysis and Roadmap.* KAIST online seminar,
+> 2026-02-10.
+
+- Original filename: `HBF_Workload_and_Roadmap_Joungho_Kim.pdf`; the creation
+  time recorded inside the PDF is 2026-02-10, matching the seminar date.
+- Obtained by pulling the real link out of the HTML of
+  <https://tera.kaist.ac.kr/home> and downloading it from there.
+- SHA-256: `7e4af8289b1a9fac887ba42e464bcb90149e84a3c97b130b5a923b020e49de9c`.
+- 95 pages, 5,138,830 bytes.
+- Press coverage calls the speaker the `father of HBM`; the source checked this
+  round for that phrase is the English edition of 아시아경제, 2026-02-10.
+
+What this project uses: page 71 onward is `Part6: Write Endurance and Signal
+Integrity Designs`. Page 72, titled `HBF: Durability of Writing, NAND Flash`,
+holds two curves that cross. Its horizontal axis is NAND process and type; it
+has two vertical axes, write cycle count and NAND data retention time.
+
+Two boundaries, because that page is easy to over-read:
+
+1. **What the two curves trade against each other is write cycle count against
+   retention time -- not write speed, and not performance.** A page that shows
+   more write cycles bought with shorter retention says nothing about how fast a
+   write completes.
+2. **The page carries no numbers; it is a schematic.** Any figure taken from it
+   would be read off a drawing.
+
+Neither of the two slide decks from this speaker contains a page about
+shortening the retention period to obtain faster writes or higher performance.
+That claim, wherever else it shows up, is not supported from here.
+
+---
+
+## `kim2026-future-of-hbm-hbf-hbs-slides.pdf`
+
+The second slide deck from the same speaker, held for completeness. The talk
+title, the venue and the date for this deck are not recorded in this entry; the
+file name is the only descriptor handed over with it.
+
+> Joungho Kim (김정호), Professor, School of Electrical Engineering, Korea
+> Advanced Institute of Science and Technology (KAIST). Slides, 2026.
+
+- SHA-256: `e733aaee54d74cec592e53752782690ad1bfed91a9770a7955675543449c787e`.
+- 130 pages, 12,317,276 bytes.
+
+What this project uses: nothing on retention or endurance, and the useful part
+of that is knowing not to look here. Searching the text of all 130 pages for
+`retention`, `endurance`, `refresh` and `SLC` returns no occurrence of any of
+the four. Their absence from this deck is a fact about the deck, not evidence
+about HBF.
+
+---
+
+## `semiinsights2026-can-hbf-work-cn.txt`
+
+A Chinese-language commentary arguing that HBF will not work, aimed at SK
+hynix's H3 paper. Held for two reasons: it is the list of objections this
+project's paper will be read against, and it ends with a full Chinese
+translation of H3.
+
+> 半导体行业观察。《下一个HBM：HBF，能行吗？》。微信公众号文章，2026-02-20。
+
+- Source: <https://mp.weixin.qq.com/s/6xrtaV3wJ1qkZ1P1-IAO6g>
+- Retrieval: `WebFetch` came back with WeChat's 「环境异常」 verification page
+  instead of the article. Fetching again with `curl` carrying a WeChat client
+  User-Agent returned the real page.
+- SHA-256: `e5612856e6fcb2ffbc8437d985cb0810223ee366fc376ddfe483b7ceff561fa0`
+- 35,072 bytes; 14,392 characters of body text.
+- Plain text only. There is no PDF capture of this article in this directory,
+  so this entry breaks the pattern where every `.txt` sits beside a PDF.
+
+What this project uses:
+
+1. **Its seven objections**, which are the questions a reviewer is likely to
+   raise: the read-only assumption, the physical floor on latency, cost
+   structure, yield and heat dissipation, market indifference, competing
+   routes, and reliability validation.
+2. **The H3 translation at the end.** We do not hold the H3 original (see the
+   section below), so this translation is the only full-length rendering of H3
+   in the repository. It is second-hand, and every sentence taken from it is
+   marked second-hand.
+
+Boundaries:
+
+- **This is a commentary, not a paper.** It treats a 4-page IEEE Computer
+  Architecture Letters short paper as if that paper were the complete case for
+  HBF technology, then refutes that.
+- **Three of its claims were checked this round and are wrong.** First, the
+  20 µs figure it returns to repeatedly is not a physical property of HBF: H3
+  took it as an input assumption from published SLC NAND read latency, and H3
+  itself writes that the figure is expected to improve once the technology is
+  commercialised. Second, it states that HBF 「还需要单独的 DRAM 来运行 FTL」 --
+  that HBF needs separate DRAM to run the flash translation layer, the map from
+  logical addresses to physical flash pages that an SSD controller keeps. The
+  specification has neither on-die DRAM nor on-die garbage collection; wear
+  levelling is the host's job, done through zone remapping. Third, its
+  market-indifference verdict was published on 2026-02-20, while the first OCP
+  specification came out on 2026-08-03 with Google and Tenstorrent taking part
+  in it.
+
+---
+
+## Not available: the H3 paper itself, behind a subscription paywall
+
+H3 is named as an opponent by the Micron paper above, translated in full by the
+Chinese commentary above, and listed in the TileLens entry as one of the four
+published HBF evaluations. The original is not in this directory. Its citation,
+checked this round:
+
+> Minho Ha, Euiseok Kim, and Hoshik Kim, all with SK hynix Inc., Icheon-Si,
+> South Korea. *IEEE Computer Architecture Letters*, volume 25, issue 1,
+> pages 49--52, January 2026.
+> DOI: `10.1109/LCA.2026.3660969`
+> IEEE Xplore document number 11371745.
+
+The paper's title is `H3: Hybrid Architecture using High Bandwidth Memory and
+High Bandwidth Flash for Cost-Efficient LLM Inference`.
+
+**Why the full text is missing: a subscription paywall, not bot protection and
+not a wrong address.** OpenAlex returns `oa_status = closed` and
+`any_repository_has_fulltext = false` for this record, so no repository copy
+exists to fall back on. Someone with an IEEE subscription has to export it from
+a browser; nothing else will work, and no further command-line attempt is worth
+making.
+
+The abstract was retrieved. The only number in it is `up to 2.69x higher
+throughput per power`. Six further numbers circulate through the Chinese
+commentary above -- 40MB SRAM, 1.25x at 1M, 6.14x at 10M, 20 µs, 16x capacity,
+and power up to 4 times that of HBM -- and all six are second-hand until the
+paper itself is read. What the 1M and the 10M count is not recorded in this
+entry either.

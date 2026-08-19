@@ -1,0 +1,1606 @@
+    Photon: A Fine-grained Sampled Simulation Methodology for
+                          GPU Workloads
+                     Changxi Liu                                                    Yifan Sun                             Trevor E. Carlson
+        National University of Singapore                                College of William & Mary                   National University of Singapore
+                  Singapore                                                        USA                                        Singapore
+
+ABSTRACT                                                                                    1   INTRODUCTION
+GPUs, due to their massively-parallel computing architectures, pro-                         General-Purpose Graphics Processing Units (GPUs) are widely used
+vide high performance for data-parallel applications. However, ex-                          to accelerate data-parallel applications in domains such as big data
+isting GPU simulators are too slow to enable architects to quickly                          analysis [12, 30], machine learning [1, 14], and physics simula-
+evaluate their hardware designs and software analysis studies. Sam-                         tion [17, 34]. Because of their massively-parallel computing archi-
+pled simulation methodologies are one common way to speed up                                tectures, GPUs have become one of the most important types of
+CPU simulation. However, GPUs apply drastically different ex-                               accelerators that power today’s datacenters [25] and supercomput-
+ecution models that challenge the sampled simulation methods                                ers [55].
+designed for CPU simulations. Recent GPU sampled simulation                                    A GPU functions by grouping a subset of threads (usually 32 or
+methodologies do not fully take advantage of the GPU’s special                              64) into a warp to execute in parallel on shared execution units to
+architecture features, such as limited types of basic blocks or warps.                      maximize parallelism. One GPU usually contains hundreds to thou-
+Moreover, these methods depend on up-front analysis via profiling                           sands of execution units while each unit processes multiple warps
+tools or functional simulation, making them difficult to use.                               at the same time, allowing them to overlap long-latency memory
+   To address this, we extensively studied the execution patterns                           operations. This feature enables GPUs to achieve extremely high
+of a variety of GPU workloads and propose Photon, a sampled                                 throughput, with today’s GPUs achieving nearly 134 TFLOPs [41]
+simulation methodology tailored to GPUs. Photon incorporates                                for single-precision floating point operations.
+methodologies that automatically consider different levels of GPU                              In the past decades, researchers from academia and industry
+execution, such as kernels, warps, and basic blocks. Photon does                            have proposed new hardware designs to improve GPU through-
+not require up-front profiling of GPU workloads and utilizes a light-                       put [6, 7, 16, 24, 39, 54, 63]. To validate these proposed designs,
+weight online analysis method based on the identification of highly                         architects depend on GPU simulators to profile applications, ex-
+repetitive software behavior. We evaluate Photon using a variety                            amine hardware behaviors, and evaluate overall performance. Sim-
+of GPU workloads, including real-world applications like VGG and                            ulators are also useful for existing GPU designs, as they allow
+ResNet. The final result shows that Photon reduces the simulation                           performance architects to build a detailed understanding of GPU
+time needed to perform one inference of ResNet-152 with batch                               workloads, and to find and understand bottlenecks to help software
+size 1 from 7.05 days to just 1.7 hours with a low sampling error of                        developers improve their existing algorithms. However, the per-
+10.7%.                                                                                      formance of open-source GPU simulators [5, 32, 52, 56] is quite
+                                                                                            low, especially considering the huge workload processed by GPUs.
+CCS CONCEPTS                                                                                With performance levels below 30 KIPS, these simulators are over
+                                                                                            1,000,000,000× slower than the real-time performance of a GPU.
+• Computing methodologies → Modeling and simulation;
+                                                                                            The disparity between the high throughput of GPUs, and the ex-
+Graphics processors; Cluster analysis.
+                                                                                            tremely low simulation rate handicaps hardware researchers and
+                                                                                            hinders innovation in this domain. To give one concrete example, an
+KEYWORDS                                                                                    inference of the VGG-16 [50] convolutional neural network (CNN),
+GPU, Workload sampling, Simulation                                                          with an input image size of 224×224, requires ≃ 15.5 billion FLOPs,
+                                                                                            requiring a simulation time of 3.44 days to evaluate the complete
+ACM Reference Format:                                                                       workload. Therefore, alternatives that allow researchers to simulate
+Changxi Liu, Yifan Sun, and Trevor E. Carlson. 2023. Photon: A Fine-grained
+                                                                                            workloads faster are needed to evaluate next-generation hardware
+Sampled Simulation Methodology for GPU Workloads. In 56th Annual
+IEEE/ACM International Symposium on Microarchitecture (MICRO ’23), Octo-
+                                                                                            and software.
+ber 28-November 1, 2023, Toronto, ON, Canada. ACM, New York, NY, USA,                          Sampled simulation methodologies are one common way to
+15 pages. https://doi.org/10.1145/3613424.3623773                                           speed up workload simulation. Sampling single-threaded workloads
+                                                                                            for CPU architectures are mainly derived from two representative
+                                                                                            works: SimPoint [48] and SMARTS [60] (profile-driven and statisti-
+Permission to make digital or hard copies of part or all of this work for personal or       cal sampling simulation methods, respectively). Moreover, modern
+classroom use is granted without fee provided that copies are not made or distributed       sampled simulation methodologies, including LoopPoint [45], Flex-
+for profit or commercial advantage and that copies bear this notice and the full citation
+on the first page. Copyrights for third-party components of this work must be honored.      Points [59], and BarrierPoint [11], have been proposed for multi-
+For all other uses, contact the owner/author(s).                                            threaded applications. However, GPUs apply a drastically different
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+                                                                                            execution model that involves a significantly larger number of
+© 2023 Copyright held by the owner/author(s).
+ACM ISBN 979-8-4007-0329-4/23/10.                                                           computing cores and threads, challenging the sampled simulation
+https://doi.org/10.1145/3613424.3623773
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+methods designed for CPU simulations. As the number of threads            via warp-sampling and basic-block-sampling. Photon automati-
+increases, the phase behavior of these workloads can vary due to          cally switches between sampling different levels of the program
+the interaction among threads. Therefore, a systematic sampled            execution, according to runtime information, to achieve a good
+simulation solution tailored for GPU execution is needed to enable        compromise between high performance and low simulation error.
+faster GPU simulation.                                                       We implement Photon on MGPUSim [52], a cycle-level GPU
+   Recently, sampled simulation methodologies [4, 29, 31, 40] have        simulator. The goal of Photon is to enable large-scale system sim-
+been introduced targeting GPUs. However, these methods use sam-           ulation and empower the community to perform GPU hardware
+pling methodologies similar to CPUs, such as monitoring for a             research and software analysis for different types of GPU workloads
+stable IPC during execution intervals [4, 29], or they do not fully       with different inputs. Overall, in this work, we make the following
+explore GPU-specific sampling directions, such as intra-kernel sam-       contributions:
+pling [31, 40]. They can potentially miss-out on opportunities to              • We propose Photon, the first sampled GPU simulator that
+improve performance as they have not taken into account unique                   requires no up-front analysis. Photon supports basic-block-
+features of the GPU, like warp-based execution. Moreover, it can                 sampling, warp-sampling and kernel-sampling (as well as a
+be challenging to utilize existing methodologies if profiling tools              combination of the three), so that Photon can use sampling
+are unavailable for new GPU architectures, or if benchmarks are                  to simulate a large variety of GPU workloads with both high
+too large even for functional simulation [4]. Earlier sampled sim-               performance and low sampling errors.
+ulation techniques that require profiling tools or functional sim-             • We evaluate the kernel-, warp-, and basic block-level sampled
+ulation to conduct up-front analysis could significantly increase                simulation of Photon, and the results show that our method
+end-to-end simulation time for researchers working to optimize                   achieves up to 24.65× for the single kernel GPU workloads
+systems via compiler-hardware co-design [58], optimization algo-                 over the full detailed simulation with the average sampling
+rithms for GPUs [13, 38]. They would now be required to repeat                   error rate 6.83%.
+the pre-profiling process each time the binary is updated.                     • We evaluate Photon on real-world applications, including
+   To facilitate building a more practical sampled simulation method-            PageRank, VGG, and ResNet. The final result shows that
+ology for GPUs, we have extensively studied the execution patterns               Photon reduces the simulation time needed to perform one
+seen in GPUs. We find that GPU architecture, different from CPU                  inference of ResNet-152 with batch size 1 from 7.05 days to
+architecture, (1) requires specific methodologies as hundreds to                 1.7 hours. Photon achieves 39.1× speedup with a very low
+thousands of basic units of work from different levels of GPU work-              error rate of 10.7% for ResNet-152.
+loads, including warps, basic blocks, and instructions, simultane-
+ously execute and interact with other work at the same level. We
+also find that (2) sampled simulation methods should occur at dif-        2    SAMPLING GPU WORKLOADS
+ferent levels of interest, as no single method can handle all GPU         In this section, we describe the main features of GPU workloads that
+workloads. This is because some GPU workloads have a huge num-            enable fast and accurate sampling in Photon. We also discuss prior
+ber of warps that only contain tens of instructions each, while other     sampled simulation methodologies and some of their limitations.
+GPU workloads have limited numbers of warps with each warp                    GPU workloads. A GPU program is usually comprised of a CPU
+executing a significant number of instructions. (3) We also find          and GPU portion. A function call from the CPU side to the GPU side
+that significant, time-consuming up-front profiling is not required       is called a kernel launch. Usually, one kernel contains a large number
+as GPU workloads contain limited types of kernels, warps, basic           of threads that execute the same program but across different sets
+blocks, and instructions. These units are often highly repetitive and     of data. Moreover, the GPU groups a number of threads (typically
+demonstrate similar behaviors, creating the opportunity to avoid          32-64) into warps. Threads within a warp always execute the same
+analyzing and simulating all of them in a highly detailed manner.         instruction at the same time. Additionally, a programmer-defined
+   Based on our insights into GPU simulation, we propose Photon,          number (usually 1-16) of warps can be further organized into blocks.
+a systematic methodology to accelerate GPU simulation. Photon             On a GPU, threads from a block are executed in a single streaming
+requires no upfront analysis and fully relies on online analysis to ac-   multiprocessor (SM, which is a computing core on a GPU that
+celerate GPU simulation with sampling methods. Photon combines            executes instructions).
+sampling-based simulation solutions at three different levels, includ-        Similar to CPU programs, GPU programs are also organized as a
+ing kernel-sampling, warp-sampling, and basic-block-sampling.             list of instructions. These instructions form basic blocks (a group of
+   Photon provides comprehensive solutions for inter- and intra-          instructions with one entry and one exit point). Note that as GPUs
+kernel sampling according to different types of GPU workloads.            execute instructions at the warp level, basic blocks are also defined
+For inter-kernel sampling, Photon skips detailed simulation of GPU        at the warp level, and all of the threads will enter and exit the basic
+kernels if one similar kernel has been simulated before. Instead of       block at the same point. Basic blocks can be differentiated by their
+using up-front analysis results to decide the similarity, we online       start PC address and length (the instruction count).
+functionally simulate and analyze a sample of warps to understand             GPU Architecture. The architecture of the GPU has received
+the kernel’s phase behavior. GPU kernels are typically combined           increasing attention from both academic and industry researchers,
+with sufficient numbers of warps with limited types, and a subset         as it is a powerful platform for parallel processing data [1, 12, 19, 46].
+of warps can often represent the whole kernel. For intra-kernel           The GPU architecture uses a hierarchy to arrange threads. For
+sampling, Photon performs sampled simulation of one GPU kernel            example, AMD GPUs are designed with command processors (CPs),
+                                                                          as well as compute units (CUs) and SIMD units. NVIDIA GPUs are
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                   MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+built from streaming multiprocessors (SMs) which contain shader            very important for GPU simulators, as simulating one GPU kernel
+processors (SPs). Compute units (or SPs) are basic calculation units       takes hours to days if the problem size is large. Yu et al. [61, 62]
+for GPUs. Threads on GPUs are dynamically scheduled to one                 utilize a SimPoint-like [49] methodology to detect representative
+compute unit (CU) and all threads communicate and compete for              loops to extrapolate a kernel performance. As this work uses proxy
+memory bandwidth, the use of cache capacity, as well as for other          applications, it can be difficult to extend. Principal Kernel Analy-
+resources. This can result in a variable, or unpredictable, execution      sis (PKA) [4] and TBPoint [29] enable sampled simulation of GPU
+pattern even if their instructions and inputs are the same.                workloads at both the inter- and intra-kernel levels. One of the
+   GPU Simulators. GPU simulators are essential for GPU archi-             main limitations of these two works is that, to speed up simula-
+tecture exploration and GPU workload analysis. Open-source GPU             tion, they require stable values for intra-kernel IPCs. As we will
+simulators can be clustered into execution-driven and trace-driven         show in Section 3, there are a number of applications where this
+based on how the front end of the simulator has been built. Trace-         does not hold, preventing these works from improving simulation
+driven GPU simulators, such as MacSim [21], execute functionally-          performance significantly. In addition, their intra-kernel methods
+generated traces with a timing model to generate simulation re-            analyze the instructions executed in the same time interval as a
+sults, such as GPU performance. While trace-driven simulators do           whole, similar to how multi-threaded sampled simulation method-
+not rely on the functional model, they do require pre-generated            ologies work [10, 11, 45]. Ignoring the hierarchical nature of GPU
+traces, which can make it challenging to evaluate certain design fea-      workloads can result in missed opportunities to accelerate sampled
+tures such as dynamic synchronization mechanisms [51] and value-           simulation. Apart from performance, these previous works can also
+dependent optimization [54]. On the other hand, execution-driven           experience low accuracy because of their assumption of a stable IPC
+GPU simulators, including MGPUSim [52], gem5 APU [8, 23] and               during execution. For example, GPU workloads, like AES, exhibit
+GPGPUSim [5], directly execute the binary, but at the cost of lower        stable IPC at the start of their kernel. However, this measurement
+performance due to the need for functional simulation during per-          does not account for the instructions that have yet to be executed in
+formance simulation. Other simulators, including Accel-Sim [32]            the subsequent steps of these kernels, which may no longer exhibit
+and NVArchSim [57], support both execution- and trace-driven               the same stability, leading to incorrect results.
+modes. Current GPU simulators have shown simulation perfor-                   Besides these works, analytical modeling methodologies [27, 28,
+mance that is lower than 30 KIPS [32], as simulators simulate GPU          36] are another choice to evaluate new GPU architectures. Ana-
+workloads on far fewer CPU cores than exist in real GPU cores.             lytical models are faster than simulator methodologies but these
+   Sampled Simulation Methodologies. Sampled simulation                    models are often unable to model the newest architectures. Per-
+methodologies extrapolate whole application performance through            formance model methodologies are also not sufficient to show the
+detailed simulation of key, representative pieces of an applica-           hardware execution details.
+tion. To perform sampled simulation, simulators must support two
+modes, fast-forward mode, which allows for functional simulation
+only, and detailed mode, which enables the timing model. Sampled           3   OBSERVATIONS
+simulators switch between these two modes and split the whole              We observe GPU workload executions to gain insights that can
+application into fast-forward mode regions and detailed mode re-           support our decisions in designing the sampled GPU simulator.
+gions. The final results of fast-forward regions are predicted by             Observation 1: GPU execution does not demonstrate phases.
+other regions in detailed mode.                                            Contrary to the conclusion mentioned by several research projects [37,
+   Sampled simulation methodologies for CPUs can be clustered              44], we find most GPU workloads do not demonstrate clear intra-
+into two main directions: statistical sampling and profile-driven          kernel execution phases due to the interaction between threads,
+sampling simulation. Statistical sampled simulation [59, 60] uti-          as shown in Figure 1b. While there may be software phases for
+lizes a number of small regions in detailed mode to represent the          each thread, concurrently executing thousands of threads blurs
+whole application as long as these regions are enough to cover             the boundary of the phases during execution, creating a swarm
+all application behaviors. On the other hand, profile-driven sam-          effect. This is a major difference with CPU execution. Existing
+pled simulation [11, 45, 48] utilizes up-front analysis and clustering     sampled CPU simulations mainly rely on phase detection meth-
+methods to select representative regions to simulate in detail mode.       ods [10, 22, 45, 49, 59, 60]. However, our observation shows that
+These regions are then used to determine the overall performance           not all CPU simulation methods apply directly to GPUs.
+of the workload. However, with the number of threads increasing,              Observation 2: IPC may not remain stable during the entire
+these applications exhibit complex behaviors, making it challenging        workload execution. While it is expected that the swarm effect
+to accurately simulate their performance using traditional sampling        of GPU execution can lead to a stable IPC, our investigation into
+methods.                                                                   a large number of GPU workloads shows that IPC only stabilizes
+   Sampled simulation for GPU workloads. Prior work has                    for some GPU kernels. For example, Figure 1a shows how the IPC
+attempted to use sampling methods to accelerate GPU simulation.            stabilizes over time for ReLU benchmark [35]. However, the IPC in
+GT-Pin [31] utilizes the kernel name, arguments, and basic block           some other kernels, such as Matrix Multiplication (MM) shown in
+statistics to select representative portions of GPU programs at a          Figure 1b, changes frequently. Closely examining the MM workload
+kernel-level granularity. Sieve [40] points out that using both the ker-   suggests that its IPC variance comes from complex interactions
+nel name and instruction count allows for both sampling speedups           between warps, such as resource competition and synchronization.
+and low errors. GT-Pin and Sieve only focus on the inter-kernel               Prior sampled simulation methods [4, 10, 29, 48] are mainly
+level, but we find that speeding-up intra-kernel simulation is also        based on the assumption that application phases repeat, allowing
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                                              Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+                                                                                                  100
+
+
+
+
+                                                                         BB Execution Time (us)
+      100                                                                                          75                       Global Var(Execution Time) = 31.93
+
+                                                                                                   50
+IPC
+
+
+
+
+       50                                                                                                   Local Var1 = 0.17                                    Local Var2 = 7.66
+                                                                                                   25
+        0                                                                                           0
+            0   20000     40000    60000    80000      100000   120000                                  0           10000        20000      30000        40000        50000          60000
+                                      Cycle                                                                                               BB Index
+
+                    (a) Rectified Linear Unit (ReLU)                                                    (a) MM : A regular application with a large kernel.
+      150                                                                                         20
+
+
+
+
+                                                                         BB Execution Time (us)
+                                                                                                                            Global Var(Execution Time) = 2.63
+      100                                                                                         15
+                                                                                                  10
+IPC
+
+
+
+
+                                                                                                            Local Var1 = 1.19                              Local Var2 = 0.35
+       50
+                                                                                                   5
+        0                                                                                          0
+            0   100000 200000 300000 400000 500000 600000 700000                                        0            10000           20000       30000             40000             50000
+                                    Cycle                                                                                                BB Index
+                    (b) Matrix Multiplication (MM)                         (b) SpMV : An irregular application with irregular memory accesses.
+
+Figure 1: A GPUs instructions per cycle (IPC) may (see (a))               Figure 2: Execution time and variance of the dominating (in
+or may not (see (b)) stabilize over time. These results show              terms of execution time) basic block in the MM and SpMV
+that IPC may not remain stable during the entire workload                 applications. These results demonstrate that the variance,
+execution.                                                                which is used as the threshold by prior works [4, 29] to deter-
+                                                                          mine run time stability, cannot always successfully predict
+                                                                          stabilization as some applications’ basic blocks stabilize at
+one to extrapolate the execution time of one region based on the
+                                                                          multiple stable regions.
+execution time of another region. For example, PKA [4] detects
+the IPC and checks for its stability. The two observations above
+demonstrate that relying on phase detection and stable IPCs may
+miss opportunities to skip detailed simulation. While it still may         on the other hand, have balanced workloads and regular memory
+be possible to rely on IPC values, this observation suggests that a        access patterns across warps.
+multi-layer sampled execution methodology may be needed.                      Figure 2 shows that the execution time of basic blocks can vary
+   Observation 3: Basic blocks’ execution time can be stable               along with the application execution. We initialize the block indices
+over time. Basic blocks are consecutive instructions with only             in an ascending order based on the retirement time of basic blocks,
+one entry point (e.g., a redirectable label) and one exit point (e.g.,     as this facilitates the collection of online execution information
+a branch instruction) [47, 48]. Basic blocks are labeled by the PC         once the basic blocks have completed their processing. Note that
+of their first instructions. For GPU workloads, the basic block we         we define the execution time of basic blocks by the time interval
+define is not the same as the one traditionally defined by compilers       between the issue time of the first instructions for the basic block
+(where basic blocks end with a branch instruction). In addition,           and its next basic block. We find that utilizing the variance directly,
+our methodology ends basic blocks using instructions that cause            as employed in prior works [4, 29] as a threshold, misses oppor-
+inter-warp synchronization. Specifically, Photon uses s_barrier            tunities to detect if the basic block’s execution time is stable. For
+in addition to branch instructions as the ending of basic blocks.          example, the global variances of MM and SpMV in Figure 2 are
+We do not consider atomic instructions as MGPUSim does not                 31.93 and 2.63, respectively. In addition, using variance, without
+currently support these instructions, but future work could evaluate       examining the entire execution, could lead to the determination of
+these instructions as well. We consider these extra instructions to        false stable regions, as seen in Figure 2.
+distribute the latency caused by interactions among warps into                We also observe that the relationship between the issue and
+their respective basic blocks.                                             the retired time of basic blocks can help us to better understand
+   We also considered additional special instructions that synchro-        the workload. As shown in Figure 3, the dots, which represent
+nize threads inside the warp. For example, the instruction, s_waitcnt,     the issue and retired time for basic blocks, show a regular pattern
+isolates memory accesses so that a single basic block will not con-        that can be used, regardless of whether they belong to regular or
+tain different sets of unrelated memory accesses. The evaluation of        irregular applications. These regular patterns are because a large
+these instructions is left for future work.                                number of threads average out of the influence of complicated
+   We select two kernels, which are shown in Figure 2 and Figure 3,        interactions among threads, including memory access patterns and
+as examples of regular and irregular applications, and we see that         thread communication.
+other benchmarks evaluated also demonstrate similar behavior. Ir-             Observation 4: Warps for regular application can be stable
+regular applications, which are discussed by PKA [4], are difficult to     overtime. Warps are the basic task unit for GPU workloads and
+sampled simulate due to their complicated memory access patterns           warps usually process the same instructions but with different input
+and the workload imbalance among warps. Regular applications,              data. The performance of warps executing the same instructions
+  Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                                                        MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+                                                                                                                              Warp (type0)                 Warp (typen)
+BB Retired Time (us)
+
+
+
+                         600                                                                                                   BBV0                         BBVn
+
+                         400                                                                                                                        ●●●
+
+                         200                                   Retired Time = 1.00 * Issue Time + 4.23
+                                                                                                                                     Weight0                      Weightn
+                           0
+                               0           100           200        300      400       500      600      700                                     GPU BBV
+                                                                    BB Issue Time (us)
+                               (a) MM : A regular application with a large kernel.
+                                                                                                                 Figure 5: GPU BBV: the feature vector to capture the behavior
+                         600
+BB Retired Time (us)
+
+
+
+
+                                                                                                                 of one GPU kernel. Warps of the same type are those that
+                                                                                                                 execute identical sequences of instructions during their exe-
+                         400
+                                                                                                                 cution and share the same BBV. Weights are the portion of
+                         200                                                                                     warps in each type with respect to the total number of warps
+                                                         Retired Time = 0.99 * Issue Time + 4.96                 in the kernel. GPU BBVs are combined with the weighted
+                                         100             200           300          400         500        600   BBVs.
+                                                                    BB Issue Time (us)
+  (b) SpMV : An irregular application with irregular memory accesses.
+
+  Figure 3: The relationship between the issue and retired time                                                  Basic Block Vectors (BBVs), they belong to the same type. BBVs are
+  of the dominating (in terms of execution time) basic block                                                     often used in CPU-based sampling methodologies [11, 45, 48] to
+  in the MM and SpMV applications. These results show that                                                       determine phase similarity. A BBV is a list of basic blocks executed
+  this relationship can be utilized to detect if the basic blocks’                                               at least once during program execution, identified by the program
+  execution time is stable.                                                                                      counter of the first instruction of the basic block. SimPoint [48]
+                                                                                                                 points out that if two portions of a program have similar BBVs,
+                                                                                                                 they share similar execution behavior. For GPU workloads, warps
+                         800
+Warp Retired Time (us)
+
+
+
+
+                                                                                                                 executing identical sequences of instructions have the same BBVs.
+                         600                                                                                        Regular applications, like ReLU, have only one or a small number
+                         400                                                                                     of warp types, whereas irregular applications, like SpMV, have a
+                                                                                                                 large number of warp types due to different loop iterations, data-
+                         200                                                                                     dependent branch divergence, etc. A warp is issued from the GPU
+                                           Retired Time = 1.04 * Issue Time + 118.11
+                               0             100        200         300        400              500      600     scheduler to the calculation units and then sends the completion
+                                                             Warp Issue Time (us)                                message to the GPU scheduler to release its resources after it fin-
+                               (a) MM : A regular application with a large kernel.                               ishes all instructions. We consider the issue time and retired time
+                                                                                                                 of warps by the time it is scheduled to the calculation unit and the
+Warp Retired Time (us)
+
+
+
+
+                         600                                                                                     time it finishes all instructions, respectively.
+                         550                                                                                        Referring to the basic block level method, we analyze the rela-
+                                                       Retired Time = 32.87 * Issue Time + 507.65                tionship between the issue time and retired time for regular and
+                         500                                                                                     irregular applications, and the results are shown in Figure 4. We
+                         450                                                                                     observe that the retired time of warps for regular applications, like
+                                   0.4           0.6            0.8        1.0       1.2         1.4      1.6    MM, has the same pattern as that of the basic block level. This is
+                                                                   Warp Issue Time (us)                          because warps for regular applications tend to execute the same
+                                               (b) SpMV : An irregular application.                              instructions, but with different data. However, for irregular appli-
+                                                                                                                 cations like SpMV, warps have different tasks and memory access
+  Figure 4: The corresponding relationship between the issue                                                     patterns are also different from each other.
+  time and retired time of warps each benchmark. Plot (a)                                                           Observation 5: GPU Kernels with similar GPU BBV have
+  shows that this relationship can be used to detect if the warps’                                               similar IPC. Similarities between kernel invocations, as well as
+  execution time is stable for regular applications. Plot (b)                                                    their implication in sampled simulation, as been studied in prior
+  shows that we can utilize this relationship to identify if the                                                 work [4, 40]. All prior methods focus on counting the number of
+  execution time of warps is variable for irregular applications.                                                handpicked features (e.g., each type of instructions, warps). How-
+                                                                                                                 ever, we find limitations with these methods as it can often lead
+                                                                                                                 to mis-clustering: 1) completely different kernels may be clustered
+  and inputs can also be different due to memory contention, and                                                 together due to similar feature counts and 2) similar kernels may
+  micro-architecture status, like TLB contents, which is affected by                                             not be able to be grouped due to count difference. Therefore, a more
+  prior and current warps. We define warps of the same type as those                                             sophisticated method beyond simply using feature counting needs
+  that execute identical sequences of instructions during their execu-                                           to be designed.
+  tion, independent of whether threads inside a warp are masked as                                                  For multi-threaded CPU workloads, prior methodologies, includ-
+  being executed or ignored. Specifically, if two warps have the same                                            ing BarrierPoint [11] and LoopPoint [45], directly merge BBVs of
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                       Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+
+
+       101
+       100
+IPC
+
+
+
+
+      10 1
+           cluster-1
+           clusterr-2
+           cluster-3
+           cluste -4
+           cluster-5
+           cluster-6
+         clculusstter--78
+              steer-9
+         cluster- 0
+              ste 11
+         clu -12
+                       3
+
+
+
+                                                                    4
+
+
+                                                                              5
+
+                                                                                   clu 6
+                                                                                   cluster-17
+                                                                                   cluster-18
+                                                                                       ste -19
+                                                                                   clu -20
+                                                                                   clu -21
+
+                                                                                   clu ter-222
+                                                                                       ste 3
+                                                                                               4
+
+                                                                                   clu 5
+                                                                                   clu r-26
+                                                                                               7
+         clu r-1
+
+
+
+                   r-1
+
+
+
+                                                                r-1
+
+
+                                                                          r-1
+
+                                                                                           r-1
+
+
+
+
+                                                                                           r-2
+
+                                                                                           r-2
+
+
+
+                                                                                           r-2
+                     r
+
+
+
+
+                                                                                       s -
+           cluste
+
+
+
+
+                   r
+
+
+
+
+                                                                                   cluster
+
+
+                                                                                           r
+                                                                                           r
+                                                                                   clu ter
+              ste
+
+
+
+                                                               ste
+
+
+                                                                         ste
+
+                                                                               ste
+
+
+
+
+                                                                                       ste
+
+
+
+
+                                                                                       ste
+
+                                                                                       ste
+                                                                                       ste
+           clu
+
+
+
+
+                                                                                       s
+                                                              clu
+
+
+                                                                        clu
+
+                                                                              clu
+
+
+
+
+                                                                                   clu
+Figure 6: The IPC of kernels from all convolution, pooling, and dense layers of VGG-16. We cluster them based on GPU BBVs
+and the results show that kernels in the same cluster have similar IPC.
+
+
+each thread together. However, these methods do not directly ap-                  runs in parallel and Photon switches to warp-sampling when the
+ply to GPU workloads as GPU workloads contain a significantly                     criteria are satisfied as warp-sampling is faster.
+larger number of threads that are dynamically scheduled. We find                     Sampling Warps. Sampling GPU workloads at the warp level
+that directly using multi-core CPU BBV clusters GPU workloads                     avoids functionally emulating instructions inside warps and can
+with similar execution behaviors into different groups due to this                significantly reduce simulation time. Warp-sampling applies to ap-
+execution model.                                                                  plications with a large number of warps, with most warps executing
+   GPU BBVs, as shown in Figure 5, are designed based on BBVs to                  the same instructions (according to Observation 4).
+capture the phase behavior of one GPU kernel. We first indepen-                      Sampling Basic Blocks. In large-warp kernels, the finishing
+dently calculate BBVs for each warp and then project these BBVs                   time of the first warp is usually close to the finishing time of the
+into fixed-size BBVs (We use 16) to improve online clustering per-                GPU kernel, leaving limited opportunities to extrapolate the rest
+formance. Since warps with similar BBVs indicate similar execution                of the kernel execution. For example, for several inputs, the first
+behavior, we can easily cluster the warps if they have the same                   warp of MM finishes after most instructions are completed. Also,
+BBV. With the warp clustered, we then calculate the portion of                    basic-block-sampling works for irregular applications (e.g. SPMV)
+warps in each cluster with respect to the total number of warps                   as it breaks down the kernel into smaller elements and can better
+in the kernel ({weight0 , ..., weight𝑛 }). Finally, the weighted BBVs             utilize the statistical properties.
+are ordered according to a descending order based on the weights,                    Sampling Kernels. GPU workloads, especially real-world ap-
+and the GPU BBV is formed by listing the weighted (multiply the                   plications like VGG-16, usually contain more than one GPU kernel.
+weight of BBVs with each BBV value) BBVs.                                         Photon avoids detailed simulation of duplicate GPU kernels by
+   Figure 6 shows that Photon utilizes GPU BBVs to cluster all                    utilizing Observation 5 and GPU BBVs.
+kernels from convolution, pooling, and dense layers of VGG-16.                       Basic-block-sampling effectively accelerates simulation of irreg-
+We can see kernels with similar GPU BBVs tend to have similar                     ular workloads, by considering divergence and synchronization in
+IPC. We also find that GPU kernels with similar BBVs and the same                 the statistical model. For divergence, single-threaded or 64-thread
+number of warps have a higher similarity than kernels with solely                 execution will have similar latencies in most cases, and hence, we
+similar BBVs.                                                                     do not need to take special consideration for divergence, at least
+                                                                                  for AMD GPUs. For synchronization, as most of the warps will
+                                                                                  perform synchronization at the same point, the synchronization
+4      THE PHOTON METHODOLOGY                                                     latency will also stabilize, which can lead to stabilization of the exe-
+In this section, we propose a sampled GPU simulation methodology,                 cution time of warps. Therefore, our statistical model can also cover
+Photon, which aims to enable sampled simulation for a large variety               variable synchronization latency to a certain degree. However, Pho-
+of GPU workloads. Photon employs a multi-tiered solution that in-                 ton currently does not accelerate GPU workloads with extremely
+cludes kernel-sampling, warp-sampling, and basic-block-sampling.                  complex or long patterns of repeated behaviors as the methodology
+As described previously, GPU kernels are highly diverse and one                   currently only keeps track of the last 1024 warps. These patterns
+method may not always be applicable. The multi-tiered solution                    could be analyzed at the cost of reducing sampling performance.
+ensures a wide coverage of applications that can be accelerated by                However, according to our experience, 1024 is sufficient for the
+Photon. Additionally, Photon does not require any up-front anal-                  workloads evaluated.
+ysis. We believe any up-front analysis harms generality and can                      We do not consider basic blocks with different synchronization
+limit use cases (e.g., adding a new instruction or using different                points. In theory, it is possible that basic blocks may have distinct
+compilation options). Photon is embedded into our simulator so                    synchronization points and may have a distinct execution time.
+that researchers can easily use it in the same way as they would                  However, in practice, we do not find applications that can not be
+when running a simulator without sampling.                                        handled by our statistical model with three-level sampling. Photon
+    When starting the simulation of each kernel, Photon first decides             falls back to full detailed simulation to ensure sampling accuracy
+if the kernel execution time can be predicted using kernel-sampling.              in cases where stable regions are not detected at any level. Basic
+If not, Photon will then attempt to use basic-block-sampling as it                blocks with distinct synchronization points can be discerned via
+takes less time to detect. Meanwhile, the warp-sampling detector
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                                                                                                                       MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+                                    Step 1: Online Analysis                              Step 2: Detailed Simulation                                                            All Warps         A Sample of Warps                                All Warps         A Sample of Warps
+Functionally Simulate in Parallel
+
+
+
+
+                                                                                                                                                                                                                                       100
+                                                                                                                                                                          40
+
+
+
+
+                                                                                                                                                         Percentage (%)
+
+
+
+
+                                                                                                                                                                                                                      Percentage (%)
+                                                                 BB Distribution Table   Monitor if BB0 is stable           BB Predicted Time Table                                                                                     80
+                                           warp0                                                                                                                          30                                                            60
+                                                                  BB Type      Rate          stable      ●●●                  BB Type            Time                     20
+                                         warpinterval                                                                                                                                                                                   40
+                                                                    BB0        rate0         Monitor if BBn is stable              BB0           time0
+                                                                                                                                                                          10                                                            20
+                                         warp2interval                                                                                                                     0                                                             0
+                                                                                                   raten       stable
+
+
+
+
+                                                                                                                                                                               (46 2)
+                                                                                                                                                                                      1)
+
+                                                                                                                                                                                (19 )
+                                                                                                                                                                               (22 6)
+                                                                                                                                                                               (31 7)
+                                                                                                                                                                               (32 6)
+
+                                                                                                                                                                                (43 )
+                                                                                                                                                                                (50 )
+                                                                                                                                                                                        )
+                                                                    BB1        rate1
+
+
+
+
+                                                                                                                                                                                                                                                 )
+
+
+                                                                                                                                                                                                                                                          )
+
+
+                                                                                                                                                                                                                                                                     )
+
+
+                                                                                                                                                                                                                                                                               )
+
+
+                                                                                                                                                                                                                                                                                             )
+                                                                                                                                   BB1           time1
+
+
+
+
+                                                                                                                                                                                     34
+
+
+
+
+                                                                                                                                                                                      3
+                                                                                                                                                                                   2,7
+                                                                                                                                                                                   8,1
+
+
+
+
+                                                                                                                                                                                                                                              13
+
+
+                                                                                                                                                                                                                                                       ,23
+
+
+                                                                                                                                                                                                                                                                     5
+
+
+                                                                                                                                                                                                                                                                                0
+
+                                                                                                                                                                                                                                                                                         6,8
+                                                                                                                                                                                   4,
+                                                                                                                                                                                  0,1
+
+
+                                                                                                                                                                                   6,
+                                                                                                                                                                                  4,1
+                                                                                                                                                                                  2,2
+                                                                                                                                                                                  4,2
+
+
+
+
+                                                                                                                                                                                                                                                                 4,3
+
+
+                                                                                                                                                                                                                                                                            0,2
+                                             ●●●
+
+
+
+
+                                                                                                                                                                                 (0,
+
+
+
+
+                                                                                                                                                                                                                                             (0,
+                                                                                                                                                                          (30
+
+
+
+
+                                                                                                                                                                                                                                                     (68
+
+
+
+
+                                                                                                                                                                                                                                                                                     (35
+                                                                                                                                                                                                                                                               (18
+
+
+                                                                                                                                                                                                                                                                         (26
+                                         warp #warps                 ●●●        ●●●                                                ●●●           ●●●                                 Basic Block (PC, #Instruction)                                     Basic Block (PC, #Instruction)
+                                                                    BBn        raten               ⊕                               BBn           timen
+                                     A sample of warps                                     rate0
+                                                                                                                                                                           (a) SC : A regular workload.                 (b) SpMV : An irregular workload.
+                                                                                                        Stable Basic Block Rate > Threshold
+                                      Step 3: Switch to basic-block-sampling
+                                        Functional
+                                                         BB0          BB1       BB0       BB1         BB0           ●●●    BB1           BB2
+                                                                                                                                                         Figure 8: The distribution of basic blocks of all warps and a
+                                         Simulate
+                                                                                                       BB Predicted Time
+                                                                                                                                                         sample of warps for regular and irregular applications.
+                                         Predicted
+                                                         time0       time1      time0    time1        time0         ●●●    time1         time2
+                                           Time
+
+                                                                                                                                                         is used to find the best-fit line or curve that passes through a set of
+Figure 7: Photon online analyzes the distribution of basic                                                                                               data points by minimizing the sum of the squared residuals between
+block distributions via parallel functional simulating a sam-                                                                                            the observed data and the predicted values of the model. Assume
+ple of warps (Step 1). Then Photon detailed simulates GPU                                                                                                that we have a set of data {(𝑥 0 ,𝑦0 ),...,(𝑥𝑛 ,𝑦𝑛 )}, we calculate the best-fit
+workloads, accumulates the rate of stable basic blocks, and                                                                                              line, 𝑦 = 𝑎 · 𝑥 + 𝑏, using Equation 1.
+records their execution time (Step 2). Finally, Photon switches                                                                                                                 Í𝑛               1 Í𝑛          Í𝑛
+to basic-block-sampling if the rate of stable basic blocks is                                                                                                                      𝑖=1 𝑥𝑖 𝑦𝑖 − 𝑛 𝑖=1 𝑥𝑖 𝑖=1 𝑦𝑖
+                                                                                                                                                                            𝑎=      Í𝑛 2 1 Í𝑛                    2
+larger than the threshold. Photon functional simulates warps                                                                                                                           𝑖=1 𝑥𝑖 − 𝑛         𝑖=1 𝑥𝑖                      (1)
+and predicts their execution time at the basic block level (Step                                                                                                                1 ∑︁𝑛                1 ∑︁𝑛
+3).                                                                                                                                                                        𝑏=              𝑦 −𝑎                 𝑥
+                                                                                                                                                                                𝑛      𝑖=1 𝑖         𝑛     𝑖=1 𝑖
+                                                                                                                                                         As we can see from Figure 3a and Figure 3b, the least-squares lines
+                                                                                                                                                         for the issue time and retired time of the most frequent basic blocks
+monitoring special registers, like VCC and EXEC for AMD GPUs,                                                                                            are 𝑅𝑒𝑡𝑖𝑟𝑒𝑑 𝑡𝑖𝑚𝑒 = 1.00 · 𝐼𝑠𝑠𝑢𝑒 𝑡𝑖𝑚𝑒 + 4.23, and 𝑅𝑒𝑡𝑖𝑟𝑒𝑑 𝑡𝑖𝑚𝑒 =
+during functional simulation. We leave this for future work.                                                                                             0.99 · 𝐼𝑠𝑠𝑢𝑒 𝑇𝑖𝑚𝑒 + 4.96, respectively. We observe that the slope
+                                                                                                                                                         value 𝑎 calculated by the least-squares method is always close to
+4.1                                        Sampling Basic Blocks                                                                                         one for basic blocks no matter which benchmarks we evaluate. We
+The workflow of sampling basic blocks is represented in Figure 7.                                                                                        investigate this observation and conclude that this is because the
+In the beginning, Photon functional simulates a percentage (we use                                                                                       execution time of basic blocks is not related to its issue time since
+1%) of warps in parallel to collect the basic block distribution for                                                                                     the memory competition and others are stable for GPU systems. In
+the GPU kernel. Then Photon starts detailed simulation of the GPU                                                                                        Figure 3, we can find that at the beginning of GPU workloads, the
+workload, accumulates the rate of stable basic blocks, and records                                                                                       𝑎 of the least square line for dots (𝑥 = 𝑖𝑠𝑠𝑢𝑒 𝑡𝑖𝑚𝑒, 𝑦 = 𝑟𝑒𝑡𝑖𝑟𝑒𝑑 𝑡𝑖𝑚𝑒)
+the runtime of each type of basic block. Finally, Photon switches                                                                                        is not close to one. And then the 𝑎 of these dots is close to one after
+to basic-block-sampling when the rate is larger than the threshold                                                                                       competition among warps becomes stable.
+(we use 95%). Photon functionally simulates the remaining warps                                                                                             Photon calculates the rolling slope value 𝑎 of the least-squares
+and predicts their execution time by accumulating the predicted                                                                                          method for the last 𝑛 basic blocks from the same type (we use 2048
+time of their basic blocks.                                                                                                                              across all GPU workloads), in order to leverage the regular pattern
+   The online analysis provides the distribution of basic blocks in                                                                                      in Observation 3. If the value of |1 − 𝑎| is less than the threshold
+advance so that basic-block-sampling does not require waiting for                                                                                        𝛿 (we use 3%), this type of basic block is considered to be stable.
+rare basic blocks that do not affect GPU workload performance sig-                                                                                       Moreover, we find that some applications might trigger a false stable
+nificantly, to finish. For example, SpMV, at the end of its execution,                                                                                   signal as 𝑎 falls into a local optimum [33]. We propose to solve this
+stores its results into the target vector, and that task is finished                                                                                     by also checking the average number of executions with the last
+by one basic block executed at the end after all warp execution.                                                                                         2𝑛 basic blocks and ensuring that their relative difference is also
+However, this basic block does not substantially affect the runtime                                                                                      less than the threshold 𝛿.
+of SpMV warps since it only accounts for about 0.6% of all the basic                                                                                        Rare Basic Blocks: Rare basic blocks are basic blocks that are
+blocks executed by the SpMV kernel in our experiments. Moreover,                                                                                         rarely triggered during execution. Basic-block-sampling requires
+we analyze a sample of warps to ensure that online analysis will not                                                                                     predicting the execution of these basic blocks but hard to collect
+introduce a large overhead. Figure 8 shows the distribution of basic                                                                                     their data. Rare basic blocks occur in several cases. One example
+blocks for both all warps and a sample of warps. The percentage is                                                                                       is that basic blocks in some benchmarks to handle special cases.
+calculated by the total instruction count of these basic blocks to the                                                                                   For example, one basic block (PC=508, number of instructions=1)
+instructions of whole kernels. We can see that no matter whether                                                                                         for the benchmark SC is the last instruction of one warp and it is
+the applications are irregular or regular, online analysis of a sample                                                                                   triggered as this warp is an empty task. Another case is that the
+of warps’ basic block distribution is enough.                                                                                                            final basic block for handling final results write or others for large
+   We then use online detection to determine whether the execution                                                                                       kernel applications, like SpMV.
+of each type of basic block is stable. Photon utilizes the least-squares                                                                                    We process rare basic blocks via a performance modeling method
+method to detect their stable status. The least-squares method [9]                                                                                       based on interval analysis, as shown in Figure 9. Firstly, we collect
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                                                                                                                                Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+                                                 Instruction Latency Table             Step 1: Detailed Simulation                                                                       All warps                A Sample of Warps
+                                                  Inst Type           Latency                        Instruction List                                                         100                            12
+                                                                                       update                                                                                  80                            10
+
+
+
+
+                                                                                                                                                             Persentage (%)
+
+
+
+
+                                                                                                                                                                                            Persentage (%)
+                                                      inst0           latency0
+                                                                                       Step 2: Interval Model                                                                  60                             8
+                                                      inst1           latency1
+                                                                                                                                                                               40                             6
+                                                      ●●●               ●●●                                                                                                                                   4
+                                                                                       latency0                                                                                20                             2
+                                                           inst0         inst1                            latency1
+                                                                                                                                                                                0   SC                        0                        SpMV
+
+Figure 9: Photon utilizes the interval model and online in-                                                                                                   Figure 11: The distribution of different warp types for a reg-
+struction latency table generated during detailed simulation                                                                                                  ular application (SC) and an irregular application (SpMV) of
+to predict the runtime of rare basic blocks.                                                                                                                  all warps and a sample of warps.
+
+                                    Step 1: Online Analysis                                                             Step 2: Detailed Simulation
+Functionally Simulate in Parallel
+
+
+
+
+                                             warp0                 Warp Distribution Table   ratefreq > threshold         Monitor if warps are stable
+
+                                           warpinterval             Warp Type       Rate
+                                                                                                                              stable        predicted time    is spent on functional simulation. Figure 11 illustrates the distribu-
+                                                                                                                                               timeavg        tion for each type of warp of regular and irregular applications for
+                                           warp2interval               warp0        rate0
+                                                                                             Step 3: Warp Sampling
+                                               ●●●                     warp1        rate1           timeavg             timeavg             timeavg           both all warps and a sample of warps. For regular applications, like
+                                           warp#warps                   ●●●          ●●●                                                                      SC, the distribution of warps for all warps and a sample of warps
+                                                                                                              timeavg             timeavg
+                                       A sample of warps               warpn        raten                                                                     is similar so that we can use a subset of warps (we use 1% warps)
+                                                                                                                                                              to decide if warp-sampling should be enabled. For irregular appli-
+Figure 10: Photon online analyzes the distribution of warp                                                                                                    cations, like SpMV, both a sample of warps and all warps have no
+distributions via parallel functional simulating a sample of                                                                                                  dominant warp, and therefore, we can also disable warp-sampling
+warps (Step 1). Warp-sampling can be enabled only when                                                                                                        by analyzing a subset of warps.
+the rate 𝑟𝑎𝑡𝑒 𝑓 𝑟𝑒𝑞 of the most frequent warps 𝑤𝑎𝑟𝑝 𝑓 𝑟𝑒𝑞 is                                                                                                      The relationship between the issue and retired time of warps
+larger than the threshold. Then Photon detailed simulates                                                                                                     for regular applications, like MM, has the same pattern as seen at
+GPU workloads (Step 2). Finally, Photon switches to warp-                                                                                                     the basic block level, as shown in Figure 4a. Regular applications
+sampling if warps are stable and predicts the execution time                                                                                                  exhibit a predominant warp type, resulting in their warps being
+of following warps by the average execution time of the last                                                                                                  primarily influenced by the microarchitecture status. As a result,
+n warps (Step 3).                                                                                                                                             the 𝑎 of regular applications approaches one, which means that the
+                                                                                                                                                              execution time of the warps in that type is stable. However, in the
+                                                                                                                                                              case of irregular applications, the execution of warps is influenced
+the latency for each type of instruction during the detailed simu-                                                                                            by various factors, such as the instructions executed and memory
+lation so that Photon is not required to consider the multi-warp                                                                                              access patterns. Consequently, the value of 𝑎 for these applications
+model like GPUMech [28]. During the basic block sampling period,                                                                                              tends to deviate significantly from one. For example, the value for
+Photon predicts the runtime of rare basic blocks via the interval                                                                                             𝑎 of the least squares fitted value for SpMV, shown in Figure 4b,
+model. Photon models the issue and retired time of instructions and                                                                                           deviate significantly from one, so the methodology will not enable
+when the dependency happens, postpones the issue time of that                                                                                                 sampling this irregular application on the warp level.
+instruction to be after the retire time of the dependent instruction.                                                                                             Photon starts the detailed simulation and collects the issue and
+For these rare instructions that we never collect, we set their initial                                                                                       retired time for all warps for applications with a dominant warp
+value according to the latency of caches and ALUs.                                                                                                            type based on Observation 4. Once Photon detects the 𝑎 of the
+                                                                                                                                                              least square method on the last n warps (we set n=1024) is close to
+4.2                                        Sampling Warps                                                                                                     1 (|𝑎 − 1| < 𝛿), Photon will then switch to warp-sampling as shown
+                                                                                                                                                              in Figure 10, Step 3. By doing so, warp-sampling is automatically
+Warps represent the basic unit of computation in GPU kernels
+                                                                                                                                                              disabled for irregular applications as they do not have a dominant
+that are scheduled to compute units during execution. Different
+                                                                                                                                                              warp type and the value of 𝑎 deviates significantly from 1. However,
+types of warps have different BBVs. Figure 10 shows the workflow
+                                                                                                                                                              basic-block-sampling (Section 4.1) and kernel-sampling (Section 4.3)
+of warp-sampling. Photon first collects the distribution for each
+                                                                                                                                                              can still be applied for these irregular applications. Similar to basic-
+type of warp. If there is one warp dominating the GPU kernel (this
+                                                                                                                                                              block-sampling, we also check the relative difference for the average
+type of warp accounts for more than 95% for all warps), we start
+                                                                                                                                                              execution time of n and 2n warps to avoid issue of finding a local
+to detect if the execution of the dominant warps is stable during
+                                                                                                                                                              optimum. Photon only simulates the scheduler and all execution
+detailed simulation. Once this warp is stable, Photon switches to
+                                                                                                                                                              time of warps is predicted as the average time of the last n warps
+warp-sampling and only simulates the scheduler.
+                                                                                                                                                              during warp-sampling.
+   Photon firstly completes online analysis of the distribution of
+each warp. We derive this by analyzing a sample of warps to en-
+sure both accuracy and performance. Note that the online analysis                                                                                             4.3                   Sampling Kernels
+overhead of warp sampling is similar to the online analysis for both                                                                                          GPU kernels are the basic units of execution that are scheduled to
+basic-block- and warp-sampling as most of the online analysis time                                                                                            execute on the GPU. Instead of depending on offline analysis to
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                                                                                                      MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+                                    Step 1: Online Analysis                             Step 2: GPU BBV                             Kernel Table            Table 1: The configuration parameters used for R9 Nano and
+Functionally Simulate in Parallel
+
+
+
+
+                                                              Warp Distribution Table                 Step 3:
+                                           warp0                                                      Distance < Threshold   BBV      IPC      # Warps      MI100 GPU on MGPUSim to evaluate Photon.
+                                                              Warp Type        Rate
+                                          warpinterval                                                Step 4:                bbv0     ipc0         count0
+                                                                  warp0        rate0                  Closest warp count
+                                                                                                                             bbv1     ipc1         count1
+                                         warp2interval
+                                                                  warp1        rate1                                         ●●●       ●●●          ●●●
+                                                                                                                                                                Component         R9 Nano                        MI100 [3]
+                                             ●●●
+                                                                  ●●●          ●●●
+                                                                                             IPCpredict                                                         CU                1.0GHz, 64 per GPU             1.0GHz, 120 per GPU
+                                          warp #warps                                                                        bbvn     ipcn         countn
+                                                                  warpn        raten    Step 5: Timepredict
+                                                                                                                                                                L1 Vector Cache   16KB 4-way 64 per GPU          16KB 4-way 120 per GPU
+                                     A sample of warps
+                                                                                                                                                                L1 Inst Cache     32KB 4-way 16 per GPU          32KB 4-way 30 per GPU
+                                                                                                                                                                L1 Scalar Cache   16KB 4-way 16 per GPU          16KB 4-way 30 per GPU
+Figure 12: Photon online generates GPU BBV via paral-                                                                                                           L2 Cache          256KB 16-way 8 per GPU         8MB 16-way 32 per GPU
+                                                                                                                                                                DRAM              4GB                            32GB
+lel functional simulating a sample of warps (Step 1). Then
+Photon finds all prior kernels whose distance is less than
+the threshold (Step 2). Furthermore, Photon selects kernels
+whose warp count is closest (Step 3). Finally, Photon predicts                                                                                              We choose MGPUSim as it is an open-source GPU simulator and
+the execution time of the kernel via the predicted IPC and                                                                                                  provides a range of tools to monitor GPU workload behavior. We
+instruction count (Step 4). Note that the number of warps                                                                                                   validate Photon on two different architectures, R9 Nano and MI100,
+must be equal for kernels whose warp count is less than GPU                                                                                                 as shown in Table 1. We use the default scheduling algorithm pro-
+cores.                                                                                                                                                      vided by MGPUSim. R9 Nano and MI100 are both CDNA architec-
+                                                                                                                                                            tures that are for computing. We do not use RDNA because RDNA
+                                                                                                                                                            GPUs are mainly for gaming and 3D rendering and CDNA is the
+                                                                                                                                                            default architecture for MGPUSim. The MI100 is already the newest
+decide the similarity of GPU kernels, we provide an online kernel-
+                                                                                                                                                            CDNA-architecture-based GPU that is commercially available to-
+sampling method based on Observation 5.
+                                                                                                                                                            day. The MI200 and MI300 have been announced but cannot yet be
+   The workflow of Photon for kernel-sampling is shown in Fig-
+                                                                                                                                                            purchased at this time. We evaluate all experiments on the platform
+ure 12. We first collect the distribution and BBVs for each type of
+                                                                                                                                                            using the Intel® Xeon® Gold 6132 CPU. The operating system used
+warp, which is the same as sampling-warps. If both warp-sampling
+                                                                                                                                                            is Ubuntu 20.04.4.
+and kernel-sampling are enabled, we can reuse the analysis data of
+                                                                                                                                                               GPU workloads. We evaluate Photon on both regular and ir-
+warp-sampling. Then we generate online GPU BBV as shown in
+                                                                                                                                                            regular applications including simple GPU kernels, like ReLU, as
+Figure 5. As shown in Figure 6, GPU-BBVs generated from different
+                                                                                                                                                            well as larger, real-world applications, like VGG-16, as shown in
+types of kernels can be clustered into different groups attributed to
+                                                                                                                                                            Table 2. All kernels are written in OpenCL and then compiled by
+the higher variance of warps’ type and distribution.
+                                                                                                                                                            the AMD ROCm compiler. The compiler is set to use the default
+   Furthermore, we select all prior kernels that have similar GPU
+                                                                                                                                                            options. To fully validate each benchmark, we run all benchmarks
+BBVs. We select the kernel that has the closest number of warps
+                                                                                                                                                            using various problem sizes, which are defined by the number of
+since kernels with a similar number of warps usually have similar
+                                                                                                                                                            warps for GPU workloads. Each benchmark is executed over 10
+IPC. Noted that we notice that for kernels with warps that are less
+                                                                                                                                                            runs, and the kernel execution kernel and wall time of simulating
+than the number of GPU cores, their IPC is different compared to
+                                                                                                                                                            are averaged.
+kernels with a large number of warps. That is due to these kernels
+                                                                                                                                                               Accuracy. We select kernel execution time (Sim Time) instead
+having less competition for resources and also less parallelism.
+                                                                                                                                                            of the IPC of TBPoint [29] and PKA [4] as the kernel execution
+Kernel-sampling requires the warp number to be the same for
+                                                                                                                                                            time is the most important feature that GPU users care about when
+sampling accuracy when the number of warps of the kernels is less
+                                                                                                                                                            executing workloads. We validate the absolute error rate of sampled
+than the number of GPU cores.
+                                                                                                                                                            simulation by comparing the execution time of GPU workloads
+   Finally, we predict the execution time of one kernel 𝐾 via the                                                                                                                         |𝑇      −𝑇         |
+predicted instruction count and IPC via the prior GPU kernel, 𝐾 ′ .                                                                                         with full detailed mode via 𝑓 𝑢𝑙𝑙 𝑇𝑓 𝑢𝑙𝑙
+                                                                                                                                                                                                 𝑠𝑎𝑚𝑝𝑙𝑒𝑑
+                                                                                                                                                                                                         × 100%, where 𝑇𝑓 𝑢𝑙𝑙 and
+The instruction count of the entire kernel can be predicted by                                                                                              𝑇𝑠𝑎𝑚𝑝𝑙𝑒𝑑 are the GPU workloads execution time of full detailed
+                                                              ′
+         #𝑖𝑛𝑠𝑡𝑠 𝐾 ·#𝑖𝑛𝑠𝑡𝑠𝑠𝑎𝑚𝑝𝑙𝑒                            ′                                                                                                mode and sampled methods, respectively.
+#𝑖𝑛𝑠𝑡𝑠 =             𝐾′         , where #𝑖𝑛𝑠𝑡𝑠 and #𝑖𝑛𝑠𝑡𝑠 𝐾 are the to-
+              #𝑖𝑛𝑠𝑡𝑠𝑠𝑎𝑚𝑝𝑙𝑒                                                                                                                                     Performance. We utilize the wall time (Wall Time) of finishing sim-
+                                                               𝐾′
+tal number of instructions executed for 𝐾 and 𝐾 ′ , and #𝑖𝑛𝑠𝑡𝑠𝑠𝑎𝑚𝑝𝑙𝑒                                                                                        ulation for GPU workloads to evaluate the performance of Photon
+                                                                                                                                                            and other methods. Another metric that we used is speedup, which
+and #𝑖𝑛𝑠𝑡𝑠𝑠𝑎𝑚𝑝𝑙𝑒 are the number of instructions executed of a sam-                                                                                                                             𝑊 𝑎𝑙𝑙 𝑇 𝑖𝑚𝑒
+ple of warps during online analysis for 𝐾 and 𝐾 ′ , respectively. The                                                                                       is calculated by 𝑆𝑝𝑒𝑒𝑑𝑢𝑝 = 𝑊 𝑎𝑙𝑙 𝑇 𝑖𝑚𝑒 𝑓 𝑢𝑙𝑙 , where 𝑊 𝑎𝑙𝑙 𝑇 𝑖𝑚𝑒 𝑓 𝑢𝑙𝑙
+                                                                                                                                                                                                  𝑠𝑎𝑚𝑝𝑙𝑒𝑑
+IPC of 𝐾 is predicted to be the same as 𝐾 ′ .                                                                                                               and 𝑊 𝑎𝑙𝑙 𝑇𝑖𝑚𝑒𝑠𝑎𝑚𝑝𝑙𝑒𝑑 are the wall time of completing simulating
+                                                                                                                                                            GPU workloads using full detailed mode and sampled methods,
+5                                       EXPERIMENTAL SETUP                                                                                                  respectively.
+This section describes the experimental setup to evaluate Photon.
+We first provide the details of the simulation framework and micro-                                                                                         6    EVALUATION
+architectures that Photon validates. Then we provide the bench-                                                                                             In this section, we present a comprehensive evaluation of Pho-
+marks we used to validate the accuracy and performance of Photon.                                                                                           ton. We first present the performance and accuracy of Photon by
+   Simulation Configuration. We modify MGPUSim [52] to sup-                                                                                                 comparing it with the state-of-the-art work, PKA [4] on different
+port switching between the detailed mode and fast-forward mode                                                                                              problem sizes for single kernel GPU workloads. Then we evaluate
+simulation and implement Photon and PKA inside the simulator.                                                                                               Photon using both the R9 Nano and MI100 configurations to show
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                                                  Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+                               Full       PKA        Photon                           Full       PKA       Photon                           Full         PKA        Photon
+                                                                   1200                                                                                                              1200
+                              ReLU (max=7.22×)                                     FIR (max=4.47×)                      1000 1000       SC (max=4.15×)
+                300                                                1000 2500                                                                                                         1000
+                                                                                                                              800
+                                                                   800 2000                                             800
+Sim Time (us)
+
+
+
+
+                                                                                                                                                                                     800
+
+
+
+
+                                                                                                                                                                                              Wall Time (s)
+                200                                                       1500                                          600     600
+                                                                   600                                                                                                               600
+                                                                   400    1000                                          400     400                                                  400
+                100
+                                                                   200     500                                          200     200                                                  200
+                                                                              0                                                   0
+                          4K 6K 8K 12K 16K 24K 32K 48K 64K 0                      1K 1.5K 2K 3K 4K 6K 8K 12K 16K 40K 64K 0             4K          8K      16K     32K       64K     0
+
+                                         (a) ReLU                                                (b) FIR                                                   (c) SC
+                                  Full       PKA      Photon                           Full      PKA       Photon                       Full            PKA       Photon
+                      20000     MM (max=10.04×)                     10000 1500       AES (max=1.82×)                   1200   25000    SPMV (max=24.65×)                           20000
+                                                                          1250                                                                                                     17500
+                      15000                                         8000                                               1000   20000                                                15000
+      Sim Time (us)
+
+
+
+
+                                                                                                                                                                                         Wall Time (s)
+                                                                          1000
+                                                                    6000                                               800    15000                                                12500
+                      10000                                                750                                         600                                                         10000
+                                                                    4000   500                                                10000                                                7500
+                       5000                                                                                            400
+                                                                    2000   250                                                 5000                                                5000
+                                                                                                                       200                                                         2500
+                          0                                         0        0                                         0          0                                                0
+                               4K 6K 8K 12K 16K 24K 32K 64K                        512 768 1K 1.5K 2K 3K 4K 6K 8K                     128 192 256 384 512 768                1K
+
+                                          (d) MM                                                 (e) AES                                                (f) SPMV
+
+Figure 13: The kernel execution time (left y-axis with lines) and wall time (right y-axis with bars) for Full detailed MGPUSim,
+PKA, and Photon. The numbers in the parentheses represent the maximum speedup among all problem sizes for each
+application.
+
+                      Table 2: The benchmarks used to evaluate Photon.                                 inputs, implementation, underlying architecture, and underlying
+                                                                                                       simulator. It is therefore expected that different speedups can be
+            Abbr.                 Suite              Workload Description                              reported with PKA in another environment. Although our PKA
+            AES                   Hetero-Mark [53]   AES-256 Encryption
+            FIR                   Hetero-Mark        FIR filter
+                                                                                                       implementation shows a lower sampling speedup for SpMV, our
+            SC                    AMD APP SDK [2]    Simple Convolution                                results also show that PKA achieves a 13× speedup for Matrix
+            MM                    AMD APP SDK        Matrix Multiplication                             Multiplication, while PKA [4] only reports a speedup of 1.3×.
+            ReLU                  DNNMark [18]       Rectified Linear Unit
+                                                                                                          Small kernel GPU workloads. Small kernel GPU workloads,
+            SPMV                  SHOC [15]          Sparse Matrix-Vector Multiplication
+            PR-X                  Hetero-Mark        PageRank with X nodes.                            including FIR and ReLU, have a large number of warps but their
+            VGG [50]                                 VGG-16 and VGG-19; batchsize=1                    warps only contain tens to hundreds of instructions each. Figure 13a
+            ResNet [26]                              ResNet-18 (34, 50, 101, 152); batchsize=1         and Figure 13b show that both Photon and PKA archive low error
+                                                                                                       rates and high performance. PKA, especially, outperforms Photon
+                                                                                                       on FIR benchmarks for problem size including 3K, and 6K. However,
+that Photon is robust to microarchitecture changes. Thereafter, we                                     Photon maintains both low sampling errors and high performance
+independently evaluate the effect of different levels of sampling                                      when the problem size is larger than 16K, while PKA is unable to.
+in Photon both independently as well as together as a complete                                         This is because that Photon utilizes basic blocks and warps as basic
+simulator. Finally, we evaluate Photon on the larger, real-world                                       units so that its basic granularity is larger than PKA, which allows
+applications.                                                                                          Photon to have lower performance than PKA with better accuracy.
+                                                                                                          Complex GPU workloads. Complex GPU workloads, including
+6.1                     Overall Effectiveness                                                          SC and MM, are other common GPU kernels. Their number of warp
+In this section, we compare Photon with the prior work, PKA, using                                     and instructions per warp are both large. As shown in Figure 13c
+MGPUSim modeling the R9 Nano. Figure 13 illustrates the results                                        and Figure 13d, Photon ensures low sampling errors for all problem
+of MGPUSim configured to use full detailed mode, PKA and Photon,                                       sizes, whereas PKA exhibits significantly high sampling errors for
+respectively. Figure 13 demonstrates that Photon achieves up to                                        some problem sizes in SC and MM. For problem sizes 32K and 64K
+24.65× speedup (average speedup 1.87×) with an average simulation                                      of MM, Photon achieves a higher error rate as we still have local
+error of 6.83%, while PKA results shows either a significant sampling                                  optimum issues for some special cases.
+error or low performance.                                                                                 Additionally, AES represents another set of complex GPU work-
+   We implement PKA in MGPUSim by referencing the PKA source                                           loads. Unlike SC and MM which have large instruction counts due
+code and we use the PKA default parameters: 𝑠 = 0.25 where 𝑠 is the                                    to loops, AES has a long instruction sequence, about 400 instruc-
+threshold of the IPC variance over the last 3000 cycles. Sampling                                      tions, to process different steps of its algorithm. PKA fails to ensure
+simulation speedup is related not only to applications but their                                       the sampling accuracy for some problem sizes like 2K and 6K as
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                                                   MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+                                Full          Photon                                  Full      Photon                                        Full         Photon
+                                                                                                                         2500    350                                                2500
+                300          ReLU (max=2.26×)                      1000 300        FIR (max=4.83×)                               300     SC (max=2.30×)
+                                                                                                                         2000                                                       2000
+                250                                                800                                                           250
+Sim Time (us)
+
+
+
+
+                                                                                                                                                                                             Wall Time (s)
+                200                                                        200                                           1500    200                                                1500
+                                                                   600
+                150                                                                                                      1000    150                                                1000
+                                                                   400
+                100                                                        100                                                   100
+                                                                   200                                                   500                                                        500
+                 50                                                                                                               50
+                                                                             0
+                             4K 6K 8K 12K 16K 24K 32K 48K 64K 0                   1K 1.5K 2K 3K 4K 6K 8K 12K 16K 40K 64K 0              4K           8K      16K      32K   64K     0
+
+                                             (a) ReLU                                            (b) FIR                                                     (c) SC
+                                   Full          Photon                                Full      Photon                                      Full         Photon
+                      5000                                                  300
+                               MM (max=17.86×)                     17500
+                                                                                    AES (max=1.54×)              2000           8000    SPMV (max=20.51×)                         20000
+                      4000                                         15000    250                                  1750                                                             17500
+                                                                   12500                                         1500           6000                                              15000
+      Sim Time (us)
+
+
+
+
+                                                                                                                                                                                        Wall Time (s)
+                      3000                                                  200                                                                                                   12500
+                                                                   10000                                         1250
+                                                                            150                                  1000           4000                                              10000
+                      2000                                         7500
+                                                                                                                 750                                                              7500
+                                                                   5000     100                                  500            2000                                              5000
+                      1000
+                                                                   2500      50                                  250                                                              2500
+                                                                                                                                   0
+                              4K       6K   8K 12K 16K 24K 32K 64K 0              512 768 1K 1.5K 2K 3K 4K 6K 8K 0                     128 192 256 384 512 768              1K    0
+
+                                   (d) Matrix Multiplication                                    (e) AES                                                   (f) SPMV
+
+Figure 14: The kernel execution time (left y-axis with lines) and wall time (right y-axis with bars) for Full detailed MGPUSim,
+Photon for MI100. The numbers in the parentheses represent the maximum speedup among all problem sizes for each
+application.
+
+
+it does not collect all instructions inside the kernel, while Photon                                         Small kernel GPU workloads. Small kernels, like ReLU and
+achieves very low sampling errors for all problem sizes.                                                  FIR, contain tens or fewer basic blocks. For example, ReLu only has
+    Irregular GPU workloads. Irregular applications are a set of                                          two basic blocks so the threshold of basic-block sampling is easier
+applications whose kernels contain different types of warps. These                                        to satisfy. Figure 15a and Figure 15e show that basic-block-sampling
+applications are difficult for PKA to handle due to their fluctuating                                     contributes most performance improvement for Photon.
+IPC. As shown in Figure 13f, PKA has either low performance or                                               Complex kernel GPU workloads. For complex kernels, in-
+high error rates for all problem sizes, while Photon achieves up to                                       cluding SC and MM, whose main instructions come from loops,
+24.65× speedup with an average sampling error 18.9% due to its                                            basic-block-sampling, and warp-sampling simulation work well in-
+granularity in basic blocks instead of cycles.                                                            dividually, and their combination provides an even larger speedup.
+    Micro-architecture Independent. We evaluate all benchmarks                                            For AES, most of the performance improvement comes from warp-
+with the same problem sizes on MI100 and the results indicate that                                        sampling as this kernel contains a long instruction sequence, which
+Photon is a micro-architecture independent methodology. Figure 14                                         allows warps of AES to stabilize more easily than when basic-block-
+shows the kernel runtime and wall time of Photon compared to full                                         sampling.
+detailed simulation. For all benchmarks and problem sizes, Photon                                            Irregular GPU workloads. For irregular applications, basic-
+achieves similar performance and low sampling errors, as sampling                                         block-sampling contributes to the vast majority of the performance
+R9 Nano. The benchmark MM with the 12K problem size shows a                                               improvement. We notice that for some problem sizes, like a warp
+slightly higher error rate due to the local optimum issue.                                                count of 384, basic-block-sampling is worse than Photon and we
+    We conclude that Photon outperforms PKA and other prior                                               determined that it is due to the variance across different executions.
+works due to these methods mostly focusing on kernel-samping                                              MGPUSim dynamically schedules warps into GPU cores and the
+simulation. While PKA’s assumption of stable IPC may hold true                                            memory access order also causes irregular applications to become
+for some GPU workloads, it may not be an accurate predictor of                                            more variable.
+performance for all types of workloads.                                                                      We conclude that basic-block-sampling, warp-sampling, and the
+                                                                                                          combination of both provide both accuracy and performance for a
+                                                                                                          variety of different types of GPU kernels. We can not depend on
+                                                                                                          one single method to solve all GPU sampling simulation workloads.
+6.2                     Effects of Different Sampling Levels
+Figure 15 shows the performance of each sampling level and their
+combination for Photon. The average error rates for basic-block-                                          6.3    Real-world Applications
+sampling, warp-sampling and Photon are 9.70%, 1.75%, and 6.83%,                                           In this section, we present larger, real-world GPU workloads, as
+respectively.                                                                                             shown in Figure 16, to help demonstrate that Photon yields both
+  MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                                                                                                   Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+                                  MGPUSim      BB-Sampling      Warp-Sampling     Photon            MGPUSim      BB-Sampling                     Warp-Sampling         Photon              MGPUSim         BB-Sampling     Warp-Sampling         Photon
+                                                                   1200                                                                                                                                                                            1200
+                    300                                                                     400                                                                         1000
+                                                                   1000                                                                                                          600                                                               1000
+                                                                                                                                                                        800
+    Sim Time (us)
+
+
+
+
+                                                                                                                                                                                                                                                             Wall Time (s)
+                                                                   800                      300                                                                                                                                                    800
+                    200                                                                                                                                                 600      400
+                                                                   600                      200                                                                                                                                                    600
+                                                                   400                                                                                                  400                                                                        400
+                    100                                                                     100                                                                                  200
+                                                                   200                                                                                                  200                                                                        200
+                                                                                              0                                                                                    0
+                                  4K 6K 8K 12K 16K 24K 32K 48K 64K 0                               1K 1.5K 2K 3K 4K 6K 8K 12K16K40K64K 0                                                   4K         8K         16K       32K           64K       0
+
+                                                (a) ReLU                                                                       (b) FIR                                                                           (c) SC
+                                     MGPUSim      BB-Sampling     Warp-Sampling    Photon            MGPUSim      BB-Sampling                  Warp-Sampling         Photon                MGPUSim     BB-Sampling       Warp-Sampling         Photon
+                                                                                             600                                                                       1400
+                          20000                                                     10000                                                                              1200     25000                                                           20000
+                                                                                             500                                                                                                                                                17500
+                          15000                                                     8000                                                                               1000     20000                                                           15000
+          Sim Time (us)
+
+
+
+
+                                                                                             400
+
+
+
+
+                                                                                                                                                                                                                                                        Wall Time (s)
+                                                                                    6000                                                                               800      15000                                                           12500
+                          10000                                                              300                                                                       600                                                                      10000
+                                                                                    4000                                                                                        10000                                                           7500
+                                                                                             200                                                                       400
+                           5000                                                                                                                                                  5000                                                           5000
+                                                                                    2000     100                                                                       200                                                                      2500
+                              0                                                     0                                                                                  0            0                                                           0
+                                    4K 6K 8K 12K 16K 24K 32K 64K                                   512 768 1K 1.5K 2K 3K 4K 6K 8K                                                         128 192 256 384 512 768                    1K
+
+                                                   (d) MM                                                                      (e) AES                                                                      (f) SPMV
+
+  Figure 15: The kernel execution time (left y-axis with lines) and wall time (right y-axis with bars) for full detailed MGPUSim,
+  basic-block-sampling (BB-sampling), warp-sampling, and Photon.
+
+
+                                     Full            Photon                                                                                                         Kernel             Kernel+Warp                Photon
+                                                                                                                                     Abs. Runtime Error (%)
+
+
+
+
+                                                                                                                                                              20
+                150 ResNet-152 (39.1×)                                                                  300000
+Sim Time (ms)
+
+
+
+
+                                                                                                                                                              15
+                                                                                                               Wall Time (s)
+
+
+
+
+                100                                                                                     200000                                                10
+                    50                                                                                                                                         5
+                                                                                                        100000
+                                                                                                                                                               0
+                          0                                                                             0
+                                                                                                                                                              co v1-1
+                                                                                                                                                                po 1-2
+                                                                                                                                                              co ol-1
+                                                                                                                                                              co v2-1
+                                                                                                                                                              co v2-2
+                                                                                                                                                                p 2-3
+                                                                                                                                                              co ool-2
+                                                                                                                                                              co v3-1
+                                                                                                                                                              co v3-2
+                                                                                                                                                                p 3-3
+                                                                                                                                                              co ool-3
+                                                                                                                                                              co v4-1
+                                                                                                                                                              co v4-2
+                                                                                                                                                                p 4-3
+                                                                                                                                                              co ool-4
+                                                                                                                                                              co v5-1
+                                                                                                                                                              co v5-2
+                                                                                                                                                                po 5-3
+                                                                                                                                                                  fc-5
+                                                                                                                                                                     6
+                                                                                                                                                                vg fc7
+                                                                                                                                                                     6
+                                                                                                                                                                  ol-
+
+
+                                                                                                                                                                  g1
+                                                                                                                                                                nv
+
+
+
+                                                                                                                                                                nv
+
+
+
+                                                                                                                                                                nv
+
+
+
+                                                                                                                                                                nv
+
+
+
+                                                                                                                                                                nv
+                                                                                                                                                                n
+
+
+                                                                                                                                                                n
+                                                                                                                                                                n
+
+
+                                                                                                                                                                n
+                                                                                                                                                                n
+
+
+                                                                                                                                                                n
+                                                                                                                                                                n
+
+
+                                                                                                                                                                n
+                                                                                                                                                                n
+                  PR 384
+                  PR 768
+
+                    VG 6
+                    VG 6
+                 Re G-19
+                 Re t-18
+                 Re t-34
+                  sN 0
+                  sN 1
+                             2
+
+
+
+
+                                                                                                                                                              co
+                  PR 92
+
+
+
+                          53
+                        G-1
+
+
+
+
+                Re et-5
+                Re t-10
+                          15
+                      -81
+                     -16
+                     -32
+                     -65
+
+
+
+
+                      et-
+                        e
+                        e
+                    sN
+                    sN
+                    sN
+                      e
+                   PR
+
+
+
+
+                                                                                                                                                                                 (a) Absolute runtime error
+                                                                                                                                                                    Kernel              Kernel+Warp               Photon
+  Figure 16: The kernel execution time (left y-axis with lines)
+  and wall time (right y-axis with bars) for full detailed MG-                                                                                                102
+                                                                                                                                     Speedup
+
+
+
+
+  PUSim, and Photon. The numbers in the parentheses repre-
+                                                                                                                                                              101
+  sent the maximum speedup for all real-world applications.
+  The average sampling accuracy for all applications is 4.3%.                                                                                                 100
+                                                                                                                                                               co v1-1
+                                                                                                                                                                 p 1-2
+                                                                                                                                                               co ool-1
+                                                                                                                                                               co v2-1
+                                                                                                                                                               co v2-2
+                                                                                                                                                                 p 2-3
+                                                                                                                                                               co ool-2
+                                                                                                                                                               co v3-1
+                                                                                                                                                               co v3-2
+                                                                                                                                                                 p 3-3
+                                                                                                                                                               co ool-3
+                                                                                                                                                               co v4-1
+                                                                                                                                                               co v4-2
+                                                                                                                                                                 p 4-3
+                                                                                                                                                               co ool-4
+                                                                                                                                                               co v5-1
+                                                                                                                                                               co v5-2
+                                                                                                                                                                 po 5-3
+                                                                                                                                                                    fc-5
+                                                                                                                                                                       6
+                                                                                                                                                                 vg fc7
+                                                                                                                                                                       6
+                                                                                                                                                                    ol-
+
+
+                                                                                                                                                                    g1
+                                                                                                                                                                  nv
+
+
+
+                                                                                                                                                                  nv
+
+
+
+                                                                                                                                                                  nv
+
+
+
+                                                                                                                                                                  nv
+
+
+
+                                                                                                                                                                  nv
+                                                                                                                                                                  n
+
+
+                                                                                                                                                                  n
+                                                                                                                                                                  n
+
+
+                                                                                                                                                                  n
+                                                                                                                                                                  n
+
+
+                                                                                                                                                                  n
+                                                                                                                                                                  n
+
+
+                                                                                                                                                                  n
+                                                                                                                                                                  n
+                                                                                                                                                               co
+
+
+
+
+  high accuracy and performance for a wide range of applications. We                                                                                                                        (b) Speedup
+  also present the detailed results of VGG-161 in Figure 17 to evaluate
+  the kernel-sampling, kernel+warp sampling, and Photon, which                                                                         Figure 17: The absolute runtime error and speedup of kernel-
+  enables kernel-, warp- and basic-block-sampling. Note that prior                                                                     sampling, kernel+warp-sampling, and Photon for each layer
+  works provide solutions for kernel-sampling but their methods                                                                        and whole inference runtime of VGG-16 with batch size 1.
+  depend on pre-processing. Photon utilizes online-analysis and we                                                                     Noted that each layer contains multiple GPU kernels.
+  include this analysis time into the runtime of Photon. Figure 16
+  shows that sampling GPU workloads without up-front analysis still
+  achieves up to a 39.1× speedup with a low average sampling error                                                                        Accuracy. Figure 17a shows the sampling error rate for each
+  rate, 4.3%.                                                                                                                          layer of VGG-16 and its full runtime. The result shows that kernel-
+                                                                                                                                       sampling is the most accurate sampling method. The online GPU
+                                                                                                                                       BBVs can capture the behavior of GPU kernels to achieve sampling
+  1 Only kernel-level sampling is enabled for fc-6 because of a bug in online analysis.                                                accuracy. Adding basic-block- and warp-sampling increases the
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                   MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+sampling error rate from 4.60% to 8.05%. This error is mainly from              • Hardware: Machine with at least 32 cores.
+conv5-1, 5-2, and 5-3 as we select larger execution time basic blocks           • Metrics: Wall time and simulation time
+to predict the kernel runtime.                                                  • Output: Plain text, tables, figures
+   Speedup. The speedup numbers for the whole VGG-16 using                      • Experiments: Run benchmarks with the simulator and collect
+kernel-sampling, kernel+warp-sampling and Photon are 6.76, 13.08                  data
+                                                                                • How much disk space required : ≈8GB
+and 19.71×, respectively. Warp-sampling improves performance by
+                                                                                • How much time is needed to complete experiments ?: ≈ 24
+about 1.9× over kernel-sampling, and basic-block-sampling contin-                 hours
+ues to increase the sampling performance by 1.5× over the prior two             • Publicly available?: Yes
+sampling methods. The result illustrates that basic-block-, warp-               • Workflow framework used?: MGPUSim
+and kernel-sampling can work together to improve the perfor-
+mance.                                                                    A.3     Description
+   Online/Offline Tradeoff. Although we consider having a high-           We provide a Dockerfile to help users easily set up the experi-
+speed online profiling solution that allows for a fast turn-around        mental environment. Within the Dockerfile, we set up the Go and
+time between new application updates and simulation results, Pho-         Python environments, as well as all necessary environment vari-
+ton also supports offline analysis to further improving sampling          ables (PATH, etc.). Note that MGPUSim is a multi-threaded simu-
+simulation performance. All data that is generated by the online          lator and our Python script maintains a thread pool (set to 8) to
+analysis of kernel-, basic-block- and warp-sampling sampling, is          help evaluate multiple benchmarks at the same time. We suggest
+micro-architecture agnostic. Hardware researchers can reuse these         evaluating N benchmarks at the same time, where N is the 14 of the
+data to enable sampled simulation of GPU workloads. For example,          hardware core count. The default output data is in JSON format
+our results show that offline Photon reduces the sampling simula-         and stored in the ${HOME}/gpudata directory. The Python script
+tion time of VGG-16 from 4.19 hours to 3.76 hours, compared with          also includes a -check option to read the results and display the
+the original, online version of Photon.                                   results.
+7     CONCLUSION                                                          A.3.1 How to access. The Dockerfile and its related scripts are
+In this paper, we propose a new sampled simulation methodology,           included at Zenodo [42, 43]. We provide the Dockerfile to automat-
+Photon, that can optimize sampling based on application behav-            ically download all software and set up the execution environment.
+ior across the basic block, warp, and kernel levels. The evaluation       A.3.2 Hardware dependencies. We suggest using a server with at
+of Photon shows that basic-block-sampling, warp-sampling, and             least 32 cores and 128GB memory to evaluate the results of Photon.
+kernel-sampling (both independently, as well as together in Pho-
+ton) can successfully simulate a variety of GPU workloads. Finally,       A.3.3 Software dependencies. The Internet is required for MG-
+we evaluate Photon on a wide range of real-world applications to          PUSim to download all dependencies.
+demonstrate its high sampling accuracy and performance. For ex-           A.3.4 Data sets. The data sets used in this work are included with
+ample, Photon reduces the simulation time needed to perform one           Photon.
+inference of ResNet-152 with batch size 1 from 7.05 days to just 1.7
+hours, with a very low sampling error of 10.7%; previous works [4]        A.4     Installation
+tend to show higher errors for large real-world applications.             Once the Dockerfile and its related scripts are downloaded, build
+                                                                          the Docker environment via the make_docker.sh script.
+ACKNOWLEDGMENTS
+We thank the anonymous reviewers for their valuable comments                                     $ ./make_docker.sh
+and the AEC for evaluating our artifacts. We also like to thank
+Alen Sabu for helping us review the paper and providing valuable
+feedback. We also thank AMD, Intel, and VMware for supporting                This script will pull all code that we modified to build Photon.
+this research.                                                            All the path variables are set via this script.
+                                                                             Once the setup is done, use the run_docker.sh to run the con-
+A ARTIFACT APPENDIX                                                       tainer that is generated via the previous script make_docker.sh.
+
+A.1 Abstract                                                                                      $ ./run_docker.sh
+This artifact provides all of the information that is required to use
+the Photon methodology. We provide a simulator that can run both
+detailed and sampled simulation. We also provide scripts to help          A.5     Evaluation and expected results
+simulate and collect all of the results presented in the paper.           Single kernel applications. The Python script testallbench.py
+                                                                          inside the directory sampledrunner of the sampled-mgpu-sim repos-
+A.2     Artifact check-list (meta-information)                            itory is can be used to generate all results in the paper for single
+      • Algorithm: Photon                                                 GPU kernels (Figure 13, Figure 14 and Figure 15). Note that the first
+      • Program: Go, Python                                               time this is run, it will automatically download and install the go
+      • Compilation: Go                                                   dependencies for Photon, and compile the benchmark binaries for
+      • Run-time environment: Docker                                      evaluation.
+MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada                                                                 Changxi Liu, Yifan Sun, and Trevor E. Carlson
+
+
+   For example, to generate the data of Figure 13 and Figure 15, run                  [4] Cesar Avalos Baddouh, Mahmoud Khairy, Roland N Green, Mathias Payer, and
+the command:                                                                              Timothy G Rogers. 2021. Principal Kernel Analysis: A Tractable Methodology
+                                                                                          to Simulate Scaled GPU Workloads. In 54th Annual IEEE/ACM International
+                                                                                          Symposium on Microarchitecture (MICRO). 724–737.
+                          $ ./testallbench.py                                         [5] Ali Bakhoda, George L Yuan, Wilson WL Fung, Henry Wong, and Tor M Aamodt.
+                                                                                          2009. Analyzing CUDA workloads using a detailed GPU simulator. In IEEE
+                                                                                          International Symposium on Performance Analysis of Systems and Software (ISPASS).
+                                                                                          163–174.
+   Once the execution finishes, use the command:                                      [6] Aaron Barnes, Fangjia Shen, and Timothy G Rogers. 2023. Mitigating GPU
+                                                                                          Core Partitioning Performance Effects. In IEEE International Symposium on High-
+                                                                                          Performance Computer Architecture (HPCA). 530–542.
+                    $ ./testallbench.py -check                                        [7] Trinayan Baruah, Yifan Sun, Ali Tolga Dinçer, Saiful A Mojumder, José L Abellán,
+                                                                                          Yash Ukidave, Ajay Joshi, Norman Rubin, John Kim, and David Kaeli. 2020. Griffin:
+                                                                                          Hardware-software support for efficient page migration in multi-gpu systems.
+    to collect results and export the result file r9nano.xlsx into                        In IEEE International Symposium on High Performance Computer Architecture
+                                                                                          (HPCA). 596–609.
+the micro2023_figures repository for further steps to generate                        [8] Bradford M Beckmann and Anthony Gutierrez. 2015. The AMD gem5 APU sim-
+Figure 13 and Figure 15.                                                                  ulator: Modeling heterogeneous systems in gem5. In Tutorial at the International
+                                                                                          Symposium on Microarchitecture (MICRO).
+    To generate the data and export the result file mi100.xlsx for                    [9] Åke Björck. 1990. Least squares methods. Handbook of numerical analysis 1
+Figure 14, add the parameter -arch=mi100. The -n option is used                           (1990), 465–652.
+to set how many applications to evaluate at the same time. And -h                    [10] T. E. Carlson, W. Heirman, and L. Eeckhout. 2013. Sampled simulation of multi-
+                                                                                          threaded applications. In International Symposium on Performance Analysis of
+gives help information.                                                                   Systems and Software (ISPASS). 2–12.
+    Real-world application. For the results of real-world applica-                   [11] T. E. Carlson, W. Heirman, K. Van Craeynest, and L. Eeckhout. 2014. BarrierPoint:
+tions in Figure 16 and Figure 17, we provide scripts for deep learning                    Sampled simulation of multi-threaded applications. In International Symposium
+                                                                                          on Performance Analysis of Systems and Software (ISPASS). 2–12.
+applications (testdlapps.py) and PageRank (testpagerank.py).                         [12] Cen Chen, Kenli Li, Aijia Ouyang, Zhuo Tang, and Keqin Li. 2017. Gpu-accelerated
+For example, to run VGG-16, use the command ./testdlapps.py                               parallel hierarchical extreme learning machine on flink for big data. IEEE Trans-
+                                                                                          actions on Systems, Man, and Cybernetics: Systems 47, 10 (2017), 2740–2753.
+-bench=vgg16 and then utilize ./testdlapps.py -bench=vgg16                           [13] Guoyang Chen, Yufei Ding, and Xipeng Shen. 2017. Sweet knn: An efficient knn
+-check to generate the results of VGG-16 and export the result file                       on gpu through reconciliation between redundancy removal and regularity. In
+vgg16.xlsx. Other applications are similar.                                               IEEE 33rd International Conference on Data Engineering (ICDE). 621–632.
+                                                                                     [14] Tianqi Chen, Thierry Moreau, Ziheng Jiang, Lianmin Zheng, Eddie Q. Yan,
+    Results. We provide both the scripts and the data we used to cre-                     Haichen Shen, Meghan Cowan, Leyuan Wang, Yuwei Hu, Luis Ceze, Carlos
+ate all the result figures within the micro2023_figures repository.                       Guestrin, and Arvind Krishnamurthy. 2018. TVM: An Automated End-to-End
+Prior steps will export files of new data and overwrite the original                      Optimizing Compiler for Deep Learning. In 13th USENIX Symposium on Operating
+                                                                                          Systems Design and Implementation (OSDI). 578–594.
+files inside the micro2023_figures repository. To generate fig-                      [15] Anthony Danalis, Gabriel Marin, Collin McCurdy, Jeremy S Meredith, Philip C
+ures for the new data, simply run scripts after overwriting files via                     Roth, Kyle Spafford, Vinod Tipparaju, and Jeffrey S Vetter. 2010. The Scalable Het-
+                                                                                          erogeneous Computing (SHOC) Benchmark Suite. In Proceedings of the General
+prior steps. To generate Figure 13, Figure 14 and Figure 15, execute                      Purpose GPUs (GPGPU). 63–74.
+the python scripts r9nano.py, mi100.py and r9nanolevels.py,                          [16] Sina Darabi, Mohammad Sadrosadati, Negar Akbarzadeh, Joël Lindegger, Mo-
+respectively. Running vgg16.py and vgg16speedup.py will auto-                             hammad Hosseini, Jisung Park, Juan Gómez-Luna, Onur Mutlu, and Hamid
+                                                                                          Sarbazi-Azad. 2022. Morpheus: Extending the Last Level Cache Capacity in GPU
+matically generate Figure 17. Generating Figure 16 is different with                      Systems Using Idle GPU Core Resources. In IEEE/ACM International Symposium
+others. New data should be manually copied into the file all.xlsx                         on Microarchitecture (MICRO). 228–244.
+for each application before running all.py.                                          [17] Sambit Das, Phani Motamarri, Vishal Subramanian, David M Rogers, and Vikram
+                                                                                          Gavini. 2022. DFT-FE 1.0: A massively parallel hybrid CPU-GPU density func-
+                                                                                          tional theory code using finite-element discretization. Computer Physics Commu-
+A.6      MLCommons                                                                        nications 280 (2022), 108473.
+                                                                                     [18] Shi Dong and David Kaeli. 2017. DNNMark: A Deep Neural Network Benchmark
+We have added support to evaluate Photon using the MLCom-                                 Suite for GPUs. In Proceedings of the General Purpose GPUs (GPGPU). 63–72.
+mons CM automation language [20]. Check the README inside                            [19] Peng Du, Rick Weber, Piotr Luszczek, Stanimire Tomov, Gregory Peterson, and
+                                                                                          Jack Dongarra. 2012. From CUDA to OpenCL: Towards a performance-portable
+the mlcommons directory for details.                                                      solution for multi-platform GPU programming. Parallel Comput. 38, 8 (2012),
+                                                                                          391–407.
+A.7      Methodology                                                                 [20] Grigori Fursin. 2023. Toward a common language to facilitate reproducible
+                                                                                          research and technology transfer: challenges and solutions. https://doi.org/10.
+Submission, reviewing and badging methodology:                                            5281/zenodo.8105339
+                                                                                     [21] Prasun Gera, Hyojong Kim, Hyesoon Kim, Sunpyo Hong, Vinod George, and
+     • https://www.acm.org/publications/policies/artifact-review-and-                     Chi-Keung Luk. 2018. Performance characterisation and simulation of Intel’s
+       badging-current                                                                    integrated GPU architecture. In IEEE International Symposium on Performance
+                                                                                          Analysis of Systems and Software (ISPASS). 139–148.
+     • http://cTuning.org/ae/submission-20201122.html                                [22] T. Grass, A. Rico, M. Casas, M. Moreto, and E. Ayguadé. 2016. TaskPoint: Sampled
+     • http://cTuning.org/ae/reviewing-20201122.html                                      simulation of task-based programs. In International Symposium on Performance
+                                                                                          Analysis of Systems and Software (ISPASS). 296–306.
+                                                                                     [23] Anthony Gutierrez, Bradford M. Beckmann, Alexandru Dutu, Joseph Gross,
+REFERENCES                                                                                Michael LeBeane, John Kalamatianos, Onur Kayiran, Matthew Poremba, Brandon
+ [1] Martín Abadi, Paul Barham, Jianmin Chen, Zhifeng Chen, Andy Davis, Jeffrey           Potter, Sooraj Puthoor, Matthew D. Sinclair, Mark Wyse, Jieming Yin, Xianwei
+     Dean, Matthieu Devin, Sanjay Ghemawat, Geoffrey Irving, Michael Isard, Manju-        Zhang, Akshay Jain, and Timothy G. Rogers. 2018. Lost in abstraction: Pitfalls
+     nath Kudlur, Josh Levenberg, Rajat Monga, Sherry Moore, Derek Gordon Murray,         of analyzing GPUs at the intermediate language level. In IEEE International
+     Benoit Steiner, Paul A. Tucker, Vijay Vasudevan, Pete Warden, Martin Wicke,          Symposium on High Performance Computer Architecture (HPCA). 608–619.
+     Yuan Yu, and Xiaoqiang Zheng. 2016. TensorFlow: A System for Large-Scale        [24] Dongho Ha, Yunho Oh, and Won Woo Ro. 2023. R2D2: Removing ReDunDancy
+     Machine Learning. In 12th USENIX Symposium on Operating Systems Design and           Utilizing Linearity of Address Generation in GPUs. In Proceedings of the 50th
+     Implementation (OSDI). 265–283.                                                      Annual International Symposium on Computer Architecture (ISCA). 1–14.
+ [2] AMD. 2017. AMD APP SDK 3.0 Getting Started.
+ [3] AMD. 2020. AMD Instinct MI100 Accelerators. www.AMD.com/InstinctMI100.
+Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads                                     MICRO ’23, October 28-November 1, 2023, Toronto, ON, Canada
+
+
+[25] Kim M. Hazelwood, Sarah Bird, David M. Brooks, Soumith Chintala, Utku Diril,        [48] Timothy Sherwood, Erez Perelman, Greg Hamerly, and Brad Calder. 2002. Auto-
+     Dmytro Dzhulgakov, Mohamed Fawzy, Bill Jia, Yangqing Jia, Aditya Kalro, James            matically Characterizing Large Scale Program Behavior. In International Confer-
+     Law, Kevin Lee, Jason Lu, Pieter Noordhuis, Misha Smelyanskiy, Liang Xiong,              ence on Architectural Support for Programming Languages and Operating Systems
+     and Xiaodong Wang. 2018. Applied machine learning at Facebook: A datacenter              (ASPLOS). 45–57.
+     infrastructure perspective. In IEEE International Symposium on High Performance     [49] Timothy Sherwood, Suleyman Sair, and Brad Calder. 2003. Phase tracking and
+     Computer Architecture (HPCA). 620–629.                                                   prediction. In 30th International Symposium on Computer Architecture (ISCA)).
+[26] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. 2016. Deep residual               336–349.
+     learning for image recognition. In Proceedings of the IEEE conference on computer   [50] Karen Simonyan and Andrew Zisserman. 2015. Very Deep Convolutional Net-
+     vision and pattern recognition (CVPR). 770–778.                                          works for Large-Scale Image Recognition. In 3rd International Conference on
+[27] Sunpyo Hong and Hyesoon Kim. 2009. An analytical model for a GPU architecture            Learning Representations (ICLR).
+     with memory-level and thread-level parallelism awareness. In Proceedings of the     [51] Matthew D Sinclair, Johnathan Alsop, and Sarita V Adve. 2017. Chasing away
+     36th Annual International Symposium on Computer Architecture (ISCA). 152–163.            RAts: Semantics and evaluation for relaxed atomics on heterogeneous systems. In
+[28] Jen-Cheng Huang, Joo Hwan Lee, Hyesoon Kim, and Hsien-Hsin S Lee. 2014.                  Proceedings of the 44th Annual International Symposium on Computer Architecture
+     GPUMech: GPU performance modeling technique based on interval analysis. In               (ISCA). 161–174.
+     47th Annual IEEE/ACM International Symposium on Microarchitecture (MICRO).          [52] Yifan Sun, Trinayan Baruah, Saiful A. Mojumder, Shi Dong, Xiang Gong, Shane
+     268–279.                                                                                 Treadway, Yuhui Bao, Spencer Hance, Carter McCardwell, Vincent Zhao, Harrison
+[29] Jen-Cheng Huang, Lifeng Nai, Hyesoon Kim, and Hsien-Hsin S Lee. 2014. TB-                Barclay, Amir Kavyan Ziabari, Zhongliang Chen, Rafael Ubal, José L. Abellán,
+     Point: Reducing simulation time for large-scale GPGPU kernels. In IEEE 28th              John Kim, Ajay Joshi, and David R. Kaeli. 2019. MGPUSim: enabling multi-GPU
+     International Parallel and Distributed Processing Symposium (IPDPS). 437–446.            performance modeling and optimization. In Proceedings of the 46th International
+[30] Hai Jiang, Yi Chen, Zhi Qiao, Tien-Hsiung Weng, and Kuan-Ching Li. 2015.                 Symposium on Computer Architecture (ISCA). 197–209.
+     Scaling up MapReduce-based big data processing on multi-GPU systems. Cluster        [53] Yifan Sun, Xiang Gong, Amir Kavyan Ziabari, Leiming Yu, Xiangyu Li, Saoni
+     Computing 18 (2015), 369–383.                                                            Mukherjee, Carter McCardwell, Alejandro Villegas, and David Kaeli. 2016. Hetero-
+[31] Melanie Kambadur, Sunpyo Hong, Juan Cabral, Harish Patil, Chi-Keung Luk,                 mark, a benchmark suite for CPU-GPU collaborative computing. In IEEE Interna-
+     Sohaib Sajid, and Martha A Kim. 2015. Fast computational gpu design with gt-             tional Symposium on Workload Characterization (IISWC). 1–10.
+     pin. In 2015 IEEE International Symposium on Workload Characterization (IISWC).     [54] Mohammad Khavari Tavana, Yifan Sun, Nicolas Bohm Agostini, and David Kaeli.
+     76–86.                                                                                   2019. Exploiting adaptive data compression to improve performance and energy-
+[32] Mahmoud Khairy, Zhesheng Shen, Tor M Aamodt, and Timothy G Rogers. 2020.                 efficiency of compute workloads in multi-GPU systems. In IEEE International
+     Accel-Sim: An extensible simulation framework for validated GPU modeling. In             Parallel and Distributed Processing Symposium (IPDPS). 664–674.
+     ACM/IEEE 47th Annual International Symposium on Computer Architecture (ISCA).       [55] TOP500. 2022. TOP500 Supercomputer Sites. https://www.top500.org/. Accessed
+     473–486.                                                                                 on November 16, 2022.
+[33] Joshua D Knowles, Richard A Watson, and David W Corne. 2001. Reducing local         [56] Rafael Ubal, Byunghyun Jang, Perhaad Mistry, Dana Schaa, and David Kaeli.
+     optima in single-objective problems by multi-objectivization. In Evolutionary            2012. Multi2Sim: A simulation framework for CPU-GPU computing. In 21st
+     Multi-Criterion Optimization: First International Conference (EMO). 269–283.             International Conference on Parallel Architectures and Compilation Techniques
+[34] Boris Krasnopolsky and Alexey Medvedev. 2016. Acceleration of large scale                (PACT). 335–344.
+     OpenFOAM simulations on distributed systems with multicore CPUs and GPUs.           [57] Oreste Villa, Daniel Lustig, Zi Yan, Evgeny Bolotin, Yaosheng Fu, Niladrish Chat-
+     In Parallel Computing: On the Road to Exascale. 93–102.                                  terjee, Nan Jiang, and David Nellans. 2021. Need for speed: Experiences building
+[35] Alex Krizhevsky, Ilya Sutskever, and Geoffrey E Hinton. 2017. Imagenet classi-           a trustworthy system-level gpu simulator. In IEEE International Symposium on
+     fication with deep convolutional neural networks. Commun. ACM 60, 6 (2017),              High-Performance Computer Architecture (HPCA). 868–880.
+     84–90.                                                                              [58] Bin Wang, Bo Wu, Dong Li, Xipeng Shen, Weikuan Yu, Yizheng Jiao, and Jeffrey S
+[36] Jounghoo Lee, Yeonan Ha, Suhyun Lee, Jinyoung Woo, Jinho Lee, Hanhwi Jang,               Vetter. 2013. Exploring hybrid memory for GPU energy efficiency through
+     and Youngsok Kim. 2022. GCoM: a detailed GPU core model for accurate analyti-            software-hardware co-design. In Proceedings of the 22nd International Conference
+     cal modeling of modern GPUs. In Proceedings of the 49th Annual International             on Parallel Architectures and Compilation Techniques (PACT). 93–102.
+     Symposium on Computer Architecture (ISCA). 424–436.                                 [59] T. F. Wenisch, R. E. Wunderlich, M. Ferdman, A. Ailamaki, B. Falsafi, and J. C.
+[37] Chen Li, Rachata Ausavarungnirun, Christopher J Rossbach, Youtao Zhang, Onur             Hoe. 2006. SimFlex: Statistical Sampling of Computer System Simulation. IEEE
+     Mutlu, Yang Guo, and Jun Yang. 2019. A framework for memory oversubscription             Micro 26, 4 (2006), 18–31.
+     management in graphics processing units. In Proceedings of the 24th International   [60] Roland E. Wunderlich, Thomas F. Wenisch, Babak Falsafi, and James C. Hoe. 2003.
+     Conference on Architectural Support for Programming Languages and Operating              SMARTS: Accelerating Microarchitecture Simulation via Rigorous Statistical
+     Systems (ASPLOS). 49–63.                                                                 Sampling. In International Symposium on Computer Architecture (ISCA). 84–97.
+[38] Weifeng Liu and Brian Vinter. 2015. CSR5: An efficient storage format for cross-    [61] Zhibin Yu, Lieven Eeckhout, Nilanjan Goswami, Tao Li, Lizy John, Hai Jin, and
+     platform sparse matrix-vector multiplication. In Proceedings of the 29th ACM on          Chengzhong Xu. 2013. Accelerating GPGPU architecture simulation. In ACM
+     International Conference on Supercomputing (ICS). 339–350.                               SIGMETRICS / International Conference on Measurement and Modeling of Computer
+[39] Harini Muthukrishnan, Daniel Lustig, Oreste Villa, Thomas Wenisch, and David             Systems (SIGMETRICS). 331–332.
+     Nellans. 2023. FinePack: Transparently Improving the Efficiency of Fine-Grained     [62] Zhibin Yu, Lieven Eeckhout, Nilanjan Goswami, Tao Li, Lizy K John, Hai Jin,
+     Transfers in Multi-GPU Systems. In IEEE International Symposium on High-                 Chengzhong Xu, and Junmin Wu. 2015. GPGPU-MiniBench: accelerating GPGPU
+     Performance Computer Architecture (HPCA). 516–529.                                       micro-architecture simulation. IEEE Trans. Comput. 64, 11 (2015), 3153–3166.
+[40] Mahmood Naderan-Tahan, Hossein SeyyedAghaei, and Lieven Eeckhout. 2023.             [63] Shiqing Zhang, Mahmood Naderan-Tahan, Magnus Jahre, and Lieven Eeckhout.
+     Sieve: Stratified GPU-Compute Workload Sampling. In IEEE International Sympo-            2023. SAC: Sharing-Aware Caching in Multi-Chip GPUs. In Proceedings of the
+     sium on Performance Analysis of Systems and Software (ISPASS). 224–234.                  50th Annual International Symposium on Computer Architecture (ISCA). 1–13.
+[41] NVIDIA. 2022. NVIDIA H100 Tensor Core GPU Architecture. https://www.
+     nvidia.com/en-us/data-center/h100/.
+[42] Photon 2023. MICRO - Artifact - Photon Github Repo. https://github.com/nus-
+     comparch/photon.git.
+[43] Photon 2023. MICRO - Artifact - Photon Zenodo Repo. https://doi.org/10.5281/
+     zenodo.8357867
+[44] Fritz Previlon, Charu Kalra, Devesh Tiwari, and David Kaeli. 2020. Characterizing
+     and exploiting soft error vulnerability phase behavior in gpu applications. IEEE
+     Transactions on Dependable and Secure Computing (TDSC) 19, 1 (2020), 288–300.
+[45] Alen Sabu, Harish Patil, Wim Heirman, and Trevor E. Carlson. 2022. Loop-
+     Point: Checkpoint-driven Sampled Simulation for Multi-threaded Applications.
+     In International Symposium on High Performance Computer Architecture (HPCA).
+[46] Jason Sanders and Edward Kandrot. 2011. CUDA by example: an introduction to
+     general purpose GPU programming.
+[47] Timothy Sherwood, Erez Perelman, and Brad Calder. 2001. Basic block distri-
+     bution analysis to find periodic behavior and simulation points in applications.
+     In International Conference on Parallel Architectures and Compilation Techniques
+     (PACT). 3–14.
+

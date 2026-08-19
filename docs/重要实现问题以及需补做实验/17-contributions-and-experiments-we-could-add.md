@@ -70,8 +70,8 @@ cannot run from here because this machine has no CUDA toolchain.
 **Why.** Reading the same page a second time is currently charged 11,133 ns while reading
 the next page is charged 10,121 ns, so re-reading is modeled as about 10% more expensive
 than moving on, while the specification requires a cache-buffer hit to be served
-immediately. Entry `06-A-same-page-reread-charged-as-a-new-page.md` has the code line and
-the specification quotations.
+immediately. Entry `00-A-repeated-read-of-the-same-page-is-charged-more.md` has the code
+line and the specification quotations.
 
 **Effort.** One line, plus a test, for the change that removes the reversal:
 `previous_page + 1 == page || previous_page == page` at

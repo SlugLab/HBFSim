@@ -18,22 +18,37 @@ page count, and what this project actually uses from it.
 
 Every PDF in this directory has a `.txt` file of the same name beside the PDF:
 the plain text of that PDF, extracted with `pdftotext`. The words are the same
-as in the PDF; only the layout is gone. Eleven files, with sizes:
+as in the PDF; only the layout is gone. Twenty-nine files. Nineteen of the
+twenty-nine are listed here with sizes:
 
+- `tavakkol2018-mqsim-multiqueue-ssd.txt`, 201 KB
+- `liu2023-photon-fine-grained-gpu-sampling.txt`, 179 KB
+- `khairy2020-accel-sim-gpu-simulation-framework.txt`, 151 KB
+- `baddouh2021-principal-kernel-analysis.txt`, 128 KB
+- `sherwood2002-simpoint-program-behavior.txt`, 106 KB
+- `wunderlich2003-smarts-statistical-sampling.txt`, 96 KB
 - `luo2018-heatwatch-nand-temperature.txt`, 91 KB
 - `wang2026-flashaccel-hbf-llm-inference.txt`, 88 KB
 - `yoon2026-cylon-cxl-ssd-emulation.txt`, 78 KB
 - `semiinsights2026-hbf-standard-release-cn.txt`, 77 KB
-- `yang2023-cxlmemsim.txt`, 71 KB
+- `naderan2023-sieve-stratified-gpu-sampling.txt`, 75 KB
 - `ju2026-tilelens-two-dimensional-memory-layout.txt`, 75 KB
+- `yang2023-cxlmemsim.txt`, 71 KB
+- `li2018-femu-nvme-ssd-emulator.txt`, 63 KB
 - `sano2023-cxl-microsecond-latency-gpu-graph.txt`, 61 KB
 - `yang2025-egpu-ebpf-ptx-injection.txt`, 39 KB
 - `semiinsights2026-can-hbf-work-cn.txt`, 34 KB
 - `micron2026-is-hbf-all-you-need.txt`, 22 KB
 - `zhihu2026-hbf-protocol-and-market-analysis-cn.txt`, 7 KB
 
-One of these eleven has no PDF beside it: `semiinsights2026-can-hbf-work-cn.txt`
-was captured from a WeChat page as text, not as a PDF.
+The remaining ten `.txt` files are named at the end of this section, together
+with the record that is still missing for each of the ten.
+
+Three of the twenty-nine `.txt` files have no PDF beside them:
+`semiinsights2026-can-hbf-work-cn.txt` was captured from a WeChat page as text
+rather than as a PDF; `liu2012-retention-relaxation-nand-ssd.txt`, 5 KB, and
+`sandisk2025-hbf-fact-sheet.txt`, 116 KB, also stand alone, and how each of the
+two files was obtained is not recorded anywhere in this README.
 
 Web pages captured into this directory follow the same rule: the capture is
 stored as a PDF, and the same-name `.txt` beside the capture keeps the body text
@@ -63,6 +78,24 @@ appears in a source, the PDF settles the question; the `.txt` exists so the text
 can be searched directly and cited by line. Extraction can also put text from a
 multi-column page out of order, so read the PDF wherever a passage does not read
 as coherent prose.
+
+**Ten files in this directory are not yet recorded below.** The rule at the top
+of this README asks every file for a full citation, a stable link, a SHA-256, a
+page count, and a statement of what this project uses from that file. The ten
+names listed next have no such record anywhere in this README, and no citation
+or link is guessed at here to fill the gap; obtaining the citation and the link
+for each of the ten from the file itself is outstanding work:
+
+- `cho2024-aero-adaptive-erase-operation`
+- `jeong2014-dynamic-program-erase-scaling`
+- `jouppi2023-tpu-v4-optically-reconfigurable`
+- `juravsky2024-hydragen-shared-prefix-attention`
+- `kim2024-duplex-moe-attention-accelerator`
+- `liu2012-retention-relaxation-nand-ssd`
+- `luo2018-3d-nand-early-retention-loss`
+- `pope2023-efficiently-scaling-transformer-inference`
+- `sandisk2025-hbf-fact-sheet`
+- `yuan2024-llm-inference-roofline-survey`
 
 ---
 
@@ -770,6 +803,380 @@ Boundaries:
   market-indifference verdict was published on 2026-02-20, while the first OCP
   specification came out on 2026-08-03 with Google and Tenstorrent taking part
   in it.
+
+---
+
+## Eight files on simulation cost, sampling, and device emulation
+
+Eight files were added to this directory together, and the eight entries that
+follow share one job in this project's paper. The paper's second challenge,
+written C2, is that the timing model for this layer of hardware has to be
+accurate and cheap at the same time, and accuracy and cost pull against each
+other here. This project answers C2 with two timing paths: a detailed reference
+path, and a cheap fast path. The cheap fast path brings 44.469 seconds down to
+2.014352 seconds, a factor of 20.8.
+
+The eight files fix the boundary of the C2 claim. Checked this round against
+the full text of each of the eight papers: **no paper among the eight puts the
+cheap timing path inside the GPU device code of the program under test, and no
+paper among the eight has the cheap path itself produce latency numbers.** Each
+entry below records, for the paper the entry names, where the cheap path runs
+and what the cheap path produces.
+
+Two of the eight papers, SimPoint and SMARTS, are held as the methodological
+source this project cites rather than as comparisons; SimPoint and SMARTS both
+predate GPU sampling and come from the CPU side of the literature. One further
+file, MQSim, is not a comparison either: MQSim is the flash device model this
+project runs.
+
+None of the eight has a BibTeX key in `paper/refs.bib` yet, and each entry
+below repeats that fact for the file the entry names.
+
+---
+
+## `baddouh2021-principal-kernel-analysis.pdf`
+
+The GPU sampling method a reviewer is most likely to name when asking why a new
+GPU simulation paper does not simply sample less work, and one of the two GPU
+sampling papers in this directory that select what to simulate offline.
+
+> Cesar A. Baddouh, Mahmoud Khairy, Roland Green, Mathias Payer, and
+> Timothy G. Rogers.
+> "Principal Kernel Analysis: A Tractable Methodology to Simulate Scaled GPU
+> Workloads."
+> In *MICRO-54: 54th Annual IEEE/ACM International Symposium on
+> Microarchitecture (MICRO '21)*, October 18--22, 2021, Virtual Event, Greece.
+> ACM, New York, NY, USA, 14 pages.
+> DOI: `10.1145/3466752.3480100`
+
+- Affiliations: Purdue University; Roland Green at Cerebras; Mathias Payer at
+  EPFL.
+- Stable link:
+  <https://engineering.purdue.edu/tgrogers/papers/baddouh.micro2021.pdf>
+- SHA-256: `7944791084038314483fb70f42163c37205a8dcf9ea2969bd374139b146e9c84`
+- 2,077,382 bytes; 14 pages; 131,994 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: Principal Kernel Analysis samples at two levels, the
+kernel invocation and the thread block. A kernel is a piece of program that the
+host launches and the GPU then executes; a thread block is a group of GPU
+threads that the hardware schedules as one unit. Which kernel invocations and
+which thread blocks to simulate is decided offline, from a profile collected by
+running the workload on a real GPU. There is no second, cheaper timing path
+anywhere in Principal Kernel Analysis: the whole saving comes from running the
+same detailed simulator over fewer kernel invocations and fewer thread blocks.
+So Principal Kernel Analysis never produces a latency number from a cheap path,
+and no part of the timing model in Principal Kernel Analysis runs inside the
+GPU device code of the program under test. Both of those absences are what the
+C2 claim in this project's paper needs in order to be stated as a boundary
+rather than as a general statement about GPU simulation.
+
+Verified from the full text:
+
+- The cost problem, quoted from the abstract: `Simulating all threads in a
+  scaled GPU workload results in prohibitive simulation cost.`
+- The alternatives Principal Kernel Analysis lists as already existing, quoted
+  from the abstract: `Existing solutions to simulate GPU programs either scale
+  the input size, simulate the first several billion instructions, or simulate a
+  portion of both the GPU and the workload.`
+- Why CPU sampling does not carry over, quoted from the abstract: `Existing CPU
+  sampling mechanisms, like SimPoint, reduce per-thread workload, and are
+  ill-suited to GPU programs where reducing the number of threads is critical.`
+- A reported result on the Ampere GPU generation, for the SGEMM benchmark of the
+  Cutlass Perf Suite, quoted from the body text: `presents a negligible mean
+  error and a geomean speedup of 6×`.
+
+---
+
+## `khairy2020-accel-sim-gpu-simulation-framework.pdf`
+
+The cycle-level GPU simulation framework the GPU sampling papers in this
+directory build on, and the tool a reviewer will name when asking why this
+project did not extend an existing GPU simulator instead.
+
+> Mahmoud Khairy, Zhesheng Shen, Tor M. Aamodt, and Timothy G. Rogers.
+> "Accel-Sim: An Extensible Simulation Framework for Validated GPU Modeling."
+> In *Proceedings of the 47th Annual International Symposium on Computer
+> Architecture (ISCA)*, 2020.
+
+- Affiliations: Purdue University; Tor M. Aamodt at University of British
+  Columbia.
+- Stable link:
+  <https://people.ece.ubc.ca/aamodt/publications/papers/accelsim.isca2020.pdf>
+- SHA-256: `74cf70af45dd6d1eef45a693483eda3d0a85fc915e42545aa7e3b4e5daab8022`
+- 1,161,499 bytes; 14 pages; 155,365 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: Accel-Sim simulates a GPU cycle by cycle, and both
+timing paths in Accel-Sim run on the host CPU. No timing model in Accel-Sim
+executes inside the GPU device code of the program under test, and the speed of
+Accel-Sim is the speed of a host-side simulator, not of a second cheap path
+that produces latency numbers on the device. Accel-Sim is also the framework
+the sampling work in this directory measures its savings against, so the
+speedup figures quoted in the Principal Kernel Analysis, Sieve and Photon
+entries are savings on top of a host-side cycle-level simulator.
+
+Verified from the full text:
+
+- The gap Accel-Sim states in its abstract: `In computer architecture,
+  significant innovation frequently comes from industry. However, the simulation
+  tools used by industry are often not released for open use, and even when they
+  are, the exact details of industrial designs are not disclosed.`
+
+---
+
+## `li2018-femu-nvme-ssd-emulator.pdf`
+
+The flash emulator that lets an unmodified guest operating system run a real
+workload against a solid-state drive built entirely out of software.
+
+> Huaicheng Li, Mingzhe Hao, Michael Hao Tong, Swaminatahan Sundararaman,
+> Matias Bjørling, and Haryadi S. Gunawi.
+> "The CASE of FEMU: Cheap, Accurate, Scalable and Extensible Flash Emulator."
+> In *16th USENIX Conference on File and Storage Technologies (FAST '18)*,
+> February 12--15, 2018, Oakland, CA, USA. ISBN 978-1-931971-42-3
+
+- Affiliations: Huaicheng Li, Mingzhe Hao, Michael Hao Tong and
+  Haryadi S. Gunawi, University of Chicago; Swaminatahan Sundararaman, Parallel
+  Machines; Matias Bjørling, CNEX Labs. The given name `Swaminatahan` is spelled
+  that way in the paper and is copied here unchanged.
+- Stable link, printed on the first page of the paper:
+  <https://www.usenix.org/conference/fast18/presentation/li>
+- SHA-256: `11e263fcb08130bb42b381f08d8b9c1eb018e54369b004c0b7872ec3f080cc25`
+- 483,697 bytes; 9 pages; 64,620 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: FEMU is built into QEMU, a machine emulator that
+runs an unmodified guest operating system, and FEMU presents itself to that
+guest as an NVMe device. NVMe is the interface protocol a modern solid-state
+drive speaks to the host, so software in the guest issues ordinary storage
+requests and never learns that no drive exists. The timing model of FEMU runs
+in the hypervisor, which is the software layer hosting the guest, and therefore
+outside the program under test. FEMU is held here because FEMU shows what the
+storage side does when the device is missing: emulate the device outside the
+program, on the host. The fast path in this project runs in the other place,
+inside the GPU device code the program under test executes, and no timing model
+in FEMU runs there.
+
+Verified from the full text:
+
+- What FEMU is and what accuracy FEMU claims, quoted from the abstract: `FEMU is
+  a software (QEMU-based) flash emulator for fostering future full-stack
+  software/hardware SSD research. FEMU is cheap (open-sourced), relatively
+  accurate (0.5-38% variance as a drop-in replacement of OpenChannel SSD),
+  scalable (can support 32 parallel channels)`
+
+---
+
+## `liu2023-photon-fine-grained-gpu-sampling.pdf`
+
+The most important comparison of the eight files here: the GPU sampling method
+whose structure comes closest to the two timing paths this project uses, and
+the method whose cheap path is easiest to mistake for the cheap path in this
+project.
+
+> Changxi Liu, Yifan Sun, and Trevor E. Carlson.
+> "Photon: A Fine-grained Sampled Simulation Methodology for GPU Workloads."
+> In *MICRO '23*, October 28--November 1, 2023, Toronto, ON, Canada.
+> DOI: `10.1145/3613424.3623773`
+
+- Affiliations: Changxi Liu and Trevor E. Carlson, National University of
+  Singapore; Yifan Sun, College of William & Mary.
+- Stable link: no verifiable direct address for the PDF was obtained this round.
+  The DOI above is the only address recorded for Photon here.
+- SHA-256: `1106c07bd31cce87c6b2b280416edbcb8a56317aad1e3c7183638144b9b30a12`
+- 1,491,039 bytes; 15 pages; 184,221 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: Photon samples at three levels, the kernel, the warp
+and the basic block. A warp is the group of GPU threads the hardware issues
+instructions for as one unit; a basic block is a straight-line run of
+instructions with one entry and one exit. Photon decides what to sample while
+the workload runs, with no separate profiling pass beforehand, which is why
+Photon is the closest published method to the fast path in this project and why
+the difference has to be stated exactly. Photon does have a cheap execution
+mode, and the cheap mode of Photon computes only correct results, with no time
+values at all; the mode that produces time values is the detailed mode. Both
+modes of Photon run on the host CPU, inside the simulator. The sentence quoted
+first below is the sentence this project's paper cites for that difference.
+
+Verified from the full text:
+
+- The two modes, quoted: `fast-forward mode, which allows for functional
+  simulation only, and detailed mode, which enables the timing model.`
+- The cost problem, quoted from the abstract: `existing GPU simulators are too
+  slow to enable architects to quickly evaluate their hardware designs and
+  software analysis studies`
+
+---
+
+## `naderan2023-sieve-stratified-gpu-sampling.pdf`
+
+The GPU sampling method aimed at the workloads that the earlier GPU sampling
+work handles worst: workloads with very many kernels and very many kernel
+invocations.
+
+> Mahmood Naderan-Tahan, Hossein SeyyedAghaei, and Lieven Eeckhout.
+> "Sieve: Stratified GPU-Compute Workload Sampling."
+> In *2023 IEEE International Symposium on Performance Analysis of Systems and
+> Software (ISPASS)*, 2023.
+
+- Affiliation: Ghent University, Belgium.
+- Stable link: <https://users.elis.ugent.be/~leeckhou/papers/ispass-2023.pdf>
+- SHA-256: `d8feb16b9e2e103c44d5dc5357ac72f912bc1c63817f9fb266199d56e2f529e5`
+- 3,000,886 bytes; 11 pages; 77,400 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: Sieve samples at the level of the individual kernel
+invocation, and sorts the invocations into groups by instruction count before
+drawing samples inside each group. Stratified sampling means exactly that:
+split the population into groups whose members resemble one another on some
+property, then sample within every group, so a group with few members still
+gets represented. The profiling stage of Sieve runs on a real GPU. Sieve has no
+second cheap timing path: the detailed simulator is the only part of Sieve that
+produces time values, and the saving comes from handing the detailed simulator
+fewer kernel invocations. The Principal Kernel Selection named in the first
+quotation below is a stage of the Principal Kernel Analysis methodology of
+`baddouh2021-principal-kernel-analysis.pdf`, not a separate method: the
+Principal Kernel Analysis paper introduces the stage in its own contribution
+list, quoted from Section 1, `We introduce Principal Kernel Selection`, and the
+reference Sieve attaches to the name, numbered 11 in the Sieve bibliography, is
+`C. A. Baddouh, M. Khairy, R. N. Green, M. Payer, and T. G. Rogers, "Principal
+kernel analysis: A tractable methodology to simulate scaled GPU workloads"`.
+
+Verified from the full text:
+
+- The gap Sieve claims, quoted from the abstract: `the state-of-the-art sampling
+  method for GPU-compute workloads, Principal Kernel Selection (PKS), falls
+  short for challenging GPU-compute workloads with a large number of kernels and
+  kernel invocations`
+- What Sieve proposes, quoted from the abstract: `In this paper, we propose
+  Sieve, an accurate and low-overhead sampling methodology for GPU-compute
+  workloads.`
+
+---
+
+## `sherwood2002-simpoint-program-behavior.pdf`
+
+Where the practice of simulating a few chosen intervals of a program instead of
+the whole run comes from. Held as the source of a method this project uses, not
+as a comparison.
+
+> Timothy Sherwood, Erez Perelman, Greg Hamerly, and Brad Calder.
+> "Automatically Characterizing Large Scale Program Behavior."
+> In *ASPLOS X*, 10/02, San Jose, CA, USA.
+
+- Affiliation: University of California, San Diego.
+- Stable link:
+  <https://cseweb.ucsd.edu/~calder/papers/ASPLOS-02-SimPoint.pdf>
+- SHA-256: `f67a9b33460c3148edde0859279cb94f464e96f8a0c37009e7acd40110d1d1ac`
+- 276,879 bytes; 13 pages; 109,482 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: SimPoint is the CPU-side origin of sampled
+simulation, and this project cites SimPoint as the source of the method rather
+than presenting sampling as an invention of this project. SimPoint matters here
+for a second reason as well: the Principal Kernel Analysis paper names SimPoint
+by name as the CPU mechanism that does not carry over to GPUs, because SimPoint
+reduces the work done per thread while GPU simulation cost is driven by the
+number of threads. That sentence is quoted in full in the entry for
+`baddouh2021-principal-kernel-analysis.pdf`.
+
+Verified from the full text:
+
+- What SimPoint sets out to build, quoted from the abstract: `In order to
+  perform such an analysis we need to develop a hardware independent metric that
+  can concisely summarize the behavior of an arbitrary section of execution in a
+  program.`
+
+---
+
+## `tavakkol2018-mqsim-multiqueue-ssd.pdf`
+
+The one file among the eight added here that this project depends on rather
+than compares against: MQSim is the flash device model this project runs.
+
+> Arash Tavakkol, Juan Gómez-Luna, Mohammad Sadrosadati, Saugata Ghose, and
+> Onur Mutlu.
+> "MQSim: A Framework for Enabling Realistic Studies of Modern Multi-Queue SSD
+> Devices."
+> In *16th USENIX Conference on File and Storage Technologies (FAST '18)*,
+> February 12--15, 2018, Oakland, CA, USA. ISBN 978-1-931971-42-3
+
+- Affiliations: Arash Tavakkol, Juan Gómez-Luna and Mohammad Sadrosadati,
+  ETH Zürich; Saugata Ghose, Carnegie Mellon University; Onur Mutlu, ETH Zürich
+  and Carnegie Mellon University.
+- Stable link, printed on the first page of the paper:
+  <https://www.usenix.org/conference/fast18/presentation/tavakkol>
+- Direct address fetched this round:
+  <https://www.usenix.org/system/files/conference/fast18/fast18-tavakkol.pdf>
+- SHA-256: `6af7582801be37c91448df2fd032876209cf99e4ea10ab5e06998b3e1a2dbc99`
+- 2,529,997 bytes; 18 pages; 206,301 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: every latency number the flash side of this project
+produces passes through MQSim, so the settings MQSim is run with are part of
+this project's results and have to be stated with them. One limit is already
+written down by the collaborator in `paper/eval.tex`, quoted: `It is an MQSim
+PAGE_LEVEL proxy, not byte-granularity HBF AXI interleaving.` In plain terms,
+this project runs MQSim in the page-level mapping mode, where the smallest unit
+the model maps and charges time for is one flash page, while the HBF
+specification defines interleaving on the host side at byte granularity. A
+page-level mapping mode and byte-granularity interleaving are not the same
+thing, so timing obtained through MQSim stands in for HBF timing instead of
+reproducing HBF timing, and any claim that depends on fine-grained access
+patterns has to carry that limit with it.
+
+---
+
+## `wunderlich2003-smarts-statistical-sampling.pdf`
+
+The methodological source for how the sampling in this project is organised,
+including the rule that the warm-up period runs on the detailed reference path.
+
+> Roland E. Wunderlich, Thomas F. Wenisch, Babak Falsafi, and James C. Hoe.
+> "SMARTS: Accelerating Microarchitecture Simulation via Rigorous Statistical
+> Sampling."
+> In *Proceedings of the 30th Annual International Symposium on Computer
+> Architecture (ISCA)*, 2003.
+
+- Affiliation: Computer Architecture Laboratory (CALCM), Carnegie Mellon
+  University, Pittsburgh, PA 15213-3890.
+- Project page, printed on the first page of the paper:
+  <http://www.ece.cmu.edu/~simflex>
+- Stable link: no verifiable direct address for the PDF was obtained this round.
+  The project page above is the only address recorded for SMARTS here.
+- SHA-256: `2a72c595d2c9b76a52189ea7844643e19aa0e8187d29b85730968df134e22bfe`
+- 260,986 bytes; 12 pages; 98,594 characters of body text extracted with
+  `pdftotext`.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Why this project holds it: the arrangement this project uses -- run the warm-up
+period entirely on the detailed reference path, then sample the remainder by a
+fixed rule -- comes from this line of work, and the paper of this project cites
+SMARTS for the arrangement instead of presenting the arrangement as new.
+Systematic sampling, the term in the first quotation below, means taking
+measurements at fixed intervals through the run rather than at randomly chosen
+points. The second quotation is the warm-up half of the same arrangement:
+warming instructions are simulated in full detail and are not measured, so the
+detailed simulation during warm-up contributes no measurement of its own and
+exists only to bring the modelled state into the condition the following
+measurement needs.
+
+Verified from the full text:
+
+- Why fixed intervals rather than random points, quoted: `SMARTS uses systematic
+  sampling rather than random sampling because systematic sampling is more
+  straightforward`
+- What happens during warm-up, quoted: `detailed simulation of W warming
+  instructions (without measurement)`
 
 ---
 

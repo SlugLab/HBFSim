@@ -293,8 +293,9 @@ configurable parameter; we must not claim it is bound to a named register.
 
 Four of the findings above are the reason four entries exist in this directory:
 
-- Finding 3, read side, cache buffers → `06-A-same-page-reread-charged-as-a-new-page.md`
-  and `13-C-reference-path-has-no-cache-read-either.md`.
+- Finding 3, read side, cache buffers →
+  `00-A-repeated-read-of-the-same-page-is-charged-more.md` and
+  `13-C-reference-path-has-no-cache-read-either.md`.
 - Finding 3, write side, 4 KiB accumulation →
   `03-A-write-charged-per-instruction-not-per-4kib.md`.
 - Finding 3, sequential writing within a block →

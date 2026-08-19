@@ -1,8 +1,8 @@
 # Points in the implementation we would like you to check
 
 **What this directory is.** Fourteen places in the code where our reading of the source
-does not match what we expected, written up one point per file and numbered 01 to 14,
-followed by four files that are not code points, numbered 15 to 18: the experiments that
+does not match what we expected, written up one point per file and numbered 00 to 14 with
+no 06, followed by four files that are not code points, numbered 15 to 18: the experiments that
 have to be added before submission, the questions only you can answer, a priority-ordered
 list of work we could add before 2026-09-15, and a check of every claim we make about the
 device against the OCP specification. One further file sits in the subdirectory
@@ -13,10 +13,24 @@ the fourteen may turn out to be a deliberate choice we did not recognise, or a m
 on our side.
 
 **What the two-digit number in each file name means.** The number is the severity rank of
-the point, and the letter after the number is the severity itself: `01` to `06` carry
+the point, and the letter after the number is the severity itself: `00` to `05` carry
 severity `A`, `07` to `12` carry `B`, and `13` and `14` carry `C`. The file listing is
 therefore the severity ordering, so the directory shows the most severe point first
-without anyone opening `README.md`. The numbering used before was the order in which the
+without anyone opening `README.md`. The point numbered `00` was written after the others
+and has to be listed first; the number `00` puts the point at the front without
+renumbering the rest a second time, and renumbering a second time is worth avoiding
+because the previous renumbering broke seven cross-references elsewhere in the repository,
+each of which had to be found and fixed by hand.
+
+**Why there is no `06`.** The file numbered `06` wrote up the same point as the file
+numbered `00` — the same source file, the same condition `previous_page + 1 == page`, the
+same 11,133 ns against 10,121 ns, the same severity `A`, and the same conflict with the
+specification. The two have been merged into `00`, which keeps the ONFI 6.0 figure and the
+`BUCCAP` register field that only `06` carried, and `06` has been deleted. The number `06`
+was left unused rather than closed up, because closing it up means renaming `07` through
+`14` and fixing every cross-reference to those eight files a second time.
+
+The numbering used before was the order in which the
 points were written, which carried no meaning, and a point's number here does not match
 the number the same point had earlier. The directory was renamed at the same time, from
 `docs/可能潜在代码实现问题请求审查` to `docs/重要实现问题以及需补做实验`.
@@ -96,19 +110,19 @@ file says which of its own statements sit at which level.
 
 | # | File | Severity | How sure we are | Conflicts with the OCP specification? | The point |
 |---|---|---|---|---|---|
-| 1 | `01-A-write-path-may-not-be-a-store-instruction.md` | A | Primary source for the specification text, page number given for every sentence; inference for the step that no GPU instruction set has a store instruction with these semantics | Not a conflict with the specification — a question about which layer our emulation models | A write to HBF has to arrive as 64-byte pieces accumulated into 4 KiB within a host-set time limit, in sequential order inside a NAND block, erasing the whole block when page 0 is written, and returns a per-command status code. We model a write by rewriting `st.global` in PTX, so if the real write path is maintained by a runtime rather than issued as a store instruction, that path models an operation the device does not have. |
-| 2 | `05-A-accounting-unit-is-the-kernel-launch.md` | A | Primary source for all code and both proofs; inference for the 0.275 s to 8.97 s range | No — and the specification is why the problem is hard: no per-access event exists outside the program under test | Accounting happens per kernel launch, charging happens per warp-merged request, and the two are not connected, so accesses that were skipped appear in no counter. In the first live run, 10,584 launches touched registered memory, 0 were timed, and 0 ns of media time was reported. |
-| 3 | `03-A-write-charged-per-instruction-not-per-4kib.md` | A | Primary source for the code and the specification; inference for the factor of 8 to 32 | **Yes** — section 5.4.1 item 3, page 58 | A store is charged one full program time per instruction, so filling a 4 KiB page costs 8 to 32 times what the specification says, 13.07 ms or 3.27 ms against 408,305 ns. |
-| 4 | `02-A-headline-164x-came-from-a-100x-time-scale.md` | A | Primary source for the profile and the code; needs your confirmation of which profile the run used | No, but it interacts with item 15 of `15-experiments-we-must-add-before-submission.md` (item 11 before that document was renumbered) | The 164.70x figure was produced under a profile whose `time_scale` is 100, so every charged access costs 1 ms rather than 10 µs, and the proof document does not mention the factor. |
-| 5 | `06-A-same-page-reread-charged-as-a-new-page.md` | A | Primary source for the code, the breakpoints and the specification; second-hand for the ONFI 6.0 figure | **Yes** — section 5.3.1 items 5a, 7, 8, pages 56 to 57, and register field `NCBB`, page 70 | Reading the same page again is charged 11,133 ns while reading the next page is charged 10,121 ns, so re-reading is modeled as about 10% more expensive. Both documents put the two cases the other way round. |
+| 1 | `00-A-repeated-read-of-the-same-page-is-charged-more.md` | A | Primary source for the code lines and for the three specification sentences, each quoted with its page number; second-hand for the ONFI 6.0 figure; inference for the 10.0% difference | **Yes** — section 5.3.1 items 5 a, 7 and 8, pages 56 to 57, and register field `NCBB`, page 70 | The run length is raised only when the page number of an access is exactly one greater than the page number of the previous access, so a repeated read of the same page resets the run length to 1 and is charged a whole first page: 11,133 ns against 10,121 ns for a sequential read of the next page, about 10.0% more. The specification requires a repeated read of the same page to hit a cache buffer and be served immediately, and ONFI 6.0 puts the two cases the same way round. |
+| 2 | `01-A-write-path-may-not-be-a-store-instruction.md` | A | Primary source for the specification text, page number given for every sentence; inference for the step that no GPU instruction set has a store instruction with these semantics | Not a conflict with the specification — a question about which layer our emulation models | A write to HBF has to arrive as 64-byte pieces accumulated into 4 KiB within a host-set time limit, in sequential order inside a NAND block, erasing the whole block when page 0 is written, and returns a per-command status code. We model a write by rewriting `st.global` in PTX, so if the real write path is maintained by a runtime rather than issued as a store instruction, that path models an operation the device does not have. |
+| 3 | `05-A-accounting-unit-is-the-kernel-launch.md` | A | Primary source for all code and both proofs; inference for the 0.275 s to 8.97 s range | No — and the specification is why the problem is hard: no per-access event exists outside the program under test | Accounting happens per kernel launch, charging happens per warp-merged request, and the two are not connected, so accesses that were skipped appear in no counter. In the first live run, 10,584 launches touched registered memory, 0 were timed, and 0 ns of media time was reported. |
+| 4 | `03-A-write-charged-per-instruction-not-per-4kib.md` | A | Primary source for the code and the specification; inference for the factor of 8 to 32 | **Yes** — section 5.4.1 item 3, page 58 | A store is charged one full program time per instruction, so filling a 4 KiB page costs 8 to 32 times what the specification says, 13.07 ms or 3.27 ms against 408,305 ns. |
+| 5 | `02-A-headline-164x-came-from-a-100x-time-scale.md` | A | Primary source for the profile and the code; needs your confirmation of which profile the run used | No, but it interacts with item 15 of `15-experiments-we-must-add-before-submission.md` (item 11 before that document was renumbered) | The 164.70x figure was produced under a profile whose `time_scale` is 100, so every charged access costs 1 ms rather than 10 µs, and the proof document does not mention the factor. |
 | 6 | `04-A-capacity-mode-rewrites-a-page-in-place.md` | A | Primary source for the code and the specification; inference for the mapping onto write error `0x2` and for the 104.5 ms figure | **Yes** — sections 11.5.2.2 and 11.5.2.6, pages 121 and 122 | The capacity mode writes an evicted page back to its own address. HBF forbids random writing inside a block; the legal alternative is a whole-block replay costing 104.5 ms, a write amplification of 256 times. |
 | 7 | `07-B-cp-async-and-bulk-tensor-copy-unmatched.md` | B | Primary source: the six instructions were run through both regular expressions | No | `cp.async` and the bulk tensor copy instructions match neither the supported-form pattern nor the unsupported-list pattern, so accesses in those forms are neither modeled nor counted as unsupported. |
 | 8 | `08-B-thermal-not-connected-to-timing.md` | B | Primary source: zero hits for six search terms in `src/` and `include/` | No | Temperature is calibrated by the scripts and never turns into an effect on access latency, so the paper's central claim has no mechanism behind it yet. |
-| 9 | `09-B-no-page-residency-filter-across-warps.md` | B | Primary source | Partly — the same cache-buffer clauses as entry 06 | A page read again by a different warp, or later in time, is charged another full media access; the reported time comes out above what hardware would take, by an amount set by how much reuse the workload has. |
+| 9 | `09-B-no-page-residency-filter-across-warps.md` | B | Primary source | Partly — the same cache-buffer clauses as entry 00 | A page read again by a different warp, or later in time, is charged another full media access; the reported time comes out above what hardware would take, by an amount set by how much reuse the workload has. |
 | 10 | `10-B-delay-injected-at-issue-not-at-use.md` | B | Primary source | No | The modeled delay is spent where the access is issued rather than where the loaded value is first used, which turns an access that could have been overlapped into a stall in place. |
 | 11 | `11-B-one-scalar-for-all-channels.md` | B | Primary source | No, though a per-channel model would follow the per-bank ordering rules of section 5.3.1 | All traffic is serialized through one 64-bit counter, `fast_channel_tail_ns`, while the three parameter profiles declare 16, 32 and 64 channels with 8 dies each. |
 | 12 | `12-B-erase-latency-is-a-derived-constant.md` | B | Primary source for the line and the profile value; inference for "no measurement stands behind it" | No — the specification contains no timing figure at all, which is why the number has to come from elsewhere | The block erase time is `program_latency_ns * 10`, which is 4,083,050 ns on the calibrated profile, with no measurement behind the factor of ten. |
-| 13 | `13-C-reference-path-has-no-cache-read-either.md` | C | Primary source for the adapter; the two upstream MQSim lines cannot be re-checked in our tree | Indirectly — the same clauses as entry 06 | The detailed MQSim path charges the same latency for every read command, so it answers the same way as the fast path on entry 06 and cannot be used to settle the question. |
+| 13 | `13-C-reference-path-has-no-cache-read-either.md` | C | Primary source for the adapter; the two upstream MQSim lines cannot be re-checked in our tree | Indirectly — the same clauses as entry 00 | The detailed MQSim path charges the same latency for every read command, so it answers the same way as the fast path on entry 00 and cannot be used to settle the question. |
 | 14 | `14-C-no-consistency-check-between-paths.md` | C | Primary source: searches for consistency, cross_check, agreement and divergence return nothing relevant | No | Nothing in the code compares the fast path against the detailed MQSim path, which the paper outline says must be checkable. |
 
 ## The entries that conflict with the OCP specification
@@ -116,13 +130,16 @@ file says which of its own statements sit at which level.
 Singled out because these are the ones a reviewer holding the specification could raise
 without running anything:
 
+- **Entry 00** — a repeated read of the same page resets the run length and is therefore
+  charged a whole first page, while section 5.3.1 item 5 a and item 8 require a read that
+  hits a cache buffer to be served immediately (pages 56 to 57), and item 7 together with
+  the register field `NCBB` on page 70 gives the two cache buffers per bank the hit would
+  land in.
 - **Entry 03** — a write is charged per instruction instead of once per accumulated 4 KiB
   unit (section 5.4.1 item 3, page 58).
 - **Entry 04** — the capacity mode performs an in-place page rewrite, which sections
   11.5.2.2 and 11.5.2.6 forbid (pages 121 and 122).
-- **Entry 06** — a read that hits a cache buffer is charged the full first-page cost,
-  while section 5.3.1 items 5a and 8 require it to be served immediately (pages 56 to 57).
-- **Entry 13** — the detailed path has the same behaviour as entry 06, through the same
+- **Entry 13** — the detailed path has the same behaviour as entry 00, through the same
   clauses.
 - **Entry 09** — partly, through the same clauses, for reuse across warps within the
   two-page depth the specification guarantees.
@@ -147,7 +164,7 @@ point that remains is not confused with the point that fell.
 The fourteen code points and the four files that go with the fourteen code points all live
 in this directory. One list is still kept outside: `todo/facts-to-verify.md`.
 
-- **Files `01-...` through `14-...`** — places where the code does something other than
+- **Files `00-...` through `14-...`** — places where the code does something other than
   what we expected, and we want to know whether the expectation or the reading was at
   fault, one file per point.
 - **`15-experiments-we-must-add-before-submission.md`** — the work order: twenty-three experiment items in eight

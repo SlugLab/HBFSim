@@ -1,0 +1,1160 @@
+                                         Automatically Characterizing
+                                        Large Scale Program Behavior
+
+                   Timothy Sherwood                          Erez Perelman                    Greg Hamerly              Brad Calder
+                                               Department of Computer Science and Engineering
+                                                      University of California, San Diego
+                                                  {sherwood,eperelma,ghamerly,calder}@cs.ucsd.edu
+
+
+
+                                 Abstract                                                program behavior over large sections of execution.
+   Understanding program behavior is at the foundation of                                   In order to perform such an analysis we need to develop a
+computer architecture and program optimization. Many pro-                                hardware independent metric that can concisely summarize
+grams have wildly diﬀerent behavior on even the very largest                             the behavior of an arbitrary section of execution in a pro-
+of scales (over the complete execution of the program). This                             gram. In [19], we presented the use of Basic Block Vectors
+realization has ramiﬁcations for many architectural and com-                             (BBV), which uses the structure of the program that is ex-
+piler techniques, from thread scheduling, to feedback directed                           ercised during execution to determine where to simulate. A
+optimizations, to the way programs are simulated. However,                               BBV represents the code blocks executed during a given in-
+in order to take advantage of time-varying behavior, we must                             terval of execution. Our goal was to ﬁnd a single continuous
+ﬁrst develop the analytical tools necessary to automatically                             window of executed instructions that match the whole pro-
+and eﬃciently analyze program behavior over large sections                               gram’s execution, so that this smaller window of execution
+of execution.                                                                            can be used for simulation instead of executing the program
+   Our goal is to develop automatic techniques that are ca-                              to completion. Using the BBVs provided us with a hardware
+pable of ﬁnding and exploiting the Large Scale Behavior of                               independent way of ﬁnding this small representative window.
+programs (behavior seen over billions of instructions). The                                 In this paper we examine the use of BBVs for analyzing
+ﬁrst step towards this goal is the development of a hardware                             large scale program behavior. We use BBVs to explore the
+independent metric that can concisely summarize the behav-                               large scale behavior of several programs and discover the
+ior of an arbitrary section of execution in a program. To                                ways in which common patterns, and code, repeat themselves
+this end we examine the use of Basic Block Vectors. We                                   over the course of execution. We quantify the eﬀectiveness of
+quantify the eﬀectiveness of Basic Block Vectors in capturing                            basic block vectors in capturing this program behavior across
+program behavior across several diﬀerent architectural met-                              several diﬀerent architectural metrics (such as IPC, branch,
+rics, explore the large scale behavior of several programs, and                          and cache miss rates).
+develop a set of algorithms based on clustering capable of an-                              In addition to this, there is a need for a way of classifying
+alyzing this behavior. We then demonstrate an application of                             these repeating patterns so that this information can be used
+this technology to automatically determine where to simulate                             for optimization. We show that this problem of classifying
+for a program to help guide computer architecture research.                              sections of execution is related to the problem of cluster-
+                                                                                         ing from machine learning, and we develop an algorithm to
+                                                                                         quickly and eﬀectively ﬁnd these sections based on clustering.
+1. INTRODUCTION                                                                          Our techniques automatically break the full execution of the
+   Programs can have wildly diﬀerent behavior over their run                             program up into several sets, where the elements of each set
+time, and these behaviors can be seen even on the largest of                             are very similar. Once this classiﬁcation is completed, anal-
+scales. Understanding these large scale program behaviors                                ysis and optimization can be performed on a per-set basis.
+can unlock many new optimizations. These range from new                                     We demonstrate an application of this cluster-based be-
+thread scheduling algorithms that make use of information on                             havior analysis to simulation methodology for computer ar-
+when a thread’s behavior changes, to feedback directed op-                               chitecture research. By making use of clustering information
+timizations targeted at not only the aggregate performance                               we are able to accurately capture the behavior of a whole
+of the code but individual phases of execution, to creating                              program by taking simulation results from representatives of
+simulations that accurately model full program behavior. To                              each cluster and weighing them appropriately. This results
+enable these optimizations, we must ﬁrst develop the analyt-                             in ﬁnding a set of simulation points that when combined ac-
+ical tools necessary to automatically and eﬃciently analyze                              curately represents the target application and input, which
+                                                                                         in turn allows the behavior of even very complicated pro-
+                                                                                         grams such as gcc to be captured with a small amount of
+                                                                                         simulation time. We provide simulation points (points in the
+Permission to make digital or hard copies of all or part of this work for                program to start execution at) for Alpha binaries of all of the
+personal or classroom use is granted without fee provided that copies are                SPEC 2000 programs. In addition, we validate these simula-
+not made or distributed for profit or commercial advantage and that copies
+bear this notice and the full citation on the first page. To copy otherwise, to          tion points with the IPC, branch, and cache miss rates found
+republish, to post on servers or to redistribute to lists, requires prior specific       for complete execution of the SPEC 2000 programs.
+permission and/or a fee.                                                                    The rest of the paper is laid out as follows. First, a sum-
+ASPLOS X, 10/02, San Jose, CA, USA.                                                      mary of the methodology used in this research is described
+Copyright 2002 ACM 1-58113-574-2/02/0010 ...$5.00.
+
+
+                                                                                     1
+in Section 2. Section 3 presents a brief review of basic block         number of instructions in that basic block. By multiplying
+vectors and an in depth look into the proposed techniques              in the number of instructions in each basic block we insure
+and algorithms for identifying large scale program behaviors,          that we weigh instructions the same regardless of whether
+and an analysis of their use on several programs. Section 4            they reside in a large or small basic block. We say that a Ba-
+describes how clustering can be used to analyze program be-            sic Block Vector which was gathered by counting basic block
+havior, and describes the clustering methods used in detail.           executions over an interval of N × 100 million instructions,
+Section 5 examines the use of the techniques presented in              is a Basic Block Vector of duration N .
+Sections 3 and 4 on an example problem: ﬁnding where to                   Because we are not interested in the actual count of basic
+simulate in a program to achieve results representative of full        block executions for a given interval, but rather the propor-
+program behavior. Related work is discussed in Section 6,              tions between time spent in basic blocks, a BBV is normal-
+and the techniques presented are summarized in Section 7.              ized by having each element divided by the sum of all the
+                                                                       elements in the vector.
+2.   METHODOLOGY                                                       3.2 Basic Block Vector Difference
+   In this paper we used both ATOM [21] and SimpleScalar                 In order to ﬁnd patterns in the program we must ﬁrst have
+3.0c [3] to perform our analysis and gather our results for
+                                                                       some way of comparing two Basic Block Vectors. The oper-
+the Alpha AXP ISA. ATOM is used to quickly gather pro-
+                                                                       ation we desire takes as input two Basic Block Vectors, and
+ﬁling information about the code executed for a program.
+                                                                       outputs a single number which tells us how close they are to
+SimpleScalar is used to validate the phase behavior we found
+                                                                       each other. There are several ways of comparing two vectors
+when clustering our basic block proﬁles showing that this
+                                                                       to one another, such as taking the dot product or ﬁnding
+corresponds to the phase behavior in the programs perfor-              the Euclidean or Manhattan distance. In this paper we use
+mance and architecture metrics. The baseline microarchitec-
+                                                                       both the Euclidean and Manhattan distances for comparing
+ture model we simulated is detailed in Table 1. We simulate
+                                                                       vectors.
+an aggressive 8-way dynamically scheduled microprocessor
+                                                                         The Euclidean distance can be found by treating each vec-
+with a two level cache design. Simulation is execution-driven,
+                                                                       tor as a single point in D-dimensional space. The distance
+including execution down any speculative path until the de-            between two points is simply the square root of the sum of
+tection of a fault, TLB miss, or branch mis-prediction.                squares just as in c2 = a2 +b2 . The formula for computing the
+   We analyze and simulated all of the SPEC 2000 bench-
+                                                                       Euclidean distance of two vectors a and b in D-dimensional
+
+                                                                                                          vuuX
+marks compiled for the Alpha ISA. The binaries we used
+                                                                       space is given by:
+in this study and how they were compiled can be found at:
+http://www.simplescalar.com/.
+                                                                                  EuclideanDist(a, b) =     tD
+                                                                                                                  (ai − bi )2
+3.   USING BASIC BLOCK VECTORS                                                                              i=1
+
+   A basic block is a section of code that is executed from            The Manhattan distance on the other hand is the distance
+start to ﬁnish with one entry and one exit. We use the fre-            between two points if the only paths you can take are parallel
+quencies with which basic blocks are executed as the metric            to the axes. In two dimensions this is analogous to the dis-
+to compare diﬀerent sections of the application’s execution            tance traveled if you were to go by car through city blocks.
+to one another. The intuition behind this is that the be-              This has the advantage that it weighs more heavily diﬀer-
+havior of the program at a given time is directly related to           ences in each dimension (being closer in the x-dimension does
+the code it is executing during that interval, and basic block         not get you any closer in the y-dimension). The Manhattan
+distributions provide us with this information.                        distance is computed by summing the absolute value of the
+   A program, when run for any interval of time, will execute          element-wise subtraction of two vectors. For vectors a and b
+
+
+                                                                                                            X
+each basic block a certain number of times. Knowing this               in D-dimensional space, the distance can be computed as:
+information provides us with a ﬁngerprint for that interval
+                                                                                                             D
+of execution, and tells us where in the code the application
+is spending its time. The basic idea is that knowing the ba-                       M anhattanDist(a, b) =         |ai − bi |
+                                                                                                            i=1
+sic block distribution for two diﬀerent intervals gives us two
+separate ﬁngerprints which we can then compare to ﬁnd out              Because we have normalized all of the vectors, the Manhat-
+how similar the intervals are to one another. If the ﬁnger-            tan distance will always be a single number between 0 and 2
+prints are similar, then the two intervals spend about the             (because we normalize each BBV to sum to 1). This number
+same amount of time in the same code, and the performance              can then be used to compare how closely related two intervals
+of those two intervals should be similar.                              of execution are to one another. For the rest of this section
+                                                                       we will be discussing distances in terms of Manhattan dis-
+3.1 Basic Block Vector                                                 tance, because we found that it more accurately represented
+  A Basic Block Vector (BBV) is a single dimensional array,            diﬀerences in our high-dimensional data. We present the Eu-
+where there is a single element in the array for each static           clidean distance as it pertains to the clustering algorithms
+basic block in the program. For the results in this paper, the         presented in Section 4, since it provides a more accurate rep-
+basic block vectors are collected in intervals of 100 million          resentation for data with lower dimensions.
+instructions throughout the execution of a program. At the
+end of each interval, the number of times each basic block is          3.3 Basic Block Similarity Matrix
+entered during the interval is recorded and a new count for               Now that we have a method of comparing intervals of pro-
+each basic block begins for the next interval of 100 million in-       gram execution to one another, we can now concentrate on
+structions. Therefore, each element in the array is the count          ﬁnding phase-based behavior. A phase of program behav-
+of how many times the corresponding basic block has been               ior can be deﬁned in several ways. Past deﬁnitions are built
+entered during an interval of execution, multiplied by the             around the idea of a phase being a contiguous interval of exe-
+
+
+                                                                   2
+      Instruction Cache         8k 2-way set-associative, 32 byte blocks, 1 cycle latency
+      Data Cache                16k 4-way set-associative, 32 byte blocks, 2 cycle latency
+      Uniﬁed L2 Cache           1Meg 4-way set-associative, 32 byte blocks, 20 cycle latency
+      Memory                    150 cycle round trip access
+      Branch Predictor          hybrid - 8-bit gshare w/ 8k 2-bit predictors + a 8k bimodal predictor
+      Out-of-Order Issue        out-of-order issue of up to 8 operations per cycle, 128 entry re-order buﬀer
+      Mechanism                 load/store queue, loads may execute when all prior store addresses are known
+      Architecture Registers    32 integer, 32 ﬂoating point
+      Functional Units          8-integer ALU, 4-load/store units, 2-FP adders, 2-integer MULT/DIV, 2-FP MULT/DIV
+      Virtual Memory            8K byte pages, 30 cycle ﬁxed TLB miss latency after earlier-issued instructions complete
+                                             Table 1: Baseline Simulation Model.
+
+cution during which a measured program metric is relatively              5 large phases (the ﬁrst 2 being diﬀerent from the last 3) each
+stable. We extend this notion of a phase to include all similar          divided by a small phase, where all of the small phases are
+sections of execution regardless of temporal adjacency.                  very similar to each other.
+   A key observation from this paper is that the phase be-                  The similarity matrix for bzip (shown on the right of Fig-
+havior seen in any program metric is directly a function of              ure 1) is very interesting. Bzip has complicated behavior,
+the code being executed. Because of this we can use the                  with two large parts to it’s execution, compression and de-
+comparison between the Basic Block Vectors as an approxi-                compression. This can readily be seen in the ﬁgure as the
+mate bound on how closely related any other metrics will be              large dark triangular and square patches. The interesting
+between those two intervals.                                             thing about bzip is that even within each of these sections of
+   To ﬁnd how intervals of execution relate to one another we            execution there is complex behavior. This, as will be shown
+create a Basic Block Similarity Matrix. The similarity matrix            later, makes the behavior of bzip impossible to capture using
+is an upper triangular N × N matrix, where N is the number               a small contiguous section of execution.
+of intervals in the program’s execution. An entry at (x, y) in              A more complex case for ﬁnding phase behavior is gcc,
+the matrix represents the Manhattan distance between the                 which is shown on the left of Figure 4. This similarity ma-
+basic block vector at interval x and the basic block vector at           trix shows the results for gcc using the Manhattan distance.
+interval y.                                                              The similarity matrix on the right will be explained in more
+   Figures 1(left and right) and 4(left) shows the similarity            detail in Section 4.2.1. This ﬁgure shows that gcc does have
+matrices for gzip, bzip, and gcc using the Manhattan dis-                some regular behavior. It shows that, even here, there is com-
+tance. The diagonal of the matrix represents the program’s               mon code shared between sections of execution, such as the
+execution over time from start to completion. The darker                 intervals around 13 billion and 36 billion. In fact the strong
+the points, the more similar the intervals are (the Manhat-              dark diagonal line cutting through the matrix indicates that
+tan distance is closer to 0), and the lighter they are the more          there is good amount of repetition between oﬀset segments of
+diﬀerent they are (the Manhattan distance is closer to 2).               execution. By analyzing the graph we can see that interval
+   The top left corner of each graph is the start of program             x is very similar to interval (x + 23.6B) for all x.
+execution and is the origin of the graph, (0, 0), and the bot-              Figures 2 and 5 show the time varying behavior of gzip
+tom right of the graph is the point (N − 1, N − 1) where N               and gcc. The average IPC and data cache miss rate is shown
+is the number of intervals that the full program execution               for each 100 million interval of execution over the complete
+was divided up into. The way to interpret the graph is to                execution of the program. The time varying results graphi-
+start considering points along the diagonal axis drawn. Each             cally show the same phase behavior seen by looking at only
+point is perfectly similar to itself, so the points directly on          the code executed. For example, the two phases for gcc at 13
+the axis all are drawn dark. Starting from a given point on              billion and 36 billion, shown to be very similar in Figure 4,
+the diagonal axis of the graph, you can begin to compare how             are shown to have the same IPC and data cache miss rate in
+that point relates to it’s neighbors forward and backward in             Figure 5.
+execution by tracing horizontally or vertically. If you wish
+to compare a given interval x with the interval at x + n,
+you simply start at the point (x, x) on the graph and trace              4. CLUSTERING
+horizontally to the right until you reach (x, x + n).                       The basic block vectors provide a compact and represen-
+   To examine the phase behavior of programs, let us ﬁrst                tative summary of the program’s behavior for intervals of
+examine gzip because it has behavior on such a large scale               execution. By examining the similarity between them, it is
+that it is easy to see. If we examine an interval taken from 70          clear that there exists a high level pattern to each program’s
+billion instructions into execution, in Figure 1 (left), this is         execution. In order to make use of this behavior we need
+directly in the middle of a large phase shown by the triangle            to start by delineating a method of ﬁnding and represent-
+block of dark color that surrounds this point. This means                ing the information. Because there are so many intervals of
+that this interval is very similar to it’s neighbors both forward        execution that are similar to one another, one eﬃcient repre-
+and backward in time. We can also see that the execution at              sentation is to group the intervals together that have similar
+50 billion and 90 billion instructions is also very similar to the       behavior. This problem is analogous to a clustering problem.
+program behavior at 70 billion. We also note, while it may               Later, in Section 5, we demonstrate how we use the clusters
+be hard to see in a printed version that the phase interval at           we discover to ﬁnd multiple simulation points for irregular
+70 billion instructions is similar to the phases at interval 10          programs or inputs like gcc. By simulating only a single rep-
+and 30 billion, but they are not as similar as to those around           resentative from each cluster, we can accurately represent the
+50 and 90 billion. Compare this with the IPC and data cache              whole program’s execution.
+miss rates for gzip shown in Figure 2. Overall, Figure 1(left)
+shows that the phase behavior seen in the similarity matrix              4.1 Clustering Overview
+lines up quite closely with the behavior of the program, with              The goal of clustering is to divide a set of points into groups
+
+
+                                                                     3
+        0B
+
+
+
+
+                                                                          0B
+                                   20
+                                       B
+
+
+                                           40
+
+
+
+
+                                                                                          50
+                                            B
+
+
+
+
+                                                                                            B
+                                                  60
+                                                      B
+
+
+
+
+                                                                                                      10
+                                                                                                       0B
+                                                          80
+                                                           B
+
+
+                                                                  10
+                                                                     0B
+
+
+
+
+Figure 1: Basic block similarity matrix for the programs gzip-graphic (shown left) and bzip-graphic (shown
+right). The diagonal of the matrix represents the program’s execution to completion with units in billions of
+instructions. The darker the points, the more similar the intervals are (the Manhattan distance is closer to
+0), and the lighter the points the more diﬀerent they are (the Manhattan distance is closer to 2).
+
+             100%
+Percent of Max
+
+
+
+
+              80%
+              60%
+              40%
+              20%
+               0%
+
+
+                              6
+                              5
+                 Cluster ID
+
+
+
+
+                              4
+                              3
+                              2
+                              1
+                                  0B            20B            40B              60B             80B         100B
+                                                          Instructions Executed (in Billions)
+
+Figure 2: (top graph) Time varying graph for gzip-graphic. The average IPC (drawn with solid line) and
+L1 data cache miss rate (drawn with dotted line) are plotted for every interval (100 million instructions of
+execution) showing how these metrics vary over the program’s execution. The x-axis represents the execution
+of the program over time, and the y-axis the percent of max value the metric had during execution. The
+results are non-accumulative.
+
+Figure 3: (bottom graph) Cluster graph for gzip-graphic. The full run of the execution is partitioned into a
+set of 6 clusters. The x-axis is in instructions executed, and the graph shows for each interval of execution
+(every 100 million instructions), which cluster the interval was placed into.
+
+
+
+
+                                                                          4
+        0B
+
+
+
+
+                                                                          0B
+                                      10
+
+
+
+
+                                                                                    10
+                                       B
+
+
+
+
+                                                                                      B
+                                           20
+
+
+
+
+                                                                                                20
+                                            B
+
+
+
+
+                                                                                                  B
+                                                     30
+
+
+
+
+                                                                                                      30
+                                                      B
+
+
+
+
+                                                                                                        B
+                                                             40
+
+
+
+
+                                                                                                             40
+                                                              B
+
+
+
+
+                                                                                                              B
+Figure 4: The original basic block similarity matrix for the program gcc (shown left), and the similarity matrix
+for gcc-166 drawn from projected data (on right). The ﬁgure on the left use the original basic block vectors
+(each of which has over 100,000 dimensions) and uses the Manhattan distance as a method of diﬀerence
+taking. The ﬁgure on the right uses projected data (down to 15 dimensions) and uses the Euclidean distance
+for diﬀerence taking.
+
+             100%
+Percent of Max
+
+
+
+
+              80%
+              60%
+              40%
+              20%
+               0%
+
+
+                              4
+                 Cluster ID
+
+
+
+
+                              3
+                              2
+                              1
+                                  0             10                  20                 30               40
+                                                          Instructions Executed (in Billions)
+
+Figure 5: (top graph) Time varying graph for gcc-166. The average IPC (drawn with solid line) and L1 data
+cache miss rate (drawn with dotted line) are plotted for every interval (100 million instructions of execution)
+showing how these metrics vary over the program’s execution. The x-axis represents the execution of the
+program over time, and the y-axis the percent of max value the metric had during execution. The results are
+non-accumulative.
+
+Figure 6: (bottom graph) Cluster graph for gcc-166. The full run of the execution is partitioned into a set of
+4 clusters. The x-axis is in instructions executed, and the graph shows for each interval of execution (every
+100 million instructions), which cluster the interval was placed into.
+
+
+
+
+                                                                          5
+such that points within each group are similar to one an-            reduces the number of dimensions by creating a new lower-
+other (by some metric, often distance), and points in diﬀerent       dimensional space and then projecting each data point into
+groups are diﬀerent from one another. This problem arises in         the new space (where the new space’s dimensions are not
+other ﬁelds such as computer vision [10], document classiﬁca-        directly related to the old space’s dimensions). This is anal-
+tion [22], and genomics [1], and as such it is an area of much       ogous to taking a picture of 3 dimensional data at a random
+active research. There are many clustering algorithms and            angle and projecting it onto a screen of 2 dimensions.
+many approaches to clustering. Classically, the two primary             For this work we choose to use random linear projection [5]
+clustering approaches are Partitioning and Hierarchical:             to create a new low-dimensional space into which we project
+   Partitioning algorithms choose an initial solution and then       the data. This is a simple and fast technique that is very ef-
+use iterative updates to ﬁnd a better solution. Popular al-          fective at reducing the number of dimensions while retaining
+gorithms such as k-means [14] and Gaussian Expectation-              the properties of the data. There are two steps to reducing
+Maximization [2, pages 59–73] are in this family. These al-          a dataset X (which is a matrix of basic block vectors and is
+gorithms tend to have run time that is linear in the size of         of size Nintervals × Dnumbb , where Dnumbb is the number of
+the dataset.                                                         basic blocks in the program) down to Dnew dimensions using
+   Hierarchical algorithms [9] either combine together sim-          random linear projection:
+ilar points (called agglomerative clustering, and conceptu-
+ally similar to Huﬀman encoding), or recursively divides the            • Create a Dnumbb ×Dnew projection matrix M by choos-
+dataset into more groups (called divisive clustering). These              ing a random value for each matrix entry between -1
+algorithms tend to have run time that is quadratic in the size            and 1.
+of the dataset.
+                                                                        • Multiply X times M to obtain the new lower-dimensional
+4.2 Phase Finding Algorithm                                               dataset X  which will be of size Nintervals × Dnew .
+   For our algorithm, we use random linear projection fol-              For clustering programs, we found that using Dnew =
+lowed by k-means. We choose to use the k-means clustering            15 dimensions is suﬃcient to still diﬀerentiate the diﬀerent
+algorithm, since it is a very fast and simple algorithm that         phases of execution. Figure 7 shows why we chose to project
+yields good results. To choose the value of k, we use the            the data down to 15 dimensions. The graph shows the num-
+Bayesian Information Criterion (BIC) score [11, 17]. The             ber of dimensions on the x-axis. The y-axis represents the k
+following steps summarize our algorithm, and then several of         value found to be best on average, when the programs were
+the steps are explained in more detail:                              projected down to the number of dimensions indicated by the
+                                                                     x-axis. The best k is determined by the k with the highest
+  1. Proﬁle the basic blocks executed in each program to             BIC score, which is discussed in Section 4.2.3. The y-axis is
+     generate the basic block vectors for every 100 million          shown as a percent of the maximum k seen for each program
+     instructions of execution.                                      so that the curve can be examined independent of the actual
+  2. Reduce the dimension of the BBV data to 15 dimen-               number of clusters found for each program. The results show
+     sions using random linear projection.                           that for 15 dimensions the number of clusters found begins
+                                                                     to stabilize and only climbs slightly. Similar results were also
+  3. Try the k-means clustering algorithm on the                     found using a diﬀerent method of ﬁnding k in [6].
+     low-dimensional data for k values 1 to 10. Each run of             The advantages of using linear projections are twofold.
+     k-means produces a clustering, which is a partition of          First, creating new vectors with a low dimension of 15 is
+     the data into k diﬀerent clusters.                              extremely fast and can even be done at simulation time. Sec-
+                                                                     ondly, using only 15 dimensions speeds up the k-means al-
+  4. For each clustering (k = 1 . . . 10), score the ﬁt of the       gorithm signiﬁcantly, and reduces the memory requirements
+     clustering using the BIC. Choose the clustering with            by several orders of magnitude over using the original basic
+     the smallest k, such that it’s score is at least 90% as         block vectors.
+     good as the best score.                                            Figure 4 shows the similarity matrix for gcc on the left
+                                                                     using original BBVs, whereas the similarity matrix on the
+4.2.1 Random Projection                                              right shows the same matrix but on the data that has been
+  For this clustering problem, we have to address the prob-          projected down to 15 dimensions. For the reduced dimension
+lem of dimensionality. All clustering algorithms suﬀer from          data we use the Euclidean distance to measure diﬀerences,
+the so-called “curse of dimensionality”, which refers to the         rather than the Manhattan distance used on the full data.
+fact that it becomes extremely hard to cluster data as the           After the projection, some information will be blurred, but
+number of dimensions increases. For the basic block vectors,         overall the phases of execution that are very similar with full
+the number of dimensions is the number of executed basic             dimensions can still be seen to have a strong similarity with
+blocks in the program, which ranges from 2,756 to 102,038            only 15 dimensions.
+for our experimental data, and could grow into the millions
+for very large programs. Another practical problem is that           4.2.2 K-means
+the running time of our clustering algorithm depends on the             The k-means algorithm is an iterative optimization algo-
+dimension of the data, making it slow if the dimension grows         rithm, which executes as two phases, which are repeated to
+too large.                                                           convergence. The algorithm begins with a random assign-
+  Two ways of reducing the dimension of data are dimension           ment of k diﬀerent centers, and begins its iterative process.
+selection and dimension reduction. Dimension selection sim-          The iterations are required because of the recursive nature
+ply removes all but a small number of the dimensions of the          of the algorithm; the cluster centers deﬁne the cluster mem-
+data, based on a measure of goodness of each dimension for           bership for each data point, but the data point memberships
+describing the data. However, this throws away a lot of data         deﬁne the cluster centers. Each point in the data belongs to,
+in the dimensions which are ignored. Dimension reduction             and can be considered a member of, a single cluster.
+
+
+                                                                 6
+                100%
+                                                                                    More formally, the BIC score is a penalized likelihood.
+                                                                                 There are two terms in the BIC: the likelihood and the penalty.
+                                                                                 The likelihood is a measure of how well the clustering models
+                    80%
+                                                                                 the data. To get the likelihood, each cluster is considered to
+ Percent of Max K
+
+
+
+                                                                                 be produced by a spherical Gaussian distribution, and the
+                    60%                                                          likelihood of the data in a cluster is the product of the prob-
+                                                                                 abilities of each point in the cluster given by the Gaussian.
+                                                                                 The likelihood for the whole dataset is just the product of the
+                    40%                                                          likelihoods for all clusters. However, the likelihood tends to
+                                                                                 increase without bound as more clusters are added. There-
+                                                                                 fore the second term is a penalty that oﬀsets the likelihood
+                    20%                                                          growth based on the number of clusters. The BIC is formu-
+                                                                                 lated as
+                                                                                                                         pj
+                    0%                                                                          BIC(D, k) = l(D|k) −        log(R)
+                                                                                                                         2
+                          0    10       20       30      40          50
+                                                                                 where l(D|k) is the likelihood, R is the number of points in
+                                    Number of Dimensions
+                                                                                 the data, and pj is the number of parameters to estimate,
+                                                                                 which is (k − 1) + dk + 1 for (k − 1) cluster probabilities,
+Figure 7: Motivation for random projection down
+                                                                                 k cluster center estimates which each require d dimensions,
+to 15 dimensions (D=15). The x-axis is the num-
+
+                                                                                                 X
+                                                                                 and 1 variance estimate. To compute l(D|k) we use
+ber of dimensions of the projection, and the y-axis is
+the percent of the max number of clusters found for                                               k
+                                                                                                           Ri           Ri d            Ri − 1
+each program averaged over all spec programs. The                                   l(D|k)   =         −      log(2π) −      log(σ2 ) −
+                                                                                                 i=1
+                                                                                                           2             2                2
+results show that as you decrease the number of di-
+mensions too far (the lowest point is two dimensions)                                            +Ri log(Ri /R)
+the true clusters become collapsed on one another,
+                                                                                 where Ri is the number of points in the ith cluster, and σ 2
+and the algorithm cannot ﬁnd as many clusters. By
+                                                                                 is the average variance of the Euclidean distance from each
+D=15 most of this eﬀect has gone.
+                                                                                 point to its cluster center.
+                                                                                    For a given program and inputs, the BIC score is calculated
+  We initialize the k cluster centers by choosing k random                       for each k-means clustering, for k from 1 to N. We then choose
+points from the data to be clustered. After initialization, the                  the clustering that achieves a BIC score that is at least 90%
+k-means algorithm proceeds in two phases which are repeated                      of the spread between the largest and smallest BIC score
+until convergence:                                                               that the algorithm has seen. Figure 8 shows the beneﬁt of
+                                                                                 choosing a BIC with a high value and its relationship with the
+                • For each data point being clustered, compare its dis-          variance in IPC seen for that cluster. The y-axis shows the
+                  tance to each of the k cluster centers and assign it to        percent of IPC variance seen for a given clustering, and the
+                  (make it a member of) the cluster to which it is the           corresponding BIC score the clustering received. Each point
+                  closest.                                                       on the graph represents the average or max IPC variance for
+                • For each cluster center, change its position to the cen-       all points in the range of ±5% of the BIC score shown. The
+                  troid of all of the points in its cluster (from the mem-       results show that picking clusterings that represent greater
+                  berships just computed). The centroid is computed as           than 80% of the BIC score resulted in an IPC variance of less
+                  the average of all the data points in the cluster.             than 20% on average. The IPC variance was computed as the
+                                                                                 weighted sum of the IPC variance for each cluster, where the
+   This process is iterated until membership (and hence clus-                    weight for a cluster is the number of points in that cluster.
+ter centers) cease to change between iterations. At this point                   The IPC variance for each cluster is simply the variance of
+the algorithm terminates, and the output is a set of ﬁnal clus-                  the IPC for all the points in that cluster.
+ter centers and a mapping of each point to the cluster that
+it belongs to. Since we have projected the data down to 15                       4.3 Clusters and Phase Behavior
+dimensions, we can quickly generate the clusters for k-means                       Figures 3 and 6 show the 6 clusters formed for gzip and
+with k from 1 to 10. In doing this, there are eﬃcient algo-                      the 4 clusters formed for gcc. The X-axis corresponds to
+rithms for comparing the clusters that are formed for these                      the execution of the program in billions of instructions, and
+diﬀerent values of k, and choosing one that is good but still                    each interval (each of 100 million instructions) is tagged to
+uses a small value for k is the next problem.                                    be in one of the N clusters (labeled on the Y-axis). These
+                                                                                 ﬁgures, just as for Figures 1 and 4, show the execution of the
+4.2.3 Bayesian Information Criterion                                             programs to completion.
+   To compare and evaluate the diﬀerent clusters formed for                        For gzip, the full run of the execution is partitioned into
+diﬀerent k, we use the Bayesian Information Criterion (BIC)                      a set of 6 clusters. Looking to Figure 1(left) for comparison,
+as a measure of the “goodness of ﬁt” of a clustering to a                        we see that the cluster behavior captured by our tool lines up
+dataset. More formally, the BIC is an approximation to the                       quite closely with the behavior of the program. The majority
+probability of the clustering given the data that has been                       of the points are contained by clusters 1,2,3 and 6. Clusters
+clustered. Thus, the larger the BIC score, the higher the                        1 and 2 represent the large sections of execution which are
+probability that the clustering being scored is a “good ﬁt” to                   similar to one another. Clusters 3 and 6 capture the smaller
+the data being clustered. We use the BIC formulation given                       phases which lie in between these large phases, while cluster
+in [17] for clustering with k-means, however other formula-                      5 contains a small subset of the larger phases, and cluster 4
+tions of the BIC could also be used.                                             represents the initialization phase.
+
+
+                                                                             7
+                2.5
+                                                                     whole. The basic block vector and cluster analysis presented
+                                                  average            in Sections 3 and 4 will allow us to make sure that this is the
+                                                  max                case.
+                2.0
+
+                                                                     5.1 Single Simulation Points
+ IPC Variance
+
+
+
+
+                1.5                                                     In [19], we used basic block vectors to automatically ﬁnd a
+                                                                     single simulation point to potentially represent the complete
+                                                                     execution of a program. A Simulation Point is a starting
+                1.0                                                  simulation place (in number of instructions executed from the
+                                                                     start of execution) in a program’s execution derived from our
+                                                                     analysis. That algorithm creates a target basic block vector,
+                0.5                                                  which is a BBV that represents the complete execution of
+                                                                     the program. The Manhattan distance between each interval
+                                                                     BBV and the target BBV is computed. The BBV with the
+                0.0
+                                                                     lowest Manhattan distance represents the single simulation
+                      0%   20%   40%      60%   80%    100%
+                                                                     point that executes the code closest to the complete execution
+                                  Percent BIC
+                                                                     of the program. This approach is used to calculate the long
+                                                                     single simulation points (LongSP) described below.
+Figure 8: Plot of average IPC variance and max IPC                      In comparison, the single simulation point results in this
+variance versus the BIC. These results indicate that                 paper are calculated by choosing the BBV that has the small-
+for our data, a clustering found to have a BIC score                 est Euclidean distance from the centroid of the whole dataset
+greater than 80% will have, on average, and IPC vari-                in the 15-dimensional space, a method which we ﬁnd supe-
+ance of less than 0.2.                                               rior to the original method. The 15-dimensional centroid is
+                                                                     formed by taking the average of each dimension over all in-
+   In the cluster graph for gcc, shown in Figure 6, the run          tervals in the cluster.
+is now partitioned into 4 diﬀerent clusters. Looking to Fig-            Figure 9 shows the IPC estimated by executing only a
+ure 4 for comparison, we see that even the more complicated          single interval, all 100 million instructions long but chosen
+behavior of gcc is captured correctly by our tool. Clusters          by diﬀerent methods, for all SPEC 2000 programs. This
+2 and 4 correspond to the dark boxes shown parallel to the           is shown in comparison to the IPC found by executing the
+diagonal axis. It should also be noted that the projection           program to completion. The results are from SimpleScalar
+does introduce some degree of error into the clustering. For         using the architecture model described in Section 2, and all
+example, the ﬁrst group of points in cluster 2 are not really        fast forwarding is done so that all of the architecture struc-
+that similar to the other points in the cluster. Comparing           tures are completely warmed up when starting simulation (no
+the two similarity matrices in Figure 4, shows the introduc-         cold-start eﬀect).
+tion of a dark band at (0,30) on the graph which was not in             The ﬁrst bar, labeled none, is the IPC found when exe-
+the original (un-projected) data. Despite these small errors,        cuting only the ﬁrst 100 million instructions from the start
+the clustering is still very good, and the impact of any such        of execution (without any fast forwarding). The second bar,
+errors will be minimized in the next section.                        FF-Billion shows the results after blindly fast forwarding 1
+                                                                     billion instructions before starting simulation. The third bar,
+                                                                     SimPoint shows the IPC using our single simulation point
+5.              FINDING SIMULATION POINTS                            analysis described above, and the last bar shows the IPC of
+   Modern computer architecture research relies heavily on           simulating the program to completion (labeled Full). Be-
+cycle accurate simulation to help evaluate new architectural         cause these are actual IPC values, values which are closer to
+features. While the performance of processors continues to           the Full bar are better.
+grow exponentially, the amount of complexity within a pro-              The results in Figure 9 shows that the single simulation
+cessor continues to grow at an even a faster rate. With each         points are very close to the actual full execution of the pro-
+generation of processor more transistors are added, and more         gram, especially when compared against the ad-hoc tech-
+things are done in parallel on chip in a given cycle while at        niques. Starting simulation at the start of the program re-
+the same time cycle times continue to decrease. This grow-           sults in an average error of 210%, whereas blindly fast for-
+ing gap between speed and complexity means that the time             warding results in an average 80% IPC error. Using our single
+to simulate a constant amount of processor time is growing.          simulation point analysis we reduce the average IPC error to
+It is already to the point that executing programs fully to          18%. These results show that it is possible to reasonably cap-
+completion in a detailed simulator is no longer feasible for         ture the behavior of the most programs using a very small
+architectural studies. Since detailed simulation takes a great       slice of execution.
+deal of processing power, only a small subset of a whole pro-           Table 2 shows the actual simulation points chosen along
+gram can be simulated.                                               with the program counter (PC) and procedure name corre-
+   SimpleScalar [3], one of the faster cycle-level simulators,       sponding to the start of the interval. If an input is not at-
+can simulate around 400 million instructions per hour. Un-           tached to the program name, then the default ref input was
+fortunately many of the new SPEC 2000 programs execute               used. Columns 2 through 4 are in terms of the number of
+for 300 billion instructions or more. At 400 million instruc-        intervals (each 100 million instruction long). The ﬁrst col-
+tions per hour this will take approximately 1 month of CPU           umn is the number of instructions executed by the program,
+time.                                                                on the speciﬁc input, when run to completion. The second
+   Because it is only feasible to execute a small portion of         column shows the end of initialization phase calculated as de-
+the program, it is very important that the section simulated         scribed in [19]. The third column shows the single simulation
+is an accurate representation of the program’s behavior as a         point automatically chosen as described above. This simu-
+
+
+                                                                 8
+                                                                                     None                                       FF-Billion                              SimPoint                                     Full
+       6
+       4
+ IPC
+
+
+       2
+       0
+             amm-ref
+
+
+                                 app-ref
+
+
+                                                     aps-ref
+
+
+                                                                         art-110
+
+
+                                                                                        art-470
+
+
+                                                                                                            equ-ref
+
+
+                                                                                                                                 fac-ref
+
+
+                                                                                                                                                    fma-ref
+
+
+                                                                                                                                                                   gal-ref
+
+
+                                                                                                                                                                                       luc-ref
+
+
+                                                                                                                                                                                                           mes-ref
+
+
+                                                                                                                                                                                                                             mgr-ref
+
+
+                                                                                                                                                                                                                                                 six-ref
+
+
+                                                                                                                                                                                                                                                                     swi-ref
+
+
+                                                                                                                                                                                                                                                                                         wup-ref
+       4
+       3
+ IPC
+
+
+
+
+       2
+       1
+       0
+           bzi-gra
+
+                       bzi-pro
+
+                                           cra-ref
+
+                                                               eon-rus
+
+                                                                          gap-ref
+
+                                                                                    gcc-166
+
+                                                                                                  gcc-200
+
+                                                                                                                      gcc-exp
+
+                                                                                                                                      gcc-int
+
+                                                                                                                                                    gcc-sci
+
+                                                                                                                                                              gzi-gra
+
+                                                                                                                                                                             gzi-pro
+
+                                                                                                                                                                                                 mcf-ref
+
+                                                                                                                                                                                                               par-ref
+
+                                                                                                                                                                                                                            per-mak
+
+                                                                                                                                                                                                                                       per-spl
+
+                                                                                                                                                                                                                                                           two-ref
+
+                                                                                                                                                                                                                                                                               vor-two
+
+                                                                                                                                                                                                                                                                                           vpr-rou
+Figure 9: Simulation results starting simulation at the start of the program (none), blindly fast forwarding 1
+billion instructions, using a single simulation point, and the IPC of the full execution of the program.
+
+lation point is used to fast forward to the point of desired                                                                                        In addition to this, we weigh any use of this representative by
+execution. Some simulators, debuggers, or tracing environ-                                                                                          the size of the cluster it is representing. If a cluster has only
+ments (e.g., gdb) provide the ability to fast forward based                                                                                         one point, it’s representative will only have a small impact
+upon a program PC, and the number of times that PC was                                                                                              on the overall outcome of the program.
+executed. We therefore, provide the instruction PC for the                                                                                             Table 2 shows the multiple simulation points found for all
+start of the simulation point, the procedure that PC occurred                                                                                       of the SPEC 2000 benchmarks. For these results we lim-
+in, and the number of times that PC has to be executed in                                                                                           ited the number of clusters to be at most six for all but the
+order to arrive at the desired simulation point.                                                                                                    most complex programs. This was done, in order to limit the
+   These results show that a single simulation point can be                                                                                         number of simulation points, which also limits the amount of
+accurate for many programs, but there is still a signiﬁcant                                                                                         warmup time needed to perform the overall simulation. The
+amount of error for programs like bzip, gzip and gcc. This                                                                                          cluster formation algorithm in Section 4 takes as an input
+occurs because there are many diﬀerent phases of execution                                                                                          parameter the max number of clusters to be allowed. Each
+in these programs, and a single simulation point will not ac-                                                                                       simulation point contains two numbers. The ﬁrst number is
+curately represent all of the diﬀerent phases. To address this,                                                                                     the location of the simulation point in 100s of millions of in-
+we used our clustering analysis to ﬁnd multiple simulation                                                                                          structions. The second number in parentheses is the weight
+points to accurately capture these programs behavior, which                                                                                         for that simulation point, which is used to create an overall
+we describe next.                                                                                                                                   combined metric. Each simulation point corresponds to 100
+                                                                                                                                                    million instructions.
+                                                                                                                                                       Figure 10 shows the IPC results for multiple simulation
+5.2 Multiple Simulation Points                                                                                                                      points. The ﬁrst bar shows our single simulation points sim-
+   To support multiple simulation points, the simulator can                                                                                         ulating for 100 million instructions. The second bar LongSP
+be run from start to stop, only performing detailed simu-                                                                                           chooses a single simulation point, but the length of simula-
+lation on the selected intervals. Or the simulation can be                                                                                          tion is identical to the length used for multiple simulation
+broken down into N simulations, where N is the number of                                                                                            points (which may go up to 1 billion instructions). This is
+clusters found via analysis, and each simulation is run sepa-                                                                                       to provide a fair comparison between the single simulation
+rately. This has the further beneﬁt of breaking the simulation                                                                                      points and multiple. The Multiple bar shows results using
+down into parallel components that can be distributed across                                                                                        the multiple simulation points, and the ﬁnal bar is IPC for
+many processors. This is the methodology we use in our sim-                                                                                         full simulation. As in Figure 9, the closer the bar is to Full,
+ulator. For both cases results from the separate simulation                                                                                         the better.
+points need to be weighed and combined to arrive at overall                                                                                            The results show that the average IPC error rate is re-
+performance for the program [4]. Care must be taken to com-                                                                                         duced to 3% using multiple simulation points, which is down
+bine statistics correctly (simply averaging will give incorrect                                                                                     from 17% using the long single simulation point. This is sig-
+results for statistics such as rates).                                                                                                              niﬁcantly lower than the average 80% error seen for blindly
+   Knowing the clustering alone is not suﬃcient to enable                                                                                           fast forwarding. The beneﬁts can be most clearly seen in
+multiple point simulation because the cluster centers do not                                                                                        the programs bzip, gcc, ammp, and galgel. The reason that
+correspond to actual intervals of execution. Instead, we must                                                                                       the long contiguous simulation points do not do much better
+ﬁrst pick a representative for each cluster that will be used to                                                                                    is that they are constrained to only sample at one place in
+approximate the behavior of the the full cluster. In order to                                                                                       the program. For many programs this is suﬃcient, but for
+pick this representative, we choose for each cluster the actual                                                                                     those with interesting long term behavior, such as bzip, it is
+interval that is closest to the center (centroid) of the cluster.
+
+
+                                                                                                                                                9
+      name         Len    Init   SP      PC        Proc Name                                   Multiple SimPoints
+   ammp            3265    24    109    026834   mm fv update.           3026(13.8)     1774(31)    595(15.3)    1068(1.3)     2128(7.4)
+                                                                         1607(12.6)     2437(4.9)  3112(11.5)     2480(2.2)
+   applu           2238     3    2180   018520   buts                     624(22.1)    1625(22.5)  1956(18.8)     2234(6.6)   1380(15.5)
+                                                                         1507(14.5)
+   apsi            3479     3    3409   0380ac   dctdxf                   2107(5.6)      2863(14)   1007(70.7)     896(7.7)     1618(2)
+   art-110          417    75     341   00fbb0   match                     82(42.9)     255(41.2)     50(15.8)
+   art-470          450    83     366   00f5d0   match                    300(36.2)      46(14.7)    236(49.1)
+   bzip2-graphic   1435     4     719   012a5c   spec putc                168(11.7)     1042(3.7)     430(7.5)    762(16.2)    106(15.3)
+                                                                          519(11.6)      872(8.2)     195(5.6)       148(2)   1435(18.2)
+   bzip2-program   1249     4    459    00ddd0   sortIt                     140(11)     468(12.3)      78(6.2)      990(16)     445(7.4)
+                                                                            1005(7)       94(6.9)      606(14)    859(14.6)     341(4.7)
+   bzip2-source    1088     4    978    00d774   qSort3                     395(16)      511(4.3)     64(29.1)     488(7.3)     530(8.6)
+                                                                          177(34.7)
+   crafty          1918   462    775    021730   SwapXray                   123(25)     510(19.7)    664(22.7)   1123(32.5)
+   eon-rushmeier    578   140    404    04e1b4   viewingHit                260(6.6)     238(23.7)    337(20.9)    435(35.6)    216(13.1)
+   equake          1315    35    813    012410   phi0                     874(12.2)    1292(36.7)    463(12.2)    336(24.1)       3(3.2)
+                                                                           62(11.6)
+   facerec         2682   356     376   02d1f4   graphroutines lo.       1976(60.1)     1528(2.5)    1935(3.9)   1398(29.2)     348(4.3)
+   fma3d           2683   192    2542   0e3140   scatter element.            112(7)      209(0.6)    842(68.4)     1600(11)      47(0.1)
+                                                                            509(13)
+   galgel          4093     3    2492   02db00   syshtn                   3511(5.5)      2081(11)   3466(11.2)    516(31.6)    2141(2.7)
+                                                                           2181(29)     2161(3.3)    1017(5.5)
+   gap             2695   639     675   050750   CollectGarb              1114(8.2)    1196(58.1)     88(12.7)     2189(14)    2609(7.1)
+   gcc-166          469    61     390   0d157c   gen rtx                   238(6.4)     149(42.2)     30(21.3)    404(30.1)
+   gcc-200         1086   151     737   0ceb04   refers to regno.           8(45.8)     587(17.9)    921(10.9)    575(14.5)    1011(11)
+   gcc-expr         120    27      37   191fd0   validate change           63(12.5)      81(15.8)     42(16.7)      25(4.2)     9(45.8)
+                                                                               88(5)
+   gcc-integrate   131     14      5    1198e0   ﬁnd single use.           118(9.2)      41(27.5)    102(21.4)      9(20.6)      57(3.8)
+                                                                           73(17.6)
+   gcc-scilab       620   139    208    100d54   insert                   255(54.2)       39(9.5)    231(13.2)    379(15.8)     170(7.3)
+   gzip-graphic    1037   158    654    009c00   ﬁll window               961(45.4)      87(28.5)     373(7.3)       1(0.1)     461(5.2)
+                                                                          566(13.4)
+   gzip-log         395    91     266   00d280   inﬂate codes             207(24.1)     171(16.5)    157(16.7)    330(23.5)     71(19.2)
+   gzip-program    1688   112    1190   009660   longest match            228(22.7)     779(21.4)     472(9.1)   1410(20.4)    594(26.4)
+   gzip-random      821   152     624   00a14c   deﬂate                    484(0.9)      625(0.2)      580(51)    811(16.8)    200(30.9)
+                                                                              1(0.1)
+   gzip-source      843    68    335    00a224   deﬂate                   248(14.5)     327(13.2)    167(17.7)    656(27.8)    373(24.4)
+                                                                           720(2.5)
+   lucas           1423    11    546    021ef0   ﬀt square                982(21.4)     602(10.7)   1370(21.4)      458(28)   524(18.6)
+   mcf              618    15    554    00911c   price out impl k         268(39.6)      425(11)     205(30.1)     468(4.5)   316(10.8)
+                                                                           143(3.9)
+   mesa            2816     6    1136   0a30f0   general textured.       1846(35.3)     2806(0.7)    398(35.3)    977(28.8)
+   mgrid           4191    21    3293   0160f0   resid                     43(24.2)    3459(22.8)    807(20.1)   3110(16.3)   2476(16.6)
+   parser          5467   388    1147   01edfc   region valid            3342(25.1)    1771(29.8)   5102(19.7)   2008(19.4)      4772(6)
+   perlbmk-diﬀ      399    56     142   07f974   regmatch                       6(1)    355(62.7)      11(0.5)     397(0.8)      12(3.3)
+                                                                          239(31.8)
+   perlbmk-make      20     3      12   08268c   Perl runops st.                1(5)       20(20)       6(75)
+   perlbmk-perf     290    69       6   08268c   Perl runops st.           39(59.3)     207(40.7)
+   perlbmk-split   1108   162     451   07fc98   regmatch                 704(44.9)      596(9.1)    232(21.7)    461(21.8)     501(2.6)
+   sixtrack        4709   250    3044   167894   thin6d                       6(1.7)   1719(98.3)
+   swim            2258     3    2080   019130   calc1                   1951(29.8)        38(14)    777(24.7)    710(13.8)   2101(17.8)
+   twolf           3464     7    1067   041094   ucxx1                      312(17)    2888(11.3)   3268(11.7)    961(20.4)   2054(39.5)
+   vortex-one      1189    36     272   06289c   Mem GetWord              536(17.1)     366(23.3)     115(8.2)   1068(17.2)    878(34.2)
+   vortex-three    1330   177     565   0336a8   Part Delete              934(25.4)    1129(11.4)      96(8.9)     47(11.1)    586(17.8)
+                                                                          485(25.4)
+   vortex-two      1386   206    1025   05e6fc   Mem NewRegion             635(7.6)     752(24.5)    554(21.9)     930(7.4)    360(15.3)
+                                                                          397(23.2)
+   vpr-place       1122     4    593    0224ec   get non update.          166(25.5)     857(21.6)       1(0.2)    362(12.8)    1057(12)
+                                                                          547(27.9)
+   vpr-route        840    12     477   025c80   get heap head            559(29.9)       89(28)     353(23.8)       3(2.6)    490(15.7)
+   wupwise         3496    11    3238   01d680   zgemm                   1811(43.3)        91(8)    3055(43.2)    1524(5.4)
+
+
+
+Table 2: Single simulation points for SPEC 2000 benchmarks. Columns 2 through 4 are in terms of 100
+million instruction executed. The length of full execution is shown, as well as the end of initialization. SP is
+the single simulation point using the approach in this paper. The procedure in which the simulation point
+occurred and its PC are also shown. The last 6 digits of PC of each SimPoint is given in hex, so the address
+is formed from 120xxxxxx. Procedure names that end in “.” were truncated due to space. The rest of the
+columns list the multiple simulation points found in 100s of millions. The ﬁrst number is the starting place
+of the simulation point relative to the start of execution. The second number shows the weight given to the
+cluster that simulation point was taken from, and is used when weighing the ﬁnal results of the simulation.
+
+
+
+
+                                                                    10
+                                                                                     SimPoint                                        LongSP                              Multiple                                     Full
+      3
+      2
+IPC
+
+
+      1
+      0
+             amm-ref
+
+
+                                 app-ref
+
+
+                                                     aps-ref
+
+
+                                                                         art-110
+
+
+                                                                                        art-470
+
+
+                                                                                                            equ-ref
+
+
+                                                                                                                                fac-ref
+
+
+                                                                                                                                                fma-ref
+
+
+                                                                                                                                                               gal-ref
+
+
+                                                                                                                                                                                    luc-ref
+
+
+                                                                                                                                                                                                        mes-ref
+
+
+                                                                                                                                                                                                                         mgr-ref
+
+
+                                                                                                                                                                                                                                             six-ref
+
+
+                                                                                                                                                                                                                                                                 swi-ref
+
+
+                                                                                                                                                                                                                                                                                     wup-ref
+      3
+      2
+IPC
+
+
+
+
+      1
+      0
+           bzi-gra
+
+                       bzi-pro
+
+                                           cra-ref
+
+                                                               eon-rus
+
+                                                                          gap-ref
+
+                                                                                    gcc-166
+
+                                                                                                  gcc-200
+
+                                                                                                                      gcc-exp
+
+                                                                                                                                     gcc-int
+
+                                                                                                                                                gcc-sci
+
+                                                                                                                                                          gzi-gra
+
+                                                                                                                                                                          gzi-pro
+
+                                                                                                                                                                                              mcf-ref
+
+                                                                                                                                                                                                            par-ref
+
+                                                                                                                                                                                                                        per-mak
+
+                                                                                                                                                                                                                                   per-spl
+
+                                                                                                                                                                                                                                                       two-ref
+
+                                                                                                                                                                                                                                                                           vor-two
+
+                                                                                                                                                                                                                                                                                       vpr-rou
+Figure 10: Multiple simulation point results. Simulation results are shown for using a single simulation point
+simulating for 100 million instructions, LongSP chooses a single simulation point simulating for the same
+length of execution as the multiple point simulation, simulation using multiple simulation points, and the full
+execution of the program.
+
+impossible to approximate the full behavior.                                                                                                       Training Inputs and Finding Smaller Representative In-
+   Figure 11 is the average over all of the ﬂoating point pro-                                                                                  puts: One approach for reducing the simulation time is to
+grams (top graph) and integer programs (bottom graph). Er-                                                                                      use the training or test inputs from the SPEC benchmark
+rors for IPC, branch miss rate, instruction and data cache                                                                                      suite. For many of the benchmarks, these inputs are either
+miss rates, and the uniﬁed L2 cache miss rate for the archi-                                                                                    (1) still too long to fully simulate, or (2) too short and place
+tecture presented in Section 2 are shown. The errors are with                                                                                   too much emphasis on the startup and shutdown parts of
+respect to these metrics for the full length of simulation us-                                                                                  the program’s execution, or (3) inaccurately estimate behav-
+ing SimpleScalar. Results are shown for starting simulation                                                                                     ior such as cache accesses do to decreased working set size.
+at the start of the program None, blindly fast forwarding a                                                                                        KleinOsowski et. al [12], have developed a technique where
+billion instructions FF-Billion, single simulation points of                                                                                    they manually reduce the input sets of programs. The input
+duration 1 (SimPoint) and k (LongSP), and multiple simula-                                                                                      sets were developed using a range of approaches from trun-
+tion points (Multiple).                                                                                                                         cating of the input ﬁles to modiﬁcation of source code to
+   The ﬁrst thing to note is that using the just a single small                                                                                 reduce the number of times frequent loops were traversed.
+simulation point performs quite well on average across all of                                                                                   For these input sets they develop, they make sure that they
+the metrics when compared to blindly fast-forwarding. Even                                                                                      have similar results in terms of IPC, cache, and instruction
+though a single SimPoint does well, it is clearly beaten by                                                                                     mix.
+using the clustering based scheme presented in this paper                                                                                          Fast Forwarding and Check-pointing: Historically researchers
+across all of the metrics examined. One thing that stands out                                                                                   have simulated from the start of the application, but this
+on the graphs is that the error rate of the instruction cache                                                                                   usually does not represent the majority of the program’s be-
+and L2 cache appear to be high (especially for the integer                                                                                      havior because it is still in the initialization phase. Recently
+programs) despite the fact that our technique is doing quite                                                                                    researchers have started to fast-forward to a given point in
+well in terms of overall performance. This is due to the fact                                                                                   execution, and then start their simulation from there, ide-
+that we present here an arithmetic mean of the errors, and                                                                                      ally skipping over the initialization code to an area of code
+there are several programs that have high error rates due to                                                                                    representative of the whole. During fast-forward the simula-
+the very small number of cache misses. If there are 10 misses                                                                                   tor simply needs to act as a functional simulator, and may
+in the whole program, and we estimate there to be 100, that                                                                                     take full advantage of optimizations like direct execution. Af-
+will result in a error of 10X. We point to the overall IPC                                                                                      ter the fast-forward point has been reached, the simulator
+as the most important metric for evaluation as it implicitly                                                                                    switches to full cycle level simulation.
+weighs each of the metrics by it’s relative importance.                                                                                            After fast-forwarding, the architecture state to be simu-
+                                                                                                                                                lated is still cold, and a warmup time is needed in order to
+                                                                                                                                                start collecting representative results. Eﬃciently warming
+                                                                                                                                                up execution only requires references immediately proceed-
+6. RELATED WORK                                                                                                                                 ing the start of simulation. Haskins and Skadron [7] exam-
+  Time Varying Behavior of Programs: In [18], we provided                                                                                       ined probabilistically determining the minimum set of fast-
+a ﬁrst attempt at showing the periodic patterns for all of                                                                                      forward transactions that must be executed for warm up to
+the SPEC 95 programs, and how these vary over time for                                                                                          accurately produce state as it would have appeared had the
+cache behavior, branch prediction, value prediction, address                                                                                    entire fast-forward interval been used for warm up [7]. They
+prediction, IPC and RUU occupancy.
+
+
+                                                                                                                                           11
+                                        None           FF-Billion           SimPoint          LongSP            Multiple
+
+                      1.4x                 2.9x 3.8x                1.2x 1.1x                7.7x 3.4x               1.4x 1.4x
+               100%
+ Error (FP)
+
+                80%
+                60%
+                40%
+                20%
+                 0%
+                                  IPC             Branch                   Data Cache             Instr Cache                L2 Cache
+
+                      2.5x 1.3x            1.1x                     1.5x                     3.5x 3.5x               32.4x
+               100%
+ Error (Int)
+
+
+
+
+                80%
+                60%
+                40%
+                20%
+                 0%
+                                  IPC             Branch                   Data Cache             Instr Cache                L2 Cache
+Figure 11: Average error results for the SPEC 2000 ﬂoating point (top) and integer (bottom) benchmarks
+for IPC, branch misprediction, instruction, data and uniﬁed L2 cache miss rates.
+
+recently examined using reuse analysis to determine how far                 ine they can use our approach to quickly ﬁnd the simulation
+before full simulation warmup needs to occur [8].                           points, and then validate these with detailed simulation in
+   An alternative to fast forwarding is to use check-pointing               parallel with using the binary.
+to start the simulation of a program at a speciﬁc point. With                  Statistical Simulation: Another technique to improve sim-
+check-pointing, code is executed to a given point in the pro-               ulation time is to use statistical simulation [16]. Using sta-
+gram and the state is saved, or checkpointed, so that other                 tistical simulation, the application is run once and a syn-
+simulation runs can start there. In this way the initializa-                thetic trace is generated that attempts to capture the whole
+tion section can be run just one time, and there is no need                 program behavior. The trace captures such characteristics
+to fast forward past it each time. The architectural state                  as basic block size, typical register dependencies and cache
+(e.g., caches, register ﬁle, branch prediction, etc) can either             misses. This trace is then run for sometimes as little as 50-
+be stored in the trace (if they are not going to change across              100,000 cycles on a much faster simulator. Nussbaum and
+simulation runs) or can be warmed up in a manner similar                    Smith [15] also examined generating synthetic traces and us-
+to described above.                                                         ing these for simulation and was proposed for fast design
+   Automatically Finding Where to Simulate: Our work is                     space exploration. We believe the techniques presented in
+based upon the basic block distribution analysis in [19] as                 this paper are complementary to the techniques of Oskin et
+described in prior sections. Recent work on ﬁnding simula-                  al. and Nussbaum and Smith in that more accurate proﬁles
+tion points for data cache simulations is presented by Lafage               can be determined using our techniques, and instead of at-
+and Seznec [13]. They proposed a technique to gather statis-                tempting to characterize the program as a whole it can be
+tics over the complete execution of the program and use them                characterized on a per-phase basis.
+to choose a representative slice of the program. They evalu-
+ate two metrics, one which captures memory spatial locality
+and one which captures memory temporal locality. They fur-                  7. SUMMARY
+ther propose to create specialized metrics such as instruction                 At the heart of computer architecture and program opti-
+mix, control transfer, instruction characterization, and dis-               mization is the need for understanding program behavior. As
+tribution of data dependency distances to further quantify                  we have shown, many programs have wildly diﬀerent behav-
+the behavior of the both the program’s full execution and                   ior on even the very largest of scales (over the full lifetime of
+the execution of samples.                                                   the program). While these changes in behavior are drastic,
+   Statistical Sampling: Several diﬀerent techniques have been              they are not without order, even in very complex applica-
+proposed for sampling to estimate the behavior of the pro-                  tions such as gcc. In order to help future compiler and ar-
+gram as a whole. These techniques take a number of contigu-                 chitecture researchers in exploiting this large scale behavior,
+ous execution samples, referred to as clusters in [4], across the           we have developed a set of analytical tools that are capable
+whole execution of the program. These clusters are spread                   of automatically and eﬃciently analyzing program behavior
+out throughout the execution of the program in an attempt                   over large sections of execution.
+to provide a representative section of the application being                   The development of the analysis is founded on a hardware
+simulated. Conte et. al [4] formed multiple simulation points               independent metric, Basic Block Vectors, that can concisely
+by randomly picking intervals of execution, and then exam-                  summarize the behavior of an arbitrary section of execution
+ining how these ﬁt to the overall execution of the program for              in a program. We showed that by using Basic Block Vec-
+several architecture metrics (IPC and branch and data cache                 tors one can capture the behavior of programs as deﬁned by
+statistics). Our work is complementary to this, where we                    several architectural metrics (such as IPC, and branch and
+provide a fast and metric independent approach for picking                  cache miss rates).
+multiple simulation points based just on basic block vector                    Using this framework, we examine the large scale behavior
+similarity. When an architect gets a new binary to exam-                    of several complex programs like gzip, bzip, and gcc, and
+                                                                            ﬁnd interesting patterns in their execution over time. The
+
+
+                                                                       12
+behavior that we ﬁnd shows that code and program behav-                 [4] T. M. Conte, M. A. Hirsch, and K. N. Menezes. Reducing
+ior repeat over time. For example, in the input we exam-                    state loss for eﬀective trace sampling of superscalar
+ined in detail for gcc we see that program behavior repeats                 processors. In Proceedings of the 1996 International
+                                                                            Conference on Computer Design (ICCD), October 1996.
+itself every 23.6 billion instructions. Developing techniques
+                                                                        [5] S. Dasgupta. Experiments with random projection. In
+that automatically capture behavior on this scale is useful for             Uncertainty in Artificial Intelligence: Proceedings of the
+architectural, system level, and runtime optimizations. We                  Sixteenth Conference (UAI-2000), pages 143–151, San
+present an algorithm based on the identiﬁcation of clusters                 Francisco, CA, 2000. Morgan Kaufmann Publishers.
+of basic block vectors that can ﬁnd these repeating program             [6] G. Hamerly and C. Elkan. Learning the k in k-means.
+behaviors and group them into sets for further analysis. For                Technical Report CS2002-0716, University of California, San
+two of the programs gzip and gcc we show how the cluster-                   Diego, 2002.
+ing algorithm results line up nicely with the similarity matrix         [7] J. Haskins and K. Skadron. Minimal subset evaluation:
+                                                                            Rapid warm-up for simulated hardware state. In Proceedings
+and correlate with the time varying IPC and data cache miss                 of the 2001 International Conference on Computer Design,
+rates.                                                                      September 2001.
+   It is increasingly common for computer architects and com-           [8] J. Haskins and K. Skadron. Memory reference reuse latency:
+piler designers to use a small section of a benchmark to                    Accelerating sampled microarchitecture simulations.
+represent the whole program during the design and evalu-                    Technical Report CS-2002-19, U of Virginia, July 2002.
+ation of a system. This leads to the problem of ﬁnding sec-             [9] A. K. Jain, M. N. Murty, and P. J. Flynn. Data clustering:
+tions of the program’s execution that will accurately repre-                a review. ACM Computing Surveys, 31(3):264–323, 1999.
+sent the behavior of the full program. We show how our                 [10] J.-M. Jolion, P. Meer, and S. Bataouche. Robust clustering
+                                                                            with applications in computer vision. IEEE Transactions on
+clustering analysis can be used to automatically ﬁnd multi-
+                                                                            Pattern Analysis and Machine Intelligence, 13(8):791–802,
+ple simulation points to reduce simulation time and to accu-                1991.
+rately model full program behavior. We call this clustering            [11] R. E. Kass and L. Wasserman. A reference Bayesian test for
+tool to ﬁnd single and multiple simulation points SimPoint.                 nested hypotheses and its relationship to the schwarz
+SimPoint along with additional simulation point data can                    criterion. Journal of the American Statistical Association,
+be found at: http://www.cs.ucsd.edu/~calder/simpoint/.                      90(431):928–934, 1995.
+For the SPEC 2000 programs, we found that starting simula-             [12] A. KleinOsowski, J. Flynn, N. Meares, and D. Lilja.
+                                                                            Adapting the spec 2000 benchmark suite for
+tion at the start of the program results in an average error of
+                                                                            simulation-based computer architecture research. In
+210% when compared to the full simulation of the program,                   Proceedings of the International Conference on Computer
+whereas blindly fast forwarding resulted in an average 80%                  Design, September 2000.
+IPC error. Using a single simulation point found, using our            [13] T. Lafage and A. Seznec. Choosing representative slices of
+basic block vector analysis, resulted in an average 17% IPC                 program execution for microarchitecture simulations: A
+error. When using the clustering algorithm to create multiple               preliminary application to the data stream. In Workload
+simulation points we saw an average IPC error of 3%.                        Characterization of Emerging Applications, Kluwer
+                                                                            Academic Publishers, September 2000.
+   Automatically identifying the phase behavior using clus-
+                                                                       [14] J. MacQueen. Some methods for classiﬁcation and analysis
+tering is beneﬁcial for architecture, compiler, and operating               of multivariate observations. In L. M. LeCam and
+system optimizations. To this end, we have used the notion of               J. Neyman, editors, Proceedings of the Fifth Berkeley
+basic block vectors and a random projection to create an ef-                Symposium on Mathematical Statistics and Probability,
+ﬁcient technique for identifying phases on-the-ﬂy [20], which               volume 1, pages 281–297, Berkeley, CA, 1967. University of
+can be eﬃciently implemented in hardware or software. Be-                   California Press.
+sides identifying phases, this approach can predict not only           [15] S. Nussbaum and J. E. Smith. Modeling superscalar
+when a phase change is about to occur, but to which phase it                processors via statistical simulation. In International
+                                                                            Conference on Parallel Architectures and Compilation
+is about to transition. We believe that using phase informa-                Techniques, September 2001.
+tion can lead to new compiler optimizations with code tai-             [16] M. Oskin, F. T. Chong, and M. Farrens. HLS: Combining
+lored to diﬀerent phases of execution, multi-threaded archi-                statistical and symbolic simulation to guide microprocessor
+tecture scheduling, power management, and other resource                    designs. In 27th Annual International Symposium on
+distribution problems controlled by software, hardware or the               Computer Architecture, June 2000.
+operating system.                                                      [17] D. Pelleg and A. Moore. X-means: Extending K-means with
+                                                                            eﬃcient estimation of the number of clusters. In Proceedings
+                                                                            of the 17th International Conf. on Machine Learning, pages
+Acknowledgments                                                             727–734. Morgan Kaufmann, San Francisco, CA, 2000.
+We would like to thank Suleyman Sair and Chris Weaver for              [18] T. Sherwood and B. Calder. Time varying behavior of
+                                                                            programs. Technical Report UCSD-CS99-630, UC San
+their assistance with SimpleScalar, as well as Mark Oskin and               Diego, August 1999.
+the anonymous reviewers for providing helpful comments on              [19] T. Sherwood, E. Perelman, and B. Calder. Basic block
+this paper. This work was funded in part by DARPA/ITO                       distribution analysis to ﬁnd periodic behavior and
+under contract number DABT63-98-C-0045 and NSF CA-                          simulation points in applications. In International
+REER grant No. CCR-9733278.                                                 Conference on Parallel Architectures and Compilation
+                                                                            Techniques, September 2001.
+                                                                       [20] T. Sherwood, S. Sair, and B. Calder. Phase tracking and
+8. REFERENCES                                                               prediction. Technical Report CS2002-0710, UC San Diego,
+ [1] A. Ben-Dor, R. Shamir, and Z. Yakhini. Clustering gene                 June 2002.
+     expression patterns. Journal of Computational Biology,            [21] A. Srivastava and A. Eustace. ATOM: A system for building
+     6:281–297, 1999.                                                       customized program analysis tools. In Proceedings of the
+ [2] C. M. Bishop. Neural Networks for Pattern Recognition.                 Conference on Programming Language Design and
+     Clarendon Press, Oxford, 1995.                                         Implementation, pages 196–205. ACM, 1994.
+ [3] D. C. Burger and T. M. Austin. The simplescalar tool set,         [22] O. Zamir and O. Etzioni. Web document clustering: A
+     version 2.0. Technical Report CS-TR-97-1342, University of             feasibility demonstration. In Research and Development in
+     Wisconsin, Madison, June 1997.                                         Information Retrieval, pages 46–54, 1998.
+
+
+                                                                  13
+

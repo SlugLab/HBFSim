@@ -1,0 +1,673 @@
+Sieve: Stratified GPU-Compute Workload Sampling
+                      Mahmood Naderan-Tahan     Hossein SeyyedAghaei                       Lieven Eeckhout
+                                          Ghent University, Belgium
+
+
+   Abstract—To exploit the ever increasing compute capabilities     used methodology. While there exists a large body of work
+offered by GPU hardware, GPU-compute workloads have evolved         on sampled simulation for CPUs [16]–[20], [24], [38], [39],
+from simple computational kernels to large-scale programs with      [51], sampling techniques specifically developed and tailored
+complex software stacks and numerous kernels. Driving architec-
+ture exploration using real workloads hence becomes increasingly    for speeding up GPU simulation have only recently received
+challenging, up to the point of becoming intractable because        attention, see in particular [23], [25], [41], [44]. The state-
+of extremely long simulation times using existing architecture      of-the-art GPU workload sampling methodology, and most
+simulators. Sampling is a widely used technique to speed up         closely related work compared to ours, is Principal Kernel
+simulation, however, the state-of-the-art sampling method for       Selection (PKS) [11] which was shown to yield high accuracy
+GPU-compute workloads, Principal Kernel Selection (PKS), falls
+short for challenging GPU-compute workloads with a large            and high speed for a variety of GPU-compute workloads.
+number of kernels and kernel invocations.                           PKS first profiles all kernel invocations of a workload using a
+   This paper presents Sieve, an accurate and low-overhead          set of microarchitecture-independent execution characteristics,
+stratified sampling methodology for GPU-compute workloads           after which it groups kernel invocations in clusters based on
+that groups kernel invocations based on their instruction count,    similarity. PKS then selects a representative kernel invocation
+with the goal of minimizing the execution time variability within
+strata. For the challenging Cactus and MLPerf workloads, we         per cluster for simulation. Overall application performance is
+report that Sieve achieves an average prediction error of 1.2%      then estimated by computing a weighted performance figure
+(and at most 3.2%) versus 16.5% (and up to 60.4%) for PKS           across all representative kernel invocations.
+on real hardware (Nvidia Ampere GPU), while maintaining a              Unfortunately, we find that although PKS is accurate and
+similar simulation speedup of three orders of magnitude. We         effective for many workloads, it fails to yield high accuracy for
+further demonstrate that Sieve reduces profiling time by a factor
+of 8× (and up to 98×) compared to PKS.                              all workloads, and especially the more challenging workloads
+                                                                    with a large number of kernels and kernel invocations. The
+                       I. I NTRODUCTION                             reason is that, for these workloads, there is too high variability
+   GPUs are by far the most popular hardware accelerators to-       in the clusters from which PKS selects a representative kernel
+day. General-purpose programming interfaces such as CUDA            invocation, i.e., the different kernel invocations grouped within
+and OpenCL have opened up the vast compute capabili-                a cluster exhibit too high variability in execution cycle count
+ties GPUs offer towards GPU-compute applications beyond             for PKS to select an invocation that is representative for
+traditional graphics processing [30], [46], including high-         all invocations within the cluster. In addition, profiling the
+performance computing (HPC) [9], [14], graph analytics [10],        workload or collecting the dozen execution characteristics that
+[48], and machine learning (ML) [28], [32], [34]. The rapid         serve as input to PKS, is time-consuming up to the point of
+growth in raw hardware compute capabilities and software            becoming impractical.
+support has rendered the workloads ever more complex, con-             In this paper, we propose Sieve, an accurate and low-
+sisting of multiple tens of kernels that are invoked multiple       overhead sampling methodology for GPU-compute workloads.
+(tens or even hundreds of) thousands of times.                      Sieve is based on the simple and intuitive observation that
+   As GPU-compute workloads become increasingly more                different invocations of the same kernel most often lead to
+complex, they stress the performance evaluation methodolo-          a (very) similar or even the same instruction count. Sieve
+gies computer architects use during early stages of the design      groups kernel invocations into strata based on instruction
+cycle to their limit. At a typical simulation speed of 6 KIPS       count variability. The stratification process effectively ‘sieves’
+rate, the state-of-the-art GPU simulator, Accel-sim [26], can       kernel invocations into strata such that the execution time
+only simulate workload executions on the order of a couple          variability within the strata is minimized. Moreover, Sieve
+milliseconds within a simulation time budget of a few hours.        relies on a low-overhead profiling phase in which only a
+Unfortunately, real applications easily run for minutes, if not     single microarchitecture-independent execution characteristic
+hours, rendering current simulation methodologies inadequate.       is collected per kernel invocation, namely instruction count.
+As argued by Baddouh et al. [11], some of the recent                   We evaluate Sieve on two real hardware platforms (contem-
+MLPerf [34] workloads would take a century to simulate on           porary Nvidia Ampere and Turing GPUs), and demonstrate
+current simulators. This is clearly impractical.                    significantly higher accuracy for the challenging Cactus [31]
+   Researchers are well aware of the architecture simulation        and MLPerf [34] workloads compared to PKS, while achieving
+challenge and have developed a variety of techniques to speed       a similarly high (∼1,000×) simulation speedup. In particular,
+up architectural simulation. Sampling, through which a limited      Sieve achieves an average prediction error of 1.2% (and at most
+number of representative regions are simulated, is a widely         3.2%), versus 16.5% (and up to 60.4%) for PKS. Moreover,
+profiling time is on average 8× (and up to 98×) faster than         instructions executed per cycle or IPC) quickly converges to
+PKS. We further show that Sieve accurately predicts relative        its steady-state value. Hence, we do not need to simulate the
+performance differences across architectures, in contrast to        entire kernel invocation, and a significant simulation speedup
+PKS which yields misleading relative performance predictions        can be achieved by stopping simulation once the performance
+in some cases. We provide the Sieve scripts and the iden-           number has converged. According to the results obtained
+tified representative kernel invocations for the Cactus [31],       by Baddouh et al. [11], PKA is receiving the bulk of its
+MLPerf [34], Rodinia [14], Parboil [40] and CUDA SDK [6]            speedup from PKS, however, for a few workloads PKP leads
+benchmark suites here: https://github.com/gpubench/sieve.           to additional speedups. In this work, we hence focus on PKS
+                                                                    and discard PKP because (1) it is less effective, and (2) it is
+          II. P RIOR W ORK AND ITS L IMITATIONS                     orthogonal to both Sieve and PKS, i.e., PKP can be applied to
+   GPU simulation acceleration is not a new topic and some          both techniques with similar benefits.
+prior work has been done in this space. Principal Kernel
+Selection (PKS) [11] is the current state-of-the-art, and is most   B. Limitations
+closely related to Sieve. We now describe the PKS method and
+its limitations. We discuss other related work in Section VI.          Although Baddouh et al. [11] convincingly demonstrate
+                                                                    PKS’ accuracy and speed, there are a couple limitations
+A. Principal Kernel Selection (PKS)                                 which we overcome with Sieve. First, PKS is effective for
+   PKS made a substantial leap forward in GPU sampling              many workloads, particularly relatively simple GPU-compute
+compared to its own prior work [23], [25], [42], [44]. PKS          workloads from the Parboil [40], Rodinia [14] and CUDA
+operates as follows. It first profiles a workload of interest       SDK [6] benchmark suites. However, we find that PKS is in-
+by collecting a wide variety of execution characteristics for       accurate for more challenging workloads with a large number
+each kernel invocation. The 12 characteristics that PKS col-        of kernels and kernel invocations. In particular, for the non-
+lects are all microarchitecture-independent. PKS subsequently       trivial workloads from Cactus [31] and MLPerf [34], we find
+applies Principal Component Analysis (PCA) to reduce the            that PKS incurs significant inaccuracy. The reason relates to
+dimensionality of the data set, and then uses Cluster Analysis      how PKS characterizes kernel invocations. PKS groups kernel
+(i.e., k-means clustering) to group the kernel invocations in       invocations based on microarchitecture-independent charac-
+this (reduced) multi-dimensional workload space. The basic          teristics, and hence invocations from different kernels may
+intuition is to group kernel invocations into clusters such that    be grouped within the same cluster. Moreover, because PKS
+all kernel invocations within a cluster feature similar execution   predicts application cycle count as a weighted sum of the
+characteristics. Note that different kernel invocations in the      cycle counts of the cluster representatives, with the weights
+same cluster may originate from different kernels, as long as       being the number of kernel invocations per cluster, PKS
+the execution characteristics are similar.                          essentially assumes that all kernel invocations in the same
+   Once the clusters are formed, a representative kernel in-        cluster have the same execution time. We find though that
+vocation is identified per cluster, and its relative weight is      there is significant variability in cycle count within clusters.
+computed. The weight per cluster (representative) is computed       Selecting a kernel invocation that is representative for the rest
+based on the number of kernel invocations within the cluster.       of the invocations in the cluster is hence challenging, or even
+In other words, the more kernel invocations a cluster contains,     (close to) impossible, as we will demonstrate in Section V.
+the higher its weight.                                                 Second, PKS, as mentioned before, characterizes kernel
+   Performance for the full workload execution is then esti-        invocations by collecting 12 microarchitecture-independent ex-
+mated based on the detailed simulation of the representative        ecution characteristics. Collecting this many characteristics is
+kernel invocations only. Indeed, the representative kernel in-      time-consuming using existing profiling tools such as Nvidia’s
+vocations are simulated, their respective performance numbers       Nsight Compute [3]. For long-running workloads, profiling
+are computed (i.e., cycle count), and an overall performance        takes multiple days, and in some cases even several weeks.
+prediction is obtained by computing a weighted sum across the       Although this is a one-time cost only, it is impractical because
+performance numbers obtained for the representative kernel          one needs to reserve an entire machine for multiple days or
+invocations. In other words, PKS computes a weighted sum            weeks to profile a single workload. To overcome this chal-
+of cycle counts across all representative kernel invocations,       lenge, Baddouh et al. [11] propose two-level profiling in which
+with the weights being the number of kernel invocations per         they perform detailed profiling collecting the 12 characteristics
+respective cluster.                                                 for a first batch of kernels, followed by low-overhead profiling
+   To further speed up the simulation, Baddouh et al. [11] com-     to collect the kernel names and grid dimensions for the
+plement PKS with a technique which they call Principal Kernel       remaining kernels in the workload. In our experiments we find
+Projection (PKP) — PKS plus PKP then is their final proposal,       that PKS profiling is indeed time-consuming, and substantially
+namely Principal Kernel Analysis (PKA). PKP builds upon             shorter profiling times can be achieved by collecting only
+the observation that performance quickly converges within a         a single execution characteristic, namely instruction count,
+kernel invocation, i.e., as the execution of a kernel invocation    and still achieve high accuracy, as we will demonstrate in
+progresses over time, the overall performance number (e.g.,         Section V.
+   A last and more technical concern is that PKS relies on
+a golden reference obtained on a real hardware device to
+select the representative kernel invocations. More specifically,
+PKS relies on k-means clustering to group kernel invocations.
+Choosing the optimal number of clusters k is determined by
+calculating the error for each k (up to a maximum k of 20), and
+then selecting the one that minimizes the prediction error. The
+latter step, i.e., computing the prediction error for all k’s, relies
+on a golden reference cycle count obtained on real hardware.
+This leads to the following concern. Although PKS uses
+microarchitecture-independent execution characteristics during
+profiling, it uses a specific hardware platform to perform the
+clustering, which makes the final selection of representative
+kernel invocations not truly microarchitecture-independent.
+In contrast, Sieve profiles kernel invocations and selects
+representatives only using a microarchitecture-independent
+characteristic, namely instruction count; by consequence, the
+representative kernel invocations are truly microarchitecture-
+independent. In other words, Sieve does not rely on a golden
+reference cycle count obtained on a real hardware platform.
+There is a caveat though that instruction count, as well as other
+microarchitecture-independent execution characteristics, might
+vary slightly across different GPU generations. However, it is
+expected that the variation in instruction count will be less
+than the variation in performance. In that sense, Sieve is more
+microarchitecture-independent compared to PKS.
+                                                                        Fig. 1. Block diagram for Sieve. Sieve selects representative kernel invo-
+C. Overcoming the Limitations                                           cations with their respective weights for driving architecture design space
+                                                                        exploration.
+   Sieve overcomes these limitations by only using a sin-
+gle microarchitecture-independent execution characteristic,
+namely instruction count, to characterize and categorize ker-           words, the profile essentially is a big table with as many
+nel invocations. Because of the low variability within each             rows as there are kernel invocations in the workload, and
+cluster, Sieve’s accuracy is high — significantly higher than           three columns per row (kernel name, kernel invocation ID,
+PKS. Because we need to collect only a single execution                 and instruction count).
+characteristic, profiling is also fast — significantly faster than         Note that profiling is a one-time cost, and its purpose is
+PKS. Furthermore, the achieved speedup for simulation of                to feed the Sieve back-end to select representative kernel
+the representative kernel invocations obtained through Sieve            invocations. The representative kernel invocations are then
+remains high, and is comparable to PKS.                                 simulated multiple times during architecture design space
+                                                                        exploration. Although profiling is a one-time cost, it can be
+               III. S IEVE S AMPLING M ETHOD                            extremely time-consuming. Sieve makes profiling practical by
+   We now describe how Sieve operates, see also Figure 1 for            measuring only a single program characteristic that is easy to
+a high-level block diagram of the workflow. The first step is           profile, namely dynamic instruction count. PKS on the other
+to profile the workload of interest. The profile information            hand collects a dozen execution characteristics, which leads to
+serves as input to stratification which selects and outputs the         impractically long profiling times of more than a month for
+kernel invocations that are most representative along with their        some of the complex workloads considered in this work. Sieve
+respective weights. These representative kernel invocations are         substantially reduces profiling time compared to PKS as we
+then used for detailed simulation or workload analysis. We              will quantify in Section V.
+now discuss the various parts of the Sieve methodology.
+                                                                        B. Stratification
+A. Profiling                                                               Once the profile information has been collected, the Sieve
+   A GPU program typically consists of multiple kernels, and            back-end selects the most representative kernel invocations.
+each kernel can be executed multiple times. We refer to                 Sieve uses a simple, yet effective method to categorize kernel
+different executions of the same kernel as kernel invocations.          invocations into strata. Sieve considers all invocations of a
+The profiling phase of Sieve collects the following information         kernel and categorizes them based on instruction count in
+for each kernel invocation: kernel name, kernel invocation ID,          such a way that each stratum consists of a collection of
+and number of dynamically executed instructions. In other               kernel invocations of the same kernel with the same or similar
+dynamic instruction count. By doing so, Sieve effectively           each stratum is small. We therefore use Kernel Density
+‘sieves’ kernel invocations into strata with the following shared   Estimation (KDE) [8], [36] which essentially groups kernel
+attribute: (1) being from the same kernel, and (2) featuring the    invocations in such a way that it (1) minimizes the number of
+same or similar instruction count. The intuition is that strata     strata, and (2) ensures that the variability in instruction count
+selected in this way show limited execution time variability        is less than a preset threshold. Again, we rely on the CoV for
+because all kernel invocations within a stratum are executions      instruction count and we use the same threshold θ as before.
+of the same kernel and execute roughly the same number of           The end result for the stratification process is that we end up
+instructions, i.e., the work performed by the kernel invocations    with a number of strata or groups of kernel invocations that
+within the same stratum is similar.                                 all feature the same or similar instruction count and originate
+   The stratification per kernel is based on the simple ob-         from the same kernel. For this reason, we expect the execution
+servation that different invocations of the same kernel often       behavior to be similar across all invocations within a stratum.
+lead to the same (or very similar) instruction count. We hence
+categorize kernel invocations in three so-called tiers:             C. Representative Kernel Invocation Selection
+   • Tier-1: There is no variation in the number of instructions       Once the kernel invocations have been categorized, the next
+      across invocations. In other words, the kernel executes the   step is to select a representative invocation for each stratum.
+      exact same number of instructions across invocations.         For Tier-1, this is straightforward because all kernel invo-
+   • Tier-2: There is little variation in the number of executed    cations have the same dynamic instruction count. We hence
+      instructions across invocations of the same kernel.           simply select the first-chronological kernel invocation. For
+   • Tier-3: There is large variation in the number of executed     Tier-2 and Tier-3, selecting a representative kernel invocation
+      instructions across invocations of the same kernel.           is a little more complicated because there is some variability
+Note that Tier-2 and Tier-3 represent variable instruction count    within a stratum (although variability is small). We select the
+across invocations, and they are distinguished by a threshold.      first-chronological invocation with the most dominant CTA1
+We use the Coefficient of Variation (CoV) to quantify the           size, meaning that the selected kernel invocation occupies the
+variability in instruction count across invocations. CoV is         available hardware resources in a representative way for the
+defined as the standard deviation σ (i.e., the average squared      rest of stratum. (We also considered selecting the invocation
+differences with the mean) divided by the mean instruction          with the maximum CTA size to better stress the GPU archi-
+count µ:                                                            tecture, but we found this to be less accurate.)
+                                     σ
+                            CoV = .                                    In addition to identifying a representative invocation per
+                                     µ
+                                                                    stratum, we also need to compute its relative weight. We do
+If the CoV is below a predefined and user-set threshold θ, the      this by computing the sum of the instruction count for all
+kernel belongs to Tier-2; otherwise, it belongs to Tier-3. The      invocations within the stratum. Dividing the total instruction
+smaller the threshold θ, the less the variability within strata.    count per stratum to the total instruction count for the entire
+This suggests higher accuracy but lower speed. We evaluate          workload yields the stratum’s weight, and thus the weight of
+Sieve’s sensitivity to θ for accuracy and speed, and find that a    its representative kernel invocation. As such, an invocation that
+threshold of θ = 0.4 strikes a good balance between accuracy        represents a stratum with a high instruction count receives a
+and speed. We hence consider θ = 0.4 in our setup, unless           higher weight.
+mentioned otherwise.
+   Figure 2 categorizes the kernel invocations across the three     D. Performance Prediction
+tiers for the various Cactus and MLPerf workloads considered
+in this work for three threshold values θ. (See Section IV             The output provided by Sieve is the representative kernel in-
+for details about our experimental setup.) Interestingly, the       vocations and their respective weights, which we subsequently
+majority of kernel invocations fall within the Tier-1 and Tier-     use to drive architecture design space exploration. To predict
+2 groups, meaning that there is relatively little variability in    overall application performance, the following two steps need
+instruction count across invocations of the same kernel. On         to be conducted for each architecture configuration of interest.
+average, 41% of kernel invocations belong to Tier-1; 22%,           We first execute or simulate the representative kernel invoca-
+42% and 49% belong to Tier-2 for θ = 0.1, θ = 0.5                   tions and we compute their respective performance number,
+and θ = 1.0, respectively. For some workloads, all kernel           e.g., the number of instructions executed per cycle (IPC).
+invocations belong to Tier-1 and Tier-2, as is the case for gms     Second, we compute the overall, application-level performance
+and lmr, even for the smallest thresholds; for gru, lmc, bert,      number by weighting the per-stratum IPC numbers with their
+resnet50, all kernel invocations belong to Tier-1 and 2 for the     respective weights. This is done by computing the weighted
+larger thresholds θ at 1.0 (or 0.5). The gst benchmark has the      harmonic mean IPC as follows:
+largest Tier-3 fraction above 50%. A couple other benchmarks                                                1
+                                                                                             IPC = PN         wi
+                                                                                                                    ,
+have a Tier-3 fraction in the 10% to 50% range depending on                                              i=1 IPCi
+the threshold θ.
+   Because of the large variability within Tier-3, we need to          1 In Nvidia’s terminology, a Cooperative Thread Array (CTA) refers to a
+further stratify the invocations so that the variability within     thread block. This is similar to a workgroup in OpenCL’s terminology.
+Fig. 2. Fraction kernel invocations belonging to Tier-1, Tier-2 and Tier-3 as a function of the threshold θ = 0.1, θ = 0.5 and θ = 1.0. Most kernel invocations
+below to Tier-1 and Tier-2, meaning that there is little to no variability in instruction count across invocations of the same kernel.
+
+
+
+with N the number of strata, and IPCi and wi the IPC and                            2) Benchmarks: We use a wide variety of (randomly se-
+weight per stratum,
+             PN     respectively. Of course, the weights add up                  lected) workloads from different benchmark suites, including
+to one, i.e., i=1 wi = 1. Note that if the performance number                    Parboil [40], Rodinia [14], CUDA SDK [6], Cactus [31] and
+per stratum would be CPI, we would need to compute the                           MLPerf inference [34], see Table I. In the evaluation, we will
+weighted arithmetic mean across the per-stratum CPI numbers                      focus mostly on the Cactus and MLPerf benchmarks because
+with the weights based on instruction count.                                     they are the most challenging to sample featuring a large
+                                                                                 number of kernels and a large number of invocations per
+E. Discussion                                                                    kernel. The benchmarks in the other suites, namely Parboil,
+   Note that Sieve categorizes kernel invocations into strata                    Rodinia and SDK, are relatively easy to sample, and prior
+based on (1) kernel name and (2) similar (or same) instruction                   work (PKS) — alike Sieve — achieves high accuracy for
+count. Hence, a kernel that is invoked only once (or only a few                  those workloads because of the small number of kernels and
+times) will be identified as a kernel to select (a) representative               invocations.
+kernel invocation(s) from, even if its contribution to the overall                  Due to infrastructure limitations, and because profiling is
+execution time is small. PKS on the other hand may possibly                      extremely time-consuming, especially for PKS, we do not
+cluster such kernels and invocations with invocations from                       consider full-application runs for the Cactus and MLPerf
+other kernels because it does not rely on kernel names but on                    benchmarks — full-workload profiling for PKS is estimated
+microarchitecture-independent characteristics. In other words,                   (based on extrapolation) to take more than three weeks. In
+PKS may cluster invocations from different kernels but with                      contrast, we consider and limit the total number of kernel
+similar characteristics. By doing so, PKS may possibly se-                       invocations profiled for the Cactus and MLPerf benchmarks as
+lect fewer representative kernel invocations, thereby achieving                  listed in Table I; there are two exceptions, namely gst and gru,
+higher simulation speedup compared to Sieve. In practice                         which are the shortest running benchmarks and for which we
+though, we find that Sieve achieves similar simulation speedup                   consider full runs. Overall, the large invocation count provides
+as PKS while being substantially more accurate.                                  confidence that the Cactus and MLPerf benchmark experi-
+                                                                                 ments are representative. We profile all kernel invocations for
+                    IV. E XPERIMENTAL S ETUP                                     the Parboil, Rodinia and CUDA SDK benchmarks.
+   1) GPU Platform: To evaluate Sieve, we consider a                                3) Evaluation Methodology: We collect the data as follows.
+modern-day high-end Nvidia RTX 3080 GPU system fea-                              For Cactus, all applications are built and compiled following
+turing 68 SMs, 10 GB of memory, and 760 GB/s of DRAM                             their documentation and makefiles, see [2]. For MLPerf, we
+bandwidth. This GPU implements Nvidia’s Ampere architec-                         use the Nvidia docker image v2.0 which is publicly available
+ture [5]. In addition to this baseline architecture, we also                     in the MLPerf repository [4]. Table II shows all the metrics
+consider a previous generation Nvidia RTX 2080Ti GPU                             used by PKS, versus the one metric, instruction count, used by
+with 68 SMs, 11 GB of memory, and 616 GB/s of DRAM                               Sieve. For each application, we run the profiler which produces
+bandwidth in some of our experiments. This GPU implements                        a list of values (one for each metric of interest) per kernel
+Nvidia’s Turing architecture [7], and is used in addition to                     invocation. The data is converted into a readable CSV file
+our baseline architecture to evaluate Sieve’s accuracy for pre-                  which serves as input to PKS and Sieve.
+dicting relative performance differences across architectures.                      To compute sampling accuracy, we use cycle count per
+The main libraries and tools we use in this work include the                     kernel invocation obtained on real hardware. This implicitly
+CUDA-11 driver, cuDNN-8 library and Nsight Compute 2022.                         assumes perfect warmup, i.e., the cache and microarchitecture
+                            TABLE I                                       for the entire application, as described in Section II-A. For
+  W ORKLOADS CONSIDERED IN THIS WORK FROM THE PARBOIL [40],               Sieve, we combine cycle count and instruction count for the
+  RODINIA [14], CUDA SDK [6], C ACTUS [31] AND MLP ERF [34]
+    BENCHMARK SUITES . T HE NUMBER OF KERNELS AND KERNEL                  representative kernel invocations to predict the application’s
+                 INVOCATIONS IS ALSO LISTED .                             IPC, as described in Section III-D; dividing total instruction
+                                                                          count with the predicted IPC yields the predicted cycle count.
+         Suite       Workload              #Kernels     #Invocations
+                                                                             We use the PKS scripts as made publicly available [1], and
+                     bfs ny                      2                  11    we implement Sieve through a separate set of scripts, which
+                     histo                       4                 252
+          Parboil
+
+
+
+
+                     lbm                         1               3,000    are available at https://github.com/gpubench/sieve. The error
+                     mri-g                       9                  51    metric to quantify sampling accuracy is the same for PKS
+                     stencil                     1                 100
+                                                                          and Sieve, namely the absolute cycle count difference between
+                     cfd                         4              14,003
+                     dwt2d                       4                  10    the predicted cycle count and the total recorded cycle count
+                     gaussian                    2              16,382    normalized to the total cycle count:
+          Rodinia
+
+
+
+
+                     heartwall                   1                  20
+                     hotspot3d                   1                 100                              |Cpredicted − Cmeasured |
+                     huffman                     6                  46                    Error =                             .
+                     lud                         3                  22                                     Cmeasured
+                     nw                          2                 255
+                     srad                        6                 502    Recall that Sieve predicts application IPC as the weighted har-
+                     blackscholes                1                 512    monic mean of the IPC values across all representative kernel
+                     cholesky                   25                 143
+                     gradient                    7                  84
+                                                                          invocations, with the weights being total instruction count per
+                     dct8x8                      8                 118    cluster; predicted cycle count is then obtained by dividing total
+          SDK
+
+
+
+
+                     histogram                   4                  68
+                     hsopticalflow               6               7,576
+                                                                          instruction count (which is known) with the predicted IPC.
+                     mergesort                   4                  49    PKS predicts application cycle count as a weighted sum of the
+                     nvjpeg                      2                  32
+                     random                      2                  42
+                                                                          cycle counts for each cluster representative, with the weights
+                     sortingnet                  4                 290    being the number of kernel invocations per cluster. We obtain
+                     gru                         8               43,837   cycle count and IPC for each kernel invocation from real
+                     gst                        15                  175   hardware execution; the golden reference, total cycle count,
+                     gms                        14               92,520
+                     lmc                        58              248,548   is also collected on real hardware. We thus evaluate Sieve
+          Cactus
+
+
+
+
+                     lmr                        62               74,765   (and compare it against PKS) through real silicon validation
+                     dcg                        59              414,585
+                     lgt                        74              532,707   — not through simulation.
+                     nst                        50            1,072,246      We quantify speedup as the ratio of the total cycle count for
+                     rfl                        57              206,407
+                     spt                        43              112,668   the entire workload execution divided by the total cycle count
+                     3d-unet                    20             113,183    for all representative kernel invocations — speedup quantified
+                     bert                       11             141,964    as such is a measure for the speedup to expect when simulating
+          MLPerf
+
+
+
+
+                     resnet50                   20              78,825
+                     rnnt                       39             205,440    the representative kernel invocations as opposed to the entire
+                     ssd-mobilenet              33              64,138    workload execution. Profiling time is defined as the total time
+                     ssd-resnet34               26              57,267
+                                                                          it takes to collect all the metrics needed as input for PKS
+                                                                          versus Sieve.
+                          TABLE II
+   E XECUTION CHARACTERISTICS PROFILED BY PKS VERSUS S IEVE .                                       V. R ESULTS
+
+                    Execution characteristic    PKS   Sieve
+                                                                             We now evaluate Sieve along a number of dimensions,
+                                                                          in particular accuracy, speedup, and profiling time. We also
+                    Coalesced global loads       ✓
+                    Coalesced global stores      ✓                        evaluate Sieve’s accuracy for predicting relative performance
+                    Coalesced local loads        ✓                        differences across architectures. We mostly evaluate Sieve
+                    Thread global loads          ✓
+                    Thread global stores         ✓                        using the more challenging Cactus and MLPerf benchmarks,
+                    Thread local loads           ✓                        but also provide results for the other benchmark suites Parboil,
+                    Thread shared loads          ✓
+                    Thread shared stores         ✓                        Rodinia, and CUDA SDK. We compare Sieve against the
+                    Thread global atomics        ✓                        state-of-the-art Principal Kernel Selection (PKS) approach [11]
+                    Instruction count            ✓     ✓
+                    Divergence efficiency        ✓                        — more specifically, we compare against PKS-first which
+                    Number of thread blocks      ✓                        selects the first chronologically occurring kernel invocation
+                                                                          per cluster, as advocated by Baddouh et al., and we evaluate
+                                                                          sensitivity to other selection policies.
+state is perfectly warmed up at the beginning of each sample or
+representative kernel invocation. This is a reasonable assump-            A. Accuracy
+tion for long-running kernel invocations, which is the case for             Figure 3 reports the prediction error for Sieve versus PKS.
+our workloads. (Studying the impact of warmup on sampling                 The overall conclusion is that Sieve is substantially more
+accuracy is left for future work.) PKS uses cycle count for               accurate than PKS. While PKS yields an average error of
+the representative kernel invocations to predict cycle count              20.4% and 16.0% for Cactus and MLPerf, and a maximum
+Fig. 3. Prediction error for Sieve and PKS. Sieve is substantially more            Fig. 5. Prediction error for different representative kernel invocation selection
+accurate than PKS: average error of 1.2% (at most 3.2%) for Sieve versus           mechanisms for PKS. Selecting kernel representatives differently does not
+16.5% (at most 60.4%) for PKS.                                                     close the accuracy gap between PKS and Sieve.
+
+
+
+
+Fig. 4. Cycle count variability (CoV) within a cluster. The degree of dispersion   Fig. 6. Speedup for Sieve and PKS on a logarithmic scale. Sieve and PKS
+within each cluster is substantially smaller for Sieve compared to PKS.            achieve comparable speedup typically in the 100× – 10,000× range.
+
+
+
+error of 60.4% (spt) and 46.0% (rnnt), respectively, the                           per cluster as it occurs chronologically during workload ex-
+error is substantially lower for Sieve: average error of 1.1%                      ecution [11]. The authors argue that the first chronological
+(and at most 4.1% in lgt) for Cactus, and 1.3% average                             kernel invocation ‘has practical advantages in reducing tracing
+error (and at most 3.2% in rnnt) for MLPerf. Across both                           and profiling time’ while being equally accurate as selecting
+Cactus and MLPerf, Sieve achieves an average error of 1.2%                         a representative kernel invocation closest to a cluster centroid.
+(at most 3.2%) versus 16.5% (and up to 60.4%) for PKS.                             They further found that selecting of a cluster representative
+The improvement in accuracy is remarkably consistent across                        randomly leads to inconsistent errors. In contrast, we find
+workloads, especially for the Cactus workloads.                                    that, at least for the Cactus and MLPerf workloads, the first
+   Figures 4 and 5 explain why Sieve is more accurate than                         chronological kernel invocation leads to a substantially higher
+PKS. Figure 4 reports the (weighted) average coefficient of                        error with an average error of 16.5% (and up to 60.4%), see
+variation (CoV) of cycle count within each cluster for PKS                         also Figure 5. Note there is some correlation between the
+versus Sieve. The coefficient of variation is defined as the                       degree of dispersion and a high error for the first-chronological
+standard deviation divided by the mean, and is a measure for                       representative selection, see lgt, nst, spt and rnnt. Random
+the degree of cycle count variability or dispersion within each                    selection leads to lower error: 6.8% average error (and up to
+cluster. The smaller the CoV, the smaller the dispersion, and                      25.3% in spt), and so does centroid selection: 3.9% average
+hence the closer the values within a cluster are to the mean                       error (and up to 17.9% in spt).
+or centroid of the cluster. The CoV is substantially smaller                          The overall conclusion is that Sieve is substantially more
+for Sieve compared to PKS: the average CoV for Sieve equals                        accurate than PKS, for two reasons. First, Sieve groups kernel
+0.09 (at most 0.2 in lmc and 0.17 in ssd-resnet34), versus                         invocations in clusters such that the per-cluster dispersion is
+0.57 (and up to 3.25 in dcg and 0.51 in rnnt) for PKS.                             substantially less. Second, the default selection of a cluster
+   High dispersion within a cluster is only part of the reason                     representative by PKS (first-chronological) is inaccurate for
+for PKS’ high prediction error. Figure 5 reports the error for                     clusters with high dispersion. Improved representative kernel
+different ways of selecting a representative kernel invocation                     invocation selection techniques, such as random and centroid
+per cluster. PKS by default selects the first kernel invocation                    selection, are insufficient to close the gap with Sieve though.
+B. Speedup
+   Sieve and PKS achieve approximately the same speedup, see
+Figure 6. The harmonic mean speedup across all benchmarks
+(excluding gst) achieved through Sieve equals 922×, versus
+1,272× for PKS. Sieve selects one representative invocation
+for Tier-1 and Tier-2 kernels, and two or more representative
+invocations for Tier-3 kernels; hence there are more represen-
+tative kernel invocations selected by Sieve than the number
+of kernels listed in Table I. PKS limits the number of repre-
+sentative kernels to at most 20, however, this is insufficient
+for achieving high accuracy. As a result, Sieve yields higher
+speedup for some workloads, while PKS achieves higher
+                                                                   Fig. 7. Profiling time speedup. Profiling takes substantially less time for Sieve
+speedup for others. It is worth noting that the benchmarks         compared to PKS.
+for which PKS achieves a (slightly) higher speedup are also
+the benchmarks for which PKS yields a high error, see in
+particular spt (1,398× speedup for PKS vs. 1,183× for Sieve
+at an error of 60% for PKS vs. 0.83% for Sieve), and rnnt
+(213× speedup for PKS vs. 166× for Sieve at an error of
+46% for PKS vs. 3.2% for Sieve). Overall, the speedup for both
+Sieve and PKS varies between 100× and 10,000×. The only
+exception is gst, which is why we excluded this benchmark
+when computing the mean speedup; the reason for the low
+speedup is that gst spends most (85%) of its execution time
+in a single kernel invocation with high variability in terms of
+instruction count and execution characteristics, and hence both    Fig. 8. Prediction error for Sieve and PKS in traditional benchmark suites.
+Sieve and PKS are equally ineffective at achieving a significant   Both methods achieve high accuracy: 0.32% average error (at most 2.3%)
+                                                                   for Sieve versus 1.3% (and at most 23%) for PKS.
+speedup, i.e., both techniques select all invocations of that
+dominant kernel — a technique such as Principal Kernel
+Projection [11] could possibly be effective for both Sieve and     12 execution characteristics using Nsight Compute and the
+PKS to reduce the runtime of individual representative kernel      overhead for saving and restoring memory across those runs,
+invocations.                                                       leads to a higher runtime overhead for PKS.
+C. Profiling Time
+                                                                   D. Other Workloads
+   The third metric of key importance is profiling time. As
+previously argued, PKS collects as many as 12 execution               So far, we focused on the more challenging workloads from
+characteristics for each kernel invocation, while Sieve only       the Cactus and MLPerf benchmark suites. Figure 8 reports the
+measures a single one, namely instruction count, see also          prediction error for the other workloads from Parboil, Rodinia
+Table II. Although profiling needs to be done only once for        and CUDA SDK. The overall conclusion is that while Sieve
+each workload, it can be a matter of practical concern if          is more accurate than PKS, the error for PKS is also small
+profiling time ends up requiring weeks or months of experi-        except for one workload, namely cfd from Rodinia. We note an
+mentation, as is the case for PKS. In particular, for the MLPerf   average error of 0.32% (at most 2.3%) for Sieve versus a 1.3%
+workloads, PKS spends more than one month to collect the           average error (and at most 23%) for PKS. The reason for the
+profile. Sieve is substantially faster with an average (harmonic   high accuracy for both Sieve and PKS is that these workloads
+mean) speedup of 8× and up to 98×, see Figure 7. It is             are relatively simple compared to Cactus and MLPerf: they
+further worth mentioning that the instruction count collected      feature few kernels (for some workloads even a single kernel)
+for Sieve can be calculated using a light-weight (and thus         and relatively few invocations per kernel, see also Table I. As
+faster) instrumentation tool such as NVBit [45], versus a more     a result, these workloads are relatively easy to sample and
+complex (and thus slower) detailed profiler such as Nsight         select a representative kernel invocation from, and both Sieve
+Compute [3]. (In particular, we observed that profiling using      and PKS are adequate.
+Nsight Compute becomes progressively slower as we profile
+an increasing number of kernels, i.e., profiling time increases    E. Relative Accuracy
+super-linearly with the number of kernel invocations profiled.)       So far, we focused on Sieve’s accuracy for a single GPU
+Interestingly, the profiling time improvement for Sieve is         architecture, namely our baseline Nvidia Ampere GPU archi-
+higher for MLPerf compared to Cactus. The reason is the            tecture. Of particular interest to computer architects is relative
+larger number of instruction types for the MLPerf benchmarks,      accuracy, i.e., how accurately can a performance analysis
+which, combined with the multiple runs needed to collect all       technique predict the relative performance difference between
+                                                                               sensitive to the θ value while speedup is (much) less sensitive.
+                                                                               In particular, a threshold below 0.5 yields a low average
+                                                                               prediction error below 1.6%. A threshold in the [0.6 − 0.8]
+                                                                               range leads to an average error around 3% while a threshold
+                                                                               value of 1.0 leads to an average error of 4.8%. To balance
+                                                                               prediction error and speedup, we assumed a threshold value
+                                                                               of θ = 0.4 in this work.
+
+                                                                               G. Simulation
+                                                                                  The ultimate goal of a sampling method like Sieve is to
+Fig. 9. Speedup for Ampere versus Turing. PKS provides misleading relative     prepare a reduced set of kernel invocations for simulation
+performance results for some benchmarks in contrast to Sieve.
+                                                                               as opposed to simulating full-application runs. To this end,
+                                                                               Sieve’s output is the selected kernel invocations. We have
+                                                                               modified the Accel-sim [26] tracer, which uses the NVBit
+                                                                               instrumentation tool, to only create the SASS trace of the se-
+                                                                               lected kernel invocations. The traces are simple plain text files
+                                                                               which are then simulated by Accel-sim on conventional CPUs.
+                                                                               We have collected the traces for Ampere (both Cactus and
+                                                                               MLPerf) and Turing (only Cactus), which we made available at
+                                                                               the aforementioned Sieve repository. As each kernel invocation
+                                                                               is a plain text file, it is possible to simulate a workload by
+                                                                               dispatching each trace file to a separate core (i.e., parallel
+                                                                               simulation), or simulate them one by one on a single core (i.e.,
+                                                                               serial simulation). For serial simulation, our experiments show
+                                                                               that the simulation time of each workloads is less than 2 days
+Fig. 10. Prediction error for Sieve as a function of speedup for different θ
+threshold values. A threshold value below 0.5 yields low error.                (expect gst which takes 2.5 days) with instructions counts of
+                                                                               1 B as an average. For parallel simulation, however, the total
+                                                                               simulation time is reduced significantly, and is determined
+architectures. Figure 9 reports the relative performance dif-                  by the longest-running kernel. Our experiments show that
+ference between the Ampere architecture (RTX 3080) relative                    simulating the representative kernel invocations for most of
+to the Turing architecture (RTX 2080Ti) for real hardware                      the Cactus workloads (gms, gru, lmc, lgt, rfl and spt) takes
+(the golden reference), PKS and Sieve. (Due to infrastructure                  less than one hour. Simulating each of the MLPerf workloads
+limitations on the RTX 20280Ti we were unable to run                           takes around 10 hours, and the longest-running workload is
+the MLPerf workloads as well as Cactus’ rfl.) The Ampere                       gst which takes around 30 hours.
+architecture achieves substantially higher performance than
+Turing for gst, dcg and lgt while being slower for lmc and                                         VI. R ELATED W ORK
+lmr. Sieve accurately tracks the golden reference, in contrast                    Sampled simulation is a topic that has received broad
+to PKS, see in particular the spt, nst and gru benchmarks.                     attention over the past few decades, especially for CPUs.
+Sieve predicts the speedup with an average error of 1.5%                       Various proposals have been proposed for sampling single-
+(and at most 3.5% for dcg), versus 9.8% for PKS, and up                        threaded workloads (i.e., random sampling [15], periodic
+to 12.1% (gru), 23.5% (nst) and 40.3% (spt). In other words,                   sampling [50], and targeted sampling a.k.a. SimPoint [37])
+while PKS may yield accurate speedup predictions for some                      as well as multi-threaded workloads (i.e., for server work-
+workloads, it leads to (largely) inaccurate speedup predictions                loads [49] and synchronization-intensive workloads [12], [13],
+for others. The problem of course is that there is no way                      [35]). While most sampling methods consider fixed-length
+of knowing, i.e., the implication is that a computer architect                 samples [43], some consider variable-length samples [27].
+may be misguided about the relative performance differences                    SimPoint computes basic block distributions for fixed-length
+between architectures when using PKS, in contrast to Sieve                     instruction intervals. Similarities across instruction intervals
+which delivers accurate relative performance predictions.                      based on the basic block distribution yields a limited set
+                                                                               of representative instruction intervals or so-called simulation
+F. Sensitivity Analysis                                                        points. The execution characteristic used by Sieve is even
+  As aforementioned, Sieve relies on a threshold θ to decide                   simpler than what SimPoint uses, namely instruction count
+whether a kernel invocation belongs to Tier-2 versus Tier-3.                   per kernel invocation.
+Figure 10 reports the average prediction error as a function                      Methodologies have been developed to identify similarities
+of speedup for different values of the threshold θ obtained                    across CPU benchmarks. In particular, Eeckhout et al. [20]
+on our baseline RTX 3080 GPU system (similar results were                      profile workloads using microarchitecture-independent char-
+obtained on the RTX 2080). We find that prediction error is                    acteristics and then use Principal Component Analysis (PCA)
+and Cluster Analysis to identify a select number of represen-        simulation speedups (on the order of ∼1,000×); and (3) incurs
+tative benchmarks in the large workload space. Eeckhout et           significantly less profiling overhead (8× average reduction and
+al. [19] combine PCA-based workload analysis with SimPoint           up to 98×). While PKS is effective and accurate for many
+to identify representative simulation points across benchmarks.      workloads, Sieve yields superior results for all workloads, in
+The methodology proposed by PKS [11] is similar except that          particular the more challenging workloads with a large number
+it targets GPU workloads and identifies representative kernel        of kernels and kernel invocations.
+invocations across kernels from the same workload.
+   Prior work in GPU simulation acceleration has received                                    ACKNOWLEDGEMENTS
+recent attention. Yu et al. [52] generate synthetic miniature,         We thank the reviewers for their valuable feedback. This
+yet representative, GPU-compute workloads based on basic             work is supported in part by the UGent-BOF-GOA grant No.
+block profiles. Kambadur et al. [25] use GTPin, a dynamic            01G01421, the Research Foundation Flanders (FWO) grant
+binary instrumentation tool for Intel GPUs, to identify rep-         No. G018722N, and the European Research Council (ERC)
+resentative ∼100 M instruction regions within OpenCL work-           Advanced Grant agreement No. 741097.
+loads using a broad set of features including kernel name,
+basic blocks executed, number of bytes read or written, etc.                                       R EFERENCES
+TBPoint [23] collects a broad set of execution characteristics        [1] “Artifact - principal kernel analysis github repp.” https://github.com/
+(related to branch and memory divergence as well as thread                cesar-avalos3/micro-2021-artifact, accessed: 2021.
+                                                                      [2] “Cactus benchmark suite for GPGPU,” https://github.com/gpubench/
+block variation) obtained through functional simulation to                cactus, accessed: 2022.
+then group kernel invocations through hierarchical clustering.        [3] “An interactive kernel profiler for CUDA applications,” https://developer.
+PKS [11] follows a similar workflow while collecting a                    nvidia.com/nsight-compute, accessed: 2022.
+                                                                      [4] “MLPerf       inference   v2.0      nvidia-optimized   implementations,”
+dozen microarchitecture-independent execution characteristics             https://github.com/mlcommons/inference results v2.0/tree/master/
+through profiling on native hardware, and while leveraging                closed/NVIDIA, accessed: 2022.
+k-means clustering to scale to larger workloads. PKS suffers          [5] “Nvidia Ampere GA102 GPU architecture,” https://www.nvidia.
+                                                                          com/content/PDF/nvidia-ampere-ga-102-gpu-architecture-whitepaper-
+from curse-of-dimensionality issues where all kernel invoca-              v2.pdf, accessed: 2022.
+tions are far away from each other in the 12-D workload space,        [6] “Nvidia CUDA SDK code sample,” https://docs.nvidia.com/cuda/cuda-
+making it hard to identify representative kernel invocations.             samples/index.html, accessed: 2022.
+                                                                      [7] “Nvidia Turing GPU Architecture,” https://images.nvidia.com/aem-
+We find that the only critical execution characteristic to profile        dam/en-zz/Solutions/design-visualization/technologies/turing-
+is instruction count per kernel invocation as done by Sieve: this         architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf,          accessed:
+not only reduces profiling time, it also leads to substantially           2022.
+                                                                      [8] “Simple 1D kernel density estimation,” https://scikit-learn.org/stable/
+higher accuracy while maintaining similarly high simulation               auto examples/neighbors/plot kde 1d.html, accessed: 2021.
+speedups. SeqPoint [33] identifies representative iterations in       [9] M. Abraham, T. Murtola, R. Schulz, S. Páll, J. Smith, B. Hess, and
+sequence-based deep neural network training workloads based               E. Lindahl, “GROMACS: High performance molecular simulations
+                                                                          through multi-level parallelism from laptops to supercomputers,” Soft-
+on the iterations’ input sequence length, which can be obtained           wareX, vol. 1-2, pp. 19–25, 2015.
+without incurring profiling nor simulation overhead. While           [10] M. Ahmad and O. Khan, “GPU concurrency choices in graph analytics,”
+SeqPoint was developed to specifically accelerate DNN train-              in Proceedings of the International Symposium on Workload Character-
+ing simulation, Sieve is a more generally applicable sampling             ization (IISWC), 2016, pp. 1–10.
+                                                                     [11] C. A. Baddouh, M. Khairy, R. N. Green, M. Payer, and T. G. Rogers,
+technique.                                                                “Principal kernel analysis: A tractable methodology to simulate scaled
+   GPU modeling approaches other than synthetic workload                  GPU workloads,” in Proceedings of the International Symposium on
+generation and sampling-based simulation include analytical               Microarchitecture (MICRO), 2021, pp. 724–737.
+                                                                     [12] T. E. Carlson, W. Heirman, and L. Eeckhout, “Sampled simulation
+modeling, hybrid-abstraction simulation, and parallel simula-             of multi-threaded applications,” in Proceedings of the International
+tion. A string of analytical GPU performance models have                  Symposium on Performance Analysis of Systems and Software (ISPASS),
+been proposed over the past decade with different capabil-                2013, pp. 2–12.
+                                                                     [13] T. E. Carlson, W. Heirman, K. Van Craeynest, and L. Eeckhout,
+ities, see in particular [21], [22], [29], [47]. NVArchSim                “BarrierPoint: Sampled simulation of multi-threaded applications,” in
+(NVAS) [44] is the proprietary hybrid trace-driven simulator              Proceedings of the International Symposium on Performance Analysis
+used by Nvidia in which different levels of abstraction (de-              of Systems and Software (ISPASS), 2014, pp. 2–12.
+                                                                     [14] S. Che, M. Boyer, J. Meng, D. Tarjan, J. W. Sheaffer, S.-H. Lee, and
+tailed versus high-abstraction timing models) are deployed to             K. Skadron, “Rodinia: A benchmark suite for heterogeneous computing,”
+balance simulation speed and accuracy. MGPUSim [41] is a                  in Proceedings of the International Symposium on Workload Character-
+parallel simulator for modeling multi-GPU systems.                        ization (IISWC), 2009, pp. 44–54.
+                                                                     [15] T. M. Conte, M. A. Hirsch, and K. N. Meneze, “Reducing state loss
+                                                                          for effective trace sampling of superscalar processors,” in Proceedings
+                      VII. C ONCLUSION                                    of the International Conference on Computer Design (ICCD), 1996, pp.
+   Simulating contemporary GPU-compute workloads is a ma-                 468–477.
+                                                                     [16] A. S. Dhodapkar and J. E. Smith., “Dynamic microarchitecture adapta-
+jor challenge for academia and industry. This paper presented             tion via co-designed virtual machines,” in Proceedings of the Interna-
+Sieve, a sampling methodology for GPU-compute workloads                   tional Solid State Circuits Conference, 2002, pp. 198–199.
+that (1) is substantially more accurate than the state-of-the-art    [17] A. S. Dhodapkar and J. E. Smith, “Managing multi-configuration
+                                                                          hardware via dynamic working set analysis,” in Proceedings of the
+PKS (average error of 1.2% versus 16.5%, and max error of                 International Symposium on Computer Architecture (ISCA), 2002, pp.
+3.2% versus 60.4%, respectively); (2) yields comparably high              233–244.
+[18] L. Eeckhout, K. De Bosschere, and H. Neefs, “Performance analysis                    mark,” in Proceedings of the International Symposium on Computer
+     through synthetic trace generation,” in Proceedings of the International             Architecture (ISCA), 2020, pp. 446–459.
+     Symposium on Performance Analysis of Systems and Software (ISPASS),             [35] A. Sabu, H. Patil, W. Heirman, and T. E. Carlson, “LoopPoint:
+     2000, pp. 1–6.                                                                       Checkpoint-driven sampled simulation for multi-threaded applications,”
+[19] L. Eeckhout, J. Sampson, and B. Calder, “Exploiting program microar-                 in Proceedings of the International Symposium on High Performance
+     chitecture independent characteristics and phase behavior for reduced                Computer Architecture (HPCA), 2022, pp. 604–618.
+     benchmark suite simulation,” in Proceedings of the International Sym-           [36] D. W. Scott, Multivariate Density Estimation: Theory, Practice and
+     posium on Workload Characterization (IISWC), 2005, pp. 2–12.                         Visualization. John Wiley & Sons, Inc., 1992.
+[20] L. Eeckhout, H. Vandierendonck, and K. De Bosschere, “Workload                  [37] T. Sherwood, E. Perelman, G. Hamerly, and B. Calder, “Automatically
+     design: Selecting representative program-input pairs,” in Proceedings of             characterizing large scale program behavior,” in Proceedings of the
+     the International Conference on Parallel Architectures and Compilation               International Conference on Architectural Support for Programming
+     Techniques (PACT), 2002, pp. 83–94.                                                  Languages and Operating Systems (ASPLOS), 2002, pp. 45––57.
+[21] S. Hong and H. Kim, “An integrated GPU power and performance                    [38] T. Sherwood, E. P. Perelman, and B. Calder, “Basic block distribution
+     model,” in Proceedings of the International Symposium on Computer                    analysis to find periodic behavior and simulation points in applications,”
+     Architecture (ISCA), 2010, pp. 280–289.                                              in Proceedings of the International Conference on Parallel Architectures
+[22] J.-C. Huang, J. H. Lee, H. Kim, and H.-H. S. Lee, “GPUMech: GPU per-                 and Compilation Techniques (PACT), 2001, pp. 3–14.
+     formance modeling technique based on interval analysis,” in Proceedings         [39] T. Sherwood, S. Sair, and B. Calder, “Phase tracking and prediction,” in
+     of the International Symposium on Microarchitecture (MICRO), 2014,                   Proceedings of the International Symposium on Computer Architecture
+     pp. 268–279.                                                                         (ISCA), 2003, pp. 336–349.
+[23] J.-C. Huang, L. Nai, H. Kim, and H.-H. S. Lee, “TBPoint: Reducing               [40] J. A. Stratton, C. Rodrigues, I.-J. Sung, N. Obeid, L.-W. Chang,
+     simulation time for large-scale GPGPU kernels,” in Proceedings of                    N. Anssari, G. D. Liu, and W. mei W. Hwu, “Parboil: A revised
+     the International Conference on Parallel and Distributed Processing                  benchmark suite for scientific and commercial throughput computing,”
+     Symposium, 2014, pp. 437–446.                                                        Center for Reliable and High-Performance Computing, University of
+[24] A. Joshi, J. Yi, R. H. Bell, L. Eeckhout, L. John, and D. Lilja, “Evaluat-           Illinois at Urbana-Champaign, Tech. Rep. IMPACT-12-01, 2012.
+     ing the efficacy of statistical simulation for design space exploration,” in    [41] Y. Sun, T. Baruah, S. A. Mojumder, S. Dong, X. Gong, S. Treadway,
+     Proceedings of the International Symposium on Performance Analysis                   Y. Bao, S. Hance, C. McCardwell, V. Zhao, H. Barclay, A. K. Ziabari,
+     of Systems and Software (ISPASS), 2006, pp. 70–79.                                   Z. Chen, R. Ubal, J. L. Abellán, J. Kim, A. Joshi, and D. Kaeli,
+[25] M. Kambadur, S. Hong, J. Cabral, H. Patil, C.-K. Luk, S. Sajid, and                  “MGPUSim: Enabling multi-GPU performance modeling and optimiza-
+     M. A. Kim, “Fast computational GPU design with GT-Pin,” in Pro-                      tion,” in Proceedings of the International Symposium on Computer
+     ceedings of the International Symposium on Workload Characterization                 Architecture (ISCA), 2019, pp. 197–209.
+     (IISWC), 2015, pp. 76–86.                                                       [42] R. Ubal, B. Jang, P. Mistry, D. Schaa, and D. Kaeli, “Multi2Sim: A
+[26] M. Khairy, Z. Shen, T. M. Aamodt, and T. G. Rogers, “Accel-Sim:                      simulation framework for CPU-GPU computing,” in Proceedings of
+     An extensible simulation framework for validated GPU modeling,” in                   the International Conference on Parallel Architectures and Compilation
+     Proceedings of the International Symposium on Computer Architecture                  Techniques (PACT), 2012, pp. 335–344.
+     (ISCA), 2020, pp. 473–486.                                                      [43] M. Van Biesbrouck, L. Eeckhout, and B. Calder, “Efficient sampling
+[27] J. Lau, E. Perelman, G. Hamerly, T. Sherwood, and B. Calder, “Moti-                  startup for sampled processor simulation,” in Proceedings of the Inter-
+     vation for variable length intervals and hierarchical phase behavior,” in            national Conference on High Performance Embedded Architectures and
+     Proceedings of the International Symposium on Performance Analysis                   Compilers, 2005, pp. 47–67.
+     of Systems and Software (ISPASS), 2005, pp. 135–146.                            [44] O. Villa, D. Lustig, Z. Yan, E. Bolotin, Y. Fu, N. Chat-terjee, N. Jiang,
+[28] A. Lavin and S. Gray, “Fast algorithms for convolutional neural net-                 and D. W. Nellans, “Need for speed: Experiences building a trustworthy
+     works,” in Proceedings of the International Conference on Computer                   system-level GPU simulator,” in Proceedings of the International Sym-
+     Vision and Pattern Recognition, 2016, pp. 4013–4021.                                 posium on High Performance Computer Architecture (HPCA), 2021, pp.
+[29] J. Lee, Y. Ha, S. Lee, J. Woo, J. Lee, H. Jang, and Y. Kim, “GCoM:                   868–880.
+     a detailed GPU core model for accurate analytical modeling of modern            [45] O. Villa, M. Stephenson, D. Nellans, and S. W. Keckler, “NVBit: A
+     GPUs,” in Proceedings of the International Symposium on Computer                     dynamic binary instrumentation framework for nvidia GPUs,” in Pro-
+     Architecture (ISCA), 2022, pp. 424–436.                                              ceedings of the International Symposium on Microarchitecture (MICRO),
+[30] E. Lindholm, J. Nickolls, S. Oberman, and J. Montrym, “NVIDIA Tesla:                 2019, pp. 372–383.
+     A unified graphics and computing architecture,” IEEE Micro, vol. 28,            [46] V. Volkov and J. W. Demmel, “Benchmarking GPUs to tune dense
+     no. 2, pp. 39–55, 2008.                                                              linear algebra,” in Proceedings of the International Conference on
+[31] M. Naderan-Tahan and L. Eeckhout, “Cactus: Top-down GPU-compute                      Supercomputing, 2008, pp. 1–11.
+     benchmarking using real-life applications,” in Proceedings of the Inter-        [47] L. Wang, M. Jahre, A. Adileho, Huawei, and L. Eeckhout, “MDM: The
+     national Symposium on Workload Characterization (IISWC), 2021, pp.                   GPU memory divergence model,” in Proceedings of the International
+     176–188.                                                                             Symposium on Microarchitecture (MICRO), 2014, pp. 1009–1021.
+[32] A. Paszke, S. Gross, F. Massa, A. Lerer, J. Bradbury, G. Chanan,                [48] Y. Wang, Y. Pan, A. Davidson, Y. Wu, C. Yang, L. Wang, M. Osama,
+     T. Killeen, Z. Lin, N. Gimelshein, L. Antiga, A. Desmaison, A. Köpf,                C. Yuan, W. Liu, A. T. Riffel, and J. D. Owens, “Gunrock: GPU graph
+     E. Yang, Z. DeVito, M. Raison, A. Tejani, S. Chilamkurthy, B. Steiner,               analytics,” ACM Transactions on Parallel Computing, vol. 4, no. 2, pp.
+     L. Fang, J. Bai, and S. Chintala, “PyTorch: An imperative style, high-               1–49, 2017.
+     performance deep learning library,” in Proceedings of the International         [49] T. F. Wenisch, R. E. Wunderlich, M. Ferdman, A. Ailamaki, B. Falsafi,
+     Conference on Neural Information Processing Systems, 2019, pp. 8024–                 and J. C. Hoe, “SimFlex: Statistical sampling of computer system
+     8035.                                                                                simulation,” IEEE Micro, vol. 26, no. 4, pp. 18–31, 2006.
+[33] S. Pati, S. Aga, M. D. Sinclair, and N. Jayasena, “SeqPoint: Identi-            [50] R. E. Wunderlich, T. F. Wenisch, B. Falsafi, and J. C. Hoe, “SMARTS:
+     fying representative iterations of sequence-based neural networks,” in               accelerating microarchitecture simulation via rigorous statistical sam-
+     Proceedings of the International Symposium on Performance Analysis                   pling,” in Proceedings of the International Symposium on Computer
+     of Systems and Software (ISPASS), 2020, pp. 69–80.                                   Architecture (ISCA), 2003, pp. 84–97.
+[34] V. J. Reddi, C. Cheng, D. Kanter, P. Mattson, G. Schmuelling, C.-J.             [51] Z. Yu, L. Eeckhout, N. Goswami, T. Li, L. John, H. Jin, and C. Xu,
+     Wu, B. Anderson, M. Breughe, M. Charlebois, W. Chou, R. Chukka,                      “Accelerating GPGPU architecture simulation,” in Proceedings of the
+     C. Coleman, S. Davis, P. Deng, G. Diamos, J. Duke, D. Fick, M. J. S.                 International Conference on Measurement and Modeling of Computer
+     Gardner, I. Hubara, S. Idgunji, T. B. Jablin, J. Jiao, T. S. John, P. Kanwar,        Systems (SIGMETRICS), 2013, pp. 331–332.
+     D. Lee, J. Liao, A. Lokhmotov, F. Massa, P. Meng, P. Micikevicius,              [52] Z. Yu, L. Eeckhout, N. Goswami, T. Li, L. K. John, H. Jin, C. Xu,
+     C. Osborne, G. Pekhimenko, A. T. R. Rajan, D. Sequeira, A. Sirasao,                  and J. Wu, “GPGPU-MiniBench: Accelerating gpgpu micro-architecture
+     F. Sun, H. Tang, M. Thomson, F. Wei, E. Wu, L. Xu, K. Yamada, B. Yu,                 simulation,” IEEE Transactions on Computers, vol. 64, no. 11, pp. 3153–
+     G. Yuan, A. Zhong, P. Zhang, and Y. Zhou, “MLPerf inference bench-                   3166, 2015.
+

@@ -51,7 +51,12 @@ bool unsupported_memory_instruction(const std::string& line,
                                     std::string& opcode)
 {
     static const std::regex expression(
-        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
+        // The `cp.async` and `cp.reduce.async` alternatives require `.global`
+        // in the opcode on purpose. The same families carry pure
+        // synchronisation forms -- cp.async.commit_group, cp.async.wait_group,
+        // cp.async.bulk.wait_group -- which touch no memory and must not be
+        // reported as unsupported memory operations.
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
     std::smatch match;
     if (!std::regex_match(line, match, expression)) {
         return false;

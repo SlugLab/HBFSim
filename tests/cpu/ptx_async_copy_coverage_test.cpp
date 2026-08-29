@@ -1,0 +1,150 @@
+// `cp.async` and the bulk tensor copy instructions read global memory without
+// going through a register. Before this test, neither the rewrite pattern in
+// src/ptxpass_hbf/ptx_memory_op.cpp nor the unsupported pattern in
+// src/ptxpass_hbf/transform.cpp matched them, so an HBF address reached by one
+// of them produced no entry of any kind: no modeled delay, and no
+// unsupported-list entry either. The design goal on line 27 of
+// docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md is to fail closed
+// whenever an HBF address could reach an uninstrumented or unsupported memory
+// operation, which needs the instruction to be visible first.
+//
+// The point this test pins down is narrow: an asynchronous copy that names
+// .global has to be counted, and the synchronisation instructions of the same
+// family, which touch no memory, must not be.
+
+#include "ptx_memory_op.hpp"
+#include "transform.hpp"
+
+#include <algorithm>
+#include <cstdio>
+#include <string>
+
+#define CHECK(condition)                                                       \
+    do {                                                                       \
+        if (!(condition)) {                                                    \
+            std::printf("failed at line %d: %s\n", __LINE__, #condition);      \
+            return __LINE__;                                                   \
+        }                                                                      \
+    } while (false)
+
+namespace {
+
+// Wraps one instruction in the smallest kernel the pass will walk.
+std::string kernel_with(const std::string& instruction)
+{
+    return ".version 8.0\n"
+           ".target sm_120\n"
+           ".address_size 64\n"
+           ".visible .entry probe(.param .u64 probe_param_0)\n"
+           "{\n"
+           "    .reg .b32 %r<8>;\n"
+           "    .reg .b64 %rd<8>;\n"
+           "    .reg .f32 %f<8>;\n"
+           "    ld.param.u64 %rd1, [probe_param_0];\n" +
+           std::string{"    "} + instruction + "\n" +
+           "    ret;\n"
+           "}\n";
+}
+
+hbfsim::ptx::TransformResult run(const std::string& instruction)
+{
+    hbfsim::ptx::TransformRequest request{};
+    request.full_ptx = kernel_with(instruction);
+    return hbfsim::ptx::transform_ptx(request);
+}
+
+// The kernel body needs a `ld.param` to load the pointer, and `ld.param`
+// itself matches the unsupported pattern. Counting the absolute total would
+// therefore report every instruction as unsupported, so each case is measured
+// as the increment over the same kernel without the instruction under test.
+std::uint64_t baseline_unsupported()
+{
+    static const auto value =
+        run("ret;").coverage.unsupported_instructions;
+    return value;
+}
+
+std::uint64_t baseline_rewritten()
+{
+    static const auto value = run("ret;").coverage.rewritten_instructions;
+    return value;
+}
+
+bool counted_unsupported(const std::string& instruction)
+{
+    return run(instruction).coverage.unsupported_instructions >
+           baseline_unsupported();
+}
+
+}  // namespace
+
+int main()
+{
+    // Reads global memory into shared memory. Must be visible.
+    CHECK(counted_unsupported(
+        "cp.async.ca.shared.global [%r1], [%rd1], 4;"));
+    CHECK(counted_unsupported(
+        "cp.async.cg.shared.global [%r1], [%rd1], 16;"));
+
+    // Bulk tensor copy from global. Must be visible.
+    CHECK(counted_unsupported(
+        "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::"
+        "complete_tx::bytes [%r1], [tmap, {%r2,%r3}], [%r4];"));
+    CHECK(counted_unsupported(
+        "cp.async.bulk.shared::cluster.global.mbarrier::complete_tx::bytes "
+        "[%r1], [%rd1], %r2, [%r3];"));
+
+    // Reduction form that reads global. Must be visible.
+    CHECK(counted_unsupported(
+        "cp.reduce.async.bulk.global.shared::cta.bulk_group.add.u32 "
+        "[%rd1], [%r1], %r2;"));
+
+    // Same family, but pure synchronisation: these touch no memory and must
+    // not be reported as unsupported memory operations.
+    CHECK(!counted_unsupported("cp.async.commit_group;"));
+    CHECK(!counted_unsupported("cp.async.wait_group 0;"));
+    CHECK(!counted_unsupported("cp.async.wait_all;"));
+    CHECK(!counted_unsupported("cp.async.bulk.commit_group;"));
+    CHECK(!counted_unsupported("cp.async.bulk.wait_group.read 0;"));
+
+    // The instructions the pass already handled must keep their old
+    // classification: an ordinary global load is still rewritten and is not on
+    // the unsupported list, and a shared load is still unsupported.
+    // An ordinary global load must still be rewritten rather than counted
+    // here. That case is not exercised in this file: rewriting makes
+    // transform_ptx append the embedded device helper, which only exists in a
+    // CUDA build, so the assertion lives in ptx_transform_test instead. Every
+    // case in this file is chosen so that nothing is rewritten.
+    {
+        const auto result = run("ld.shared.u32 %r1, [%r2];");
+        CHECK(result.coverage.rewritten_instructions == baseline_rewritten());
+        CHECK(result.coverage.unsupported_instructions ==
+              baseline_unsupported() + 1);
+    }
+    {
+        const auto result = run("atom.global.add.u32 %r1, [%rd1], 1;");
+        CHECK(result.coverage.rewritten_instructions == baseline_rewritten());
+        CHECK(result.coverage.unsupported_instructions ==
+              baseline_unsupported() + 1);
+    }
+
+    // An asynchronous copy that never names global memory is a shared-to-shared
+    // move and is not an HBF access.
+    CHECK(!counted_unsupported(
+        "cp.async.bulk.shared::cluster.shared::cta [%r1], [%r2], %r3;"));
+
+    // The recorded opcode has to name the instruction, so the coverage record
+    // says which operation was refused.
+    {
+        const auto result = run("cp.async.ca.shared.global [%r1], [%rd1], 4;");
+        const auto named = std::any_of(
+            result.coverage.unsupported_opcodes.begin(),
+            result.coverage.unsupported_opcodes.end(),
+            [](const std::string& opcode) {
+                return opcode.rfind("cp.async", 0) == 0;
+            });
+        CHECK(named);
+    }
+
+    return 0;
+}

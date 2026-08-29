@@ -1,0 +1,2936 @@
+HBF Sucks! A Full-Stack Characterization of High-Bandwidth
+Flash for KV-Centric LLM Serving
+Zhuoran Li
+
+Zhuohang Bian
+
+Xin Huang
+
+Peking University
+Beijing, China
+zhuoranli@stu.pku.edu.cn
+
+Peking University
+Beijing, China
+bianzhuohang26@stu.pku.edu.cn
+
+Fudan University
+Shanghai, China
+25113050044@m.fudan.edu.cn
+
+Yibo Zhao
+
+Guangyu Sun
+
+Youwei Zhuo
+
+Peking University
+Beijing, China
+yibozhao@stu.pku.edu.cn
+
+Peking University
+Beijing, China
+gsun@pku.edu.cn
+
+Peking University
+Beijing, China
+youwei@pku.edu.cn
+
+arXiv:2608.11668v2 [cs.AR] 13 Aug 2026
+
+Abstract
+
+Modern serving systems offload reusable KV to a larger tier.
+Reuse comes from repeated dialogue, common prefixes in shared
+prompts and documents, and context revisited by agent workflows.
+Mooncake and related systems therefore extend the KV pool into
+CPU DRAM, remote memory, and SSDs [4, 16]. This offloading is
+standard and essential: without it, a capacity-limited server must
+reject requests or recompute evicted KV. It supplies the objects that
+larger tiers store and restore.
+High-Bandwidth Flash (HBF) aims to accelerate that tier. Roadmap
+HBF stacks many NAND dies for internal parallelism and uses the
+accelerator memory path instead of a PCIe/NVMe link [9]. Compared with an SSD, HBF has far lower read latency and far higher
+bandwidth. It can help when read-mostly objects and system dataflow
+are co-designed for HBF [6, 8]. A simple design keeps the Mooncake object path, replaces its SSD backing tier with HBF, and expects faster serving.
+Whether that simple design works is untested. The HBF studies
+above choose what to place in flash, so they do not say what happens when a running KV hierarchy hands the device whatever it
+evicts. Device microbenchmarks do not settle it either, because the
+swap changes more than access time. The package that gains flash
+gives up near memory, and the traffic the tier receives is decided
+by the runtime rather than by the medium, so the answer depends
+on admission and queueing behavior that only a full serving stack
+exposes.
+This paper tests that design and finds it does not work. Under
+the same runtime, we compare complete HBF-1 and HBF-2 organizations against SSD baselines using TokenSim, four complete twohour production traces, five dense and mixture-of-experts (MoE)
+models, and H100/B200 profiles. HBF is slower on every request
+metric: across H100 and B200, average end-to-end latency rises 2–
+5.5×, and maximum service-level objective (SLO) goodput falls 1.1–
+2.7×. Faster flash barely helps; changing HBF read/write latency by
+3.75× moves average end-to-end latency by less than 1%.
+The problem is the SSD-style hierarchy, not HBF itself. It sends
+HBF its least friendly object, transient and write-heavy KV, whose
+traffic collides with every physical limit of NAND. The boundary is
+simple: faster media helps only when secondary-tier service is on
+the request critical path (C1), later reads repay each flash write (C2),
+and delivered bandwidth is sustainable (C3). § 5 formalizes these
+as three necessary conditions, each with a falsifiable requirement
+
+A faster storage device should make serving faster. We find the opposite. High-Bandwidth Flash (HBF) stacks NAND behind a wide,
+package-local interface, promising flash-scale capacity with far lower
+read latency and higher bandwidth than an SSD. The obvious move
+is to keep an SSD-style Mooncake KV-offloading stack and swap
+in HBF underneath. We built that system and measured it: an extended TokenSim, four complete two-hour Qwen-Bailian production traces, five dense and mixture-of-experts models, and H100/B200
+profiles. The upgrade backfires. Average end-to-end latency rises
+2–5.5× and maximum SLO goodput falls 1.1–2.7× across H100 and
+B200, so the faster device yields a slower system. A cost-benefit
+model explains the paradox: a faster far tier pays off only when
+read I/O is the bottleneck, reads outweigh writes, and delivered
+bandwidth is sustainable. Transient KV violates all three at once.
+Buying flash through the package costs GPU near-tier capacity
+and bandwidth, while HBF’s own read/write latency barely matters: scaling it 3.75× moves latency less than 1%. Worse, the twotier hierarchy keeps reuse in the near tier and hands HBF a relentless write-heavy stream. Writes outnumber reads on every trace,
+so a 3D-ICE model shows the stack hits its thermal limit well below peak bandwidth, and a TLC tier wears out sooner than the
+SSD pool it replaced. The device is fine; the drop-in deployment is
+not. HBF sucks as an SSD replacement for transient KV, but earns
+its place in LLM serving when used selectively with reuse-aware
+placement, write budgeting, and thermal coordination.
+
+Keywords
+large language models, KV cache, high-bandwidth flash, memory
+systems, storage systems, LLM serving
+
+1
+
+Introduction
+
+Large language model (LLM) inference stores a key and value vector for every retained token. The key–value (KV) cache grows with
+context length, batch size, and active requests, limiting concurrency and retained context. Paged allocation, quantization, and selective retention reduce waste or bytes per token [7, 12, 15, 23] but
+not the capacity limit. When the working set of prefixes and histories exceeds GPU memory, the system must place KV in a larger
+tier.
+1
+
+Li et al.
+
+token. For 𝑁 retained tokens, the unsharded per-request KV footprint is
+𝐵 KV/request = 2𝑁 𝐿𝐻 KV 𝐷 head𝑏,
+(1)
+
+tested by two findings. HBF helps only when all three hold at once,
+so failing any one sinks the substitution.
+Six findings form three matched pairs, each falsifying one condition:
+C1—Read I/O is the serving bottleneck. Complete HBF-1 and
+HBF-2 gain flash capacity by reducing GPU near-tier capacity and
+bandwidth, so the near tier admits fewer requests while the flash
+service HBF accelerates is a small fraction of the critical path (Finding 1, § 6.1). Base-die attention compute cannot raise that fraction
+(Finding 2, § 6.2).
+C2—Reads outweigh writes. The two-tier hierarchy serves
+reuse from the near tier and sends HBF a write-heavy cold stream,
+so writes outnumber reads on every trace (Finding 3, § 7.1). The
+SSD write-batching optimization that might lower their cost does
+not transfer (Finding 4, § 7.2).
+C3—Read/write Performance sustains. That stream drives
+the stack to its thermal limit well below peak bandwidth, forcing
+plane throttling (Finding 5, § 8.1). Without an SSD controller, the
+tier also wears out sooner than the SSD pool it replaces (Finding 6,
+§ 8.2).
+The result does not argue against HBF or offloading, and this
+paper makes four contributions:
+
+Here, 𝐿, 𝐻 KV , 𝐷 head , and 𝑏 denote layer count, KV-head count, head
+dimension, and bytes per element; the factor of two accounts for
+keys and values. Grouped-query and latent-attention designs reduce this footprint but do not remove the capacity problem.
+Unlike static shared weights, KV is generated online, grows during decode, and has request-, session-, and prefix-specific lifetimes.
+Stored prefixes matter only if later requests reuse them before eviction. Continuous batching adds pressure: admissions consume KV
+capacity, long requests retain blocks longer, and restoring offloaded
+state can delay execution. KV placement, reuse, and request scheduling must therefore be optimized together.
+
+2.2
+
+(1) A model of when a faster far-memory tier helps LLM serving, with three necessary conditions: read-I/O exposure,
+reads per write, and sustained bandwidth. It separates HBF
+media speed from the accelerator-local capacity, bandwidth,
+and queueing changes of a complete HBF organization.
+(2) Measurements showing why an SSD-style hierarchy sends
+HBF a write-heavy, low-reuse stream, using per-tier byte
+counters over four production traces.
+(3) A 3D-ICE thermal model and a write-endurance budget
+that turn HBF’s power and wear pressures into sourced,
+clearly bounded estimates.
+(4) Requirements for a critical-path-aware, reuse-aware, writebudgeted, and thermally managed HBF KV tier.
+
+2
+
+2.2.2 Mooncake and distributed KV pools. Paged allocation solves
+on-GPU layout but not capacity beyond HBM. Mooncake extends
+KV into a distributed, KV-cache-centric pool of CPU DRAM, SSDs,
+and network resources. It combines a transfer engine with KVaware, SLO-aware scheduling that rejects work early under overload [16]. KV-cache-centric scheduling treats KV-block location, availability, reuse, and transfer cost as first-class state beyond request
+selection.
+SSD offloading is asynchronous and outside the write path. New
+KV lands in DRAM; after DRAM crosses a watermark, a background
+policy flushes or evicts it to SSD. A master node tracks per-object
+locations and promotes hot blocks back [11]. Flash writes are therefore scheduling decisions, separate from GPU compute. Save and
+load move KV in opposite directions:
+
+Background
+
+This section explains how inference creates, reuses, and offloads
+KV state and why serving systems increasingly move it to a larger
+tier. Section 3 introduces HBF separately to distinguish storage policy from device.
+
+2.1
+
+Paged and Pooled KV Storage
+
+2.2.1 PagedAttention. vLLM introduces PagedAttention and blocklevel KV allocation [12]. A block table maps each request’s logical KV blocks to non-contiguous physical blocks in GPU memory. On-demand allocation reduces fragmentation, supports continuous growth, and enables common-prefix sharing and copy-onwrite without a large contiguous reservation.
+Two requests share exact-prefix KV when their token prefixes
+and model state match. The benefit grows with matched length but
+vanishes after eviction. System prompts and multi-turn dialogue
+create heavy reuse; independent API calls create little. The same
+admission policy can therefore yield very different read/write behavior across traces.
+
+KV Cache and Reuse in Agentic Serving
+
+Agentic and conversational workloads dominate modern LLM deployments: multi-turn dialogue, tool-use loops, shared system prompts,
+and retrieval-augmented generation (RAG). They revisit tokens,
+reusing prompt prefixes and session histories across requests. Serving therefore depends less on raw compute than on memory capacity to retain useful prefixes and active histories and bandwidth to
+restore or stream them without stalling the GPU.
+LLM inference has prefill and decode phases. Prefill processes
+prompt tokens in parallel and materializes KV state. A prefix-cache
+hit avoids recomputing the matched prompt but still requires locating and delivering its saved blocks to the GPU. Decode generates tokens autoregressively and repeatedly reads the retained KV
+history. Each transformer layer stores a key and value vector per
+2
+
+save:
+
+GPU HBM → cache tier,
+
+(2)
+
+load:
+
+cache tier → GPU HBM,
+
+(3)
+
+Their imbalance is central to the write/read behavior quantified in
+Section 7.1.
+
+2.3
+
+SSD Offloading of KV
+
+2.3.1 Why SSD offloading helps. HBM and host DRAM are fast
+but capacity-limited. SSDs add larger, cheaper, replaceable capacity
+and retain prefixes over the longer reuse windows needed by longcontext, multi-turn, RAG, and agent workflows.
+DeepSeek’s API documents a production disk-based context cache
+with persisted prefix units and cache-hit/miss token accounting [2].
+
+HBF Sucks!
+
+CPU
+
+SSD
+
+...
+
+...
+
+KV save/load Host-staged SSD I/O
+(a) Traditional MoonCake-style SSD offloading
+
+3D NAND Flash Die
+Power
+TSVs
+
+Host DRAM
+
+...
+
+Signal
+TSVs
+
+GPU Die
+
+Power TSVs Signal TSVs
+Power
+TSVs
+
+HBM
+
+MoonCake Runtime Control
+
+Distributed TLC 3D NAND Subarrays
+(128-Layer)
+
+Control Path Only
+bypassed on data path
+
+HBM
+
+GPU Die
+
+Host DRAM
+
+CPU
+
+SSD
+
+Base Die
+
+Direct KV save/load
+GDS / io_uring path
+(b) GPU direct SSD offloading
+
+MC
+
+GPU Die
+
+Interposer
+GPU PCB
+
+Figure 1: SSD offloading of KV: host-staged path (a) versus
+GPU-direct path (b).
+
+Figure 2: Physical organization of an HBF package.
+The media hierarchy is
+stack → die → plane → block → page → cell.
+
+Production traces show bimodal reuse: most occurs within minutes, but a long tail returns only after tens of minutes. Recencyonly eviction therefore discards blocks that would still be reused [11].
+SSD offloading is now standard and provides KV objects for larger
+tiers to store and restore.
+2.3.2 Modern offload paths. In a naive SSD path, data moves through
+host memory (GPU HBM → CPU I/O → NVMe → SSD). Submission overhead, extra copies, and fragmented small requests can
+then dominate media service (Fig. 1(a)).
+Modern paths remove much of this cost (Fig. 1(b)). Linux io_uring
+uses shared queues to reduce system calls and context switches [13].
+GPU Direct Storage (GDS) enables direct DMA between NVMe and
+GPU memory. Tutti moves object identification and completion to
+a GPU-side io_uring path, removing the CPU from each operation’s critical path [17].
+SSD offloading is therefore a strong, actively optimized baseline. Drives remain replaceable outside the accelerator package,
+and their controllers provide buffering, mapping, garbage collection, wear leveling, and bad-block management.
+SSD remains off-package and bounded by the PCIe/NVMe link.
+This motivates High-Bandwidth Flash (HBF), a higher-bandwidth,
+package-local alternative introduced in Section 3. We evaluate HBF
+by replacing or augmenting the SSD backing tier while preserving
+the KV-object path above.
+
+3
+
+3.2
+
+High-Bandwidth Flash
+
+HBF Generations: HBF-1 and HBF-2
+
+HBF-1 and HBF-2 are complete system organizations, not two latency presets. Table 1 summarizes their parameters.
+
+We describe the physical HBF device separately from the software
+path. The published roadmap supplies organization and generation
+parameters [9]; HAVEN’s modeled NAND arrays supply device latency, energy, bandwidth, and package power [8].
+
+3.1
+
+(4)
+
+Reads sense pages or subarrays. Programs are slower than reads,
+and erases use larger blocks. NAND lacks arbitrary in-place overwrites, so invalid pages require later reclamation. Aggregate bandwidth comes from concurrency across channels, dies, planes, and
+subarrays, not DRAM-like latency for each access.
+A representative stack integrates sixteen 128–256-layer NAND
+dies, through-silicon-via (TSV) arrays, and a base die. The base die
+concentrates mapping and management logic near the package, a
+natural control-logic location that also concentrates area and heat
+(Fig. 2) [9].
+HBF connects through the GPU memory path rather than as an
+NVMe block device. The GPU controller identifies HBF addresses,
+and the base die translates requests into NAND operations. This
+can avoid host software and PCIe/NVMe traversal but does not
+guarantee DRAM-like latency or write behavior.
+A read selects the HBF address, channel, die, plane, block, and
+page. It then senses NAND and returns data through TSVs and the
+package interface. The system places the object in HBM or a GPUvisible buffer before the request executes. A write allocates a physical page, programs NAND, updates logical-to-physical metadata,
+invalidates any older page, and eventually reclaims invalid space.
+Wear, bad-block, error-correction, and thermal metadata must remain consistent across this lifecycle.
+
+3.2.1 HBF-1. (2028) is a single GPU whose silicon interposer is
+filled entirely with HBF (Fig. 3a). The interposer can host only a
+few stacks, so once HBF takes those slots no room is left for HBM,
+and the fast near tier is pushed off the interposer to GDDR7 in
+BGA packages on the card PCB. HBF-1 thus buys package-local
+flash capacity by demoting its near tier from on-interposer HBM
+to slower off-interposer GDDR.
+
+HBF Organization and Stacking
+
+HBF stacks 3D NAND dies behind wide vertical or package-level interconnects. It also includes a base die or distributed peripheral circuits, many independently accessible NAND regions, and a packagelevel link to the GPU. Together, these components provide much
+more internal parallelism and interface bandwidth than a conventional SSD. The key distinction is simple: HBF changes how NAND
+connects to the processor; it does not change NAND into DRAM.
+
+3.2.2 HBF-2. (2030) brings HBM back onto the interposer and shares
+it with HBF around one GPU (Fig. 3b). By 2030 per-stack HBM capacity has grown enough that fewer stacks still supply adequate
+near-tier capacity, so ceding half the HBM slots to HBF—about
+3
+
+Li et al.
+
+Table 1: Roadmap HBF generations.
+
+HBF replaces the narrow PCIe/NVMe path with a wide package
+interface and exposes many NAND regions in parallel. The interface is only one bound on effective application bandwidth:
+
+Property
+
+HBF-1
+
+Year
+Organization
+
+2028
+2030
+Single-GPU GDDR– Local HBM–HBF
+HBF
+12 GDDR7, 48 GB
+3 HBM, 48 GB
+6 stacks, 3 TB
+3 stacks, 1.5 TB
+GDDR7
+HBM
+On-package GDDR– Local HBM–HBF
+HBF
+
+Near tier
+HBF tier
+Weight tier
+KV movement
+
+HBF-2
+
+𝐵𝑊effective = min(𝐵𝑊interface, 𝐵𝑊array, 𝐵𝑊controller,
+𝐵𝑊power, 𝐵𝑊thermal, 𝐵𝑊workload ).
+
+Peak bandwidth therefore requires enough independent reads, controller concurrency, and power headroom.
+3.3.2 Shorter path and a cooperative hierarchy. HBF removes PCIe/NVMe command processing, host staging, and board links. Modern
+GDS- and Tutti-style SSD paths narrow this advantage, so we use
+a strong SSD baseline. In the intended cooperative hierarchy, HBM
+holds weights, active KV, and write-heavy state; HBF holds larger
+read-mostly reusable objects; and SSD keeps colder capacity. A
+NAND read remains slow, but die-, plane-, and channel-level parallelism provides high aggregate throughput when the runtime exposes concurrency.
+
+NVLink
+
+GDDR7
+3 GB
+
+GDDR7
+3 GB
+
+GDDR7
+3 GB
+
+GDDR7
+
+GDDR7
+
+GDDR7
+
+GDDR7
+
+3 GB
+
+3 GB
+
+3 GB
+
+HBF
+512 GB
+
+HBF
+
+512 GB
+
+HBF
+
+GDDR7
+
+GH100
+
+GPU
+Die
+
+HBF
+
+512 GB
+
+HBF
+
+512 GB
+
+512 GB
+
+3 GB
+
+NVLink
+
+3 GB
+
+HBF
+
+GDDR7
+3 GB
+
+512 GB
+
+GDDR7
+3 GB
+
+GDDR7
+3 GB
+
+GDDR7
+
+Silicon Interposer
+
+GDDR7
+
+GDDR7
+
+GDDR7
+
+GDDR7
+
+3 GB
+
+3 GB
+
+3 GB
+
+3 GB
+
+3 GB
+
+GPU
+PCB
+
+PCIe x16
+
+HBF
+512 GB
+
+HBF
+
+512 GB
+
+HBF
+
+HBM
+
+GH100
+
+16 GB
+
+GPU
+Die
+
+HBM
+16 GB
+
+HBM
+16 GB
+
+512 GB
+
+Silicon Interposer
+
+GPU
+PCB
+
+3.4
+
+(a) HBF-1 Architecture with H100 (GDDR-GPU-HBF)
+
+(b) HBF-2 Architecture with H100 (HBM-GPU-HBF)
+
+(a) HBF-1
+
+(b) HBF-2
+
+Limitations of HBF
+
+The wide interface does not change NAND, so HBF inherits three
+device-level limits relative to HBM. First, latency: NAND reads and
+writes take on the order of microseconds, roughly two orders of
+magnitude longer than HBM accesses; programs are slower and
+more energy-intensive than reads [8]. Die-, plane-, and channellevel parallelism raises aggregate bandwidth but does not close this
+per-access gap.
+Second, endurance: flash cells tolerate finite program/erase cycles, and elevated temperature accelerates wear [1]. A write-heavy
+tier therefore degrades far faster than DRAM’s effectively unbounded
+write endurance.
+Third, power and thermals: per-stack HBF power is far higher
+than HBM. H3 assumes roughly 160 W per HBF cube, so six stacks
+can approach 960 W [6], potentially exceeding the GPU die’s peak
+power. Package-local HBF therefore creates a new power and thermal problem rather than inheriting HBM’s modest envelope.
+
+PCIe x16
+
+Figure 3: Roadmap HBF system layouts.
+
+halving near-tier capacity versus an all-HBM package—is an acceptable trade rather than the wholesale demotion HBF-1 makes.
+HBM holds weights and active, write-heavy state while HBF holds
+long-context KV, and one scheduler sees compute, HBM, and HBF
+over the local memory path; the cost moves from bandwidth loss
+to package area, cooling, and the near-tier capacity given up.
+3.2.3 HBF-3: interposer-integrated (beyond our scope). A later HBF3 (2032) generation instead uses an advanced interposer—glass, for
+example—to co-package twice as many HBM and HBF stacks (six
+each, versus three in HBF-2) alongside the GPU [9], but we do not
+center our study on it because it is roughly six years out; it requires a customized HBM base-die memory controller that adds
+integration complexity, and the same advanced interposer could
+be populated entirely with HBM—so integrating HBF still spends
+package resources and cuts GPU-local (near-tier) memory capacity,
+the very trade this paper identifies.
+Because HBF-1 and HBF-2 change GPU organization and neartier memory with the medium, a fair study needs two comparisons. The media-only comparison varies only secondary-tier latency, bandwidth, and capacity; the complete-architecture comparison evaluates the full organization. Without this separation, media
+service, local memory, interconnect, and package power are inseparable (Section 4).
+
+3.3
+
+(5)
+
+4 Evaluation Methodology
+4.1 Simulator and Evaluation Setup
+We use an extended version of TokenSim1 [21]. It models request
+arrival, prefill, decode, continuous batching, paged KV allocation,
+admission, preemption, recomputation, KV save/restore, tier transfers, queueing, and request-level latency. Our extensions add Mooncakestyle lookup, hashed 16-token KV identifiers, object save/load events,
+SSD and HBF tiers, per-tier read/write counters, HBF-1/HBF-2 profiles, connector wait accounting, and SLO-oriented outputs. TokenSim’s original studies validate its serving behavior against realmachine configurations [21]; for our extensions, regression checks
+cover block/byte conservation, save/load ordering, deterministic
+replay, and per-tier counters. HBF remains projected hardware, so
+its service parameters are sourced or swept, not claimed as measured silicon.
+We separate media sensitivity from complete architecture comparisons: the media-only view holds GPU organization and policy
+fixed while varying HBF latency, while complete HBF-1 and HBF-2
+
+Advantages of HBF
+
+3.3.1 Capacity and bandwidth. NAND provides much greater density than DRAM. A 512-GB HBF device paired with a 24-GB HBM
+stack yields a density ratio of≈ 21.3.
+
+1 https://github.com/pku-lemonade/TokenSim
+
+4
+
+HBF Sucks!
+
+Table 2: Evaluation workloads, models, and systems.
+
+4.3
+
+(a) Production traces
+
+Trace
+
+Requests/QPS
+
+traceA
+traceB
+coder
+thinking
+
+Prompt
+
+Output Multi-turn/reused
+
+43,058/5.98 1,046/6,436
+376/808
+172,800/24.0
+574/1,720
+39/180
+43,011/5.97 4,540/12,776 469/1,789
+10,812/1.50 3,680/13,115 1,666/9,157
+
+46.3%/46.8%
+0%/6.0%
+38.6%/39.0%
+11.1%/14.3%
+
+(b) Model profiles
+
+Model
+
+Arch.
+
+Qwen3-4B
+Qwen3-32B
+DeepSeek-V3.2-685B
+GLM-5.2-753B
+Kimi-K2.7-Code-1.1T
+
+Dense
+4B/4B
+Dense 32B/32B
+MoE 685B/37B
+MoE 753B/40B
+MoE
+1.1T/32B
+
+Params Layers/hidden Attn./KV heads Max context
+36/2,560
+64/5,120
+61/7,168
+78/6,144
+61/7,168
+
+32/8
+64/8
+128/128
+64/64
+64/64
+
+40,960
+40,960
+163,840
+1,048,576
+262,144
+
+(c) Eight-GPU system profiles
+Profile
+
+Local tier per GPU
+
+Shared secondary tier
+
+SSD/H100
+
+96 GB HBM, 3.0 TB/s
+
+SSD/B200
+
+192 GB HBM, 8.0 TB/s
+
+HBF-1/H100
+HBF-1/B200
+HBF-2/H100
+HBF-2/B200
+
+48 GB GDDR7, 1.344 TB/s
+96 GB GDDR7, 2.688 TB/s
+48 GB HBM3e, 1.5 TB/s
+96 GB HBM3e, 4.0 TB/s
+
+12/24/48 TB SSD; 54.7–218.8 GB/s
+read
+12/24/48 TB SSD; 54.7–218.8 GB/s
+read
+24 TB HBF, 1.2 TB/s
+48 TB HBF, 2.4 TB/s
+12 TB HBF, 0.6 TB/s
+24 TB HBF, 1.2 TB/s
+
+4.4
+
+change the near tier to the roadmap’s GDDR/HBF and HBM/HBF
+organizations. HBF latency is swept over 8/80, 12/120, 20/200, and
+30/300 𝜇s read/write points. The connector uses 16-token hash
+blocks: prefix lookup matches consecutive identifiers from the prompt
+start, missing full blocks are saved during prefill after existingblock filtering, and a later matching request restores them before
+its missing suffix executes.
+
+4.2
+
+Metrics and Statistical Treatment
+
+We report TTFT, TBT, end-to-end latency, delivered request and token throughput, queueing and connector delay, KV hits, blocks and
+bytes read and written, the write/read ratio, prefix reuse, recomputation, and SLO goodput. For the architecture comparison we average each metric over the trace and model campaign at every system
+and latency point, because the question is how the complete SSD,
+HBF-1, and HBF-2 organizations behave, not how one favorable
+point behaves. The write/read ratio and prefix hit rate in Finding 3
+come from the per-tier byte counters over a full two-hour replay
+of each trace, so they reflect fixed request contents and ordering
+rather than a sampled window. Zero-read runs are excluded from
+the ratio because it is undefined, and malformed result files are excluded. Throughout, we label every value as a measured simulator
+output, a sourced device parameter, or a modeled projection.
+
+5
+
+Workloads, Models, and Platforms
+
+Thermal Model
+
+Two findings need device models the serving simulator does not
+provide. The thermal model is described here, and the write-endurance
+budget is given with Finding 6 (§8.2). For thermal behavior we
+build a 16-Hi HBF stack similar to HBM4, with 128-layer 3D-NAND
+TLC dies, and solve its steady-state heat flow with 3D-ICE [18]. We
+drive the model with the read and write energy of a 16-token KV
+block—the connector’s access granularity—and sweep sustained
+single-stack bandwidth to obtain dynamic power and peak temperature. We set the safe junction temperature to 80◦ C, matching HBM3e, and model a throttling policy that closes the hottest,
+highest-traffic planes and redirects writes to cooler planes once the
+limit is reached. The thermal model is a projection for unreleased
+hardware; we report it as such and use it to bound, not fix, the
+thermal limits of an HBF tier.
+
+A Model of When Faster Flash Helps
+
+At matched capacity, an HBF read is faster than an SSD read; that
+much is uncontested. The question is whether per-access speedup
+propagates to end-to-end request latency, or is absorbed by the
+rest of the serving pipeline. This is a system-level question; we
+formalize it with a single cost–benefit relation. We express the net
+change an HBF tier makes to end-to-end latency, relative to the
+SSD tier it replaces, as
+
+We use four anonymized production-derived traces from the Aliyun
+Qwen-Bailian deployment [19]. Each contains a complete two-hour
+window with fixed request order, lengths, session structure, and 16token KV identifiers. traceA mixes production traffic with conversational reuse. traceB contains short-output API/text traffic without multi-turn sessions, although shared prefixes still create crossrequest reuse. coder contains code-oriented multi-turn context,
+and thinking combines long reasoning outputs with a smaller
+multi-turn population. A reused block is a unique hash identifier
+that appears in more than one request.
+We evaluate five dense and MoE models. Table 2(b) summarizes
+the architectural parameters used by the current TokenSim profiles.
+For MoE models, the parameter count reports both total parameters and parameters activated per token.
+We model eight-GPU H100 and B200 systems with tensor parallelism 8, pipeline and data parallelism 1, and expert parallelism for
+MoE models. The SSD tier uses 3.2-TB KIOXIA CM7-V drives with
+14.0/6.75 GB/s sequential read/write bandwidth and 3 TB modeled
+usable capacity per drive [10]. The main SSD baseline is the conventional Mooncake connector in the simulator.
+We evaluate offered loads from 0.05 to 32 QPS by rescaling requestarrival timestamps while preserving request order, contents, sessions, and KV-reuse relationships.
+
+ΔHBF = 𝑓 Δ𝑡 media −
+| {z }
+critical-path I/O
+
+𝐶 move
+|{z}
+
+−
+
+movement/control
+
+−
+
+𝐶 pkg
+|{z}
+near-tier opportunity
+
+𝐶 var
+|{z}
+throttle/variability
+
+−
+
+𝐶 life
+|{z}
+
+.
+
+(6)
+
+endurance/capacity
+
+Faster flash improves only the first term, and only in proportion
+to 𝑓 , the fraction of end-to-end time spent in exposed secondarytier I/O. Everything else the HBF tier changes (the near tier it displaces, the traffic it must absorb, the heat it generates, the wear it
+takes) enters as a subtracted cost. The HBF tier is net-positive only
+when ΔHBF > 0 under target latency, throughput, power, capacity,
+and lifetime constraints. We make this concrete by converting each
+term into a measurable quantity, from which three necessary conditions emerge. Each condition is a falsifiable prediction: it states
+5
+
+Li et al.
+
+Table 3: Each condition is a falsifiable prediction of the
+model in Eq. (6), tested by two findings for transient KV behind an SSD-style connector in §§6–8.
+
+the value a term must take for HBF to help, while a paired finding
+measures the value it actually takes (Table 3).
+C1: Read I/O is the serving bottleneck (𝑓 must be large). We
+decompose end-to-end time as 𝑇 = 𝑇rest + 𝑡 io , where 𝑡 io is the exposed, non-overlapped secondary-tier service and 𝑇rest covers compute, near-tier service, batching, and queueing; 𝑓 = 𝑡 io /𝑇 is the
+exposed fraction. To first order, the exposed term scales with peraccess latency, so making the medium 𝑘× faster changes end-toend time by
+
+
+Δ𝑇
+= 𝑓 1 − 𝑘1 ≤ 𝑓 .
+𝑇
+
+(7)
+
+The exposed fraction is a hard ceiling on any media improvement;
+even an infinitely fast tier (𝑘 → ∞) cannot beat 𝑓 . Equation (7) is
+also invertible, so a media-latency sweep recovers 𝑓 from a serving
+measurement directly. §6.1 runs that 𝑘 = 3.75× sweep, and §6.2
+asks whether moving compute into the device can enlarge 𝑓 .
+C2: Reads outweigh writes (𝜌 > 𝜌 ★). A NAND program is spent
+the moment an object enters HBF; that cost is repaid only by later
+reads that benefit from the faster medium. Let 𝜌 be the useful read
+bytes returned per byte written at the flash tier, 𝑆 the exposed time
+each read byte saves, 𝐴 the write amplification, and 𝐶 a per-byte
+capacity and write-budget cost. Writing is net-positive only when
+𝜌𝑆 > 𝐴𝐶, i.e.
+𝜌 > 𝜌★ =
+
+𝐴𝐶
+.
+𝑆
+
+Prediction: HBF helps How we test it
+only if
+
+C1
+
+read I/O is the serving media-latency sweep recovbottleneck
+ers 𝑓 (F1); base-die NMP
+tests coverage (F2)
+
+C2
+
+reads outweigh writes per-tier byte counters give
+(𝜌 > 𝜌 ★)
+delivered 𝜌 (F3); paired
+batching tests the write
+cost 𝐶 (F4)
+
+C3
+
+sustained BW near 3D-ICE thermal sweep (F5);
+nominal peak
+write-endurance
+budget
+(F6)
+
+6.1
+
+Finding 1: HBF Trades GPU Capacity and
+Bandwidth
+
+An HBF read is roughly an order of magnitude faster than an SSD
+read at matched capacity, so the swap should make requests faster.
+Condition C1 says that expectation holds only in proportion to 𝑓 ,
+which no serving study has measured. Equation (7) is invertible, so
+a media-latency sweep recovers it while a capacity-matched swap
+answers what HBF delivers end to end.
+Each HBF organization is paired with the SSD baseline of equal
+secondary-tier capacity, HBF-1 against SSD24 and HBF-2 against
+SSD12 (Table 2(c)). Both HBF generations give half of the GPU’s
+near tier to flash and hold equal near-tier capacity, differing in its
+technology (GDDR7 vs HBM3e); HBF-1 also carries twice the flash
+capacity and twice the flash bandwidth of HBF-2. The second control varies the medium, moving the read/write point from 30/300
+to 8/80 𝜇s, the 𝑘 = 3.75× change Eq. (7) needs to recover 𝑓 . Table 4
+reports both sweeps for every GPU and retained model.
+The sweep shows every HBF configuration worse than its SSD
+pair on every request metric, with mean end-to-end latency 2–
+5.5× the baseline, delivered throughput down 4–34%, and maximum SLO goodput down 1.1–2.7×; the H100 pairs sit at the severe
+end of each range and the B200 pairs at the mild end. Across models and traces every HBF curve rises above SSD12 and saturates at
+lower offered load (Figs. 5–7).
+The media sweep moves almost nothing. A 𝑘 = 3.75× improvement in raw media latency shifts mean end-to-end latency by 0.75%
+(HBF-1) and 0.88% (HBF-2), which inverts through Eq. (7) to 𝑓 =
+1
+( Δ𝑇
+𝑇 )/(1 − 𝑘 ) ≈ 1%. The media change remains measurable elsewhere, moving throughput ∼5% and SLO goodput 14–23%.
+Why the faster medium loses. Media service does not reach the
+request’s critical path. On GLM-5.2, traceA, B200 at 32 QPS, HBF1’s cumulative connector service time across all requests is 3.2×
+lower than SSD’s (399 vs 1,293 s), yet its average per-request endto-end latency over the replay is 2.6× higher (4,386 vs 1,682 s) and
+its TBT doubles (Fig. 4). Across the campaign 4,741 matched pairs
+share that shape, so the bottleneck lies outside media service.
+
+(8)
+
+Two facts push 𝜌 ★ above one: the write cost is paid unconditionally,
+while the repaying reads are speculative, and a single NAND program costs several reads in energy and wear. HBF therefore pays
+off only as a read-heavy tier. For transient KV the hierarchy is expected to deliver the opposite: the near tier retains the high-𝜌 hot
+blocks and hands HBF the write-once tail. §7.1 measures the delivered 𝜌, and §7.2 asks whether the SSD write optimization that
+would lower 𝐶 transfers to HBF.
+C3: Sustained bandwidth. The bandwidth a workload actually
+receives is the minimum of interface, array, controller, thermal, and
+endurance limits (Eq. (5)), which can fall well below the datasheet
+peak. Of these limits, a write-heavy KV stream is most likely to hit
+the thermal and endurance bounds. §8.1 measures the bandwidth
+a stack sustains before it overheats, and §8.2 measures the write
+volume it takes over its life.
+These conditions are device-agnostic. 𝑓 , 𝜌, and sustained bandwidth characterize any package-local far tier (CXL-attached flash,
+other stacked NAND, or near-data flash), not only HBF. The rest
+of the paper tests them on the most demanding object for HBF,
+transient KV behind an SSD-style save/load connector, pairing two
+findings with each condition (Table 3).
+
+6
+
+Cond.
+
+C1: Read I/O Is the Serving Bottleneck
+
+Condition C1 requires the exposed secondary-tier fraction 𝑓 to be
+large. Both findings in this section measure 𝑓 instead of assuming
+a value for it. Finding 1 recovers 𝑓 from a media sweep over a
+capacity-matched swap, and Finding 2 asks whether moving the
+compute into the device can raise it.
+6
+
+(a) Matched-pair latency
+2.65x
+2.24x
+
+2
+1.39x
+
+1
+0
+
+TTFT
+
+TBT
+
+E2E
+
+(b) Media-latency sensitivity
+
+102
+
+(c) Queue-instability example
+
+124.0%
+113.0%
+
+HBF-1
+HBF-2
+
+101
+1.5%
+1.4%
+
+1.7%
+1.4%
+
+0.8%
+0.8%
+
+100
+0
+
+tor FT
+nec TT
+
+Con
+
+TBT
+
+E2E
+
+1.00
+HBF / SSD
+
+3
+
+Median increase (\%)
+
+Median HBF / SSD ratio
+
+HBF Sucks!
+
+0.82x
+
+0.75
+0.50
+
+0.50x
+
+with the much stronger HBM engine moves decode p50 by 0.39%
+and decode p99 by 0.82% on non-saturated points.
+Two quantities account for this behavior. The first is coverage.
+A base-die engine sees only the cold KV the runtime has already
+placed in HBF, and the mean HBF-resident fraction is just 15.48%
+(Fig. 8(b)), so even a perfect HBF engine cannot touch the common
+HBM-resident case. Table 6 tracks residency and leverage across
+traces. thinking keeps only 4% of attention in HBF and sees essentially no benefit. traceA at 27% residency has the most eligible
+work, yet it is still net-negative, which brings in the second quantity, scale. The HBF path pays a 12 𝜇s access on every step, and
+many low-load decode steps are too small to amortize it. The endto-end numbers follow the same accounting, since MoE compute,
+expert communication, prefill, HBF transfers, and queueing are unchanged by either engine.
+Moving compute into the device raises neither term of 𝑓 . It enlarges neither the resident fraction nor the per-step work, so C1
+survives the intervention. The conclusion is not that base-die compute is useless but that it is the wrong lever for this bottleneck.
+It accelerates a small, cold, microsecond-latency slice, so base-die
+silicon is better spent on the control plane than on a general attention engine. The next condition turns to what a swap costs on the
+write side.
+
+0.75x
+0.41x
+
+0.25
+0.00
+
+r
+s
+it
+it
+cto
+wa Tok./
+wa
+nne Load Save
+
+Co
+
+Figure 4: A faster connector, a slower system: HBF cuts transfer time yet raises end-to-end latency because the smaller
+near tier destabilizes the queue.
+
+Two comparisons locate it, and neither is a single-variable control. The HBF/SSD pair changes near-tier capacity and bandwidth
+together, halving both (96 to 48 GB and 3.0 to 1.5 TB/s on H100),
+so it prices the package trade without separating its two parts. The
+HBF-1/HBF-2 pair instead holds near-tier capacity fixed, and HBF1 is 16–64% slower end to end despite carrying twice the flash capacity and bandwidth, so a strictly better flash tier does not recover
+the loss. What the swap degrades is the near tier that governs how
+many requests the server admits at once.
+The result is a ceiling, not a tuning outcome. With 𝑓 ≈ 1%, a
+perfect zero-latency medium could remove at most one percent
+of the critical path, while the package trade that buys it costs 2–
+5.5× in end-to-end latency. In Eq. (6), 𝐶 pkg exceeds 𝑓 Δ𝑡 media by two
+orders of magnitude. One alternative explanation is that 𝑓 is small
+only because the compute sits far from the data, which Finding 2
+tests directly.
+
+Finding 2
+Base-die attention compute cannot overcome HBF’s limited KV coverage, so its silicon is better spent on control
+rather than general attention.
+
+Finding 1
+
+7
+
+Replacing SSD with HBF sacrifices the near-tier capacity and bandwidth that govern admission, so faster flash
+does not improve end-to-end serving.
+
+6.2
+
+C2: Reads Outweigh Writes
+
+Condition C2 requires HBF to be a read-heavy tier, 𝜌 > 𝜌 ★ ≳ 1
+(Eq. (8)). Finding 3 measures the reads-per-write the hierarchy delivers, and Finding 4 asks whether the standard SSD write optimization can lower the write cost 𝐶.
+
+Finding 2: Base-Die Compute Cannot Raise
+the Exposed Fraction
+
+7.1
+
+Finding 1 leaves 𝑓 near 1%. One reading of that number is that
+the compute sits too far from the data, in which case moving the
+compute to the data should raise 𝑓 . The standard form of that move
+is a near-memory attention engine on the HBF base die, as HBMPIM does for DRAM. We ask whether it does.
+We model a decode-attention engine on the base die under assumptions chosen to favor HBF. It is charged no area, power, or programmability penalty, and every eligible token hits at the device
+service time, so a negative result is a lower bound. The two modes
+differ in reach. The HBM engine accelerates all HBM-resident KV;
+the HBF engine reaches only KV already resident in HBF, and hot
+HBM-resident KV falls back to GPU attention. Table 5 lists the full
+configuration.
+Fig. 8(a) reports both engines. Averaged over the 40 sweep points,
+the HBM engine cuts decode-attention time by 42.84%, and it is stable across the whole sweep (42.78–42.86%). The HBF engine averages −0.03% on the same basis, that is, no benefit at all. Individual
+points swing from −29.05% to +20.49%, and it is slower than GPU
+attention at 16 of 40 points, turning positive only near saturation.
+The end-to-end effect is smaller again. Replacing the HBF engine
+
+Finding 3: SSD-Style Hierarchy Makes HBF
+Write-Heavy
+
+Finding 1 showed the flash service sits off the critical path. Whether
+it earns its place is a separate question. Every byte HBF serves must
+first be written there, so C2 asks whether those writes are repaid
+by later reads. A hierarchy tuned for reuse could land on either
+side of that threshold.
+We replay each of the four production traces for two hours and
+measure the write and read byte counts at the flash tier directly.
+Their ratio converts to the delivered 𝜌 that C2 tests. We also record
+the prefix hit rate, which separates cache effectiveness from flashtier traffic.
+Table 7 reports all three quantities. Every trace writes more
+to the flash tier than it reads back, from 1.14× (coder) to 4.90×
+(traceB), so 𝜌 ranges from 0.20 to 0.88, below break-even on every
+trace and several-fold below on the write-heaviest. The prefix hit
+rate is 38–53%, so reuse is found even where the flash tier reads
+little back.
+Reuse distribution across blocks. The two observations reconcile through the reuse distribution, not the average. Reuse is extremely skewed. The top decile of unique blocks supplies 64% (traceA)
+7
+
+Li et al.
+
+Table 4: B200 HBF performance relative to capacity-matched SSD baselines. HBF-1 is normalized to SSD24 and HBF-2 to SSD12.
+Positive latency changes indicate slowdowns; negative throughput and goodput changes indicate losses.
+ΔE2E Latency
+
+ΔThroughput
+
+HBF-1
+
+ΔTTFT
+HBF-2
+
+HBF-1
+
+HBF-2
+
+HBF-1
+
+HBF-2
+
+HBF-1
+
+HBF-2
+
++96.6%
++94.3%
++96.5%
++73.4%
++19.2%
+
++44.7%
++45.9%
++44.7%
++42.1%
++14.6%
+
++285.2%
++280.0%
++284.7%
++267.4%
++184.1%
+
++131.4%
++133.2%
++131.3%
++136.0%
++103.4%
+
+−24.3%
+−24.6%
+−24.2%
+−11.8%
+−5.2%
+
+−12.7%
+−13.7%
+−12.7%
+−7.9%
+−3.6%
+
+−51.7%
+−37.5%
+−51.7%
+−40.0%
+−46.3%
+
+−41.7%
+−12.5%
+−41.7%
+−25.1%
+−35.9%
+
+Model
+Kimi-K2.7
+GLM-5.2
+DeepSeek-V3.2
+Qwen3-32B
+Qwen3-4B
+
+SSD12
+DeepSeek-V3.2-685B
+traceA
+
+B200 E2E
+(Norm.)
+
+8.0x
+
+HBF-1 (30/300)
+
+traceB
+
+HBF-2 (8/80)
+
+HBF-2 (30/300)
+
+Kimi-K2.7-1.1T
+
+traceA
+
+traceB
+
+Qwen3-4B
+
+traceA
+
+traceB
+
+Qwen3-32B
+
+traceA
+
+traceB
+
+traceA
+
+traceB
+
+6.0x
+4.0x
+2.0x
+0.0x
+
+1x=646.5ms
+
+0
+
+1
+
+2
+
+3
+
+4
+
+1x=76.2ms
+
+0
+
+10
+
+20
+
+1x=550.8ms
+
+0
+
+1
+
+thinking
+
+coder
+
+8.0x
+
+B200 E2E
+(Norm.)
+
+HBF-1 (8/80)
+
+GLM-5.2-753B
+
+ΔGoodput
+
+2
+
+3
+
+4
+
+1x=67.2ms
+
+0
+
+10
+
+20
+
+1x=646.9ms
+
+0
+
+1
+
+thinking
+
+coder
+
+2
+
+3
+
+4
+
+1x=76.3ms
+
+0
+
+10
+
+20
+
+1x=96.3ms
+
+0
+
+10
+
+thinking
+
+coder
+
+20
+
+30
+
+1x=18.5ms
+
+0
+
+10
+
+20
+
+30
+
+1x=649.0ms
+
+0
+
+10
+
+20
+
+thinking
+
+coder
+
+1x=75.9ms
+
+30
+
+0
+
+10
+
+20
+
+30
+
+thinking
+
+coder
+
+6.0x
+4.0x
+2.0x
+
+1x=881.5ms
+
+0.0x
+0.0
+
+0.5
+
+1.0
+
+1.5
+
+QPS
+
+2.0
+
+1x=3.45s
+
+0.0
+
+0.1
+
+QPS
+
+0.2
+
+1x=767.2ms
+
+0.3 0.0
+
+0.5
+
+1.0
+
+1.5
+
+QPS
+
+1x=3.03s
+
+2.00.0
+
+0.1
+
+0.2
+
+QPS
+
+1x=882.0ms
+
+0.30.0
+
+0.5
+
+1.0
+
+1.5
+
+QPS
+
+2.0
+
+1x=3.45s
+
+0.0
+
+0.1
+
+0.2
+
+QPS
+
+1x=121.3ms
+
+0.3 0
+
+10
+
+QPS
+
+20
+
+30
+
+1x=402.5ms
+
+0
+
+2
+
+4
+
+6
+
+QPS
+
+1x=817.7ms
+
+8 0.0
+
+2.5
+
+5.0
+
+QPS
+
+7.5
+
+10.0
+
+1x=2.91s
+
+0.0
+
+0.5
+
+1.0
+
+QPS
+
+1.5
+
+2.0
+
+Figure 5: End-to-end latency versus load on B200, normalized within each panel to the low-load SSD12 value (1×), across five
+models and four traces.
+SSD12
+DeepSeek-V3.2-685B
+
+H100
+Norm. tok/s
+
+traceA
+
+coder
+
+1.00x
+
+1.0x
+
+HBF-1 (30/300)
+
+coder
+
+1.00x
+
+HBF-2 (8/80)
+
+HBF-2 (30/300)
+
+Kimi-K2.7-1.1T
+
+traceA
+
+1.00x
+
+Qwen3-4B
+
+traceA
+
+1.00x
+
+coder
+
+1.00x
+
+1.00x
+
+coder
+
+0.35x
+
+0.40x
+
+0.34x
+
+0.39x
+
+0.29x
+
+0.33x
+
+0.29x
+
+0.35x
+
+0.33x
+
+0.34x
+
+0.40x
+
+0.39x
+
+0.30x
+
+0.34x
+
+0.30x
+
+0.34x
+
+0.33x
+
+0.38x
+
+0.33x
+
+0.28x
+
+0.32x
+
+0.28x
+
+coder
+
+1.00x
+
+1.00x
+
+0.75x
+0.46x
+
+0.38x
+
+traceA
+
+1.00x
+
+0.95x
+
+0.92x
+
+0.8x
+0.5x
+
+Qwen3-32B
+
+traceA
+
+1.00x
+
+0.71x
+
+0.32x
+
+0.50x
+0.38x
+
+0.37x
+
+0.34x
+
+0.35x
+
+0.44x
+
+0.39x
+
+0.34x
+
+0.32x
+
+0.40x
+
+0.36x
+
+0.2x
+QPS 32
+
+0.0x
+
+QPS 32
+
+1.00x
+
+1.0x
+
+0.96x
+0.78x
+
+0.8x
+
+QPS 32
+
+thinking
+
+traceB
+b200
+Norm. tok/s
+
+HBF-1 (8/80)
+
+GLM-5.2-753B
+
+1.00x
+
+0.94x
+0.75x
+
+0.71x
+0.50x
+
+0.5x
+
+0.34x
+
+QPS 32
+
+thinking
+
+traceB
+
+1.00x
+
+0.90x
+
+QPS 32
+
+1.00x
+
+0.96x
+0.78x
+
+0.51x
+
+0.50x
+0.34x
+
+QPS 32
+
+thinking
+
+traceB
+
+1.00x
+0.88x
+
+0.69x
+
+0.34x
+
+QPS 32
+
+1.00x
+
+1.00x
+
+1.00x
+
+1.00x
+
+QPS 32
+
+thinking
+
+traceB
+
+1.00x
+
+0.90x
+
+QPS 32
+
+thinking
+
+traceB
+
+1.00x
+
+1.00x
+
+QPS 32
+
+1.00x
+
+1.00x
+
+1.00x
+
+1.00x
+
+1.00x
+
+1.00x
+
+0.71x
+
+0.50x
+
+0.50x
+
+0.34x
+
+0.34x
+
+0.54x
+
+0.50x
+
+0.39x
+
+0.34x
+
+0.52x
+
+0.42x
+
+0.33x
+
+0.36x
+
+0.49x
+
+0.34x
+
+0.2x
+QPS 32
+
+0.0x
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+QPS 32
+
+Figure 6: Delivered token throughput normalized to SSD12 (1×) for H100 (top) and B200 (bottom), across five models and four
+traces.
+SSD12
+DeepSeek-V3.2-685B
+
+TTFT
+(Norm.)
+
+thinking
+
+traceA
+
+3.0x
+
+HBF-1 (8/80)
+
+HBF-1 (30/300)
+
+GLM-5.2-753B
+
+HBF-2 (8/80)
+
+HBF-2 (30/300)
+
+Kimi-K2.7-1.1T
+thinking
+
+traceA
+
+Qwen3-4B
+thinking
+
+traceA
+
+Qwen3-32B
+thinking
+
+traceA
+
+thinking
+
+traceA
+
+2.0x
+1x=11.3ms
+
+1.0x
+
+0.0x
+
+0
+
+1
+
+2
+
+3
+
+1x=11.9ms
+
+4 0.0
+
+0.1
+
+1x=11.3ms
+
+0.3 0
+
+1
+
+thinking
+
+traceA
+
+8.0x
+
+0.2
+
+2
+
+3
+
+1x=11.6ms
+
+4 0.0
+
+0.1
+
+0.2
+
+1x=11.4ms
+
+0.3 0
+
+1
+
+thinking
+
+traceA
+
+2
+
+3
+
+1x=11.9ms
+
+4 0.0
+
+0.1
+
+0.2
+
+1x=9.2ms
+
+0.3 0
+
+10
+
+thinking
+
+traceA
+
+20
+
+30
+
+1x=9.2ms
+
+0
+
+2
+
+4
+
+6
+
+1x=10.3ms
+
+8 0
+
+10
+
+thinking
+
+traceA
+
+20
+
+30
+
+1x=11.0ms
+
+0.0
+
+0.5
+
+1.0
+
+1.5
+
+2.0
+
+thinking
+
+traceA
+
+TBT
+(Norm.)
+
+6.0x
+4.0x
+2.0x
+0.0x
+
+1x=1.6ms
+
+0
+
+1
+
+2
+
+QPS
+
+3
+
+4
+
+1x=2.0ms
+
+0.0
+
+0.1
+
+QPS
+
+0.2
+
+0.3
+
+1x=1.4ms
+
+0
+
+1
+
+2
+
+QPS
+
+3
+
+4
+
+1x=1.7ms
+
+0.0
+
+0.1
+
+QPS
+
+0.2
+
+0.3 0
+
+1x=1.6ms
+
+1
+
+2
+
+QPS
+
+3
+
+4
+
+1x=2.0ms
+
+0.0
+
+0.1
+
+QPS
+
+0.2
+
+0.3
+
+1x=0.2ms
+
+0
+
+10
+
+QPS
+
+20
+
+30
+
+1x=0.2ms
+
+0.0
+
+2.5
+
+5.0
+
+QPS
+
+7.5
+
+10.0
+
+1x=1.7ms
+
+0
+
+10
+
+QPS
+
+20
+
+30
+
+1x=1.7ms
+
+0
+
+10
+
+QPS
+
+20
+
+30
+
+Figure 7: Time-to-first-token (top) and time-between-tokens (bottom) versus load, normalized within each panel to the lowload SSD12 value (1×), for representative traces on five models.
+to 95–100% (thinking, traceB) of all reuse reads, with Gini 0.80–
+1.0. Those hot blocks are the ones the near tier keeps resident, so
+those hits are served from HBM or GDDR, and what reaches HBF
+is the long cold tail, written once and rarely read again. traceB is
+
+the extreme, with only 6% of blocks ever reused, so almost everything it sends HBF is write-once and its ratio is highest. A cache
+tier that mostly writes is therefore the hierarchy doing its job, not
+a misconfiguration. It keeps reuse where it is fastest to serve and
+8
+
+HBF Sucks!
+
+Table 5: Finding 2 NMP configuration.
+Parameter
+
+Value
+
+Model / cluster
+Memory preset
+HBF latency
+Modes
+NMP type
+Internal-stack
+NMP bandwidth
+QPS tiers
+
+DeepSeek-V3.2-685B, 8×H100 (TP8, DP1)
+HBF2, 12 TB shared HBF tier
+12 𝜇s read, 120 𝜇s write
+HBF base-die NMP, HBM base-die NMP
+24 FP16 MAC arrays at 600 MHz
+
+never traverse the KV path. This is why H3 and HAVEN place stable, read-mostly objects in HBF [6, 8]. The problem is not that HBF
+cannot hold KV, but that the SSD-style hierarchy routes the least
+reusable KV to the device least able to absorb writes.
+Finding 3
+The two-tier hierarchy keeps reusable KV in the near
+tier and sends HBF a write-heavy cold stream whose
+writes are rarely repaid.
+
+896 GB/s
+0.05, 0.1, 0.2, 0.5, 1, 2, 4, 8, 16, 32
+
+7.2
+42.8
+
+(a) Operator gain
+42.9
+
+42.8
+
+HBM
+HBF
+
+20
+7.1
+
+3.5
+
+Finding 3 leaves 𝜌 fixed by object class, so the remaining lever in
+Eq. (8) is the write cost 𝐶. SSD KV serving already has the standard tool for lowering it. Mooncake-style batching coalesces many
+small KV writes into large buckets, amortizing the drive’s slow peroperation I/O and turning scattered writes into near-sequential
+transfers. Whether that win is a property of the optimization or
+of the medium it was built for decides whether it carries onto HBF.
+We run the identical bucketing mechanism on both media over
+a shared traceA/traceB matrix, holding HBF’s random and sequential bandwidth equal so batching can help only by amortizing
+fixed write-operation latency. We compare three arms, no-batch,
+the Mooncake bucketed path, and a single-key control that pays
+the bucketing cost without grouping anything.
+Table 8 and Fig. 9(a) give the paired result. On SSD-12, request
+p50 falls by 8.9–21.1% at every block size. The same mechanism
+on HBF-2 recovers 2.69% overall, 5.2× smaller, and the benefit is
+concentrated at the smallest block, +9.2% at 16 tokens, fading to
++0.72% at 128 and turning negative (−1.85%) at 512. The SSD gain
+is flat across block size; the HBF gain decays to zero and then costs.
+Composition of the write cost. The contrast follows from what
+each medium’s write cost is made of. On SSD a write is dominated
+by high fixed per-operation overhead and a random-access penalty,
+and usable bandwidth is low relative to demand. Batching attacks
+all three at once, so its win is large and survives coarse blocks.
+HBF removes those levers by construction. Its access latency is low
+and its random and sequential bandwidth are equal, so there is
+no scattered-to-sequential conversion and no bandwidth cliff. The
+only lever left is amortizing fixed operation latency, which pays off
+only when a bucket is dense with tiny blocks, about 94 blocks per
+bucket at 16 tokens but 4 at 512 (Fig. 9(b)). The single-key control
+makes that residue explicit. With the batching path enabled but no
+grouping it is worse than no-batch on every metric, because it pays
+bucketing overhead for no amortization.
+Batching helps SSD because it compensates for SSD’s specific
+weaknesses. HBF does not have those weaknesses, so the optimization has almost nothing left to lower. The write cost 𝐶 cannot be
+engineered down, so C2 still fails.
+
+15
+
+10
+Value (\%)
+
+Gain (\%)
+
+(b) Coverage
+/ dilution
+43
+
+42.9
+
+40
+
+1
+
+100
+
+0.82
+
+0
+
+0.39
+-4.4
+
+A
+
+-6.3
+
+B
+
+C
+
+0
+
+T
+
+HBF
+cov.
+
+HBM
+op.
+
+dec.
+p50
+
+dec.
+p99
+
+Figure 8: Base-die NMP operator leverage, HBF coverage,
+and end-to-end dilution. A–T denote traceA, traceB, coder,
+and thinking.
+Table 6: Per-trace NMP leverage and coverage.
+Trace
+traceA
+traceB
+coder
+thinking
+
+HBF-NMP HBF-NMP HBM-NMP
+HBF
+mean
+QPS≤1
+mean residency
+−4.43%
+−6.27%
+7.13%
+3.45%
+
+−21.67%
+−14.11%
+−1.68%
+1.96%
+
+42.84%
+42.81%
+42.85%
+42.85%
+
+26.62%
+13.63%
+17.64%
+4.02%
+
+Table 7: Flash-tier traffic over a full two-hour replay.
+Metric
+
+traceA traceB
+
+Write/read ratio
+𝜌 (reads/write)
+Prefix hit rate
+
+2.14×
+0.47
+38.21%
+
+coder thinking
+
+4.90× 1.14×
+0.20
+0.88
+52.46% 45.58%
+
+Finding 4: SSD Write-Batching helps little
+for HBF
+
+2.20×
+0.45
+44.12%
+
+hands the tier that should hold read-mostly data a write-mostly
+stream.
+Whether 𝜌 can clear 𝜌 ★ is decided by object class, not device tuning. Model weights and static tensors are written once and read
+many times (𝜌 ≫ 1), and shared-prefix KV amortizes one write
+over many requests. Private decode KV is the hard case. It grows
+token by token and dies when the request finishes, so its flashtier 𝜌 is near zero. The traces substantiate the axis directly. The
+fraction of blocks ever reused across requests is 46.8%, 6.0%, 39.0%,
+and 14.3%. The weights and decode-KV endpoints remain analytical, since decode KV is never content-addressed here and weights
+
+Finding 4
+SSD-style write batching does not transfer to HBF because the medium lacks the latency and access-pattern
+penalties that batching amortizes.
+9
+
+Peak temperature (°C)
+
+Li et al.
+
+Table 8: Paired batching benefit (batched vs. matched nobatch), SSD-12 vs. HBF-2 on the shared traceA/traceB matrix.
+Token/s gain
+
+HBF-2 SSD-12
+
+HBF-2
+
+overall
+16
+128
+512
+
++13.98%
++21.14%
++11.88%
++8.92%
+
++2.69%
++9.20%
++0.72%
+−1.85%
+
++0.31%
++0.91%
++0.06%
+−0.04%
+
+(a) SSD vs HBF batching
+SSD
+
+20
+
+HBF
+11.9
+9.2
+
+10
+
+8.9
+
+0.7
+
+0
+
+100
+
+128
+KV block (tokens)
+
+-1.8
+
+512
+
+94
+
+300
+
+400
+
+thermal BW
+
+temperature
+
+50
+0
+
+0
+
+5000
+
+10000
+15000
+Trace time (s)
+no-limit BW
+
+20000
+
+25000
+
+thermal BW
+
+25
+
+temperature
+
+1000
+
+80
+
+0
+400
+
+25
+
+200
+
+75
+
+50
+
+0
+
+100
+
+202.27 GB/s
+53.72 W
+
+Sustained single-stack bandwidth (GB/s)
+no-limit BW
+
+200
+
+75
+
+500
+600
+Trace time (ms)
+
+70
+700
+
+15
+
+16
+
+128
+
+Figure 10: (a) Dynamic power and peak temperature vs.
+single-stack bandwidth. (b) Full replay: thermal control caps
+delivered bandwidth. (c) Throttle zoom: temperature stays
+near 80◦ C while bandwidth is capped.
+
+512
+
+KV block (tokens)
+
+a burst, while the thermal controller drops the constrained run to
+the 202 GB/s safe point and holds temperature near 80◦ C (Fig. 10(b)–
+(c)).
+Why the stack runs hot. Delivered bandwidth is not a constant.
+It varies in time as hot regions throttle and cool, and in space as
+the runtime steers traffic away from the hottest planes. The cause
+traces back to Finding 3. Because reuse stays in the near tier and
+writes dominate the flash stream at higher power per access, the
+device is pushed to its limit by exactly the write-heavy traffic the
+hierarchy sends it. A read-mostly workload at the same bandwidth
+would run cooler.
+A scheduler that assumes a fixed flash bandwidth will mispredict service time and build queues it did not expect. Stable, reusable
+objects fit the device; transient KV does not.
+
+C3: Read/Write Performance Sustains
+
+Condition C3 requires the bandwidth the workload receives to stay
+near the datasheet peak. Finding 5 measures what an HBF stack
+sustains at run time, and Finding 6 measures what the write side
+costs over the device’s life.
+
+8.1
+
+40
+
+400 GB/s
+106 W
+
+Throttle zoom: 394-721 ms
+
+Figure 9: Batching gain does not transfer from SSD to HBF.
+(a) Request-p50 reduction from Mooncake batching on SSD12 vs. HBF-2 across KV block sizes; SSD gains hold everywhere while HBF fades to negative. (b) HBF-2 bucket occupancy collapses as blocks grow, removing the only latency
+HBF batching can amortize.
+
+8
+
+60
+
+150 GB/s
+40 W
+
+100 GB/s
+27 W
+
+50 GB/s
+13 W
+
+— +0.31%
+— −0.37%
+
+4
+
+16
+
+80
+
+300 GB/s
+80 W
+
+Full Trace A replay (10 s bins)
+
+(b) HBF occupancy
+Blocks/bucket
+
+Req. p50 gain (\%)
+
+21.1
+
+250 GB/s
+66 W
+
+80 °C limit
+
+50
+
+BW (GB/s)
+
+HBF-2 controls (no SSD analogue)
+batched, all blocks
+— +1.76%
+1-block control
+— −4.25%
+
++2.04%
++3.08%
++1.56%
++1.48%
+
+100
+
+Temp. (°C)
+
+SSD-12
+
+120
+
+Temp. (C)
+
+Block (tokens)
+
+BW (GB/s)
+
+Req. p50 gain
+
+140
+
+Finding 5: Write-Heavy Traffic Overheats
+HBF and Throttles Bandwidth
+
+Finding 3 established that the flash stream a KV hierarchy generates is write-heavy, and writes cost more power than reads. What
+sustained bandwidth an HBF stack can hold under that traffic is
+therefore open; the interface peak bounds it but does not answer
+it.
+Thermal model and throttling policy. A 3D-ICE [18] model of
+a 16-Hi TLC stack, driven by the access energy of a 16-token KV
+block, sweeps sustained single-stack bandwidth (§4). Safe junction
+temperature is 80◦ C, matching HBM3e; the modeled throttling policy closes the hottest, highest-traffic planes and redirects writes to
+cooler ones.
+Dynamic power scales linearly with bandwidth, and the stack
+hits the 80◦ C limit at only 202.27 GB/s and 53.72 W, far below interface peak, so it cannot run continuously above that point (Fig. 10(a)).
+In the replay, the unconstrained run holds peak bandwidth through
+
+Finding 5
+Write-heavy KV traffic drives HBF into thermal throttling, making delivered bandwidth lower and less predictable than its rated peak.
+
+8.2
+
+Finding 6: HBF Lacks SSD Management and
+Wears Out Sooner
+
+Finding 5 measured what the write-heavy stream costs in the moment, when its power throttles delivered bandwidth. The same
+stream also has a cumulative cost. Every write spends part of a finite program/erase budget, so whether the device survives its write
+volume over a deployment life is the second half of sustained delivery, and it is open.
+10
+
+HBF Sucks!
+
+(a) Write rate
+SSD
+
+Days
+
+TB/day
+
+85
+
+1000
+
+48
+
+50
+
+SSD
+HBF
+
+0
+
+A
+
+1460
+
+1500
+
+92
+
+B
+
+C
+
+T
+
+500
+0
+
+weights
+
+5y
+
+826
+
+763
+431
+
+A
+
+501
+
+Useful reads per write
+
+2000
+
+HBF
+
+100
+
+1.0
+
+(b) Endurance
+
+140
+
+150
+
+825
+466
+
+283
+
+B
+
+C
+
+T
+
+Figure 11: KV write volume and endurance budget. A–T denote traceA, traceB, coder, and thinking.
+
+0.8
+0.6
+
+session KV
+
+0.4
+poor fit
+
+0.2
+0.0
+
+We measure the write volume the traces generate and compare
+it against two endurance envelopes. The HBF write counter records
+the media-write volume each trace sends to an eight-H100 HBF-2
+tier over the two-hour replay, normalized to a daily rate. The SSD
+reference is a capacity-matched pool of four KIOXIA CM7-V 3.2 TB
+drives [10], whose vendor 3-DWPD rating gives 38.4 TB/day. For
+HBF we adopt a labeled, deliberately favorable TLC assumption
+with unit write amplification, which yields a 21.7 TB/day budget
+for a five-year target; any real NAND management would only
+lower it.
+Every trace writes past both envelopes (48–140 TB/day), so under linear TBW exhaustion the nominal HBF tier lasts a constant
+0.56× the SSD pool’s life across all four traces (Fig. 11). Coarsening
+KV blocks from 16 to 128 to 512 tokens raises the apparent prefix
+hit rate yet increases HBF write volume from 188 to 237 to 258 TB
+(1.38×).
+Why the shortfall is structural. HBF is attached like memory
+but behaves like flash. An SSD hides the cost of writing NAND
+behind a controller, and an HBF stack, presented to the GPU as
+memory, has no equivalent place to put one. The services that controller provides for free (logical-to-physical mapping, write buffering, garbage collection, TRIM, wear leveling, bad-block handling,
+and error correction) must be rebuilt in the base die, GPU memory controller, driver, or runtime [3]. That rebuilt control plane
+is the movement and control term 𝐶 move of Eq. (6), work the SSD
+tier never charged to the serving system. Managing the write side
+needs device state (write budget, wear, hot regions), not a single
+peak-bandwidth number. Block granularity does not route around
+that state. Small blocks maximize the number of write operations,
+while large blocks maximize bytes written and write amplification,
+because partial-block reuse forces whole larger blocks to be rewritten. Both keep the device on the wrong side of Eq. (8).
+HBF therefore wears out sooner than the SSD it replaces, which
+is the endurance term 𝐶 life of Eq. (6), now measured. A design
+writing short-lived KV into HBF pays twice, once for the slow
+unbuffered program and again against a write budget it exhausts
+faster.
+
+strong HBF regime
+shared prefix
+
+conditional
+
+0.0
+
+private KV
+
+path-limited
+
+0.2
+0.4
+0.6
+0.8
+Exposed secondary-tier stall
+
+1.0
+
+Figure 12: Placement map implied by the findings: exposed stall (C1) against reads-per-write (C2), with sustainable bandwidth (C3) shifting the boundary.
+
+9 Discussion and Related Work
+9.1 Synthesis
+The six findings falsify the three conditions of Section 5 in turn,
+and together they mark where HBF does help. An object belongs in
+HBF only when its restore delay is the serving bottleneck (C1), its
+reads outweigh its writes (𝜌 > 𝜌 ★, C2), and the bandwidth it needs
+is sustainable under the package’s power and endurance budget
+(C3). Fig. 12 places representative object classes on the two axes
+that decide this (exposed stall and reads-per-write), with sustainable bandwidth shifting the boundary. Transient decode KV sits
+in the low-exposure, low-𝜌 corner where all three conditions fail;
+weights and shared prefixes sit in the opposite corner, which is
+where H3 and HAVEN place their HBF-resident state.
+The three conditions use device-agnostic quantities: exposed
+critical-path fraction, reads per write, and sustained bandwidth.
+The same map therefore applies to other package-local far tiers
+such as CXL-attached or near-data flash, not only to HBF. The
+map gives the axes and the break-even rule of Eq. (8) rather than a
+calibrated boundary across the latency×bandwidth plane. A working runtime requires flat GPU-managed access, reuse-aware admission, and thermal-aware write budgeting. This paper’s role is to
+establish, with measurements, why that design is needed.
+
+9.2
+
+Related Work
+
+KV-cache management. PagedAttention enables block allocation
+and prefix sharing [12], quantization and compaction shrink KV
+size [7, 15, 23], and Prompt Cache and CachedAttention reuse state
+across prompts [4, 5]. Mooncake, LMCache, Strata, and Tutti offload KV across CPU, SSD, and network tiers with GPU-assisted
+I/O [14, 16, 17, 22], and DeepSeek’s disk context cache evidences
+persisted prefix reuse [2]. We ask how this SSD-offload stack behaves when its backing medium moves into the accelerator package.
+
+Finding 6
+Without SSD-style write management, HBF is limited by
+write bandwidth and endurance, making it unsuitable
+for transient KV.
+11
+
+Li et al.
+
+HBF. H3 pairs HBM with HBF for cost-efficient inference, storing
+read-only weights and shared precomputed KV in HBF while keeping generated state in HBM [6]. It demonstrates a favorable object
+split but does not model the write, thermal, or endurance behavior of transient KV. HAVEN keeps a read-mostly vector collection
+in HBF and reranks near the device [8]. FlashAccel goes furthest,
+integrating six HBF stacks into an HBM-based GPU and reporting 2.54× throughput over an HBM-only GPU [20]. However, its
+gains rest on committing the entire tier to SLC flash, whose density is about one-fourth of the TLC we assume, so the ∼21× density
+edge over HBM narrows sharply. This is exactly the enduranceversus-density trade our reuse-aware, write-budgeted placement
+(Findings 3 and 6) navigates rather than pays across the whole tier.
+Flash reliability and evaluation. FTL out-of-place mapping, garbage
+collection, and wear management are mature in SSD controllers
+but must be reassigned when flash becomes a GPU-visible tier [3],
+and NAND retention depends on wear and temperature [1].
+
+9.3
+
+Limitations
+
+HBF is not a public product, so we label roadmap organization as
+sourced and device values as modeled or swept, and report cost as
+a qualitative gap rather than a calibrated ratio. Most importantly,
+the architecture comparison changes GPU-local memory together
+with the secondary tier, so it shows that the complete HBF organizations underperform under this SSD-style runtime; it does not
+show that SSD is the better isolated medium. Simulator validation
+reduces risk but does not replace measurements on future HBF silicon, whose package routing, controller behavior, and long-term
+wear remain outside the present model.
+
+10
+
+Conclusion
+
+Replacing an SSD KV tier with HBF does not improve LLM serving,
+under the same Mooncake-style runtime it makes serving worse.
+Our model explains why: a faster far tier helps only when read I/O
+is the serving bottleneck (C1), reads outweigh writes (C2), and its
+bandwidth is sustainable (C3), and all three fail for transient KV
+behind an SSD-style connector. HBF is not the problem, using it as
+a faster SSD for transient KV is.
+
+References
+[1] Yu Cai, Yixin Luo, Erich F. Haratsch, Ken Mai, and Onur Mutlu. 2015. Data
+Retention in MLC NAND Flash Memory: Characterization, Optimization, and
+Recovery. In Proceedings of the 21st IEEE International Symposium on High Performance Computer Architecture. 551–563. doi:10.1109/HPCA.2015.7056062
+[2] DeepSeek. 2026. Context Caching on Disk. DeepSeek API Documentation. Accessed: 2026-07-15. https://api-docs.deepseek.com/guides/kv_cache/
+[3] Eran Gal and Sivan Toledo. 2005. Algorithms and Data Structures for Flash
+Memories. Comput. Surveys 37, 2 (2005), 138–163. doi:10.1145/1089733.1089735
+[4] Bin Gao, Zhuomin He, Puru Sharma, Qingxuan Kang, Djordje Jevdjic, Junbo
+Deng, Xingkun Yang, Zhou Yu, and Pengfei Zuo. 2024. Cost-Efficient Large
+Language Model Serving for Multi-turn Conversations with CachedAttention.
+In 2024 USENIX Annual Technical Conference (USENIX ATC 24). USENIX Association, Santa Clara, CA, 111–126. https://www.usenix.org/conference/atc24/
+presentation/gao-bin-cost
+[5] In Gim, Guojun Chen, Seung-seob Lee, Nikhil Sarda, Anurag Khandelwal, and Lin Zhong. 2024.
+Prompt Cache: Modular Attention
+Reuse for Low-Latency Inference. In Proceedings of Machine Learning
+and Systems, P. Gibbons, G. Pekhimenko, and C. De Sa (Eds.), Vol. 6.
+325–338.
+https://proceedings.mlsys.org/paper_files/paper/2024/file/
+a66caa1703fe34705a4368c3014c1966-Paper-Conference.pdf
+[6] Minho Ha, Euiseok Kim, and Hoshik Kim. 2026. H3: Hybrid Architecture Using
+High Bandwidth Memory and High Bandwidth Flash for Cost-Efficient LLM
+12
+
+Inference. IEEE Computer Architecture Letters 25, 1 (2026), 49–52. doi:10.1109/
+LCA.2026.3660969
+[7] Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael W. Mahoney,
+Yakun Sophia Shao, Kurt Keutzer, and Amir Gholami. 2024. KVQuant: Towards
+10 Million Context Length LLM Inference with KV Cache Quantization. In Advances in Neural Information Processing Systems (NeurIPS).
+[8] Po-Kai Hsu, Weihong Xu, Qunyou Liu, Tajana Rosing, and Shimeng Yu. 2026.
+HAVEN: High-Bandwidth Flash Augmented Vector Engine for Large-Scale Approximate Nearest-Neighbor Search Acceleration. arXiv:2603.01175 [cs.AR]
+https://arxiv.org/abs/2603.01175
+[9] Joungho Kim. 2026. HBF Technology, Workload Analysis and Roadmap. Presentation, TeraByte Interconnection and Package Laboratory, KAIST, February
+10, 2026.
+[10] KIOXIA America, Inc. 2024. KIOXIA SSDs for Supermicro Servers: Data Sheet.
+Version 1.0. https://americas.kioxia.com/content/dam/kioxia/en-us/business/
+ssd/oem/supermicro/asset/KIOXIA_Supermicro_SSD_Data_Sheet_Global.pdf
+[11] KVCache.AI Team. 2026. Mooncake SSD Offloading: Breaking Through Memory Limits to Expand KV Cache Capacity. Mooncake Design Documentation. Accessed: 2026-07-19. https://kvcache-ai.github.io/Mooncake/design/ssdoffload.html
+[12] Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng,
+Cody Hao Yu, Joseph Gonzalez, Hao Zhang, and Ion Stoica. 2023. Efficient Memory Management for Large Language Model Serving with PagedAttention. In
+Proceedings of the 29th Symposium on Operating Systems Principles (Koblenz, Germany) (SOSP ’23). Association for Computing Machinery, New York, NY, USA,
+611–626. doi:10.1145/3600006.3613165
+[13] Linux Kernel Documentation. 2026. io_uring Subsystem Documentation. Accessed: 2026-07-15. https://docs.kernel.org/io_uring/
+[14] Yuhan Liu, Yihua Cheng, Jiayi Yao, Yuwei An, Xiaokun Chen, Shaoting Feng,
+Yuyang Huang, Samuel Shen, Rui Zhang, Kuntai Du, and Junchen Jiang. 2025.
+LMCache: An Efficient KV Cache Layer for Enterprise-Scale LLM Inference.
+arXiv:2510.09665 [cs.DC] https://arxiv.org/abs/2510.09665
+[15] Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir
+Braverman, Beidi Chen, and Xia Hu. 2024. KIVI: A Tuning-Free Asymmetric
+2bit Quantization for KV Cache. In Proceedings of the 41st International Conference on Machine Learning (ICML).
+[16] Ruoyu Qin, Zheming Li, Weiran He, Jialei Cui, Feng Ren, Mingxing Zhang, Yongwei Wu, Weimin Zheng, and Xinran Xu. 2025. MOONCAKE: trading more storage for less computation — a KVCache-centric architecture for serving LLM
+chatbot. In Proceedings of the 23rd USENIX Conference on File and Storage Technologies (Santa Clara, CA, USA) (FAST ’25). USENIX Association, USA, Article
+10, 16 pages.
+[17] Shi Qiu, Yifan Hu, Xintao Wang, Wenhao Zhu, Jianqin Yan, Hao Chen, Kaiqiang
+Xu, Kai Chen, and Yiming Zhang. 2026. Tutti: Making SSD-Backed KV Cache
+Practical for Long-Context LLM Serving. arXiv:2605.03375 [cs.DC] https://arxiv.
+org/abs/2605.03375
+[18] Arvind Sridhar, Alessandro Vincenzi, Martino Ruggiero, Thomas Brunschwiler,
+and David Atienza. 2010. 3D-ICE: Fast Compact Transient Thermal Modeling for
+3D ICs with Inter-tier Liquid Cooling. Proceedings of the IEEE/ACM International
+Conference on Computer-Aided Design (ICCAD) (2010), 463–470. doi:10.1109/
+ICCAD.2010.5653749
+[19] Jiahao Wang, Jinbo Han, Xingda Wei, Sijie Shen, Dingyan Zhang, Chenguang
+Fang, Rong Chen, Wenyuan Yu, and Haibo Chen. 2025. KVCache Cache in the
+Wild: Characterizing and Optimizing KVCache Cache at a Large Cloud Provider.
+In Proceedings of the 2025 USENIX Annual Technical Conference. USENIX Association, 465–480. https://www.usenix.org/conference/atc25/presentation/wangjiahao
+[20] Xinyu Wang, Yalong Xue, Xiaotian Sun, Xiaoyu Zhang, Chunmeng Dou, Xueqi
+Li, and Xiaoming Chen. 2026. FlashAccel: Leveraging High-Bandwidth Flash for
+High-Throughput LLM Inference. arXiv:2607.10186 [cs.AR] https://arxiv.org/
+abs/2607.10186
+[21] Feiyang Wu, Zhuohang Bian, Guoyang Duan, Tianle Xu, Junchi Wu, Teng Ma,
+Yongqiang Yao, Ruihao Gong, and Youwei Zhuo. 2025. TokenSim: Enabling
+Hardware and Software Exploration for Large Language Model Inference Systems. arXiv:2503.08415 [cs.DC] https://arxiv.org/abs/2503.08415
+[22] Zhiqiang Xie, Ziyi Xu, Mark Zhao, Yuwei An, Vikram Sharma Mailthody,
+Scott Mahlke, Michael Garland, and Christos Kozyrakis. 2025.
+Strata:
+Hierarchical Context Caching for Long Context Language Model Serving.
+arXiv:2508.18572 [cs.DC] https://arxiv.org/abs/2508.18572
+[23] Yanqi Zhang, Yuwei Hu, Runyuan Zhao, John C.S. Lui, and Haibo Chen. 2025.
+DiffKV: Differentiated Memory Management for Large Language Models with
+Parallel KV Compaction. In Proceedings of the 19th USENIX Symposium on Operating Systems Design and Implementation (OSDI). USENIX Association.
+
+

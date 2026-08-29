@@ -1,0 +1,2979 @@
+arXiv:2410.19274v3 [cs.LG] 12 Oct 2025
+
+Neuralink: Fast LLM Inference on Smartphones with
+Neuron Co-Activation Linking
+Tuowei Wang∗
+
+Ruwen Fan∗
+
+Minxing Huang
+
+Tsinghua University
+Beijing, China
+
+Tsinghua University
+Beijing, China
+
+Tianjin University
+Tianjin, China
+
+Zixu Hao
+
+Kun Li
+
+Ting Cao
+
+Tsinghua University
+Beijing, China
+
+Microsoft Research
+Beijing, China
+
+Microsoft Research
+Beijing, China
+
+Youyou Lu
+
+Yaoxue Zhang
+
+Ju Ren†
+
+Tsinghua University
+Beijing, China
+
+Tsinghua University
+Beijing, China
+
+Tsinghua University
+Beijing, China
+
+Abstract
+Large Language Models (LLMs) have achieved remarkable
+success across various domains, yet deploying them on mobile devices remains an arduous challenge due to their extensive computational and memory demands. While lightweight
+LLMs have been developed to fit mobile environments, they
+suffer from degraded model accuracy. In contrast, sparsitybased techniques minimize DRAM usage by selectively transferring only relevant neurons to DRAM while retaining the
+full model in external storage, such as flash. However, such
+approaches are critically limited by numerous I/O operations,
+particularly on smartphones with severe IOPS constraints.
+In this paper, we propose Neuralink, a novel approach
+that accelerates LLM inference on smartphones by optimizing neuron placement in flash memory. Neuralink leverages the concept of Neuron Co-Activation, where neurons
+frequently activated together are linked to facilitate continuous read access and optimize I/O efficiency. Our approach
+incorporates a two-stage solution: an offline stage that reorganizes neuron placement based on co-activation patterns,
+and an online stage that employs tailored data access and
+caching strategies to align well with hardware characteristics. Evaluations conducted on a variety of smartphones
+and LLMs demonstrate that Neuralink achieves on average 1.49× improvements in end-to-end latency compared
+to the state-of-the-art. As the first solution to optimize storage placement under sparsity, Neuralink explores a new
+∗ Both authors contributed equally to this research.
+† Corresponding author (renju@tsinghua.edu.cn).
+
+This work is licensed under a Creative Commons AttributionNonCommercial-ShareAlike 4.0 International License.
+ASPLOS ’25, Rotterdam, Netherlands
+© 2025 Copyright held by the owner/author(s).
+ACM ISBN 979-8-4007-1080-3/2025/03
+https://doi.org/10.1145/3676642.3736114
+
+optimization space at the intersection of sparsity-driven algorithm and storage-level system co-design for LLM inference.
+CCS Concepts: • Computer systems organization →
+Heterogeneous (hybrid) systems; • Information systems → Storage management.
+Keywords: Mobile Computing, Large Language Model, Model
+Sparsity, Parameter Storage
+ACM Reference Format:
+Tuowei Wang, Ruwen Fan, Minxing Huang, Zixu Hao, Kun Li,
+Ting Cao, Youyou Lu, Yaoxue Zhang, Ju Ren. 2025. Neuralink:
+Fast LLM Inference on Smartphones with Neuron Co-Activation
+Linking. In Proceedings of the 30th ACM International Conference
+on Architectural Support for Programming Languages and Operating
+Systems, Volume 3 (ASPLOS ’25), March 30-April 3, 2025, Rotterdam,
+Netherlands. ACM, New York, NY, USA, 16 pages. https://doi.org/
+10.1145/3676642.3736114
+
+1
+
+Introduction
+
+Large Language Models (LLMs) have demonstrated exceptional performance across a wide range of applications [22,
+43, 64, 72, 75, 88]. Comprising millions or even billions of parameters [5, 10, 18, 40, 74, 78, 102], these models necessitate
+substantial computational and memory resources, routinely
+available only in cutting-edge data centers. Nonetheless,
+there is a growing demand for deploying LLMs on resourceconstrained devices, such as smartphones [49, 55, 85, 86, 95,
+98]. On one hand, stringent privacy regulations mandate
+local data processing to protect user information. On the
+other hand, on-device inference reduces the latency incurred
+by cloud-based computations, enabling real-time responses.
+Given the limited DRAM capacity of devices, LLMs deployed on smartphones are mostly restricted to models tailored for mobile deployment [1, 74, 77, 96]. Although these
+models are designed to be lightweight, the reduction in parameters inevitably leads to a compromise in their capabilities [42]. In response, several recent studies [4, 56, 60,
+70, 93, 108] propose leveraging the intrinsic sparsity within
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Tuowei Wang et al.
+
+Table 1. Breakdown of inference latency per token when
+offloading FFN blocks to flash memory on OnePlus Ace2.
+Model
+OPT-350M
+OPT-1.3B
+OPT-6.7B
+Llama-2-7B
+Mistral-7B
+MobiLlama-1B
+Phi-2-2.7B
+
+Compute
+
+I/O
+
+Total I/O Ratio
+
+82 ms
+776 ms
+858 ms
+202 ms
+988 ms 1,190 ms
+804 ms 2,224 ms 3,028 ms
+609 ms 10,388 ms 10,997 ms
+540 ms 12,220 ms 12,760 ms
+230 ms 1,909 ms 2,139 ms
+461 ms 1,976 ms 2,437 ms
+
+90.4%
+83.0%
+73.4%
+94.5%
+95.8%
+89.2%
+81.1%
+
+800
+
+Bandwidth
+Bottleneck
+
+Bandwidth (MB/s)
+
+LLMs, particularly Activation Sparsity. Similar to how the
+human brain does not activate all its neurons at once, these
+approaches activate only a subset of model parameters while
+still producing the same output as their dense counterparts
+for a given input. Therefore, larger and more powerful LLMs
+can be stored in flash memory, with only the activated
+parameters being transferred to DRAM for computation.
+Considering the much larger capacity of flash memory, the
+DRAM limitations of smartphones are effectively offset.
+Unfortunately, I/O overheads severely impede the efficiency of the activation sparsity paradigm. Due to the disjoint sets of activated parameters across different inference
+requests, frequent I/O operations are necessitated to swap
+model parameters between DRAM and flash memory. As
+detailed in Table 1, I/O operations account for 73.4%-95.8% of
+the total inference latency when offloading only the Feed Forward Network (FFN) of models to flash memory. Especially,
+rather than being bound on bandwidth, the I/O efficiency
+on smartphones is primarily bottlenecked by Input/Output
+Operations Per Second (IOPS) [57], as depicted in Figure 1. On one hand, flash memory on smartphones generally
+features a shallow I/O command queue. More critically, the
+scattered activation of parameters induces numerous smallgrained read accesses, further intensifying the constraint.
+In this paper, we present a key insight that neurons in
+LLMs prevalently exhibit strong correlations in their activation patterns, which can be strategically leveraged to accelerate I/O operations. Specifically, when processing real-world
+datasets, the activation of an individual neuron is consistently accompanied by the activation of a stable set of other
+neurons, a phenomenon we term Neuron Co-Activation. By
+taking advantage of continuous reads, which enable the retrieval of larger data blocks with a single request, we can
+co-locate frequently co-activated neurons in contiguous memory addresses in flash memory, reducing IOPS and thereby
+improving the overall inference efficiency on smartphones.
+However, this is not a low-hanging fruit. Prior works [56,
+70] primarily emphasize computation efficiency under activation sparsity, inadvertently exacerbating I/O bottlenecks.
+Fewer studies [4, 93] develop advanced caching strategies
+to reduce I/O volume, leaving I/O bandwidth still held back
+
+600
+
+400
+
+200
+
+0
+
+OPT-S
+
+OPT-S (ours)
+
+OPT-M
+
+OPT-M (ours)
+
+OPT-L
+
+OPT-L (ours)
+
+Llama-2
+Mistral
+
+Llama-2 (ours)
+Mistral (ours)
+
+MobiLlama
+
+MobiLlama (ours)
+
+Phi-2
+
+Phi-2 (ours)
+
+5,000
+
+10,000
+IOPS
+
+IOPS
+Bottleneck
+
+15,000
+
+20,000
+
+Figure 1. The bandwidth and IOPS during inference across
+various LLMs on OnePlus Ace2. Neuralink shifts the I/O
+bottleneck from IOPS (lower right) to bandwidth (upper left).
+
+by IOPS constraints. As an orthogonal approach, directly
+improving bandwidth utilization requires an effective alignment between both neuron co-activation patterns and storage hardware characteristics. Our comprehensive analysis
+identifies three critical challenges that must be tackled:
+(1) Extensive Search Space. The immense number of neurons in LLM results in an exponentially large space of possible placement combinations. Determining the optimized
+placement that maximizes global benefits is highly challenging and infeasible through brute-force enumeration alone.
+(2) Inherent Activation Dynamics. The activation patterns
+of parameters inherently exhibit dynamics across varying
+inputs. Although optimized placement strategies can spatially co-locate activated neurons, accesses to these neurons
+remain impeded by discontinuities induced by dynamics.
+(3) Misaligned Cache Strategy. Caching frequently activated neurons in memory is essential for reducing I/O workload. Existing cache strategies typically treat neurons individually, which can lead to fragmentation in their placement
+in flash memory, potentially disrupting continuous access.
+To address these emerging challenges, we propose Neuralink, a novel approach to accelerating LLM inference on
+smartphones with neuron co-activation linking. Specifically,
+Neuralink employs a two-stage solution that incorporates
+hierarchical optimizations performed both offline and online.
+(1) In the Offline Phase, Neuralink clusters neurons exhibiting high co-activation correlation and reorganizes their
+placement in flash memory. To address Challenge (1), we
+abstract the problem into a complete graph, reformulating it
+as the discovery of the globally optimal Hamiltonian Path. By
+leveraging graph-theoretic techniques, we propose a greedy
+algorithm that efficiently searches for optimized placement
+based on observed neuron co-activation patterns.
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+(2) In the Online Phase, Neuralink performs fine-grained
+refinements on optimized neuron placement, further enhancing access continuity. To tackle Challenge (2), we devise
+an IOPS-friendly access collapse technique. By strategically
+incorporating additional neurons between two separate neuron links, we improve read access continuity with negligible
+overhead. In response to Challenge (3), we introduce a
+linking-aligned in-memory caching policy. Rather than individually caching the hottest neurons, we account for their
+interlinking relationships, ensuring continuous access.
+We evaluate Neuralink on three smartphones with distinct hardware configurations, benchmarking a diverse range
+of LLMs varying in structures and scales. The results demonstrate that Neuralink significantly enhances I/O bandwidth,
+achieving improvements of 1.80× on average. Moreover, this
+boost in bandwidth yields substantial reductions in end-toend latency during inference, delivering average speedups
+of 1.49× when compared to state-of-the-art solutions.
+To the best of our knowledge, Neuralink is the first to
+accelerate LLM inference on smartphones by enhancing I/O
+bandwidth through optimized neuron placement in flash
+memory. Our contributions can be summarized as follows:
+• We identify the primary bottleneck in LLM inference
+on smartphones as IOPS, attributing it to the inherent
+misalignment between scattered activation patterns
+and storage hardware characteristics.
+• We notably exploit neuron co-activation to mitigate
+the IOPS bottleneck, pioneering the optimization of
+neuron placement in flash memory on smartphones.
+• We conduct extensive evaluations on various representative LLMs and hardware, achieving substantial
+improvements over state-of-the-art solutions.
+
+2
+
+Background and Motivation
+
+2.1
+
+Activation Sparsity in LLM Inference
+
+Numerous studies [44, 50, 56, 69, 83] have shown that LLMs
+exhibit considerable Activation Sparsity, allowing a substantial portion of parameters to be deactivated without impacting the final outputs. As only a subset of parameters is involved in the computation, this characteristic greatly reduces
+resource consumption. Importantly, since no parameters are
+pruned, the full capacity of the LLMs remains intact.
+Figure 2 illustrates an example of activation sparsity within
+the FFN block introduced by ReLU function [2]. For a given
+input 𝑋 , the ReLU function sets the negative values of intermediate activations 𝑌 to zero, rendering the corresponding
+neurons in both up projection weights 𝑈 and down projection weights 𝐷 unnecessary. Therefore, these neurons can be
+considered non-activated and effectively excluded from computation without impacting the model outputs. In addition
+to ReLU-family LLMs, several studies have highlighted that
+LLMs using other activation functions can also benefit from
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+6
+
+4
+
+%%
+
+$%% $%* $%+ $%#
+
+%*
+
+$*% $** $*+ $*#
+
+%+
+
+×
+
+%#
+
+7
++
+!%
+
+＝
+
+8
+
+!*-
+
+'%% '%* '%+ '%# '%'
+
+&%
+
+0
+
+'*% '** '*+ '*# '*'
+
+&*
+
+$#% $#* $#+ $##
+$'% $'* $'+ $'#
+
+0
+
+#
+
+#
+
+!'-
+
+9
+
+(%
+
+!+- Re 0
+! + LU (
+
+$+% $+* $++ $+#
+
+5
+
+×
+
+'+% '+* '++ '+# '+'
+'#% '#* '#+ '## '#'
+
+&+
+&#
+
+'
+
+#
+
+Up Projection: !! = # $!" %"
+
+＝
+
+Down Projection: && = # '&! %!
+!$%
+
+"$%
+
+Activation: (" = ReLU !" = max 0, !" = (!% , 0,0, !# , 0)
+Activated Neurons: 4%,: = ($%% , $%* , $%+ , $%# ) 5:,% = ('%% , '*% , '+% , '#% )
+4#,: = ($#% , $#* , $#+ , $## ) 5:,# = ('%# , '*# , '+# , '## )
+
+Figure 2. Activation sparsity introduced by ReLU. Each element in the intermediate activations 𝐴 with a zero value
+(colored in green) deactivates two neurons (uncolored): the
+corresponding row in up-projection matrix 𝑈 and the column in down-projection matrix 𝐷 within the FFN block.
+Layer !:
+
+Flash Memory
+～100GB
+
+Current
+layer’s input
+
+"!! "!$ "!# "!"
+
+#!
+
+"$! "$$ "$# "$"
+
+#$
+
+"#! "#$ "## "#"
+
+##
+#"
+
+1
+Identify
+Activation
+
+""! ""$ ""# """
+"%! "%$ "%# "%"
+
+2 Load
+Activated
+Neurons
+
+DRAM
+～10GB
+
+～1GB/s
+
+"!! "!$ "!# "!"
+
+""! ""$ ""# """
+Bottleneck!
+Perform
+～100GB/s
+3
+Inference
+Processing
+Unit
+
+Figure 3. A three-step procedure for LLM inference on smartphones leveraging activation sparsity: ❶ Identify the activated neurons for a given input using predictors [56, 70] or
+sparsity-aware metrics [69, 81]. ❷ With the full parameters
+stored in flash memory, load only the activated neurons into
+DRAM. ❸ Perform inference using the activated neurons.
+activation sparsity through techniques such as ReLU substitution [61, 68, 71], moefication [48, 103], top-K sparsity [50, 81],
+threshold [34, 47], and attribution score [69, 104].
+Particularly, activation sparsity offers a promising solution to overcome DRAM limitations on smartphones [4, 93].
+As illustrated in Figure 3, the full model parameters can be
+stored in much larger flash memory, while only the activated neurons are loaded into DRAM. Therefore, larger and
+more powerful LLMs can be executed under limited DRAM
+capacity, which is crucial for LLM deployment on smartphones. On one hand, smartphones typically provide limited
+DRAM capacity, ranging from 10GB to 20GB. On the other
+hand, a substantial portion of DRAM is allocated to the operating system and other active applications, leaving even
+less available for any single application. Although activation
+sparsity alleviates this issue by reducing DRAM demands, it
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Tuowei Wang et al.
+
+2500
+
+Table 2. Latency (ms) and bandwidth (MB/s) across different
+ratios of non-activated neurons in OPT-350M on OnePlus 12.
+Speedups are calculated relative to the latency of dense case.
+
+OnePlus 12
+Bandwidth (MB/s)
+
+2000
+
+OnePlus Ace 2
+
+1500
+
+Ratio
+
+dense
+
+10%
+
+20%
+
+30%
+
+40%
+
+1000
+
+Bandwidth
+Latency
+Speedup
+
+1637.61
+234.49
+-
+
+1355.35
+254.96
+0.92
+
+1089.24
+281.96
+0.83
+
+904.69
+297.10
+0.79
+
+746.03
+308.76
+0.76
+
+Ratio
+
+50%
+
+60%
+
+70%
+
+80%
+
+90%
+
+Bandwidth
+Latency
+Speedup
+
+598.82
+320.63
+0.73
+
+524.50
+292.78
+0.80
+
+441.33
+260.86
+0.90
+
+396.43
+193.68
+1.21
+
+368.05
+104.18
+2.25
+
+500
+0
+
+IOPS
+Bound
+4
+
+8 12 16
+
+Bandwidth
+Bound
+24
+
+32
+IO Size (KB)
+
+64
+
+Figure 4. UFS Bandwidth at varying continuous I/O sizes on
+smartphones. The near-linear relationship indicates that the
+bottleneck lies in IOPS, rather than the bandwidth capacity.
+
+introduces a new challenge: the I/O overhead between flash
+memory and DRAM becomes the primary bottleneck.
+2.2
+
+Universal Flash Storage on Smartphones
+
+Mobile devices, such as smartphones, predominantly utilize
+Universal Flash Storage (UFS) [39] as the storage protocol.
+Leveraging NAND flash, UFS provides significantly larger
+storage capacity than the space available in DRAM, with
+scalability reaching terabyte (TB) levels. Furthermore, the
+introduction of the command queue in UFS markedly improves the efficiency of data transfer between flash memory
+and DRAM. In the latest version (UFS 4.0), the sustained read
+speed per lane can reach up to 2.9 GB/s. This combination
+of extensive storage capacity and high read speed serves as
+a foundation for the execution of LLMs on mobile devices.
+However, unlike server-side storage (such as NVMe), UFS
+typically features a shallow command queue, supporting
+only 32 entries. This limitation restricts the IOPS for flash
+reads and prevents full utilization of the available bandwidth.
+As shown in Figure 4, the read bandwidth increases with the
+continuous I/O sizes, as multiple continuous reads can be
+issued by a single read operation. Notably, when the continuous I/O size is below 24KB, bandwidth scales almost linearly
+with I/O size, indicating that these reads are primarily IOPSbound. Therefore, the key to fully exploiting UFS bandwidth
+lies in maximizing the continuity of read accesses.
+2.3
+
+Analysis: IOPS as the Bottleneck
+
+Activation sparsity enables smartphones to accommodate
+larger and more powerful models within the limited DRAM
+capacity required for smaller models by activating only a
+subset of parameters. However, this memory saving comes at
+the cost of increased I/O operations between flash memory
+and DRAM. As listed in Table 1, I/O operations account for
+the majority of total inference latency, severely constraining
+
+overall inference efficiency. Consequently, the efficiency of
+I/O operations emerges as a pivotal determinant of enabling
+the smooth deployment of LLMs on smartphones.
+The root cause of the increased I/O operations lies in the
+dynamic nature of activation sparsity, where the subset of
+activated parameters varies with each model input. As a result, every new inference request generates I/O operations to
+transfer new activated parameters. More critically, mitigating this I/O overhead presents significant challenges. First,
+identifying the activated parameters in a given layer depends
+on the outputs of the previous layer, making it difficult to
+overlap I/O latency with computation. Second, the disjoint
+activation of parameters across different inference requests
+diminishes the effectiveness of caching strategies. Although
+the volume of data transfer can be reduced, the remaining
+parameters still suffer from low I/O bandwidth utilization.
+Table 2 demonstrates that the bottleneck in I/O operations
+arises primarily from low effective bandwidth utilization,
+rather than the volume of data transfer. As the ratio of nonactivated neurons increases, the I/O volume between flash
+memory and DRAM decreases. However, inference latency
+remains longer than that of the fully-activated (dense) case
+until the non-activation ratio reaches around 80%. This inefficiency occurs because, in conventional model-structurebased placements, activated parameters are scattered across
+flash memory, leading to small-grained read accesses that
+limit bandwidth utilization. Therefore, I/O operations become heavily IOPS-bound, preventing the full exploitation
+of the available UFS bandwidth on smartphones.
+Drawing from these observations, we derive a crucial insight: the conventional placement of model parameters in
+flash memory, guided by model structure, is misaligned with
+the dynamic activation sparsity during LLM inference. Consequently, the key to addressing the I/O bottleneck lies in
+designing an optimized placement strategy for parameters,
+one that maximizes the continuity of read accesses and enables the full exploitation of available UFS bandwidth.
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+Alpaca
+Alpaca
+
+OpenWebText
+OpenWebText
+
+OPT7B
+OPT
+(6.7B)
+
+WikiText
+WikiText
+
+1.0
+1.0
+
+1 2 3 neuron
+
+co-activation
+
+Offline Stage
+
+0.4
+0.4
+
+0.2
+0.2
+
+4 Access Collapse
+access 1 access 2
+
+activated: 1 2 5 6 + extra loaded: 3
+
+1 2 3 5 6 4
+
+collapsed access: 1 2 3 5 6
+
+0.8
+0.8
+
+Llama2
+Llama2 7B
+(7B)
+
+0.0
+0.0
+
+Figure 5. Visualization of neuron co-activation patterns
+across different LLMs (vertical) and datasets (horizontal).
+Each matrix represents the adjacency matrix of neurons
+within a layer of a given LLM, where the element at position
+(𝑖, 𝑗) indicates the co-activation frequency between neuron
+𝑖 and neuron 𝑗. Brighter colors denote high values.
+
+3
+
+flash memory
+
+1 Pattern Extraction 2 Problem Abstraction 3 Hamilton Pathfinding
+8
+1
+2
+1 2 3 4 5 6
+1 2 3 5 6 4
+3
+1
+8 3 3
+4
+3
+8 3 3
+4
+6
+6
+5
+1 2 3 4 5 6
+1 2 3 4 5 6
+4
+3
+5
+4
+1
+5 6
+1
+5 6
+Record Co-Activation
+Abstract into
+Greedy Search
+Frequency
+Complete Graph
+Algorithm
+
+0.6
+0.6
+
+Mistral
+Mistral 7B
+(7B)
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Neuralink Overview
+
+We propose Neuralink, an efficient approach to accelerating
+LLM inference on smartphones with optimized I/O accesses.
+Unlike previous studies that primarily focus on the efficiency
+of either computation or cache management, Neuralink
+addresses the I/O bottleneck by directly enhancing the I/O
+bandwidth between flash memory and DRAM.
+The design of Neuralink is rooted in Neuron Co-Activation,
+a phenomenon prevalent in activation sparsity yet underexplored in current works. As presented in Figure 5, neurons in
+LLMs exhibit strongly correlated activation patterns across
+different model structures and datasets. Although similar
+observations have been validated in previous studies [4, 93],
+this phenomenon remains largely underexplored due to its
+intrinsic complexity. By incorporating both algorithmic and
+system-level optimizations, Neuralink is the first to leverage neuron co-activation for optimizing flash memory placement. Figure 6 presents an overview of Neuralink.
+Offline Correlation-Aware Clustering (§ 4). Neuralink
+begins with the identification of an optimized neuron placement in flash memory. The core idea in this stage is to cluster
+frequently co-activated neurons together, which involves
+three key steps: ❶ Pattern Extraction. We propose a specific design to efficiently extract neuron co-activation patterns based on profiling results. These extracted patterns
+quantify the strength of co-activation correlations among
+neurons, providing the foundation for subsequent neuron
+rearrangement. ❷ Problem Abstraction. We model the
+
+Online Stage
+
+5 Cache Policy
+segment 1 segment 2
+1 2 3 5 6 4
+
+continuous: 1 2 3 + sporadic: 6
+threshold = 2
+3>2&1<2
+DRAM cache: 6
+
+Figure 6. Overview of Neuralink, which operates in two
+stages: an offline stage and an online stage.
+neuron placement in flash memory as a graph representation.
+Building on this abstraction, we reformulate the optimization
+task into a classic Hamiltonian pathfinding problem. This
+conversion allows us to apply efficient graph-theoretic techniques, leading to a more effective solution for neuron placement optimization. ❸ Hamiltonian Pathfinding. Given
+the NP-complete nature of the optimization problem, we
+devise a heuristic algorithm that greedily searches for the
+optimal placement. We prove that our algorithm can find a
+locally optimal solution with a polynomial time complexity.
+Online Continuity-Centric Processing (§ 5). Neuralink
+further employs custom data access and DRAM management
+techniques at runtime, complementing the offline design to
+facilitate more continuous read accesses. ❹ Access Collapse. Despite the optimized neuron placement, the inherent
+dynamics in neuron activation lead to unavoidable discontinuous read access at runtime. To address this, we propose
+strategically merging nearby discontinuous read accesses
+by loading additional neurons between them. This merging
+approach, with minimal overhead, effectively reduces the
+frequency of discontinuous read access. ❺ Cache Policy.
+Retaining the most frequently activated neurons in DRAM
+effectively reduces repeated neuron transfers. However, this
+approach alone risks disrupting the continuity of optimized
+neuron placement in flash memory. To mitigate this, we propose caching neurons in DRAM at the granularity of neuron
+segments, rather than individual neurons. This strategy helps
+prevent fragmentation in flash memory while introducing
+minimal modification to the existing caching framework.
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+1 Neuron R: 1 Root of Set N: 1 Neighbor Count
+1
+
+2
+
+3
+
+4
+
+5
+
+(𝑛! , 𝑛" ): distance
+
+6
+
+(4, 2): 37
+
+1
+
+-
+
+2
+
+8
+
+-
+
+3
+
+15
+
+7
+
+-
+
+4
+
+7
+
+37
+
+6
+
+-
+
+5
+
+5
+
+29
+
+21
+
+3
+
+-
+
+6
+
+2
+
+1
+
+2
+
+10
+
+18
+
+Tuowei Wang et al.
+
+1
+Initial State
+model-structure-based
+
+3
+
+(4, 2): 37
+
+(5, 2): 29
+
+4
+
+(5, 3): 21
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+(5, 2): 29
+
+R:
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+2
+
+5
+
+6
+
+1
+
+2
+
+3
+
+2
+
+2
+
+6
+
+1
+
+2
+
+2
+
+2
+
+2
+
+6
+
+(5, 3): 21
+
+N: 0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+1
+
+0
+
+1
+
+0
+
+0
+
+0
+
+2
+
+0
+
+1
+
+1
+
+0
+
+0
+
+2
+
+1
+
+1
+
+2
+
+0
+
+(6, 5): 18
+
+5
+
+(3, 1): 15
+(2, 1): 8
+-
+
+……
+Priority Queue
+
+(6, 5): 18
+
+6
+
+7
+
+(3, 1): 15
+
+(6, 4): 10
+
+8
+
+Result
+reorder
+
+×
+
+(6, 4): 10
+
+Neuron Co-Activation Pattern
+
+2
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+3
+
+5
+
+2
+
+4
+
+6
+
+R:
+
+1
+
+2
+
+2
+
+2
+
+2
+
+6
+
+2
+
+2
+
+2
+
+2
+
+2
+
+6
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+2
+
+N:
+
+0
+
+2
+
+1
+
+1
+
+2
+
+0
+
+1
+
+2
+
+2
+
+1
+
+2
+
+0
+
+1
+
+2
+
+2
+
+2
+
+2
+
+1
+
+1
+
+2
+
+2
+
+2
+
+2
+
+1
+
+Figure 7. An example of neuron placement search algorithm. Beginning with the neuron co-activation patterns, which are
+profiled offline (represented as the co-activation frequency in the figure), the algorithm computes the distance between each
+pair of neurons and ranks them using a priority queue. These pairs are then sequentially retrieved and merged (if possible) at
+each step. Finally, a single link that contains all neurons is formed, serving as the new neuron placement in flash memory.
+
+4
+
+Offline Correlation-Aware Clustering
+
+4.1
+
+Step 1: Parameter-Efficient Pattern Extraction
+
+LLMs [10, 40, 53, 78, 102] are typically based on transformer
+architectures, consisting of two key components: Multi-Head
+Attention (MHA) block and Feed Forward Network (FFN)
+block. In Neuralink, we focus primarily on offloading the parameters of FFN blocks to flash memory, while remaining the
+MHA block in DRAM. On one hand, recent LLMs are adopting attention variants like Group Query Attention [3], Multi
+Query Attention [66], and Multi-head Latent Attention [52]
+to enhance inference efficiency. These mechanisms significantly reduce the parameter overhead of the attention block.
+On the other hand, the Mixture-of-Experts (MoE) mechanism becomes increasingly prevalent in LLMs [15, 20, 41],
+effectively managing computational costs when scaling up
+model parameters in FFN blocks. Consequently, the FFN
+block emerges as the dominant factor in parameter size.
+To extract the neuron co-activation patterns, we initially
+utilize an Adjacency Matrix to record the activation frequencies of neurons in LLMs. This step is performed only once,
+prior to inference, utilizing a dataset associated with the
+upcoming tasks. By estimating probability using frequency
+𝑓 , we compute the activation probability of the neuron 𝑛𝑖 ,
+denoted as 𝑃 (𝑖), and the co-activation probability of neuron
+𝑛𝑖 and neuron 𝑛 𝑗 , denoted as 𝑃 (𝑖 𝑗), as follows:
+𝑓 (𝑛𝑖 )
+
+𝑃 (𝑖) = Í𝑁
+
+𝑘=1 𝑓 (𝑛𝑘 )
+
+𝑓 (𝑛𝑖 , 𝑛 𝑗 )
+𝑃 (𝑖 𝑗) = Í𝑁 Í𝑁
+𝑘=1 𝑙=1 𝑓 (𝑛𝑘 , 𝑛𝑙 )
+
+(1)
+
+(2)
+
+Here, 𝑁 denotes the number of neurons in a weight matrix. When performing statistics, Neuralink accounts for
+the bundling relationship between neurons across different
+
+weight matrices in the same FFN block. For instance, in the
+ReLU-based FFN block [102], the columns of up projection
+matrix are bundled with the corresponding rows of down projection matrix, as their activations both rely on whether the
+same intermediate values are zero or not. A similar bundling
+relationship exists among the gate, up, and down projection
+matrices in the SwiGLU-based FFN block [40, 78].
+4.2
+
+Step 2: Graph-Based Problem Abstraction
+
+Following the extraction of neuron co-activation patterns,
+the next step is to determine an optimized neuron placement
+in flash memory. To enable more continuous read access, neurons that frequently co-activate should ideally be positioned
+in nearby memory addresses. Given the immense number
+of neurons in LLMs, the potential neuron placements are
+extremely large. Innovatively, we reformulate this problem
+as a graph representation, providing a pathway to a more
+efficient solution by leveraging graph-theoretic techniques.
+Graph Abstraction. We model the co-activation relationships between neurons using a Complete Graph. In this graph,
+each node represents a neuron, and each edge represents the
+co-activation relationship between two neurons. Specifically,
+we define the value of each edge as the Distance Between Two
+Neurons, which reflects the degree of their co-activation:
+dist(𝑛𝑖 , 𝑛 𝑗 ) := 1 − 𝑃 (𝑖 𝑗)
+
+(3)
+
+According to this definition, the more frequently two neurons are co-activated, the smaller their distance.
+Hamilton Pathfinding. The objective of Neuralink is to
+minimize the expected number of I/O operations for a given
+inference request. By leveraging the graph-based abstraction, this objective naturally transforms into the problem of
+identifying the shortest Hamiltonian path [67] in a complete
+graph. First, the Hamiltonian path, by definition, visits each
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+node exactly once, thereby ensuring that all neurons stored
+in flash memory are involved. Second, the shortest Hamiltonian path serves as the optimization criterion, aligning
+with the objective of maximizing the likelihood of clustering
+co-activated neurons together. This reformulation enables
+Neuralink to leverage advanced graph-theoretic techniques
+for efficient neuron placement optimization.
+4.3
+
+Step 3: Heuristic-Driven Search Algorithm
+
+In graph theory, determining the shortest Hamiltonian path
+in a graph is an NP-complete problem [33]. To address this
+computational challenge, we design a heuristic algorithm
+that efficiently searches for an optimized neuron placement
+with a polynomial time complexity. Figure 7 illustrates a
+simplified example of our approach.
+Algorithm Details. The core idea of the algorithm is to
+treat a neuron placement as a neuron link and iteratively
+merge them until all neurons are connected within a single
+link. To minimize the expected number of I/O operations, we
+employ a greedy merging strategy that prioritizes merging
+the nearest links at each step. Formally, based on the definition of Distance Between Two Neurons in Equation 3, we
+define the Distance Between Two Neuron Links as follows:
+dist(𝑙𝑖 , 𝑙 𝑗 ) := min{dist(𝑙𝑖 (ℎ), 𝑙 𝑗 (ℎ)), dist(𝑙𝑖 (ℎ), 𝑙 𝑗 (𝑡)),
+dist(𝑙𝑖 (𝑡), 𝑙 𝑗 (ℎ)), dist(𝑙𝑖 (𝑡), 𝑙 𝑗 (𝑡))}
+
+(4)
+
+Here, 𝑙𝑖 (ℎ) and 𝑙𝑖 (𝑡) denote the head and tail neurons (arbitrary, as the link 𝑙𝑖 is undirected) of a neuron link 𝑙𝑖 , respectively. The equation implies that the distance between two
+neuron links is determined by the shortest distance between
+either the head or tail neuron of the two links.
+Algorithm 1 outlines the process in pseudocode. The algorithm begins by taking a set of neurons N and their coactivation probability 𝑃 (𝑖 𝑗) as input (Line 1). Initially, each
+neuron in N is treated as an individual link (Line 2), and the
+distance between each pair of neurons is computed based
+on Equation 3 (Lines 7-8). The algorithm then proceeds iteratively, searching for the nearest pair of links to merge in a
+greedy manner (Lines 9-18). For each pair of links, the distance is computed based on Equation 4 (Lines 10-12), and the
+pair with the smallest distance is selected for merging (Lines
+13-18). This process repeats until only a single link remains,
+which contains all the neurons (Line 9). Finally, the merged
+link is returned as the output of the algorithm, representing
+the optimized neuron placement P (Lines 19-24).
+Implementation Details. We leverage two advanced data
+structures, the priority queue [79] and the disjoint set [26], to
+enhance the efficiency of the algorithm. The priority queue
+is used to efficiently identify the nearest neuron link, and
+the disjoint set union facilitates the efficient management
+and merging of neuron links. All neurons within the same
+link share the same root in the disjoint set, which is updated
+after each set merge. Additionally, we maintain a count of
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Algorithm 1 Neuron Placement Search Algorithm
+1: Input: Neuron set N , Neuron Co-activation Probability 𝑃 (𝑖 𝑗)
+2: Output: Optimized neuron placement P
+3: function GreedySearch(N )
+4:
+Initialize NbrCnt[𝑛] ← 0 for all 𝑛 ∈ N
+5:
+Initialize priority queue 𝑄 ← ∅
+6:
+Initialize disjoint sets 𝑆 (𝑛) for all 𝑛 ∈ N
+7:
+for each pair (𝑛𝑖 , 𝑛 𝑗 ) ∈ N × N, 𝑛𝑖 ≠ 𝑛 𝑗 do
+8:
+𝑄.push((𝑛𝑖 , 𝑛 𝑗 ), dist(𝑛𝑖 , 𝑛 𝑗 ))
+9:
+10:
+11:
+12:
+13:
+14:
+15:
+16:
+17:
+18:
+19:
+20:
+21:
+22:
+23:
+24:
+
+while 𝑄 ≠ ∅ do
+(𝑛𝑥 , 𝑛 𝑦 ) ← 𝑄.pop()
+if NbrCnt[𝑛𝑥 ] = 2 or NbrCnt[𝑛 𝑦 ] = 2 then
+continue ⊲ Skip if either neuron is inside a link
+root𝑥 ← Find(𝑛𝑥 ), root𝑦 ← Find(𝑛 𝑦 )
+if root𝑥 ≠ root𝑦 then
+NbrCnt[𝑛𝑥 ]++
+NbrCnt[𝑛 𝑦 ]++
+Union(root𝑥 , root𝑦 )
+Link(𝑛𝑥 , 𝑛 𝑦 )
+⊲ Update neuron linkings
+P ← []
+𝑐 ← Select first neuron from {𝑛 ∈ N | NbrCnt[𝑛] = 1}
+⊲ Set current neuron to starting point
+while 𝑐 ≠ 𝑠 and NbrCnt[c] ≠ 1 do
+P.append(𝑐)
+⊲ Add 𝑐 to the optimized placement
+𝑐 ← NextNeuron(𝑐) ⊲ Move to next neuron linked to 𝑐
+return P
+
+the neighbors for each neuron, NbrCnt, to classify whether
+a neuron is inside or at the edge of a link (NbrCnt = 2 or 1).
+Complexity Analysis. The primary computational complexity of the algorithm arises from the 𝑛 2 pairwise enumeration of 𝑛 neurons. For each pair of neurons, both the
+insertion and pull operations in the priority queue have a
+time complexity of 𝑂 (log 𝑛). Meanwhile, both the operations
+for finding a root and merging two sets in the disjoint set
+have a time complexity of 𝑂 (1). Consequently, the overall
+time complexity of the algorithm is 𝑂 (𝑛 2 log 𝑛).
+
+5
+
+Online Continuity-Centric Processing
+
+Through offline correlation-aware clustering, neurons that
+are frequently co-activated are strategically placed contiguously in flash memory. However, the dynamic and intricate
+nature of neuron co-activation makes static neuron placement alone insufficient to entirely alleviate IOPS limitations.
+To fully exploit the flash memory and DRAM resources to
+serve neuron read requests, we design specific online processing techniques that focus on maintaining continuity of
+access. These techniques are aimed at addressing two primary challenges, manifesting in data access and caching.
+The first challenge arises from inherent activation dynamics. Due to the stochastic nature of neuron activation,
+it is infeasible to consistently follow the co-activation patterns extracted offline. Although neurons that are frequently
+co-activated are placed in close positions, minor variances
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+neuron states:
+activated
+merged
+
+non-activated
+
+Bandwidth Waste
+
+Naïve:
+
+IOPS-Bound
+access 1
+
+access 2
+
+access 1
+
+merging threshold θ = 1
+2>1
+
+1
+
+Entry
+25%
+II
+
+4
+
+1
+
+2
+
+3
+
+7
+
+8
+
+9
+
+access 2
+
+1 2 3 4 5 6 7 8 9
+
+Bandwidth
+Utilization
+Entry
+50%
+I
+
+2
+
+access 3
+
+1 2 3 4 5 6 7 8 9
+Neuralink:
+
+Bandwidth
+Capacity
+
+Tuowei Wang et al.
+
+4
+
+Entry
+100%
+I
+Entry
+75%
+II
+
+Figure 8. Static neuron placement suffers from IOPS-bound
+due to dynamic activation. Neuralink mitigates this by
+strategically merging intervening neurons between accesses.
+
+induced by these dynamics can still lead to unavoidable discontinuous read access during runtime. Particularly, some
+read access may occur near each other but be split into two
+I/O operations by just a few activated neurons in between.
+The second challenge stems from misaligned cache strategies. Conventional cache strategies typically treat neurons
+individually, caching only the most frequently activated neurons without considering their placement in flash memory.
+This oversight potentially breaks the continuity of neuron
+placement in flash memory, undermining our optimizations
+for I/O operation reduction. Moreover, directly caching all
+co-activated neurons in a continuous manner could consume
+excessive DRAM resources, reducing cache efficiency.
+5.1
+
+IOPS-Friendly Access Collapse
+
+In Neuralink, we introduce an innovative online technique
+that strategically combines nearby read accesses. The fundamental insight driving this approach is that while coactivated neurons cannot always be placed contiguously,
+they are likely to be positioned in close proximity following
+offline correlation-aware clustering. As illustrated in Figure 8, consider a scenario where neurons 𝑛 1 , 𝑛 2 , 𝑛 3 , and 𝑛 4
+are stored contiguously, but occasionally only 𝑛 1 , 𝑛 2 , and
+𝑛 4 are activated, necessitating two distinct read operations.
+However, when IOPS is limited, the inclusion of more neurons per read operation yields superior overall performance.
+Capitalizing on this observation, when two disjoint but proximate neuron links are co-activated, we speculatively read
+the intervening neurons. This strategy effectively coalesces
+the two separate neuron links into a single, contiguous read
+access, thereby substantially enhancing overall efficiency.
+The execution of this IOPS-friendly access collapse is governed by two key factors during runtime. (1) Bandwidth
+Trade-off. Introducing additional neurons for merging involves a trade-off between increasing the data transfer size
+
+and reducing IO operations, with the goal of enhancing bandwidth utilization. We employ a threshold-based approach: if
+the number of neurons between two neuron links falls below a predefined threshold, collapse is performed; otherwise,
+it is skipped. This approach ensures that the inclusion of
+additional neurons occurs only when it provides a benefit
+for bandwidth enhancement, without causing bandwidth
+waste. (2) Storage Bottleneck. While access collapse can
+reduce IO operations, it only improves bandwidth efficiency
+if the storage is IOPS-bound rather than bandwidth-bound.
+To handle this, we implement a bottleneck detector that periodically checks whether the achieved bandwidth has reached
+the maximum capacity of storage. If the bandwidth is fully
+utilized, the system reverts to the original access strategy.
+5.2
+
+Linking-Aligned Cache Policy
+
+It is natural to store the neurons that are most frequently
+activated in DRAM to reduce the redundant data transfer
+between flash memory and DRAM. However, directly applying existing cache policies is inefficient in Neuralink,
+as these policies typically operate at the level of individual
+neurons, disregarding both neuron co-activation patterns
+and the optimized placement in flash memory. For example,
+suppose neurons 𝑛 1 , 𝑛 2 , 𝑛 3 , and 𝑛 4 are stored together and
+often co-activate. If 𝑛 2 is more frequently activated than the
+others, it will have a higher probability of being cached, leading to discontinuous fragments in flash memory. A potential
+solution is to cache the neurons that are stored continuously
+in flash memory together, reducing the likelihood of this situation. However, this approach would occupy a large portion
+of DRAM, making it impractical for smartphones.
+To address this, we introduce an additional layer of access management to the existing cache policies, requiring
+minimal modification while improving overall efficiency. In
+Neuralink, activated neurons are divided into two categories: outlier neurons and continuous segments. Outlier
+neurons, as the name suggests, are those neurons being coactivated with only a few surrounding neurons. In contrast,
+continuous segments consist of a series of neurons that are
+activated together in succession. Considering both resource
+usage and efficiency enhancement, Neuralink devises different strategies for the two categories of neurons. For outlier
+neurons, Neuralink caches them as usual. However, continuous segments are cached with a lower probability compared
+to outlier neurons. This is primarily because caching continuous segments requires more memory resources and provides
+less efficiency enhancement (already benefit from continuous access). Furthermore, if some neurons in these segments
+are evicted while others remain in the cache, it will lead to
+discontinuous reads in flash memory. Although the waste of
+IOPS can be alleviated by access collapse, this still results in
+wasted DRAM resources. Our cache policy works seamlessly
+with state-of-the-art cache designs, as we only control the
+caching admitting policy while leaving the rest unchanged.
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Table 5. Dataset configurations.
+
+Table 3. Smartphone hardware configurations.
+Device
+
+SoC
+
+DRAM Flash Storage
+
+OnePlus 12
+Snapdragon 8 Gen 3 24GB
+OnePlus Ace 3 Snapdragon 8 Gen 2 16GB
+OnePlus Ace 2 Snapdragon 8+ Gen 1 16GB
+
+1TB
+UFS4.0
+512GB UFS4.0
+512GB UFS3.1
+
+Table 4. Model configurations.
+Model
+
+Size
+
+Neuron† ActFn
+
+OPT-S [102]
+OPT-M [102]
+OPT-L [102]
+Llama-2 [78]
+Mistral [40]
+MobiLlama [77]
+Phi-2 [38]
+
+350M
+1.3B
+6.7B
+6.5B
+7.8B
+1.0B
+2.7B
+
+8,192
+16,384
+32,768
+33,024
+43,008
+16,896
+20,480
+
+ReLU
+ReLU
+ReLU
+fatReLU
+dReLU
+SiLU
+GeLU
+
+Sparsity Method
+Prediction [56]
+Prediction [56]
+Prediction [56]
+Prediction [68]
+Prediction [71]
+Threshold [47]
+Threshold [69]
+
+† The number of neurons per FFN block.
+
+6
+
+Evaluation
+
+6.1
+
+Experimental Setup
+
+Hardware. We conduct evaluations across a diverse set of
+smartphones, as detailed in Table 3. These devices feature
+varying SoC configurations, memory capacities, and UFS
+versions, spanning from low-tier to high-tier hardware. All
+experiments are conducted on Termux [76], an Android shell
+application, to ensure compatibility across platforms.
+Models. We choose seven widely adopted LLMs for evaluation, as outlined in Table 4. These models vary in architecture
+and size, with each utilizing activation sparsity through welldeveloped techniques [47, 56, 68, 69, 71]. Besides LLMs using
+ReLU-family activation functions, we also evaluate SiLUfamily LLM (MobiLlama) and GeLU-family LLM (Phi-2). All
+models in our experiments are evaluated in FP16 precision,
+consistent with the practices in recent research [4, 70].
+Datasets. We evaluate Neuralink using a wide range of
+datasets, covering categories such as plain text, instructions,
+math or commonsense tasks. These datasets encompass diverse linguistic structures, enabling a comprehensive evaluation across varying sparsity patterns. For each dataset,
+we randomly select 1,024 samples from the training set for
+profiling and perform evaluation on the test set.
+Baselines. We benchmark Neuralink with two state-ofthe-art LLM inference frameworks on smartphones. The
+first, llama.cpp [27], is the most widely used CPU framework with state-of-the-art performance. The second baseline, LLMFlash [4], is specially designed for the activation
+sparsity paradigm. Since LLMFlash is not open-source, we
+port it into llama.cpp by adding support for controlled parameter offloading and integrating its key I/O optimizations,
+such as row-column bundling. Additionally, we introduce
+a simplified variant of Neuralink (Neuralink-S), which
+
+Dataset
+
+Description
+
+Alpaca [73]
+Instructions-tuning dataset for Llama
+OpenWebText [29] High-quality web-scraped text corpus
+WikiText [59]
+Wikipedia-based language modeling dataset
+GSM8K [14]
+Grade-school math problem dataset
+HellaSwag [101] Commonsense reasoning benchmark
+MMLU [36]
+Multitask knowledge evaluation benchmark
+SWAG [100]
+Commonsense reasoning sentence completion
+PIQA [9]
+Physical commonsense reasoning benchmark
+
+directly arranges neuron placement in decreasing order of activation frequency. This comparison further underscores the
+effectiveness of correlation-aware clustering in Neuralink.
+Metrics. We use the end-to-end latency per token as our
+primary performance metric and measure I/O bandwidth for
+a finer analysis. Specifically, we use the kernel io_uring [6]
+to load data from flash memory, measuring I/O latency as the
+time from the first request issue to the last, and calculating
+bandwidth based on the total data read. Notably, bandwidth
+here refers to the effective bandwidth, which only considers
+the activated neurons. For all LLMs, we offload their FFN
+blocks to flash memory and maintain a 0.05 cache ratio in
+DRAM. We normalize the metrics values when large discrepancies occur for clarity. All metrics are averaged over 128
+token generations, repeated across 10 trials.
+6.2
+
+Overall Performance
+
+End-to-end Latency. Figures 9a and 9b present the endto-end performance speedups across different LLMs and
+datasets on OnePlus 12 and OnePlus Ace2. Besides, Table 6
+provides the corresponding sparsity levels (i.e., the ratio of
+activated neurons to the total) across all experiments. For
+prediction-based methods, sparsity levels are dynamically
+determined at runtime by well-trained predictors [56, 68, 71].
+For sparsity methods like threshold and attribution score, the
+sparsity levels are pre-defined. Following prior research [47,
+69], we set these levels as 30% and 20%, respectively. The
+results demonstrate that Neuralink consistently outperforms the baselines, achieving average speedups of 2.37×,
+1.48×, and 1.25× over llama.cpp, LLMFlash, and NeuralinkS, respectively. Moreover, the results confirm that activation
+sparsity is prevalent across various LLM and dataset combinations, with sparsity levels varying. Neuralink achieves
+greater performance improvements at higher sparsity levels, such as in OPT models. This is because reduced neuron
+activation exacerbates scattered flash memory access, making efficient I/O operations more critical. As LLMs become
+denser, they more easily reach the bandwidth limitations of
+the device. However, the bandwidth underutilization persists
+and Neuralink still achieves an average 1.39× speedup over
+LLMFlash for non-OPT models on two different hardware.
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Table 6. The ratios of activated neurons to the total neurons
+during inference across various LLMs and datasets.
+Model
+
+Alpaca
+
+OpenWebText
+
+WikiText
+
+OPT-S
+OPT-M
+OPT-L
+Llama-2
+Mistral
+MobiLlama
+Phi-2
+
+9.48%
+3.65%
+3.17%
+23.67%
+23.54%
+30.00%
+20.00%
+
+9.40%
+3.88%
+3.30%
+27.64%
+23.99%
+30.00%
+20.00%
+
+9.73%
+3.90%
+2.97%
+21.27%
+24.51%
+30.00%
+20.00%
+
+Table 7. Offline execution time (in seconds) of the neuron placement search algorithm across various LLMs and
+datasets using an AMD EPYX 7V13 processor.
+Model
+
+Alpaca
+
+OpenWebText
+
+WikiText
+
+OPT-S
+OPT-M
+OPT-L
+Llama-2
+Mistral
+MobiLlama
+Phi-2
+
+4.48
+21.54
+104.23
+50.09
+102.17
+12.20
+49.05
+
+4.42
+22.14
+103.56
+51.43
+90.43
+10.22
+45.16
+
+4.45
+22.21
+105.90
+55.43
+93.71
+11.41
+46.99
+
+Achieved Bandwidth. Figure 9c presents the detailed I/O
+bandwidth results on OnePlus 12. The results show that Neuralink achieves average bandwidth improvements of 3.28×,
+1.80×, and 1.36× over the three baselines. These findings
+demonstrate that Neuralink effectively shifts the I/O bottleneck from IOPS to bandwidth across various sparsity levels.
+Furthermore, the strong conversion efficiency of I/O optimizations into end-to-end latency not only confirms that I/O
+operations are the primary bottleneck but also highlights
+that Neuralink introduces minimal runtime overhead.
+6.3
+
+Performance Breakdown
+
+As shown in Figure 10, we evaluate the effectiveness of two
+key components of Neuralink. Starting with the strong
+baseline LLMFlash, we measure the end-to-end latency across
+various LLMs. The results show that the offline and online
+components provide average speedups of 1.32× and 1.20×,
+respectively. These findings align with the design of Neuralink, where the offline component serves as the cornerstone and the online component plays a supplementary role.
+6.4
+
+Offline Ablation Study
+
+Continuous Access. The core insight of Neuralink lies in
+increasing continuous flash memory access by optimizing
+neuron placement, thereby mitigating I/O overheads. We
+examine the read access lengths in LLMFlash, Neuralink-S,
+and Neuralink, as shown in Figure 11. LLMFlash, which
+does not account for neuron co-activation, maintains the
+
+Tuowei Wang et al.
+
+read access lengths to below 5 neuron bundles, with average
+values of 1.06 in OPT-L and 1.42 in Llama-2. Neuralink-S
+improves continuous access compared to LLMFlash, increasing the averages to 1.34 and 4.03, respectively. However, it
+considers only individual activation frequency but overlooks
+the spatial continuity of activated neurons. For example, a
+neuron may frequently activate but co-activate with different neurons each time. In contrast, Neuralink increases
+the average read access lengths to 3.12 and 6.62 across two
+LLMs. Notably, the maximum continuous read access length
+reaches 589 bundles in OPT-L and 2,845 bundles in Llama-2.
+Overhead Analysis. Table 7 lists the execution time of
+the offline search algorithm in Neuralink for optimized
+neuron placement. We perform experiments across various
+LLMs and datasets, considering variations in the number of
+activated neurons. To speed up search process, we implement parallel computation by exploiting the independence of
+different model layers. The results show that all search processes are complete within a few minutes, even for the largest
+7B model. With a polynomial time complexity is 𝑂 (𝑛 2 log 𝑛),
+the increase in time cost remains modest. Since the search
+process is performed offline, this overhead is acceptable.
+6.5
+
+Online Ablation Study
+
+Access Collapse. We first evaluate the effectiveness of access collapse. Figure 12 shows some I/O information during
+LLM inference before and after applying access collapse. The
+results reveal that access collapse provides a bandwidth improvement of 2.75× for OPT-L and 1.26× for Llama-2, with
+both approaching the peak bandwidth of the device. This
+improvement comes from a careful trade-off between data
+transfer volume and IOPS. While additional inactivated neurons are loaded, the reduction in IOPS effectively alleviates
+the bottleneck and enhances bandwidth utilization.
+Cache Policy. We next compare the inference latency of
+Neuralink with LLMFlash under different cache ratios, as
+shown in Figure 13. Both LLMFlash and Neuralink utilize
+the same cache system, S3-FIFO [94]. The results indicate that
+Neuralink integrates well with existing caching systems,
+demonstrating a consistent decrease in latency as the cache
+ratio increases. Besides, Neuralink maintains high cache
+space efficiency, consistently requiring less DRAM cache
+space than LLMFLash for the same inference latency. This
+effectively mitigates the DRAM limitations on smartphones.
+6.6
+
+Sensitivity Analysis
+
+Impact of Sparsity Levels. We first evaluate how variations
+in sparsity level affect the performance of Neuralink. To
+control the sparsity level, we apply the top-K sparsity technique [81] to the Llama-2 and Mistral, without using their
+ReLU substitution. Figure 14 demonstrates that Neuralink
+achieves greater performance improvements at higher sparsity levels. This is because, when the number of activated
+neurons is small, their placement in flash memory tends to
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+LLM: A.OPT-S B.OPT-M C.OPT-L D.Llama-2 E.Mistral F.MobiLlama G.Phi-2
+Baseline
+
+LLMFlash
+
+Dataset: 1.Alpaca 2.OpenWebText 3.WikiText
+Neuralink-S
+
+Neuralink
+
+I/O Bandwidth
+
+End-to-End Latency
+
+End-to-End Latency
+
+(a) OnePlus 12
+1.0
+0.8
+0.6
+0.4
+0.2
+0
+
+A1
+A2
+A3
+(b) OnePlus Ace2
+
+B1
+
+B2
+
+B3
+
+C1
+
+C2
+
+C3
+
+D1
+
+D2
+
+D3
+
+E1
+
+E2
+
+E3
+
+F1
+
+F2
+
+F3
+
+G1
+
+G2
+
+G3
+
+A1
+A2
+A3
+(c) OnePlus 12
+
+B1
+
+B2
+
+B3
+
+C1
+
+C2
+
+C3
+
+D1
+
+D2
+
+D3
+
+E1
+
+E2
+
+E3
+
+F1
+
+F2
+
+F3
+
+G1
+
+G2
+
+G3
+
+B1
+
+B2
+
+B3
+
+C1
+
+C2
+
+C3
+
+D1
+
+D2
+
+D3
+
+E1
+
+E2
+
+E3
+
+F1
+
+F2
+
+F3
+
+G1
+
+G2
+
+G3
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0
+
+1.0
+0.8
+0.6
+0.4
+0.2
+0
+
+A1
+
+A2
+
+A3
+
+Figure 9. Overall performance (normalized) across various LLMs and datasets. (a) and (b): End-to-end latency on OnePlus 12
+and Ace2; (c): I/O bandwidth on OnePlus 12. Each data point (𝐴1) on x-axis denotes a combination of LLM (𝐴) and dataset (1).
+
+Normalized Latency
+
+LLMFlash
+
+Offline
+
+Offline+Online
+
+1.0
+0.8
+0.6
+0.4
+P
+OPT OPT OPT Llam Mistr Mob
+iLlamhi-2
+-L
+-M
+-S
+al
+a-2
+a
+
+Figure 10. Performance breakdown of Neuralink. The results are evaluated using Alpaca dataset on OnePlus Ace2.
+
+be more scattered. However, Neuralink continues to reduce
+end-to-end latency until the sparsity level reaches 50.0%.
+Impact of Datasets. We next evaluate the performance of
+Neuralink across a variety of task datasets, as shown in Figure 15. The results show that the performance of Neuralink
+is not sensitive to the choice of datasets. Combined with the
+findings in Figure 9, these results further confirm that neuron
+co-activation is widespread in LLM inference and effectively
+leveraged to optimize I/O operations by Neuralink.
+
+Impact of Profiling. Ideally, Neuralink should extract neuron co-activation information offline from a profiling dataset
+that matches the data distribution of the preprocessed dataset.
+However, in some cases, LLMs may encounter diverse inputs
+from different tasks during inference. Therefore, we also access the sensitivity of Neuralink to mismatches between
+the profiling dataset and the testing dataset. As shown in
+Table 8, we measure the performance of Neuralink across
+nine combinations of the profiling and testing datasets, using
+three different datasets. For example, the first row indicates
+that Neuralink uses Alpaca as the profiling dataset and is
+evaluated on Alpaca, OpenWebText, and WikiText during
+inference. Besides, we report the corresponding speedups of
+Neuralink compared to LLMFlash (no profiling datasets)
+across different testing datasets. The results reveal that Neuralink remains effective even when the inputs are biased.
+Compared to scenarios when the same dataset is used for
+both profiling and testing, only slight decreases in performance are observed - sometimes even showing improvements. This suggests that neuron co-activation patterns are
+an intrinsic property of the LLM, with input variations having limited influence. These findings are consistent with
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Tuowei Wang et al.
+
+Occurrence
+
+LLMFlash
+10
+
+4
+
+10
+
+2
+
+Neuralink-S
+
+OPT-L
+
+10
+
+4
+
+10
+
+2
+
+Max: 598
+
+1
+
+Neuralink
+Llama-2
+Max: 2845
+
+1
+
+00
+
+00
+
+-1
+
+>1
+
+51
+
+50
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+50
+
+00
+>1 0
+0
+-1
+
+51
+
+11
+
+10
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+Figure 11. Statistical information on read access lengths per token (unit: neuron bundle) in LLMFlash, Neuralink-S, and
+Neuralink using Alpaca dataset. A larger value of read access length indicates better continuity. Lines indicate average values.
+Origin
+Data
+IOPS
+
+LLMFlash
+
+Collapse
+
+658.23 MB/s
+
+Bandwidth
+Data
+IOPS
+
+Llama-2
+
+Bandwidth
+
+10
+
+10
+
+3
+
+Neuralink
+
+Llama-2
+
+10
+
+4
+
+10
+
+3
+
+Mistral
+
+683.58 MB/s
+0.5
+
+1.0
+1.5
+2.0
+2.5
+Normalized Value (Origin = 1.0)
+
+Figure 12. Data transfer volume, IOPS, and bandwidth of
+activated neurons before and after applying access merging.
+The experiments use the Alpaca dataset on OnePlus Ace2.
+LLMFlash
+Latency (ms)
+
+OPT-L
+
+Llama-2
+
+6000
+5000
+
+1000
+
+4000
+
+800
+
+Figure 14. End-to-end latency under different top-K percentages using the Alpaca dataset on OnePlus 12. A higher
+top-K percentage indicates a lower sparsity level.
+LLMFlash
+
+PIQA
+
+SWAG
+
+MMLU
+
+HellaSwag
+
+GSM8K
+
+PIQA
+
+SWAG
+
+MMLU
+
+HellaSwag
+
+GSM8K
+
+recent research on LLM sparsity, which shows that neurons
+with similar functions tend to activate together [58, 105].
+Impact of Precision. We evaluate the performance of Neuralink across varying precisions for LLMs. The results show
+that Neuralink scales efficiently with different precisions,
+maintaining consistent performance across three LLMs. Notably, Neuralink performs better when LLMs are quantized to lower bit precision, achieving an average speedup of
+1.39× when reducing precision from 16-bit to 8-bit. This is because smaller neuron sizes exacerbate the impact of scattered
+
+SWAG
+
+Figure 13. End-to-end latency under varying DRAM cache
+ratios, evaluated using the Alpaca dataset on OnePlus 12.
+
+0.4
+PIQA
+
+DRAM Cache Ratio
+
+Mistral
+
+0.6
+HellaSwag
+
+0.02 0.04 0.06 0.08 0.10
+
+Llama-2
+
+0.8
+
+MMLU
+
+3000
+
+OPT-L
+
+Neuralink
+
+1.0
+
+GSM8K
+
+0.02 0.04 0.06 0.08 0.10
+
+0.1 0.2 0.3 0.4 0.5
+
+Top-K Percentage
+
+Neuralink
+
+1400
+1200
+
+0.1 0.2 0.3 0.4 0.5
+
+3.0
+
+Normalized Latency
+
+0
+
+1600
+
+Latency (ms)
+
+OPT-L
+
+4
+
+Figure 15. End-to-end latency across more diverse task
+datasets on OnePlus 12. Same answer lengths are controlled.
+read access, making it harder to reach bandwidth limitations.
+These findings also highlight the importance of Neuralink
+in the trend of lower bits utilization on smartphones.
+Impact of Hardware. We conclude by evaluating the impact
+of hardware on Neuralink. Figure 17 shows that Neuralink
+consistently outperforms two baselines across various hardware configurations. The best performance improvements
+are observed on OnePlus 12 (OP 12), as its USF storage supports higher bandwidth. Compared to OP 12, OnePlus Ace3
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+Normalized Latency
+
+LLMFlash
+1.0
+0.8
+0.6
+0.4
+
+32 bit
+
+7
+
+Neuralink
+16 bit
+
+8 bit
+
+0.2
+0
+
+O
+M
+M
+L
+L
+M
+OP
+O
+L
+T-L lama istra PT-L lama istra PT-L lama istra
+l
+l
+l
+-2
+-2
+-2
+
+Figure 16. Performance of Neuralink across different parameter precisions using the Alpaca dataset on OnePlus 12.
+Table 8. Performance across different combinations of profiling (rows) and testing (columns) datasets on OnePlus 12. The
+reported speedup refers to the performance improvement of
+Neuralink compared to LLMFlash on the testing dataset.
+Testing Dataset
+
+Model Profiling Dataset
+Alpaca
+
+OPT-L
+
+Alpaca
+Speedup
+
+711.09 ms
+1.86×
+
+809.80 ms
+1.65×
+
+800.46 ms
+1.59×
+
+OpenWebText
+Speedup
+
+856.48 ms
+1.54×
+
+802.01 ms
+1.67×
+
+800.26 ms
+1.59×
+
+WikiText
+Speedup
+
+823.93 ms
+1.60×
+
+1031.41 ms
+1.30×
+
+784.19 ms
+1.63×
+
+Alpaca
+Speedup
+
+4405.76 ms
+1.27×
+
+4537.75 ms
+1.17×
+
+3747.40 ms
+1.45×
+
+3546.12 ms
+1.57×
+
+4118.59 ms
+1.29×
+
+4318.28 ms
+1.26×
+
+4769.36 ms
+1.17×
+
+4535.48 ms
+1.17×
+
+4578.87 ms
+1.18×
+
+Llama-2 OpenWebText
+Speedup
+WikiText
+Speedup
+
+Normalized Latency
+
+Baseline
+1.0
+0.8
+0.6
+0.4
+0.2
+0
+
+OpenWebText WikiText
+
+OP 12
+
+OPT-L
+
+Llama-2
+
+LLMFlash
+OP Ace3
+
+OPT-L
+
+Llama-2
+
+Neuralink
+OP Ace2
+
+OPT-L
+
+Llama-2
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+Related Works
+
+Model Pruning. Pruning methods [51, 54] aim to reduce
+the number of model parameters while minimizing performance degradation. Several works [31, 32, 37, 46, 99] have
+explored static pruning, where parameters are pruned offline. In contrast, dynamic sparsity methods [8, 16, 30, 35, 65,
+82, 91] determines which parameters to prune at runtime,
+enabling seamless integration with training or inference. Unlike these methods, Neuralink exploits activation sparsity
+within LLMs. By retaining all parameters and selectively activating only a subset, it preserves the models’ generalization.
+Model Quantization. While aiming for a similar goal, model
+quantization [13, 28] reduces the precision of model parameters by optimizing the utilization of available bits to encode
+model information more efficiently. Numerous studies have
+driven precision progressively lower, with efforts ranging
+from 8-bit [17, 90] to 4-bit [21, 23, 97], 2-bit [12], and even 1bit [80, 92]. However, as precision decreases, data access patterns become increasingly fine-grained and scattered. This,
+in turn, exacerbates the I/O bottleneck on smartphones.
+Sparse Computation Optimization. Sparse computation
+typically falls short in performance compared to its dense
+counterparts. Many works have been proposed to address
+this. Several compiler-based techniques [84, 107] are tailored
+for static sparsity patterns, while others [19, 24, 62, 89, 106]
+provide support for more general sparsity patterns. In parallel, an increasing number of hardware solutions [7, 11, 25,
+45, 63, 87] have been specially designed. However, these
+advancements make the I/O bottleneck more pronounced.
+Activation Sparsity Application. Deja Vu [56] pioneered a
+predictor-based approach for sparsity-based LLM inference.
+Building upon this, Powerinfer [70] exploits this property to
+enable LLM execution on consumer-grade GPUs by offloading model weights to CPU. In mobile scenarios, LLM in a
+Flash [4] first proposes using flash on smartphones for model
+offloading. Powerinfer-2 [93] extends this approach further,
+serving a 47B LLM on a smartphone. However, these methods primarily focus on optimizing DRAM management and
+overlapping computation with data transfers, achieving only
+limited bandwidth improvements. Neuralink complements
+these efforts by enhancing the neuron transfer bandwidth.
+
+8
+
+Conclusion
+
+Figure 17. End-to-end latency across more diverse hardware
+configurations using the Alpaca dataset.
+
+We propose Neuralink, an algorithm-system co-design approach to accelerating LLM inference on smartphones by
+optimizing neuron placement within flash memory.
+
+(OP Ace3) shares the same UFS storage but features a less
+powerful SoC. However, the comparable latency results between OP 12 and OP Ace3 suggest that storage plays a more
+critical role than the SoC in on-device inference. In contrast,
+OnePlus Ace2 (OP Ace2) has weaker storage compared to
+OP 12, making it easier to reach bandwidth limitations.
+
+We sincerely thank our shepherd Gagandeep Singh and
+anonymous reviewers for their insightful feedback. The work
+is supported in part by the National Natural Science Foundation of China under Grant No. 62432004, and by a grant
+from the Guoqiang Institute, Tsinghua University.
+
+9
+
+Acknowledgement
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+References
+[1] Marah Abdin, Sam Ade Jacobs, Ammar Ahmad Awan, Jyoti Aneja,
+Ahmed Awadallah, Hany Awadalla, Nguyen Bach, Amit Bahree,
+Arash Bakhtiari, Harkirat Behl, et al. Phi-3 technical report: A
+highly capable language model locally on your phone. arXiv preprint
+arXiv:2404.14219, 2024.
+[2] AF Agarap. Deep learning using rectified linear units (relu). arXiv
+preprint arXiv:1803.08375, 2018.
+[3] Joshua Ainslie, James Lee-Thorp, Michiel de Jong, Yury Zemlyanskiy,
+Federico Lebrón, and Sumit Sanghai. Gqa: Training generalized
+multi-query transformer models from multi-head checkpoints. arXiv
+preprint arXiv:2305.13245, 2023.
+[4] Keivan Alizadeh, Iman Mirzadeh, Dmitry Belenko, Karen Khatamifard, Minsik Cho, Carlo C Del Mundo, Mohammad Rastegari, and
+Mehrdad Farajtabar. Llm in a flash: Efficient large language model
+inference with limited memory. arXiv preprint arXiv:2312.11514, 2023.
+[5] Rohan Anil, Andrew M Dai, Orhan Firat, Melvin Johnson, Dmitry
+Lepikhin, Alexandre Passos, Siamak Shakeri, Emanuel Taropa, Paige
+Bailey, Zhifeng Chen, et al. Palm 2 technical report. arXiv preprint
+arXiv:2305.10403, 2023.
+[6] Jens Axboe. liburing. https://github.com/axboe/liburing, 2025. Accessed: 2025-02-25.
+[7] Nathan Bell and Michael Garland. Efficient sparse matrix-vector
+multiplication on cuda. Technical report, Nvidia Technical Report
+NVR-2008-004, Nvidia Corporation, 2008.
+[8] Emmanuel Bengio, Pierre-Luc Bacon, Joelle Pineau, and Doina Precup.
+Conditional computation in neural networks for faster models. arXiv
+preprint arXiv:1511.06297, 2015.
+[9] Yonatan Bisk, Rowan Zellers, Ronan Le Bras, Jianfeng Gao, and Yejin
+Choi. Piqa: Reasoning about physical commonsense in natural language. In Thirty-Fourth AAAI Conference on Artificial Intelligence,
+2020.
+[10] Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D
+Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam,
+Girish Sastry, Amanda Askell, et al. Language models are few-shot
+learners. Advances in neural information processing systems, 33:1877–
+1901, 2020.
+[11] Aydin Buluç, Jeremy T Fineman, Matteo Frigo, John R Gilbert, and
+Charles E Leiserson. Parallel sparse matrix-vector and matrixtranspose-vector multiplication using compressed sparse blocks. In
+Proceedings of the twenty-first annual symposium on Parallelism in
+algorithms and architectures, pages 233–244, 2009.
+[12] Jerry Chee, Yaohui Cai, Volodymyr Kuleshov, and Christopher M
+De Sa. Quip: 2-bit quantization of large language models with guarantees. Advances in Neural Information Processing Systems, 36, 2024.
+[13] Yu Cheng, Duo Wang, Pan Zhou, and Tao Zhang. A survey of
+model compression and acceleration for deep neural networks. arXiv
+preprint arXiv:1710.09282, 2017.
+[14] Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton,
+Reiichiro Nakano, Christopher Hesse, and John Schulman. Training
+verifiers to solve math word problems. arXiv preprint arXiv:2110.14168,
+2021.
+[15] Damai Dai, Chengqi Deng, Chenggang Zhao, RX Xu, Huazuo Gao,
+Deli Chen, Jiashi Li, Wangding Zeng, Xingkai Yu, Yu Wu, et al.
+Deepseekmoe: Towards ultimate expert specialization in mixture-ofexperts language models. arXiv preprint arXiv:2401.06066, 2024.
+[16] Andrew Davis and Itamar Arel. Low-rank approximations for conditional feedforward computation in deep neural networks. arXiv
+preprint arXiv:1312.4461, 2013.
+[17] Tim Dettmers, Mike Lewis, Younes Belkada, and Luke Zettlemoyer.
+Gpt3. int8 (): 8-bit matrix multiplication for transformers at scale.
+Advances in Neural Information Processing Systems, 35:30318–30332,
+2022.
+
+Tuowei Wang et al.
+
+[18] Jacob Devlin. Bert: Pre-training of deep bidirectional transformers
+for language understanding. arXiv preprint arXiv:1810.04805, 2018.
+[19] Ruwen Fan, Minhui Xie, Haodi Jiang, and Youyou Lu. Maxembed:
+Maximizing ssd bandwidth utilization for huge embedding models
+serving. In Proceedings of the 29th ACM International Conference
+on Architectural Support for Programming Languages and Operating
+Systems, Volume 4, ASPLOS ’24, page 188–202, New York, NY, USA,
+2025. Association for Computing Machinery.
+[20] William Fedus, Barret Zoph, and Noam Shazeer. Switch transformers:
+Scaling to trillion parameter models with simple and efficient sparsity.
+Journal of Machine Learning Research, 23(120):1–39, 2022.
+[21] BitsandBytes Foundation.
+Bitsandbytes.
+https://github.com/
+bitsandbytes-foundation/bitsandbytes, 2025. Accessed: 2025-02-28.
+[22] Mohammad Fraiwan and Natheer Khasawneh. A review of chatgpt applications in education, marketing, software engineering, and healthcare: Benefits, drawbacks, and research directions. arXiv preprint
+arXiv:2305.00237, 2023.
+[23] Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh.
+Gptq: Accurate post-training quantization for generative pre-trained
+transformers. arXiv preprint arXiv:2210.17323, 2022.
+[24] Trevor Gale, Matei Zaharia, Cliff Young, and Erich Elsen. Sparse
+GPU kernels for deep learning. In Proceedings of the International
+Conference for High Performance Computing, Networking, Storage and
+Analysis, SC 2020, 2020.
+[25] Trevor Gale, Matei Zaharia, Cliff Young, and Erich Elsen. Sparse
+gpu kernels for deep learning. In SC20: International Conference for
+High Performance Computing, Networking, Storage and Analysis, pages
+1–14. IEEE, 2020.
+[26] Bernard A Galler and Michael J Fisher. An improved equivalence
+algorithm. Communications of the ACM, 7(5):301–303, 1964.
+[27] Georgi Gerganov. ggerganov/llama.cpp: Port of facebook’s llama
+model in c/c++. https://github.com/ggerganov/llama.cpp, 2024.
+[28] Amir Gholami, Sehoon Kim, Zhen Dong, Zhewei Yao, Michael W
+Mahoney, and Kurt Keutzer. A survey of quantization methods for
+efficient neural network inference. In Low-Power Computer Vision,
+pages 291–326. Chapman and Hall/CRC, 2022.
+[29] Aaron Gokaslan, Vanya Cohen, Ellie Pavlick, and Stefanie
+Tellex.
+Openwebtext corpus.
+http://Skylion007.github.io/
+OpenWebTextCorpus, 2019.
+[30] Yiwen Guo, Anbang Yao, and Yurong Chen. Dynamic network
+surgery for efficient dnns. Advances in neural information processing
+systems, 29, 2016.
+[31] Song Han, Huizi Mao, and William J Dally. Deep compression: Compressing deep neural networks with pruning, trained quantization
+and huffman coding. arXiv preprint arXiv:1510.00149, 2015.
+[32] Stephen Hanson and Lorien Pratt. Comparing biases for minimal
+network construction with back-propagation. Advances in neural
+information processing systems, 1, 1988.
+[33] Juris Hartmanis. Computers and intractability: a guide to the theory
+of np-completeness (michael r. garey and david s. johnson). Siam
+Review, 24(1):90, 1982.
+[34] Junhui He, Shangyu Wu, Weidong Wen, Chun Jason Xue, and Qingan
+Li. Chess: Optimizing llm inference via channel-wise thresholding
+and selective sparsification. arXiv preprint arXiv:2409.01366, 2024.
+[35] Yang He, Guoliang Kang, Xuanyi Dong, Yanwei Fu, and Yi Yang. Soft
+filter pruning for accelerating deep convolutional neural networks.
+arXiv preprint arXiv:1808.06866, 2018.
+[36] Dan Hendrycks, Collin Burns, Steven Basart, Andy Zou, Mantas
+Mazeika, Dawn Song, and Jacob Steinhardt. Measuring massive
+multitask language understanding. Proceedings of the International
+Conference on Learning Representations (ICLR), 2021.
+[37] Zehao Huang and Naiyan Wang. Data-driven sparse structure selection for deep neural networks. In Proceedings of the European
+conference on computer vision (ECCV), pages 304–320, 2018.
+
+Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation Linking
+
+[38] Mojan Javaheripi, Sébastien Bubeck, Marah Abdin, Jyoti Aneja, Sebastien Bubeck, Caio César Teodoro Mendes, Weizhu Chen, Allie
+Del Giorno, Ronen Eldan, Sivakanth Gopi, et al. Phi-2: The surprising
+power of small language models. Microsoft Research Blog, 1(3):3, 2023.
+[39] JEDEC. Jedec announces publication of universal flash storage (ufs)
+standard. https://www.jedec.org, February 2021. Accessed: 2024-1002.
+[40] Albert Q Jiang, Alexandre Sablayrolles, Arthur Mensch, Chris Bamford, Devendra Singh Chaplot, Diego de las Casas, Florian Bressand,
+Gianna Lengyel, Guillaume Lample, Lucile Saulnier, et al. Mistral 7b.
+arXiv preprint arXiv:2310.06825, 2023.
+[41] Albert Q Jiang, Alexandre Sablayrolles, Antoine Roux, Arthur Mensch,
+Blanche Savary, Chris Bamford, Devendra Singh Chaplot, Diego de las
+Casas, Emma Bou Hanna, Florian Bressand, et al. Mixtral of experts.
+arXiv preprint arXiv:2401.04088, 2024.
+[42] Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B Brown, Benjamin Chess, Rewon Child, Scott Gray, Alec Radford, Jeffrey Wu,
+and Dario Amodei. Scaling laws for neural language models. arXiv
+preprint arXiv:2001.08361, 2020.
+[43] Tiffany H Kung, Morgan Cheatham, Arielle Medenilla, Czarina Sillos,
+Lorie De Leon, Camille Elepaño, Maria Madriaga, Rimel Aggabao,
+Giezel Diaz-Candido, James Maningo, et al. Performance of chatgpt
+on usmle: potential for ai-assisted medical education using large
+language models. PLoS digital health, 2(2):e0000198, 2023.
+[44] Mark Kurtz, Justin Kopinsky, Rati Gelashvili, Alexander Matveev,
+John Carr, Michael Goin, William Leiserson, Sage Moore, Nir Shavit,
+and Dan Alistarh. Inducing and exploiting activation sparsity for fast
+inference on deep neural networks. In International Conference on
+Machine Learning, pages 5533–5543. PMLR, 2020.
+[45] Jinming Lai, Zhiyou Li, Chaojie Wang, Hailong Wang, and Xiaohua
+Ma. Realization of low in-band harmonic for compact 6–18-ghz t/r
+module under tx-mode operation. Chinese Journal of Electronics,
+33(2):380–384, 2024.
+[46] Vadim Lebedev and Victor Lempitsky. Fast convnets using groupwise brain damage. In Proceedings of the IEEE conference on computer
+vision and pattern recognition, pages 2554–2564, 2016.
+[47] Donghyun Lee, Je-Yong Lee, Genghan Zhang, Mo Tiwari, and Azalia
+Mirhoseini. Cats: Contextually-aware thresholding for sparsity in
+large language models. arXiv preprint arXiv:2404.08763, 2024.
+[48] Jaeseong Lee, Seung-won Hwang, Wonpyo Park, and Mingi Ji. Breaking relu barrier: Generalized moefication for dense pretrained models.
+In Proceedings of the 2024 Conference on Empirical Methods in Natural
+Language Processing, pages 10097–10107, 2024.
+[49] Yuanchun Li, Hao Wen, Weijun Wang, Xiangyu Li, Yizhen Yuan,
+Guohong Liu, Jiacheng Liu, Wenxing Xu, Xiang Wang, Yi Sun, et al.
+Personal llm agents: Insights and survey about the capability, efficiency and security. arXiv preprint arXiv:2401.05459, 2024.
+[50] Zonglin Li, Chong You, Srinadh Bhojanapalli, Daliang Li, Ankit Singh
+Rawat, Sashank J Reddi, Ke Ye, Felix Chern, Felix Yu, Ruiqi Guo, et al.
+The lazy neuron phenomenon: On emergence of activation sparsity
+in transformers. arXiv preprint arXiv:2210.06313, 2022.
+[51] Tailin Liang, John Glossner, Lei Wang, Shaobo Shi, and Xiaotong
+Zhang. Pruning and quantization for deep neural network acceleration: A survey. Neurocomputing, 461:370–403, 2021.
+[52] Aixin Liu, Bei Feng, Bin Wang, Bingxuan Wang, Bo Liu, Chenggang
+Zhao, Chengqi Dengr, Chong Ruan, Damai Dai, Daya Guo, et al.
+Deepseek-v2: A strong, economical, and efficient mixture-of-experts
+language model. arXiv preprint arXiv:2405.04434, 2024.
+[53] Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang, Bochao Wu, Chengda
+Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang, Chong Ruan,
+et al. Deepseek-v3 technical report. arXiv preprint arXiv:2412.19437,
+2024.
+[54] Jiayi Liu, Samarth Tripathi, Unmesh Kurup, and Mohak Shah. Pruning
+algorithms to accelerate convolutional neural networks for edge
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+applications: A survey. arXiv preprint arXiv:2005.04275, 2020.
+[55] Lianjun Liu, Hongli An, Pengxuan Chen, and Longxiang Ye. A contemporary overview: Trends and applications of large language models
+on mobile devices. arXiv preprint arXiv:2412.03772, 2024.
+[56] Zichang Liu, Jue Wang, Tri Dao, Tianyi Zhou, Binhang Yuan, Zhao
+Song, Anshumali Shrivastava, Ce Zhang, Yuandong Tian, Christopher
+Re, et al. Deja vu: Contextual sparsity for efficient llms at inference
+time. In International Conference on Machine Learning, pages 22137–
+22176. PMLR, 2023.
+[57] Scott Lowe. Calculate iops in a storage array. TechRepublic,
+verkkosivu, Saatavissa (viitattu 27.02. 2020): https://www. techrepublic.
+com/blog/the-enterprise-cloud/calculate-iops-in-a-storage-array, 2010.
+[58] Yuqi Luo, Chenyang Song, Xu Han, Yingfa Chen, Chaojun Xiao,
+Zhiyuan Liu, and Maosong Sun. Sparsing law: Towards large
+language models with greater activation sparsity. arXiv preprint
+arXiv:2411.02335, 2024.
+[59] Stephen Merity, Caiming Xiong, James Bradbury, and Richard Socher.
+Pointer sentinel mixture models, 2016.
+[60] Xupeng Miao, Gabriele Oliaro, Zhihao Zhang, Xinhao Cheng, Hongyi
+Jin, Tianqi Chen, and Zhihao Jia. Towards efficient generative large
+language model serving: A survey from algorithms to systems. arXiv
+preprint arXiv:2312.15234, 2023.
+[61] Iman Mirzadeh, Keivan Alizadeh, Sachin Mehta, Carlo C Del Mundo,
+Oncel Tuzel, Golnoosh Samei, Mohammad Rastegari, and Mehrdad
+Farajtabar. Relu strikes back: Exploiting activation sparsity in large
+language models. arXiv preprint arXiv:2310.04564, 2023.
+[62] Maxim Naumov, L Chien, Philippe Vandermersch, and Ujval Kapasi.
+Cusparse library. In GPU Technology Conference, 2010.
+[63] NVIDIA. Accelerating inference with sparsity using the nvidia ampere architecture and nvidia tensorrt, 2021. Accessed: 2024-10-18.
+[64] OpenAI. ChatGPT: Get instant answers, find creative inspiration,
+learn something new. https://openai.com/chatgpt, 2022.
+[65] Victor Sanh, Thomas Wolf, and Alexander Rush. Movement pruning:
+Adaptive sparsity by fine-tuning. Advances in Neural Information
+Processing Systems, 33:20378–20389, 2020.
+[66] Noam Shazeer. Fast transformer decoding: One write-head is all you
+need. arXiv preprint arXiv:1911.02150, 2019.
+[67] Michael Sipser. Introduction to the theory of computation. ACM
+Sigact News, 27(1):27–29, 1996.
+[68] Chenyang Song, Xu Han, Zhengyan Zhang, Shengding Hu, Xiyu
+Shi, Kuai Li, Chen Chen, Zhiyuan Liu, Guangli Li, Tao Yang, et al.
+Prosparse: Introducing and enhancing intrinsic activation sparsity
+within large language models. arXiv preprint arXiv:2402.13516, 2024.
+[69] Jifeng Song, Kai Huang, Xiangyu Yin, Boyuan Yang, and Wei Gao.
+Achieving sparse activation in small language models. arXiv preprint
+arXiv:2406.06562, 2024.
+[70] Yixin Song, Zeyu Mi, Haotong Xie, and Haibo Chen. Powerinfer:
+Fast large language model serving with a consumer-grade gpu. arXiv
+preprint arXiv:2312.12456, 2023.
+[71] Yixin Song, Haotong Xie, Zhengyan Zhang, Bo Wen, Li Ma, Zeyu Mi,
+and Haibo Chen. Turbo sparse: Achieving llm sota performance with
+minimal activated parameters. arXiv preprint arXiv:2406.05955, 2024.
+[72] Jiahong Su and Weipeng Yang. Unlocking the power of chatgpt: A
+framework for applying generative ai in education. ECNU Review of
+Education, 6(3):355–366, 2023.
+[73] Rohan Taori, Ishaan Gulrajani, Tianyi Zhang, Yann Dubois, Xuechen
+Li, Carlos Guestrin, Percy Liang, and Tatsunori B. Hashimoto. Stanford alpaca: An instruction-following llama model. https://github.
+com/tatsu-lab/stanford_alpaca, 2023.
+[74] Gemini Team, Rohan Anil, Sebastian Borgeaud, Yonghui Wu, JeanBaptiste Alayrac, Jiahui Yu, Radu Soricut, Johan Schalkwyk, Andrew M Dai, Anja Hauth, et al. Gemini: a family of highly capable
+multimodal models. arXiv preprint arXiv:2312.11805, 2023.
+[75] OpenAI Teams. Gpt-4 technical report, 2024.
+
+ASPLOS ’25, March 30-April 3, 2025, Rotterdam, Netherlands
+
+[76] Termux. Termux app. https://github.com/termux/termux-app, 2025.
+Accessed: 2025-02-25.
+[77] Omkar Thawakar, Ashmal Vayani, Salman Khan, Hisham Cholakkal,
+Rao Muhammad Anwer, Michael Felsberg, Timothy Baldwin, Eric P.
+Xing, and Fahad Shahbaz Khan. Mobillama: Towards accurate and
+lightweight fully transparent gpt, 2024.
+[78] Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal
+Bhargava, Shruti Bhosale, et al. Llama 2: Open foundation and finetuned chat models. arXiv preprint arXiv:2307.09288, 2023.
+[79] Jean Vuillemin. A data structure for manipulating priority queues.
+Communications of the ACM, 21(4):309–315, 1978.
+[80] Hongyu Wang, Shuming Ma, Li Dong, Shaohan Huang, Huaijie Wang,
+Lingxiao Ma, Fan Yang, Ruiping Wang, Yi Wu, and Furu Wei. Bitnet:
+Scaling 1-bit transformers for large language models. arXiv preprint
+arXiv:2310.11453, 2023.
+[81] Hongyu Wang, Shuming Ma, Ruiping Wang, and Furu Wei. Q-sparse:
+All large language models can be fully sparsely-activated. arXiv
+preprint arXiv:2407.10969, 2024.
+[82] Tuowei Wang, Xingyu Chen, Kun Li, Ting Cao, Ju Ren, and Yaoxue
+Zhang. Lemo: Enabling less token involvement for more context
+fine-tuning, 2025.
+[83] Tuowei Wang, Kun Li, Zixu Hao, Donglin Bai, Ju Ren, Yaoxue Zhang,
+Ting Cao, and Mao Yang. Long exposure: Accelerating parameterefficient fine-tuning for llms under shadowy sparsity. In SC24: International Conference for High Performance Computing, Networking,
+Storage and Analysis, pages 1–18. IEEE, 2024.
+[84] Ziheng Wang. Sparsert: Accelerating unstructured sparsity on gpus
+for deep learning inference. In Proceedings of the ACM international
+conference on parallel architectures and compilation techniques, pages
+31–42, 2020.
+[85] Hao Wen, Yuanchun Li, Guohong Liu, Shanhui Zhao, Tao Yu, Toby
+Jia-Jun Li, Shiqi Jiang, Yunhao Liu, Yaqin Zhang, and Yunxin Liu.
+Empowering llm to use smartphone for intelligent task automation.
+arXiv preprint arXiv:2308.15272, 2023.
+[86] Hao Wen, Yuanchun Li, Guohong Liu, Shanhui Zhao, Tao Yu, Toby
+Jia-Jun Li, Shiqi Jiang, Yunhao Liu, Yaqin Zhang, and Yunxin Liu.
+Autodroid: Llm-powered task automation in android. In Proceedings
+of the 30th Annual International Conference on Mobile Computing and
+Networking, pages 543–557, 2024.
+[87] Samuel Williams, Leonid Oliker, Richard Vuduc, John Shalf, Katherine
+Yelick, and James Demmel. Optimization of sparse matrix-vector
+multiplication on emerging multicore platforms. In Proceedings of
+the 2007 ACM/IEEE Conference on Supercomputing, pages 1–12, 2007.
+[88] Shijie Wu, Ozan Irsoy, Steven Lu, Vadim Dabravolski, Mark Dredze,
+Sebastian Gehrmann, Prabhanjan Kambadur, David Rosenberg, and
+Gideon Mann. Bloomberggpt: A large language model for finance.
+arXiv preprint arXiv:2303.17564, 2023.
+[89] Haojun Xia, Zhen Zheng, Yuchao Li, Donglin Zhuang, Zhongzhu
+Zhou, Xiafei Qiu, Yong Li, Wei Lin, and Shuaiwen Leon Song.
+Flash-llm: Enabling cost-effective and highly-efficient large generative model inference with unstructured sparsity. arXiv preprint
+arXiv:2309.10285, 2023.
+[90] Guangxuan Xiao, Ji Lin, Mickael Seznec, Hao Wu, Julien Demouth,
+and Song Han. Smoothquant: Accurate and efficient post-training
+quantization for large language models. In International Conference
+on Machine Learning, pages 38087–38099. PMLR, 2023.
+[91] Dongkuan Xu, Ian EH Yen, Jinxi Zhao, and Zhibin Xiao. Rethinking
+network pruning–under the pre-train and fine-tune paradigm. arXiv
+preprint arXiv:2104.08682, 2021.
+[92] Yuzhuang Xu, Xu Han, Zonghan Yang, Shuo Wang, Qingfu Zhu,
+Zhiyuan Liu, Weidong Liu, and Wanxiang Che. Onebit: Towards extremely low-bit large language models. arXiv preprint
+arXiv:2402.11295, 2024.
+
+Tuowei Wang et al.
+
+[93] Zhenliang Xue, Yixin Song, Zeyu Mi, Le Chen, Yubin Xia, and Haibo
+Chen. Powerinfer-2: Fast large language model inference on a smartphone. arXiv preprint arXiv:2406.06282, 2024.
+[94] Juncheng Yang, Yazhuo Zhang, Ziyue Qiu, Yao Yue, and Rashmi
+Vinayak. Fifo queues are all you need for cache eviction. In Proceedings of the 29th Symposium on Operating Systems Principles, pages
+130–149, 2023.
+[95] Yifan Yao, Jinhao Duan, Kaidi Xu, Yuanfang Cai, Zhibo Sun, and Yue
+Zhang. A survey on large language model (llm) security and privacy:
+The good, the bad, and the ugly. High-Confidence Computing, page
+100211, 2024.
+[96] Yuan Yao, Tianyu Yu, Ao Zhang, Chongyi Wang, Junbo Cui, Hongji
+Zhu, Tianchi Cai, Haoyu Li, Weilin Zhao, Zhihui He, et al. Minicpm-v:
+A gpt-4v level mllm on your phone. arXiv preprint arXiv:2408.01800,
+2024.
+[97] Zhewei Yao, Reza Yazdani Aminabadi, Minjia Zhang, Xiaoxia Wu,
+Conglong Li, and Yuxiong He. Zeroquant: Efficient and affordable
+post-training quantization for large-scale transformers. Advances in
+Neural Information Processing Systems, 35:27168–27183, 2022.
+[98] Wangsong Yin, Mengwei Xu, Yuanchun Li, and Xuanzhe Liu. Llm as
+a system service on mobile devices. arXiv preprint arXiv:2403.11805,
+2024.
+[99] Ming Yuan and Yi Lin. Model selection and estimation in regression
+with grouped variables. Journal of the Royal Statistical Society Series
+B: Statistical Methodology, 68(1):49–67, 2006.
+[100] Rowan Zellers, Yonatan Bisk, Roy Schwartz, and Yejin Choi. Swag: A
+large-scale adversarial dataset for grounded commonsense inference.
+In Proceedings of the 2018 Conference on Empirical Methods in Natural
+Language Processing (EMNLP), 2018.
+[101] Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali Farhadi, and Yejin
+Choi. Hellaswag: Can a machine really finish your sentence? arXiv
+preprint arXiv:1905.07830, 2019.
+[102] Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya
+Chen, Shuohui Chen, Christopher Dewan, Mona Diab, Xian Li, Xi Victoria Lin, et al. Opt: Open pre-trained transformer language models.
+arXiv preprint arXiv:2205.01068, 2022.
+[103] Zhengyan Zhang, Yankai Lin, Zhiyuan Liu, Peng Li, Maosong Sun,
+and Jie Zhou. Moefication: Transformer feed-forward layers are
+mixtures of experts. arXiv preprint arXiv:2110.01786, 2021.
+[104] Zhengyan Zhang, Yixin Song, Guanghui Yu, Xu Han, Yankai Lin,
+Chaojun Xiao, Chenyang Song, Zhiyuan Liu, Zeyu Mi, and Maosong
+Sun. Relu2 wins: Discovering efficient activation functions for sparse
+llms. arXiv preprint arXiv:2402.03804, 2024.
+[105] Zhengyan Zhang, Zhiyuan Zeng, Yankai Lin, Chaojun Xiao, Xiaozhi
+Wang, Xu Han, Zhiyuan Liu, Ruobing Xie, Maosong Sun, and Jie
+Zhou. Emergent modularity in pre-trained transformers. arXiv
+preprint arXiv:2305.18390, 2023.
+[106] Ningxin Zheng, Huiqiang Jiang, Quanlu Zhang, Zhenhua Han, Lingxiao Ma, Yuqing Yang, Fan Yang, Chengruidong Zhang, Lili Qiu, Mao
+Yang, et al. Pit: Optimization of dynamic sparse deep learning models
+via permutation invariant transformation. In Proceedings of the 29th
+Symposium on Operating Systems Principles, pages 331–347, 2023.
+[107] Ningxin Zheng, Bin Lin, Quanlu Zhang, Lingxiao Ma, Yuqing Yang,
+Fan Yang, Yang Wang, Mao Yang, and Lidong Zhou. SparTA: DeepLearning Model sparsity via Tensor-with-Sparsity-Attribute. In 16th
+USENIX Symposium on Operating Systems Design and Implementation
+(OSDI 22), pages 213–232, 2022.
+[108] Hao Zhou, Chengming Hu, Ye Yuan, Yufei Cui, Yili Jin, Can Chen,
+Haolun Wu, Dun Yuan, Li Jiang, Di Wu, et al. Large language model
+(llm) for telecommunications: A comprehensive survey on principles,
+key techniques, and opportunities. arXiv preprint arXiv:2405.10825,
+2024.
+
+

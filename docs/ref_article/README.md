@@ -18,8 +18,8 @@ page count, and what this project actually uses from it.
 
 Every PDF in this directory has a `.txt` file of the same name beside the PDF:
 the plain text of that PDF, extracted with `pdftotext`. The words are the same
-as in the PDF; only the layout is gone. Twenty-nine files. Nineteen of the
-twenty-nine are listed here with sizes:
+as in the PDF; only the layout is gone. Thirty-seven files. Nineteen of the
+thirty-seven are listed here with sizes:
 
 - `tavakkol2018-mqsim-multiqueue-ssd.txt`, 201 KB
 - `liu2023-photon-fine-grained-gpu-sampling.txt`, 179 KB
@@ -41,10 +41,23 @@ twenty-nine are listed here with sizes:
 - `micron2026-is-hbf-all-you-need.txt`, 22 KB
 - `zhihu2026-hbf-protocol-and-market-analysis-cn.txt`, 7 KB
 
+Eight more `.txt` files came in with the eight papers on running large language
+models out of flash, recorded in their own group below. Sizes in bytes, as
+reported when each file was produced:
+
+- `silverbrook2025-zettalith-ai-inference.txt`, 211,101 bytes
+- `alizadeh2023-llm-in-a-flash.txt`, 88,239 bytes
+- `deng2025-kvnand-dram-free-flash-inference.txt`, 88,079 bytes
+- `wang2024-neuralink-smartphone-flash-inference.txt`, 85,788 bytes
+- `jia2025-activeflow-weight-swapping.txt`, 69,486 bytes
+- `li2026-hbf-characterization-kv-cache.txt`, 67,514 bytes
+- `hao2026-nvllm-3d-nand-edge-inference.txt`, 50,029 bytes
+- `hsu2026-haven-hbf-vector-search.txt`, 39,097 bytes
+
 The remaining ten `.txt` files are named at the end of this section, together
 with the record that is still missing for each of the ten.
 
-Three of the twenty-nine `.txt` files have no PDF beside them:
+Three of the thirty-seven `.txt` files have no PDF beside them:
 `semiinsights2026-can-hbf-work-cn.txt` was captured from a WeChat page as text
 rather than as a PDF; `liu2012-retention-relaxation-nand-ssd.txt`, 5 KB, and
 `sandisk2025-hbf-fact-sheet.txt`, 116 KB, also stand alone, and how each of the
@@ -1177,6 +1190,500 @@ Verified from the full text:
   straightforward`
 - What happens during warm-up, quoted: `detailed simulation of W warming
   instructions (without measurement)`
+
+---
+
+## Eight files on running large language models out of flash
+
+Eight files were added to this directory together, and the eight entries that
+follow were gathered to settle one question: has anyone put HBF on an end-user
+device -- a phone, a laptop, an edge box -- and attached numbers to it?
+
+The answer from these eight files is one paper,
+`silverbrook2025-zettalith-ai-inference.pdf`, and that paper is a single-author
+preprint whose own abstract says it contains no implementation and no
+simulation validation. Five of the eight run large
+language model inference out of flash on a device with media that is not HBF:
+`hao2026-nvllm-3d-nand-edge-inference.pdf` and
+`deng2025-kvnand-dram-free-flash-inference.pdf` use 3D NAND with compute inside
+it, `wang2024-neuralink-smartphone-flash-inference.pdf` and
+`jia2025-activeflow-weight-swapping.pdf` use smartphone UFS, and
+`alizadeh2023-llm-in-a-flash.pdf` uses an ordinary solid-state drive. The
+remaining two are HBF papers whose target is the datacenter, not a device:
+`li2026-hbf-characterization-kv-cache.pdf` on key-value cache serving and
+`hsu2026-haven-hbf-vector-search.pdf` on approximate nearest-neighbor search.
+
+The count of one rests on case-sensitive searches with word boundaries. A
+case-insensitive search had earlier produced a wrong answer for NVLLM; the entry
+for `hao2026-nvllm-3d-nand-edge-inference.pdf` below records that correction in
+full.
+
+None of the eight has a BibTeX key in `paper/refs.bib`, checked by searching
+that file for each of the eight arXiv numbers and for each first author's name.
+
+---
+
+## `silverbrook2025-zettalith-ai-inference.pdf`
+
+The one file in this directory that puts HBF into an end-user device and gives
+capacity, bandwidth and token-rate numbers for it. A design study, not a
+measurement.
+
+> Kia Silverbrook.
+> "ZettaLith: An Architectural Exploration of Extreme-Scale AI Inference
+> Acceleration." arXiv:2507.02871v1. Submission time recorded by the arXiv
+> interface: 2025-06-08.
+
+- Single author. No journal or conference venue, and no DOI.
+- Open access: <https://arxiv.org/abs/2507.02871>
+- SHA-256: `2f6579082862018c8a2bdbf28be5f635277a32dcd2de485b0a5e8ad2562d3e9f`
+- 53 pages; 2,095,726 bytes. The author's note gives 53 pages, 15 figures and
+  23 tables.
+- Companion plain text: `silverbrook2025-zettalith-ai-inference.txt`,
+  211,101 bytes. The section title is at line 8102 and the passage cited below
+  at lines 8170--8176.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+What this project uses: Section 28, `NEXAI: ZettaLith at the Edge`. Section
+28.1 states that the edge system-on-chip uses SanDisk High Bandwidth Flash
+stacks, giving 512 GB of parameter storage at about 1.2 TB/s, and an inference
+rate limited by HBF bandwidth of 59 tokens per second.
+
+Boundaries, all four of which have to travel with any citation of this file:
+
+1. **The author says the numbers are not validated.** Quoted from the end of
+   the abstract: `Note: This paper presents a design study and architectural
+   proposal without implementation or simulation validation. All performance
+   projections are based on theoretical analysis and should be interpr` -- the
+   extract recorded here stops mid-word at `interpr`; the rest of the sentence
+   is in the PDF. So all performance figures in the paper, the three numbers
+   above included, are theoretical upper bounds.
+2. **It is a single-author preprint and it is not peer reviewed.** There is no
+   venue and no DOI to cite.
+3. **The only power figure the full text gives for HBF is a 30 W estimate**,
+   the same number the same source takes for HBM, and it appears in a parameter
+   table for a datacenter PCIe card rather than for the edge system-on-chip.
+4. **HBF appears in Sections 27--28 and hardly anywhere else**; the rest of the
+   paper is about HBM and the author's own compute array.
+
+Taken together: this file is evidence that a third party has written HBF into
+an edge architecture proposal, which is what the demand argument needs. It is
+not evidence about how such a device behaves, and no number in it may be cited
+as a measurement.
+
+---
+
+## `hao2026-nvllm-3d-nand-edge-inference.pdf`
+
+On-device large language model inference built on 3D NAND with computation
+inside the die, and the file that corrects an earlier record kept in this
+repository.
+
+> Mingbo Hao, Changwei Yan, Haoyu Cui, Zhihao Yan, Yizhi Ding, Zhangrui Qian,
+> and Weiwei Shan (corresponding author), School of Integrated Circuits,
+> Southeast University.
+> "NVLLM: A 3D NAND-Centric Architecture Enabling Edge on-Device LLM
+> Inference." arXiv:2604.25699v2 [cs.AR], v1 submitted 2026-04-28, v2
+> 2026-08-04. Published in *Proceedings of the 63rd ACM/IEEE Design Automation
+> Conference (DAC 2026)*. DOI: `10.1145/3770743.3804190`
+
+- Open access: <https://arxiv.org/abs/2604.25699>
+- SHA-256: `a3b44287335cd1a000aff79c780366d44214a661fae5df30133552e7400fedf4`
+- 9 pages; 4,438,238 bytes.
+- Companion plain text: `hao2026-nvllm-3d-nand-edge-inference.txt`,
+  50,029 bytes. The citation of AiF discussed below is at lines 824--828.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+What it does: it moves feed-forward network computation into the flash itself,
+keeps attention on lightweight CMOS logic together with external DRAM, and uses
+wafer-to-wafer stacking to integrate multi-plane 3D NAND with the compute
+pipeline, the error-correction units and the buffers. Reported result: 16.7x to
+37.9x speedup over out-of-core inference on an A800.
+
+**Correction this file forces on an earlier record.** An earlier round in this
+repository listed NVLLM as an on-device paper that mentions HBF. That is wrong.
+Searched case-sensitively and with word boundaries, `HBF` occurs 0 times in the
+full text and `high-bandwidth flash` occurs 0 times. The earlier hits came from
+a case-insensitive search matching the LaTeX macro `\mathbf`, not the term HBF.
+
+What this project uses, and the boundary that goes with it: NVLLM is evidence
+that pressing large-model weights into NAND is a route other groups are taking
+on edge devices. It is 3D NAND with computation inside the die, not in-package
+HBF, so it is not an HBF comparison and must never be listed as one. Its
+reference [20] is the AiF paper, which could not be obtained this round; the
+AiF entry near the end of this file records why.
+
+---
+
+## `deng2025-kvnand-dram-free-flash-inference.pdf`
+
+The device-side paper that puts the key-value cache into flash, which is the
+same move the HBF characterization paper in this group finds harmful in the
+datacenter.
+
+> Lishuo Deng, Shaojie Xu, Jinwu Chen, Changwei Yan, Jiajie Wang, Zhe Jiang,
+> and Weiwei Shan, Southeast University, Nanjing.
+> "KVNAND: Efficient On-Device Large Language Model Inference Using DRAM-Free
+> In-Flash Computing." arXiv:2512.03608v1 [cs.AR], submitted 2025-12-03, v1
+> only.
+
+- No DOI and no journal or conference venue in the arXiv record.
+- Open access: <https://arxiv.org/abs/2512.03608>
+- SHA-256: `d769244883037447de1d0603c72f874ac3e3ab46d891ebb635bf735eb222190f`
+- 14 pages; 2,174,964 bytes.
+- Companion plain text: `deng2025-kvnand-dram-free-flash-inference.txt`,
+  88,079 bytes.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+What it claims: the first architecture that uses no DRAM at all, holding both
+the model weights and the key-value cache in 3D NAND with computation inside
+it. Reported results: geometric-mean speedups of 1.98, 1.94 and 2.05 at 128, 1K
+and 10K token contexts against an in-flash computing design that does have
+DRAM, and no out-of-memory failures at 100K context.
+
+Boundary: `HBF` and `high-bandwidth flash` occur 0 times in the full text,
+counted by grep over `deng2025-kvnand-dram-free-flash-inference.txt`. The target
+is 3D NAND computing on an edge device, not in-package HBF. What this project
+uses is the pairing: KVNAND puts the key-value cache into flash and reports a
+gain, while `li2026-hbf-characterization-kv-cache.pdf` puts the key-value cache
+into HBF in a serving system and reports a loss.
+
+---
+
+## `wang2024-neuralink-smartphone-flash-inference.pdf`
+
+Rearranging where weights sit inside a phone's flash so that neurons which fire
+together are read together. Also the file whose title changed between versions,
+which any citation of it has to get right.
+
+> Tuowei Wang and Ruwen Fan (equal contribution), Minxing Huang, Zixu Hao,
+> Kun Li, Ting Cao, Youyou Lu, Yaoxue Zhang, and Ju Ren (corresponding author,
+> Tsinghua University).
+> "Neuralink: Fast LLM Inference on Smartphones with Neuron Co-Activation
+> Linking." arXiv:2410.19274v3 [cs.LG], v1 submitted 2024-10-25, v3
+> 2025-10-12. Published at *ASPLOS '25*, the 30th ACM International Conference
+> on Architectural Support for Programming Languages and Operating Systems,
+> 2025-03-30 to 2025-04-03, Rotterdam, Netherlands, volume 3, pages 147--162.
+> DOI: `10.1145/3676642.3736114`. ACM ISBN 979-8-4007-1080-3/2025/03.
+> Licensed CC BY-NC-SA 4.0.
+
+- Open access: <https://arxiv.org/abs/2410.19274>
+- SHA-256: `eb2113b8bc1f3746d1d67caabf4c46529e60909da9415eeed429952e72093807`
+- 16 pages; 2,208,720 bytes.
+- Companion plain text: `wang2024-neuralink-smartphone-flash-inference.txt`,
+  85,788 bytes. Venue and licence at lines 68--95, the UFS description at lines
+  571--583.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+**The system was renamed, and this is checked:** v1 and v2 of arXiv:2410.19274
+carry the title Ripple; v3, dated 2025-10-12, carries the title Neuralink. Cite
+the v3 title, and expect older citations elsewhere to say Ripple.
+
+What it does: it relocates weights in flash according to which neurons are
+activated together, and reports an average end-to-end latency improvement of
+1.49x.
+
+Boundary: `HBF` and `high-bandwidth flash` occur 0 times in the full text. The
+medium is UFS (Universal Flash Storage), the flash inside a phone, and the
+paper is bounded by the phone's ceiling on input/output operations per second,
+which has nothing in common with in-package HBF in either bandwidth or access
+granularity. What this project uses is the argument, not the platform: where
+data is placed inside flash decides performance by itself, the same argument
+that `ju2026-tilelens-two-dimensional-memory-layout.pdf` makes as read
+amplification.
+
+---
+
+## `jia2025-activeflow-weight-swapping.pdf`
+
+Moving the weights a mobile device is about to need between DRAM and flash, in
+software only, and a measurement method close to the one this project uses for
+its own calibration curve.
+
+> Fucheng Jia and Zewen Wu (equal contribution), Shiqi Jiang, Huiqiang Jiang,
+> Qianxi Zhang, Yuqing Yang, Yunxin Liu, Ju Ren, Deyu Zhang, and Ting Cao
+> (corresponding author).
+> "Scaling Up On-Device LLMs via Active-Weight Swapping Between DRAM and
+> Flash." The system is named ActiveFlow. arXiv:2504.08378v2 [cs.LG], v1
+> submitted 2025-04-11, v2 2025-09-23.
+
+- Affiliations: Central South University; Tsinghua University; Microsoft
+  Research; Institute for AI Industry Research, Tsinghua University.
+- No DOI and no journal or conference venue in the arXiv record; the PDF
+  carries no copyright block either.
+- Open access: <https://arxiv.org/abs/2504.08378>
+- SHA-256: `36c0010b136ed6354481d9de914466b80981b0e7a358906cda67aa6d4aa49fab`
+- 14 pages; 1,220,133 bytes.
+- Companion plain text: `jia2025-activeflow-weight-swapping.txt`, 69,486 bytes.
+  The UFS model numbers are at lines 564--566 and line 650.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Three techniques: prefetching active weights across layers, sparsity-aware
+self-distillation, and a pipeline that swaps active weights between DRAM and
+flash.
+
+Boundary: `HBF` and `high-bandwidth flash` occur 0 times in the full text, and
+what the paper measures is phone flash, UFS 3.1 and UFS 2.2. What this project
+uses is the method: ActiveFlow measures flash bandwidth on a real device at a
+range of transfer block sizes, which is the same shape of experiment as the
+vmem calibration curve of this project, and the two can be compared as
+methods.
+
+---
+
+## `alizadeh2023-llm-in-a-flash.pdf`
+
+The upstream work for the four device-side papers above: keep the weights in
+flash and bring in only what the next token needs.
+
+> Keivan Alizadeh, Iman Mirzadeh and Dmitry Belenko (Mirzadeh and Belenko
+> contributed equally), S. Karen Khatamifard, Minsik Cho, Carlo C Del Mundo,
+> Mohammad Rastegari, and Mehrdad Farajtabar, Apple.
+> "LLM in a flash: Efficient Large Language Model Inference with Limited
+> Memory." arXiv:2312.11514v3 [cs.CL], v1 submitted 2023-12-12, v3 2024-07-30.
+> The arXiv comments field says `ACL 2024`.
+
+- No DOI in the arXiv record.
+- Open access: <https://arxiv.org/abs/2312.11514>
+- SHA-256: `b245d138e6aac32bdc1a3964e8976f70beeae29b2ecd9d98c07ea703091ec347`
+- 23 pages; 1,333,354 bytes.
+- Companion plain text: `alizadeh2023-llm-in-a-flash.txt`, 88,239 bytes. The
+  hardware configuration is at lines 1083--1085.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Two techniques: windowing, which moves in only the part of the weights used
+recently, and row-column bundling, which reads matrix rows and columns in
+groups so that each contiguous read is larger.
+
+Boundaries:
+
+1. `HBF` and `high-bandwidth flash` occur 0 times in the full text. The
+   hardware is an M1 Max with a 1TB solid-state drive, an M2 Ultra with a 2TB
+   solid-state drive, and a Linux machine with an RTX 4090 -- standard
+   solid-state drives, not HBF.
+2. The method depends on sparsity in feed-forward layers of the ReLU family, an
+   activation function that returns zero for every negative input and therefore
+   leaves most entries of that layer's output at zero. A model without that
+   sparsity does not give the method anything to skip.
+
+What this project uses: this is the original source for the cost model in which
+the smallest contiguous read decides the bandwidth actually obtained, and it is
+the common upstream of `jia2025-activeflow-weight-swapping.pdf`,
+`wang2024-neuralink-smartphone-flash-inference.pdf` and
+`deng2025-kvnand-dram-free-flash-inference.pdf`.
+
+---
+
+## `li2026-hbf-characterization-kv-cache.pdf`
+
+The published HBF work that comes closest to this project's own claim: it is
+the only one of the eight files here that builds a thermal model of an HBF
+stack and reports where that stack runs into a temperature limit.
+
+> Zhuoran Li, Zhuohang Bian, Yibo Zhao, Guangyu Sun, and Youwei Zhuo (Peking
+> University), and Xin Huang (Fudan University).
+> "HBF Sucks! A Full-Stack Characterization of High-Bandwidth Flash for
+> KV-Centric LLM Serving." arXiv:2608.11668v2 [cs.AR], v1 submitted 2026-08-12,
+> v2 2026-08-13.
+
+- No DOI and no journal or conference venue in the arXiv record.
+- Open access: <https://arxiv.org/abs/2608.11668>
+- SHA-256: `268a3466c5ded355887e1e61792f8961167a1768ffba450dc2050cb46dbcd47c`
+- 12 pages; 1,322,867 bytes. The author's note says 13 pages and 12 figures,
+  while the stored PDF is 12 pages.
+- Companion plain text: `li2026-hbf-characterization-kv-cache.txt`,
+  67,514 bytes. The thermal model section is at lines 752--766, and the
+  throttling policy is restated at lines 2610--2620.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+Method: the TokenSim simulator, extended; four complete two-hour Qwen-Bailian
+production traces; five dense and mixture-of-experts models; H100 and B200
+configurations.
+
+Findings: dropping HBF into an SSD-style key-value offloading hierarchy raises
+average end-to-end latency by 2x to 5.5x and lowers maximum throughput under
+the service-level objective by 1.1x to 2.7x. Improving HBF read and write
+latency by 3.75x changes average end-to-end latency by less than 1%. The
+setting is datacenter key-value cache serving throughout; words for the
+device side occur 0 times in the full text.
+
+Quoted from the paper: `A faster storage device should make serving faster. We
+find the opposite.`
+
+What this project uses is the thermal model section. The authors build a
+16-layer HBF stack resembling HBM4 out of 128-layer 3D NAND TLC dies, solve
+steady-state heat flow with 3D-ICE, drive the model with the read and write
+energy of a 16-token key-value block, and sweep sustained per-stack bandwidth to
+obtain dynamic power and peak temperature. Safe junction temperature is set to
+80 degrees C, aligned with HBM3e. They also model a throttling policy that
+switches off the hottest and busiest plane and redirects writes to a cooler
+plane. The stack reaches the temperature limit at a sustained 202.27 GB/s per
+stack, drawing 53.72 W.
+
+Two boundaries, both of which have to travel with any citation of these
+numbers:
+
+1. **The authors state that the thermal model is a projection for hardware that
+   has not been released**, meant to give an upper and a lower bound rather than
+   fixed values. It is simulation with no calibration against a measured
+   device, and the thermal model and the serving simulation do not run coupled
+   inside one execution. That is precisely the line between this paper and this
+   project, and this project's paper states the difference in those terms.
+2. **The energy per bit implied by the two numbers is 33.2 pJ/bit**:
+   `33.2 pJ/bit = 53.72 W / (202.27 GB/s x 8 bits per byte)`. That is 3.9 times
+   the 8.5 pJ/bit quoted for HBF read energy. The 8.5 pJ/bit figure is the HBF
+   read-energy entry in Table 1 of the Micron HotInfra'26 paper (this
+   directory, `micron2026-is-hbf-all-you-need.txt`, lines 92-130; Micron is a
+   competitor to HBF and the paper models rather than measures), and it is
+   consistent with the 8 pJ/bit hybrid-bonded-prototype measurement that
+   FlashAccel cites (`wang2026-flashaccel-hbf-llm-inference.txt`,
+   lines 1505-1511, attributing Yanagidaira et al., ISSCC). So the bandwidth at which the stack
+   reaches its temperature limit is set by a parameter on which published
+   figures differ by a factor of 4, and the limit moves with that parameter.
+
+---
+
+## `hsu2026-haven-hbf-vector-search.pdf`
+
+HBF redesigned from the inside for vector search, and the file that removes a
+number which had been circulating in this project.
+
+> Po-Kai Hsu (Georgia Institute of Technology) and Weihong Xu (École
+> polytechnique fédérale de Lausanne, EPFL), equal contribution, with Qunyou
+> Liu (EPFL), Tajana Rosing (University of California San Diego), and Shimeng
+> Yu (Georgia Institute of Technology).
+> "HAVEN: High-Bandwidth Flash Augmented Vector Engine for Large-Scale
+> Approximate Nearest-Neighbor Search Acceleration." arXiv:2603.01175v1
+> [cs.AR], submitted 2026-03-01, v1 only.
+
+- The PDF title page writes `ENgine` with a capital N, to bring out the
+  acronym HAVEN.
+- No DOI and no journal or conference venue in the arXiv record.
+- Open access: <https://arxiv.org/abs/2603.01175>
+- SHA-256: `a943692fcb8b17b95d1a230ff8ce1936863364642b3429d58078df1ce326c6dd`
+- 8 pages; 1,953,632 bytes.
+- Companion plain text: `hsu2026-haven-hbf-vector-search.txt`, 39,097 bytes.
+  The energy and power passage is at lines 515--545.
+- The first author's surname Hsu was read off the PDF title page, and the file
+  name follows from it.
+- BibTeX key: not yet added to `paper/refs.bib`.
+
+The workload, quoted from the paper: `Retrieval-Augmented Generation (RAG)
+relies on large-scale Approximate Nearest Neighbor Search (ANNS) to retrieve
+semantically relevant context for large language models.` Approximate nearest
+neighbor search finds the stored vectors closest to a query vector without
+guaranteeing that the closest ones are found, in exchange for speed.
+
+What it does: it restructures 3D NAND planes into distributed sub-arrays, models
+them with the 3D-FPIM sub-array model together with NeuroSim, and reports up to
+20x reranking throughput and up to 40x latency improvement on billion-scale
+vector datasets.
+
+Parameters this project can use, all checked against the full text: read energy
+scaled down from a calibration baseline of about 30 pJ/bit for present-day
+devices; a power envelope of 30 W per stack, taken from HBM; a maximum
+bandwidth of 460 GB/s per stack, assumed so that HBM2E infrastructure can be
+reused; and a final configuration of 4 KB pages, 64 blocks per sub-array, and
+256 word-line layers.
+
+**A range attributed to HAVEN that is not in HAVEN.** A figure of "2 to 16
+pJ/bit, from HAVEN" has been passed around inside this project. Searching the
+full text for `pJ` returns exactly one hit, the calibration baseline of about
+30 pJ/bit quoted above. The 2 to 16 range may be the tick labels on the
+vertical axis of Figure 8(b); numbers printed on an axis cannot be pulled out
+by `pdftotext`, so the extracted text cannot confirm or refute that. Until
+someone reads that figure in the PDF, do not cite "2 to 16 pJ/bit" from HAVEN.
+The three numbers above -- about 30 pJ/bit as the calibration baseline, 30 W
+per stack, 460 GB/s per stack -- are the checked ones and are what a citation
+should use.
+
+Two further boundaries:
+
+1. **HAVEN's picture of the inside of an HBF device is its own redesign.** It
+   is a projection built from a sub-array model, not modelled on the OCP
+   specification, and no device was measured.
+2. **HAVEN runs no thermal simulation of its own.** Its thermal discussion
+   cites someone else's analysis of an HBM-GPU module, so it supplies no
+   independent temperature result for HBF.
+
+---
+
+## `nvidia2024-h100-tensor-core-gpu-datasheet.pdf`
+
+The vendor datasheet that supplies the HBM bandwidth figure the prefetch-window
+arithmetic of the background section runs on. It is the only source in this
+directory for a shipping accelerator's memory bandwidth stated by the company
+that builds it.
+
+> "NVIDIA H100 Tensor Core GPU Datasheet", NVIDIA Corporation, document
+> 3440270, September 2024. The imprint on the last page reads
+> "(c) 2024 NVIDIA Corporation and affiliates. All rights reserved. ...
+> 3440270. Sep24"; the PDF's own metadata gives the title above, the author
+> "NVIDIA Corporation", and a creation date of 2024-09-23.
+
+- Source: <https://dam-cdn.nvd.orangelogic.com/AssetLink/u5hh6fv4r7564i4y673484y3m20083nj.pdf>
+  -- fetched this round, HTTP 200, `application/pdf`, 411,990 bytes. That
+  address was not guessed: it was read out of the `sourceUrl` fields of
+  <https://resources.nvidia.com/en-us-gpu-resources/h100-datasheet-24306>
+  (HTTP 200, page title "NVIDIA H100 GPU Datasheet"), which is NVIDIA's own
+  landing page for this datasheet and the address the FlashAccel paper cites
+  for it. The asset link is a content-delivery address and may rotate, which is
+  why the file is stored here; the landing page is the stable entry point and
+  is what `refs.bib` records in its `note` field.
+- SHA-256: `17494a1792c15c55bae2453305e265ad508987b474e9235ecbc6f7c815399b98`.
+- 3 pages, 411,990 bytes.
+- Companion plain text: `nvidia2024-h100-tensor-core-gpu-datasheet.txt`,
+  7,370 bytes.
+
+What this project uses:
+
+1. **One row of one table.** Page 2 carries the specification table. Its
+   "GPU Memory Bandwidth" row reads `3.35TB/s` in the H100 SXM column and
+   `3.9TB/s` in the H100 NVL column; the same table gives `80GB` of GPU memory
+   and a `SXM` form factor for the first column, which is what identifies it as
+   the SXM5 part. In the plain-text extraction the figure is at line 208.
+   Nothing else in the datasheet is used.
+2. **A second, independent confirmation of the same figure.** NVIDIA's own
+   product page <https://www.nvidia.com/en-us/data-center/h100.md> (HTTP 200)
+   carries the same specification table, and its "GPU Memory Bandwidth" row
+   reads `3.35TB/s` in the H100 SXM column.
+
+Boundaries that have to travel with any citation of it:
+
+- It is a marketing datasheet, not a measurement. `3.35TB/s` is the peak
+  bandwidth of the memory interface as specified, not a bandwidth anybody
+  observed on a running workload; measured HBM bandwidth on real kernels falls
+  below it.
+- The datasheet says nothing about the latency of a memory access, so it cannot
+  be used for the latency column of the three-way comparison table.
+- The card the datasheet describes and the card the HBM latency baseline in
+  that table comes from are two different cards. The table's own notes already
+  say so, and that note must stay wherever this figure is quoted.
+
+---
+
+## Not available: the AiF paper, blocked by bot protection
+
+AiF is on-device large language model inference with processing inside the
+flash, the same line of work as `hao2026-nvllm-3d-nand-edge-inference.pdf` and
+`deng2025-kvnand-dram-free-flash-inference.pdf`, and NVLLM cites it as
+reference [20], at lines 824--828 of
+`hao2026-nvllm-3d-nand-edge-inference.txt`. The paper is not in this directory.
+Its citation:
+
+> Jaeyong Lee, Hyeunjoo Kim, and Sanghun Oh (Seoul National University),
+> Myoungjun Chun (Soongsil University), Myungsuk Kim (Kyungpook National
+> University), and Jihong Kim (Seoul National University).
+> "AiF: Accelerating On-Device LLM Inference Using In-Flash Processing."
+> In *ISCA '25*, pages 529--543, 2025.
+> DOI: `10.1145/3695053.3731073`
+
+**Why the full text is missing: bot protection, not a paywall and not a wrong
+address.** Both routes into the ACM Digital Library, the article page and the
+PDF, came back as HTTP 403 from Cloudflare. The same address opens in a browser
+and needs no subscription. Someone has to open it in a browser and save the PDF
+into this directory together with its `.txt` extraction; repeating the fetch
+from the command line will not get past the check.
 
 ---
 

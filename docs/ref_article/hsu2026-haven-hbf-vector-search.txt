@@ -1,0 +1,994 @@
+arXiv:2603.01175v1 [cs.AR] 1 Mar 2026
+
+HAVEN: High-Bandwidth Flash Augmented Vector ENgine for
+Large-Scale Approximate Nearest-Neighbor Search Acceleration
+Po-Kai Hsu∗
+
+Weihong Xu∗
+
+Qunyou Liu
+
+Georgia Institute of Technology
+Atlanta, United States
+pokai.hsu@gatech.edu
+
+Ecole Polytechnique Fédérale de
+Lausanne
+Lausanne, Switzerland
+weihong.xu@epfl.ch
+
+Ecole Polytechnique Fédérale de
+Lausanne
+Lausanne, Switzerland
+qunyou.liu@epfl.ch
+
+Tajana Rosing
+
+Shimeng Yu
+
+University of California, San Diego
+La Jolla, United States
+tajana@ucsd.edu
+
+Georgia Institute of Technology
+Atlanta, United States
+shimeng.yu@ece.gatech.edu
+
+Abstract
+Retrieval-Augmented Generation (RAG) relies on large-scale Approximate Nearest Neighbor Search (ANNS) to retrieve semantically
+relevant context for large language models. Among ANNS methods,
+IVF-PQ offers an attractive balance between memory efficiency and
+search accuracy. However, achieving high recall requires reranking
+which fetches full-precision vectors for reranking, and the billionscale vector databases need to reside in CPU DRAM or SSD due to
+the limited capacity of GPU HBM. This off-GPU data movement
+introduces substantial latency and throughput degradation.
+We propose HAVEN, a GPU architecture augmented with HighBandwidth Flash (HBF) which is a recently introduced die-stacked
+3D NAND technology engineered to deliver terabyte-scale capacity
+and hundreds of GB/s read bandwidth. By integrating HBF and
+near-storage search unit as an on-package complement to HBM,
+HAVEN enables the full-precision vector database to reside entirely
+on-device, eliminating PCIe and DDR bottlenecks during reranking.
+Through detailed modeling of re-architected 3D NAND subarrays, power-constrained HBF bandwidth, and end-to-end IVFPQ pipelines, we demonstrate that HAVEN improves reranking
+throughput by up to 20× and latency up to 40× across billion-scale
+datasets compared to GPU-DRAM and GPU-SSD systems. Our results show that HBF-augmented GPUs enable high-recall retrieval
+at throughput previously achievable only without reranking, offering a promising direction for memory-centric AI accelerators.
+
+Keywords
+High-bandwidth flash, retrieval-augmented generation, approximate nearest-neighbor search, near-storage processing
+
+1
+
+Introduction
+
+Retrieval-Augmented Generation (RAG) has become a core technique for large-scale language models by combining parametric
+generation with non-parametric external knowledge sources. A
+crucial component in RAG is the retrieval module, which searches
+extremely large vector databases to return semantically relevant
+embeddings as illustrated in Figure 1. Approximate nearest neighbor search (ANNS) algorithms are therefore essential for enabling
+low-latency retrieval at billion-scale.
+∗ Equal contribution
+
+Figure 1: Overview of the retrieval-augmented generation
+(RAG) pipeline. Retrieval of the relevant knowledge from vector database relies on approximate nearest neighbor search.
+Among ANNS algorithms, the inverted file with product quantization (IVF-PQ) framework has proven highly effective in balancing
+accuracy, memory footprint, and search efficiency for large-scale
+vector databases [5, 18, 27]. IVF-PQ first partitions the search space
+via coarse quantization and then applies product quantization (PQ)
+to compress the stored vectors. To improve recall, modern IVF-PQ
+implementations perform a reranking stage, where the original fulldimensional vector is fetched and re-ranked [29]. However, this
+reranking step requires access to the uncompressed vector database, whose size often reaches hundreds of gigabytes or more at
+billion-vector scale [27].
+Current GPUs integrate high-bandwidth memory (HBM) within
+the device package, providing exceptional bandwidth but limited
+capacity (typically 80–192 GB per device) [9]. As a result, the full
+IVF-PQ database cannot fit in HBM, forcing systems to store the
+original vectors in host DDR memory or NVMe SSDs. The resulting
+off-GPU data movement introduces orders-of-magnitude higher
+latency and significantly degrades ANNS throughput, particularly
+during the reranking stage.
+To overcome this capacity bottleneck, emerging research and
+industry roadmaps propose High-Bandwidth Flash (HBF), a diestacked NAND flash integrated in a manner analogous to HBM [3].
+HBF can potentially deliver 8–16× higher capacity per stack while
+maintaining hundreds of GB/s read bandwidth through massively
+parallel 3D NAND subarrays. Such characteristics make HBF an
+
+P.-K. Hsu, W. Xu, Q. Liu, T. Rosing, and S. Yu
+
+Listing 1: Query search in IVF-PQ with reranking.
+
+attractive candidate for GPU co-packaged memory in read-intensive
+workloads.
+In this work, we introduce HAVEN, an architecture that replaces
+a portion of HBM capacity with HBF inside the GPU package. On
+top of HBF, we also integrate near-storage search unit to further
+improve the reranking performance. With HAVEN, the complete
+vector database including full-precision vectors required for IVFPQ reranking can be stored and processed on-package, eliminating
+DDR/SSD round-trips and significantly reducing retrieval latency.
+We analyze bandwidth and latency trade-offs, study architectural
+integration constraints, and evaluate the performance impact on
+large-scale ANNS pipelines representative of RAG systems.
+The main contributions of this paper are:
+• We quantify the memory capacity and bandwidth limitations of
+IVF-PQ on current HBM-only GPUs.
+• We propose HAVEN, a hybrid HBM plus HBF GPU memory
+hierarchy with near-storage search unit enabling on-package
+storage and processing of massive vector databases.
+• We model and evaluate IVF-PQ reranking performance on HAVEN,
+demonstrating up to 20× throughput and 40× latency improvements over DDR/SSD-backed systems.
+
+2 Background
+2.1 Approximate Nearest Neighbor Search
+The goal of 𝑘-nearest neighbor (𝑘-NN) search is to retrieve the 𝑘
+points in a dataset X = {𝑥 1, . . . , 𝑥 𝑁 } that are closest to a query
+vector 𝑞 ∈ R𝐷 . The exact search problem can be formulated as
+R = arg min 𝑑𝑖𝑠𝑡 (𝑞, 𝑥), where 𝑑𝑖𝑠𝑡 (·, ·) may be Euclidean disR ⊆ X, | R |=𝑘
+
+tance, cosine similarity, or inner product. A brute-force solution requires O (𝑁 𝐷) comparisons, which becomes impractical for millionor billion-scale datasets. To meet real-time latency requirements,
+modern systems [7, 14] rely on approximate nearest neighbor search
+(ANNS), which returns an approximate neighbor set R̂ while examining only a small subset of the data. The performance of ANNS
+methods is largely determined by the index structure used to narrow the search space. Popular indices include inverted file (IVF)
+systems [7, 22], graph-based methods [14, 26], and hashing-based
+approaches [4], each offering different trade-offs between latency,
+memory, and accuracy.
+
+QPS
+
+QPS
+
+w/o Reranking
+105
+
+104
+103
+102
+0.4
+
+0.6
+0.8
+Recall
+
+SPACEV-1B
+
+104
+103
+
+1.0
+
+BIGANN-1B
+
+0
+
+2
+4
+6
+Latency (ms)
+
+200
+
+4
+8
+
+8
+
+(a)
+
+Raw Data
+
+PQ Index
+
+ID
+
+Query Latency (ms)
+
+300
+Data Size (GB)
+
+Input : Query q , ( Nprobe , Nrerank , k )
+IVF - PQ Index ( coarse_centroids , Nlists , PQ_codebooks )
+# Step 1 Coarse Quantizer Probing
+for each coarse centroid c_j :
+d_j = distance (q , c_j )
+probe_IDs = indices of Nprobe smallest d_j
+# Step 2 IVF - PQ Scan on Probed Lists
+candidates = empty max - heap of size Nrerank
+for each list_id in probe_IDs :
+for each vector code in list [ list_id ]:
+dist = PQ_distance (q , code )
+push ( dist , vector_id ) into candidates
+# Step 3: Rerank on top - k Candidates
+for each ( dist , id ) in candidates :
+dist_exact [ id ] = exact_distance (q , base_vectors [ id ])
+results = sort candidate ids by dist_exact ascending
+return top -k results
+
+with Reranking
+
+105
+
+200
+100
+0
+
+N-1B V-1B 88M
+BIGAN SPACE Wiki(b)
+
+150
+
+16 Rerank
+32 GPU
+
+100
+50
+0
+
+N-1B V-1B 88M
+BIGAN SPACE Wiki(c)
+
+Figure 2: (a) Trade-offs between throughput, recall, and latency with re-rank, (b) Memory consumption breakdown,
+and (c) Query time breakdown.
+IVF-PQ Search. In this work, we focus on the widely used IVF-PQ
+(Inverted File with Product Quantization) indexing technique, offering a good balance of search speed and memory efficiency for
+large-scale ANNS. As illustrated in Figure 1, IVF-PQ integrates naturally with LLM-based RAG pipelines. During offline index building,
+IVF applies 𝑘-means to partition the vector space into 𝑁 list coarse
+clusters, while Product Quantization (PQ) further compresses the
+residual vectors within each cluster into short codes. This combination enables storing billions of vectors in memory while maintaining
+competitive retrieval accuracy. At query time, IVF-PQ performs
+three main steps (Listing 1): 1) coarse quantizer probing, 2) approximate IVF-PQ scan on the selected inverted lists, and 3) reranking
+the top-𝑘 candidates using higher-precision distances.
+Step 1: Coarse Quantizer Probing. Given a query 𝑞, IVF first
+computes its distances to all coarse centroids and selects the 𝑁 probe
+closest ones. Only the corresponding inverted lists are searched,
+reducing the search space dramatically from 𝑁 vectors to a small
+fraction proportional to 𝑁 probe .
+Step 2: IVF-PQ Scan on Probed Lists. Within each probed list,
+vectors are stored as compressed PQ codes. The approximate PQ distance between the query and compressed vectors can be computed
+via a lightweight table-lookup-and-sum procedure. This approximate scanning stage is extremely efficient and provides a coarse
+ranking of candidate neighbors.
+Step 3: Reranking on top-𝑘 Candidates. Since PQ codes introduce quantization error, IVF-PQ reranks the top-𝑘 candidates by
+recomputing distances using full-precision vectors. This reranking
+operates on a small set of 𝑁 rerank vectors and significantly boost
+recall as shown in Figure 2(a), making IVF-PQ both scalable and
+accurate for high-quality retrieval.
+
+2.2
+
+Profiling IVF-PQ-based ANNS
+
+GPUs are widely used for ANNS because of their high bandwidth
+and parallelism, but billion-scale datasets quickly exceed the limited
+
+HAVEN : High-Bandwidth Flash Augmented Vector ENgine for Large-Scale Approximate Nearest-Neighbor Search Acceleration
+
+capacity of GPU’s HBM. As a result, systems typically store only
+the IVF index and PQ codes on the GPU, offloading full-precision
+vectors for reranking to host DRAM or SSD. To quantify the impact of this design, we profile a system that our lab had access to,
+which is equipped with DDR4 memory, NVMe SSD, and an NVIDIA
+A100 GPU, as described in Section 4.1. We observe the following
+limitations:
+Challenge 1: Imbalance between throughput, recall, and latency. Figure 2(a) shows that enabling reranking substantially improves recall but sharply reduces throughput and increases query
+latency. Without reranking, the system achieves higher QPS but suffer degraded recall; with reranking, recall increases but throughput
+collapses by one to two orders of magnitude. This imbalance makes
+it difficult to simultaneously satisfy high-recall and low-latency
+requirements, especially under real-time or batch-processing constraints.
+Challenge 2: Memory footprint challenge. As shown in Figure 2(b), raw vectors consume the overwhelming majority of memory capacity—hundreds of GBs for datasets such as Wiki-88M and
+SIFT-1B. In billion-scale deployments, storing both PQ codes on
+the GPU and raw vectors for reranking on CPU memory or SSD
+greatly inflates total memory demand. Limited GPU memory forces
+frequent data transfers, and DRAM/SSD capacity constraints make
+scaling beyond hundreds of millions of vectors costly or infeasible.
+Challenge 3: Long re-rank latency. As shown in Figure 2(c),
+reranking dominates query time because full-precision vectors must
+be fetched from DRAM or SSD across PCIe, adding substantial latency. This overhead grows at billion scale, especially with larger
+batches. Since raw vectors consume most of the memory footprint
+(Figure 2(b)), they cannot reside on the GPU, making off-device access unavoidable and leaving reranking fundamentally constrained
+by memory capacity and cross-device data movement.
+
+2.3
+
+Novel High-Bandwidth Flash
+
+The bottlenecks described above stem from a fundamental mismatch between the memory requirements of IVF-PQ reranking
+and the limited capacity of on-package HBM. A100-class GPU provides excellent bandwidth but only a few tens of gigabytes of capacity, which is far short of storing PQ codes together with the
+full-precision vectors. Recent development in 3D non-volatile memory have introduced High Bandwidth Flash (HBF) [3], a die-stacked
+NAND architecture designed to resemble HBM in form factor and
+signaling. Unlike SSDs that are optimized for density, HBF exposes
+wide internal parallelism and finer access granularity. Industry projections [3] suggest that HBF can deliver eight to sixteen times
+the capacity of HBM within a similar footprint while sustaining
+hundreds of GB per second of read bandwidth, which is well suited
+for read-intensive vector retrieval workloads.
+HBF-Augmented GPU. When HBF replaces part of the HBM stack
+inside the GPU package, the memory hierarchy gains an on-device,
+high-capacity tier as illustrated in Figure 3. Storing full-precision
+vectors directly in HBF removes the PCIe and DDR bottlenecks that
+dominate reranking. This integration yields three direct benefits: (1)
+lower latency since reranking traffic no longer leaves the package,
+(2) sufficient capacity to store billion-scale raw vectors entirely
+
+Figure 3: Overview of the HBF-augmented GPU. HBF stacks
+replace part of the HBM stacks and are co-packaged with
+GPU through 2.5D interposer.
+3. SSD Reranking
+
+HBM
+
+GPU Die
+
+DRAM
+
+1. Coarse Centroids
+2. Probed List Scan
+
+CPU
+
+SSD
+
+3. DRAM
+Reranking
+
+(a) GPU-DRAM and GPU-SSD Offloading Schemes
+Near-storage Search Unit
+HBF
+HBM
+
+GPU Die
+
+Logic
+
+Rerank
+Rerank
+Queue
+Rerank
+Queue
+Queue
+
+Addr. Gen
+Top-k Unit
+Dist. Comp
+
+1. Coarse Centroids
+2. Probed List Scan
+
+3. Reranking
+
+To
+HBF
+Raw
+Data
+
+Candidate IDs
+
+(b) GPU-HBF Offloading in HAVEN
+
+Figure 4: Dataflow comparison of (a) GPU-DRAM, GPU-SSD,
+and (b) HAVEN’s GPU-HBF offloading schemes.
+on the device, and (3) high reranking bandwidth enabled by the
+extensive parallelism of distributed NAND subarrays.
+Impact on IVF-PQ reranking. With raw vectors kept in-package,
+reranking shifts from a latency-limited stage into a high-throughput
+operation. As a result, high-accuracy reranking becomes feasible
+without the severe throughput collapse seen in CPU backed or SSD
+backed systems. Larger batches become practical as well, enabling
+higher QPS in both real-time and offline RAG pipelines. In summary, HBF shifts the design toward a memory-centric approach
+that expands effective GPU capacity and keeps reranking on the
+device. Building on this opportunity, we propose HAVEN, a hybrid
+HBM plus HBF vector search engine that stores and processes raw
+vectors in HBF while reserving HBM for latency critical PQ operations. The next section describes the overall architecture along with
+the underlying 3D NAND re-architecture and hardware design.
+
+3 Proposed HAVEN Accelerator
+3.1 Architecture Overview
+Dataflow. HAVEN adopts an efficient datapath by co-packaging
+HBF with the GPU die and HBM, as shown in Figure 3. The first two
+IVF-PQ stages (coarse centroid probing and IVF-PQ list scanning)
+remain on the GPU and HBM to preserve low-latency processing,
+while the final storage-intensive reranking stage is offloaded to
+HBF with near-storage processing (NSP). This design significantly
+reduces reranking latency compared to DRAM- or SSD-based systems. Figure 4 highlights the difference: in conventional designs
+
+P.-K. Hsu, W. Xu, Q. Liu, T. Rosing, and S. Yu
+
+(Figure 4(a)), full-precision vectors must be fetched from CPU memory or SSD, incurring costly DDR or PCIe transfers. In contrast,
+HAVEN ’s GPU–HBF dataflow (Figure 4(b)) keeps reranking entirely on-package, eliminating off-chip round-trips and leveraging
+HBF’s high internal bandwidth and parallelism.
+Near-Storage Search Unit. Because reranking has low arithmetic
+intensity, transferring raw vectors from HBF to HBM would introduce unnecessary data movement. To avoid this inefficiency and
+reduce query latency, HAVEN performs reranking directly near HBF
+using a near-storage search unit implemented on the logic die beneath the HBF stack. As shown in Figure 4(b), the unit first receives
+candidate IDs from the GPU and stores them in the Rerank Queue.
+HAVEN includes 32× Rerank Queues, each with a 8 KB buffer capable of storing up to 1,024 32-bit IDs and their distances. Each ID is
+then passed to the Address Generation module, which computes
+the physical address of its corresponding raw vector. The generated
+address is packaged into a read request and issued to HBF. Once the
+full-precision vector is fetched, the Distance Computation Module, equipped with 32 multiply–accumulators (MACs), computes its
+exact distance to the query. Finally, the Top-k Unit, implemented
+with a parallel Bitonic sorter, selects the best-matching candidates.
+These components enable fully on-package reranking, minimizing
+latency and maximizing the bandwidth benefits of HBF.
+
+3.2
+
+Figure 5: 3D NAND re-architecture for HBF. The gigantic 3D
+NAND plane is re-architected to distributed subarrays for
+higher parallelism and higher bandwidth for HBF. The TSV
+occupies the center region.
+
+3D NAND Re-Architecture for HBF
+
+Adapting NAND technology for HBF requires rethinking the structure of commercial 3D NAND. Commercial NAND is engineered primarily for density rather than bandwidth. The performance do not
+match the fine-grained and highly parallel access patterns needed
+for large-scale IVF-PQ reranking. To address this gap, we adopt
+a distributed subarray organization that increases internal parallelism and improves aggregate throughput. This section describes
+the re-architecture process, the subarray modeling framework, and
+the full-stack HBF modeling flow.
+3D NAND Re-Architecture. Conventional 3D NAND is built
+around gigantic monolithic memory planes optimized for density rather than bandwidth. Such large arrays exhibit long bitline
+lengths, high wordline parasitic capacitance, and coarse access
+granularity. However, these characteristics do not align with the
+fine-grained access patterns required for IVF-PQ reranking. To address this mismatch, we move from monolithic planes to distributed
+small subarrays as illustrated in Figure 5 similar to fast NAND approach [1]. This architectural shift shortens local bitlines, reduces
+parasitics, improves access energy, and exposes significantly more
+parallel subarrays.
+Distributed Subarray Modeling. We evaluate the architectural
+tradeoffs of distributing 3D NAND into a large number of small
+subarrays. In this architecture, each subarray operates with its own
+local wordline/bitline drivers and sense-amplifiers, enabling higher
+internal parallelism than conventional NAND organizations. We
+also incorporate heterogeneous integration [21] to further increase
+memory density and improve performance as shown in Figure 6.
+To quantify the implications of this restructuring, we employ
+a distributed 3D NAND subarray modeling framework based on
+3D-FPIM [11] combined with NeuroSim [12] for scaled peripheral
+circuits. This combination enables array-to-die-level projections
+
+Figure 6: Heterogeneous integration for compact 3D NAND
+subarray form factor. CMOS-under-array integrate high voltage circuits including wordline and string select line drivers.
+Low voltage circuit including page buffer and I/O buffer are
+deployed on top advanced CMOS tier in 7nm technology node
+bonded with 3D NAND tier.
+for subarray granularity across parameters such as number of 3D
+layers, page size and block size. The detailed 3D NAND parameters are listed in Table 1. Using this simulation framework, we
+first sweep the number of WL layers in the 3D stack and evaluate
+density scaling trends as shown in Figure 7. The analysis shows
+that achieving 512 GB in an 8-Hi stack [3] requires at least 128 WL
+layers. To maintain design margin for more vector databases and
+align with the state-of-the-art NAND technology roadmaps [8, 19],
+we adopt 256 WL layers as our baseline technology node for all
+subsequent HBF modeling.
+High-Bandwidth Flash Modeling. We integrate the distributed
+subarray model into a full-stack HBF modeling. Following the HBM
+stacking organization, we assume the reasonable TSV pitch for
+microbump of 50 𝜇m [15] and maintain the TSV organization [24]
+and an 8-Hi die-stack configuration [9] in Figure 5 to enable fair
+comparison in capacity, energy, and throughput scaling. Note that
+we align with HBM2E specification integrated in A100 GPU.
+Simulation results based on 3D-FPIM subarray modeling reveal
+the expected overall trend as shown in Figure 8. Larger subarrays
+(i.e., larger page sizes or more blocks per plane) provide higher
+
+HAVEN : High-Bandwidth Flash Augmented Vector ENgine for Large-Scale Approximate Nearest-Neighbor Search Acceleration
+
+Table 1: 3D NAND Subarray Simulation Parameters
+Advanced
+CMOS Tier
+3D NAND
+Physical
+Parameter [11]
+
+CMOS
+under Array
+
+Parameters
+Technology
+VDD1
+VC Hole Diameter
+BL Pitch
+VC Hole Pitch
+No. of WL
+No. of SSL
+No. of Sub Block
+No. of BL
+No. of Block
+No. of Bit
+WL Staircase Pitch
+Technology
+VDD2
+
+Values
+7 nm FinFET Process
+0.7 V
+145 nm
+40 nm
+248 nm
+64/128/196/256
+2
+2
+1/2/4 KB
+64/128/256/512/1024
+1 (SLC)
+725 nm
+22 nm Process
+0.9V
+
+capacity density as in Figure 8(a). However, they also raise read
+energy and read latency as shown in Figures 8(b) and 8(d) due
+to longer intra-array wires and increased 3D structural parasitics.
+Conversely, aggressively shrinking subarrays reduces read energy
+and improves per-access latency but reduces overall capacity.
+For energy consumption, we calibrate read energy using industrygrade 3D NAND data, scaling from the ∼30 pJ/bit read energy reported for contemporary devices [10], and also account for HBM2
+data-movement energy [17]. Across distributed subarray configurations, read energy increases rapidly with larger page sizes or
+higher block counts, eventually becoming a dominant constraint
+on achievable bandwidth.
+Due to fine-grained parallel distributed subarray architecture,
+bandwidth in HBF is fundamentally constrained by power delivery.
+To preserve thermal and package constraints comparable to HBM,
+we adopt an HBM-like 30 W power envelope per stack [25]. Using
+this constraint, we sweep page sizes and block counts to estimate
+sustainable read bandwidth as shown in Figure 8(d). As capacity
+increases from larger pages and more blocks, the power required
+per access grows and eventually limits the effective throughput.
+The resulting bandwidth degradation becomes especially severe
+when block count exceeds 128. To be compatible with HBM2E
+infrastructure, we assume the maximum bandwidth of 460 GB/s
+per stack [23].
+Read latency is also affected as shown in Figure 8(d). As we scale
+subarray dimensions, the array RC delay and page activation time
+increase, leading to latency growth across configurations. Modeling results confirm that both capacity and performance scale in
+opposing directions, and no single design maximizes both.
+Considering these tradeoffs, we select a configuration that provides the needed capacity while preserving bandwidth and keeping
+moderate latency. We select a 4 KB page size, 64 blocks per subarray,
+and 256 WL layers as the baseline HBF configuration for the remainder of our architectural analysis. This configuration provides high
+parallelism, manageable read energy within the 30 W envelope,
+and adequate capacity to store billion-scale vectors on-package for
+IVF-PQ reranking.
+
+4 Evaluation
+4.1 Methodology
+HAVEN and HBF Simulation. We simulate the re-architected 3D
+NAND subarray using 3D-FPIM [11] combining with NeuroSim [12].
+The energy model is calibrated by industry-grade performance [10].
+
+Figure 7: Simulation result of memory density versus number
+of bitline and number of wordline layers.
+
+Figure 8: Simulation results of 8-Hi HBF configurations of
+page size = 1KB, 2KB and 4KB and block size = 64, 128, 256, 512
+and 1024. (a) HBF memory capacity. (b) HBF read energy. (c)
+Power constrained memory bandwidth. (d) HBF read latency.
+The ASIC near-storage search unit is implemented using Verilog
+HDL and synthesized with 22 nm technology node. Search unit
+achieves a clock frequency of 1GHz. Table 2 summarizes the area
+and power results of the near-storage search unit, showing a total
+footprint of 4.11 mm2 and 620.3 mW, with rerank queues dominating area and the Bitonic sorter dominating power.
+Table 2: Area and Power Results of Near-storage Search Unit
+Module
+
+Size
+
+Area (mm2 )
+
+Power (mW)
+
+Rerank Queues
+Distance Computation Module
+Bitonic Sorter
+
+×32
+32× MACs
+256-point
+
+3.84
+0.03
+0.24
+
+122.6
+11.6
+486.1
+
+Total
+
+-
+
+4.11
+
+620.3
+
+Benchmarks. All experiments are conducted on a server equipped
+with an AMD EPYC 7302 16-core CPU, 512 GB DDR4-3200 memory, and a NVIDIA A100 40GB GPU. The system includes an 8 TB
+PCIe 4.0 NVMe SSD, ensuring high-bandwidth storage access for
+
+103
+
+102
+
+102
+
+4
+
+8 16 32
+BIGANN-1B
+
+HBF
+
+DRAM
+
+104
+103
+102
+
+4
+
+8 16 32
+SPACEV-1B
+
+101
+
+4
+
+8 16 32
+Wiki-88M
+
+Query Latency (ms)
+
+Figure 9: Throughput vs. batch size for DRAM, SSD, and HBF.
+
+DRAM
+102
+
+102
+101
+
+101
+
+100
+
+100
+
+4
+
+8 16 32
+BIGANN-1B
+
+SSD
+
+HBF
+
+8 16 32
+SPACEV-1B
+
+100
+
+4
+
+8 16 32
+Wiki-88M
+
+Figure 10: Query latency vs. batch size for DRAM, SSD, and
+HBF.
+large-scale datasets and index files. We build IVF-PQ indexes using
+Faiss [7] with 16-byte PQ codes for all datasets. The cuVS integration [20] is enabled within Faiss, allowing faster query search.
+We compare different designs using throughput (QPS) and query
+latency (ms) under a specific recall @𝑘 = 100.
+Table 3: Statistics of Evaluated Datasets
+Dataset
+BIGANN-1B [6]
+SPACEV-1B [16]
+Wiki-88M [2]
+
+# Vector
+1B
+1B
+88M
+
+# Dim.
+128
+100
+768
+
+# Bit
+8
+8
+32
+
+Raw Size
+119 GB
+93 GB
+252 GB
+
+𝑁 list
+128k
+128k
+16k
+
+Datasets. HAVEN is evaluated on three large-scale vector datasets
+spanning diverse domains. BIGANN-1B [6] and SPACEV-1B [16] are
+two billion-scale datasets with 128-dim and 100-dim embeddings,
+respectively. Wiki-88M [2] provides 88M high-dimensional (768dim) embeddings representative of LLM retrieval workloads. Table 3
+summarizes the key statistics of these datasets.
+
+4.2
+
+Performance Evaluation
+
+We measure the performance by fixing recall at 0.95 for BIGANN-1B
+and SPACEV-1B, and at 0.9 for Wiki-88M.
+Throughput. Figure 9 shows the throughput of DRAM, SSD, and
+HBF across batch sizes. HBF achieves the highest QPS on all datasets
+and scales smoothly with batch size, while DRAM and SSD quickly
+saturate due to data-movement bottlenecks. On BIGANN-1B and
+SPACEV-1B, HBF yields roughly 3–8× higher throughput, and its
+advantage grows to over 20× on the high-dimensional Wiki-88M
+dataset, whose reranking traffic is much larger.
+Latency. Figure 10 reports query latency across batch sizes. HBF
+maintains the lowest latency (around 10 ms), while DRAM and
+especially SSD see steep increases due to off-chip reranking traffic.
+On BIGANN-1B and SPACEV-1B, HBF is 3–6× faster than DRAM
+and over an order of magnitude faster than SSD, with an even larger
+10–40× advantage on the high-dimensional Wiki-88M dataset. By
+
+BIGANN-1B SPACEV-1B
+103
+
+103
+102
+0.6
+
+0.7
+
+0.8 0.9
+Recall
+
+1.0
+
+Wiki-88M
+
+102
+101
+100
+10 1
+0.6
+
+0.7
+
+0.8 0.9
+Recall
+
+1.0
+
+Figure 11: Throughput and recall tradeoffs.
+
+10000
+
+101
+
+HBF
+
+104
+
+103
+102
+
+4
+
+SSD
+
+Query Latency (ms)
+
+103
+
+SSD
+
+Throughput (QPS)
+
+DRAM
+104
+
+104
+
+Throughput (QPS)
+
+Throughput (QPS)
+
+P.-K. Hsu, W. Xu, Q. Liu, T. Rosing, and S. Yu
+
+BIGANN-1B
+SPACEV-1B
+
+Wiki-88M
+128L
+
+192L
+256L
+
+8000
+6000
+4000
+2000
+400
+
+600 800 1000 1200 1400
+Total Capacity 8H (GB)
+
+Figure 12: Throughput and capacity tradeoffs.
+Table 4: Comparison of ANNS Accelerators on the BillionScale BIGANN-1B Dataset at Recall ≥ 0.9
+Design
+
+ANNA [13]
+
+Platform
+Index Algorithm
+Dataset
+
+ASIC
+IVF-PQ
+
+Throughput (QPS)
+
+4.2k
+(4.7 × )
+
+SmartANNS [28]
+Near DRAM
+Graph
+BIGANN-1B
+0.9k
+(1.0 × )
+
+HAVEN (This Work)
+GPU-HBF
+IVF-PQ
+8.1k
+(9.0 × )
+
+keeping raw vectors on-package, HBF avoids PCIe and NVMe transfers, keeping reranking latency tightly bounded.
+Throughput and Recall Tradeoffs. Figure 11 shows the throughput–recall tradeoff. HBF consistently Pareto-dominates DRAM and
+SSD, sustaining higher QPS at a given recall and higher recall at a
+given QPS. The advantage widens at high recall (≥ 0.9), where growing reranking traffic causes sharp throughput and latency penalties
+for DRAM/SSD due to off-chip transfers. By keeping reranking
+on-package, HBF maintains both high throughput and low latency
+even as recall targets tighten.
+Design Space Exploration. To validate our chosen subarray configuration (4 KB pages, 64 blocks, 256 layers), we perform a design
+space exploration. Figure 12 shows the capacity–throughput tradeoff: increasing WL layers, block count, or page size improves capacity but reduces throughput. Among the 128L/192L/256L options,
+256L provides the best balance, and the 4 KB–64-block configuration offers the strongest overall capacity–performance tradeoff,
+confirming our baseline choice.
+Comparison with Other Accelerators. Table 4 compares HAVEN
+with two state-of-the-art ANNS accelerators on the billion-scale
+BIGANN-1B dataset at recall ≥ 0.9. ANNA [13] is an IVF-PQ ASIC
+accelerator using 16-byte PQ codes, while SmartANNS [28] is a
+graph-based system deployed on 12 SmartSSDs. HAVEN achieves
+8.1k QPS, delivering 1.9× and 9× speedups over ANNA and SmartANNS, respectively. By integrating on-package HBF storage with
+
+HAVEN : High-Bandwidth Flash Augmented Vector ENgine for Large-Scale Approximate Nearest-Neighbor Search Acceleration
+
+near-storage reranking, HAVEN exploits high internal bandwidth
+and eliminates off-chip bottlenecks, enabling it to outperform both
+specialized ASIC solutions and SmartSSD-based accelerators.
+
+5
+
+Conclusion
+
+This work presents HAVEN, a GPU memory architecture augmented with HBF to overcome the capacity and data-movement bottlenecks of IVF-PQ reranking in large-scale ANNS. By re-architecting
+3D NAND into distributed subarrays for HBF and integrating HBF
+within the GPU package, HAVEN enables terabyte-scale on-package
+vector storage with high read bandwidth. A near-storage search
+unit further executes reranking inside the HBF stack, eliminating
+off-chip transfers.
+Our evaluation shows that HAVEN improves reranking throughput by up to 20× and latency up to 40× across billion-scale datasets
+compared to GPU-DRAM and GPU-SSD systems, highlighting HBF
+as a promising direction for future memory-centric AI accelerators
+targeting retrieval-heavy workloads such as RAG.
+
+P.-K. Hsu, W. Xu, Q. Liu, T. Rosing, and S. Yu
+
+References
+[1] Wooseong Cheong, Chanho Yoon, Seonghoon Woo, Kyuwook Han, Daehyun
+Kim, Chulseung Lee, Youra Choi, Shine Kim, Dongku Kang, Geunyeong Yu,
+Jaehong Kim, Jaechun Park, Ki-Whan Song, Ki-Tae Park, Sangyeun Cho, Hwaseok
+Oh, Daniel D.G. Lee, Jin-Hyeok Choi, and Jaeheon Jeong. 2018. A flash memory
+controller for 15𝜇 s ultra-low-latency SSD using high-speed 3D NAND flash with
+3us read time. In 2018 IEEE International Solid-State Circuits Conference - (ISSCC).
+338–340. doi:10.1109/ISSCC.2018.8310322
+[2] NVIDIA Corporation. 2024. Wiki-all Dataset — cuVS Bench. https://docs.rapids.
+ai/api/cuvs/stable/cuvs_bench/wiki_all_dataset/. Accessed: 2025-11.
+[3] SanDisk Corporation. 2025. Memory-Centric AI: SanDisk’s High Bandwidth
+Flash Will Redefine AI Infrastructure. https://www.sandisk.com/company/
+newsroom/blogs/2025/memory-centric-ai-sandisks-high-bandwidth-flashwill-redefine-ai-infrastructure. Industry blog; accessed 2025-09.
+[4] Kaiming He et al. 2013. K-means hashing: An affinity-preserving quantization
+method for learning binary compact codes. In IEEE Conference on Computer
+Vision and Pattern Recognition. 2938–2945.
+[5] Hervé Jégou, Matthijs Douze, and Cordelia Schmid. 2011. Product quantization
+for nearest neighbor search. IEEE Transactions on Pattern Analysis and Machine
+Intelligence 33, 1 (2011), 117–128.
+[6] Hervé Jégou, Romain Tavenard, Matthijs Douze, and Laurent Amsaleg. 2011.
+Searching in one billion vectors: re-rank with source coding. In IEEE International
+Conference on Acoustics, Speech and Signal Processing (ICASSP). 861–864.
+[7] Jeff Johnson, Matthijs Douze, and Hervé Jégou. 2019. Billion-scale similarity
+search with GPUs. IEEE Transactions on Big Data 7, 3 (2019), 535–547.
+[8] Wontaeck Jung, Hyunggon Kim, Do-Bin Kim, Tae-Hyun Kim, Namhee Lee,
+Dongjin Shin, Minyoung Kim, Youngsik Rho, Hun-Jong Lee, Yujin Hyun, Jaeyoung Park, Taekyung Kim, Hwiwon Kim, Gyeongwon Lee, Jisang Lee, Joonsuc
+Jang, Jungmin Park, Sion Kim, Su Chang Jeon, Suyong Kim, Jung-Ho Song, MinSeok Kim, Taesung Lee, Byung-Kwan Chun, Tongsung Kim, Young Gyu Lee,
+Hokil Lee, Soowoong Lee, Hwaseok Lee, Dooho Cho, Sang-Wan Nam, Yeomyung
+Kim, Kunyong Yoon, Yoonjae Lee, Sunghoon Kim, Jungseok Hwang, Raehyun
+Song, Hyunsik Jang, Jaeick Son, Hongsoo Jeon, Myunghun Lee, Mookyung
+Lee, Kisung Kim, Eungsuk Lee, Myeongwoo Lee, Sungkyu Jo, Chan Ho Kim,
+Jong Chul Park, Kyunghwa Yun, Soonock Seol, Ji-Ho Cho, Seungjae Lee, Jin-Yub
+Lee, and Sung-Hoi Hur. 2024. 13.3 A 280-Layer 1Tb 4b/cell 3D-NAND Flash
+Memory with a 28.5Gb/mm2 Areal Density and a 3.2GB/s High-Speed IO Rate. In
+2024 IEEE International Solid-State Circuits Conference (ISSCC), Vol. 67. 236–237.
+doi:10.1109/ISSCC49657.2024.10454343
+[9] Kwiwook Kim and Myeong-jae Park. 2024. Present and Future, Challenges of
+High Bandwith Memory (HBM). In 2024 IEEE International Memory Workshop
+(IMW). 1–4. doi:10.1109/IMW59701.2024.10536972
+[10] Kana Kudo, Yuta Aiba, Kazuma Hasegawa, Xu Li, Yuichi Sano, and Tomoya
+Sanuki. 2025. Energy-Efficient In-Memory Computing using 3D Flash Memory
+with Sequential Multi-Block Activation and Current Control Cell (CC cell). In
+2025 IEEE International Memory Workshop (IMW). 1–4. doi:10.1109/IMW61990.
+2025.11026979
+[11] Hunjun Lee, Minseop Kim, Dongmoon Min, Joonsung Kim, Jongwon Back,
+Honam Yoo, Jong-Ho Lee, and Jangwoo Kim. 2022. 3D-FPIM: An Extreme
+Energy-Efficient DNN Acceleration System Using 3D NAND Flash-Based In-Situ
+PIM Unit. In 2022 55th IEEE/ACM International Symposium on Microarchitecture
+(MICRO). 1359–1376. doi:10.1109/MICRO56248.2022.00093
+[12] Junmo Lee, Anni Lu, Wantong Li, and Shimeng Yu. 2024. NeuroSim V1.4: Extending Technology Support for Digital Compute-in-Memory Toward 1nm Node.
+IEEE Transactions on Circuits and Systems I: Regular Papers 71, 4 (2024), 1733–1744.
+doi:10.1109/TCSI.2024.3362822
+[13] Yejin Lee, Hyunji Choi, Sunhong Min, Hyunseung Lee, Sangwon Beak, Dawoon
+Jeong, Jae W. Lee, and Tae Jun Ham. 2022. ANNA: Specialized Architecture
+for Approximate Nearest Neighbor Search. In IEEE International Symposium on
+High-Performance Computer Architecture (HPCA). 169–183.
+[14] Yu A Malkov et al. 2018. Efficient and robust approximate nearest neighbor
+search using hierarchical navigable small world graphs. IEEE Transactions on
+Pattern Analysis and Machine Intelligence 42, 4 (2018), 824–836.
+[15] Erik Jan Marinissen, Bart De Wachter, Ken Smith, Jörg Kiesewetter, Mottaqiallah
+Taouil, and Said Hamdioui. 2014. Direct probing on large-array fine-pitch microbumps of a wide-I/O logic-memory interface. In 2014 International Test Conference.
+1–10. doi:10.1109/TEST.2014.7035314
+[16] Microsoft Corporation. 2023. SPACEV1B: A Billion-Scale Vector Dataset
+for Text Descriptors. https://github.com/microsoft/SPTAG/tree/main/datasets/
+SPACEV1B. Accessed: 2025-11.
+[17] Mike O’Connor, Niladrish Chatterjee, Donghyundo Lee, Jesse Wilson, Anurag
+Agrawal, and Stephen W. Keckler. 2017. Fine-Grained DRAM: Energy-Efficient
+DRAM for Extreme Bandwidth Systems. In Proceedings of the 50th Annual
+IEEE/ACM International Symposium on Microarchitecture (MICRO-50). 41–54.
+doi:10.1109/MICRO.2017.8668654
+[18] Zhimin Pan, Yang Liu, Jingxi Lin, et al. 2020. Product quantization with dual
+codebooks for approximate nearest neighbor search. Neural Networks 129 (2020),
+
+212–223.
+[19] Sang-Soo Park, Jae-Doeg Lyu, Myungjun Kim, Jaeyun Lee, Younsun Song, ChungHo Yu, Hirano Makoto, Yongseok Kwon, Jong-Hoon Park, Ho-Joon Kim, Daein
+Lee, Donghyun Seo, Byungrok Go, Seoyoon Jeon, Yoonjee Kim, Doo-Hyun Kim,
+Youngmin Jo, Hyunjun Yoon, Junehong Park, Inmo Kim, Sunghoon Kim, Hokil
+Lee, Je-Hyeon Yu, Sang-Lok Kim, Hwan-Seok Ku, Jungmin Seo, Jindo Byun,
+Seung-Hyeon Yun, Kyoungtae Kang, Seung-Beom Kim, Yohan Lee, Yongkyu Lee,
+Kyunghwa Kang, Han-Jun Lee, Younghwan Ryu, Hyundo Kim, Wontae Kim,
+Hyeongdo Choi, Juho Jeon, Ansoo Park, Raehyun Song, Jae-Hwan Kim, JungSoo Kim, Hwa-Seok Lee, Moo-Kyung Lee, Jae-Ick Son, Jiho Cho, Moosung Kim,
+Jae-Woo Im, Jongmin Park, Hyuckjoon Kwon, Youngdon Choi, Chiweon Yoon,
+Seungjae Lee, Kiwhan Song, and Sung-Hoi Hur. 2025. 30.1 A 28Gb/mm24XXLayer 1Tb 3b/Cell WF-Bonding 3D-NAND Flash with 5.6Gb/s/Pin IOs. In 2025
+IEEE International Solid-State Circuits Conference (ISSCC), Vol. 68. 1–3. doi:10.
+1109/ISSCC49661.2025.10904543
+[20] RAPIDS AI Team. 2025. cuVS: Vector Search and Clustering on the GPU. https:
+//github.com/rapidsai/cuvs. Accessed: 2025-11.
+[21] Wonbo Shim and Shimeng Yu. 2021. Technological Design of 3D NAND-Based
+Compute-in-Memory Architecture for GB-Scale Deep Neural Network. IEEE
+Electron Device Letters 42, 2 (2021), 160–163. doi:10.1109/LED.2020.3048101
+[22] Josef Sivic and Andrew Zisserman. 2003. Video Google: A text retrieval approach
+to object matching in videos. In Computer Vision, IEEE International Conference
+on, Vol. 3. IEEE Computer Society, 1470–1470.
+[23] SK hynix Inc. 2019. SK hynix Develops World’s Fastest High Bandwidth Memory, HBM2E. https://news.skhynix.com/sk-hynix-develops-worlds-fastest-highbandwidth-memory-hbm2e/. Press release, accessed: 2025-10-05.
+[24] SK hynix Inc. 2022. SK hynix at NVIDIA GTC 2022: Demonstrating the World’s
+Fastest DRAM – HBM3. https://news.skhynix.com/sk-hynix-at-nvidia-gtc-2022demonstrating-the-worlds-fastest-dram-hbm3/. Accessed: 2025-09-15.
+[25] Keeyoung Son, Joonsang Park, Seongguk Kim, Boogyo Sim, Keunwoo Kim,
+Seonguk Choi, Hyunsik Kim, and Joungho Kim. 2023. Thermal analysis of high
+bandwidth memory (HBM)-GPU module considering power consumption. In
+IEEE Electrical Design of Advanced Packaging and Systems (EDAPS). 1–3.
+[26] Jayaram Subramanya et al. 2019. Diskann: Fast accurate billion-point nearest
+neighbor search on a single node. Advances in Neural Information Processing
+Systems 32 (2019).
+[27] Bing Tian et al. 2024. Scalable Billion-Point Approximate Nearest Neighbor
+Search. In USENIX Annual Technical Conference (ATC).
+[28] Bing Tian, Haikun Liu, Zhuohui Duan, Xiaofei Liao, Hai Jin, and Yu Zhang. 2024.
+Scalable Billion-Point Approximate Nearest Neighbor Search Using SmartSSDs.
+In USENIX Conference on Usenix Annual Technical Conference (ATC). 1135–1150.
+[29] Jialin Yang et al. 2024. Fast High-Dimensional Approximate Nearest Neighbor
+Search. arXiv preprint arXiv:2411.06158 (2024).
+
+

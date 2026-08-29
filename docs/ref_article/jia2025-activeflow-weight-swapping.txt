@@ -1,0 +1,2439 @@
+arXiv:2504.08378v2 [cs.LG] 23 Sep 2025
+
+Scaling Up On-Device LLMs via Active-Weight
+Swapping Between DRAM and Flash
+Fucheng Jia∗
+
+Zewen Wu∗
+
+Shiqi Jiang
+
+Central South University
+Microsoft Research
+fuchengjia@csu.edu.cn
+
+Tsinghua University University
+Microsoft Research
+wuzw21@mails.tsinghua.edu.cn
+
+Microsoft Research
+shijiang@microsoft.com
+
+Huiqiang Jiang
+
+Qianxi Zhang
+
+Yuqing Yang
+
+Microsoft Research
+hjiang@microsoft.com
+
+Microsoft Research
+qianxi.zhang@microsoft.com
+
+Microsoft Research
+yuqing.yang@microsoft.com
+
+Yunxin Liu
+
+Ju Ren
+
+Deyu Zhang
+
+Institute for AI Industry Research
+(AIR), Tsinghua University
+liuyunxin@air.tsinghua.edu.cn
+
+Tsinghua University
+renju@tsinghua.edu.cn
+
+Central South University
+zdy876@csu.edu.cn
+
+Ting Cao†
+Institute for AI Industry Research
+(AIR), Tsinghua University
+tingcao@mail.tsinghua.edu.cn
+
+Abstract
+
+1
+
+Large language models (LLMs) are increasingly being deployed on mobile devices, but the limited DRAM capacity
+constrains the deployable model size. This paper introduces
+ActiveFlow, the first LLM inference framework that can
+achieve adaptive DRAM usage for modern LLMs (not ReLUbased), enabling the scaling up of deployable model sizes. The
+framework is based on the novel concept of active weight
+DRAM-flash swapping and incorporates three novel techniques: (1) Cross-layer active weights preloading. It uses
+the activations from the current layer to predict the active
+weights of several subsequent layers, enabling computation
+and data loading to overlap, as well as facilitating large I/O
+transfers. (2) Sparsity-aware self-distillation. It adjusts the
+active weights to align with the dense-model output distribution, compensating for approximations introduced by
+contextual sparsity. (3) Active weight DRAM-flash swapping pipeline. It orchestrates the DRAM space allocation
+among the hot weight cache, preloaded active weights, and
+computation-involved weights based on available memory.
+Results show ActiveFlow achieves the performance-cost
+Pareto frontier compared to existing efficiency optimization
+methods.
+
+Large language models (LLMs) are increasingly deployed
+on mobile and PC devices as integral system components,
+such as the on-device 3B Apple foundation model for Apple
+iOS [4], the 3.82B Phi Silica for Windows [18], and 3.35B
+Gemini Nano for Google’s Android [26].
+However, further scaling up the on-device LLM size is
+very difficult, with a key constraint of DRAM size. Due to
+power and area constraints, the DRAM size on mobile devices remains limited and difficult to increase, even across
+device upgrades (e.g., both iPhone 15 and iPhone 16 feature
+8 GB DRAM). Furthermore, the available DRAM capacity is
+also determined by the co-active apps and OS processes remaining in DRAM simultaneously. Mobile OS can terminate
+an app under low available DRAM unless the app can reduce
+the memory usage[35].
+Goal. To enable the deployment of larger LLMs, it is essential to realize adaptive DRAM usage for LLM inference.
+That is, the inference process dynamically adapts to different
+available DRAM sizes while maintaining comparable model
+quality and inference speed. Mirroring the OS employs virtual memory to abstract physical limitations, this work aims
+for adaptive DRAM usage that is transparent to the user,
+creating the illusion that the entire model resides in DRAM.
+Adaptive DRAM usage has been previously investigated
+for traditional non-autoregressive DNNs (e.g., CNN and Bert)
+
+∗ Research interns at Microsoft Research.
+† Corresponding author.
+
+Introduction
+
+DB-LLM (Q)
+PB-LLM (Q)
+
+20
+
+CFSP (P)
+RIA (P)
+
+𝒙
+
+SP
+SP+SD (Ours)
+
+10
+0
+
+1
+
+𝑾𝑻
+
+𝒙
+
+9
+
+2
+
+2
+
+8
+
+8
+-2
+
+0
+
+2
+
+4
+
+6
+8
+10
+12
+Weight Memory Cost (GB)
+
+14
+
+1
+
+9
+
+4
+
+-3
+
+7
+
+0
+
+TOP-K
+
+Perplexity
+
+30
+
+𝑾𝑻
+
+9
+0
+8
+-1
+
+3
+
+-2
+
+7
+
+16
+
+SiLU
+
+ReLU
+Predictor
+0
+
+Active Weights (%)
+
+Figure 1: The perplexity versus cost of LLaMA-3-8B
+model. Ours shows the Pareto frontier compared with
+SOTA model compression methods including quantization (Q), pruning (P) and contextual sparsity (SP). Each
+point on the scaling line means a sparsity ratio.
+20
+15
+10
+5
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8 9 10 11 12 13 14 15 16 17 18 19 20
+Decoded Token Ids
+
+Figure 2: The upper bound sparsity of LLaMa-2-70B
+model during decoding.
+through DRAM-Flash swapping [14, 38]. However, the fundamental difference in workload characteristics hinders the
+direct application of these methods to LLMs. Existing techniques rely on the computation-intensive feature of traditional DNNs, so the current operator computation can overlap the loading of the next operator. While this overlap is
+present in the LLM prefilling stage, the significantly more
+time-consuming autoregressive decoding phase is bottlenecked by memory access. Consequently, realizing useroblivious adaptive memory management for LLM inference
+necessitates minimizing Flash data loading to mitigate the
+substantial disparity between memory and Flash bandwidth
+(∼ 5× on mobile phones).
+Fortunately, a unique characteristic of LLMs is contextual
+sparsity, where although the model itself is large, only a small
+subset of weights is actively used per token generation [17],
+which we term as active weights. Our upper-bound analysis
+(Fig. 2) shows that during each inference iteration, only <15%
+weights need to be activated to generate the same token.
+Challenges. This contextual sparsity inspires us explore
+the new opportunity of active weights swapping for adaptive
+memory usage. Unlike traditional per-operator swapping,
+active weight swapping introduces greater challenges: (1)
+How to accurately identify the active weights, given contextual sparsity is highly dynamic, varying cross tokens, layers
+and blocks. Misidentification could degrade model accuracy.
+(2) How to predict the active weights as early as possible,
+
+4
+
+0
+
+7
+
+(a) ReLU-Based Sparsity
+
+-0.2
+
+2.8
+
+-0.2
+
+6.9
+
+(b) Top-K Sparsity
+
+Figure 3: The ReLU-based sparsity and Top-K activation sparsity. We base our system on Top-K sparsity
+due to its broader applicability and higher accuracy.
+allowing for overlapping computation with loading, as well
+as efficient large I/O transfers, both of which are critical for
+performance.
+Several works have explored contextual sparsity[11, 17, 19,
+22–24, 28, 36], but gaps remain in addressing the challenges
+above. Some methods like Deja Vu [17], PowerInfer [23] and
+LLM in a flash [2] use available ReLU-based models to generate zero activations and introduce additional predictors (GB
+memory cost) to forecast these zeros. However, modern LLMs
+used in productions (e.g., LLaMA) rarely use ReLU-based
+architecture due to its inferior accuracy [27] (see Fig.14b).
+There are also works performing continued pre-training to
+transform available models to ReLU or ReLU-variant based,
+such as PowerInfer-2 [36], TurboSparse [24], ProSparse [22],
+and Q-Sparse [28]. These works require training on hundreds of billions of tokens and consume substantial hardware resources. There are also works, such as InfiniGen [12],
+NSA [39], and SeerAttention [9], focusing on KV cache sparsity but not weight sparsity. These methods benefit long
+context scenarios (>32K) which are not the common cases on
+edge. TEAL [15] proposes a training-free, magnitude-based
+sparsity method (see Fig. 3), where only activations above a
+threshold are computed. However, the active weights cannot
+be predicted, but only be identified after the input activation
+is ready. Additionally, the method is empirical, and there is
+no mechanism to compensate for the accuracy loss due to
+the potential misidentification of active weights. Therefore,
+current techniques fall short of achieving adaptive memory
+usage for LLMs.
+Our work. This paper proposes ActiveFlow LLM inference framework. It can realize user-oblivious adaptive
+DRAM usage, in order to scale up the LLM sizes that can
+be deployed on mobile devices. Similar to TEAL, this paper
+utilizes magnitude-based, model-architecture-independent
+activation sparsity, to ensure the framework’s applicability
+
+to modern LLMs. Beyond that, ActiveFlow incorporates
+three novel techniques.
+Firstly, Cross-layer active weight preloading. To address the sequential dependency issue of active weights
+with its input activation in order to enable computation and
+loading overlapping, we propose cross-layer active weight
+preloading. It creatively utilizes the current layer’s activation
+to pre-identify the next n layers’ active weights. It is based
+on the obeservation that due to the widely used residual
+connection, the activation magnitude distribution across layers share significant similarity (>80% shown in Fig. 4a). For
+the active weights that missed by pre-loading, ActiveFlow
+loads on-demand when the actual activation is ready.
+Secondly, Sparsity-aware self-distillation. Even the
+magnitude-based activation sparsity empirically has shown
+the superior quality compared to other sparse methods [16],
+it still introduces an approximation compared to the dense
+model. To compensate for the approximation, we propose
+sparse-aware self-distillation to adjust the active weights
+towards the dense-model output. The distillation improves
+both the sparsity ratio and model accuracy. The technique is
+inspired by and integrated with the quantization-aware self
+distillation [7]. Similar to this work, the self-distillation only
+needs several A100 GPU hours to train. The two methods
+can be used collaboratively for LLM deployment.
+Thirdly, DRAM-flash active weight swapping pipeline.
+The pipeline reorganizes the data layout for the cross-layer
+preloading, and overlaps the active weight loading with the
+current layer computing. It also integrates a contextual hot
+active weight caching policy beyond naive swapping. The
+pipeline orchestrates the space allocations among the cache,
+preloaded active weights, and computation involved weights
+according to available memory.
+We implement ActiveFlow and evaluate it on different
+mobile phones (OnePlus 12, Pixel 6, and Infinix Zero). Results (Fig. 1, more in Sec. 7) show that ActiveFlow achieves
+the inference performance-cost Pareto frontier among
+existing efficiency optimization methods, including state-ofthe-art quantization (DB-LLM [6] and PB-LLM [20]), pruning
+(CPSP [32] and RIA [37]), and contextual sparsity (TEAL [15]),
+demonstrating its practical value. Particularly, under the
+same model quality and speed, ActiveFlow reduces the
+DRAM usage by up to 40% for LLaMA 7B compared to
+llama.cpp. Under the same sparsity ratio, ActiveFlow can
+reduce memory by 2× compared to TEAL. ActiveFlow is
+the first to successfully deploy the original Mixtural-8x7B
+4bit model [10] (no ReLU introduced) on a mid-range pixel-6
+phone, achieveing 1.8 tokens/s with 2.9 GB memory cost.
+To summarize, the contributions of this paper are:
+• We propose ActiveFlow, the first LLM inference system to enable user-oblivious adaptive DRAM usage
+
+through active weight swapping for modern general
+LLMs without ReLU dependency.
+• We propose the cross-layer active weights preloading
+to allow computation/loading overlapping and large
+I/O transfer.
+• We propose sparsity-aware self distillation to compensate the approximation introduced by sparsity.
+• We implement the end-to-end ActiveFlow. Results
+show it achieves the inference quality-cost Pareto
+frontier among existing optimization methods.
+
+2 Motivation and Background
+2.1 Upper Bound Analysis of Contextual
+Sparsity in LLMs
+A specific feature of LLMs is contextual sparsity [11, 17, 19,
+23, 24, 28, 36], which means a small, context-dependent subset of total weights, that can generate the same output as the
+full model. We term this small subset of weights as active
+weight. Compared to the static sparsity from model pruning [8, 25], contextual sparsity dynamically selects different
+active weights for computation during each token generation, preserving the model’s overall capacity and adaptability.
+Contextual sparsity has also been empirically demonstrated
+to be compatible with model quantization [28].
+Since our techniques will be based on contextual sparsity,
+we first analyze the upper bound of this sparsity. We use a
+Llama-2-70B model to evaluate the amount of active weights
+required to generate the same token with full weights during
+the decoding process. The evaluation is conducted by incrementally removing unimportant weights for each decoded
+token by 1%. The important scores of weights are calculated
+by 𝑆𝑖 𝑗 = |𝑊𝑖 𝑗 | · |𝑋 𝑗 | , where𝑊𝑖 𝑗 is an element of weight matrix
+and 𝑋 𝑗 is an element of the input activation vector. As shown
+in Fig. 2, the results indicate that most tokens require less
+than 5% of the weights, with the maximum active weight
+being only 15%. This high level of sparsity shows a great
+potential for reduced inference cost.
+Although the above results are promising, it is challenging
+to identify the active weights during inference, unless the
+weights are loaded and computed with activations. Consequently, some works [17, 22] rely on ReLU-generated sparsity and propose extra predictors to estimate the sparsity,
+as illustrated in Fig. 3(a). These predictors are trained with
+calibration datasets, loaded into memory, and executed before performing per-layer LLM computations. However, the
+deployment cost of predictors is significant because (1) the
+datasets may not be suitable for real user data, (2) predictors
+require additional memory (at the GB level), and (3) they
+introduce extra computational overhead.
+More recent works [16, 28] propose magnitude-based activation sparsity, as shown in Fig. 3(b). We term this sparsity
+
+0.6
+
+0.4
+
+0.4
+
+0.2
+
+Cosine Similarity
+Top-K Precision
+0
+
+5
+
+10
+
+15
+20
+Layer Ids
+
+25
+
+30
+
+Value
+
+0.014
+
+0.012
+−0.500
+−1.000
+−1.500
+0
+
+1000
+2000
+3000
+Weight Channel Ids
+
+SiLU
+WDOWN
+
+WUP
+
+FF(X)
+
+FFN
+
+Figure 5: The simplified transformer layer structure of
+an LLM model. Residual connections pass the input of
+a block directly to output.
+
+Activated Probility
+
+0.016
+
+−2.000
+
+FA(X)
+
+WGATE
+
+0.0
+
+Act. Before LayerNorm
+Act. After LayerNorm
+Average Weights
+
+0.500
+0.018
+
+WV
+
+WO
+
+0.2
+
+2.000
+1.000
+
+WK
+
+Attention
+
+(a)
+1.500
+
+WQ
+
+FFN Residual XF
+
+LayerNorm
+
+0.8
+
+0.6
+
+0.0
+
+X
+
+Top-K Precision
+
+Cosine Similarity
+
+0.8
+
+LayerNorm
+
+1.0
+
+Softmax
+
+Attention Residual XA
+
+1.0
+
+4000
+
+(b)
+
+Figure 4: The cross-layer input activation similarity
+of a LLaMA-2-7B model. (a) The attention input cosine similarity and Top-K precision. (b) The value of
+activation before/after LayerNorm layer and average
+weights.
+as Top-K sparsity following [28]. Only the activation elements with a magnitude above a threshold will be computed
+for each operator. Top-K sparsity demonstrates obvious advantages: 1) compatibility to modern non-ReLU LLMs; 2)
+applicability to all linear transformation operators rather
+than just FFN blocks; 3) no extra predictors needed.
+These advantages motivate us to identify active weights
+for swapping based on Top-K activation sparsity.
+
+2.2 Observation: Similarities in Cross-Layer
+Activations
+A key observation of this paper is that the input activations
+of the attention and MLP blocks in LLMs exhibit high
+
+1.25
+Task
+
+1.00
+
+Sequence
+
+0.75
+0.50
+0.25
+
+0
+
+500 1000 1500 2000 2500 3000 3500 4000
+Channel Index
+
+Figure 6: The selection probability of active weights in
+attention Q/K/V operators of Llama-2-7B model (under
+50% contextual sparsity). Context level shows higher
+selection probability than task level. We only show the
+active weight with probability > 0.7.
+cross-layer similarity. Fig. 4a uses the input activation
+of the attention block as an example to show the cosine
+similarity and Top-K sparsity precision in each consecutive
+two layers in a Llama-2-7B model. Starting from the 3rd
+layer, the attention Q, K, V, and FFN gate and up operators
+exhibit over 95% similarity. Consequently, the Top-K sparsity
+precision for these operators exceeds 80% cross layers.
+The similarity is primarily due to the significant contribution of the residuals to the input activations. Fig. 5 shows a
+simplified transformer layer structure. The input activations
+are composed of the sum of two elements: the output activation of the previous block 𝐹 (𝑋 ) and the residual 𝑋 . The
+cross-layer similarity is because the residual values 𝑋 are
+larger than the output activation values 𝐹 (𝑋 ). This difference in values arises from (1) the LayerNorm layer in the
+attention and MLP blocks, and (2) the weights magnitudes.
+As shown in Fig. 4b, the LayerNorm reduces the activation
+magnitude by 50%. Additionally, the weight magnitude is
+smaller than the activation magnitude, resulting in a smaller
+calculation output.
+The cross-layer input similarity motivates us for crosslayer preloading, which uses current layer’s activation to
+identify following layers’ active weights.
+
+UFS 3.1
+
+UFS 2.2
+
+0
+
+Pre-Loading
+
+WV
+
+48 16
+
+32
+
+64
+IO Chunk Size (KB)
+
+WQ
+...
+
+WO
+
+WV
+
+WK
+
+Act.
+
+WK
+
+Act.
+
+...
+
+Act.
+
+WQ
+WO
+
+Act.
+
+WK
+
+Act.
+
+WQ
+
+2000
+
+WO
+
+...
+
+WV
+
+128
+
+Observation: Contextual Hot Active
+Weights During Decoding
+
+This section investigates the presence of hot active weights,
+i.e., the weights that are frequently selected across inference iterations during decoding. This investigation aims to
+identify opportunities for caching and more intelligent swapping strategies. Our observation is that contextual active
+weights exhibit high temporal locality across inference
+iterations during decoding, suggesting that caching hot
+active weights for higher cache hit rates.
+As shown in Fig. 6, we conducted two levels of active
+weight selection frequency analysis: task level and context
+level. The task level counts the frequency with which weight
+channels are selected during the decoding process for all
+input contexts across a dataset (WikiText-2). In contrast,
+the context level counts the frequency of weight selection
+specifically for the decoding process of a given input context.
+Results show that hot weight selection probabilities on the
+context level exceeds 0.7, while the task level exceeds 0.5.
+The difference demonstrates the potentially improved cache
+hit and reduced loading cost by implementing a contextual
+cache management policy.
+
+3
+
+Layer Group N+1
+
+4000
+
+Figure 7: The flash read throughput of various IO
+chunk sizes on three devices with difference UFS capabilities.
+
+2.3
+
+Layer Group N
+
+Act.
+
+Flash Read
+Throughput (MB/s)
+
+On-Demand Loading
+
+UFS 4.0
+
+Cross-layer Active Weight Preloading
+
+To realize adaptive DRAM usage, two critical challenges for
+performance is: (1) whether the weight loading and computation can be overlapped to hide the flash loading overhead;
+(2) whether the I/O transfer can fully utilize the flash bandwidth. As shown in Fig. 7, the flash read throughput varies
+greatly with the chunk size of each I/O transfer. To achieve
+the peak flash throughput, the chunk size has to >64 KB.
+However, active weight from Top-K activation sparsity is in
+channel granularity, e.g., 4KB (see Fig. 3), and naive loading
+of the each active weight channel from flash can reduce the
+throughput from GB/s to MB/s.
+However, current works including PowerInfer [23, 36],
+LLM in Flash [2] and Ripple [31] only partially alleviated the
+problem. To enlarge the chunk size, they cluster co-active
+
+Figure 8: Cross-layer active weight pre-loading. While
+the computing of current layer, the active weights of all
+the operators in the next N layers (layer group) will be
+preloaded based on the current activation. The missed
+active weights during preloading will be on-demand
+loaded after its actual activation is ready.
+Layer
+N
+
+Layer
+N+1
+
+Layer
+N+2
+
+Layer
+N+3
+
+WQ
+
+WQ
+
+WQ
+
+WQ
+
+WK
+
+WK
+
+WK
+
+WK
+
+WK
+
+WV
+
+WV
+
+WV
+
+WV
+
+WV
+
+Layer Group
+
+WQ
+
+Reorder
+
+WO
+
+WO
+
+WO
+
+WO
+
+WO
+
+WGATE
+
+WGATE
+
+WGATE
+
+WGATE
+
+WGATE
+
+WUP
+
+WUP
+
+WUP
+
+WUP
+
+WUP
+
+WDOWN
+
+WDOWN
+
+WDOWN
+
+WDOWN
+
+WDOWN
+
+𝑀𝑖𝑛𝑅𝑒𝑎𝑑𝐶ℎ𝑢𝑛𝑘𝑆𝑖𝑧𝑒 = 𝐶ℎ𝑎𝑛𝑛𝑒𝑙𝑆𝑖𝑧𝑒
+
+𝑀𝑖𝑛𝑅𝑒𝑎𝑑𝐶ℎ𝑢𝑛𝑘𝑆𝑖𝑧𝑒 = 𝐶ℎ𝑎𝑛𝑛𝑒𝑙𝑆𝑖𝑧𝑒 × 4
+
+Figure 9: The reordered weights in a 4-layers group.
+The weight layout now is in the order of weight channel, layer, and operator type. By multi-layer weight reordering, the minimal loading chunk size is increased
+to improve the loading efficiency.
+weight channels within the same block, and overlap each
+cluster loading and computation.
+Our technique. To overcome the challenges, based on
+our key observation that cross-layer activations exhibit significant similarity, we propose the cross-layer active weight
+preloading. As shown in Fig. 8, while the computing of current layer, the next N layers’ active weights will be preloaded
+to DRAM simultaneously. We term these N layers as a layer
+group for preloading. The N is set based on the available
+DRAM, and the computing latency (N=4 can fully overlap
+the loading and computing in our evaluation). The preloading will include the active weights from all the operators
+in both Attention and FFN blocks. Different activations correspond to different parts of the weights being loaded. For
+example, Q, K, and V activations are only used to load 𝑊𝑞 ,
+𝑊𝑘 , and 𝑊𝑣 , respectively.
+Since cross-layer activation similarity is not 100%, preloading can only load a portion of the necessary weights in
+advance. Any remaining weights that were not correctly preloaded are fetched through on-demand loading. This only
+takes ∼ 5% of the total active weights.
+
+Table 1: The symbols of our system cost model.
+
+Loading
+
+𝑳𝑵
+𝑲
+
+𝑳𝑵
+𝑸
+
+𝑵
+Computing 𝑻𝑸𝑲𝑽
+
+𝑳𝑵
+𝑽
+
+𝑳𝑵
+𝑶
+
+𝑷𝑳𝑵+𝟏
+𝑸𝑲𝑽
+𝑪𝑵
+𝑲
+
+𝑪𝑵
+𝑸
+
+𝑪𝑵
+𝑽
+
+𝑻𝑵
+𝑶
+
+𝑷𝑳𝑵+𝟏
+𝑶
+𝑪𝑵
+𝑶
+Time
+
+Figure 10: The computing-loading overlap pipeline for
+LLM inference in an attention block after warming up.
+Processors
+
+DRAM
+
+Sync.
+Load Thread
+
+Flash
+
+LLM Layer
+Group 0
+
+Description
+
+𝑠𝑝
+ℎ𝑟
+𝑠𝑖
+
+sparsity of LLM
+average hit rate of weight cache
+average similarity of cross-layer group
+
+𝐵𝑊𝑚𝑒𝑚
+𝐵𝑊 𝑓𝑠𝑚𝑎𝑙𝑙
+𝑙𝑎𝑠ℎ
+
+bandwidth of memory
+bandwidth of small chunk reading from flash
+
+𝑙𝑎𝑟𝑔𝑒
+
+𝐵𝑊 𝑓 𝑙𝑎𝑠ℎ
+
+bandwidth of large chunk reading from flash
+
+𝑆𝑚
+𝑆𝑙
+𝑁
+
+Size of LLM
+Size of a LLM layer
+Layer number of a cross-layer group
+
+𝑀
+𝑀𝑚𝑎𝑥
+𝑀𝑐𝑙
+𝑀𝑐𝑎𝑐ℎ𝑒
+𝑀𝑘𝑣
+
+Memory cost of pipeline
+Memory budget
+Memory of a cross-layer group
+Memory of weight cache
+Memory of KV cache
+
+𝑇𝑑𝑒𝑐𝑜𝑑𝑒
+𝑇𝑙𝑜𝑎𝑑
+𝑇𝑐𝑜𝑚𝑝
+𝑇𝑜𝑣𝑒𝑟𝑙𝑎𝑝
+𝑇𝑜𝑛𝑙𝑜𝑎𝑑
+𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑
+
+Decoding time of a token
+Loading time of a cross-layer group
+Computing time of a cross-layer group
+Overleaping time of two cross-layer groups
+On-demand loading time of a cross-layer groups
+Preloading time of a cross-layer groups
+
+Compute Threads
+
+Dynamic LLM
+Weight Cache
+
+On-Demand
+Loading
+
+Symbols
+
+LLM Layer
+Group
+
+Cross-Layer
+Preloading
+
+LLM Layer
+Group 1
+
+LLM Layer
+Group 2
+
+LLM Layer
+Group 3
+
+Figure 11: The weight layout and flow of ActiveFlow.
+
+Data layout. To facilitate the cross-layer preloading,
+the weight layout in flash is reordered, to break the tensor and layer boundary. As shown in Fig. 9 (left), the normal LLM weight layout is to arrange each weight tensor
+sequentially for all the operators within each layer. It is
+The overlapped LLM execution pipeline follows two key
+inefficient for channel-wise active weight loading. Our apprinciples: (1) Maximize the overlap between loading and
+proach reorders the weight channels within a preloading
+computing to minimize idle time (bubbles) to fully utilize the
+layer group according to the order of the channel ID, layer
+memory bandwidth and computing power simultaneously.
+ID, and operator type. For example, 𝑊𝑞 weight layout in
+(2) Maximize the cache hit rate on the sequence level. The
+the layer group is [𝐶ℎ 0𝑙𝑎𝑦𝑒𝑟 𝑁 , 𝐶ℎ 0𝑙𝑎𝑦𝑒𝑟 𝑁 +1 , 𝐶ℎ 0𝑙𝑎𝑦𝑒𝑟 𝑁 +2 ,
+challenge is how to accurately estimate the impact of system
+𝐶ℎ 0𝑙𝑎𝑦𝑒𝑟 𝑁 +3 , 𝐶ℎ 1𝑙𝑎𝑦𝑒𝑟 𝑁 , 𝐶ℎ 1𝑙𝑎𝑦𝑒𝑟 𝑁 +1 , 𝐶ℎ 1𝑙𝑎𝑦𝑒𝑟 𝑁 +2 , 𝐶ℎ 1𝑙𝑎𝑦𝑒𝑟 𝑁 +3 ,
+parameters, such as sparsity, memory cost and cache size on
+..]. This reordering enables pre-loading multiple layers’ weights
+the accuracy and latency of model inference.
+for the same channel in a single read operation, significantly
+increasing the loading chunk size and improving loading
+4.1 Elastic and Optimized LLM Execution
+efficiency.
+The goal of this technique is to determine the optimal system
+parameters, including LLM sparsity, layer number of a cross4 Active Weight Swapping Pipeline
+layer group, and cache size, for a given mobile device (i.e.,
+Building on the proposed cross-layer-group LLM weight loadwith specific computational power and memory budget) and
+ing and reordering techniques, we design a LLM computinga given LLM. The objective is to minimize system latency
+loading overlapping execution pipeline as shown in Fig. 10.
+while respecting the memory constraint.
+The pipeline consists of four main operations: (1) ComputThere is tradeoff between LLM sparsity, layer number of a
+ing (C) – Performs the required computations. (2) Top-K (T)
+cross-layer group and cache size on the inference metrics in
+– Extracts the Top-K mask from activations to determine
+terms of both latency and accuracy. Optimizing one metric
+the indices of the activated weight channels. (3) On-demand
+could worsen another. To capture this, we define the followloading (L) – Loads weights for the current layer group. (4)
+ing problem, with the memory cost as a hard constraint and
+Preloading (PL) – Preloads weights for the next layer group.
+the objective to minimize the decode latency. The related
+Fig. 11 demonstrates the weight layout and flow with the
+symbols are listed in Table 1.
+pipeline. The whole model resides in the flash with the crosslayer group layout. The current active weights, as well as
+𝑀𝑖𝑛𝑖𝑚𝑖𝑧𝑒 𝑇𝑑𝑒𝑐𝑜𝑑𝑒 = 𝑇𝑙𝑜𝑎𝑑 + 𝑇𝑜𝑣𝑒𝑟𝑙𝑎𝑝 + 𝑇𝑐𝑜𝑚𝑝
+(1)
+the pre-loaded and cached weights store in the DRAM. The
+𝑀
+≤
+𝑀
+(2)
+𝑚𝑎𝑥
+computation and loading are concurrently executed.
+
+The decode latency consists of three components: the
+first cross-layer-group loading time 𝑇𝑙𝑜𝑎𝑑 , the cross-layergroup overlapping time 𝑇𝑜𝑣𝑒𝑟𝑙𝑎𝑝 , and the final cross-layergroup computing time 𝑇𝑙𝑜𝑎𝑑 , as in Eq. 1. The loading time
+𝑇𝑙𝑜𝑎𝑑 is the weights missed in the cache divided by the flash
+loading bandwidth as 𝐵𝑊 𝑓𝑠𝑚𝑎𝑙𝑙
+, as in Eq. 3. The final cross𝑙𝑎𝑠ℎ
+layer-group computing time 𝑇𝑐𝑜𝑚𝑝 is the group memory size
+𝑀𝑐𝑙 divided by the memory bandwidth 𝐵𝑊𝑚𝑒𝑚 , as in Eq. 4.
+Furthermore, the overlapping time consists of two parts, i.e,
+the on-demand loading time 𝑇𝑙𝑜𝑎𝑑 and preloading latency
+𝑚𝑎𝑥 (𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 ,𝑇𝑐𝑜𝑚𝑝 ), as in Eq. 5. We load the weights that
+are dissimilar across layers but not present in the cache, with
+latency 𝑇𝑙𝑜𝑎𝑑 , as in Eq. 6. These weights typically have small
+chunk sizes, leading to lower bandwidth 𝐵𝑊 𝑓𝑠𝑚𝑎𝑙𝑙
+. Preloading,
+𝑙𝑎𝑠ℎ
+on the other hand, loads weights at the cross-layer-group
+level, fetching only the cache-miss weights (Eq. 7). Since
+the chunk size in this stage is relatively large, the reading
+𝑙𝑎𝑟𝑔𝑒
+efficiency is significantly higher with bandwidth 𝐵𝑊 𝑓 𝑙𝑎𝑠ℎ .
+𝑇𝑙𝑜𝑎𝑑 =
+
+𝑀𝑐𝑙 · (1 − ℎ𝑟 )
+𝐵𝑊 𝑓𝑠𝑚𝑎𝑙𝑙
+𝑙𝑎𝑠ℎ
+
+𝑀𝑐𝑙
+𝐵𝑊𝑚𝑒𝑚
+𝑇𝑜𝑣𝑒𝑟𝑙𝑎𝑝 = 𝑇𝑜𝑛𝑙𝑜𝑎𝑑 + 𝑚𝑎𝑥 (𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 ,𝑇𝑐𝑜𝑚𝑝 )
+𝑇𝑐𝑜𝑚𝑝 =
+
+𝑇𝑜𝑛𝑙𝑜𝑎𝑑 =
+𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 =
+
+𝑆𝑙 · (1 − 𝑠𝑝) · (1 − ℎ𝑟 ) · (1 − 𝑠𝑖)
+𝐵𝑊 𝑓𝑠𝑚𝑎𝑙𝑙
+𝑙𝑎𝑠ℎ
+𝑀𝑐𝑙 · (1 − ℎ𝑟 )
+𝑙𝑎𝑟𝑔𝑒
+
+(3)
+(4)
+(5)
+(6)
+(7)
+
+𝐵𝑊 𝑓 𝑙𝑎𝑠ℎ
+The memory cost also consists of three components: crosslayer group memory 𝑀𝑐𝑙 , weight cache memory 𝑀𝑐𝑎𝑐ℎ𝑒 , and
+KV cache memory 𝑀𝑘𝑣 (Eq. 8). For the KV cache, we only
+consider the fixed-size case. Therefore, only the first two
+components will dynamically influence the memory cost.
+The cross-layer group memory is the size of active weights,
+as in Eq. 9.
+𝑀 = 𝑀𝑐𝑙 + 𝑀𝑐𝑎𝑐ℎ𝑒 + 𝑀𝑘𝑣
+
+(8)
+
+𝑀𝑐𝑙 = 𝑆𝑙 · (1 − 𝑠𝑝) · 𝑁
+
+(9)
+
+Preload-and-computation-balanced cross-layer group
+search. We determine the parameters (𝑠𝑝, 𝑆𝑐𝑙 , and 𝑀𝑐𝑎𝑐ℎ𝑒 )
+in a greedy manner, as follows. First, since LLM accuracy
+is only related to LLM sparsity, we set LLM sparsity by
+𝑠𝑝 = 1 − (𝑀𝑚𝑎𝑥 /𝑆𝑚 ) to ensure the highest accuracy. Second, minimize the decode time recursively. We increase layer
+number of cross-layer group 𝐿 in a step by step manner. This
+brings lower 𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 . In case 𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 ≤ 𝑇𝑐𝑜𝑚𝑝 , then stop. Furthermore, if the 𝑇𝑝𝑟𝑒𝑙𝑜𝑎𝑑 decrement is less than a threshold,
+then stop.
+
+Initial
+
+Token 0
+
+Activated Index
+Activated
+Frequency
+Cached Index
+
+Token 1
+4
+
+6
+
+7
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+0
+
+1
+
+1
+
+0
+
+0
+
+1
+
+0
+
+1
+
+0
+
+2
+
+1
+
+0
+
+0
+
+2
+
+0
+
+2
+
+1
+
+0
+
+2
+
+3
+
+5
+
+0
+
+1
+
+4
+
+6
+
+0
+
+7
+
+4
+
+6
+
+0
+
+1
+
+4
+
+6
+
+𝑯𝒊𝒕𝑹𝒂𝒕𝒊𝒐 = 𝟐𝟓%
+
+0
+
+𝑯𝒊𝒕𝑹𝒂𝒕𝒊𝒐 = 𝟕𝟓%
+
+Figure 12: An example of dynamic weights caching
+during LLM decoding. There are 8 channels in a weight
+but only half of channels are cached in memory.
+This approach ensures near-full memory utilization, minimal latency, and high accuracy. In case that the memory budget changes in online phase, we tune cache size to maintain
+well overlap between computation and flash read operations.
+
+4.2
+
+Dynamic LLM Weight Caching
+
+To further reduce the number of loaded weights, we design
+the dynamic LLM weight caching based on observations of
+hot weights, as illustrated in Fig. 12. To maximize the cache
+hit rate, we track the frequency statistics of activation and
+evict the least-used weights in online phase.
+To manage weight eviction, we maintain independent
+counters for the weights of each layer, ensuring a balanced
+cache size across all weights. If a newly activated channel
+has a higher count than the least-used channel in the cache,
+we evict the least-used channel. Fig. 12 illustrates an example
+of our dynamic cache mechanism. For a given sequence, we
+begin by initializing the usage count of all channels to zero.
+For the first token, channel index 0 is present in the cache,
+while channel indices 1, 4, and 6 need to be loaded from
+flash storage, resulting in a hit ratio of 25%. For the second
+token, channel indices 0, 4, and 6 hit in the cache, while only
+channel index 7 needs to be fetched from flash. Since channel
+index 1 has the lowest frequency, we replace it with channel
+index 7, improving the hit ratio to 75%.
+
+5
+
+Self-Distillation for Top-K Sparse LLM
+
+Even with superior quality compared to other sparsity techniques, Top-K activation sparsity still introduces an approximation in active weight selection, especially in high sparsity.
+Traditional methods such as supervised fine-tuning often fail
+to recover the performance of the model under high sparsity,
+as they cannot effectively capture nuanced weight distributions and activation patterns caused by sparsity, leading
+to a degradation of precision. To address this, we propose
+Top-K sparsity-aware self-distillation, an extension of
+quantization and fine-tuning pipelines. It preserves the efficiency benefits of sparsity while substantially reducing
+computational overhead and enhancing both accuracy and
+generalization. In practice, it improves performance with
+
+only a few to tens of GPU hours on a few thousand samples,
+and generalizes effectively across different sparsity levels.
+Self distillation. As shown in Fig. 13, we maintain the outputs of the dense (teacher) and sparse (student) models, using
+the soft output distribution of the dense model as supervision.
+This allows the sparse student to capture richer correlations
+than hard labels and preserve fine-grained distributional details, which is crucial to compensate for information loss
+induced by Top-K activation sparsity.
+KL loss. We adopt the Kullback-Leibler Divergence
+(KLD) loss to measure the discrepancy between the student
+and teacher distributions:
+∑︁
+𝑃𝑇 (𝑖)
+DKL (𝑃𝑇 ∥ 𝑃𝑆 ) =
+𝑃𝑇 (𝑖) log
+(10)
+𝑃𝑆 (𝑖)
+𝑖
+Minimizing DKL encourages the sparse model to closely
+mimic the dense teacher’s distribution, preserving essential weight correlations and improving performance under
+high sparsity. Our framework is also orthogonal to quantization, as the KL-based distillation loss depends only on the
+output distribution and thus remains fully compatible with
+QAT, making it complementary to quantization errors and
+enabling additional efficiency gains with minimal accuracy
+loss.
+Gradient STE. Gradient vanishing is a common issue
+when fine-tuning activation-sparse models, as the sparsity
+mask sets many elements to zero, preventing gradients from
+being properly propagated and slowing or even blocking
+convergence. To mitigate this, we employ gradient StraightThrough Estimation (STE), which replaces the gradient
+of the masking operation with an identity function during
+backpropagation:
+
+Model Input
+…
+Weight Input
+Top-K Mask
+
+Weight
+
+Weight Output
+
+…
+Straight Through
+Gradient Output
+Weight
+Gradient
+Gradient Input
+
+…
+
+SD Loss (KLD)
+
+Model Output
+
+Teacher Output
+
+(a) Forward
+
+(b) Backward
+
+Figure 13: The forward and backward of selfdistillation between teacher and student.
+in reconstructing critical features, enabling direct inference
+across other sparsity levels without additional fine-tuning.
+This robustness naturally extends with increasing activation
+budget: model leverages the richer signals without retraining, achieving near-lossless performance over a wide sparsity
+range. We refer to this property as one-distill-all-scale; as
+Table 3 shows, PPL error remains within 1% even when training and inference sparsity differ by up to ±15%.
+By eliminating the need for repeated training at each sparsity level, this approach greatly reduces overall cost while
+ensuring consistent accuracy and efficiency in sparse LLM
+deployment.
+
+forward: 𝑦 = Mask(𝑥)
+(11)
+𝜕𝑦
+=𝐼
+(12)
+backward:
+𝜕𝑥
+This allows gradients to flow as if the mask contains nonzero values, ensuring sufficient update signals even under
+6 Implementation
+high sparsity. Consequently, STE accelerates convergence,
+enhances training robustness, and helps the model preserve
+ActiveFlow is built on llama.cpp, a widely-used LLM incritical weight distributions and activation patterns.
+ference framework for mobile devices. The whole model is
+Inherent adaptability. A key advantage of our self-distillation stored in flash and only active weight, cached weight, and
+framework is its inherent adaptability across sparsity levels.
+preloaded weight are in DRAM. This paper is based on the
+In conventional fine-tuning or distillation pipelines, modCPU backend of llama.cpp. The big cores execute computaels at different sparsity ratios typically require separate traintions and the little cores execute data loading concurrently.
+ing processes, which is both time-consuming and computaSince decoding speed is memory bandwidth bound, and motionally expensive.
+bile devices use a unified DRAM among all processors, we
+In contrast, our method requires only a single distillation
+believe implementing ActiveFlow on different processors
+at a fix sparsity level, where the student is forced to mainshould have similar results. Past work [30, 34] have also
+tain performance under extreme information constraints.
+demonstrated the superior performance of CPU over NPU
+The distilled model not only captures the dense teacher’s
+for decoding on devices. We thus choose CPU in this paper
+distributional characteristics but also develops robustness
+for implementing convenience.
+
+Flash loading. To implement cross-layer-group LLM weight
+loading, we modify the way weight tensors are stored in the
+GGUF format. Specifically, we save each operator’s weights
+as fundamental tensors organized in a cross-layer-group
+manner. We utilize IO uring, a low-overhead asynchronous
+I/O mechanism, to read the weights efficiently. In particular,
+we use the io_uring_prep_read and io_uring_submit functions to asynchronously request reads for active weights.
+After submitting all read requests, we synchronize the I/O
+operations using the io_uring_wait_cqe function. When reading active weights, we sparsely load different channels into
+a dense buffer, which helps optimize memory buffer layout
+for better compactness. Additionally, to ensure compatibility
+with quantization, we apply a transpose operation to the
+weights. This allows for complete retrieval of the necessary
+scaling factors when reading channels, thereby facilitating
+the quantization.
+Swapping pipeline. To implement the active weight
+swapping pipeline, we first create a dedicated weight loading
+thread using the ggml_thread_create function. This thread
+is bound to a little core of the CPU via the sched_setaffinity
+function to optimize resource utilization. Synchronization
+between the weight loading thread and the main computing thread is achieved through atomic semaphores. We use
+atomic_load_explicit and atomic_store_explicit to manage a
+request signal and a complete signal that facilitates communication between the two threads. The signals operate at
+the cross-layer-group granularity, ensuring proper execution
+order between computing and weight loading operations.
+Caching. Additionally, we implement the dynamic LLM
+weight caching, where caching is managed separately for
+each weight tensor. We use a hash table-based approach to
+efficiently query cached weight channels and dynamically
+track their activation frequency during decoding. When loading a new channel, we replace the least frequently activated
+channel, updating its index pointer in the hash table accordingly. Furthermore, we develop a kernel for generating active
+channel indices. This kernel maintains activation thresholds
+corresponding to different LLM sparsity levels. Before each
+activation step, it determines whether a channel should be
+activated based on the appropriate threshold.
+Self-distillation. In order to implement the sparsity-aware
+self-distillation, we develop a plug-and-play sparse module in
+BitDistiller [7], an open-source framework for quantizationaware LLM distillation. Specially, we insert an activation
+sparsity module before each LLM weight computation. This
+module preloads a sparsity threshold for the activations and
+generates a Top-K mask at inference time by comparing the
+activations against the threshold. During backpropagation,
+we incorporate a gradient STE layer for each LLM weight.
+In addition, we implement the KLD loss function. In our
+self-distillation experiments, we use a sub-dataset from C4
+
+dataset, with each epoch containing approximately 50K data
+samples (10B tokens). Full self-distillation comprises two
+epochs, with a learning rate of 1 × 10−6 and 4-bit quantization. On 4×80G-A100, it takes approximately 10 hours for an
+LLM.
+Overall, ActiveFlow comprises 3762 new lines of C++
+code and thousands lines of Python code.
+
+7
+
+Evaluation
+
+We evaluate ActiveFlow on both end-to-end and technique
+performance, compared to several baselines. The evaluation
+setup is as follows:
+
+7.1
+
+Evaluation setup
+
+Hardware devices. As shown in Table 2, we evaluate ActiveFlow on three mobile devices, covering a range from
+high-end to low-end. For clarity, we label the three devices
+as Device 1, Device 2, and Device 3.
+Models. To assess end-to-end performance, we test popular LLMs, including the Llama and Mixtral series, with model
+sizes ranging from 7B to 56B parameters. All LLMs undergo
+4-bit quantization using Q4_0, a widely used technique that
+has minimal impact on accuracy. For the technique evaluation, we extract and use eight layers from the original LLM.
+Baselines. We compare ActiveFlow against llama.cpp in
+terms of decoding speed and memory usage. For perplexity
+and accuracy evaluation, we use the original LLM, ProSparse,
+and TEAL as baselines. ProSparse and TEAL represent stateof-the-art ReLU-sparse and Top-K-sparse LLMs, respectively.
+Measurement. Our evaluation focuses on decoding speed,
+perplexity, accuracy, latency, hit rate, memory cost, power,
+and energy consumption. We use the clock_gettime function
+to record start and end timestamps, computing latency as
+the difference between them. We measure the total number
+of decoded tokens and the total decoding time, calculating
+speed as 𝑁𝑡𝑜𝑘𝑒𝑛𝑠 /𝐿𝑎𝑡𝑒𝑛𝑐𝑦. We use lm-eval-harness, a widely
+used LLM evaluation framework, to measure perplexity on
+the WikiText-2 dataset and accuracy on five downstream
+tasks: 5-shot MMLU, 5-shot GSM8K, 25-shot ARC Challenge,
+25-shot ARC Easy, and 0-shot PIQA. We track cache hits
+and misses, computing the hit rate as 𝑁ℎ𝑖𝑡 /(𝑁ℎ𝑖𝑡 + 𝑁𝑚𝑖𝑠𝑠 ).
+We analyze memory cost using the Android Studio Profiler.
+We obtaine current and voltage values by reading system
+files (voltage_now and current_now) to calculate power consumption. These values are collected every 0.5 seconds on
+average, and we use the decoding latency to compute the
+overall energy consumption.
+
+Table 2: The hardware devices for evaluation.
+Device
+
+CPU
+
+Memory
+
+Flash (MaxBW)
+
+OnePlus 12
+Pixel 6
+Infinix ZERO 30
+
+X4+A720+A520
+X1+A76+A55
+A76+A55
+
+16GB
+8GB
+8GB
+
+UFS 4.0 (5.8 GB/s)
+UFS 3.1 (4.2 GB/s)
+UFS 2.2 (3.6 GB/s)
+
+30
+Ours (Dev. 1)
+Ours (Dev. 2)
+Ours (Dev. 3)
+
+llama.cpp (Dev. 1)
+llama.cpp (Dev. 2)
+llama.cpp (Dev. 3)
+
+0
+
+2
+3
+(a) LLaMA-2-7B
+
+4
+
+5
+0
+
+1
+
+2
+3
+(a) LLaMA-2-7B
+Ours
+
+20
+
+2
+3
+4
+(b) LLaMA-3-8B
+
+10
+
+3.0
+3.5
+4.0
+(c) Mixtral-8x7B
+Memory Cost (GB)
+
+TEAL (70%)
+
+2
+4
+(b) LLaMA-3-8B
+
+20
+
+2
+0
+2.5
+
+4
+
+TEAL (60%)
+TEAL (50%)
+OriginLLM
+
+10
+0
+
+1
+
+TEAL (70%)
+TEAL (60%)
+TEAL (50%)
+OriginLLM
+
+30
+Perplexity
+
+Decoding Speed (Token/Sec)
+
+1
+
+Ours
+
+10
+
+5
+0
+
+ProSparse
+
+20
+
+4.5
+
+Ours
+
+OriginLLM
+
+0
+
+10
+20
+(c) Mixtral-8x7B
+Memory Cost (GB)
+
+(a)
+
+(b)
+
+Figure 14: The end-to-end decoding speed, perplexity
+and memory cost of three LLMs compared with baselines on various devices. Each point represents a sparsity ratio: from left to right 0.8, 0.7, 0.6, 0.5. Since decoding is memory bound, latency increases with less
+sparsity and more memory cost.
+
+7.2
+
+End-to-end performance
+
+Decoding speed. We first evaluate the decoding speed of
+different LLMs across various devices under different memory cost conditions as illustrated in Fig. 14a. For Device 2
+and Device 3, using the LLaMA-2-7B model, we achieved the
+same performance as the full-weight memory setting while
+reducing memory cost by 40%. When reducing memory cost
+by 75%, our method achieved a 1.9× and 1.5× speedup compared to the full-weight in-memory setting on Device 2 and
+Device 3, respectively. The speedup is primarily due to our
+computing-loading pipeline, which enables higher decoding
+speed even under lower memory cost constraints. However,
+on Device 1, when using 60% of the memory cost, our performance dropped by 54% compared to the full-weight memory setting. This is because the CPU compute bandwidth
+of Device 1 is significantly higher than its flash read bandwidth, making the pipeline constrained by flash bandwidth.
+Nonetheless, at 75% memory cost, our method was able to
+achieve a decoding speed of 5.9 tokens per second.
+
+For the Mixtral model, we successfully enable decoding
+under 6GB of memory. When the memory cost was 4.3GB,
+the decoding speed on Device 1, Device 2, and Device 3 was
+1.3, 1.0, and 0.4 tokens per second, respectively. As the memory cost was reduced to 2.9GB, the performance improved to
+2.3, 1.8, and 0.8 tokens per second, achieving a 1.8× to 2.0×
+speedup across the three devices.
+Perplexity and Downstream tasks. Our method demonstrates that large language models can maintain low perplexity under significantly reduced memory costs, e.g., achieving performance comparable to the full-weight setting for
+LLaMA-2-7B and LLaMA-3-8B at only 60% memory usage in
+Fig. 14b, and matching the Mixtral-8x7B baseline (24.6GB)
+with just 4.4GB. While perplexity increases under more aggressive sparsity, our self-distillation strategy effectively alleviates performance degradation, enabling consistent improvements over TEAL across five downstream tasks, with
+gains up to 10.98% at 70% sparsity and average improvements
+ranging from 2.64% to 10.21% across sparsity levels in Table 4.
+ablation study for self-distillation. To validate the effectiveness of each component in our framework, we conducted ablation studies focusing on the gradient straightthrough estimator (STE) and self-distillation techniques. We
+carried out experiments on the Llama-3-8B model, comparing performance under different configurations, including:
+1. removing STE; 2. replacing self-distillation with full finetuning. As shown in Table 5, our framework’s components
+improve model performance across different sparsity levels.
+different models for self-distillation. We evaluated the
+proposed self-distillation framework across diverse model
+architectures and visualized the results in equivalent memory–performance plots. The method demonstrates strong
+generality: from standard 7B models to highly compressed
+Qwen2.5-0.5B and sparse MoE architectures, it consistently
+delivers significant sparsity-driven performance gains. Unlike conventional compression, our approach ensures predictable accuracy loss while achieving strict acceleration.
+As illustrated in Figure 15, our results consistently lie on
+the Pareto frontier of equivalent memory and performance,
+underscoring the framework’s adaptability for practical deployment.
+
+7.3
+
+Technique breakdown
+
+To validate the effectiveness of our system’s techniques, we
+conduct ablation studies and standalone tests for each component, evaluating their impact on decoding speed, perplexity,
+and hit rate.
+Cross-layer-group pipeline. First, we examine the effect of the cross-layer-group pipeline on decoding speed, as
+shown in Fig. 16. We used a 60% sparsity LLaMA-2-7B model
+and tested it across three devices. Our baseline consisted of
+
+50%
+
+60%
+
+70%
+
+80%
+
+TOP-K
+Ours
+Ours distill on 50%
+Ours distill on 60%
+Ours distill on 70%
+Ours distill on 80%
+
+6.6836
+—
+—
+—
+—
+—
+
+8.1950
+7.4510
+7.4510
+7.4636
+7.8163
+9.3462
+
+10.0121
+8.3216
+8.5625
+8.3216
+8.4440
+9.8854
+
+15.9046
+10.2442
+11.8981
+10.8789
+10.2442
+11.1767
+
+96.3015
+16.1081
+41.5303
+27.2720
+19.6981
+16.1081
+
+20
+15
+10
+
+2.5
+2.0
+
+Dev. 2
+
+Dev. 3
+
+100
+Pre-Load
+Load
+Load+Compute
+
+1.5
+1.0
+0.5
+0.0
+0.0
+
+5
+
+0.2
+0.4
+0.6
+Cosine Similarity
+
+60
+
+2
+
+4
+
+6
+
+8
+
+10
+
+Equivalent Memory (B)
+
+12
+
+14
+
+Method
+
+PPL
+
+MMLU
+
+GSM8K
+
+ARC-C
+
+ARC-Easy
+
+PIQA
+
+Origin (0%)
+
+6.0874
+
+65.16%
+
+50.87%
+
+54.95%
+
+83.96%
+
+80.74%
+
+TOP-K (50%)
+TOP-K (60%)
+TOP-K (70%)
+TOP-K (80%)
+
+7.7762
+9.0042
+13.6816
+73.1400
+
+59.21%
+51.67%
+36.53%
+25.69%
+
+32.30%
+17.76%
+3.34%
+1.67%
+
+49.32%
+45.56%
+33.70%
+21.08%
+
+81.40%
+76.98%
+66.60%
+38.89%
+
+78.45%
+76.01%
+70.30%
+56.80%
+
+Ours (50%)
+Ours (60%)
+Ours (70%)
+Ours (80%)
+
+6.9677
+7.7935
+9.5079
+14.6401
+
+61.41%
+57.01%
+47.51%
+29.40%
+
+38.89%
+28.58%
+12.89%
+2.05%
+
+52.13%
+49.57%
+41.64%
+32.34%
+
+81.48%
+79.46%
+74.12%
+62.30%
+
+79.98%
+77.80%
+77.31%
+69.10%
+
+serial computation and memory reads. Experimental results
+show that when the layer number in a cross-layer group is
+set to 1, the average speedup across all three devices is 10%.
+However, increasing the layer number to 4 results in a 120%
+performance improvement, as it enhances the efficiency of
+flash memory reads. Finally, with the addition of Dynamic
+Cache, our method achieves 2×, 2.3×, and 3× speedups over
+the baseline on the three devices, respectively.
+To further understand the benefits and overhead of each
+technique, we conducted individual experiments for detailed
+analysis. As shown in Fig. 17, we evaluated the trade-offs of
+
+30
+20
+
+20
+
+10
+
+0
+0
+1
+2
+4
+Layer# of Cross-Layer Group
+
+(b)
+
+Figure 17: The performance and memory cost of crosslayer loading.
+
+Figure 15: Pareto frontier of actual runtime memory
+vs. PPL for TEAL and our self-distillation.
+
+80
+Hit Rate (%)
+
+Table 4: PPL and Downstream Task Accuracy of LLaMA3-8B.We use TEAL as our baseline TOP-K method.
+
+40
+
+40
+
+(a)
+
+0
+
+50
+Pre-Load
+Load
+Total
+Memory
+
+80
+
+0
+
+0.8
+
+100
+
+75
+70
+
+Hit Rate (%)
+
+0
+
+Dev. 1
+
+Figure 16: The decode speed improvement of LLaMA2-7B model on three devices by each technique.
+
+Latency (ms)
+
+Actual PPL
+
+25
+
+2.5
+0.0
+
+30 Equivalent Memory vs PPL under Different Models and Sparsity
+TEAL - LLaMA-3-8B
+Ours - LLaMA-3-8B
+TEAL - Qwen2.5-0.5B
+Ours - Qwen2.5-0.5B
+TEAL - Mixtral-8x7B
+Ours - Mixtral-8x7B
+
+5.0
+
+Memory Cost (MB)
+
+0%
+
+Base
++CrossLayer (N=1)
++CrossLayer (N=4)
++DynamicCache
+
+7.5
+
+Latency (ms)
+
+Method
+
+10.0
+Decode Speed
+(Token/Sec)
+
+Table 3: End-to-End PPL results under Varying Sparsity
+Levels of Meta-LLaMA-3-8B (distillation under FixedSparsity), using 4-bit quantization.
+
+Context Level
+Task Level
+
+65
+60
+10
+
+90
+80
+70
+60
+50
+
+20
+30
+40
+Token Length
+
+(a)
+
+50
+
+Task Level
+Context Level
+
+BoolQ MMLU PIQA
+WinoGrande
+HellaSwag ARC-Challenge
+
+Downstream Tasks
+
+(b)
+
+Figure 18: The performance of task-level and contextlevel cache.
+cross-layer loading. In Fig. 17(a), we measured the loading
+and preloading overhead for a single layer when the layer
+number in a cross-layer group is set to 1, under different
+cosine similarity values. The results show that when cosine
+similarity is lower than 0.2, the preload latency is lower than
+the on-demand load latency. However, when cosine similarity
+exceeds 0.4, the on-demand load latency becomes lower than
+the preload latency. Since the cosine similarity of most layers
+is above 0.8, our cross-layer approach effectively overlaps
+preloading and computation, optimizing performance.
+In Fig. 17(b), we evaluate an 8-layer decoder of LLaMA-27B, measuring preload, load, and total latency as well as memory cost under different layer numbers in a cross-layer group.
+
+Weights to Load (%)
+
+CacheSize=0%
+CacheSize=25%
+
+60
+40
+20
+0
+
+0
+
+5
+
+10
+
+15
+Layer Ids
+
+Table 5: Llama-3-8B ablation studies
+
+CacheSize=50%
+CacheSize=75%
+
+20
+
+25
+
+30
+
+Figure 19: The rate of attention Q/K/V weights to load
+of LLaMA-2-7B model with 50% sparsity under various
+cache sizes.
+
+Method
+
+PPL
+
+MMLU
+
+GSM8K
+
+ARC-C
+
+ARC-Easy
+
+PIQA
+
+Ours (50%)
+Ours-Distill (50%)
+Ours-STE (50%)
+
+6.9677
+7.4872
+7.0660
+
+61.41%
+59.67%
+60.78%
+
+38.89%
+32.83%
+37.45%
+
+52.13%
+50.94%
+49.91%
+
+81.48%
+81.82%
+81.65%
+
+79.98%
+78.89%
+79.54%
+
+Ours (60%)
+Ours-Distill (60%)
+Ours-STE (60%)
+
+7.7935
+8.2635
+8.1517
+
+57.01%
+55.73%
+55.27%
+
+28.58%
+24.64%
+23.58%
+
+49.57%
+50.68%
+47.78%
+
+79.46%
+80.39%
+78.20%
+
+77.80%
+77.53%
+77.91%
+
+Ours (70%)
+Ours-Distill (70%)
+Ours-STE (70%)
+
+9.5079
+9.9149
+11.1969
+
+47.51%
+45.29%
+37.72%
+
+12.89%
+10.77%
+3.87%
+
+41.64%
+42.41%
+35.92%
+
+74.12%
+73.99%
+68.69%
+
+77.31%
+75.41%
+73.18%
+
+Ours (80%)
+Ours-Distill (80%)
+Ours-STE (80%)
+
+14.6401
+37.7404
+23.2097
+
+29.40%
+24.44%
+25.96%
+
+2.05%
+1.90%
+1.59%
+
+32.34%
+20.14%
+22.87%
+
+62.30%
+36.95%
+52.74%
+
+69.10%
+57.67%
+64.85%
+
+Power (W)
+
+2.50
+
+llama.cpp
+Ours
+
+2.25
+2.00
+1.75
+
+1.0
+1.5
+Memory Cost (GB)
+
+(a)
+
+Energy Consumption
+(J/token)
+
+7.4
+0.8
+0.6
+0.4
+1.0
+1.5
+Memory Cost (GB)
+
+Power and energy consumption
+
+We evaluate power and energy efficiency of ActiveFlow
+on Device 1 (Fig. 20). ActiveFlow reduces average power
+consumption by 27.34% compared to llama.cpp due to reduced computation wait time in the overlap pipeline, and
+further lowers energy per token as memory cost decreases,
+achieving up to 53% reduction at 1.3GB memory usage.
+
+(b)
+
+Figure 20: The power and energy consumption of ActiveFlow and baseline.
+
+8
+
+When the layer number is 0, computation and flash loading
+occur sequentially, leading to high total latency. When the
+layer number increases to 1, computation begins to overlap with preloading, reducing total latency by 52%. As the
+layer number further increases to 4, improved preload efficiency enables a 4.1× speedup compared to the size 0 setting.
+However, increasing the layer number also leads to higher
+memory cost, introducing additional overhead. Overall, increasing the layer number in a cross-layer group effectively
+enhances decoding performance, while the additional memory overhead remains relatively low.
+Contextual caching policy. Fig. 18 compares contextlevel and task-level caches. On BoolQ, when token length=10,
+the context-level cache achieves a 77% hit rate, 13% higher
+than task-level. As length increases to 40, the hit rate slightly
+drops to 74% but still remains 10% higher. Across downstream
+tasks (Fig. 18b), task-level hit rate varies between 54–74%,
+while context-level consistently adapts, yielding an average
+12% improvement.
+Cache efficiency. As shown in Fig. 19, enlarging cache
+size significantly reduces flash access. With 50% cache, flash
+operations shrink to 18% of weights, giving a 5.2× reduction
+in memory access compared to full loading. Larger cache
+further improves hit rate but also increases memory footprint; therefore, we adjust cache size dynamically based on
+available device memory.
+
+Sparsity in LLMs. Sparsity in LLMs has been the focus of
+many research efforts. Mirzadeh et al. [19] propose replacing
+the ReLU activation function in LLMs to reduce computation
+and weight transfer. HiRE [11] introduces high-recall approximate Top-K estimation. Prosparse [22] leverages the sparsity
+of ReLU and gated branches in FFNs to predict model sparsity. Q-Sparse [29] trains sparse LLMs from scratch, while
+TEAL [15] applies magnitude-based sparsity without retraining. However, these methods either depend on ReLU-based
+architectures or lack mechanisms to recover accuracy under
+high sparsity. InfiniGen[13], FlexGen [21] and related work
+primarily focus on KV cache optimization, KV cache dominants the LLM memory usage for long context scenarios
+(>32K tokens). while we target weight memory optimization:
+usually determined by LLM’s weights.
+Efficient LLM inference system. Several system-level
+efforts focus on exploiting sparsity for efficient inference.
+DejaVu [17] predicts contextual sparsity with lightweight
+algorithms, Alizadeh et al. [3] optimize inference on limitedmemory devices, and PowerInfer [23] (and its extension
+PowerInfer-2) design CPU–GPU hybrid engines. These works
+primarily target ReLU-based models and FFN layers, often
+relying on heavy predictors (GB-level memory) to skip zero
+activations. Yet modern LLMs such as LLaMA and Mixtral
+adopt non-ReLU activations for accuracy [27], limiting the
+applicability of these methods. LLM-in-Flash [1] streams
+weights from flash with fine-grained prefetching to reduce
+
+Related Works
+
+DRAM usage, but its efficiency is limited by flash bandwidth
+and latency, especially for compute-intensive layers.
+Our distinction.ActiveFlow eliminates the ReLU dependency and predictor overhead by targeting all weights
+(Attention and FFN) in modern non-ReLU LLMs. It targets all
+weights (both Attention and FFN) and eliminates the need for
+predictors. It introduces (1) cross-layer active weight preloading, generalizing cross-layer similarity, and (2) sparsity-aware
+self-distillation to recover accuracy under high sparsity. Combined with an LFU-based cache driven by activation statistics, our approach consistently achieves higher hit rates (e.g.,
+>70% vs. ∼55%) and ensures strict memory budgets, enabling
+reliable edge deployment.
+Static pruning techniques. Static pruning and quantization are established methods for compressing large language models (e.g., CFSP [33], DB-LLM [6], and RIA [5]).
+Although effective at reducing model size and computation,
+these static approaches require offline processing of model
+weights, which limits flexibility for dynamic tasks. Our system, ActiveFlow, is not only compatible with these static
+techniques but also uniquely supports dynamic processing
+to address this challenge.
+
+9
+
+Conclusion
+
+This paper proposes the first LLM inference system on mobile
+devices that supports adaptive DRAM usage, in order to scale
+up the deployable model size. It is based on the idea of active weight swapping between DRAM and flash, integrating
+three novel techniques: cross-layer active weight preloading,
+sparsity-aware self-distillation, and active weight swapping
+pipeline. It achieves the inference performance-cost Pareto
+frontier compared to other efficiency optimization methods.
+This paper breaks the DRAM limitation for LLM deployment, opening up the new opportunity of server-level LLMs
+deployment on mobile devices.
+
+References
+[1] Keivan Alizadeh, Iman Mirzadeh, Dmitry Belenko, Karen Khatamifard,
+Minsik Cho, Carlo C Del Mundo, Mohammad Rastegari, and Mehrdad
+Farajtabar. 2024. LLM in a flash: Efficient Large Language Model
+Inference with Limited Memory. arXiv:2312.11514 [cs.CL] https:
+//arxiv.org/abs/2312.11514
+[2] Keivan Alizadeh, Seyed-Iman Mirzadeh, Dmitry Belenko, Karen
+Khatamifard, Minsik Cho, Carlo C. del Mundo, Mohammad Rastegari,
+and Mehrdad Farajtabar. 2023. LLM in a flash: Efficient Large Language Model Inference with Limited Memory. CoRR abs/2312.11514
+(2023). https://doi.org/10.48550/ARXIV.2312.11514 arXiv:2312.11514
+[3] Keivan Alizadeh, Seyed Iman Mirzadeh, Dmitry Belenko, S Khatamifard, Minsik Cho, Carlo C Del Mundo, Mohammad Rastegari, and
+Mehrdad Farajtabar. 2024. Llm in a flash: Efficient large language
+model inference with limited memory. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume
+1: Long Papers). 12562–12584.
+[4] Apple. [n. d.]. Introducing Apple’s On-Device and Server Foundation Models. https://machinelearning.apple.com/research/introducingapple-foundation-models.
+
+[5] Anmol Biswas, Raghav Singhal, Sivakumar Elangovan, Shreyas
+Sabnis, and Udayan Ganguly. 2025. Regularization-based Framework for Quantization-, Fault- and Variability-Aware Training.
+arXiv:2503.01297 [cs.LG] https://arxiv.org/abs/2503.01297
+[6] Hong Chen, Chengtao Lv, Liang Ding, Haotong Qin, Xiabin Zhou,
+Yifu Ding, Xuebo Liu, Min Zhang, Jinyang Guo, Xianglong Liu, and
+Dacheng Tao. 2024. DB-LLM: Accurate Dual-Binarization for Efficient
+LLMs. arXiv:2402.11960 [cs.LG] https://arxiv.org/abs/2402.11960
+[7] Dayou Du, Yijia Zhang, Shijie Cao, Jiaqi Guo, Ting Cao, Xiaowen
+Chu, and Ningyi Xu. 2024. BitDistiller: Unleashing the Potential of
+Sub-4-Bit LLMs via Self-Distillation. arXiv:2402.10631 [cs.CL]
+[8] Elias Frantar and Dan Alistarh. 2023. SparseGPT: Massive Language
+Models Can be Accurately Pruned in One-Shot. In International Conference on Machine Learning, ICML 2023, 23-29 July 2023, Honolulu,
+Hawaii, USA (Proceedings of Machine Learning Research, Vol. 202),
+Andreas Krause, Emma Brunskill, Kyunghyun Cho, Barbara Engelhardt, Sivan Sabato, and Jonathan Scarlett (Eds.). PMLR, 10323–10337.
+https://proceedings.mlr.press/v202/frantar23a.html
+[9] Yizhao Gao, Zhichen Zeng, Dayou Du, Shijie Cao, Hayden Kwok-Hay
+So, Ting Cao, Fan Yang, and Mao Yang. 2024. SeerAttention: Learning
+Intrinsic Sparse Attention in Your LLMs. CoRR abs/2410.13276 (2024).
+https://doi.org/10.48550/ARXIV.2410.13276 arXiv:2410.13276
+[10] Albert Q. Jiang, Alexandre Sablayrolles, Antoine Roux, Arthur Mensch, Blanche Savary, Chris Bamford, Devendra Singh Chaplot, Diego
+de las Casas, Emma Bou Hanna, Florian Bressand, Gianna Lengyel,
+Guillaume Bour, Guillaume Lample, Lélio Renard Lavaud, Lucile
+Saulnier, Marie-Anne Lachaux, Pierre Stock, Sandeep Subramanian,
+Sophia Yang, Szymon Antoniak, Teven Le Scao, Théophile Gervet,
+Thibaut Lavril, Thomas Wang, Timothée Lacroix, and William El
+Sayed. 2024. Mixtral of Experts. arXiv:2401.04088 [cs.LG] https:
+//arxiv.org/abs/2401.04088
+[11] Yashas Samaga B L, Varun Yerram, Chong You, Srinadh Bhojanapalli,
+Sanjiv Kumar, Prateek Jain, and Praneeth Netrapalli. 2024. HiRE: High
+Recall Approximate Top-𝑘 Estimation for Efficient LLM Inference.
+arXiv:2402.09360 [cs.LG] https://arxiv.org/abs/2402.09360
+[12] Wonbeom Lee, Jungi Lee, Junghwan Seo, and Jaewoong Sim. 2024.
+InfiniGen: Efficient Generative Inference of Large Language Models
+with Dynamic KV Cache Management. CoRR abs/2406.19707 (2024).
+https://doi.org/10.48550/ARXIV.2406.19707 arXiv:2406.19707
+[13] Wonbeom Lee, Jungi Lee, Junghwan Seo, and Jaewoong Sim. 2024.
+InfiniGen: Efficient Generative Inference of Large Language Models
+with Dynamic KV Cache Management. arXiv:2406.19707 [cs.LG]
+https://arxiv.org/abs/2406.19707
+[14] Xiangyu Li, Yuanchun Li, Yuanzhe Li, Ting Cao, and Yunxin Liu.
+2024. FlexNN: Efficient and Adaptive DNN Inference on MemoryConstrained Edge Devices. In Proceedings of the 30th Annual International Conference on Mobile Computing and Networking, ACM MobiCom 2024, Washington D.C., DC, USA, November 18-22, 2024, Weisong
+Shi, Deepak Ganesan, and Nicholas D. Lane (Eds.). ACM, 709–723.
+https://doi.org/10.1145/3636534.3649391
+[15] James Liu, Pragaash Ponnusamy, Tianle Cai, Han Guo, Yoon Kim, and
+Ben Athiwaratkun. 2025. Training-Free Activation Sparsity in Large
+Language Models. arXiv:2408.14690 [cs.CL] https://arxiv.org/abs/
+2408.14690
+[16] James Liu, Pragaash Ponnusamy, Tianle Cai, Han Guo, Yoon Kim, and
+Ben Athiwaratkun. 2025. Training-Free Activation Sparsity in Large
+Language Models. arXiv:2408.14690 [cs.CL] https://arxiv.org/abs/
+2408.14690
+[17] Zichang Liu, Jue Wang, Tri Dao, Tianyi Zhou, Binhang Yuan, Zhao
+Song, Anshumali Shrivastava, Ce Zhang, Yuandong Tian, Christopher
+Re, and Beidi Chen. 2023. Deja Vu: Contextual Sparsity for Efficient
+
+LLMs at Inference Time. In Proceedings of the 40th International Conference on Machine Learning (Proceedings of Machine Learning Research,
+Vol. 202), Andreas Krause, Emma Brunskill, Kyunghyun Cho, Barbara Engelhardt, Sivan Sabato, and Jonathan Scarlett (Eds.). PMLR,
+22137–22176. https://proceedings.mlr.press/v202/liu23am.html
+[18] Microsoft. [n. d.].
+Phi Silica, small but mighty on-device
+SLM. https://blogs.windows.com/windowsexperience/2024/12/06/phisilica-small-but-mighty-on-device-slm/.
+[19] Iman Mirzadeh, Keivan Alizadeh, Sachin Mehta, Carlo C Del Mundo,
+Oncel Tuzel, Golnoosh Samei, Mohammad Rastegari, and Mehrdad
+Farajtabar. 2023. ReLU Strikes Back: Exploiting Activation Sparsity in
+Large Language Models. arXiv:2310.04564 [cs.LG] https://arxiv.org/
+abs/2310.04564
+[20] Yuzhang Shang, Zhihang Yuan, Qiang Wu, and Zhen Dong.
+2023.
+PB-LLM: Partially Binarized Large Language Models.
+arXiv:2310.00034 [cs.LG] https://arxiv.org/abs/2310.00034
+[21] Ying Sheng, Lianmin Zheng, Binhang Yuan, Zhuohan Li, Max Ryabinin,
+Daniel Y. Fu, Zhiqiang Xie, Beidi Chen, Clark Barrett, Joseph E.
+Gonzalez, Percy Liang, Christopher Ré, Ion Stoica, and Ce Zhang.
+2023. FlexGen: High-Throughput Generative Inference of Large
+Language Models with a Single GPU. arXiv:2303.06865 [cs.LG]
+https://arxiv.org/abs/2303.06865
+[22] Chenyang Song, Xu Han, Zhengyan Zhang, Shengding Hu, Xiyu Shi,
+Kuai Li, Chen Chen, Zhiyuan Liu, Guangli Li, Tao Yang, and Maosong
+Sun. 2024. ProSparse: Introducing and Enhancing Intrinsic Activation
+Sparsity within Large Language Models. CoRR abs/2402.13516 (2024).
+https://doi.org/10.48550/ARXIV.2402.13516 arXiv:2402.13516
+[23] Yixin Song, Zeyu Mi, Haotong Xie, and Haibo Chen. 2024. PowerInfer:
+Fast Large Language Model Serving with a Consumer-grade GPU. In
+Proceedings of the ACM SIGOPS 30th Symposium on Operating Systems
+Principles (Austin, TX, USA) (SOSP ’24). Association for Computing
+Machinery, New York, NY, USA, 590–606. https://doi.org/10.1145/
+3694715.3695964
+[24] Yixin Song, Haotong Xie, Zhengyan Zhang, Bo Wen, Li Ma, Zeyu Mi,
+and Haibo Chen. 2024. Turbo Sparse: Achieving LLM SOTA Performance with Minimal Activated Parameters. arXiv:2406.05955 [cs.LG]
+https://arxiv.org/abs/2406.05955
+[25] Mingjie Sun, Zhuang Liu, Anna Bair, and J. Zico Kolter. 2024. A
+Simple and Effective Pruning Approach for Large Language Models.
+In The Twelfth International Conference on Learning Representations,
+ICLR 2024, Vienna, Austria, May 7-11, 2024. OpenReview.net. https:
+//openreview.net/forum?id=PxoFut3dWW
+[26] Gemini Team. 2024. Gemini: A Family of Highly Capable Multimodal
+Models. https://doi.org/10.48550/arXiv.2312.11805 arXiv:2312.11805
+[27] Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei, Nikolay Bashlykov, Soumya Batra, Prajjwal
+Bhargava, Shruti Bhosale, Dan Bikel, Lukas Blecher, Cristian Canton
+Ferrer, Moya Chen, Guillem Cucurull, David Esiobu, Jude Fernandes,
+Jeremy Fu, Wenyin Fu, Brian Fuller, Cynthia Gao, Vedanuj Goswami,
+Naman Goyal, Anthony Hartshorn, Saghar Hosseini, Rui Hou, Hakan
+Inan, Marcin Kardas, Viktor Kerkez, Madian Khabsa, Isabel Kloumann,
+Artem Korenev, Punit Singh Koura, Marie-Anne Lachaux, Thibaut
+Lavril, Jenya Lee, Diana Liskovich, Yinghai Lu, Yuning Mao, Xavier
+Martinet, Todor Mihaylov, Pushkar Mishra, Igor Molybog, Yixin Nie,
+Andrew Poulton, Jeremy Reizenstein, Rashi Rungta, Kalyan Saladi,
+Alan Schelten, Ruan Silva, Eric Michael Smith, Ranjan Subramanian,
+Xiaoqing Ellen Tan, Binh Tang, Ross Taylor, Adina Williams, Jian Xiang Kuan, Puxin Xu, Zheng Yan, Iliyan Zarov, Yuchen Zhang, Angela
+Fan, Melanie Kambadur, Sharan Narang, Aurelien Rodriguez, Robert
+
+Stojnic, Sergey Edunov, and Thomas Scialom. 2023. Llama 2: Open
+Foundation and Fine-Tuned Chat Models. arXiv:2307.09288 [cs.CL]
+[28] Hongyu Wang, Shuming Ma, Ruiping Wang, and Furu Wei. 2024. QSparse: All Large Language Models can be Fully Sparsely-Activated.
+CoRR abs/2407.10969 (2024). https://doi.org/10.48550/ARXIV.2407.
+10969 arXiv:2407.10969
+[29] Hongyu Wang, Shuming Ma, Ruiping Wang, and Furu Wei. 2024. QSparse: All Large Language Models can be Fully Sparsely-Activated.
+arXiv:2407.10969 [cs.CL] https://arxiv.org/abs/2407.10969
+[30] Jinheng Wang, Hansong Zhou, Ting Song, Shijie Cao, Yan Xia,
+Ting Cao, Jianyu Wei, Shuming Ma, Hongyu Wang, and Furu
+Wei. 2025. Bitnet.cpp: Efficient Edge Inference for Ternary LLMs.
+arXiv:2502.11880 [cs.LG] https://arxiv.org/abs/2502.11880
+[31] Tuowei Wang, Ruwen Fan, Minxing Huang, Zixu Hao, Kun Li, Ting
+Cao, Youyou Lu, Yaoxue Zhang, and Ju Ren. 2024. Ripple: Accelerating
+LLM Inference on Smartphones with Correlation-Aware Neuron Management. arXiv:2410.19274 [cs.LG] https://arxiv.org/abs/2410.19274
+[32] Yuxin Wang, Minghua Ma, Zekun Wang, Jingchang Chen, Huiming
+Fan, Liping Shan, Qing Yang, Dongliang Xu, Ming Liu, and Bing Qin.
+2024. CFSP: An Efficient Structured Pruning Framework for LLMs
+with Coarse-to-Fine Activation Information. arXiv:2409.13199 [cs.CL]
+https://arxiv.org/abs/2409.13199
+[33] Yuxin Wang, MingHua Ma, Zekun Wang, Jingchang Chen, Shan Liping,
+Qing Yang, Dongliang Xu, Ming Liu, and Bing Qin. 2025. CFSP: An Efficient Structured Pruning Framework for LLMs with Coarse-to-Fine Activation Information. In Proceedings of the 31st International Conference
+on Computational Linguistics, Owen Rambow, Leo Wanner, Marianna
+Apidianaki, Hend Al-Khalifa, Barbara Di Eugenio, and Steven Schockaert (Eds.). Association for Computational Linguistics, Abu Dhabi,
+UAE, 9311–9328. https://aclanthology.org/2025.coling-main.626/
+[34] Jianyu Wei, Shijie Cao, Ting Cao, Lingxiao Ma, Lei Wang, Yanyong
+Zhang, and Mao Yang. 2024. T-MAC: CPU Renaissance via Table
+Lookup for Low-Bit LLM Deployment on Edge. arXiv:2407.00088 [cs]
+[35] Apple Xcode. 2024.
+Reducing your app’s memory use.
+https://developer.apple.com/documentation/xcode/reducingyour-app-s-memory-use
+[36] Zhenliang Xue, Yixin Song, Zeyu Mi, Le Chen, Yubin Xia, and Haibo
+Chen. 2024. PowerInfer-2: Fast Large Language Model Inference on
+a Smartphone. arXiv:2406.06282 [cs.LG] https://arxiv.org/abs/2406.
+06282
+[37] Kai Yi and Peter Richtárik. 2025. Symmetric Pruning of Large Language
+Models. arXiv:2501.18980 [cs.LG] https://arxiv.org/abs/2501.18980
+[38] Rongjie Yi, Ting Cao, Ao Zhou, Xiao Ma, Shangguang Wang, and
+Mengwei Xu. 2023. Boosting DNN Cold Inference on Edge Devices.
+In Proceedings of the 21st Annual International Conference on Mobile
+Systems, Applications and Services, MobiSys 2023, Helsinki, Finland, June
+18-22, 2023, Petteri Nurmi, Pan Hui, Ardalan Amiri Sani, and Yunxin
+Liu (Eds.). ACM, 516–529. https://doi.org/10.1145/3581791.3596842
+[39] Jingyang Yuan, Huazuo Gao, Damai Dai, Junyu Luo, Liang Zhao,
+Zhengyan Zhang, Zhenda Xie, Yuxing Wei, Lean Wang, Zhiping
+Xiao, Yuqing Wang, Chong Ruan, Ming Zhang, Wenfeng Liang, and
+Wangding Zeng. 2025. Native Sparse Attention: Hardware-Aligned
+and Natively Trainable Sparse Attention. In Proceedings of the 63rd
+Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), ACL 2025, Vienna, Austria, July 27 - August 1,
+2025, Wanxiang Che, Joyce Nabende, Ekaterina Shutova, and Mohammad Taher Pilehvar (Eds.). Association for Computational Linguistics,
+23078–23097. https://aclanthology.org/2025.acl-long.1126/
+
+

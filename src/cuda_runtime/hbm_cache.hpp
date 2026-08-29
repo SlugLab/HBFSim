@@ -20,8 +20,13 @@ class HbmCache {
   public:
     explicit HbmCache(std::vector<std::uint64_t> frame_addresses);
 
+    // `referenced` decides where the page starts in the CLOCK scan. A demand
+    // publishes referenced, so the page survives one sweep. A readahead
+    // publishes unreferenced, so a page nothing ever asked for is the first
+    // candidate to be evicted again.
     bool publish(std::uint64_t logical_page,
-                 std::uint64_t frame_address);
+                 std::uint64_t frame_address,
+                 bool referenced = true);
     [[nodiscard]] std::optional<std::uint64_t> resolve(
         std::uint64_t logical_page);
     [[nodiscard]] std::optional<std::uint64_t> reclaim_eviction(

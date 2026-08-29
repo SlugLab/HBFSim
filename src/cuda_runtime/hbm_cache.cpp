@@ -19,7 +19,8 @@ HbmCache::HbmCache(std::vector<std::uint64_t> frame_addresses)
 }
 
 bool HbmCache::publish(std::uint64_t logical_page,
-                       std::uint64_t frame_address)
+                       std::uint64_t frame_address,
+                       bool referenced)
 {
     std::lock_guard lock(mutex_);
     const auto frame = address_to_frame_.find(frame_address);
@@ -32,7 +33,7 @@ bool HbmCache::publish(std::uint64_t logical_page,
     }
     auto& state = frames_[frame->second];
     state.logical_page = logical_page;
-    state.referenced = true;
+    state.referenced = referenced;
     state.dirty = false;
     page_to_frame_.emplace(logical_page, frame->second);
     return true;

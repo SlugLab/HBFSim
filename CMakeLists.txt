@@ -112,6 +112,12 @@ set_tests_properties(profile PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURC
 add_executable(hbf_prefetch_bench benchmarks/prefetch/hbf_prefetch_bench.cpp)
 target_link_libraries(hbf_prefetch_bench PRIVATE hbfsim_core)
 
+add_executable(
+    hbf_capacity_readahead_bench
+    benchmarks/prefetch/hbf_capacity_readahead_bench.cpp
+)
+target_link_libraries(hbf_capacity_readahead_bench PRIVATE hbfsim_core)
+
 add_executable(prefetch_model_test tests/cpu/prefetch_model_test.cpp)
 target_link_libraries(prefetch_model_test PRIVATE hbfsim_core)
 add_test(NAME prefetch_model COMMAND prefetch_model_test)
@@ -174,6 +180,12 @@ target_link_options(
 add_test(
     NAME capacity_page_service COMMAND hbfsim_capacity_page_service_tests
 )
+
+add_executable(
+    hbfsim_capacity_readahead_tests tests/cpu/capacity_readahead_test.cpp
+)
+target_link_libraries(hbfsim_capacity_readahead_tests PRIVATE hbfsim_core)
+add_test(NAME capacity_readahead COMMAND hbfsim_capacity_readahead_tests)
 
 add_executable(
     hbfsim_capacity_handoff_tests tests/cpu/capacity_handoff_test.cpp

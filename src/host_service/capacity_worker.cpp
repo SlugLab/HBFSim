@@ -132,6 +132,20 @@ void CapacityWorker::run(std::stop_token stop)
                 resolved.status, resolved.media);
         }
         if (!claimed && !stop.stop_requested()) {
+            // Readahead runs only when no demand was waiting, so a queued page
+            // can never delay a request the GPU is blocked on. One page per
+            // pass, so the slot scan resumes immediately if a demand arrives.
+            bool fetched = false;
+            try {
+                fetched = service_.run_one_readahead();
+            } catch (...) {
+                fetched = false;
+            }
+            if (fetched) {
+                continue;
+            }
+        }
+        if (!claimed && !stop.stop_requested()) {
             std::unique_lock lock(idle_mutex_);
             (void)idle_condition_.wait_for(lock, stop, idle_poll_, [] {
                 return false;

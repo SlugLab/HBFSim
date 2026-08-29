@@ -11,7 +11,10 @@ the commands.
 | `include/hbfsim/prefetch_model.hpp` | The model's interface, with each knob's meaning |
 | `src/prefetch/prefetch_model.cpp` | The model: a deterministic discrete-event simulation |
 | `tests/cpu/prefetch_model_test.cpp` | 12 property assertions, written before the implementation |
-| `benchmarks/prefetch/hbf_prefetch_bench.cpp` | Sweeps one access stream and prints JSON |
+| `benchmarks/prefetch/hbf_prefetch_bench.cpp` | Sweeps one access stream through the model and prints JSON |
+| `src/host_service/capacity_page_service.cpp` | The real system-side readahead, in capacity mode |
+| `tests/cpu/capacity_readahead_test.cpp` | Its contract: off by default, never forces a writeback, never drains on the demand's own path |
+| `benchmarks/prefetch/hbf_capacity_readahead_bench.cpp` | Drives the real readahead and reports media reads avoided |
 | `scripts/run_prefetch_accuracy_sweep.py` | Runs all three streams and writes the artifact and a CSV |
 | `docs/proofs/artifacts/prefetch-accuracy-sweep.json` | The swept cells |
 | `docs/proofs/artifacts/prefetch-accuracy-sweep.csv` | The same cells, flat, for plotting |
@@ -59,6 +62,36 @@ parameters in bf16 is 9,437,184 bytes, which is 2304 pages of 4 KiB.
 Other options: `--compute-ns` (accelerator time between two accesses, the
 interval a prefetch hides behind), `--lead` (how many accesses ahead a prefetch
 is issued), `--buffer-pages`, `--max-in-flight`, `--seed`.
+
+## The real readahead, as opposed to the model
+
+`hbf_capacity_readahead_bench` exercises `CapacityPageService` directly. It
+reports media reads avoided, not wall-clock time, and touches no GPU.
+
+Does the implementation reproduce what the model predicts for a next-page
+policy, which is (P-1)/P for P pages per expert:
+
+```
+for p in 4 8 16; do
+  ./build/hbf_capacity_readahead_bench --stream moe --pages-per-expert $p \
+      --readahead $p --frames 256 --drain-per-demand 0
+done
+```
+
+What the worker's drain rate is worth. `--drain-per-demand` is how many queued
+pages the worker gets through between two demands, and 0 means it keeps up
+completely:
+
+```
+for d in 0 4 2 1; do
+  ./build/hbf_capacity_readahead_bench --stream moe --pages-per-expert 8 \
+      --readahead 8 --frames 256 --drain-per-demand $d
+done
+```
+
+Draining one page per demand does not merely reduce the benefit. It turns an
+86.79% reduction in media reads into a 14.17% increase, because queued pages go
+stale before they are used while still costing bandwidth and frames.
 
 ## Reproducing the two results the paper leans on
 

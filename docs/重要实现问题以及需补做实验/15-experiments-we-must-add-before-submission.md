@@ -229,6 +229,37 @@ much is left over as a stall in the real execution. Alongside it, the timing cos
 concurrency to hide latency, to prefetching one layer ahead, with everything else held
 constant, and quantify how the timing cost contributed by the `HBF` layer changes.
 
+**The figure this item produces, and the script that produces it.** The main
+figure is not a hit-rate curve. The x axis is the media latency `tR` at the six
+values item 1 fixes (1, 2, 4, 5, 10 and 20 microseconds). The y axis is the
+residual stall fraction defined above. One curve per outstanding-request count,
+at the counts item 1 names (256, 1024, 1536 and 4,883), plus two baselines: the
+one-at-a-time case the device-side fast path models today, and the zero line for
+a run limited by bandwidth alone. Mark on the figure the place where the
+conclusion changes sign, in the sense item 1 defines. A hit-rate curve alone
+cannot carry this, for two reasons recorded in `docs/45-预取与延迟掩盖的核实.md`
+section 8: nothing in the code counts cache hits today, and `ProMoE`
+(arXiv:2410.22134) states the quantity that decides the cost as
+`GoodPred = Accuracy x FetchRate`, so a curve of accuracy alone drops the
+question of whether the fetch finishes in time.
+
+`scripts/run_prefetch_window_sweep.py` runs the sweep against `hbf_mqsim_bench`
+and writes the cells with the residual stall fraction already computed. The
+script's outstanding-request axis is the profile field `queue_depth`, which did
+not reach the HBF host interface until the admission bound was added to
+`src/mqsim_adapter/mqsim_online.cpp`. That field is not the device's parallel
+read-out unit count, which item 1 sweeps separately, and a run of the script may
+not be reported as a measurement of it.
+
+**Where the reasoning behind this item is written down.** `docs/45-预取与延迟掩盖
+的核实.md` records the first-source check behind the whole question: what HBFSim
+does today about prefetch, what the lead time in a decode schedule actually is
+(section 6.2), why a static computation graph does not amount to perfect
+prefetching on a Mixture-of-Experts model, what the published expert predictors
+reach, what `XLA` does when the lead time is too short, and what CloudMatrix384
+reports about dynamic shapes (section 6.3). Item 8 below is the Mixture-of-Experts
+half of the same comparison; the reasoning is not repeated there.
+
 **How much lead time there is to work with.** Every figure in this paragraph is
 inference, computed from published model configurations and a published peak bandwidth.
 Llama 3 8B has 32 layers, hidden dimension 4096, feed-forward dimension 14336 and 8

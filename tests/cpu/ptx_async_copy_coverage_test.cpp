@@ -86,18 +86,33 @@ int main()
     CHECK(counted_unsupported(
         "cp.async.cg.shared.global [%r1], [%rd1], 16;"));
 
-    // Bulk tensor copy from global. Must be visible.
-    CHECK(counted_unsupported(
-        "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::"
-        "complete_tx::bytes [%r1], [tmap, {%r2,%r3}], [%r4];"));
+    // Non-tensor bulk copy from global. Must be visible.
     CHECK(counted_unsupported(
         "cp.async.bulk.shared::cluster.global.mbarrier::complete_tx::bytes "
         "[%r1], [%rd1], %r2, [%r3];"));
 
-    // Reduction form that reads global. Must be visible.
+    // Reduction form that reads global and is not a tensor copy. Must be
+    // visible.
     CHECK(counted_unsupported(
         "cp.reduce.async.bulk.global.shared::cta.bulk_group.add.u32 "
         "[%rd1], [%r1], %r2;"));
+
+    // The three bulk TENSOR prefixes are deliberately left alone, because
+    // parse_tma on branch feature/sm120-exact-stage1 models them properly
+    // rather than refusing them: cp.async.bulk.tensor.,
+    // cp.reduce.async.bulk.tensor. and cp.async.bulk.prefetch.tensor. Marking
+    // them unsupported here would refuse, once that branch merges, exactly the
+    // launches it can model. This pass closes the gap that branch leaves open,
+    // and stays out of what it handles.
+    CHECK(!counted_unsupported(
+        "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::"
+        "complete_tx::bytes [%r1], [tmap, {%r2,%r3}], [%r4];"));
+    CHECK(!counted_unsupported(
+        "cp.reduce.async.bulk.tensor.2d.global.shared::cta.add.tile."
+        "bulk_group [tmap, {%r2,%r3}], [%r1];"));
+    CHECK(!counted_unsupported(
+        "cp.async.bulk.prefetch.tensor.2d.L2.global.tile "
+        "[tmap, {%r2,%r3}];"));
 
     // Same family, but pure synchronisation: these touch no memory and must
     // not be reported as unsupported memory operations.

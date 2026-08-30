@@ -246,14 +246,34 @@ bool CapacityPageService::fill_free_frame_locked(std::uint64_t logical_page)
         resident_range_ids_.contains(logical_page)) {
         return false;  // became resident between queueing and now
     }
-    // A free frame if there is one. Once the cache is warm there never is, and
-    // a readahead that gave up here would do nothing at all in exactly the
-    // regime capacity mode exists for, so it takes a victim instead. Two
-    // limits keep that from costing more than it saves: the victim must be
-    // clean, because writing a dirty page back costs a program on the media
-    // and a program is far dearer than the read this would save; and the page
-    // it brings in is published unreferenced, so a page nothing ever asks for
-    // is the first candidate to be evicted again.
+    // The speculative read comes FIRST, before any resident page is disturbed.
+    // An earlier version evicted a victim and then read, so a read that failed
+    // -- an address past the end of the backing store is the ordinary case --
+    // destroyed a valid resident page and returned false. A readahead is a
+    // guess, and a guess must never cost a page that a demand actually brought
+    // in.
+    std::vector<std::byte> page;
+    std::uint32_t range_id = 0;
+    try {
+        auto routed = backing_.read_page(logical_page, page_bytes_);
+        if (routed.status != RequestStatus::Ready ||
+            routed.bytes.size() != page_bytes_ || routed.range_id == 0) {
+            return false;
+        }
+        range_id = routed.range_id;
+        page = std::move(routed.bytes);
+    } catch (...) {
+        return false;
+    }
+
+    // Only now, with the bytes in hand, is a frame taken. Once the cache is
+    // warm there is never a free one, and a readahead that gave up here would
+    // do nothing at all in the only regime capacity mode exists for, so it
+    // takes a victim instead. Two limits keep that from costing more than it
+    // saves: the victim must be clean, because writing a dirty page back costs
+    // a program on the media and a program is far dearer than the read this
+    // would save; and the page it brings in is published unreferenced, so a
+    // page nothing ever asks for is the first candidate to be evicted again.
     auto frame = cache_.free_frame();
     if (!frame.has_value()) {
         auto eviction = cache_.begin_eviction();
@@ -269,20 +289,6 @@ bool CapacityPageService::fill_free_frame_locked(std::uint64_t logical_page)
         }
         resident_range_ids_.erase(eviction->logical_page);
         frame = eviction->frame_address;
-    }
-
-    std::vector<std::byte> page;
-    std::uint32_t range_id = 0;
-    try {
-        auto routed = backing_.read_page(logical_page, page_bytes_);
-        if (routed.status != RequestStatus::Ready ||
-            routed.bytes.size() != page_bytes_ || routed.range_id == 0) {
-            return false;
-        }
-        range_id = routed.range_id;
-        page = std::move(routed.bytes);
-    } catch (...) {
-        return false;
     }
     try {
         if (!frame_io_.host_to_frame(*frame, page)) {

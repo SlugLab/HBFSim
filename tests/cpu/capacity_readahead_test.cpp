@@ -187,6 +187,41 @@ int main()
         CHECK(service.readahead_pages_skipped() > 0);
     }
 
+    // 4b. A readahead whose speculative read fails must not have cost a
+    // resident page. With every frame taken by a clean demanded page, a
+    // readahead for an address past the end of the backing store has to leave
+    // all of them in place. The earlier version evicted a victim first and
+    // read second, so this case silently destroyed a page a demand had brought
+    // in; case 4 above does not catch it because free frames were still
+    // available there.
+    {
+        hbfsim::runtime::HbmCache cache(frame_addresses);
+        hbfsim::host_service::CapacityPageService service(backing, cache,
+                                                          kPageBytes,
+                                                          frame_io);
+        service.set_readahead_pages(2);
+        // Four clean demanded pages fill all four frames. Page 7 is the last
+        // page of the store, so its readahead runs off the end.
+        for (const std::uint64_t page : {4ULL, 5ULL, 6ULL, 7ULL}) {
+            CHECK(service.resolve(page, 0).status ==
+                  hbfsim::RequestStatus::Ready);
+        }
+        for (const std::uint64_t page : {4ULL, 5ULL, 6ULL, 7ULL}) {
+            CHECK(cache.resolve(page).has_value());
+        }
+        const auto fetched_before = service.readahead_pages_fetched();
+
+        while (service.run_one_readahead()) {
+        }
+
+        // Nothing was fetched, because every queued page is past the end.
+        CHECK(service.readahead_pages_fetched() == fetched_before);
+        // And every demanded page survived the failed speculation.
+        for (const std::uint64_t page : {4ULL, 5ULL, 6ULL, 7ULL}) {
+            CHECK(cache.resolve(page).has_value());
+        }
+    }
+
     // 5. A queued page that a demand brought in first is skipped, not fetched
     // a second time. The page becomes resident between being queued and being
     // drained, which is the race the fill path has to survive.

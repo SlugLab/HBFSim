@@ -141,26 +141,45 @@ Run drive(const std::vector<std::uint64_t>& pages, const Options& options,
     return run;
 }
 
-void print_run(const char* label, const Run& run, std::uint64_t baseline_reads)
+// Two different quantities, and reporting only the first is how the earlier
+// version of this benchmark reached a wrong conclusion. `demand_media_reads`
+// are the reads a warp waits on, so they set the latency. Every successful
+// readahead is ALSO a read of the backing store, so the bandwidth the device
+// must supply is the sum. A readahead that removes demand reads while raising
+// the total is trading bandwidth for latency, which is the wrong trade when
+// the tier is bandwidth-bound.
+void print_run(const char* label, const Run& run,
+               std::uint64_t baseline_total_reads)
 {
     const double hit_rate =
         run.demands == 0 ? 0.0
                          : static_cast<double>(run.hits) /
                                static_cast<double>(run.demands);
-    const double avoided =
-        baseline_reads == 0
+    const auto total_reads = run.media_reads + run.readahead_fetched;
+    const double demand_avoided =
+        run.demands == 0
             ? 0.0
             : 1.0 - static_cast<double>(run.media_reads) /
-                        static_cast<double>(baseline_reads);
+                        static_cast<double>(run.demands);
+    const double total_change =
+        baseline_total_reads == 0
+            ? 0.0
+            : static_cast<double>(total_reads) /
+                      static_cast<double>(baseline_total_reads) -
+                  1.0;
     std::printf(
-        "    {\"policy\": \"%s\", \"demands\": %llu, \"media_reads\": %llu, "
-        "\"hits\": %llu, \"hit_rate\": %.6f, "
-        "\"media_reads_avoided_fraction\": %.6f, "
-        "\"readahead_fetched\": %llu, \"readahead_skipped\": %llu}",
+        "    {\"policy\": \"%s\", \"demands\": %llu, "
+        "\"demand_media_reads\": %llu, \"readahead_media_reads\": %llu, "
+        "\"total_media_reads\": %llu, \"hits\": %llu, \"hit_rate\": %.6f, "
+        "\"demand_reads_avoided_fraction\": %.6f, "
+        "\"total_media_reads_change_fraction\": %.6f, "
+        "\"readahead_skipped\": %llu}",
         label, static_cast<unsigned long long>(run.demands),
         static_cast<unsigned long long>(run.media_reads),
-        static_cast<unsigned long long>(run.hits), hit_rate, avoided,
         static_cast<unsigned long long>(run.readahead_fetched),
+        static_cast<unsigned long long>(total_reads),
+        static_cast<unsigned long long>(run.hits), hit_rate, demand_avoided,
+        total_change,
         static_cast<unsigned long long>(run.readahead_skipped));
 }
 
@@ -257,7 +276,8 @@ int main(int argc, char** argv)
         "\"distinct_pages_in_store\": %llu, \"frames\": %llu, "
         "\"readahead_pages\": %u, \"pages_per_expert\": %llu, "
         "\"tokens\": %llu, \"layers\": %llu, \"experts_per_layer\": %llu, "
-        "\"experts_per_token\": %llu, \"seed\": %llu},\n",
+        "\"experts_per_token\": %llu, \"seed\": %llu, "
+        "\"drain_per_demand\": %llu},\n",
         options.stream.c_str(),
         static_cast<unsigned long long>(pages.size()),
         static_cast<unsigned long long>(store_pages),
@@ -270,9 +290,10 @@ int main(int argc, char** argv)
         static_cast<unsigned long long>(options.seed),
         static_cast<unsigned long long>(options.drain_per_demand));
     std::printf("  \"runs\": [\n");
-    print_run("demand_only", without, without.media_reads);
+    const auto baseline_total = without.media_reads + without.readahead_fetched;
+    print_run("demand_only", without, baseline_total);
     std::printf(",\n");
-    print_run("readahead", with, without.media_reads);
+    print_run("readahead", with, baseline_total);
     std::printf("\n  ]\n}\n");
 
     std::filesystem::remove(path);

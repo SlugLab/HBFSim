@@ -89,9 +89,26 @@ for d in 0 4 2 1; do
 done
 ```
 
-Draining one page per demand does not merely reduce the benefit. It turns an
-86.79% reduction in media reads into a 14.17% increase, because queued pages go
-stale before they are used while still costing bandwidth and frames.
+Read both numbers the benchmark prints, because they answer different
+questions and reporting only the first is how an earlier version of this file
+reached a wrong conclusion.
+
+`demand_reads_avoided_fraction` is the share of demands that no longer wait on
+the media, so it sets the latency. `total_media_reads_change_fraction` counts
+every read of the backing store, readahead included, so it sets the bandwidth
+the device must supply.
+
+At P=8, depth 8, 256 frames, against an 840-read baseline:
+
+| drain per demand | demand reads | readahead reads | total | demand avoided | total change |
+|---|---:|---:|---:|---:|---:|
+| 0 (keeps up) | 111 | 868 | 979 | +89.16% | **+16.55%** |
+| 1 | 959 | 825 | 1784 | +6.35% | **+112.38%** |
+
+So the readahead removes most of the waiting and still raises total media
+traffic. That is a trade of bandwidth for latency, and it is the wrong trade
+whenever the tier is bandwidth-bound. Draining one page per demand loses the
+latency benefit as well and more than doubles the traffic.
 
 ## Reproducing the two results the paper leans on
 

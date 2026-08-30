@@ -48,7 +48,7 @@ expected_digest=$(sha256sum "$BPFTIME_PATCH" | awk '{print $1}')
 if [[ ${#provenance[@]} -ne 3 ||
       ${provenance[0]:-} != bpftime_commit=ec26daecc8e787fb80fd95dd596a576404a5e36e ||
       ${provenance[1]:-} != patch_sha256="$expected_digest" ||
-      ${provenance[2]:-} != bridge_version=2 ]]; then
+      ${provenance[2]:-} != bridge_version=3 ]]; then
     echo "run_with_bpftime: bpftime build provenance mismatch: $BPFTIME_PROVENANCE" >&2
     exit 66
 fi

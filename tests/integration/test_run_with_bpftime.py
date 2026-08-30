@@ -112,9 +112,9 @@ def main() -> int:
             )
 
         for label, stamp_commit, stamp_digest, version in (
-            ("commit", "0" * 40, digest, "2"),
-            ("digest", commit, "0" * 64, "2"),
-            ("version", commit, digest, "1"),
+            ("commit", "0" * 40, digest, "3"),
+            ("digest", commit, "0" * 64, "3"),
+            ("version", commit, digest, "2"),
         ):
             write_stamp(stamp_commit, stamp_digest, version)
             rejected_stamp = subprocess.run(
@@ -129,7 +129,7 @@ def main() -> int:
             require(not loader_started.exists(),
                     f"wrapper started loader before rejecting wrong {label}")
 
-        write_stamp(commit, digest, "2")
+        write_stamp(commit, digest, "3")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,

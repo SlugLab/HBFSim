@@ -35,6 +35,7 @@ int hbfsim_vllm_session_create_v2(const hbfsim_vllm_options_v2* options,
                                   hbfsim_vllm_session** out);
 int hbfsim_vllm_register_storage(hbfsim_vllm_session* session,
                                  uintptr_t device_address, size_t bytes);
+const char *hbfsim_vllm_timing_backend(const hbfsim_vllm_session *session);
 int hbfsim_vllm_session_close(hbfsim_vllm_session** session);
 const char* hbfsim_vllm_status_string(int status);
 

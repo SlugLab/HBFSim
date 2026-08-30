@@ -7,18 +7,17 @@ namespace hbfsim::runtime {
 
 RangeTable::RangeTable(host_service::ControlView control,
                        std::uint32_t page_bytes,
-                       std::uint64_t media_capacity_bytes) noexcept
+                       std::uint64_t media_capacity_bytes,
+                       std::uint32_t timing_range_flags) noexcept
     : control_(control), page_bytes_(page_bytes),
       media_capacity_bytes_(media_capacity_bytes),
-      records_(host_service::kRangeCapacity)
-{
-}
+      timing_range_flags_(timing_range_flags),
+      records_(host_service::kRangeCapacity) {}
 
 int RangeTable::add(std::uintptr_t base, std::size_t length,
                     const hbfsim_range_options& options,
                     RangePublishTransaction transaction,
-                    void* transaction_state) noexcept
-{
+                    void *transaction_state) noexcept {
     std::scoped_lock lock(mutex_);
     constexpr auto valid_permissions =
         static_cast<std::uint32_t>(HBFSIM_RANGE_READ_WRITE);
@@ -37,8 +36,8 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         return HBFSIM_UNSUPPORTED;
     }
     const auto length64 = static_cast<std::uint64_t>(length);
-    if (length64 > std::numeric_limits<std::uint64_t>::max() -
-                       (page_bytes_ - 1)) {
+  if (length64 >
+      std::numeric_limits<std::uint64_t>::max() - (page_bytes_ - 1)) {
         return HBFSIM_UNSUPPORTED;
     }
     const auto media_extent =
@@ -53,8 +52,7 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         records_.begin(), records_.begin() + count_, base,
         [](const host_service::SharedRangeRecord& record,
            std::uintptr_t candidate) { return record.base < candidate; });
-    const auto index =
-        static_cast<std::size_t>(insertion - records_.begin());
+  const auto index = static_cast<std::size_t>(insertion - records_.begin());
     if ((index != 0 &&
          records_[index - 1].base + records_[index - 1].length > base) ||
         (index != count_ && end > records_[index].base)) {
@@ -70,7 +68,8 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         .permissions = options.permissions,
         .cache_policy = options.cache_policy,
         .stream_id = options.stream_id,
-        .flags = 0,
+      .flags =
+          options.mode == HBFSIM_RANGE_MODE_TIMING ? timing_range_flags_ : 0,
         .page_bytes = page_bytes_,
         .reserved1 = 0,
     };
@@ -97,16 +96,13 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
         ++table.count_;
         ++table.next_range_id_;
         table.next_file_offset_ += item.media_extent;
-        std::copy_n(table.records_.begin(), table.count_,
-                    table.control_.ranges());
-        host_service::atomic_store(
-            table.control_.header()->range_count,
+    std::copy_n(table.records_.begin(), table.count_, table.control_.ranges());
+    host_service::atomic_store(table.control_.header()->range_count,
             static_cast<std::uint32_t>(table.count_),
             std::memory_order_release);
         item.published = true;
     };
-    const auto status =
-        transaction(record, publish, &pending, transaction_state);
+  const auto status = transaction(record, publish, &pending, transaction_state);
     if (pending.published) {
         // Publication is the transaction's no-fail point. A gate-owned
         // callback must stage its range before invoking publish and perform no
@@ -117,10 +113,8 @@ int RangeTable::add(std::uintptr_t base, std::size_t length,
     return status == HBFSIM_OK ? HBFSIM_IO_ERROR : status;
 }
 
-int RangeTable::remove(std::uintptr_t base,
-                       RangePublishTransaction transaction,
-                       void* transaction_state) noexcept
-{
+int RangeTable::remove(std::uintptr_t base, RangePublishTransaction transaction,
+                       void *transaction_state) noexcept {
     std::scoped_lock lock(mutex_);
     if (!control_.valid() || base == 0) {
         return HBFSIM_INVALID_ARGUMENT;
@@ -140,8 +134,8 @@ int RangeTable::remove(std::uintptr_t base,
         host_service::SharedRangeRecord record;
         std::size_t index;
         bool published;
-    } pending{this, *found,
-              static_cast<std::size_t>(found - records_.begin()), false};
+  } pending{this, *found, static_cast<std::size_t>(found - records_.begin()),
+            false};
     const auto publish = +[](void* opaque) noexcept {
         auto& item = *static_cast<PendingRemoval*>(opaque);
         if (item.published) {
@@ -153,11 +147,9 @@ int RangeTable::remove(std::uintptr_t base,
                   table.records_.begin() + item.index);
         --table.count_;
         table.records_[table.count_] = {};
-        std::copy_n(table.records_.begin(), table.count_,
-                    table.control_.ranges());
+    std::copy_n(table.records_.begin(), table.count_, table.control_.ranges());
         table.control_.ranges()[table.count_] = {};
-        host_service::atomic_store(
-            table.control_.header()->range_count,
+    host_service::atomic_store(table.control_.header()->range_count,
             static_cast<std::uint32_t>(table.count_),
             std::memory_order_release);
         item.published = true;
@@ -171,14 +163,13 @@ int RangeTable::remove(std::uintptr_t base,
 }
 
 RangeLookup RangeTable::lookup(std::uintptr_t address,
-                               std::uint32_t bytes) const noexcept
-{
+                               std::uint32_t bytes) const noexcept {
     std::scoped_lock lock(mutex_);
     if (bytes == 0 || count_ == 0) {
         return {};
     }
-    const auto upper = std::upper_bound(
-        records_.begin(), records_.begin() + count_, address,
+  const auto upper =
+      std::upper_bound(records_.begin(), records_.begin() + count_, address,
         [](std::uintptr_t candidate,
            const host_service::SharedRangeRecord& record) {
             return candidate < record.base;
@@ -197,8 +188,7 @@ RangeLookup RangeTable::lookup(std::uintptr_t address,
     return {.kind = RangeLookupKind::Matched, .record = &record};
 }
 
-std::size_t RangeTable::size() const noexcept
-{
+std::size_t RangeTable::size() const noexcept {
     std::scoped_lock lock(mutex_);
     return count_;
 }

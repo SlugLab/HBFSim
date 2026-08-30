@@ -14,6 +14,8 @@ namespace hbfsim::device {
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
 inline constexpr std::uint32_t kControlAbiVersion = 5;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
+inline constexpr std::uint32_t kRangeFlagHostTimingFallback = 1U << 0;
+inline constexpr std::uint32_t kKnownRangeFlags = kRangeFlagHostTimingFallback;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;
@@ -137,8 +139,7 @@ struct alignas(64) PageEntry {
     std::uint64_t reserved1;
 };
 
-template <typename T>
-struct alignas(64) SharedRingSlot {
+template <typename T> struct alignas(64) SharedRingSlot {
     alignas(8) std::uint64_t sequence;
     std::byte sequence_padding[56];
     T value;
@@ -246,18 +247,15 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t thermal_scaled_service_ns(
                                            : whole + fractional;
 }
 
-HBFSIM_HOST_DEVICE constexpr bool valid_ring_capacity(
-    std::uint32_t capacity) noexcept
-{
-    return capacity >= kMinimumRingCapacity &&
-           capacity <= kMaximumRingCapacity &&
+HBFSIM_HOST_DEVICE constexpr bool
+valid_ring_capacity(std::uint32_t capacity) noexcept {
+  return capacity >= kMinimumRingCapacity && capacity <= kMaximumRingCapacity &&
            (capacity & (capacity - 1)) == 0;
 }
 
-HBFSIM_HOST_DEVICE constexpr std::uint32_t find_range_index(
-    const SharedRangeRecord* ranges, std::uint32_t count,
-    std::uint64_t address) noexcept
-{
+HBFSIM_HOST_DEVICE constexpr std::uint32_t
+find_range_index(const SharedRangeRecord *ranges, std::uint32_t count,
+                 std::uint64_t address) noexcept {
     std::uint32_t first = 0;
     std::uint32_t last = count;
     while (first < last) {
@@ -271,16 +269,13 @@ HBFSIM_HOST_DEVICE constexpr std::uint32_t find_range_index(
     return first == 0 ? count : first - 1;
 }
 
-HBFSIM_HOST_DEVICE constexpr bool access_supported(
-    const SharedRangeRecord& range, std::uint64_t address,
-    std::uint32_t bytes, std::uint32_t operation) noexcept
-{
-    if (bytes == 0 || operation > 1 ||
-        (range.mode != 1 && range.mode != 2) ||
+HBFSIM_HOST_DEVICE constexpr bool
+access_supported(const SharedRangeRecord &range, std::uint64_t address,
+                 std::uint32_t bytes, std::uint32_t operation) noexcept {
+  if (bytes == 0 || operation > 1 || (range.mode != 1 && range.mode != 2) ||
         range.page_bytes == 0 || range.page_bytes > UINT32_MAX ||
         range.length > UINT64_MAX - range.base || address < range.base ||
-        address - range.base >= range.length ||
-        bytes > UINT64_MAX - address ||
+      address - range.base >= range.length || bytes > UINT64_MAX - address ||
         address + bytes > range.base + range.length ||
         (range.permissions & (1U << operation)) == 0) {
         return false;
@@ -290,10 +285,9 @@ HBFSIM_HOST_DEVICE constexpr bool access_supported(
     return offset / range.page_bytes == last_offset / range.page_bytes;
 }
 
-HBFSIM_HOST_DEVICE constexpr std::uint64_t resolved_address(
-    const SharedRangeRecord& range, std::uint64_t original_address,
-    std::uint64_t cache_frame_address) noexcept
-{
+HBFSIM_HOST_DEVICE constexpr std::uint64_t
+resolved_address(const SharedRangeRecord &range, std::uint64_t original_address,
+                 std::uint64_t cache_frame_address) noexcept {
     if (range.mode == 1) {
         return original_address;
     }
@@ -301,17 +295,15 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t resolved_address(
         original_address < range.base || cache_frame_address == 0) {
         return 0;
     }
-    const auto page_offset =
-        (original_address - range.base) % range.page_bytes;
+  const auto page_offset = (original_address - range.base) % range.page_bytes;
     return page_offset > UINT64_MAX - cache_frame_address
                ? 0
                : cache_frame_address + page_offset;
 }
 
-HBFSIM_HOST_DEVICE constexpr MediaDescriptor media_descriptor(
-    const SharedRangeRecord& range, std::uint64_t address,
-    std::uint32_t bytes, std::uint32_t operation) noexcept
-{
+HBFSIM_HOST_DEVICE constexpr MediaDescriptor
+media_descriptor(const SharedRangeRecord &range, std::uint64_t address,
+                 std::uint32_t bytes, std::uint32_t operation) noexcept {
     if (!access_supported(range, address, bytes, operation)) {
         return {};
     }
@@ -325,17 +317,14 @@ HBFSIM_HOST_DEVICE constexpr MediaDescriptor media_descriptor(
             .valid = true};
 }
 
-HBFSIM_HOST_DEVICE constexpr std::uint64_t saturating_add(
-    std::uint64_t left, std::uint64_t right) noexcept
-{
+HBFSIM_HOST_DEVICE constexpr std::uint64_t
+saturating_add(std::uint64_t left, std::uint64_t right) noexcept {
     return right > UINT64_MAX - left ? UINT64_MAX : left + right;
 }
 
-HBFSIM_HOST_DEVICE constexpr std::uint64_t saturating_multiply(
-    std::uint64_t left, std::uint32_t right) noexcept
-{
-    return right != 0 && left > UINT64_MAX / right ? UINT64_MAX
-                                                    : left * right;
+HBFSIM_HOST_DEVICE constexpr std::uint64_t
+saturating_multiply(std::uint64_t left, std::uint32_t right) noexcept {
+  return right != 0 && left > UINT64_MAX / right ? UINT64_MAX : left * right;
 }
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t ceiling_scaled_delta(

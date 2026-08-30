@@ -86,8 +86,7 @@ struct CapacityHandle {
 };
 
 std::mutex capacity_mutex;
-std::unordered_map<std::uintptr_t, CapacityReservation>
-    capacity_reservations;
+std::unordered_map<std::uintptr_t, CapacityReservation> capacity_reservations;
 std::unordered_map<std::uint64_t, CapacityHandle> capacity_handles;
 std::unordered_map<void*, std::size_t> capacity_pinned;
 std::unordered_map<std::string, int> capacity_fail_at;
@@ -101,15 +100,13 @@ std::size_t capacity_explicit_context_clears = 0;
 std::uintptr_t capacity_last_context = 0;
 int capacity_last_device = -1;
 
-bool capacity_should_fail_locked(const char* operation)
-{
+bool capacity_should_fail_locked(const char *operation) {
     const auto call = ++capacity_calls[operation];
     const auto failure = capacity_fail_at.find(operation);
     return failure != capacity_fail_at.end() && failure->second == call;
 }
 
-bool capacity_valid_current_locked(int device)
-{
+bool capacity_valid_current_locked(int device) {
     if (device < 0 || current_context == 0 || current_device != device) {
         return false;
     }
@@ -119,11 +116,9 @@ bool capacity_valid_current_locked(int device)
 }
 
 auto capacity_reservation_for_locked(std::uintptr_t address,
-                                     std::size_t bytes)
-{
-    return std::find_if(
-        capacity_reservations.begin(), capacity_reservations.end(),
-        [&](const auto& item) {
+                                     std::size_t bytes) {
+  return std::find_if(capacity_reservations.begin(),
+                      capacity_reservations.end(), [&](const auto &item) {
             const auto base = item.first;
             const auto size = item.second.bytes;
             return address >= base && bytes <= size &&
@@ -131,9 +126,7 @@ auto capacity_reservation_for_locked(std::uintptr_t address,
         });
 }
 
-bool capacity_device_range_locked(std::uintptr_t address,
-                                  std::size_t bytes)
-{
+bool capacity_device_range_locked(std::uintptr_t address, std::size_t bytes) {
     const auto found = capacity_reservation_for_locked(address, bytes);
     return found != capacity_reservations.end() && found->second.mapped &&
            found->second.accessible &&
@@ -149,8 +142,7 @@ thread_local CapacityThreadBinding capacity_thread_binding;
 
 }  // namespace
 
-static int lookup(const char* symbol, void** function)
-{
+static int lookup(const char *symbol, void **function) {
     *function = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x1234));
     return symbol != nullptr && std::strncmp(symbol, "cu", 2) == 0 &&
                    std::strncmp(symbol, "cuda", 4) != 0
@@ -158,17 +150,23 @@ static int lookup(const char* symbol, void** function)
                : 1;
 }
 
+int cuDeviceGetAttribute(int *value, int attribute, int device) {
+  if (value == nullptr || device < 0) {
+    return 1;
+  }
+  *value = attribute == 86 ? 1 : 0;
+  return 0;
+}
+
 int cuGetProcAddress(const char* symbol, void** function, int version,
-                     std::uint64_t flags)
-{
+                     std::uint64_t flags) {
     (void)version;
     (void)flags;
     return lookup(symbol, function);
 }
 
 int cuGetProcAddress_v2(const char* symbol, void** function, int version,
-                        std::uint64_t flags, int* status)
-{
+                        std::uint64_t flags, int *status) {
     (void)version;
     (void)flags;
     const int result = lookup(symbol, function);
@@ -179,8 +177,7 @@ int cuGetProcAddress_v2(const char* symbol, void** function, int version,
 }
 
 int cudaGetDriverEntryPoint(const char* symbol, void** function,
-                            std::uint64_t flags, int* status)
-{
+                            std::uint64_t flags, int *status) {
     (void)flags;
     const int result = lookup(symbol, function);
     if (status != nullptr) {
@@ -190,30 +187,26 @@ int cudaGetDriverEntryPoint(const char* symbol, void** function,
 }
 
 int cudaGetDriverEntryPoint_ptsz(const char* symbol, void** function,
-                                 std::uint64_t flags, int* status)
-{
+                                 std::uint64_t flags, int *status) {
     return cudaGetDriverEntryPoint(symbol, function, flags, status);
 }
 
 int cudaGetDriverEntryPointByVersion(const char* symbol, void** function,
                                      unsigned int version, std::uint64_t flags,
-                                     int* status)
-{
+                                     int *status) {
     (void)version;
     return cudaGetDriverEntryPoint(symbol, function, flags, status);
 }
 
 int cudaGetDriverEntryPointByVersion_ptsz(const char* symbol, void** function,
                                           unsigned int version,
-                                          std::uint64_t flags, int* status)
-{
+                                          std::uint64_t flags, int *status) {
     return cudaGetDriverEntryPointByVersion(symbol, function, version, flags,
                                             status);
 }
 
 int cuModuleLoadDataEx(void** module, const void* image, unsigned int, void*,
-                       void**)
-{
+                       void **) {
     if (module == nullptr || image == nullptr) {
         return 1;
     }
@@ -229,25 +222,22 @@ int cuModuleLoadDataEx(void** module, const void* image, unsigned int, void*,
     return 0;
 }
 
-int cuModuleUnload(void* module)
-{
-    if (module != reinterpret_cast<void*>(fake_module_value) ||
-        !module_loaded || unload_fails) {
+int cuModuleUnload(void *module) {
+  if (module != reinterpret_cast<void *>(fake_module_value) || !module_loaded ||
+      unload_fails) {
         return 1;
     }
     module_loaded = false;
     return 0;
 }
 
-int destroy_context(std::uintptr_t target_context)
-{
+int destroy_context(std::uintptr_t target_context) {
     {
         std::unique_lock lock(lifecycle_pause_mutex);
         if (lifecycle_pause_enabled) {
             lifecycle_pause_entered = true;
             lifecycle_pause_ready.notify_all();
-            lifecycle_pause_ready.wait(
-                lock, [] { return lifecycle_pause_released; });
+      lifecycle_pause_ready.wait(lock, [] { return lifecycle_pause_released; });
         }
     }
     if (lifecycle_fails) {
@@ -265,48 +255,31 @@ int destroy_context(std::uintptr_t target_context)
     return 0;
 }
 
-int cuCtxDestroy(void* context)
-{
+int cuCtxDestroy(void *context) {
     return destroy_context(reinterpret_cast<std::uintptr_t>(context));
 }
 
-int cuCtxDestroy_v2(void* context)
-{
+int cuCtxDestroy_v2(void *context) {
     return destroy_context(reinterpret_cast<std::uintptr_t>(context));
 }
 
-int cuCtxDetach(void* context)
-{
+int cuCtxDetach(void *context) {
     return destroy_context(reinterpret_cast<std::uintptr_t>(context));
 }
 
-int destroy_device(int device)
-{
+int destroy_device(int device) {
     return destroy_context(device == current_device ? current_context : 0);
 }
 
-int cuDevicePrimaryCtxReset(int device)
-{
-    return destroy_device(device);
-}
+int cuDevicePrimaryCtxReset(int device) { return destroy_device(device); }
 
-int cuDevicePrimaryCtxReset_v2(int device)
-{
-    return destroy_device(device);
-}
+int cuDevicePrimaryCtxReset_v2(int device) { return destroy_device(device); }
 
-int cuDevicePrimaryCtxRelease(int device)
-{
-    return destroy_device(device);
-}
+int cuDevicePrimaryCtxRelease(int device) { return destroy_device(device); }
 
-int cuDevicePrimaryCtxRelease_v2(int device)
-{
-    return destroy_device(device);
-}
+int cuDevicePrimaryCtxRelease_v2(int device) { return destroy_device(device); }
 
-int cuCtxFromGreenCtx(void** context, void* green_context)
-{
+int cuCtxFromGreenCtx(void **context, void *green_context) {
     if (context == nullptr) {
         return 1;
     }
@@ -322,20 +295,18 @@ int cuCtxFromGreenCtx(void** context, void* green_context)
     return 1;
 }
 
-int cuGreenCtxDestroy(void* context)
-{
+int cuGreenCtxDestroy(void *context) {
     void* mapped = nullptr;
     return cuCtxFromGreenCtx(&mapped, context) == 0
                ? destroy_context(reinterpret_cast<std::uintptr_t>(mapped))
                : 1;
 }
 
-int cudaDeviceReset()
-{
+int cudaDeviceReset() {
     if (nested_runtime_reset) {
         using destroy_type = int (*)(void*);
-        auto destroy = reinterpret_cast<destroy_type>(
-            ::dlsym(RTLD_DEFAULT, "cuCtxDestroy"));
+    auto destroy =
+        reinterpret_cast<destroy_type>(::dlsym(RTLD_DEFAULT, "cuCtxDestroy"));
         return destroy == nullptr
                    ? 1
                    : destroy(reinterpret_cast<void*>(current_context));
@@ -343,13 +314,9 @@ int cudaDeviceReset()
     return destroy_context(current_context);
 }
 
-int cudaHostRegister(void*, std::size_t, unsigned int)
-{
-    return 0;
-}
+int cudaHostRegister(void *, std::size_t, unsigned int) { return 0; }
 
-int cudaHostGetDevicePointer(void** device, void* host, unsigned int)
-{
+int cudaHostGetDevicePointer(void **device, void *host, unsigned int) {
     if (device == nullptr || host == nullptr) {
         return 1;
     }
@@ -357,25 +324,19 @@ int cudaHostGetDevicePointer(void** device, void* host, unsigned int)
     return 0;
 }
 
-int cudaDeviceSynchronize()
-{
+int cudaDeviceSynchronize() {
     ++synchronize_count;
     return synchronize_fails ? 1 : 0;
 }
 
-int cudaHostUnregister(void*)
-{
+int cudaHostUnregister(void *) {
     ++unregister_count;
     return unregister_fails ? 1 : 0;
 }
 
-int cudaThreadExit()
-{
-    return destroy_context(current_context);
-}
+int cudaThreadExit() { return destroy_context(current_context); }
 
-int cuFuncGetModule(void** module, void*)
-{
+int cuFuncGetModule(void **module, void *) {
     if (!module_loaded || module == nullptr) {
         return 1;
     }
@@ -383,8 +344,7 @@ int cuFuncGetModule(void** module, void*)
     return 0;
 }
 
-int cuFuncGetName(const char** name, void*)
-{
+int cuFuncGetName(const char **name, void *) {
     if (!module_loaded || name == nullptr) {
         return 1;
     }
@@ -393,8 +353,7 @@ int cuFuncGetName(const char** name, void*)
 }
 
 int cuFuncGetParamInfo(void*, std::size_t index, std::size_t* offset,
-                       std::size_t* size)
-{
+                       std::size_t *size) {
     if (!module_loaded || index != 0 || offset == nullptr || size == nullptr) {
         return 1;
     }
@@ -403,8 +362,7 @@ int cuFuncGetParamInfo(void*, std::size_t index, std::size_t* offset,
     return 0;
 }
 
-int fakeCudaImplCtxSetCurrent(std::uintptr_t value)
-{
+int fakeCudaImplCtxSetCurrent(std::uintptr_t value) {
     std::lock_guard capacity_lock(capacity_mutex);
     if (capacity_should_fail_locked("cuCtxSetCurrent")) {
         return 1;
@@ -441,8 +399,7 @@ int fakeCudaImplCtxSetCurrent(std::uintptr_t value)
     return 0;
 }
 
-int fakeCudaImplCtxGetCurrent(std::uintptr_t* context)
-{
+int fakeCudaImplCtxGetCurrent(std::uintptr_t *context) {
     {
         std::lock_guard lock(capacity_mutex);
         if (capacity_should_fail_locked("cuCtxGetCurrent")) {
@@ -461,8 +418,7 @@ int fakeCudaImplCtxGetCurrent(std::uintptr_t* context)
     return 0;
 }
 
-int fakeCudaImplCtxGetDevice(int* device)
-{
+int fakeCudaImplCtxGetDevice(int *device) {
     {
         std::lock_guard lock(capacity_mutex);
         if (capacity_should_fail_locked("cuCtxGetDevice")) {
@@ -481,8 +437,7 @@ int fakeCudaImplCtxGetDevice(int* device)
     return 0;
 }
 
-int cuPointerGetAttribute(void* data, int attribute, std::uintptr_t)
-{
+int cuPointerGetAttribute(void *data, int attribute, std::uintptr_t) {
     if (data == nullptr) {
         return 1;
     }
@@ -491,14 +446,12 @@ int cuPointerGetAttribute(void* data, int attribute, std::uintptr_t)
         if (pointer_pause_enabled && !pointer_pause_entered) {
             pointer_pause_entered = true;
             pointer_pause_ready.notify_all();
-            pointer_pause_ready.wait(lock,
-                                     [] { return pointer_pause_released; });
+      pointer_pause_ready.wait(lock, [] { return pointer_pause_released; });
         }
     }
     switch (attribute) {
     case 1:
-        *static_cast<void**>(data) =
-            reinterpret_cast<void*>(pointer_context);
+    *static_cast<void **>(data) = reinterpret_cast<void *>(pointer_context);
         return 0;
     case 2:
         *static_cast<unsigned int*>(data) = pointer_memory_type;
@@ -514,8 +467,7 @@ int cuPointerGetAttribute(void* data, int attribute, std::uintptr_t)
     }
 }
 
-int fake_mem_get_address_range(std::uintptr_t* base, std::size_t* size)
-{
+int fake_mem_get_address_range(std::uintptr_t *base, std::size_t *size) {
     if (base == nullptr || size == nullptr || allocation_base == 0 ||
         allocation_bytes == 0) {
         return 1;
@@ -526,20 +478,17 @@ int fake_mem_get_address_range(std::uintptr_t* base, std::size_t* size)
 }
 
 int cuMemGetAddressRange(std::uintptr_t* base, std::size_t* size,
-                         std::uintptr_t)
-{
+                         std::uintptr_t) {
     return fake_mem_get_address_range(base, size);
 }
 
 int cuMemGetAddressRange_v2(std::uintptr_t* base, std::size_t* size,
-                            std::uintptr_t)
-{
+                            std::uintptr_t) {
     return fake_mem_get_address_range(base, size);
 }
 
 int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
-                         const char* name)
-{
+                         const char *name) {
     if (!module_loaded || address == nullptr || size == nullptr ||
         name == nullptr) {
         return 1;
@@ -569,8 +518,7 @@ int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
 }
 
 int fakeCudaImplMemGetAllocationGranularity(std::size_t* granularity,
-                                            int device)
-{
+                                            int device) {
     std::lock_guard lock(capacity_mutex);
     if (granularity == nullptr || !capacity_valid_current_locked(device) ||
         capacity_should_fail_locked("cuMemGetAllocationGranularity")) {
@@ -584,8 +532,7 @@ int fakeCudaImplMemGetAllocationGranularity(std::size_t* granularity,
 int fakeCudaImplMemAddressReserve(std::uintptr_t* address, std::size_t bytes,
                                   std::size_t alignment,
                                   std::uintptr_t requested,
-                                  std::uint64_t flags)
-{
+                                  std::uint64_t flags) {
     std::lock_guard lock(capacity_mutex);
     if (address == nullptr || bytes == 0 || alignment == 0 || requested != 0 ||
         flags != 0 || !capacity_valid_current_locked(current_device) ||
@@ -598,8 +545,8 @@ int fakeCudaImplMemAddressReserve(std::uintptr_t* address, std::size_t bytes,
     }
     std::memset(storage, 0, bytes);
     const auto base = reinterpret_cast<std::uintptr_t>(storage);
-    capacity_reservations.emplace(
-        base, CapacityReservation{.bytes = bytes,
+  capacity_reservations.emplace(base,
+                                CapacityReservation{.bytes = bytes,
                                   .alignment = alignment,
                                   .device = current_device});
     *address = base;
@@ -607,8 +554,7 @@ int fakeCudaImplMemAddressReserve(std::uintptr_t* address, std::size_t bytes,
     return 0;
 }
 
-int fakeCudaImplMemAddressFree(std::uintptr_t address, std::size_t bytes)
-{
+int fakeCudaImplMemAddressFree(std::uintptr_t address, std::size_t bytes) {
     std::lock_guard lock(capacity_mutex);
     const auto found = capacity_reservations.find(address);
     if (found == capacity_reservations.end() || found->second.bytes != bytes ||
@@ -624,8 +570,7 @@ int fakeCudaImplMemAddressFree(std::uintptr_t address, std::size_t bytes)
 }
 
 int fakeCudaImplMemCreate(std::uint64_t* handle, std::size_t bytes,
-                          std::uint64_t flags, int device)
-{
+                          std::uint64_t flags, int device) {
     std::lock_guard lock(capacity_mutex);
     if (handle == nullptr || bytes == 0 || flags != 0 ||
         !capacity_valid_current_locked(device) ||
@@ -640,12 +585,11 @@ int fakeCudaImplMemCreate(std::uint64_t* handle, std::size_t bytes,
     return 0;
 }
 
-int fakeCudaImplMemRelease(std::uint64_t handle)
-{
+int fakeCudaImplMemRelease(std::uint64_t handle) {
     std::lock_guard lock(capacity_mutex);
     const auto found = capacity_handles.find(handle);
-    const auto still_mapped = std::any_of(
-        capacity_reservations.begin(), capacity_reservations.end(),
+  const auto still_mapped =
+      std::any_of(capacity_reservations.begin(), capacity_reservations.end(),
         [&](const auto& item) {
             return item.second.mapped && item.second.handle == handle;
         });
@@ -661,19 +605,16 @@ int fakeCudaImplMemRelease(std::uint64_t handle)
 
 int fakeCudaImplMemMap(std::uintptr_t address, std::size_t bytes,
                        std::size_t offset, std::uint64_t handle,
-                       std::uint64_t flags)
-{
+                       std::uint64_t flags) {
     std::lock_guard lock(capacity_mutex);
     const auto reservation = capacity_reservations.find(address);
     const auto allocation = capacity_handles.find(handle);
     if (reservation == capacity_reservations.end() ||
         allocation == capacity_handles.end() || reservation->second.mapped ||
-        reservation->second.bytes != bytes ||
-        allocation->second.bytes != bytes ||
+      reservation->second.bytes != bytes || allocation->second.bytes != bytes ||
         reservation->second.device != allocation->second.device ||
         !capacity_valid_current_locked(reservation->second.device) ||
-        offset != 0 || flags != 0 ||
-        capacity_should_fail_locked("cuMemMap")) {
+      offset != 0 || flags != 0 || capacity_should_fail_locked("cuMemMap")) {
         return 1;
     }
     reservation->second.mapped = true;
@@ -682,8 +623,7 @@ int fakeCudaImplMemMap(std::uintptr_t address, std::size_t bytes,
     return 0;
 }
 
-int fakeCudaImplMemUnmap(std::uintptr_t address, std::size_t bytes)
-{
+int fakeCudaImplMemUnmap(std::uintptr_t address, std::size_t bytes) {
     std::lock_guard lock(capacity_mutex);
     const auto reservation = capacity_reservations.find(address);
     if (reservation == capacity_reservations.end() ||
@@ -701,8 +641,7 @@ int fakeCudaImplMemUnmap(std::uintptr_t address, std::size_t bytes)
 }
 
 int fakeCudaImplMemSetAccess(std::uintptr_t address, std::size_t bytes,
-                             std::size_t count, int device)
-{
+                             std::size_t count, int device) {
     std::lock_guard lock(capacity_mutex);
     const auto reservation = capacity_reservations.find(address);
     if (reservation == capacity_reservations.end() ||
@@ -718,8 +657,7 @@ int fakeCudaImplMemSetAccess(std::uintptr_t address, std::size_t bytes,
     return 0;
 }
 
-int fakeCudaImplHostAlloc(void** data, std::size_t bytes)
-{
+int fakeCudaImplHostAlloc(void **data, std::size_t bytes) {
     std::lock_guard lock(capacity_mutex);
     if (data == nullptr || bytes == 0 ||
         capacity_should_fail_locked("cudaHostAlloc")) {
@@ -735,8 +673,7 @@ int fakeCudaImplHostAlloc(void** data, std::size_t bytes)
     return 0;
 }
 
-int fakeCudaImplFreeHost(void* data)
-{
+int fakeCudaImplFreeHost(void *data) {
     std::lock_guard lock(capacity_mutex);
     const auto found = capacity_pinned.find(data);
     if (found == capacity_pinned.end() ||
@@ -750,12 +687,10 @@ int fakeCudaImplFreeHost(void* data)
 }
 
 int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
-                           std::size_t size)
-{
+                           std::size_t size) {
     {
         std::lock_guard lock(capacity_mutex);
-        if (source != nullptr &&
-            capacity_device_range_locked(destination, size)) {
+    if (source != nullptr && capacity_device_range_locked(destination, size)) {
             if (capacity_should_fail_locked("cuMemcpyHtoD_v2")) {
                 return 1;
             }
@@ -769,8 +704,7 @@ int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
     if (control_copy_fails ||
         (control_copy_fail_position != 0 &&
          control_copy_calls == control_copy_fail_position) ||
-        destination == 0 || source == nullptr ||
-        size != sizeof(std::uint64_t)) {
+      destination == 0 || source == nullptr || size != sizeof(std::uint64_t)) {
         return 1;
     }
     std::memcpy(reinterpret_cast<void*>(destination), source, size);
@@ -778,24 +712,20 @@ int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
 }
 
 int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
-                           std::size_t size)
-{
+                           std::size_t size) {
     {
         std::lock_guard lock(capacity_mutex);
-        if (destination != nullptr &&
-            capacity_device_range_locked(source, size)) {
+    if (destination != nullptr && capacity_device_range_locked(source, size)) {
             if (capacity_should_fail_locked("cuMemcpyDtoH_v2")) {
                 return 1;
             }
-            std::memcpy(destination, reinterpret_cast<const void*>(source),
-                        size);
+      std::memcpy(destination, reinterpret_cast<const void *>(source), size);
             ++capacity_dtoh_calls;
             capacity_events.push_back(capacity_dtoh);
             return 0;
         }
     }
-    if (destination == nullptr || source == 0 ||
-        size != module_identity.size()) {
+  if (destination == nullptr || source == 0 || size != module_identity.size()) {
         return 1;
     }
     std::memcpy(destination, reinterpret_cast<const void*>(source), size);
@@ -804,41 +734,30 @@ int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
 
 int cuLaunchKernel(void*, unsigned int, unsigned int, unsigned int,
                    unsigned int, unsigned int, unsigned int, unsigned int,
-                   void*, void**, void**)
-{
+                   void *, void **, void **) {
     ++launch_count;
     return 0;
 }
 
-int cuLaunchKernelEx(const void*, void*, void**, void**)
-{
+int cuLaunchKernelEx(const void *, void *, void **, void **) {
     ++launch_count;
     return 0;
 }
 
-int cuLaunchKernelEx_ptsz(const void* config, void* function,
-                          void** parameters, void** extra)
-{
+int cuLaunchKernelEx_ptsz(const void *config, void *function, void **parameters,
+                          void **extra) {
     return cuLaunchKernelEx(config, function, parameters, extra);
 }
 
-void fakeCudaSetUnloadFailure(int fail)
-{
-    unload_fails = fail != 0;
-}
+void fakeCudaSetUnloadFailure(int fail) { unload_fails = fail != 0; }
 
-void fakeCudaSetLifecycleFailure(int fail)
-{
-    lifecycle_fails = fail != 0;
-}
+void fakeCudaSetLifecycleFailure(int fail) { lifecycle_fails = fail != 0; }
 
-void fakeCudaSetMarkerAvailable(int available)
-{
+void fakeCudaSetMarkerAvailable(int available) {
     marker_available = available != 0;
 }
 
-void fakeCudaSetCurrentDomain(std::uintptr_t context, int device)
-{
+void fakeCudaSetCurrentDomain(std::uintptr_t context, int device) {
     current_context = context;
     current_device = device;
     if (context != 0 && device >= 0) {
@@ -847,58 +766,50 @@ void fakeCudaSetCurrentDomain(std::uintptr_t context, int device)
     }
 }
 
-void fakeCudaPausePointerValidation()
-{
+void fakeCudaPausePointerValidation() {
     std::lock_guard lock(pointer_pause_mutex);
     pointer_pause_enabled = true;
     pointer_pause_entered = false;
     pointer_pause_released = false;
 }
 
-void fakeCudaWaitPointerValidationEntered()
-{
+void fakeCudaWaitPointerValidationEntered() {
     std::unique_lock lock(pointer_pause_mutex);
     pointer_pause_ready.wait(lock, [] { return pointer_pause_entered; });
 }
 
-void fakeCudaReleasePointerValidation()
-{
+void fakeCudaReleasePointerValidation() {
     std::lock_guard lock(pointer_pause_mutex);
     pointer_pause_released = true;
     pointer_pause_ready.notify_all();
 }
 
-void fakeCudaPauseLifecycle()
-{
+void fakeCudaPauseLifecycle() {
     std::lock_guard lock(lifecycle_pause_mutex);
     lifecycle_pause_enabled = true;
     lifecycle_pause_entered = false;
     lifecycle_pause_released = false;
 }
 
-void fakeCudaWaitLifecycleEntered()
-{
+void fakeCudaWaitLifecycleEntered() {
     std::unique_lock lock(lifecycle_pause_mutex);
     lifecycle_pause_ready.wait(lock, [] { return lifecycle_pause_entered; });
 }
 
-void fakeCudaReleaseLifecycle()
-{
+void fakeCudaReleaseLifecycle() {
     std::lock_guard lock(lifecycle_pause_mutex);
     lifecycle_pause_released = true;
     lifecycle_pause_ready.notify_all();
 }
 
-void fakeCudaSetNestedRuntimeReset(int enabled)
-{
+void fakeCudaSetNestedRuntimeReset(int enabled) {
     nested_runtime_reset = enabled != 0;
 }
 
 void fakeCudaSetPointerMetadata(std::uintptr_t context, int device,
                                 unsigned int memory_type,
-                                unsigned int is_managed,
-                                std::uintptr_t base, std::size_t bytes)
-{
+                                unsigned int is_managed, std::uintptr_t base,
+                                std::size_t bytes) {
     pointer_context = context;
     pointer_device = device;
     pointer_memory_type = memory_type;
@@ -907,66 +818,42 @@ void fakeCudaSetPointerMetadata(std::uintptr_t context, int device,
     allocation_bytes = bytes;
 }
 
-void fakeCudaSetControlSymbolsAvailable(int available)
-{
+void fakeCudaSetControlSymbolsAvailable(int available) {
     control_symbols_available = available != 0;
 }
 
-void fakeCudaSetControlCopyFailure(int fail)
-{
+void fakeCudaSetControlCopyFailure(int fail) {
     control_copy_fails = fail != 0;
     control_copy_calls = 0;
 }
 
-void fakeCudaSetControlCopyFailurePosition(int position)
-{
+void fakeCudaSetControlCopyFailurePosition(int position) {
     control_copy_fail_position = position;
     control_copy_calls = 0;
 }
 
-std::uint64_t fakeCudaControlAlias()
-{
-    return control_alias;
-}
+std::uint64_t fakeCudaControlAlias() { return control_alias; }
 
-std::uint64_t fakeCudaControlGeneration()
-{
-    return control_generation;
-}
+std::uint64_t fakeCudaControlGeneration() { return control_generation; }
 
-int fakeCudaLaunchCount()
-{
-    return launch_count;
-}
+int fakeCudaLaunchCount() { return launch_count; }
 
-void fakeCudaSetHostUnregisterFailure(int fail)
-{
+void fakeCudaSetHostUnregisterFailure(int fail) {
     unregister_fails = fail != 0;
 }
 
-void fakeCudaSetSynchronizeFailure(int fail)
-{
-    synchronize_fails = fail != 0;
-}
+void fakeCudaSetSynchronizeFailure(int fail) { synchronize_fails = fail != 0; }
 
-void fakeCudaResetLifecycleCounts()
-{
+void fakeCudaResetLifecycleCounts() {
     synchronize_count = 0;
     unregister_count = 0;
 }
 
-int fakeCudaSynchronizeCount()
-{
-    return synchronize_count;
-}
+int fakeCudaSynchronizeCount() { return synchronize_count; }
 
-int fakeCudaUnregisterCount()
-{
-    return unregister_count;
-}
+int fakeCudaUnregisterCount() { return unregister_count; }
 
-int fakeCudaSetModuleIdentity(const std::uint8_t* identity, std::size_t size)
-{
+int fakeCudaSetModuleIdentity(const std::uint8_t *identity, std::size_t size) {
     if (identity == nullptr || size != module_identity.size()) {
         return 1;
     }
@@ -974,8 +861,7 @@ int fakeCudaSetModuleIdentity(const std::uint8_t* identity, std::size_t size)
     return 0;
 }
 
-void fakeCudaCapacityReset()
-{
+void fakeCudaCapacityReset() {
     std::lock_guard lock(capacity_mutex);
     for (const auto& [address, reservation] : capacity_reservations) {
         (void)reservation;
@@ -1000,8 +886,7 @@ void fakeCudaCapacityReset()
     capacity_last_device = -1;
 }
 
-void fakeCudaCapacityFail(const char* operation, int call)
-{
+void fakeCudaCapacityFail(const char *operation, int call) {
     std::lock_guard lock(capacity_mutex);
     if (operation == nullptr || call <= 0) {
         return;
@@ -1010,38 +895,32 @@ void fakeCudaCapacityFail(const char* operation, int call)
     capacity_calls[operation] = 0;
 }
 
-std::size_t fakeCudaCapacityLiveReservations()
-{
+std::size_t fakeCudaCapacityLiveReservations() {
     std::lock_guard lock(capacity_mutex);
     return capacity_reservations.size();
 }
 
-std::size_t fakeCudaCapacityLiveHandles()
-{
+std::size_t fakeCudaCapacityLiveHandles() {
     std::lock_guard lock(capacity_mutex);
     return capacity_handles.size();
 }
 
-std::size_t fakeCudaCapacityLivePinnedBuffers()
-{
+std::size_t fakeCudaCapacityLivePinnedBuffers() {
     std::lock_guard lock(capacity_mutex);
     return capacity_pinned.size();
 }
 
-std::size_t fakeCudaCapacityLiveWorkerContexts()
-{
+std::size_t fakeCudaCapacityLiveWorkerContexts() {
     std::lock_guard lock(capacity_mutex);
     return capacity_worker_contexts;
 }
 
-std::size_t fakeCudaCapacityExplicitContextClears()
-{
+std::size_t fakeCudaCapacityExplicitContextClears() {
     std::lock_guard lock(capacity_mutex);
     return capacity_explicit_context_clears;
 }
 
-std::size_t fakeCudaCapacityReservedBytes()
-{
+std::size_t fakeCudaCapacityReservedBytes() {
     std::lock_guard lock(capacity_mutex);
     std::size_t result = 0;
     for (const auto& [address, reservation] : capacity_reservations) {
@@ -1051,8 +930,7 @@ std::size_t fakeCudaCapacityReservedBytes()
     return result;
 }
 
-std::size_t fakeCudaCapacityPinnedBytes()
-{
+std::size_t fakeCudaCapacityPinnedBytes() {
     std::lock_guard lock(capacity_mutex);
     std::size_t result = 0;
     for (const auto& [data, bytes] : capacity_pinned) {
@@ -1062,33 +940,28 @@ std::size_t fakeCudaCapacityPinnedBytes()
     return result;
 }
 
-std::size_t fakeCudaCapacityHtoDCalls()
-{
+std::size_t fakeCudaCapacityHtoDCalls() {
     std::lock_guard lock(capacity_mutex);
     return capacity_htod_calls;
 }
 
-std::size_t fakeCudaCapacityDtoHCalls()
-{
+std::size_t fakeCudaCapacityDtoHCalls() {
     std::lock_guard lock(capacity_mutex);
     return capacity_dtoh_calls;
 }
 
-std::uintptr_t fakeCudaCapacityLastContext()
-{
+std::uintptr_t fakeCudaCapacityLastContext() {
     std::lock_guard lock(capacity_mutex);
     return capacity_last_context;
 }
 
-int fakeCudaCapacityLastDevice()
-{
+int fakeCudaCapacityLastDevice() {
     std::lock_guard lock(capacity_mutex);
     return capacity_last_device;
 }
 
 int fakeCudaCapacityReadDevice(std::uintptr_t address, void* bytes,
-                               std::size_t size)
-{
+                               std::size_t size) {
     std::lock_guard lock(capacity_mutex);
     if (bytes == nullptr || !capacity_device_range_locked(address, size)) {
         return 1;
@@ -1098,8 +971,7 @@ int fakeCudaCapacityReadDevice(std::uintptr_t address, void* bytes,
 }
 
 int fakeCudaCapacityWriteDevice(std::uintptr_t address, const void* bytes,
-                                std::size_t size)
-{
+                                std::size_t size) {
     std::lock_guard lock(capacity_mutex);
     if (bytes == nullptr || !capacity_device_range_locked(address, size)) {
         return 1;
@@ -1108,14 +980,12 @@ int fakeCudaCapacityWriteDevice(std::uintptr_t address, const void* bytes,
     return 0;
 }
 
-std::size_t fakeCudaCapacityEventCount()
-{
+std::size_t fakeCudaCapacityEventCount() {
     std::lock_guard lock(capacity_mutex);
     return capacity_events.size();
 }
 
-int fakeCudaCapacityEvent(std::size_t index)
-{
+int fakeCudaCapacityEvent(std::size_t index) {
     std::lock_guard lock(capacity_mutex);
     return index < capacity_events.size() ? capacity_events[index] : 0;
 }

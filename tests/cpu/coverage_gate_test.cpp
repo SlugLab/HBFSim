@@ -284,12 +284,43 @@ int main()
                           hbfsim::RangePolicy::TimingBacked);
     CHECK(!timing_gate.has_capacity_ranges());
 
+    auto host_launch_manifest = manifest(
+        "ptx:host-launch", "host_launch_kernel",
+        {{.index = 0,
+          .offset = 0,
+          .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}});
+    host_launch_manifest.instrumented = false;
+    host_launch_manifest.host_launch_only = true;
+    timing_gate.add_module(std::move(host_launch_manifest));
+
+    CHECK(timing_gate.native_execution_required(
+              "ptx:host-launch", "host_launch_kernel") == true);
+    CHECK(timing_gate.native_execution_required(
+              "ptx:timing", "timing_kernel") == false);
+    CHECK(!timing_gate.native_execution_required(
+               "ptx:missing", "missing_kernel").has_value());
+
     const auto timing_modeled = timing_gate.check_launch(
         launch("ptx:timing", "timing_kernel", {pointer(0, 0x300100)}));
     CHECK(timing_modeled.allowed);
     CHECK(timing_modeled.modeled);
     CHECK(!timing_modeled.opaque_unmodeled);
     CHECK(timing_modeled.range_policy == hbfsim::RangePolicy::TimingBacked);
+
+    const auto host_launch = timing_gate.check_launch(launch(
+        "ptx:host-launch", "host_launch_kernel", {pointer(0, 0x300100)}));
+    CHECK(host_launch.allowed);
+    CHECK(host_launch.modeled);
+    CHECK(host_launch.reason == "host_launch_modeled");
+    CHECK(host_launch.operation == "host_launch_mqsim");
+    CHECK(host_launch.range_policy == hbfsim::RangePolicy::TimingBacked);
+
+    const auto host_layout_mismatch = timing_gate.check_launch(launch(
+        "ptx:host-launch", "host_launch_kernel",
+        {{.index = 0, .offset = 8, .width = 8, .slots = {{0, 0x300100}}}}));
+    CHECK(!host_layout_mismatch.allowed);
+    CHECK(host_layout_mismatch.reason == "parameter_layout_mismatch");
 
     const auto timing_missing_identity = timing_gate.check_launch(
         launch("", "timing_kernel", {pointer(0, 0x300100)}));
@@ -337,6 +368,15 @@ int main()
         .instrumented = false,
         .cubin_only = true,
     });
+    auto capacity_host_launch = manifest(
+        "ptx:capacity-host", "capacity_host_launch",
+        {{.index = 0,
+          .offset = 0,
+          .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}});
+    capacity_host_launch.instrumented = false;
+    capacity_host_launch.host_launch_only = true;
+    capacity_gate.add_module(std::move(capacity_host_launch));
     capacity_gate.add_range(0x500000, 0x600000,
                             hbfsim::RangePolicy::CapacityUnbacked);
     CHECK(capacity_gate.has_capacity_ranges());
@@ -348,18 +388,41 @@ int main()
     CHECK(capacity_opaque.range_policy ==
           hbfsim::RangePolicy::CapacityUnbacked);
 
+    const auto capacity_host = capacity_gate.check_launch(launch(
+        "ptx:capacity-host", "capacity_host_launch",
+        {pointer(0, 0x500100)}));
+    CHECK(!capacity_host.allowed);
+    CHECK(capacity_host.reason == "host_launch_only_requires_timing");
+    CHECK(capacity_host.operation == "host_launch_mqsim");
+
     const auto hbm = gate.check_launch(
         launch("missing", "opaque_kernel", {pointer(0, 0x900000)}));
     CHECK(hbm.allowed);
 
     const auto parsed = hbfsim::module_manifest_from_json(R"({
       "module_id":"ptx:json", "kernel":"json_kernel", "ptx_target":"sm_120",
-      "instrumented":false, "cubin_only":false,
+      "instrumented":false, "host_launch_only":true, "cubin_only":false,
       "parameters":[{"index":0,"offset":0,"width":8,"kind":"pointer"}],
       "unsupported_parameters":[{"index":0,"operation":"atom.global"}]
     })");
     CHECK(parsed.module_id == "ptx:json");
+    CHECK(parsed.host_launch_only);
     CHECK(parsed.parameters.front().kind == hbfsim::ParameterKind::Pointer);
+
+    bool conflicting_host_manifest = false;
+    try {
+        auto conflict = manifest(
+            "ptx:conflict", "conflict",
+            {{.index = 0,
+              .offset = 0,
+              .width = 8,
+              .kind = hbfsim::ParameterKind::Pointer}});
+        conflict.host_launch_only = true;
+        gate.add_module(std::move(conflict));
+    } catch (const std::invalid_argument&) {
+        conflicting_host_manifest = true;
+    }
+    CHECK(conflicting_host_manifest);
 
     const auto test_id = std::to_string(getpid());
     const auto report = std::filesystem::temp_directory_path() /

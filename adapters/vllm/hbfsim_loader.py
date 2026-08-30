@@ -37,7 +37,7 @@ class TimingConfig:
     profile_path: str
     report_dir: str
     ring_capacity: int = 64
-    request_timeout_ns: int = 1_000_000_000
+    request_timeout_ns: int = 30_000_000_000
     underlying_load_format: str = "safetensors"
     default_loader_extra_config: dict[str, Any] = dataclasses.field(
         default_factory=dict
@@ -63,7 +63,7 @@ class TimingConfig:
         profile = str(raw.get("profile_path", ""))
         report = str(raw.get("report_dir", ""))
         ring = int(raw.get("ring_capacity", 64))
-        timeout = int(raw.get("request_timeout_ns", 1_000_000_000))
+        timeout = int(raw.get("request_timeout_ns", 30_000_000_000))
         underlying = str(raw.get("underlying_load_format", "safetensors"))
         delegate_extra = raw.get("default_loader_extra_config", {})
         parameter_regex = str(raw.get("parameter_regex", ""))
@@ -208,12 +208,27 @@ class NativeTimingSession:
             ctypes.c_size_t,
         ]
         self._library.hbfsim_vllm_register_storage.restype = ctypes.c_int
+        self._library.hbfsim_vllm_timing_backend.argtypes = [
+            ctypes.c_void_p
+        ]
+        self._library.hbfsim_vllm_timing_backend.restype = (
+            ctypes.c_char_p
+        )
         self._library.hbfsim_vllm_session_close.argtypes = [
             ctypes.POINTER(ctypes.c_void_p)
         ]
         self._library.hbfsim_vllm_session_close.restype = ctypes.c_int
         self._library.hbfsim_vllm_status_string.argtypes = [ctypes.c_int]
         self._library.hbfsim_vllm_status_string.restype = ctypes.c_char_p
+
+    @property
+    def timing_backend(self) -> str:
+        if not self._handle.value:
+            return "unavailable"
+        value = self._library.hbfsim_vllm_timing_backend(
+            self._handle
+        )
+        return value.decode() if value else "unavailable"
 
     def _status(self, status: int) -> str:
         value = self._library.hbfsim_vllm_status_string(status)
@@ -354,6 +369,9 @@ def register_model_storages(
             "package_thermal_stage": config.package_thermal_stage,
             "package_thermal_profile_path": config.package_thermal_profile_path,
             "package_thermal_model_path": config.package_thermal_model_path,
+            "ring_capacity": config.ring_capacity,
+            "request_timeout_ns": config.request_timeout_ns,
+            "timing_backend": session.timing_backend,
             "selection": {
                 "parameter_regex": config.parameter_regex,
                 "max_bytes_per_storage": config.max_bytes_per_storage,

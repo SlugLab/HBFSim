@@ -92,9 +92,10 @@ def main() -> int:
                         ".visible .global .align 8 .u64 "
                         "__hbfsim_control_generation;") == 1,
                     "control generation declaration was missing or duplicated")
-            require("call.uni" in transformed and
+            require("call.uni" not in transformed and
+                    "call (" in transformed and
                     "__hbfsim_resolve" in transformed,
-                    "rewritten access does not call the embedded resolver")
+                    "resolver calls must conservatively permit divergence")
             source = work_path / f"self_contained_{target}.ptx"
             cubin = work_path / f"self_contained_{target}.cubin"
             source.write_text(transformed)

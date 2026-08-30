@@ -22,6 +22,16 @@ ENTRY_PATTERN = re.compile(
 Transformer = Callable[[bytes, str], bytes]
 
 
+def is_staged_source(source: pathlib.Path,
+                     cache_root: pathlib.Path) -> bool:
+    for parent in source.parents:
+        if parent == cache_root:
+            return False
+        if (parent / "ptx-staging-manifest.json").is_file():
+            return True
+    return False
+
+
 def kernel_names(payload: bytes) -> tuple[str, ...]:
     return tuple(sorted({
         match.group(1).decode("utf-8", errors="strict")
@@ -31,16 +41,21 @@ def kernel_names(payload: bytes) -> tuple[str, ...]:
 
 def stage_ptx(cache_root: pathlib.Path, staging_dir: pathlib.Path, *,
               kernel: str | None = None,
-              transformer: Transformer | None = None) -> dict[str, Any]:
+              transformer: Transformer | None = None,
+              host_launch_only: bool = False) -> dict[str, Any]:
     cache_root = cache_root.resolve()
     staging_dir = staging_dir.resolve()
     if not cache_root.is_dir():
         raise ValueError(f"Triton cache is not a directory: {cache_root}")
+    if host_launch_only and transformer is None:
+        raise ValueError("host-launch-only staging requires a transformer")
     staging_dir.mkdir(parents=True, exist_ok=True)
 
     variants: dict[str, dict[str, Any]] = {}
     for source in sorted(cache_root.rglob("*.ptx")):
         if staging_dir == source.parent or staging_dir in source.parents:
+            continue
+        if is_staged_source(source, cache_root):
             continue
         payload = source.read_bytes()
         digest = hashlib.sha256(payload).hexdigest()
@@ -67,6 +82,7 @@ def stage_ptx(cache_root: pathlib.Path, staging_dir: pathlib.Path, *,
             "bytes": len(payload),
             "staged_bytes": len(staged_payload),
             "prepatched": transformer is not None,
+            "host_launch_only": host_launch_only,
         }
 
     ordered = [variants[key] for key in sorted(variants)]
@@ -75,9 +91,10 @@ def stage_ptx(cache_root: pathlib.Path, staging_dir: pathlib.Path, *,
         if stale.name not in expected:
             stale.unlink()
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "cache_root": str(cache_root),
         "staging_dir": str(staging_dir),
+        "host_launch_only": host_launch_only,
         "variants": ordered,
     }
     temporary = staging_dir / ".ptx-staging-manifest.json.tmp"
@@ -88,7 +105,7 @@ def stage_ptx(cache_root: pathlib.Path, staging_dir: pathlib.Path, *,
 
 
 def transform_one(plugin_path: pathlib.Path, payload: bytes,
-                  kernel: str) -> bytes:
+                  kernel: str, host_launch_only: bool = False) -> bytes:
     plugin = ctypes.CDLL(str(plugin_path.resolve()))
     plugin.process_input.argtypes = (
         ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p
@@ -100,6 +117,7 @@ def transform_one(plugin_path: pathlib.Path, payload: bytes,
             "to_patch_kernel": kernel,
             "global_ebpf_map_info_symbol": "map_info",
             "ebpf_communication_data_symbol": "constData",
+            "host_launch_only": host_launch_only,
         },
         "ebpf_instructions": [],
     }).encode("utf-8")
@@ -114,23 +132,29 @@ def transform_one(plugin_path: pathlib.Path, payload: bytes,
             )
         response = json.loads(output.value)
         if not response.get("modified"):
-            raise RuntimeError(f"HBF PTX pass did not instrument {kernel}")
+            raise RuntimeError(f"HBF PTX pass did not prepare {kernel}")
         return response["output_ptx"].encode("utf-8")
     raise RuntimeError(f"HBF PTX pass output exceeded 64 MiB for {kernel}")
 
 
-def subprocess_transformer(plugin_path: pathlib.Path,
-                           manifest_path: pathlib.Path) -> Transformer:
+def subprocess_transformer(
+    plugin_path: pathlib.Path, manifest_path: pathlib.Path,
+    host_launch_only: bool = False,
+) -> Transformer:
     def invoke(payload: bytes, kernel: str) -> bytes:
         environment = os.environ.copy()
         environment["HBFSIM_PASS_MANIFEST_PATH"] = str(
             manifest_path.resolve()
         )
+        command = [
+            sys.executable, str(pathlib.Path(__file__).resolve()),
+            "--transform-one", "--pass-library", str(plugin_path.resolve()),
+            "--kernel", kernel,
+        ]
+        if host_launch_only:
+            command.append("--host-launch-only")
         completed = subprocess.run(
-            [sys.executable, str(pathlib.Path(__file__).resolve()),
-             "--transform-one", "--pass-library", str(plugin_path.resolve()),
-             "--kernel", kernel],
-            input=payload, capture_output=True, env=environment,
+            command, input=payload, capture_output=True, env=environment,
         )
         if completed.returncode != 0:
             raise RuntimeError(
@@ -150,17 +174,23 @@ def main() -> int:
     parser.add_argument("--pass-library", type=pathlib.Path)
     parser.add_argument("--pass-manifest", type=pathlib.Path)
     parser.add_argument("--kernel", default="fused_moe_kernel")
+    parser.add_argument("--host-launch-only", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
     if args.transform_one:
         if args.pass_library is None:
             parser.error("--transform-one requires --pass-library")
         sys.stdout.buffer.write(
-            transform_one(args.pass_library, sys.stdin.buffer.read(), args.kernel)
+            transform_one(
+                args.pass_library, sys.stdin.buffer.read(), args.kernel,
+                args.host_launch_only,
+            )
         )
         return 0
     if args.cache_root is None or args.staging_dir is None:
         parser.error("--cache-root and --staging-dir are required")
+    if args.host_launch_only and args.pass_library is None:
+        parser.error("--host-launch-only requires --pass-library")
     transformer = None
     if args.pass_library is not None:
         if args.pass_manifest is None:
@@ -168,11 +198,12 @@ def main() -> int:
         args.pass_manifest.parent.mkdir(parents=True, exist_ok=True)
         args.pass_manifest.unlink(missing_ok=True)
         transformer = subprocess_transformer(
-            args.pass_library, args.pass_manifest
+            args.pass_library, args.pass_manifest, args.host_launch_only
         )
     manifest = stage_ptx(
         args.cache_root, args.staging_dir, kernel=args.kernel,
         transformer=transformer,
+        host_launch_only=args.host_launch_only,
     )
     if not manifest["variants"]:
         raise SystemExit("no Triton PTX variants found")

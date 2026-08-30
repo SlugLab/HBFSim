@@ -50,6 +50,11 @@ def main() -> int:
         "patched_kernel_by_ptx_variant",
         "patched_kernel_by_original_function",
         "find_patched_kernel_function_for_original",
+        "native_execution_original_functions",
+        "native_execution_patched_functions",
+        "should_execute_original_function",
+        "should_execute_original_for_patched",
+        "native execution",
         "ambiguous patched CUDA kernel name",
         "sha256(original_ptx.data(), original_ptx.size())",
     ):
@@ -83,10 +88,31 @@ def main() -> int:
                               exact_lookup)
     require(exact_lookup >= 0 and legacy_lookup > exact_lookup,
             "driver launch does not prefer exact CUfunction binding")
-    approval = text.find("const auto gate_decision")
-    substitution = text.find("gate_decision > 1", approval)
-    require(approval >= 0 and substitution > approval,
-            "exact launch bridge does not preserve ordinary HBM launches")
+    bind = text.find("int nv_attach_impl::bind_ptx_variant")
+    policy = text.find("execution_policy = gate_bind", bind)
+    publish = text.find("patched_kernel_by_original_function.emplace", bind)
+    require(bind >= 0 and policy > bind and publish > policy,
+            "exact binding publishes replacement state before gate policy")
+    common = text.find("static CUresult cu_launch_kernel_common")
+    common_exact = text.find(
+        "find_patched_kernel_function_for_original(func)", common)
+    common_approve = text.find("approve_exact_cuda_function", common_exact)
+    common_native = text.find(
+        "should_execute_original_function(func)", common_exact)
+    common_replace = text.find("func = *patched;", common_exact)
+    require(common >= 0 and common_exact > common and
+            common_approve > common_exact and common_native > common_approve and
+            common_replace > common_native,
+            "ordinary exact launch does not approve then retain native execution")
+    graph = text.find("cuda_graph_maybe_patch_kernel_node_params_v1")
+    graph_exact = text.find(
+        "find_patched_kernel_function_for_original", graph)
+    graph_native = text.find(
+        "should_execute_original_function(params->func)", graph_exact)
+    graph_replace = text.find("patched_params.func = *exact", graph_exact)
+    require(graph >= 0 and graph_exact > graph and
+            graph_native > graph_exact and graph_replace > graph_native,
+            "CUDA Graph exact binding replaces host-only native execution")
     return 0
 
 

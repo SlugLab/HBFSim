@@ -79,7 +79,7 @@ cleanup() {
     rm -f -- "$temporary_stamp"
 }
 trap cleanup EXIT
-printf 'bpftime_commit=%s\npatch_sha256=%s\nbridge_version=2\n' \
+printf 'bpftime_commit=%s\npatch_sha256=%s\nbridge_version=3\n' \
     "$BPFTIME_COMMIT" "$patch_digest" > "$temporary_stamp"
 mv -f -- "$temporary_stamp" "$stamp"
 trap - EXIT

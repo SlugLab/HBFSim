@@ -6,8 +6,8 @@
 #include "../host_service/control_layout.hpp"
 #include "../host_service/request_dispatcher.hpp"
 
-#include <hbfsim/profile.hpp>
 #include <hbfsim/launch_gate_abi.hpp>
+#include <hbfsim/profile.hpp>
 
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
 #include <cuda.h>
@@ -16,17 +16,19 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
+#include <condition_variable>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <condition_variable>
 #include <dlfcn.h>
-#include <filesystem>
 #include <fcntl.h>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <linux/memfd.h>
 #include <memory>
@@ -42,8 +44,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <thread>
-#include <unordered_map>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 extern char** environ;
@@ -58,11 +60,15 @@ struct hbfsim_context {
     bool cuda_registered{false};
     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
+  const hbfsim::LaunchGateApiV4 *launch_gate_api_v4{nullptr};
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
     bool timing_owner_active{false};
     bool daemon_ready{false};
+  bool host_timing_fallback{false};
+  std::filesystem::path host_timing_evidence_path;
+  std::atomic<std::uint64_t> next_host_timing_request_id{1};
     hbfsim::runtime::AfterBeginRetireHook after_begin_retire{nullptr};
     void* after_begin_retire_state{nullptr};
     std::unique_ptr<hbfsim::Profile> profile;
@@ -73,6 +79,7 @@ struct hbfsim_context {
     std::unique_ptr<hbfsim::runtime::RangeTable> ranges;
     std::uint64_t next_capacity_request_id{1};
     std::mutex capacity_mutex;
+  std::mutex host_timing_mutex;
     std::mutex process_mutex;
 };
 
@@ -81,22 +88,39 @@ namespace {
 
 using host_service::ControlView;
 
-bool launch_gate_available(const hbfsim_context* context) noexcept
-{
-    return context != nullptr &&
-           (context->launch_gate_api_v3 != nullptr ||
+const hbfsim::LaunchGateApiV3 *
+launch_gate_v3_prefix(const hbfsim_context *context) noexcept {
+  if (context == nullptr) {
+    return nullptr;
+  }
+  return context->launch_gate_api_v4 != nullptr
+             ? reinterpret_cast<const hbfsim::LaunchGateApiV3 *>(
+                   context->launch_gate_api_v4)
+             : context->launch_gate_api_v3;
+}
+
+bool launch_gate_available(const hbfsim_context *context) noexcept {
+  return context != nullptr && (launch_gate_v3_prefix(context) != nullptr ||
             context->launch_gate_api_v2 != nullptr);
 }
+
+int host_timing_before_launch(void *opaque, std::uintptr_t address) noexcept;
 
 int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
                          std::uintptr_t control_alias,
                          std::uintptr_t cuda_context, int device_ordinal,
-                         std::uint64_t* generation) noexcept
-{
-    return context->launch_gate_api_v3 != nullptr
-               ? context->launch_gate_api_v3->activate(
+                         std::uint64_t *generation) noexcept {
+  if (context->host_timing_fallback) {
+    return context->launch_gate_api_v4 == nullptr
+               ? -1
+               : context->launch_gate_api_v4->activate_with_host_timing(
                      owner, control_alias, cuda_context, device_ordinal,
-                     generation)
+                     host_timing_before_launch, context, generation);
+  }
+  const auto *api_v3 = launch_gate_v3_prefix(context);
+  return api_v3 != nullptr
+             ? api_v3->activate(owner, control_alias, cuda_context,
+                                device_ordinal, generation)
                : context->launch_gate_api_v2->activate(
                      owner, control_alias, cuda_context, device_ordinal,
                      generation);
@@ -106,66 +130,59 @@ int launch_gate_register(hbfsim_context* context,
                          hbfsim::LaunchGateRangePolicy policy,
                          std::uintptr_t begin, std::uintptr_t end,
                          hbfsim::LaunchGatePublishRange publish,
-                         void* publish_state) noexcept
-{
+                         void *publish_state) noexcept {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
-    if (context->launch_gate_api_v3 != nullptr) {
-        return context->launch_gate_api_v3->register_range_with_policy(
+  if (const auto *api_v3 = launch_gate_v3_prefix(context)) {
+    return api_v3->register_range_with_policy(
             owner, context->control_generation, begin, end, policy, publish,
             publish_state);
     }
     return context->launch_gate_api_v2->register_range(
-        owner, context->control_generation, begin, end, publish,
-        publish_state);
+      owner, context->control_generation, begin, end, publish, publish_state);
 }
 
 int launch_gate_unregister(hbfsim_context* context, std::uintptr_t begin,
                            std::uintptr_t end,
                            hbfsim::LaunchGatePublishRange publish,
-                           void* publish_state) noexcept
-{
+                           void *publish_state) noexcept {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
-    return context->launch_gate_api_v3 != nullptr
-               ? context->launch_gate_api_v3->unregister_range(
-                     owner, context->control_generation, begin, end, publish,
-                     publish_state)
+  const auto *api_v3 = launch_gate_v3_prefix(context);
+  return api_v3 != nullptr
+             ? api_v3->unregister_range(owner, context->control_generation,
+                                        begin, end, publish, publish_state)
                : context->launch_gate_api_v2->unregister_range(
                      owner, context->control_generation, begin, end, publish,
                      publish_state);
 }
 
 int launch_gate_begin_retire(hbfsim_context* context,
-                             std::uintptr_t* token) noexcept
-{
+                             std::uintptr_t *token) noexcept {
     const auto owner = reinterpret_cast<std::uintptr_t>(context);
-    return context->launch_gate_api_v3 != nullptr
-               ? context->launch_gate_api_v3->begin_retire(
-                     owner, context->control_generation, token)
+  const auto *api_v3 = launch_gate_v3_prefix(context);
+  return api_v3 != nullptr
+             ? api_v3->begin_retire(owner, context->control_generation, token)
                : context->launch_gate_api_v2->begin_retire(
                      owner, context->control_generation, token);
 }
 
 int launch_gate_invalidate(hbfsim_context* context,
-                           std::uintptr_t token) noexcept
-{
-    return context->launch_gate_api_v3 != nullptr
-               ? context->launch_gate_api_v3->invalidate_retire(token)
+                           std::uintptr_t token) noexcept {
+  const auto *api_v3 = launch_gate_v3_prefix(context);
+  return api_v3 != nullptr
+             ? api_v3->invalidate_retire(token)
                : context->launch_gate_api_v2->invalidate_retire(token);
 }
 
-int launch_gate_finish(hbfsim_context* context,
-                       std::uintptr_t token) noexcept
-{
-    return context->launch_gate_api_v3 != nullptr
-               ? context->launch_gate_api_v3->finish_retire(token)
+int launch_gate_finish(hbfsim_context *context, std::uintptr_t token) noexcept {
+  const auto *api_v3 = launch_gate_v3_prefix(context);
+  return api_v3 != nullptr ? api_v3->finish_retire(token)
                : context->launch_gate_api_v2->finish_retire(token);
 }
 
 void launch_gate_quarantine(hbfsim_context* context,
-                            std::uintptr_t token) noexcept
-{
-    if (context->launch_gate_api_v3 != nullptr) {
-        (void)context->launch_gate_api_v3->quarantine_retire(token);
+                            std::uintptr_t token) noexcept {
+  if (const auto *api_v3 = launch_gate_v3_prefix(context)) {
+    (void)api_v3->quarantine_retire(token);
     } else {
         (void)context->launch_gate_api_v2->quarantine_retire(token);
     }
@@ -188,8 +205,7 @@ std::mutex context_admissions_mutex;
 std::unordered_map<hbfsim_context*, std::shared_ptr<ContextAdmission>>
     context_admissions;
 
-bool register_context_admission(hbfsim_context* context) noexcept
-{
+bool register_context_admission(hbfsim_context *context) noexcept {
     try {
         auto admission = std::make_shared<ContextAdmission>();
         std::lock_guard lock(context_admissions_mutex);
@@ -200,8 +216,7 @@ bool register_context_admission(hbfsim_context* context) noexcept
 }
 
 std::shared_ptr<ContextAdmission>
-lookup_context_admission(hbfsim_context* context) noexcept
-{
+lookup_context_admission(hbfsim_context *context) noexcept {
     std::lock_guard lock(context_admissions_mutex);
     const auto found = context_admissions.find(context);
     return found == context_admissions.end() ? nullptr : found->second;
@@ -210,8 +225,7 @@ lookup_context_admission(hbfsim_context* context) noexcept
 class ContextOperation {
   public:
     explicit ContextOperation(hbfsim_context* context) noexcept
-        : admission_(lookup_context_admission(context))
-    {
+      : admission_(lookup_context_admission(context)) {
         if (admission_ == nullptr) {
             return;
         }
@@ -228,8 +242,7 @@ class ContextOperation {
         }
     }
 
-    ~ContextOperation()
-    {
+  ~ContextOperation() {
         if (admission_ == nullptr) {
             return;
         }
@@ -242,8 +255,7 @@ class ContextOperation {
     ContextOperation(const ContextOperation&) = delete;
     ContextOperation& operator=(const ContextOperation&) = delete;
 
-    [[nodiscard]] explicit operator bool() const noexcept
-    {
+  [[nodiscard]] explicit operator bool() const noexcept {
         return admission_ != nullptr;
     }
 
@@ -252,8 +264,7 @@ class ContextOperation {
 };
 
 std::shared_ptr<ContextAdmission>
-close_context_admission(hbfsim_context* context) noexcept
-{
+close_context_admission(hbfsim_context *context) noexcept {
     auto admission = lookup_context_admission(context);
     if (admission == nullptr) {
         return nullptr;
@@ -265,30 +276,27 @@ close_context_admission(hbfsim_context* context) noexcept
     admission->closing = true;
     admission->destroying = true;
     admission->drained.notify_all();
-    admission->drained.wait(
-        lock, [&] { return admission->active_operations == 0; });
+  admission->drained.wait(lock,
+                          [&] { return admission->active_operations == 0; });
     return admission;
 }
 
 void reopen_context_admission(
-    const std::shared_ptr<ContextAdmission>& admission) noexcept
-{
+    const std::shared_ptr<ContextAdmission> &admission) noexcept {
     std::lock_guard lock(admission->mutex);
     admission->destroying = false;
     admission->closing = false;
 }
 
 void quarantine_context_admission(
-    const std::shared_ptr<ContextAdmission>& admission) noexcept
-{
+    const std::shared_ptr<ContextAdmission> &admission) noexcept {
     std::lock_guard lock(admission->mutex);
     admission->destroying = false;
 }
 
 void erase_context_admission(
     hbfsim_context* context,
-    const std::shared_ptr<ContextAdmission>& admission) noexcept
-{
+    const std::shared_ptr<ContextAdmission> &admission) noexcept {
     std::lock_guard lock(context_admissions_mutex);
     const auto found = context_admissions.find(context);
     if (found != context_admissions.end() && found->second == admission) {
@@ -304,8 +312,7 @@ RequestStatus submit_capacity_program(hbfsim_context* context,
                                       std::uint32_t range_id,
                                       std::uint64_t global_page) noexcept;
 
-int public_capacity_status(RequestStatus status) noexcept
-{
+int public_capacity_status(RequestStatus status) noexcept {
     switch (status) {
     case RequestStatus::Ready:
         return HBFSIM_OK;
@@ -325,8 +332,7 @@ int public_capacity_status(RequestStatus status) noexcept
     return HBFSIM_IO_ERROR;
 }
 
-int retirement_liveness(hbfsim_context* context) noexcept
-{
+int retirement_liveness(hbfsim_context *context) noexcept {
     const auto status = process_status(context);
     if (status != HBFSIM_OK) {
         return status;
@@ -344,8 +350,7 @@ int retirement_liveness(hbfsim_context* context) noexcept
 }
 
 bool cuda_domain_is_current(std::uintptr_t expected_context,
-                            int expected_device) noexcept
-{
+                            int expected_device) noexcept {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     CUcontext current_context = nullptr;
     CUdevice current_device = -1;
@@ -362,13 +367,11 @@ bool cuda_domain_is_current(std::uintptr_t expected_context,
 #endif
 }
 
-int begin_retire_with_cuda(
-    std::uintptr_t expected_context, int expected_device,
+int begin_retire_with_cuda(std::uintptr_t expected_context, int expected_device,
     std::uintptr_t owner, std::uint64_t generation,
     int (*begin_retire)(std::uintptr_t, std::uint64_t,
                         std::uintptr_t*) noexcept,
-    std::uintptr_t* token_out) noexcept
-{
+                           std::uintptr_t *token_out) noexcept {
     if (token_out == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -383,21 +386,18 @@ int begin_retire_with_cuda(
                                                            : HBFSIM_CUDA_ERROR;
 }
 
-int normalize_launch_gate_status(int gate_status) noexcept
-{
+int normalize_launch_gate_status(int gate_status) noexcept {
     return gate_status == 0 ? HBFSIM_OK : HBFSIM_IO_ERROR;
 }
 
-std::uint64_t monotonic_ns()
-{
+std::uint64_t monotonic_ns() {
     const auto now = std::chrono::steady_clock::now().time_since_epoch();
     return static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
 }
 
 bool valid_options(const hbfsim_options* options,
-                   hbfsim_context** out) noexcept
-{
+                   hbfsim_context **out) noexcept {
     return out != nullptr && options != nullptr &&
            options->profile_path != nullptr && options->profile_path[0] != '\0' &&
            options->report_dir != nullptr && options->report_dir[0] != '\0' &&
@@ -435,8 +435,7 @@ bool valid_options_v2(const hbfsim_options_v2* options,
 int create_memfd()
 {
 #if defined(SYS_memfd_create)
-    return static_cast<int>(
-        ::syscall(SYS_memfd_create, "hbfsim-control",
+  return static_cast<int>(::syscall(SYS_memfd_create, "hbfsim-control",
                   MFD_CLOEXEC | MFD_ALLOW_SEALING));
 #else
     errno = ENOSYS;
@@ -444,8 +443,7 @@ int create_memfd()
 #endif
 }
 
-std::string resolve_executable(const char* requested)
-{
+std::string resolve_executable(const char *requested) {
     if (requested == nullptr || requested[0] == '\0') {
         return {};
     }
@@ -481,8 +479,7 @@ std::string resolve_executable(const char* requested)
     return {};
 }
 
-void reap_or_terminate(hbfsim_context* context) noexcept
-{
+void reap_or_terminate(hbfsim_context *context) noexcept {
     if (context == nullptr || context->daemon_pid <= 0) {
         return;
     }
@@ -490,8 +487,8 @@ void reap_or_terminate(hbfsim_context* context) noexcept
     // Reserve time inside the five-second signaling schedule for TERM and
     // KILL. A final blocking wait reaps every normally schedulable child;
     // kernel-uninterruptible sleep can extend destruction beyond that bound.
-    const auto deadline = std::chrono::steady_clock::now() +
-                          std::chrono::milliseconds(4'600);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(4'600);
     for (;;) {
         const auto result = ::waitpid(context->daemon_pid, &status, WNOHANG);
         if (result == context->daemon_pid || (result < 0 && errno == ECHILD)) {
@@ -508,8 +505,8 @@ void reap_or_terminate(hbfsim_context* context) noexcept
     }
 
     (void)::kill(context->daemon_pid, SIGTERM);
-    const auto term_deadline = std::chrono::steady_clock::now() +
-                               std::chrono::milliseconds(100);
+  const auto term_deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
     while (std::chrono::steady_clock::now() < term_deadline) {
         const auto result = ::waitpid(context->daemon_pid, &status, WNOHANG);
         if (result == context->daemon_pid || (result < 0 && errno == ECHILD)) {
@@ -525,8 +522,7 @@ void reap_or_terminate(hbfsim_context* context) noexcept
 }
 
 ReleaseResult release_context(hbfsim_context* context,
-                              bool request_shutdown) noexcept
-{
+                              bool request_shutdown) noexcept {
     if (context == nullptr) {
         return ReleaseResult::destroyed;
     }
@@ -558,8 +554,7 @@ ReleaseResult release_context(hbfsim_context* context,
         if (context->after_begin_retire != nullptr) {
             context->after_begin_retire(context->after_begin_retire_state);
         }
-        if ((context->daemon_ready &&
-             retirement_liveness(context) != HBFSIM_OK) ||
+    if ((context->daemon_ready && retirement_liveness(context) != HBFSIM_OK) ||
             !cuda_domain_is_current(context->cuda_context,
                                     context->device_ordinal)) {
             quarantine();
@@ -571,10 +566,8 @@ ReleaseResult release_context(hbfsim_context* context,
         }
         if (context->capacity &&
             context->capacity->flush(
-                [context](std::uint32_t range_id,
-                          std::uint64_t global_page) {
-                    return submit_capacity_program(context, range_id,
-                                                   global_page);
+            [context](std::uint32_t range_id, std::uint64_t global_page) {
+              return submit_capacity_program(context, range_id, global_page);
                 }) != RequestStatus::Ready) {
             quarantine();
             return ReleaseResult::quarantined;
@@ -600,8 +593,8 @@ ReleaseResult release_context(hbfsim_context* context,
                 }
             }
             if (mapping && mapping->active) {
-                if (context->capacity->router().deactivate(
-                        mapping->range_id) != RequestStatus::Ready) {
+        if (context->capacity->router().deactivate(mapping->range_id) !=
+            RequestStatus::Ready) {
                     if (retire_token != 0) {
                         launch_gate_quarantine(context, retire_token);
                         retire_token = 0;
@@ -661,8 +654,7 @@ ReleaseResult release_context(hbfsim_context* context,
     return ReleaseResult::destroyed;
 }
 
-int process_status(hbfsim_context* context) noexcept
-{
+int process_status(hbfsim_context *context) noexcept {
     if (context == nullptr || context->control_mapping == MAP_FAILED) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -680,8 +672,7 @@ int process_status(hbfsim_context* context) noexcept
     const auto result = ::waitpid(context->daemon_pid, &status, WNOHANG);
     if (result == context->daemon_pid || (result < 0 && errno == ECHILD)) {
         context->daemon_pid = -1;
-        host_service::atomic_store(control.header()->fault,
-                                   HBFSIM_DAEMON_LOST,
+    host_service::atomic_store(control.header()->fault, HBFSIM_DAEMON_LOST,
                                    std::memory_order_release);
         return HBFSIM_DAEMON_LOST;
     }
@@ -692,8 +683,7 @@ int process_status(hbfsim_context* context) noexcept
 }
 
 int wait_for_heartbeat(hbfsim_context* context,
-                       std::chrono::milliseconds timeout)
-{
+                       std::chrono::milliseconds timeout) {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
     ControlView control(context->control_mapping, context->control_bytes);
     while (std::chrono::steady_clock::now() < deadline) {
@@ -711,26 +701,21 @@ int wait_for_heartbeat(hbfsim_context* context,
 }
 
 bool daemon_environment_variable_is_instrumentation(
-    std::string_view entry) noexcept
-{
+    std::string_view entry) noexcept {
     const auto separator = entry.find('=');
     const auto name = entry.substr(0, separator);
-    return name == "LD_PRELOAD" || name == "LD_AUDIT" ||
-           name == "HBFSIM_GATE" || name == "HBFSIM_PASS" ||
-           name.starts_with("BPFTIME_") ||
+  return name == "LD_PRELOAD" || name == "LD_AUDIT" || name == "HBFSIM_GATE" ||
+         name == "HBFSIM_PASS" || name.starts_with("BPFTIME_") ||
            name.starts_with("HBFSIM_BPFTIME_") ||
            name.starts_with("HBFSIM_COVERAGE_") ||
-           name.starts_with("HBFSIM_PASS_") ||
-           name.starts_with("PTX_PASS_") ||
-           name.starts_with("PTX_COMPILER_") ||
-           name.starts_with("DEFAULT_PTX_");
+         name.starts_with("HBFSIM_PASS_") || name.starts_with("PTX_PASS_") ||
+         name.starts_with("PTX_COMPILER_") || name.starts_with("DEFAULT_PTX_");
 }
 
 int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
                  const hbfsim_options_v2* extended,
                  const std::string& executable, BeforeForkHook before_fork,
-                 void* hook_state)
-{
+                 void *hook_state) {
     const auto descriptor_flags = ::fcntl(context->control_fd, F_GETFD);
     if (descriptor_flags < 0 || (descriptor_flags & FD_CLOEXEC) == 0) {
         return HBFSIM_IO_ERROR;
@@ -796,8 +781,8 @@ int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
         close_inherited_fds_for_test(control_fd, false);
         const auto child_descriptor_flags = ::fcntl(control_fd, F_GETFD);
         if (child_descriptor_flags < 0 ||
-            ::fcntl(control_fd, F_SETFD,
-                    child_descriptor_flags & ~FD_CLOEXEC) != 0) {
+        ::fcntl(control_fd, F_SETFD, child_descriptor_flags & ~FD_CLOEXEC) !=
+            0) {
             ::_exit(126);
         }
         ::execve(executable_path, argument_data, environment_data);
@@ -814,8 +799,7 @@ int create_context(const hbfsim_options* options,
                    const hbfsim_options_v2* extended,
                    const char* daemon_path,
                    bool register_with_cuda, BeforeForkHook before_fork,
-                   void* hook_state, hbfsim_context** out)
-{
+                   void *hook_state, hbfsim_context **out) {
     if (out != nullptr) {
         *out = nullptr;
     }
@@ -838,14 +822,16 @@ int create_context(const hbfsim_options* options,
         return HBFSIM_IO_ERROR;
     }
 
-    auto context = std::unique_ptr<hbfsim_context>(
-        new (std::nothrow) hbfsim_context{});
+  auto context =
+      std::unique_ptr<hbfsim_context>(new (std::nothrow) hbfsim_context{});
     if (!context) {
         return HBFSIM_IO_ERROR;
     }
     context->request_timeout_ns = options->request_timeout_ns;
-    context->profile = std::unique_ptr<Profile>(
-        new (std::nothrow) Profile(profile));
+  context->host_timing_evidence_path =
+      std::filesystem::path(options->report_dir) / "host-timing-fallback.jsonl";
+  context->profile =
+      std::unique_ptr<Profile>(new (std::nothrow) Profile(profile));
     if (!context->profile) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
@@ -859,8 +845,7 @@ int create_context(const hbfsim_options* options,
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
     }
-    constexpr int required_seals =
-        F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL;
+  constexpr int required_seals = F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL;
     if (::fcntl(context->control_fd, F_ADD_SEALS, required_seals) != 0) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
@@ -915,9 +900,34 @@ int create_context(const hbfsim_options* options,
                   profile.reference_sample_rate *
                   static_cast<long double>(
                       std::numeric_limits<std::uint64_t>::max()));
+  std::uint32_t timing_range_flags = 0;
+  if (register_with_cuda) {
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    CUcontext cuda_context = nullptr;
+    CUdevice device = -1;
+    int host_native_atomics = 0;
+    if (::cuCtxGetCurrent(&cuda_context) != CUDA_SUCCESS ||
+        cuda_context == nullptr || ::cuCtxGetDevice(&device) != CUDA_SUCCESS ||
+        device < 0 ||
+        ::cuDeviceGetAttribute(&host_native_atomics,
+                               CU_DEVICE_ATTRIBUTE_HOST_NATIVE_ATOMIC_SUPPORTED,
+                               device) != CUDA_SUCCESS) {
+      release_context(context.release(), false);
+      return HBFSIM_CUDA_ERROR;
+    }
+    context->host_timing_fallback = host_native_atomics == 0;
+    if (context->host_timing_fallback) {
+      timing_range_flags = host_service::kRangeFlagHostTimingFallback;
+    }
+#else
+    release_context(context.release(), false);
+    return HBFSIM_CUDA_ERROR;
+#endif
+  }
     try {
-        context->ranges = std::make_unique<RangeTable>(
-            control, profile.page_bytes, profile.capacity_bytes);
+    context->ranges = std::make_unique<RangeTable>(control, profile.page_bytes,
+                                                   profile.capacity_bytes,
+                                                   timing_range_flags);
     } catch (const std::bad_alloc&) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
@@ -930,23 +940,23 @@ int create_context(const hbfsim_options* options,
     if (register_with_cuda) {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
         if (::cudaHostRegister(context->control_mapping, context->control_bytes,
-                               cudaHostRegisterMapped |
-                                   cudaHostRegisterPortable) != cudaSuccess) {
+                           cudaHostRegisterMapped | cudaHostRegisterPortable) !=
+        cudaSuccess) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
         context->cuda_registered = true;
         if (::cudaHostGetDevicePointer(&context->device_control,
-                                       context->control_mapping, 0) !=
-            cudaSuccess) {
+                                   context->control_mapping,
+                                   0) != cudaSuccess) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
         CUcontext cuda_context = nullptr;
         CUdevice device = -1;
         if (::cuCtxGetCurrent(&cuda_context) != CUDA_SUCCESS ||
-            cuda_context == nullptr ||
-            ::cuCtxGetDevice(&device) != CUDA_SUCCESS || device < 0) {
+        cuda_context == nullptr || ::cuCtxGetDevice(&device) != CUDA_SUCCESS ||
+        device < 0) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
@@ -954,55 +964,68 @@ int create_context(const hbfsim_options* options,
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
         if (get_api != nullptr) {
+      context->launch_gate_api_v4 =
+          static_cast<const hbfsim::LaunchGateApiV4 *>(
+              get_api(hbfsim::kLaunchGateAbiVersion));
+      if (context->launch_gate_api_v4 == nullptr) {
             context->launch_gate_api_v3 =
                 static_cast<const hbfsim::LaunchGateApiV3*>(
-                    get_api(hbfsim::kLaunchGateAbiVersion));
-            if (context->launch_gate_api_v3 == nullptr) {
+                get_api(hbfsim::kLaunchGateAbiVersionV3));
+      }
+      if (context->launch_gate_api_v4 == nullptr &&
+          context->launch_gate_api_v3 == nullptr) {
                 context->launch_gate_api_v2 =
                     static_cast<const hbfsim::LaunchGateApiV2*>(
                         get_api(hbfsim::kLaunchGateAbiVersionV2));
             }
         }
-        const auto valid_v3 = context->launch_gate_api_v3 != nullptr &&
+    const auto valid_v4 =
+        context->launch_gate_api_v4 != nullptr &&
+        context->launch_gate_api_v4->abi_version ==
+            hbfsim::kLaunchGateAbiVersion &&
+        context->launch_gate_api_v4->struct_bytes >=
+            sizeof(hbfsim::LaunchGateApiV4) &&
+        context->launch_gate_api_v4->activate != nullptr &&
+        context->launch_gate_api_v4->register_range != nullptr &&
+        context->launch_gate_api_v4->unregister_range != nullptr &&
+        context->launch_gate_api_v4->begin_retire != nullptr &&
+        context->launch_gate_api_v4->invalidate_retire != nullptr &&
+        context->launch_gate_api_v4->finish_retire != nullptr &&
+        context->launch_gate_api_v4->quarantine_retire != nullptr &&
+        context->launch_gate_api_v4->register_range_with_policy != nullptr &&
+        context->launch_gate_api_v4->activate_with_host_timing != nullptr;
+    const auto valid_v3 =
+        context->launch_gate_api_v4 == nullptr &&
+        context->launch_gate_api_v3 != nullptr &&
                               context->launch_gate_api_v3->abi_version ==
-                                  hbfsim::kLaunchGateAbiVersion &&
+            hbfsim::kLaunchGateAbiVersionV3 &&
                               context->launch_gate_api_v3->struct_bytes >=
                                   sizeof(hbfsim::LaunchGateApiV3) &&
                               context->launch_gate_api_v3->activate != nullptr &&
-                              context->launch_gate_api_v3->register_range !=
-                                  nullptr &&
-                              context->launch_gate_api_v3->unregister_range !=
-                                  nullptr &&
-                              context->launch_gate_api_v3->begin_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v3->invalidate_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v3->finish_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v3->quarantine_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v3
-                                      ->register_range_with_policy != nullptr;
-        const auto valid_v2 = context->launch_gate_api_v3 == nullptr &&
+        context->launch_gate_api_v3->register_range != nullptr &&
+        context->launch_gate_api_v3->unregister_range != nullptr &&
+        context->launch_gate_api_v3->begin_retire != nullptr &&
+        context->launch_gate_api_v3->invalidate_retire != nullptr &&
+        context->launch_gate_api_v3->finish_retire != nullptr &&
+        context->launch_gate_api_v3->quarantine_retire != nullptr &&
+        context->launch_gate_api_v3->register_range_with_policy != nullptr;
+    const auto valid_v2 =
+        context->launch_gate_api_v4 == nullptr &&
+        context->launch_gate_api_v3 == nullptr &&
                               context->launch_gate_api_v2 != nullptr &&
                               context->launch_gate_api_v2->abi_version ==
                                   hbfsim::kLaunchGateAbiVersionV2 &&
                               context->launch_gate_api_v2->struct_bytes >=
                                   sizeof(hbfsim::LaunchGateApiV2) &&
                               context->launch_gate_api_v2->activate != nullptr &&
-                              context->launch_gate_api_v2->register_range !=
-                                  nullptr &&
-                              context->launch_gate_api_v2->unregister_range !=
-                                  nullptr &&
-                              context->launch_gate_api_v2->begin_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v2->invalidate_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v2->finish_retire !=
-                                  nullptr &&
-                              context->launch_gate_api_v2->quarantine_retire !=
-                                  nullptr;
-        if ((!valid_v3 && !valid_v2) ||
+        context->launch_gate_api_v2->register_range != nullptr &&
+        context->launch_gate_api_v2->unregister_range != nullptr &&
+        context->launch_gate_api_v2->begin_retire != nullptr &&
+        context->launch_gate_api_v2->invalidate_retire != nullptr &&
+        context->launch_gate_api_v2->finish_retire != nullptr &&
+        context->launch_gate_api_v2->quarantine_retire != nullptr;
+    if ((!valid_v4 && !valid_v3 && !valid_v2) ||
+        (context->host_timing_fallback && !valid_v4) ||
             launch_gate_activate(
                 context.get(), reinterpret_cast<std::uintptr_t>(context.get()),
                 reinterpret_cast<std::uintptr_t>(context->device_control),
@@ -1012,8 +1035,7 @@ int create_context(const hbfsim_options* options,
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
-        context->cuda_context =
-            reinterpret_cast<std::uintptr_t>(cuda_context);
+    context->cuda_context = reinterpret_cast<std::uintptr_t>(cuda_context);
         context->device_ordinal = static_cast<int>(device);
         context->timing_owner_active = true;
         control.header()->control_generation = context->control_generation;
@@ -1046,8 +1068,7 @@ int create_context(const hbfsim_options* options,
 }
 
 int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
-                          std::uint64_t* ticket)
-{
+                          std::uint64_t *ticket) {
     if (context == nullptr || ticket == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -1077,6 +1098,103 @@ int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
     }
 }
 
+int host_timing_before_launch(void *opaque, std::uintptr_t address) noexcept {
+  auto *context = static_cast<hbfsim_context *>(opaque);
+  if (context == nullptr || !context->host_timing_fallback ||
+      !context->ranges || !context->profile ||
+      context->profile->time_scale == 0) {
+    return HBFSIM_IO_ERROR;
+  }
+  std::lock_guard timing_lock(context->host_timing_mutex);
+  const auto lookup = context->ranges->lookup(address, 1);
+  if (lookup.kind != RangeLookupKind::Matched || lookup.record == nullptr) {
+    return HBFSIM_INVALID_ARGUMENT;
+  }
+  const auto &range = *lookup.record;
+  if ((range.flags & host_service::kRangeFlagHostTimingFallback) == 0 ||
+      (range.flags & ~host_service::kKnownRangeFlags) != 0 ||
+      range.mode != HBFSIM_RANGE_MODE_TIMING || range.page_bytes == 0 ||
+      range.page_bytes > std::numeric_limits<std::uint32_t>::max()) {
+    return HBFSIM_UNSUPPORTED;
+  }
+  const auto range_offset = address - range.base;
+  const auto page_offset = (range_offset / range.page_bytes) * range.page_bytes;
+  if (page_offset >
+      std::numeric_limits<std::uint64_t>::max() - range.file_offset) {
+    return HBFSIM_UNSUPPORTED;
+  }
+  const auto request_id = context->next_host_timing_request_id.fetch_add(
+      1, std::memory_order_relaxed);
+  if (request_id == 0 ||
+      request_id == std::numeric_limits<std::uint64_t>::max()) {
+    return HBFSIM_IO_ERROR;
+  }
+  const auto arrival = monotonic_ns();
+  const auto deadline =
+      context->request_timeout_ns >
+              std::numeric_limits<std::uint64_t>::max() - arrival
+          ? std::numeric_limits<std::uint64_t>::max()
+          : arrival + context->request_timeout_ns;
+  const HbfRequest request{
+      .request_id = request_id,
+      .sequence = 0,
+      .arrival_ns = arrival,
+      .logical_address = range.file_offset + page_offset,
+      .deadline_ns = deadline,
+      .bytes = static_cast<std::uint32_t>(range.page_bytes),
+      .range_id = range.range_id,
+      .stream_id = range.stream_id,
+      .operation = static_cast<std::uint32_t>(RequestOperation::Read),
+      .page_generation = 0,
+      .flags = 0,
+  };
+  std::uint64_t ticket = 0;
+  const auto enqueued = enqueue_with_deadline(context, request, &ticket);
+  if (enqueued != HBFSIM_OK) {
+    return enqueued;
+  }
+  HbfCompletion completion{};
+  const auto waited =
+      wait_for_completion_for_test(context, ticket, request_id, &completion);
+  if (waited != HBFSIM_OK ||
+      completion.status != static_cast<std::uint32_t>(RequestStatus::Ready) ||
+      completion.modeled_ns == 0) {
+    return waited == HBFSIM_OK ? HBFSIM_IO_ERROR : waited;
+  }
+  const auto scale = context->profile->time_scale;
+  const auto scaled =
+      completion.modeled_ns > std::numeric_limits<std::uint64_t>::max() / scale
+          ? std::numeric_limits<std::uint64_t>::max()
+          : completion.modeled_ns * scale;
+  const auto target =
+      scaled > std::numeric_limits<std::uint64_t>::max() - arrival
+          ? std::numeric_limits<std::uint64_t>::max()
+          : arrival + scaled;
+  if (target > deadline) {
+    return HBFSIM_TIMEOUT;
+  }
+  const auto now = monotonic_ns();
+  if (now < target) {
+    std::this_thread::sleep_for(std::chrono::nanoseconds(target - now));
+  }
+  std::ofstream evidence(context->host_timing_evidence_path, std::ios::app);
+  if (!evidence) {
+    return HBFSIM_IO_ERROR;
+  }
+  evidence << "{\"schema_version\":1,"
+           << "\"backend\":\"host_launch_mqsim\","
+           << "\"granularity\":\"launch\","
+           << "\"request_id\":" << request_id << ','
+           << "\"range_id\":" << range.range_id << ','
+           << "\"address\":" << address << ','
+           << "\"logical_address\":" << request.logical_address << ','
+           << "\"bytes\":" << request.bytes << ','
+           << "\"modeled_ns\":" << completion.modeled_ns << ','
+           << "\"time_scale\":" << scale << "}\n";
+  evidence.flush();
+  return evidence ? HBFSIM_OK : HBFSIM_IO_ERROR;
+}
+
 struct RangeGateInvocation {
     hbfsim_context* context;
     std::uintptr_t control_alias;
@@ -1086,20 +1204,20 @@ struct RangeGateInvocation {
 
 int publish_range_to_gate(const host_service::SharedRangeRecord& record,
                           PublishRange publish, void* publish_state,
-                          void* opaque) noexcept
-{
+                          void *opaque) noexcept {
     auto& invocation = *static_cast<RangeGateInvocation*>(opaque);
     return invocation.hook(
         invocation.context, invocation.control_alias, record.base,
-        static_cast<std::uintptr_t>(record.base + record.length),
-        publish, publish_state, invocation.hook_state);
+      static_cast<std::uintptr_t>(record.base + record.length), publish,
+      publish_state, invocation.hook_state);
 }
 
-int register_device_with_gate(
-    hbfsim_context* context, void* device_ptr, std::size_t length,
-    const hbfsim_range_options* options, std::uintptr_t control_alias,
-    TimingRangeGateHook gate, void* gate_state) noexcept
-{
+int register_device_with_gate(hbfsim_context *context, void *device_ptr,
+                              std::size_t length,
+                              const hbfsim_range_options *options,
+                              std::uintptr_t control_alias,
+                              TimingRangeGateHook gate,
+                              void *gate_state) noexcept {
     if (context == nullptr || device_ptr == nullptr || length == 0 ||
         options == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
@@ -1129,8 +1247,7 @@ int register_device_with_gate(
 
 int validate_device_range_with_cuda(std::uintptr_t expected_context,
                                     int expected_device, void* device_ptr,
-                                    std::size_t length) noexcept
-{
+                                    std::size_t length) noexcept {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     const auto address = reinterpret_cast<std::uintptr_t>(device_ptr);
     if (expected_context == 0 || expected_device < 0 || address == 0 ||
@@ -1156,8 +1273,7 @@ int validate_device_range_with_cuda(std::uintptr_t expected_context,
                                 CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL,
                                 pointer) != CUDA_SUCCESS ||
         pointer_device != expected_device ||
-        ::cuPointerGetAttribute(&memory_type,
-                                CU_POINTER_ATTRIBUTE_MEMORY_TYPE,
+      ::cuPointerGetAttribute(&memory_type, CU_POINTER_ATTRIBUTE_MEMORY_TYPE,
                                 pointer) != CUDA_SUCCESS ||
         memory_type != CU_MEMORYTYPE_DEVICE ||
         ::cuPointerGetAttribute(&is_managed, CU_POINTER_ATTRIBUTE_IS_MANAGED,
@@ -1223,14 +1339,12 @@ int create_cpu_test_context_with_spawn_hook(
                           hook_state, out);
 }
 
-pid_t daemon_pid_for_test(hbfsim_context* context) noexcept
-{
+pid_t daemon_pid_for_test(hbfsim_context *context) noexcept {
     return context == nullptr ? -1 : context->daemon_pid;
 }
 
 int wait_for_heartbeat_for_test(hbfsim_context* context,
-                                std::chrono::milliseconds timeout)
-{
+                                std::chrono::milliseconds timeout) {
     if (context == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -1238,8 +1352,7 @@ int wait_for_heartbeat_for_test(hbfsim_context* context,
 }
 
 int wait_for_fault_for_test(hbfsim_context* context,
-                            std::chrono::milliseconds timeout)
-{
+                            std::chrono::milliseconds timeout) {
     if (context == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -1254,8 +1367,7 @@ int wait_for_fault_for_test(hbfsim_context* context,
     return HBFSIM_TIMEOUT;
 }
 
-std::uint64_t heartbeat_ns_for_test(hbfsim_context* context) noexcept
-{
+std::uint64_t heartbeat_ns_for_test(hbfsim_context *context) noexcept {
     if (context == nullptr || context->control_mapping == MAP_FAILED) {
         return 0;
     }
@@ -1266,16 +1378,13 @@ std::uint64_t heartbeat_ns_for_test(hbfsim_context* context) noexcept
 
 int submit_without_wait_for_test(hbfsim_context* context,
                                  const HbfRequest& request,
-                                 std::uint64_t* ticket)
-{
+                                 std::uint64_t *ticket) {
     return enqueue_with_deadline(context, request, ticket);
 }
 
-int wait_for_completion_for_test(hbfsim_context* context,
-                                 std::uint64_t ticket,
+int wait_for_completion_for_test(hbfsim_context *context, std::uint64_t ticket,
                                  std::uint64_t request_id,
-                                 HbfCompletion* completion)
-{
+                                 HbfCompletion *completion) {
     if (context == nullptr || completion == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -1297,8 +1406,8 @@ int wait_for_completion_for_test(hbfsim_context* context,
         if (status != HBFSIM_OK) {
             if (control.try_consume_completion(ticket, *completion) &&
                 completion->request_id == request_id) {
-                return completion->status == static_cast<std::uint32_t>(
-                                                 RequestStatus::IoError)
+        return completion->status ==
+                       static_cast<std::uint32_t>(RequestStatus::IoError)
                            ? HBFSIM_IO_ERROR
                            : HBFSIM_OK;
             }
@@ -1313,11 +1422,9 @@ int wait_for_completion_for_test(hbfsim_context* context,
 }
 
 int submit_for_test(hbfsim_context* context, const HbfRequest& request,
-                    HbfCompletion* completion)
-{
+                    HbfCompletion *completion) {
     std::uint64_t ticket = 0;
-    const auto enqueue_status =
-        enqueue_with_deadline(context, request, &ticket);
+  const auto enqueue_status = enqueue_with_deadline(context, request, &ticket);
     if (enqueue_status != HBFSIM_OK) {
         return enqueue_status;
     }
@@ -1325,22 +1432,21 @@ int submit_for_test(hbfsim_context* context, const HbfRequest& request,
                                         completion);
 }
 
-int control_fd_for_test(hbfsim_context* context) noexcept
-{
+int control_fd_for_test(hbfsim_context *context) noexcept {
     return context == nullptr ? -1 : context->control_fd;
 }
 
-int register_device_with_gate_for_test(
-    hbfsim_context* context, void* device_ptr, std::size_t length,
-    const hbfsim_range_options* options, std::uintptr_t control_alias,
-    TimingRangeGateHook gate, void* gate_state) noexcept
-{
+int register_device_with_gate_for_test(hbfsim_context *context,
+                                       void *device_ptr, std::size_t length,
+                                       const hbfsim_range_options *options,
+                                       std::uintptr_t control_alias,
+                                       TimingRangeGateHook gate,
+                                       void *gate_state) noexcept {
     return register_device_with_gate(context, device_ptr, length, options,
                                      control_alias, gate, gate_state);
 }
 
-std::uint32_t range_count_for_test(hbfsim_context* context) noexcept
-{
+std::uint32_t range_count_for_test(hbfsim_context *context) noexcept {
     if (context == nullptr || context->control_mapping == MAP_FAILED) {
         return 0;
     }
@@ -1350,8 +1456,7 @@ std::uint32_t range_count_for_test(hbfsim_context* context) noexcept
 }
 
 void close_inherited_fds_for_test(int control_fd,
-                                  bool force_fallback) noexcept
-{
+                                  bool force_fallback) noexcept {
     bool closed = false;
 #if defined(SYS_close_range)
     if (!force_fallback) {
@@ -1381,65 +1486,60 @@ void close_inherited_fds_for_test(int control_fd,
                       : static_cast<std::uint64_t>(limit.rlim_cur);
     }
 #endif
-    for (int descriptor = 3;
-         static_cast<std::uint64_t>(descriptor) < maximum; ++descriptor) {
+  for (int descriptor = 3; static_cast<std::uint64_t>(descriptor) < maximum;
+       ++descriptor) {
         if (descriptor != control_fd) {
             (void)::close(descriptor);
         }
     }
 }
 
-void pause_daemon_for_test(hbfsim_context* context, bool paused) noexcept
-{
+void pause_daemon_for_test(hbfsim_context *context, bool paused) noexcept {
     if (context != nullptr && context->daemon_pid > 0) {
         (void)::kill(context->daemon_pid, paused ? SIGSTOP : SIGCONT);
     }
 }
 
-int validate_device_range_with_cuda_for_test(
-    std::uintptr_t expected_context, int expected_device, void* device_ptr,
-    std::size_t length) noexcept
-{
+int validate_device_range_with_cuda_for_test(std::uintptr_t expected_context,
+                                             int expected_device,
+                                             void *device_ptr,
+                                             std::size_t length) noexcept {
     return validate_device_range_with_cuda(expected_context, expected_device,
                                            device_ptr, length);
 }
 
 int begin_retire_with_cuda_for_test(
-    std::uintptr_t expected_context, int expected_device,
-    std::uintptr_t owner, std::uint64_t generation,
+    std::uintptr_t expected_context, int expected_device, std::uintptr_t owner,
+    std::uint64_t generation,
     int (*begin_retire)(std::uintptr_t, std::uint64_t,
                         std::uintptr_t*) noexcept,
-    std::uintptr_t* token_out) noexcept
-{
+    std::uintptr_t *token_out) noexcept {
     return begin_retire_with_cuda(expected_context, expected_device, owner,
                                   generation, begin_retire, token_out);
 }
 
-int normalize_launch_gate_status_for_test(int gate_status) noexcept
-{
+int normalize_launch_gate_status_for_test(int gate_status) noexcept {
     return normalize_launch_gate_status(gate_status);
 }
 
-int retirement_liveness_for_test(hbfsim_context* context) noexcept
-{
+int retirement_liveness_for_test(hbfsim_context *context) noexcept {
     return retirement_liveness(context);
 }
 
 bool wait_for_context_closing_for_test(
-    hbfsim_context* context, std::chrono::milliseconds timeout) noexcept
-{
+    hbfsim_context *context, std::chrono::milliseconds timeout) noexcept {
     auto admission = lookup_context_admission(context);
     if (admission == nullptr) {
         return false;
     }
     std::unique_lock lock(admission->mutex);
-    return admission->drained.wait_for(
-        lock, timeout, [&] { return admission->closing; });
+  return admission->drained.wait_for(lock, timeout,
+                                     [&] { return admission->closing; });
 }
 
-void set_after_begin_retire_hook_for_test(
-    hbfsim_context* context, AfterBeginRetireHook hook, void* state) noexcept
-{
+void set_after_begin_retire_hook_for_test(hbfsim_context *context,
+                                          AfterBeginRetireHook hook,
+                                          void *state) noexcept {
     if (context != nullptr) {
         context->after_begin_retire = hook;
         context->after_begin_retire_state = state;
@@ -1450,8 +1550,7 @@ namespace {
 
 RequestStatus submit_capacity_program(hbfsim_context* context,
                                       std::uint32_t range_id,
-                                      std::uint64_t global_page) noexcept
-{
+                                      std::uint64_t global_page) noexcept {
     if (context == nullptr || !context->profile || range_id == 0 ||
         context->profile->page_bytes == 0 ||
         global_page > std::numeric_limits<std::uint64_t>::max() /
@@ -1461,21 +1560,18 @@ RequestStatus submit_capacity_program(hbfsim_context* context,
     }
     const auto request_id = context->next_capacity_request_id;
     context->next_capacity_request_id =
-        request_id == std::numeric_limits<std::uint64_t>::max()
-            ? 0
+      request_id == std::numeric_limits<std::uint64_t>::max() ? 0
             : request_id + 1;
     const HbfRequest request{
         .request_id = request_id,
         .sequence = 0,
         .arrival_ns = monotonic_ns(),
-        .logical_address =
-            global_page * context->profile->page_bytes,
+      .logical_address = global_page * context->profile->page_bytes,
         .deadline_ns = 0,
         .bytes = context->profile->page_bytes,
         .range_id = range_id,
         .stream_id = 0,
-        .operation =
-            static_cast<std::uint32_t>(RequestOperation::Write),
+      .operation = static_cast<std::uint32_t>(RequestOperation::Write),
         .page_generation = 1,
         .flags = host_service::kRequestFlagExplicitCapacityProgram,
     };
@@ -1518,8 +1614,7 @@ RequestStatus submit_capacity_program(hbfsim_context* context,
 }  // namespace hbfsim::runtime
 
 extern "C" int hbfsim_context_create(const hbfsim_options* options,
-                                      hbfsim_context** out)
-{
+                                     hbfsim_context **out) {
     const char* daemon = std::getenv("HBFSIM_DAEMON_PATH");
     if (daemon == nullptr || daemon[0] == '\0') {
         daemon = "hbfsimd";
@@ -1548,10 +1643,9 @@ extern "C" int hbfsim_context_create_v2(const hbfsim_options_v2* options,
                                            true, nullptr, nullptr, out);
 }
 
-extern "C" int hbfsim_register_device(
-    hbfsim_context* context, void* device_ptr, size_t length,
-    const hbfsim_range_options* options)
-{
+extern "C" int hbfsim_register_device(hbfsim_context *context, void *device_ptr,
+                                      size_t length,
+                                      const hbfsim_range_options *options) {
     if (context == nullptr || device_ptr == nullptr || length == 0 ||
         options == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
@@ -1579,10 +1673,9 @@ extern "C" int hbfsim_register_device(
         context->control_generation == 0) {
         return HBFSIM_IO_ERROR;
     }
-    const auto adapter = +[](void* owner, std::uintptr_t,
-                             std::uintptr_t begin, std::uintptr_t end,
-                             hbfsim::runtime::PublishRange publish,
-                             void* publish_state,
+  const auto adapter =
+      +[](void *owner, std::uintptr_t, std::uintptr_t begin, std::uintptr_t end,
+          hbfsim::runtime::PublishRange publish, void *publish_state,
                              void* state) noexcept -> int {
         auto& context = *static_cast<hbfsim_context*>(state);
         struct Publication {
@@ -1612,13 +1705,12 @@ extern "C" int hbfsim_register_device(
 extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
                                uint64_t file_offset, size_t length,
                                const hbfsim_range_options* options,
-                               void** logical_device_ptr_out)
-{
+                               void **logical_device_ptr_out) {
     if (logical_device_ptr_out != nullptr) {
         *logical_device_ptr_out = nullptr;
     }
-    if (context == nullptr || path == nullptr || path[0] == '\0' ||
-        length == 0 || options == nullptr || logical_device_ptr_out == nullptr) {
+  if (context == nullptr || path == nullptr || path[0] == '\0' || length == 0 ||
+      options == nullptr || logical_device_ptr_out == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
     hbfsim::runtime::ContextOperation operation(context);
@@ -1626,8 +1718,7 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
         return HBFSIM_IO_ERROR;
     }
     if (options->mode != HBFSIM_RANGE_MODE_CAPACITY) {
-        return options->mode == HBFSIM_RANGE_MODE_TIMING
-                   ? HBFSIM_UNSUPPORTED
+    return options->mode == HBFSIM_RANGE_MODE_TIMING ? HBFSIM_UNSUPPORTED
                    : HBFSIM_INVALID_ARGUMENT;
     }
     if ((options->permissions != HBFSIM_RANGE_READ &&
@@ -1642,8 +1733,8 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
     }
     hbfsim::host_service::ControlView control(context->control_mapping,
                                                context->control_bytes);
-    if ((hbfsim::host_service::atomic_load(
-             control.header()->reserved0, std::memory_order_acquire) &
+  if ((hbfsim::host_service::atomic_load(control.header()->reserved0,
+                                         std::memory_order_acquire) &
          hbfsim::host_service::kControlCapabilityCapacityMedia) == 0) {
         return HBFSIM_UNSUPPORTED;
     }
@@ -1675,8 +1766,7 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
     }
 
     try {
-        auto backing =
-            std::make_shared<hbfsim::host_service::BackingStore>(
+    auto backing = std::make_shared<hbfsim::host_service::BackingStore>(
                 path, file_offset, length,
                 options->permissions == HBFSIM_RANGE_READ_WRITE);
         if (!context->capacity) {
@@ -1698,11 +1788,9 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
             hbfsim::runtime::CapacityMapping* mapping;
             std::uint32_t permissions;
         } transaction{context, mapping.get(), options->permissions};
-        const auto publish = +[](
-                                 const hbfsim::host_service::SharedRangeRecord&
-                                     record,
-                                 hbfsim::runtime::PublishRange publish_range,
-                                 void* publish_state,
+    const auto publish =
+        +[](const hbfsim::host_service::SharedRangeRecord &record,
+            hbfsim::runtime::PublishRange publish_range, void *publish_state,
                                  void* opaque) noexcept -> int {
             auto& item = *static_cast<MapTransaction*>(opaque);
             auto& runtime = *item.context->capacity;
@@ -1710,19 +1798,16 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
             const auto page_bytes = record.page_bytes;
             if (page_bytes == 0 || record.file_offset % page_bytes != 0 ||
                 record.length >
-                    std::numeric_limits<std::uint64_t>::max() -
-                        (page_bytes - 1)) {
+              std::numeric_limits<std::uint64_t>::max() - (page_bytes - 1)) {
                 return HBFSIM_INVALID_ARGUMENT;
             }
             const auto first_page = record.file_offset / page_bytes;
-            const auto page_count =
-                (record.length + page_bytes - 1) / page_bytes;
+      const auto page_count = (record.length + page_bytes - 1) / page_bytes;
             hbfsim::host_service::CapacityBackingRouter::Token token = 0;
             try {
                 token = runtime.router().stage(
                     record.range_id, first_page, page_count,
-                    item.permissions == HBFSIM_RANGE_READ_WRITE,
-                    mapped.backing);
+            item.permissions == HBFSIM_RANGE_READ_WRITE, mapped.backing);
             } catch (...) {
                 return HBFSIM_IO_ERROR;
             }
@@ -1738,14 +1823,9 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
                 std::uint64_t first_page;
                 std::uint64_t page_count;
                 hbfsim::host_service::CapacityBackingRouter::Token token;
-            } publication{&mapped,
-                          &runtime.router(),
-                          publish_range,
-                          publish_state,
-                          record.range_id,
-                          first_page,
-                          page_count,
-                          token};
+      } publication{
+          &mapped,         &runtime.router(), publish_range, publish_state,
+          record.range_id, first_page,        page_count,    token};
             const auto acknowledge = +[](void* state) noexcept -> int {
                 auto& staged = *static_cast<GatePublication*>(state);
                 if (!staged.router->activate(staged.token)) {
@@ -1760,17 +1840,15 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
                 return 0;
             };
             const auto gate_status = hbfsim::runtime::launch_gate_register(
-                item.context,
-                hbfsim::LaunchGateRangePolicy::CapacityUnbacked, record.base,
-                record.base + record.length, acknowledge, &publication);
+          item.context, hbfsim::LaunchGateRangePolicy::CapacityUnbacked,
+          record.base, record.base + record.length, acknowledge, &publication);
             if (!mapped.active) {
                 runtime.router().cancel(token);
             }
             return hbfsim::runtime::normalize_launch_gate_status(gate_status);
         };
         const auto status = context->ranges->add(
-            mapping->logical_range.base(), length, *options, publish,
-            &transaction);
+        mapping->logical_range.base(), length, *options, publish, &transaction);
         if (status != HBFSIM_OK) {
             if (!mapping->logical_range.release()) {
                 *vacant = std::move(mapping);
@@ -1794,8 +1872,7 @@ extern "C" int hbfsim_map_file(hbfsim_context* context, const char* path,
 #endif
 }
 
-extern "C" int hbfsim_flush(hbfsim_context* context)
-{
+extern "C" int hbfsim_flush(hbfsim_context *context) {
     if (context == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -1821,8 +1898,8 @@ extern "C" int hbfsim_flush(hbfsim_context* context)
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     const auto status = context->capacity->flush(
         [context](std::uint32_t range_id, std::uint64_t global_page) {
-            return hbfsim::runtime::submit_capacity_program(
-                context, range_id, global_page);
+        return hbfsim::runtime::submit_capacity_program(context, range_id,
+                                                        global_page);
         });
     return hbfsim::runtime::public_capacity_status(status);
 #else
@@ -1943,12 +2020,9 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
         hbfsim::runtime::CapacityMapping* mapping;
         int failure{HBFSIM_IO_ERROR};
     } transaction{context, found->get()};
-    const auto remove = +[](
-                            const hbfsim::host_service::SharedRangeRecord&
-                                record,
+  const auto remove = +[](const hbfsim::host_service::SharedRangeRecord &record,
                             hbfsim::runtime::PublishRange publish_range,
-                            void* publish_state,
-                            void* opaque) noexcept -> int {
+                          void *publish_state, void *opaque) noexcept -> int {
         auto& item = *static_cast<UnregisterTransaction*>(opaque);
         struct GateRemoval {
             UnregisterTransaction* transaction;
@@ -1960,15 +2034,13 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
             auto& transaction = *pending.transaction;
             auto* context = transaction.context;
             const auto flushed = context->capacity->flush(
-                [context](std::uint32_t range_id,
-                          std::uint64_t global_page) {
-                    return hbfsim::runtime::submit_capacity_program(
-                        context, range_id, global_page);
+          [context](std::uint32_t range_id, std::uint64_t global_page) {
+            return hbfsim::runtime::submit_capacity_program(context, range_id,
+                                                            global_page);
                 },
                 transaction.mapping->range_id);
             if (flushed != hbfsim::RequestStatus::Ready) {
-                transaction.failure =
-                    hbfsim::runtime::public_capacity_status(flushed);
+        transaction.failure = hbfsim::runtime::public_capacity_status(flushed);
                 return -1;
             }
             if (!transaction.mapping->logical_range.release()) {
@@ -1976,8 +2048,7 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
                 return -1;
             }
             if (context->capacity->router().deactivate(
-                    transaction.mapping->range_id) !=
-                hbfsim::RequestStatus::Ready) {
+              transaction.mapping->range_id) != hbfsim::RequestStatus::Ready) {
                 transaction.failure = HBFSIM_IO_ERROR;
                 return -1;
             }
@@ -1987,8 +2058,8 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
             return 0;
         };
         const auto gate_status = hbfsim::runtime::launch_gate_unregister(
-            item.context, record.base, record.base + record.length,
-            acknowledge, &removal);
+        item.context, record.base, record.base + record.length, acknowledge,
+        &removal);
         return gate_status == 0 ? HBFSIM_OK : item.failure;
     };
     const auto status = context->ranges->remove(base, remove, &transaction);
@@ -2002,8 +2073,15 @@ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 #endif
 }
 
-extern "C" void hbfsim_context_destroy(hbfsim_context* context)
-{
+extern "C" const char *hbfsim_timing_backend(const hbfsim_context *context) {
+  if (context == nullptr) {
+    return "unavailable";
+  }
+  return context->host_timing_fallback ? "host_launch_mqsim"
+                                       : "device_request_ring";
+}
+
+extern "C" void hbfsim_context_destroy(hbfsim_context *context) {
     if (context == nullptr) {
         return;
     }

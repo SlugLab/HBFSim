@@ -314,11 +314,28 @@ extern "C" int process_input(const char* input, int length, char* output)
             .ebpf_communication_data_symbol = request_json.value(
                 "ebpf_communication_data_symbol", "constData"),
         };
+        const bool host_launch_only =
+            request_json.value("host_launch_only", false);
         const auto trusted_identity =
             trusted_modules().identity_for(request.full_ptx);
         request.trusted_existing_helper =
             trusted_identity.previously_emitted;
-        auto transformed = hbfsim::ptx::transform_ptx(request);
+        if (host_launch_only &&
+            (request.full_ptx.find("__hbfsim_resolve") != std::string::npos ||
+             request.full_ptx.find("__hbfsim_fault") != std::string::npos ||
+             request.full_ptx.find("__hbfsim_control") != std::string::npos)) {
+            throw std::invalid_argument(
+                "host-launch-only mode rejects device instrumentation");
+        }
+        hbfsim::ptx::TransformResult transformed;
+        if (host_launch_only) {
+            transformed.output_ptx = request.full_ptx;
+            transformed.modified =
+                request.full_ptx.find(module_identity_symbol) ==
+                std::string::npos;
+        } else {
+            transformed = hbfsim::ptx::transform_ptx(request);
+        }
         const auto& identity = trusted_identity.value;
         transformed.output_ptx =
             inject_module_identity(std::move(transformed.output_ptx), identity);
@@ -356,7 +373,9 @@ extern "C" int process_input(const char* input, int length, char* output)
             {"kernel", request.to_patch_kernel},
             {"ptx_target", ptx_target(request.full_ptx)},
             {"instrumented",
-             transformed.modified && relevant_unsupported.empty()},
+             !host_launch_only && transformed.modified &&
+                 relevant_unsupported.empty()},
+            {"host_launch_only", host_launch_only},
             {"cubin_only", false},
             {"parameters", std::move(parameters_json)},
             {"unsupported_parameters", std::move(unsupported)},

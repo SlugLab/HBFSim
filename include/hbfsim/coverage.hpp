@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
@@ -81,6 +82,7 @@ struct ModuleManifest {
     std::string kernel;
     std::string ptx_target;
     bool instrumented{false};
+    bool host_launch_only{false};
     bool cubin_only{false};
     std::vector<ParameterMetadata> parameters;
     std::vector<UnsupportedParameter> unsupported_parameters;
@@ -142,6 +144,9 @@ class CoverageGate {
     [[nodiscard]] bool has_ranges() const;
     [[nodiscard]] bool has_capacity_ranges() const;
     [[nodiscard]] bool has_strict_ranges() const;
+    [[nodiscard]] std::optional<bool>
+    native_execution_required(const std::string& module_id,
+                              const std::string& kernel) const;
     [[nodiscard]] GateDecision check_launch(const KernelLaunch& launch) const;
 
   private:

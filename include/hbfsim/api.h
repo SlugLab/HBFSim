@@ -30,9 +30,7 @@ enum hbfsim_range_permission {
     HBFSIM_RANGE_READ_WRITE = HBFSIM_RANGE_READ | HBFSIM_RANGE_WRITE
 };
 
-enum hbfsim_cache_policy {
-    HBFSIM_CACHE_POLICY_NONE = 0
-};
+enum hbfsim_cache_policy { HBFSIM_CACHE_POLICY_NONE = 0 };
 
 enum hbfsim_model_mode {
     HBFSIM_MODEL_REFERENCE = 0,
@@ -99,8 +97,7 @@ int hbfsim_context_create(const hbfsim_options* options,
 int hbfsim_context_create_v2(const hbfsim_options_v2* options,
                              hbfsim_context** out);
 int hbfsim_register_device(hbfsim_context* context, void* device_ptr,
-                           size_t length,
-                           const hbfsim_range_options* options);
+                           size_t length, const hbfsim_range_options *options);
 int hbfsim_map_file(hbfsim_context* context, const char* path,
                     uint64_t file_offset, size_t length,
                     const hbfsim_range_options* options,
@@ -108,6 +105,7 @@ int hbfsim_map_file(hbfsim_context* context, const char* path,
 int hbfsim_flush(hbfsim_context* context);
 int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
 int hbfsim_unregister(hbfsim_context* context, void* range_base);
+const char *hbfsim_timing_backend(const hbfsim_context *context);
 void hbfsim_context_destroy(hbfsim_context* context);
 
 #ifdef __cplusplus

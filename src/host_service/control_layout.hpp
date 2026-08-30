@@ -15,6 +15,8 @@ namespace hbfsim::host_service {
 inline constexpr std::uint32_t kControlAbiVersion = 5;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
+inline constexpr std::uint32_t kRangeFlagHostTimingFallback = 1U << 0;
+inline constexpr std::uint32_t kKnownRangeFlags = kRangeFlagHostTimingFallback;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
 inline constexpr std::uint64_t kAdmissionClosedBit = 1ULL << 63;
@@ -43,12 +45,10 @@ enum class PackageThermalPolicyState : std::uint32_t {
 using RequestAdmissionHook = void (*)(void*) noexcept;
 using CapacityHandoffHook = void (*)(void*) noexcept;
 inline constexpr std::uint64_t kCapacityCompletionClaimed = UINT64_MAX;
-inline constexpr std::uint64_t kMaximumCapacityTicket =
-    (UINT64_MAX >> 8) - 1;
+inline constexpr std::uint64_t kMaximumCapacityTicket = (UINT64_MAX >> 8) - 1;
 
-inline constexpr std::uint64_t capacity_pending_token(
-    std::uint64_t ticket) noexcept
-{
+inline constexpr std::uint64_t
+capacity_pending_token(std::uint64_t ticket) noexcept {
     return ((ticket + 1) << 8) | 0x80U;
 }
 
@@ -80,17 +80,15 @@ struct CapacityMediaPlan {
     std::uint32_t program_range_id{0};
 };
 
-inline constexpr bool valid_capacity_media_plan(
-    const CapacityMediaPlan& media) noexcept
-{
+inline constexpr bool
+valid_capacity_media_plan(const CapacityMediaPlan &media) noexcept {
     constexpr auto known = CapacityMediaRead | CapacityMediaProgram;
     if ((media.flags & ~known) != 0) {
         return false;
     }
     const auto programs = (media.flags & CapacityMediaProgram) != 0;
     return programs ? media.program_range_id != 0
-                    : media.program_page == 0 &&
-                          media.program_range_id == 0;
+                  : media.program_page == 0 && media.program_range_id == 0;
 }
 
 struct CapacityHandoffResult {
@@ -183,8 +181,7 @@ struct alignas(64) SharedRangeRecord {
     std::uint64_t reserved1;
 };
 
-template <typename T>
-struct alignas(64) SharedRingSlot {
+template <typename T> struct alignas(64) SharedRingSlot {
     alignas(8) std::uint64_t sequence;
     std::byte sequence_padding[56];
     T value;
@@ -215,20 +212,16 @@ static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedRequestSlot) == 128);
 static_assert(sizeof(SharedCompletionSlot) == 128);
 
-inline bool valid_ring_capacity(std::uint32_t capacity) noexcept
-{
-    return capacity >= kMinimumRingCapacity &&
-           capacity <= kMaximumRingCapacity &&
+inline bool valid_ring_capacity(std::uint32_t capacity) noexcept {
+  return capacity >= kMinimumRingCapacity && capacity <= kMaximumRingCapacity &&
            (capacity & (capacity - 1)) == 0;
 }
 
-inline std::size_t align_control(std::size_t value) noexcept
-{
+inline std::size_t align_control(std::size_t value) noexcept {
     return (value + 63U) & ~std::size_t{63U};
 }
 
-inline std::size_t control_region_bytes(std::uint32_t capacity) noexcept
-{
+inline std::size_t control_region_bytes(std::uint32_t capacity) noexcept {
     if (!valid_ring_capacity(capacity)) {
         return 0;
     }
@@ -241,57 +234,48 @@ inline std::size_t control_region_bytes(std::uint32_t capacity) noexcept
 }
 
 inline std::uint64_t atomic_load(const std::uint64_t& value,
-                                 std::memory_order order) noexcept
-{
+                                 std::memory_order order) noexcept {
     return std::atomic_ref<const std::uint64_t>(value).load(order);
 }
 
 inline std::uint32_t atomic_load(const std::uint32_t& value,
-                                 std::memory_order order) noexcept
-{
+                                 std::memory_order order) noexcept {
     return std::atomic_ref<const std::uint32_t>(value).load(order);
 }
 
 inline void atomic_store(std::uint64_t& target, std::uint64_t value,
-                         std::memory_order order) noexcept
-{
+                         std::memory_order order) noexcept {
     std::atomic_ref<std::uint64_t>(target).store(value, order);
 }
 
 inline void atomic_store(std::uint32_t& target, std::uint32_t value,
-                         std::memory_order order) noexcept
-{
+                         std::memory_order order) noexcept {
     std::atomic_ref<std::uint32_t>(target).store(value, order);
 }
 
 inline bool atomic_compare_exchange_weak(
-    std::uint64_t& target, std::uint64_t& expected,
-    std::uint64_t desired,
+    std::uint64_t &target, std::uint64_t &expected, std::uint64_t desired,
     std::memory_order success = std::memory_order_relaxed,
-    std::memory_order failure = std::memory_order_relaxed) noexcept
-{
+    std::memory_order failure = std::memory_order_relaxed) noexcept {
     return std::atomic_ref<std::uint64_t>(target).compare_exchange_weak(
         expected, desired, success, failure);
 }
 
 inline std::uint64_t atomic_fetch_add(std::uint64_t& target,
-                                      std::uint64_t increment) noexcept
-{
+                                      std::uint64_t increment) noexcept {
     return std::atomic_ref<std::uint64_t>(target).fetch_add(
         increment, std::memory_order_relaxed);
 }
 
-inline std::uint64_t atomic_fetch_sub(
-    std::uint64_t& target, std::uint64_t decrement,
-    std::memory_order order = std::memory_order_relaxed) noexcept
-{
+inline std::uint64_t
+atomic_fetch_sub(std::uint64_t &target, std::uint64_t decrement,
+                 std::memory_order order = std::memory_order_relaxed) noexcept {
     return std::atomic_ref<std::uint64_t>(target).fetch_sub(decrement, order);
 }
 
-inline std::uint64_t atomic_fetch_or(
-    std::uint64_t& target, std::uint64_t bits,
-    std::memory_order order = std::memory_order_relaxed) noexcept
-{
+inline std::uint64_t
+atomic_fetch_or(std::uint64_t &target, std::uint64_t bits,
+                std::memory_order order = std::memory_order_relaxed) noexcept {
     return std::atomic_ref<std::uint64_t>(target).fetch_or(bits, order);
 }
 
@@ -306,46 +290,38 @@ class ControlView {
 public:
     ControlView() = default;
     ControlView(void* address, std::size_t bytes) noexcept
-        : base_(static_cast<std::byte*>(address)), bytes_(bytes)
-    {
-    }
+      : base_(static_cast<std::byte *>(address)), bytes_(bytes) {}
 
-    [[nodiscard]] SharedControlHeader* header() const noexcept
-    {
+  [[nodiscard]] SharedControlHeader *header() const noexcept {
         return reinterpret_cast<SharedControlHeader*>(base_);
     }
 
-    [[nodiscard]] bool valid() const noexcept
-    {
+  [[nodiscard]] bool valid() const noexcept {
         if (base_ == nullptr || bytes_ < sizeof(SharedControlHeader)) {
             return false;
         }
         const auto* h = header();
-        if (h->magic != kControlMagic ||
-            h->abi_version != kControlAbiVersion ||
+    if (h->magic != kControlMagic || h->abi_version != kControlAbiVersion ||
             h->header_bytes != sizeof(SharedControlHeader) ||
             !valid_ring_capacity(h->ring_capacity) ||
             h->range_capacity != kRangeCapacity ||
-            h->page_capacity != h->ring_capacity ||
-            h->region_bytes != bytes_ ||
+        h->page_capacity != h->ring_capacity || h->region_bytes != bytes_ ||
             control_region_bytes(h->ring_capacity) != bytes_) {
             return false;
         }
         return h->range_offset == sizeof(SharedControlHeader) &&
-               h->request_offset == h->range_offset +
-                                        sizeof(SharedRangeRecord) *
-                                            kRangeCapacity &&
+           h->request_offset ==
+               h->range_offset + sizeof(SharedRangeRecord) * kRangeCapacity &&
                h->completion_offset ==
                    h->request_offset +
                        sizeof(SharedRequestSlot) * h->ring_capacity &&
-               h->page_offset == h->completion_offset +
-                                      sizeof(SharedCompletionSlot) *
-                                          h->ring_capacity &&
+           h->page_offset ==
+               h->completion_offset +
+                   sizeof(SharedCompletionSlot) * h->ring_capacity &&
                h->page_offset + sizeof(PageEntry) * h->page_capacity <= bytes_;
     }
 
-    bool initialize(std::uint32_t capacity) noexcept
-    {
+  bool initialize(std::uint32_t capacity) noexcept {
         const auto required = control_region_bytes(capacity);
         if (base_ == nullptr || required == 0 || bytes_ != required) {
             return false;
@@ -375,38 +351,32 @@ public:
         return valid();
     }
 
-    [[nodiscard]] SharedRangeRecord* ranges() const noexcept
-    {
+  [[nodiscard]] SharedRangeRecord *ranges() const noexcept {
         return reinterpret_cast<SharedRangeRecord*>(base_ +
                                                     header()->range_offset);
     }
-    [[nodiscard]] SharedRequestSlot* request_slots() const noexcept
-    {
+  [[nodiscard]] SharedRequestSlot *request_slots() const noexcept {
         return reinterpret_cast<SharedRequestSlot*>(base_ +
                                                     header()->request_offset);
     }
-    [[nodiscard]] SharedCompletionSlot* completion_slots() const noexcept
-    {
+  [[nodiscard]] SharedCompletionSlot *completion_slots() const noexcept {
         return reinterpret_cast<SharedCompletionSlot*>(
             base_ + header()->completion_offset);
     }
-    [[nodiscard]] PageEntry* pages() const noexcept
-    {
+  [[nodiscard]] PageEntry *pages() const noexcept {
         return reinterpret_cast<PageEntry*>(base_ + header()->page_offset);
     }
 
     bool try_push_request(const HbfRequest& request,
-                          std::uint64_t& ticket) noexcept
-    {
-        return try_push_request_with_hooks_for_test(
-            request, ticket, nullptr, nullptr, nullptr);
+                        std::uint64_t &ticket) noexcept {
+    return try_push_request_with_hooks_for_test(request, ticket, nullptr,
+                                                nullptr, nullptr);
     }
 
     bool try_push_request_with_hooks_for_test(
         const HbfRequest& request, std::uint64_t& ticket,
         RequestAdmissionHook after_gate_check,
-        RequestAdmissionHook after_reservation, void* hook_state) noexcept
-    {
+      RequestAdmissionHook after_reservation, void *hook_state) noexcept {
         auto* h = header();
         auto admission =
             atomic_load(h->admission_state, std::memory_order_acquire);
@@ -422,15 +392,14 @@ public:
                 (admission & kAdmissionCountMask) == kAdmissionCountMask) {
                 return false;
             }
-            if (atomic_compare_exchange_weak(
-                    h->admission_state, admission, admission + 1,
-                    std::memory_order_acq_rel, std::memory_order_acquire)) {
+      if (atomic_compare_exchange_weak(h->admission_state, admission,
+                                       admission + 1, std::memory_order_acq_rel,
+                                       std::memory_order_acquire)) {
                 break;
             }
         }
 
-        auto position =
-            atomic_load(h->request_producer, std::memory_order_relaxed);
+    auto position = atomic_load(h->request_producer, std::memory_order_relaxed);
         for (;;) {
             if (!package_thermal_admission_open(*h)) {
                 (void)atomic_fetch_sub(h->admission_state, 1,
@@ -442,23 +411,21 @@ public:
                 completion_slots()[position & (h->ring_capacity - 1)];
             const auto sequence =
                 atomic_load(slot.sequence, std::memory_order_acquire);
-            const auto completion_sequence = atomic_load(
-                completion_slot.sequence, std::memory_order_acquire);
-            const auto difference =
-                static_cast<std::int64_t>(sequence - position);
-            const auto completion_difference = static_cast<std::int64_t>(
-                completion_sequence - position);
+      const auto completion_sequence =
+          atomic_load(completion_slot.sequence, std::memory_order_acquire);
+      const auto difference = static_cast<std::int64_t>(sequence - position);
+      const auto completion_difference =
+          static_cast<std::int64_t>(completion_sequence - position);
             if (difference == 0 && completion_difference == 0) {
-                if (atomic_compare_exchange_weak(
-                        h->request_producer, position, position + 1)) {
+        if (atomic_compare_exchange_weak(h->request_producer, position,
+                                         position + 1)) {
                     if (after_reservation != nullptr) {
                         after_reservation(hook_state);
                     }
                     auto stamped = request;
                     stamped.sequence = position;
                     slot.value = stamped;
-                    atomic_store(slot.sequence, position + 1,
-                                 std::memory_order_release);
+          atomic_store(slot.sequence, position + 1, std::memory_order_release);
                     (void)atomic_fetch_sub(h->admission_state, 1,
                                            std::memory_order_release);
                     ticket = position;
@@ -469,23 +436,19 @@ public:
                                        std::memory_order_release);
                 return false;
             } else {
-                position = atomic_load(h->request_producer,
-                                       std::memory_order_relaxed);
+        position = atomic_load(h->request_producer, std::memory_order_relaxed);
             }
         }
     }
 
-    bool try_push_request(const HbfRequest& request) noexcept
-    {
+  bool try_push_request(const HbfRequest &request) noexcept {
         std::uint64_t ignored_ticket = 0;
         return try_push_request(request, ignored_ticket);
     }
 
-    bool try_pop_request(HbfRequest& request) noexcept
-    {
+  bool try_pop_request(HbfRequest &request) noexcept {
         auto* h = header();
-        auto position =
-            atomic_load(h->request_consumer, std::memory_order_relaxed);
+    auto position = atomic_load(h->request_consumer, std::memory_order_relaxed);
         for (;;) {
             auto& slot = request_slots()[position & (h->ring_capacity - 1)];
             const auto sequence =
@@ -493,26 +456,23 @@ public:
             const auto difference =
                 static_cast<std::int64_t>(sequence - (position + 1));
             if (difference == 0) {
-                if (atomic_compare_exchange_weak(
-                        h->request_consumer, position, position + 1)) {
+        if (atomic_compare_exchange_weak(h->request_consumer, position,
+                                         position + 1)) {
                     request = slot.value;
-                    atomic_store(slot.sequence,
-                                 position + h->ring_capacity,
+          atomic_store(slot.sequence, position + h->ring_capacity,
                                  std::memory_order_release);
                     return true;
                 }
             } else if (difference < 0) {
                 return false;
             } else {
-                position = atomic_load(h->request_consumer,
-                                       std::memory_order_relaxed);
+        position = atomic_load(h->request_consumer, std::memory_order_relaxed);
             }
         }
     }
 
     bool try_publish_completion(std::uint64_t ticket,
-                                const HbfCompletion& completion) noexcept
-    {
+                              const HbfCompletion &completion) noexcept {
         auto* h = header();
         auto& slot = completion_slots()[ticket & (h->ring_capacity - 1)];
         if (atomic_load(slot.sequence, std::memory_order_acquire) != ticket) {
@@ -525,12 +485,10 @@ public:
     }
 
     bool try_consume_completion(std::uint64_t ticket,
-                                HbfCompletion& completion) noexcept
-    {
+                              HbfCompletion &completion) noexcept {
         auto* h = header();
         auto& slot = completion_slots()[ticket & (h->ring_capacity - 1)];
-        if (atomic_load(slot.sequence, std::memory_order_acquire) !=
-            ticket + 1) {
+    if (atomic_load(slot.sequence, std::memory_order_acquire) != ticket + 1) {
             return false;
         }
         completion = slot.value;
@@ -540,8 +498,7 @@ public:
         return true;
     }
 
-    bool begin_capacity_handoff(const HbfRequest& request) noexcept
-    {
+  bool begin_capacity_handoff(const HbfRequest &request) noexcept {
         auto* h = header();
         if (!valid() || request.request_id == 0 || request.bytes == 0 ||
             request.logical_address % request.bytes != 0 ||
@@ -566,24 +523,21 @@ public:
         page.reserved1 = 0;
         atomic_store(page.owner_request_id, request.request_id,
                      std::memory_order_relaxed);
-        atomic_store(
-            page.state,
+    atomic_store(page.state,
             static_cast<std::uint32_t>(CapacityHandoffState::Available),
             std::memory_order_release);
         return true;
     }
 
     bool try_capacity_handoff(std::uint32_t slot_index,
-                              CapacityHandoff& handoff) const noexcept
-    {
-        return try_capacity_handoff_with_hook_for_test(
-            slot_index, handoff, nullptr, nullptr);
+                            CapacityHandoff &handoff) const noexcept {
+    return try_capacity_handoff_with_hook_for_test(slot_index, handoff, nullptr,
+                                                   nullptr);
     }
 
     bool try_capacity_handoff_with_hook_for_test(
         std::uint32_t slot_index, CapacityHandoff& handoff,
-        CapacityHandoffHook after_claim, void* hook_state) const noexcept
-    {
+      CapacityHandoffHook after_claim, void *hook_state) const noexcept {
         auto* h = header();
         if (!valid() || slot_index >= h->page_capacity) {
             return false;
@@ -591,8 +545,8 @@ public:
         const auto& page = pages()[slot_index];
         auto expected_state =
             static_cast<std::uint32_t>(CapacityHandoffState::Available);
-        auto state = std::atomic_ref<std::uint32_t>(
-            const_cast<std::uint32_t&>(page.state));
+    auto state =
+        std::atomic_ref<std::uint32_t>(const_cast<std::uint32_t &>(page.state));
         if (!state.compare_exchange_strong(
                 expected_state,
                 static_cast<std::uint32_t>(CapacityHandoffState::Claiming),
@@ -602,8 +556,7 @@ public:
         if (after_claim != nullptr) {
             after_claim(hook_state);
         }
-        expected_state =
-            static_cast<std::uint32_t>(CapacityHandoffState::Claiming);
+    expected_state = static_cast<std::uint32_t>(CapacityHandoffState::Claiming);
         if (!state.compare_exchange_strong(
                 expected_state,
                 static_cast<std::uint32_t>(CapacityHandoffState::Reading),
@@ -619,8 +572,7 @@ public:
                 capacity_pending_token(generation - 1) ||
             page.waiter_count >
                 static_cast<std::uint32_t>(RequestOperation::Write)) {
-            state.store(
-                static_cast<std::uint32_t>(CapacityHandoffState::Copied),
+      state.store(static_cast<std::uint32_t>(CapacityHandoffState::Copied),
                 std::memory_order_release);
             return false;
         }
@@ -631,54 +583,44 @@ public:
             .operation = page.waiter_count,
         };
         handoff = candidate;
-        state.store(
-            static_cast<std::uint32_t>(CapacityHandoffState::Copied),
+    state.store(static_cast<std::uint32_t>(CapacityHandoffState::Copied),
             std::memory_order_release);
         return true;
     }
 
-    bool complete_capacity_handoff(std::uint64_t ticket,
-                                   std::uint64_t request_id,
+  bool complete_capacity_handoff(std::uint64_t ticket, std::uint64_t request_id,
                                    std::uint64_t frame_address,
-                                   RequestStatus status) noexcept
-    {
+                                 RequestStatus status) noexcept {
         return complete_capacity_handoff_with_hook_for_test(
             ticket, request_id, frame_address, status, nullptr, nullptr);
     }
 
-    bool complete_capacity_handoff(std::uint64_t ticket,
-                                   std::uint64_t request_id,
+  bool complete_capacity_handoff(std::uint64_t ticket, std::uint64_t request_id,
                                    std::uint64_t frame_address,
                                    RequestStatus status,
-                                   CapacityMediaPlan media) noexcept
-    {
+                                 CapacityMediaPlan media) noexcept {
         return complete_capacity_handoff_with_hook_for_test(
-            ticket, request_id, frame_address, status, nullptr, nullptr,
-            media);
+        ticket, request_id, frame_address, status, nullptr, nullptr, media);
     }
 
     bool complete_capacity_handoff_with_hook_for_test(
         std::uint64_t ticket, std::uint64_t request_id,
         std::uint64_t frame_address, RequestStatus status,
         CapacityHandoffHook before_claim, void* hook_state,
-        CapacityMediaPlan media = {}) noexcept
-    {
+      CapacityMediaPlan media = {}) noexcept {
         auto* h = header();
-        if (!valid() || request_id == 0 ||
-            ticket > kMaximumCapacityTicket ||
+    if (!valid() || request_id == 0 || ticket > kMaximumCapacityTicket ||
             status == RequestStatus::Pending ||
             status > RequestStatus::DaemonLost ||
             (status == RequestStatus::Ready) != (frame_address != 0) ||
             !valid_capacity_media_plan(media) ||
-            (status != RequestStatus::Ready &&
-             media.flags != CapacityMediaNone)) {
+        (status != RequestStatus::Ready && media.flags != CapacityMediaNone)) {
             return false;
         }
         auto& page = pages()[ticket & (h->page_capacity - 1)];
         if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
                 request_id ||
-            atomic_load(page.generation, std::memory_order_acquire) !=
-                ticket + 1) {
+        atomic_load(page.generation, std::memory_order_acquire) != ticket + 1) {
             return false;
         }
         if (before_claim != nullptr) {
@@ -693,10 +635,8 @@ public:
         }
         if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
                 request_id ||
-            atomic_load(page.generation, std::memory_order_acquire) !=
-                ticket + 1) {
-            completion.store(
-                capacity_pending_token(ticket),
+        atomic_load(page.generation, std::memory_order_acquire) != ticket + 1) {
+      completion.store(capacity_pending_token(ticket),
                 std::memory_order_release);
             return false;
         }
@@ -711,15 +651,13 @@ public:
     }
 
     bool capacity_handoff_result(const HbfRequest& request,
-                                 CapacityHandoffResult& result) const noexcept
-    {
+                               CapacityHandoffResult &result) const noexcept {
         auto* h = header();
         if (!valid() || request.request_id == 0 ||
             request.sequence > kMaximumCapacityTicket) {
             return false;
         }
-        const auto& page =
-            pages()[request.sequence & (h->page_capacity - 1)];
+    const auto &page = pages()[request.sequence & (h->page_capacity - 1)];
         if (atomic_load(page.owner_request_id, std::memory_order_acquire) !=
                 request.request_id ||
             atomic_load(page.generation, std::memory_order_acquire) !=
@@ -730,8 +668,7 @@ public:
             atomic_load(page.reserved0, std::memory_order_acquire);
         if (raw_status == capacity_pending_token(request.sequence) ||
             raw_status == kCapacityCompletionClaimed ||
-            raw_status >
-                static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
+        raw_status > static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
             return false;
         }
         const auto status = static_cast<RequestStatus>(raw_status);
@@ -742,20 +679,17 @@ public:
         const CapacityMediaPlan media{
             .flags = static_cast<std::uint32_t>(page.reserved1),
             .program_page = page.checksum,
-            .program_range_id = static_cast<std::uint32_t>(
-                page.reserved1 >> 32),
+        .program_range_id = static_cast<std::uint32_t>(page.reserved1 >> 32),
         };
         if (!valid_capacity_media_plan(media) ||
-            (status != RequestStatus::Ready &&
-             media.flags != CapacityMediaNone)) {
+        (status != RequestStatus::Ready && media.flags != CapacityMediaNone)) {
             return false;
         }
         result = {.status = status, .frame_address = frame, .media = media};
         return true;
     }
 
-    bool release_capacity_handoff(const HbfRequest& request) noexcept
-    {
+  bool release_capacity_handoff(const HbfRequest &request) noexcept {
         auto* h = header();
         if (!valid() || request.request_id == 0 ||
             request.sequence > kMaximumCapacityTicket) {
@@ -768,8 +702,7 @@ public:
                 request.sequence + 1) {
             return false;
         }
-        const auto status =
-            atomic_load(page.reserved0, std::memory_order_acquire);
+    const auto status = atomic_load(page.reserved0, std::memory_order_acquire);
         if (status < static_cast<std::uint64_t>(RequestStatus::Ready) ||
             status > static_cast<std::uint64_t>(RequestStatus::DaemonLost)) {
             return false;
@@ -777,23 +710,22 @@ public:
         auto state = std::atomic_ref<std::uint32_t>(page.state);
         for (;;) {
             auto expected_state = state.load(std::memory_order_acquire);
-            if (expected_state == static_cast<std::uint32_t>(
-                                      CapacityHandoffState::Reading)) {
+      if (expected_state ==
+          static_cast<std::uint32_t>(CapacityHandoffState::Reading)) {
                 std::this_thread::yield();
                 continue;
             }
-            if (expected_state != static_cast<std::uint32_t>(
-                                      CapacityHandoffState::Available) &&
-                expected_state != static_cast<std::uint32_t>(
-                                      CapacityHandoffState::Claiming) &&
-                expected_state != static_cast<std::uint32_t>(
-                                      CapacityHandoffState::Copied)) {
+      if (expected_state !=
+              static_cast<std::uint32_t>(CapacityHandoffState::Available) &&
+          expected_state !=
+              static_cast<std::uint32_t>(CapacityHandoffState::Claiming) &&
+          expected_state !=
+              static_cast<std::uint32_t>(CapacityHandoffState::Copied)) {
                 return false;
             }
             if (state.compare_exchange_weak(
                     expected_state,
-                    static_cast<std::uint32_t>(
-                        CapacityHandoffState::Reclaiming),
+              static_cast<std::uint32_t>(CapacityHandoffState::Reclaiming),
                     std::memory_order_acq_rel, std::memory_order_acquire)) {
                 break;
             }
@@ -806,8 +738,7 @@ public:
         atomic_store(page.reserved0, 0, std::memory_order_relaxed);
         page.reserved1 = 0;
         atomic_store(page.owner_request_id, 0, std::memory_order_relaxed);
-        state.store(
-            static_cast<std::uint32_t>(CapacityHandoffState::Empty),
+    state.store(static_cast<std::uint32_t>(CapacityHandoffState::Empty),
             std::memory_order_release);
         return true;
     }

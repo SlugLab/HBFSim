@@ -5,37 +5,39 @@
 
 extern "C" __device__ unsigned long long __hbfsim_control = 0;
 extern "C" __device__ unsigned long long __hbfsim_control_generation = 0;
-extern "C" __device__ __constant__ unsigned int
-    __hbfsim_device_helper_marker = 0x48424632U;
+extern "C" __device__ __constant__ unsigned int __hbfsim_device_helper_marker =
+    0x48424632U;
 
 namespace {
 
 using hbfsim::device::RequestStatus;
 using hbfsim::device::ResolveResult;
-using hbfsim::device::SharedControlHeader;
 using hbfsim::device::SharedCompletionSlot;
+using hbfsim::device::SharedControlHeader;
 using hbfsim::device::SharedRangeRecord;
 using hbfsim::device::SharedRequestSlot;
 
-template <typename T>
-__device__ T system_acquire(const T* address)
-{
+template <typename T> __device__ T system_acquire(const T *address) {
     cuda::atomic_ref<T, cuda::thread_scope_system> value(
         *const_cast<T*>(address));
     return value.load(cuda::memory_order_acquire);
 }
 
-template <typename T>
-__device__ void system_release(T* address, T desired)
-{
+template <typename T> __device__ T device_binding_load(const T *address) {
+    // The launch gate serializes binding publication and retirement against
+    // launches, so module-global binding values are immutable while a kernel
+    // executes. Avoid system-scope atomics for this device-memory fast path.
+    return *reinterpret_cast<const volatile T *>(address);
+}
+
+template <typename T> __device__ void system_release(T *address, T desired) {
     cuda::atomic_ref<T, cuda::thread_scope_system> value(*address);
     value.store(desired, cuda::memory_order_release);
 }
 
 __device__ bool system_compare_exchange(std::uint64_t* address,
                                         std::uint64_t& expected,
-                                        std::uint64_t desired)
-{
+                                        std::uint64_t desired) {
     cuda::atomic_ref<std::uint64_t, cuda::thread_scope_system> value(*address);
     return value.compare_exchange_weak(expected, desired,
                                        cuda::memory_order_relaxed,
@@ -50,46 +52,38 @@ __device__ std::uint64_t system_fetch_add(std::uint64_t* address,
 }
 
 __device__ void system_fetch_sub_release(std::uint64_t* address,
-                                         std::uint64_t decrement)
-{
+                                         std::uint64_t decrement) {
     cuda::atomic_ref<std::uint64_t, cuda::thread_scope_system> value(*address);
     (void)value.fetch_sub(decrement, cuda::memory_order_release);
 }
 
-__device__ std::uint64_t gpu_time_ns()
-{
+__device__ std::uint64_t gpu_time_ns() {
     std::uint64_t now;
     asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(now));
     return now;
 }
 
-__device__ void bounded_sleep(std::uint32_t& delay_ns)
-{
+__device__ void bounded_sleep(std::uint32_t &delay_ns) {
     __nanosleep(delay_ns);
     delay_ns = delay_ns < 524288U ? delay_ns * 2U : 1048576U;
 }
 
-__device__ std::uint32_t lane_id()
-{
+__device__ std::uint32_t lane_id() {
     std::uint32_t lane;
     asm volatile("mov.u32 %0, %%laneid;" : "=r"(lane));
     return lane;
 }
 
-__device__ ResolveResult fail(std::uint64_t address,
-                              RequestStatus status)
-{
+__device__ ResolveResult fail(std::uint64_t address, RequestStatus status) {
     return {.address = address,
             .status = static_cast<std::uint32_t>(status),
             .reserved = 0};
 }
 
-__device__ const SharedRangeRecord* find_range(
-    const SharedRangeRecord* ranges, std::uint32_t count,
-    std::uint64_t address)
-{
-    const auto index = hbfsim::device::find_range_index(
-        ranges, count, address);
+__device__ const SharedRangeRecord *find_range(const SharedRangeRecord *ranges,
+                                               std::uint32_t count,
+                                               std::uint64_t address) {
+  const auto index = hbfsim::device::find_range_index(ranges, count, address);
     return index == count ? nullptr : &ranges[index];
 }
 
@@ -113,8 +107,7 @@ struct ThermalGateSnapshot {
 };
 
 __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
-                                       WaitState& wait)
-{
+                                       WaitState &wait) {
     const auto now = gpu_time_ns();
     if (now >= wait.deadline_ns) {
         return RequestStatus::Timeout;
@@ -131,8 +124,7 @@ __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
         wait.heartbeat_value = heartbeat;
         wait.heartbeat_observed_ns = now;
     } else if (header->heartbeat_timeout_ns == 0 ||
-               now - wait.heartbeat_observed_ns >=
-                   header->heartbeat_timeout_ns) {
+             now - wait.heartbeat_observed_ns >= header->heartbeat_timeout_ns) {
         return RequestStatus::DaemonLost;
     }
     bounded_sleep(wait.sleep_ns);
@@ -265,8 +257,7 @@ retry_after_thermal_gate:
         auto& completion_slot =
             completions[position & (header->ring_capacity - 1)];
         const auto request_sequence = system_acquire(&request_slot.sequence);
-        const auto completion_sequence =
-            system_acquire(&completion_slot.sequence);
+    const auto completion_sequence = system_acquire(&completion_slot.sequence);
         const auto request_difference =
             static_cast<std::int64_t>(request_sequence - position);
         const auto completion_difference =
@@ -323,10 +314,9 @@ __device__ CompletionResult wait_for_completion(
     system_release(&slot.sequence, ticket + header->ring_capacity);
     system_fetch_add(&header->completion_consumer, 1);
     if (completion.request_id != ticket + 1 ||
-        completion.status == static_cast<std::uint32_t>(
-                                 RequestStatus::Pending) ||
-        completion.status > static_cast<std::uint32_t>(
-                                RequestStatus::DaemonLost)) {
+      completion.status == static_cast<std::uint32_t>(RequestStatus::Pending) ||
+      completion.status >
+          static_cast<std::uint32_t>(RequestStatus::DaemonLost)) {
         return {.status = RequestStatus::IoError};
     }
     const auto status = static_cast<RequestStatus>(completion.status);
@@ -350,14 +340,11 @@ __device__ CompletionResult wait_for_completion(
 
 __device__ CompletionResult resolve_leader(
     SharedControlHeader* header, const SharedRangeRecord& range,
-    const hbfsim::device::MediaDescriptor& media,
-    std::uint32_t operation)
-{
+    const hbfsim::device::MediaDescriptor &media, std::uint32_t operation) {
     const auto capacity = header->ring_capacity;
     if (capacity < hbfsim::device::kMinimumRingCapacity ||
         capacity > hbfsim::device::kMaximumRingCapacity ||
-        (capacity & (capacity - 1)) != 0 ||
-        header->request_timeout_ns == 0 ||
+      (capacity & (capacity - 1)) != 0 || header->request_timeout_ns == 0 ||
         header->heartbeat_timeout_ns == 0 || header->time_scale == 0) {
         return {.status = RequestStatus::Unsupported};
     }
@@ -375,8 +362,8 @@ __device__ CompletionResult resolve_leader(
         return {.status = gate};
     }
     auto* base = reinterpret_cast<std::byte*>(header);
-    auto* requests = reinterpret_cast<SharedRequestSlot*>(
-        base + header->request_offset);
+  auto *requests =
+      reinterpret_cast<SharedRequestSlot *>(base + header->request_offset);
     auto* completions = reinterpret_cast<SharedCompletionSlot*>(
         base + header->completion_offset);
     const hbfsim::device::HbfRequest request{
@@ -549,20 +536,18 @@ __device__ CompletionResult resolve_fast_or_hybrid(
 
 extern "C" __device__ hbfsim::device::ResolveResult
 __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
-                 std::uint32_t operation)
-{
-    const auto control_address =
-        system_acquire(reinterpret_cast<const unsigned long long*>(
-            &__hbfsim_control));
+                 std::uint32_t operation) {
+  const auto control_address = device_binding_load(
+      reinterpret_cast<const unsigned long long *>(&__hbfsim_control));
     const auto expected_generation =
-        system_acquire(reinterpret_cast<const unsigned long long*>(
+        device_binding_load(reinterpret_cast<const unsigned long long*>(
             &__hbfsim_control_generation));
     // An unbound module must preserve ordinary HBM semantics. The launch gate
     // rejects registered HBF pointers before such a module can execute, while
     // an all-zero alias is the intentional fast-path state for non-HBF work.
     if (control_address == 0) {
-        return fail(address, bytes == 0 ? RequestStatus::Unsupported
-                                        : RequestStatus::Ready);
+    return fail(address,
+                bytes == 0 ? RequestStatus::Unsupported : RequestStatus::Ready);
     }
     if (expected_generation == 0 || bytes == 0) {
         return fail(address, RequestStatus::Unsupported);
@@ -609,19 +594,23 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         address - range->base >= range->length) {
         return fail(address, RequestStatus::Ready);
     }
-    const auto media = hbfsim::device::media_descriptor(
-        *range, address, bytes, operation);
-    if (!media.valid) {
+  const auto media =
+      hbfsim::device::media_descriptor(*range, address, bytes, operation);
+  if (!media.valid || (range->flags & ~hbfsim::device::kKnownRangeFlags) != 0) {
         return fail(address, RequestStatus::Unsupported);
+  }
+  if ((range->flags & hbfsim::device::kRangeFlagHostTimingFallback) != 0) {
+    return range->mode == 1 ? fail(address, RequestStatus::Ready)
+                            : fail(address, RequestStatus::Unsupported);
     }
 
     const auto logical_page = media.logical_address / media.bytes;
     const auto active = __activemask();
     const auto same_range = __match_any_sync(active, range->range_id);
-    const auto same_page_low = __match_any_sync(
-        active, static_cast<std::uint32_t>(logical_page));
-    const auto same_page_high = __match_any_sync(
-        active, static_cast<std::uint32_t>(logical_page >> 32));
+  const auto same_page_low =
+      __match_any_sync(active, static_cast<std::uint32_t>(logical_page));
+  const auto same_page_high =
+      __match_any_sync(active, static_cast<std::uint32_t>(logical_page >> 32));
     const auto group = same_range & same_page_low & same_page_high;
     const auto leader = __ffs(static_cast<int>(group)) - 1;
     CompletionResult resolution{.status = RequestStatus::Ready};
@@ -633,8 +622,8 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                          : resolve_leader(mutable_header, *range, media,
                                           operation);
     }
-    auto status = __shfl_sync(
-        group, static_cast<std::uint32_t>(resolution.status), leader);
+  auto status =
+      __shfl_sync(group, static_cast<std::uint32_t>(resolution.status), leader);
     const auto frame = __shfl_sync(group, resolution.frame_address, leader);
     if (status != static_cast<std::uint32_t>(RequestStatus::Ready)) {
         return {.address = address, .status = status, .reserved = 0};
@@ -647,7 +636,6 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     return {.address = translated, .status = status, .reserved = 0};
 }
 
-extern "C" __device__ void __hbfsim_fault(std::uint32_t)
-{
+extern "C" __device__ void __hbfsim_fault(std::uint32_t) {
     asm volatile("trap;");
 }

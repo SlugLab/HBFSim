@@ -50,6 +50,7 @@ class FakeModel:
 class FakeSession:
     def __init__(self, fail_address=None):
         self.fail_address = fail_address
+        self.timing_backend = "host_launch_mqsim"
         self.registered = []
         self.closed = False
 

@@ -196,7 +196,10 @@ TransformResult transform_ptx(const TransformRequest& request)
                 output << "    st.param.b32 "
                        << "[%hbfsim_param_kind_" << id << "], "
                        << static_cast<std::uint32_t>(operation->kind) << ";\n";
-                output << "    call" << (predicated ? "" : ".uni")
+                // An unpredicated memory instruction may still reside
+                // in a divergent basic block. Without whole-function control
+                // flow proof, marking the injected call uniform is unsound.
+                output << "    call"
                        << " (%hbfsim_ret_" << id
                        << "), __hbfsim_resolve, (%hbfsim_param_addr_" << id
                        << ", %hbfsim_param_bytes_" << id

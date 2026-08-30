@@ -150,6 +150,7 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL)
         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
     )
     target_link_libraries(hbfsim_package_thermal_tests PRIVATE hbfsim_core)
+    target_compile_options(hbfsim_package_thermal_tests PRIVATE -UNDEBUG)
     foreach(package_thermal_case
             profile topology power providers clock rom plugin policy runtime)
         add_test(
@@ -168,6 +169,9 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL)
     )
     target_link_libraries(
         hbfsim_package_thermal_invalid_plugin_tests PRIVATE hbfsim_core
+    )
+    target_compile_options(
+        hbfsim_package_thermal_invalid_plugin_tests PRIVATE -UNDEBUG
     )
     add_test(
         NAME package_thermal_plugin_fail_closed
@@ -210,6 +214,7 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL AND HBFSIM_ENABLE_MQSIM)
         tests/integration/package_thermal_service_test.cpp
     )
     target_link_libraries(package_thermal_service_test PRIVATE hbfsim_core)
+    target_compile_options(package_thermal_service_test PRIVATE -UNDEBUG)
     add_dependencies(
         package_thermal_service_test
         hbfsimd hbfsim_test_package_thermal_plugin
@@ -912,7 +917,7 @@ if(HBFSIM_ENABLE_CUDA)
     if(BUILD_TESTING)
         find_program(
             HBFSIM_PTXAS_EXECUTABLE NAMES ptxas
-            HINTS "/usr/local/cuda-12.8/bin" "${CUDAToolkit_BIN_DIR}"
+            HINTS "${CUDAToolkit_BIN_DIR}" "/usr/local/cuda-13.0/bin"
             REQUIRED
         )
         add_test(

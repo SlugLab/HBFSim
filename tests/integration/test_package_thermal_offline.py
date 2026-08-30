@@ -270,7 +270,11 @@ def main() -> int:
              "--three-d-ice-commit", "e0bb685",
              "--command", "synthetic package thermal manifest test"])
         manifest_value = json.loads(manifest.read_text(encoding="utf-8"))
-        assert manifest_value["repository"]["branch"] == "codex/package-thermal"
+        expected_branch = run(
+            ["git", "-C", str(root), "branch", "--show-current"]
+        ).stdout.strip()
+        assert expected_branch
+        assert manifest_value["repository"]["branch"] == expected_branch
         assert len(manifest_value["repository"]["mqsim_patches"]) == 3
         assert manifest_value["inputs"]["thermal_model"]["sha256"] == hashlib.sha256(
             model.read_bytes()).hexdigest()

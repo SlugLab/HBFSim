@@ -18,6 +18,91 @@ PTX_A = b".version 8.8\n.visible .entry fused_moe_kernel() { ret; }\n"
 PTX_B = b".version 8.8\n.visible .entry fused_moe_kernel() { nop; ret; }\n"
 
 
+def test_direct_native_binder_hashes_exact_ptx(monkeypatch):
+    calls = []
+
+    class FakeFunction:
+        argtypes = None
+        restype = None
+
+        def __call__(self, original, module_id, kernel):
+            calls.append((original.value, module_id, kernel))
+            return 0
+
+    fake = SimpleNamespace(
+        hbfsim_bind_native_cuda_function=FakeFunction()
+    )
+    monkeypatch.setenv("HBFSIM_NATIVE_TRITON_BINDING", "1")
+    monkeypatch.setattr(binding, "load_direct_gate_library", lambda: fake)
+
+    native = binding.load_native_binder()
+
+    assert native(0x1234, PTX_A, "fused_moe_kernel") == 0
+    assert calls == [(
+        0x1234,
+        ("ptx:sha256:" + hashlib.sha256(PTX_A).hexdigest()).encode(),
+        b"fused_moe_kernel",
+    )]
+
+
+def test_native_launcher_gate_preserves_original_launch_arguments():
+    approvals = []
+    launches = []
+
+    def approve(function, parameters):
+        approvals.append((
+            function,
+            [
+                binding.ctypes.cast(
+                    parameters[index],
+                    binding.ctypes.POINTER(binding.ctypes.c_uint64),
+                ).contents.value
+                for index in range(4)
+            ],
+        ))
+        return 1
+
+    class FakeLauncher:
+        def __init__(self, src, metadata):
+            del src, metadata
+            self.global_scratch_size = 0
+            self.profile_scratch_size = 0
+
+        def __call__(self, *args):
+            launches.append(args)
+            return "launched"
+
+    class FakeTensor:
+        def data_ptr(self):
+            return 0x12340000
+
+    gate = binding.TritonNativeLauncherGate(approve)
+    binding.install_native_launcher_gate(FakeLauncher, gate)
+    launcher = FakeLauncher(
+        SimpleNamespace(signature={
+            0: "*bf16", 1: "i32", 2: "constexpr"
+        }),
+        None,
+    )
+    gate.mark_bound(0xBEEF)
+    tensor = FakeTensor()
+    result = launcher(
+        1, 2, 3, 4, 0xBEEF,
+        "packed", "metadata", None, None,
+        tensor, 7, 99,
+    )
+
+    assert result == "launched"
+    assert approvals == [(
+        0xBEEF, [0x12340000, 7, 0, 0]
+    )]
+    assert launches == [(
+        1, 2, 3, 4, 0xBEEF,
+        "packed", "metadata", None, None,
+        tensor, 7, 99,
+    )]
+
+
 def test_staging_preserves_same_name_variants_and_deduplicates(tmp_path):
     cache = tmp_path / "cache"
     (cache / "a").mkdir(parents=True)
@@ -45,6 +130,29 @@ def test_staging_preserves_same_name_variants_and_deduplicates(tmp_path):
     assert len(persisted["variants"]) == 2
 
 
+def test_staging_ignores_existing_staging_trees(tmp_path):
+    cache = tmp_path / "cache"
+    live = cache / "live"
+    old_stage = cache / "triton-ptx-stage-old"
+    live.mkdir(parents=True)
+    old_stage.mkdir(parents=True)
+    source = live / "fused_moe_kernel.ptx"
+    source.write_bytes(PTX_A)
+    (old_stage / "staged.ptx").write_bytes(PTX_B)
+    (old_stage / "ptx-staging-manifest.json").write_text("{}\n")
+
+    manifest = staging.stage_ptx(
+        cache, cache / "triton-ptx-stage-new",
+        kernel="fused_moe_kernel",
+    )
+
+    assert len(manifest["variants"]) == 1
+    assert manifest["variants"][0]["sha256"] == (
+        hashlib.sha256(PTX_A).hexdigest()
+    )
+    assert manifest["variants"][0]["sources"] == [str(source.resolve())]
+
+
 def test_staging_can_prepatch_while_retaining_original_digest(tmp_path):
     cache = tmp_path / "cache"
     cache.mkdir()
@@ -58,7 +166,7 @@ def test_staging_can_prepatch_while_retaining_original_digest(tmp_path):
 
     manifest = staging.stage_ptx(
         cache, tmp_path / "stage", kernel="fused_moe_kernel",
-        transformer=transform,
+        transformer=transform, host_launch_only=True,
     )
 
     variant = manifest["variants"][0]
@@ -66,6 +174,9 @@ def test_staging_can_prepatch_while_retaining_original_digest(tmp_path):
     assert calls == [(PTX_A, "fused_moe_kernel")]
     assert variant["sha256"] == original_digest
     assert variant["prepatched"] is True
+    assert manifest["schema_version"] == 3
+    assert manifest["host_launch_only"] is True
+    assert variant["host_launch_only"] is True
     assert pathlib.Path(variant["staged_path"]).name == f"{original_digest}.ptx"
     assert pathlib.Path(variant["staged_path"]).read_bytes().endswith(
         b"// prepatched\n"

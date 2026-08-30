@@ -507,8 +507,8 @@ def main() -> int:
     require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 1,
             "ordinary HBM launch did not select the original function")
     pointer.value = 0x1008
-    require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 2,
-            "modeled HBF launch did not select the patched function")
+    require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 1,
+            "modeled HBF launch was not approved for native execution")
     require(launch_kernel() == 0, "bound trusted module launch was rejected")
     fake_library.fakeCudaSetCurrentDomain(0xCB00, 3)
     require(launch_kernel() != 0, "foreign CUDA context used a bound module")

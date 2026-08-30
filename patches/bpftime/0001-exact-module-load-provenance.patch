@@ -1,5 +1,5 @@
 diff --git a/attach/nv_attach_impl/CMakeLists.txt b/attach/nv_attach_impl/CMakeLists.txt
-index 692c084..b7b591d 100644
+index 692c0849828fecc2a2bf3711b1d020467ccbc5a0..b7b591dbdd8d1783d7198f9858c52239090e046d 100644
 --- a/attach/nv_attach_impl/CMakeLists.txt
 +++ b/attach/nv_attach_impl/CMakeLists.txt
 @@ -28,6 +28,7 @@ add_library(
@@ -11,7 +11,7 @@ index 692c084..b7b591d 100644
  )
  
 diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
-index 2e0f799..9d700c8 100644
+index 2e0f79986df05ff7ebde69059f7360fb48cffaeb..9d700c800523e552319c4c799b3bdf17366754c0 100644
 --- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
 +++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
 @@ -1,4 +1,5 @@
@@ -134,7 +134,7 @@ index 2e0f799..9d700c8 100644
  		}
  	}
 diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.hpp b/attach/nv_attach_impl/nv_attach_fatbin_record.hpp
-index c6ea925..a4a0baf 100644
+index c6ea92503f180554d011e78764119ba32400acaf..a4a0bafe9e3ac632101da1633f57f98a80fe773c 100644
 --- a/attach/nv_attach_impl/nv_attach_fatbin_record.hpp
 +++ b/attach/nv_attach_impl/nv_attach_fatbin_record.hpp
 @@ -34,6 +34,8 @@ struct fatbin_record {
@@ -147,7 +147,7 @@ index c6ea925..a4a0baf 100644
  	std::map<void *, kernel_info> function_addr_to_symbol;
  	std::map<std::string, std::string> original_ptx;
 diff --git a/attach/nv_attach_impl/nv_attach_impl.cpp b/attach/nv_attach_impl/nv_attach_impl.cpp
-index e2d3412..48182f3 100644
+index e2d3412d2814ee971c1413696efd5450469d12dd..3fbc731b73d1b61df6e577a0daeb9f15dab7acba 100644
 --- a/attach/nv_attach_impl/nv_attach_impl.cpp
 +++ b/attach/nv_attach_impl/nv_attach_impl.cpp
 @@ -15,12 +15,7 @@
@@ -251,7 +251,7 @@ index e2d3412..48182f3 100644
  }
  
  std::optional<CUfunction> nv_attach_impl::find_patched_kernel_function(
-@@ -614,6 +659,71 @@ std::optional<CUfunction> nv_attach_impl::find_patched_kernel_function(
+@@ -614,6 +659,107 @@ std::optional<CUfunction> nv_attach_impl::find_patched_kernel_function(
  	return itr->second;
  }
  
@@ -266,6 +266,23 @@ index e2d3412..48182f3 100644
 +	if (itr == patched_kernel_by_original_function.end())
 +		return std::nullopt;
 +	return itr->second;
++}
++
++bool nv_attach_impl::should_execute_original_function(CUfunction original) const
++{
++	if (original == nullptr)
++		return false;
++	std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++	return native_execution_original_functions.contains(original);
++}
++
++bool nv_attach_impl::should_execute_original_for_patched(
++	CUfunction patched) const
++{
++	if (patched == nullptr)
++		return false;
++	std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++	return native_execution_patched_functions.contains(patched);
 +}
 +
 +int nv_attach_impl::bind_ptx_variant(CUfunction original,
@@ -288,23 +305,42 @@ index e2d3412..48182f3 100644
 +		if (variant == patched_kernel_by_ptx_variant.end())
 +			return 2;
 +		patched = variant->second;
-+		auto [binding, inserted] =
-+			patched_kernel_by_original_function.emplace(original, patched);
-+		if (!inserted && binding->second != patched)
-+			return 3;
-+		kernel_name_by_cufunction[original] = kernel_name;
 +	}
 +	using gate_bind_fn = int (*)(CUfunction, CUfunction);
 +	auto gate_bind = reinterpret_cast<gate_bind_fn>(
 +		dlsym(RTLD_DEFAULT, "hbfsim_bind_original_cuda_function"));
-+	if (gate_bind != nullptr && gate_bind(original, patched) != 0) {
++	int execution_policy = 0;
++	if (gate_bind != nullptr) {
++		execution_policy = gate_bind(original, patched);
++	}
++	if (execution_policy != 0 && execution_policy != 1) {
 +		SPDLOG_ERROR(
 +			"HBF launch gate rejected exact CUDA function binding for {}",
 +			kernel_name);
 +		return 4;
 +	}
-+	SPDLOG_INFO("Bound original CUDA function {:x} to exact PTX variant {} for {}",
-+		    (uintptr_t)original, digest, kernel_name);
++	{
++		std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++		auto binding = patched_kernel_by_original_function.find(original);
++		if (binding != patched_kernel_by_original_function.end() &&
++		    binding->second != patched)
++			return 3;
++		const bool existing_native =
++			native_execution_original_functions.contains(original);
++		if (binding != patched_kernel_by_original_function.end() &&
++		    existing_native != (execution_policy == 1))
++			return 5;
++		patched_kernel_by_original_function.emplace(original, patched);
++		if (execution_policy == 1) {
++			native_execution_original_functions.insert(original);
++			native_execution_patched_functions.insert(patched);
++		}
++		kernel_name_by_cufunction[original] = kernel_name;
++	}
++	SPDLOG_INFO(
++		"Bound original CUDA function {:x} to exact PTX variant {} for {} ({})",
++		(uintptr_t)original, digest, kernel_name,
++		execution_policy == 1 ? "native execution" : "patched execution");
 +	return 0;
 +}
 +
@@ -323,7 +359,7 @@ index e2d3412..48182f3 100644
  void nv_attach_impl::record_original_cufunction_name(
  	CUfunction function, const std::string &kernel_name)
  {
-@@ -891,16 +1001,25 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
+@@ -891,16 +1037,25 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
  	/**
  	Here we can patch the PTX.
  	*/
@@ -352,7 +388,7 @@ index e2d3412..48182f3 100644
  				const auto &kernels = hook_entry.kernels;
  				for (const auto &kernel : kernels) {
  					std::vector<uint64_t> ebpf_inst_words;
-@@ -976,14 +1095,19 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
+@@ -976,14 +1131,19 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
  											int>::
  											max() :
  										(int)buf_bytes;
@@ -380,7 +416,7 @@ index e2d3412..48182f3 100644
  								if (err !=
  								    ptxpass::ExitCode::
  									    Success) {
-@@ -1044,9 +1168,8 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
+@@ -1044,9 +1204,8 @@ nv_attach_impl::hack_fatbin(std::map<std::string, std::string> all_ptx)
  			std::lock_guard<std::mutex> _guard(map_mutex);
  			ptx_out["patched." + file_name] = std::make_tuple(
  				current_ptx, should_add_trampoline);
@@ -391,17 +427,19 @@ index e2d3412..48182f3 100644
  	if (spdlog::should_log(spdlog::level::debug)) {
  		char tmp_dir[] = "/tmp/bpftime-fatbin-work.XXXXXX";
  		if (mkdtemp(tmp_dir) == nullptr) {
-@@ -1524,6 +1647,9 @@ void nv_attach_impl::clear_patched_state_for_next_session()
+@@ -1524,6 +1683,11 @@ void nv_attach_impl::clear_patched_state_for_next_session()
  		{
  			std::lock_guard<std::mutex> g(cuda_symbol_map_mutex);
  			patched_kernel_by_name.clear();
 +			ambiguous_patched_kernel_names.clear();
 +			patched_kernel_by_ptx_variant.clear();
 +			patched_kernel_by_original_function.clear();
++			native_execution_original_functions.clear();
++			native_execution_patched_functions.clear();
  			kernel_name_by_cufunction.clear();
  		}
  		{
-@@ -1670,14 +1796,36 @@ void nv_attach_impl::prefill_patched_kernel_functions_from_loaded_fatbins()
+@@ -1670,14 +1834,36 @@ void nv_attach_impl::prefill_patched_kernel_functions_from_loaded_fatbins()
  			kernels = collect_all_kernels_to_patch();
  		if (kernels.empty())
  			continue;
@@ -441,7 +479,7 @@ index e2d3412..48182f3 100644
  									kernel);
  					SPDLOG_DEBUG(
 diff --git a/attach/nv_attach_impl/nv_attach_impl.hpp b/attach/nv_attach_impl/nv_attach_impl.hpp
-index e3ca264..500d19e 100644
+index e3ca264a845a3fb74d5917a2727d806e722959d5..dad0e5d1b7cfeedfcfdf99ea735d0e5d727e2fa1 100644
 --- a/attach/nv_attach_impl/nv_attach_impl.hpp
 +++ b/attach/nv_attach_impl/nv_attach_impl.hpp
 @@ -20,6 +20,7 @@
@@ -461,7 +499,7 @@ index e3ca264..500d19e 100644
  	std::atomic<void *> orig_cu_graph_add_kernel_node_v1{ nullptr };
  	std::atomic<void *> orig_cu_graph_add_kernel_node_v2{ nullptr };
  	std::atomic<void *> orig_cu_graph_exec_kernel_node_set_params_v1{ nullptr };
-@@ -176,8 +179,16 @@ class nv_attach_impl final : public base_attach_impl {
+@@ -176,8 +179,18 @@ class nv_attach_impl final : public base_attach_impl {
  				    int block_dim_y = 1, int block_dim_z = 1);
  	void record_patched_kernel_function(const std::string &kernel_name,
  					    CUfunction function);
@@ -472,13 +510,15 @@ index e3ca264..500d19e 100644
  	find_patched_kernel_function(const std::string &kernel_name) const;
 +	std::optional<CUfunction> find_patched_kernel_function_for_original(
 +		CUfunction original) const;
++	bool should_execute_original_function(CUfunction original) const;
++	bool should_execute_original_for_patched(CUfunction patched) const;
 +	int bind_ptx_variant(CUfunction original, const char *original_ptx,
 +			     size_t original_ptx_size,
 +			     const char *kernel_name);
  	// Notify nv_attach_impl that a patched kernel launch was enqueued on a
  	// stream. Used to coordinate detach with in-flight patched kernels so we
  	// don't tear down loader-owned CUDA IPC buffers prematurely.
-@@ -219,6 +230,8 @@ class nv_attach_impl final : public base_attach_impl {
+@@ -219,6 +232,8 @@ class nv_attach_impl final : public base_attach_impl {
  	void *original_cuda_launch_kernel = nullptr;
  	void *original_cuda_launch_kernel_ptsz = nullptr;
  	void *original_cu_launch_kernel = nullptr;
@@ -487,7 +527,7 @@ index e3ca264..500d19e 100644
  	void *original_cu_graph_add_kernel_node_v1 = nullptr;
  	void *original_cu_graph_add_kernel_node_v2 = nullptr;
  	void *original_cu_graph_exec_kernel_node_set_params_v1 = nullptr;
-@@ -251,6 +264,11 @@ class nv_attach_impl final : public base_attach_impl {
+@@ -251,6 +266,13 @@ class nv_attach_impl final : public base_attach_impl {
  		patch_cache;
  	mutable std::mutex cuda_symbol_map_mutex;
  	std::unordered_map<std::string, CUfunction> patched_kernel_by_name;
@@ -496,11 +536,13 @@ index e3ca264..500d19e 100644
 +		patched_kernel_by_ptx_variant;
 +	std::unordered_map<CUfunction, CUfunction>
 +		patched_kernel_by_original_function;
++	std::unordered_set<CUfunction> native_execution_original_functions;
++	std::unordered_set<CUfunction> native_execution_patched_functions;
  	std::unordered_map<CUfunction, std::string> kernel_name_by_cufunction;
  
  			std::atomic<bool> enabled{ true };
 diff --git a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
-index 84158a1..41b836f 100644
+index 84158a1266c3ddbe11dab83fd8901eff54ba848f..119f8a4f76a3460d4aeef9534d2d024039480ae3 100644
 --- a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
 +++ b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
 @@ -76,6 +76,8 @@ using cu_launch_kernel_fn_t = CUresult (*)(CUfunction, unsigned int,
@@ -560,7 +602,24 @@ index 84158a1..41b836f 100644
  		auto current_fatbin = context->impl->current_fatbin;
  		current_fatbin->try_loading_ptxs(*context->impl);
  		auto fatbin_handle =
-@@ -511,15 +533,33 @@ static CUresult cu_launch_kernel_common(
+@@ -486,6 +508,16 @@ cuda_graph_maybe_get_kernel_name_from_cukernel(CUkernel kernel)
+ 	return std::string(name);
+ }
+ 
++static bool approve_exact_cuda_function(CUfunction func, void **kernel_params,
++					void **extra)
++{
++	using gate_approve_fn = int (*)(CUfunction, void **, void **);
++	auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
++		RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
++	return gate_approve == nullptr ||
++	       gate_approve(func, kernel_params, extra) != 0;
++}
++
+ static CUresult cu_launch_kernel_common(
+ 	nv_attach_impl *impl, void *original_fn_ptr, CUfunction func,
+ 	unsigned int grid_dim_x, unsigned int grid_dim_y, unsigned int grid_dim_z,
+@@ -511,15 +543,29 @@ static CUresult cu_launch_kernel_common(
  				block_dim_x, block_dim_y, block_dim_z,
  				shared_mem_bytes, stream, kernel_params, extra);
  
@@ -568,37 +627,34 @@ index 84158a1..41b836f 100644
 -		*impl, func);
 -	if (kernel_name) {
 -		if (auto patched = impl->find_patched_kernel_function(*kernel_name);
+-		    patched) {
 +	if (auto patched =
 +		    impl->find_patched_kernel_function_for_original(func);
 +	    patched) {
-+		using gate_approve_fn = int (*)(CUfunction, void **, void **);
-+		auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
-+			RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
-+		const auto gate_decision = gate_approve == nullptr
-+						   ? 2
-+						   : gate_approve(func, kernel_params, extra);
-+		if (gate_decision == 0)
++		if (!approve_exact_cuda_function(func, kernel_params, extra))
 +			return CUDA_ERROR_NOT_SUPPORTED;
-+		if (gate_decision > 1) {
-+			func = *patched;
-+			impl->record_patched_launch(
-+				reinterpret_cast<cudaStream_t>(stream));
-+		}
++		if (!impl->should_execute_original_function(func)) {
+ 			func = *patched;
+ 			impl->record_patched_launch(
+ 				reinterpret_cast<cudaStream_t>(stream));
+ 		}
 +	} else {
 +		auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
 +			*impl, func);
 +		if (kernel_name) {
 +			if (auto patched = impl->find_patched_kernel_function(*kernel_name);
- 		    patched) {
- 			func = *patched;
- 			impl->record_patched_launch(
- 				reinterpret_cast<cudaStream_t>(stream));
- 		}
++		    patched) {
++				if (impl->should_execute_original_for_patched(*patched))
++					return CUDA_ERROR_NOT_SUPPORTED;
++				func = *patched;
++				impl->record_patched_launch(
++					reinterpret_cast<cudaStream_t>(stream));
++			}
 +		}
  	}
  	return original(func, grid_dim_x, grid_dim_y, grid_dim_z, block_dim_x,
  			block_dim_y, block_dim_z, shared_mem_bytes, stream,
-@@ -547,6 +587,84 @@ extern "C" CUresult cuda_driver_function__cuLaunchKernel(
+@@ -547,6 +593,78 @@ extern "C" CUresult cuda_driver_function__cuLaunchKernel(
  				       extra);
  }
  
@@ -616,17 +672,9 @@ index 84158a1..41b836f 100644
 +		if (auto patched =
 +			    impl->find_patched_kernel_function_for_original(func);
 +		    patched) {
-+			using gate_approve_fn = int (*)(CUfunction, void **, void **);
-+			auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
-+				RTLD_DEFAULT,
-+				"hbfsim_approve_original_cuda_function"));
-+			const auto gate_decision = gate_approve == nullptr
-+							   ? 2
-+							   : gate_approve(func, kernel_params,
-+									  extra);
-+			if (gate_decision == 0)
++			if (!approve_exact_cuda_function(func, kernel_params, extra))
 +				return CUDA_ERROR_NOT_SUPPORTED;
-+			if (gate_decision > 1) {
++			if (!impl->should_execute_original_function(func)) {
 +				func = *patched;
 +				impl->record_patched_launch(reinterpret_cast<cudaStream_t>(
 +					config == nullptr ? nullptr : config->hStream));
@@ -638,6 +686,8 @@ index 84158a1..41b836f 100644
 +			if (auto patched_by_name =
 +				    impl->find_patched_kernel_function(*kernel_name);
 +			    patched_by_name) {
++				if (impl->should_execute_original_for_patched(*patched_by_name))
++					return CUDA_ERROR_NOT_SUPPORTED;
 +				func = *patched_by_name;
 +				impl->record_patched_launch(
 +					reinterpret_cast<cudaStream_t>(
@@ -683,12 +733,14 @@ index 84158a1..41b836f 100644
  extern "C" cudaError_t cuda_runtime_function__cudaLaunchKernel_ptsz(
  	const void *func, dim3 grid_dim, dim3 block_dim, void **args,
  	size_t shared_mem, cudaStream_t stream)
-@@ -578,6 +696,12 @@ cuda_graph_maybe_patch_kernel_node_params_v1(
+@@ -578,6 +696,14 @@ cuda_graph_maybe_patch_kernel_node_params_v1(
  	if (params == nullptr || params->func == nullptr) {
  		return params;
  	}
 +	if (auto exact = impl.find_patched_kernel_function_for_original(
 +		    params->func); exact) {
++		if (impl.should_execute_original_function(params->func))
++			return params;
 +		patched_params = *params;
 +		patched_params.func = *exact;
 +		return &patched_params;
@@ -696,13 +748,24 @@ index 84158a1..41b836f 100644
  	auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
  		impl, params->func);
  	if (!kernel_name) {
-@@ -602,6 +726,14 @@ cuda_graph_maybe_patch_kernel_node_params_v2(
+@@ -587,6 +713,8 @@ cuda_graph_maybe_patch_kernel_node_params_v1(
+ 	if (!patched_func) {
+ 		return params;
+ 	}
++	if (impl.should_execute_original_for_patched(*patched_func))
++		return params;
+ 	patched_params = *params;
+ 	patched_params.func = *patched_func;
+ 	return &patched_params;
+@@ -602,6 +730,16 @@ cuda_graph_maybe_patch_kernel_node_params_v2(
  	}
  	std::optional<std::string> kernel_name;
  	if (params->func != nullptr) {
 +		if (auto exact =
 +			    impl.find_patched_kernel_function_for_original(
 +				    params->func); exact) {
++			if (impl.should_execute_original_function(params->func))
++				return params;
 +			patched_params = *params;
 +			patched_params.func = *exact;
 +			patched_params.kern = nullptr;
@@ -711,9 +774,18 @@ index 84158a1..41b836f 100644
  		kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
  			impl, params->func);
  	} else if (params->kern != nullptr) {
+@@ -616,6 +754,8 @@ cuda_graph_maybe_patch_kernel_node_params_v2(
+ 	if (!patched_func) {
+ 		return params;
+ 	}
++	if (impl.should_execute_original_for_patched(*patched_func))
++		return params;
+ 	patched_params = *params;
+ 	patched_params.func = *patched_func;
+ 	patched_params.kern = nullptr;
 diff --git a/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp b/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
 new file mode 100644
-index 0000000..3b56eb5
+index 0000000000000000000000000000000000000000..3b56eb51198ae5b73e9555fae72f1634f84156b9
 --- /dev/null
 +++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
 @@ -0,0 +1,47 @@
@@ -766,7 +838,7 @@ index 0000000..3b56eb5
 +} // namespace bpftime::attach
 diff --git a/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp b/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
 new file mode 100644
-index 0000000..cd7a2f8
+index 0000000000000000000000000000000000000000..cd7a2f855f062f0701edba084afc7c5c40ff8fcf
 --- /dev/null
 +++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
 @@ -0,0 +1,39 @@
@@ -810,7 +882,7 @@ index 0000000..cd7a2f8
 +
 +} // namespace bpftime::attach
 diff --git a/attach/nv_attach_impl/test/CMakeLists.txt b/attach/nv_attach_impl/test/CMakeLists.txt
-index 4094b3e..5227ff2 100644
+index 4094b3ee29fdc267204b37e2eb195e5c8f5f9022..5227ff264709c3aca11e40c554dd92de2bb1ac44 100644
 --- a/attach/nv_attach_impl/test/CMakeLists.txt
 +++ b/attach/nv_attach_impl/test/CMakeLists.txt
 @@ -2,6 +2,7 @@ set(TEST_SOURCES
@@ -823,7 +895,7 @@ index 4094b3e..5227ff2 100644
  add_executable(bpftime_nv_attach_tests ${TEST_SOURCES})
 diff --git a/attach/nv_attach_impl/test/test_module_load_provenance.cpp b/attach/nv_attach_impl/test/test_module_load_provenance.cpp
 new file mode 100644
-index 0000000..24e716f
+index 0000000000000000000000000000000000000000..24e716fe56779d33a082be618e104a1299804b24
 --- /dev/null
 +++ b/attach/nv_attach_impl/test/test_module_load_provenance.cpp
 @@ -0,0 +1,93 @@
@@ -921,7 +993,7 @@ index 0000000..24e716f
 +	REQUIRE(ended_token == 0x1234);
 +}
 diff --git a/runtime/agent/agent.version b/runtime/agent/agent.version
-index ac52189..27ed1fc 100644
+index ac52189128c1ad2e60810cf83e2c6073ce5a617e..27ed1fc3f061192dc308b3e576c1957409a1a4f0 100644
 --- a/runtime/agent/agent.version
 +++ b/runtime/agent/agent.version
 @@ -1,4 +1,4 @@

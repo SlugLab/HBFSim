@@ -15,7 +15,9 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
-def request_for(ptx: str, kernel: str) -> bytes:
+def request_for(
+    ptx: str, kernel: str, host_launch_only: bool = False
+) -> bytes:
     return json.dumps(
         {
             "input": {
@@ -23,6 +25,7 @@ def request_for(ptx: str, kernel: str) -> bytes:
                 "to_patch_kernel": kernel,
                 "global_ebpf_map_info_symbol": "map_info",
                 "ebpf_communication_data_symbol": "constData",
+                "host_launch_only": host_launch_only,
             },
             "ebpf_instructions": [],
         }
@@ -103,6 +106,40 @@ def main() -> int:
         )
         require(manifest["unsupported_parameters"] == [],
                 "supported kernel has unsupported parameters")
+        require(manifest["host_launch_only"] is False,
+                "ordinary pass was marked host-launch-only")
+
+        host_manifest_path = pathlib.Path(directory) / "host-only.jsonl"
+        os.environ["HBFSIM_PASS_MANIFEST_PATH"] = str(host_manifest_path)
+        host_output = ctypes.create_string_buffer(16 * 1024 * 1024)
+        host_status = plugin.process_input(
+            request_for(ptx, "kernel", host_launch_only=True),
+            len(host_output), host_output,
+        )
+        require(host_status == 0,
+                f"host-only pass failed with status {host_status}")
+        host_response = json.loads(host_output.value)
+        require(host_response["modified"] is True,
+                "host-only PTX was not identity-tagged")
+        require("__hbfsim_module_identity" in host_response["output_ptx"],
+                "host-only PTX lacks module identity")
+        require("__hbfsim_resolve" not in host_response["output_ptx"] and
+                "__hbfsim_control" not in host_response["output_ptx"],
+                "host-only PTX contains device instrumentation")
+        require(
+            host_response["coverage"]["rewritten_instructions"] == 0,
+            "host-only PTX unexpectedly rewrote memory instructions",
+        )
+        host_manifest = json.loads(host_manifest_path.read_text())
+        require(host_manifest["host_launch_only"] is True,
+                "host-only manifest lacks mode marker")
+        require(host_manifest["instrumented"] is False,
+                "host-only manifest was marked device-instrumented")
+        require(host_manifest["rewritten_instructions"] == 0,
+                "host-only manifest reports rewritten instructions")
+        require(host_manifest["parameters"] == manifest["parameters"],
+                "host-only parameter ABI differs from ordinary pass")
+
         qualified_ptx = ptx.replace(
             ".param .u64 kernel_ptr",
             ".param .u64 .ptr .global .align 1 kernel_ptr",

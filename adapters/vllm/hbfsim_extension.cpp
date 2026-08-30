@@ -13,10 +13,8 @@ extern "C" uint32_t hbfsim_vllm_abi_version(void)
     return 2;
 }
 
-extern "C" int
-hbfsim_vllm_session_create(const hbfsim_vllm_options* options,
-                           hbfsim_vllm_session** out)
-{
+extern "C" int hbfsim_vllm_session_create(const hbfsim_vllm_options *options,
+                                          hbfsim_vllm_session **out) {
     if (out == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -109,8 +107,7 @@ hbfsim_vllm_session_create_v2(const hbfsim_vllm_options_v2* options,
 
 extern "C" int hbfsim_vllm_register_storage(hbfsim_vllm_session* session,
                                              uintptr_t device_address,
-                                             size_t bytes)
-{
+                                            size_t bytes) {
     if (session == nullptr || session->context == nullptr ||
         device_address == 0 || bytes == 0) {
         return HBFSIM_INVALID_ARGUMENT;
@@ -121,13 +118,18 @@ extern "C" int hbfsim_vllm_register_storage(hbfsim_vllm_session* session,
         .cache_policy = HBFSIM_CACHE_POLICY_NONE,
         .stream_id = 0,
     };
-    return hbfsim_register_device(
-        session->context, reinterpret_cast<void*>(device_address), bytes,
+  return hbfsim_register_device(session->context,
+                                reinterpret_cast<void *>(device_address), bytes,
         &range_options);
 }
 
-extern "C" int hbfsim_vllm_session_close(hbfsim_vllm_session** session)
-{
+extern "C" const char *
+hbfsim_vllm_timing_backend(const hbfsim_vllm_session *session) {
+  return session == nullptr ? "unavailable"
+                            : hbfsim_timing_backend(session->context);
+}
+
+extern "C" int hbfsim_vllm_session_close(hbfsim_vllm_session **session) {
     if (session == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
     }
@@ -141,8 +143,7 @@ extern "C" int hbfsim_vllm_session_close(hbfsim_vllm_session** session)
     return HBFSIM_OK;
 }
 
-extern "C" const char* hbfsim_vllm_status_string(int status)
-{
+extern "C" const char *hbfsim_vllm_status_string(int status) {
     switch (status) {
     case HBFSIM_OK:
         return "ok";

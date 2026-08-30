@@ -53,6 +53,7 @@ def main() -> int:
         "cudaGetDriverEntryPointByVersion_ptsz",
         "cuModuleLoadDataEx", "cuModuleUnload",
         "hbfsim_begin_module_load_from_ptx", "hbfsim_end_module_load",
+        "hbfsim_bind_native_cuda_function",
         "cuCtxDestroy", "cuCtxDestroy_v2", "cuCtxDetach",
         "cuDevicePrimaryCtxReset", "cuDevicePrimaryCtxReset_v2",
         "cuDevicePrimaryCtxRelease", "cuDevicePrimaryCtxRelease_v2",
@@ -90,6 +91,13 @@ def main() -> int:
             "driver-entry lookup map contains invalid runtime API names")
     require("RTLD_DEFAULT" not in source,
             "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
+    driver_resolver = function_body(source, "driver_symbol(")
+    require("unwrapped_dlsym" in driver_resolver,
+            "private driver lookup can recurse through the dlsym interceptor")
+    lookup_interceptor = function_body(
+        source, 'extern "C" void *dlsym(')
+    require("unwrapped_dlsym" in lookup_interceptor,
+            "public dlsym interceptor does not share the raw resolver")
     driver_lifecycle = {
         "cuModuleLoadDataEx", "cuModuleUnload", "cuCtxDestroy",
         "cuCtxDestroy_v2", "cuCtxDetach", "cuDevicePrimaryCtxReset",
@@ -111,9 +119,10 @@ def main() -> int:
             "module load does not verify the live transformed identity")
     handle_id = function_body(source, "handle_id(")
     require("module_identities().lookup" in handle_id and
+            "direct_native_function_binding" in handle_id and
             "live_module_identity" not in handle_id and
             "__hbfsim_module_identity" not in handle_id,
-            "launch authorization still trusts an embedded identity directly")
+            "launch authorization does not use proven registry metadata")
     module_load = function_body(source, "cuModuleLoadDataEx(")
     require("module_load_transactions().take" in module_load and
             module_load.find("module_load_transactions().take") <
@@ -123,10 +132,29 @@ def main() -> int:
             "module load does not bind successful exact pass provenance")
     require("lifecycle_transition_mutex" in module_load,
             "module load is not serialized with lifecycle transitions")
+    exact_bind = function_body(source, "hbfsim_bind_original_cuda_function(")
+    require("native_execution_required" in exact_bind and
+            "refresh_manifests" in exact_bind and
+            "return *native_execution ? 1 : 0" in exact_bind,
+            "exact binding does not derive native execution from its manifest")
+    require(exact_bind.find("native_execution_required") <
+            exact_bind.find("function_aliases().emplace"),
+            "exact binding publishes an alias before validating execution mode")
+    direct_bind = function_body(
+        source, "hbfsim_bind_native_cuda_function(")
+    require("valid_ptx_module_id" in direct_bind and
+            "native_execution_required" in direct_bind and
+            "active_domain" in direct_bind and
+            "direct_native_function_bindings().emplace" in direct_bind,
+            "direct native binding lacks identity, mode, or domain validation")
+    require(direct_bind.find("native_execution_required") <
+            direct_bind.find("direct_native_function_bindings().emplace"),
+            "direct native binding publishes before manifest validation")
     module_unload = function_body(source, "cuModuleUnload(")
     require("result == CUDA_SUCCESS" in module_unload and
+            "erase_direct_native_bindings_for_module" in module_unload and
             "module_identities().erase" in module_unload,
-            "module unload does not erase association only after success")
+            "module unload does not erase associations only after success")
     require("lifecycle_transition_mutex" in module_unload,
             "module unload is not serialized with lifecycle transitions")
     for symbol in required & {
@@ -151,7 +179,7 @@ def main() -> int:
         require("module_identities().clear" not in lifecycle_body and
                 "timing_bindings().clear" not in lifecycle_body,
                 f"{symbol} globally clears ambiguous primary-context state")
-    activation = function_body(source, "activate_timing_owner(")
+    activation = function_body(source, "activate_timing_owner_common(")
     activation_lock = function_body(source, "activation_transition_lock(")
     require("activation_transition_lock" in activation and
             "lifecycle_transition_mutex" in activation_lock,

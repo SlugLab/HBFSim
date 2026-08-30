@@ -157,6 +157,7 @@ ModuleManifest module_manifest_from_json(const std::string& text)
         .kernel = json.at("kernel").get<std::string>(),
         .ptx_target = json.value("ptx_target", ""),
         .instrumented = json.value("instrumented", false),
+        .host_launch_only = json.value("host_launch_only", false),
         .cubin_only = json.value("cubin_only", false),
     };
     for (const auto& parameter :
@@ -186,6 +187,11 @@ void CoverageGate::add_module(ModuleManifest manifest)
     if (manifest.module_id.empty() || manifest.kernel.empty()) {
         throw std::invalid_argument(
             "coverage module and kernel identity are required");
+    }
+    if (manifest.host_launch_only &&
+        (manifest.instrumented || manifest.cubin_only)) {
+        throw std::invalid_argument(
+            "host-launch-only coverage requires identity-only PTX");
     }
     std::vector<std::size_t> indices;
     for (const auto& parameter : manifest.parameters) {
@@ -258,6 +264,24 @@ bool CoverageGate::has_strict_ranges() const
     });
 }
 
+std::optional<bool> CoverageGate::native_execution_required(
+    const std::string& module_id, const std::string& kernel) const
+{
+    std::shared_lock lock(mutex_);
+    const auto found = modules_.find(module_key(module_id, kernel));
+    if (found == modules_.end()) {
+        return std::nullopt;
+    }
+    const auto& manifest = found->second;
+    if (manifest.host_launch_only) {
+        return true;
+    }
+    if (manifest.instrumented) {
+        return false;
+    }
+    return std::nullopt;
+}
+
 RangePolicy CoverageGate::policy_for(std::uintptr_t address) const
 {
     RangePolicy result = RangePolicy::None;
@@ -328,6 +352,14 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         .inspected_parameters = launch.parameters.size(),
         .range_policy = launch_policy,
     };
+    if (manifest->host_launch_only &&
+        launch_policy != RangePolicy::TimingBacked) {
+        decision.allowed = false;
+        decision.reason = "host_launch_only_requires_timing";
+        decision.operation = "host_launch_mqsim";
+        return decision;
+    }
+
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
         std::ranges::all_of(
@@ -344,7 +376,8 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     // Exact ABI agreement is an authorization precondition for transformed
     // PTX. Opaque/uninstrumented modules are rejected by their more specific
     // policy reason below and cannot be authorized by this exception.
-    if (manifest->instrumented && !exact_parameter_layout) {
+    if ((manifest->instrumented || manifest->host_launch_only) &&
+        !exact_parameter_layout) {
         decision.allowed = false;
         decision.reason = "parameter_layout_mismatch";
         decision.operation = "unproven_parameter_layout";
@@ -412,7 +445,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 decision.operation = "opaque_pointer_access";
                 return decision;
             }
-            if (!manifest->instrumented) {
+            if (!manifest->instrumented && !manifest->host_launch_only) {
                 if (slot_policy == RangePolicy::TimingBacked &&
                     !strict_policy(launch_policy)) {
                     auto fallback =
@@ -455,6 +488,10 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         }
     }
     decision.modeled = has_hbf;
+    if (decision.modeled && manifest->host_launch_only) {
+        decision.reason = "host_launch_modeled";
+        decision.operation = "host_launch_mqsim";
+    }
     return decision;
 }
 

@@ -1,0 +1,20 @@
+{
+  "name": "density-dpc16",
+  "capacity_bytes": 1099511627776,
+  "page_bytes": 16384,
+  "read_latency_ns": 20000,
+  "program_latency_ns": 200000,
+  "channels": 16,
+  "dies_per_channel": 16,
+  "planes_per_die": 4,
+  "pages_per_block": 256,
+  "channel_width_bits": 8,
+  "channel_transfer_rate_mtps": 1600,
+  "queue_depth": 64,
+  "aggregate_bandwidth_bytes_per_s": 128000000000,
+  "hbm_cache_bytes": 8589934592,
+  "reference_sample_rate": 0.01,
+  "reference_warmup_requests": 1024,
+  "time_scale": 100,
+  "timing_tolerance_ns": 10000
+}

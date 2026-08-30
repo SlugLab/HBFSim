@@ -1,0 +1,978 @@
+          Appears in the Proceedings of the 30th Annual International Symposium on Computer Architecture (ISCA)
+
+
+
+
+                   SMARTS: Accelerating Microarchitecture Simulation
+                           via Rigorous Statistical Sampling
+
+          Roland E. Wunderlich     Thomas F. Wenisch       Babak Falsafi    James C. Hoe
+                            Computer Architecture Laboratory (CALCM)
+                      Carnegie Mellon University, Pittsburgh, PA 15213-3890
+                           {rolandw, twenisch, babak, jhoe}@ece.cmu.edu
+                                            http://www.ece.cmu.edu/~simflex
+
+
+                       Abstract                               detailed simulators and register-transfer-level simulators
+                                                              are easily six or more orders of magnitude slower than the
+     Current software-based microarchitecture simulators
+                                                              proposed hardware. One minute of execution in real time
+are many orders of magnitude slower than the hardware
+                                                              can correspond to days, if not weeks, of simulation time.
+they simulate. Hence, most microarchitecture design studies
+draw their conclusions from drastically truncated
+                                                              1.1. Current approaches
+benchmark simulations that are often inaccurate and
+misleading. This paper presents the Sampling                       To mitigate prohibitively slow simulation speeds,
+Microarchitecture Simulation (SMARTS) framework as an         researchers often use abbreviated instruction execution
+approach to enable fast and accurate performance              streams of benchmarks as representative workloads in
+measurements of full-length benchmarks. SMARTS                design studies. More than half of the recent papers in top-
+accelerates simulation by selectively measuring in detail     tier computer architecture conferences presented perfor-
+only an appropriate benchmark subset. SMARTS prescribes a     mance claims extrapolated from abbreviated runs.1
+statistically sound procedure for configuring a systematic    Researchers predominantly skip the initial 250 million to
+sampling simulation run to achieve a desired quantifiable     two billion instructions and then measure a single section of
+confidence in estimates.                                      100 million to one billion instructions. Unfortunately,
+     Analysis of 41 of the 45 possible SPEC2K benchmark/      several studies [4,10,12,17] have concluded that results
+input combinations show CPI and energy per instruction        based only on a single abbreviated execution stream are
+(EPI) can be estimated to within ±3% with 99.7%               inaccurate or misleading because they fail to capture global
+confidence by measuring fewer than 50 million instructions    variations in program behavior and performance.
+per benchmark. In practice, inaccuracy in micro-                   Another common approach to curtail simulation time is
+architectural state initialization introduces an additional   to use fewer or smaller input sets (i.e., the test or train sets
+uncertainty which we empirically bound to ~2% for the         rather than all of the reference sets in SPEC2K). Recent
+tested benchmarks. Our implementation of SMARTS achieves      papers, however, have also shown benchmark behavior
+an actual average error of only 0.64% on CPI and 0.59%        varies significantly across test, train and reference inputs
+on EPI for the tested benchmarks, running with average        for a number of SPEC2K benchmarks [8,17].
+speedups of 35 and 60 over detailed simulation of 8-way            To obtain performance results based on complete
+and 16-way out-of-order processors, respectively.             benchmarks and input sets, many proposals have advocated
+                                                              statistical [4,7,11,12] or profile-driven [10,17] simulation
+                                                              sampling. Simulation sampling measures only chosen
+1. Introduction
+                                                              sections (called sampling units) from a benchmark’s full
+     Computer architects have long relied on software         execution stream. The sections in between sampling units
+simulation to study the functionality and performance of      are “fast-forwarded” using functional simulation that only
+proposed hardware designs. Despite phenomenal improve-        maintains programmer-visible architectural state. We faced
+ment in processor performance over the last decades, the      two key challenges to simulation sampling: (1) choosing an
+disproportionate growth in hardware complexity that needs     appropriate subset with the minimum number of instruc-
+to be modeled has steadily eroded simulation speed. Today,    tions to meet a given error bound, and (2) reconstructing an
+the fastest cycle-accurate modern microprocessor perfor-
+mance simulators are more than five orders of magnitude        1. This past year, 64 papers presented at ISCA, MICRO, and HPCA
+slower than the hardware they model—simulating at a               include simulation results; 38 used a single sampling unit, 20 used
+nominal rate of 0.5 MIPS on a 2 GHz Pentium 4. More               reduced input sets or microbenchmarks, and 6 used other approaches.
+accurate microarchitectural state (e.g., branch predictor              scalar processor models, respectively. At current proces-
+and cache hierarchy contents) for unbiased sample                      sor speeds, these speedups enable simulation speeds of
+measurement following an extended period of functional                 over 9 MIPS.
+fast-forwarding.                                                     • Future impact: SMARTS sampling simulation rate is,
+     Current proposals for simulation sampling suffer from             for all practical purposes, decoupled from the speed of
+several key shortcomings. On the efficiency front, most                the detailed simulator. This result has fundamental bear-
+proposals sample several orders of magnitude more                      ings on future simulator designs. First, designers should
+instructions than are statistically necessary for their stated         focus less on elaborate performance shortcuts in
+error [7,10,11,12,17]. This inefficiency is often rooted in            detailed simulators, and more on increasing the detailed
+their excessively large sampling units, either to amortize             simulator’s overall design flexibility and accuracy. Sec-
+the overhead of reconstructing microarchitectural state or             ond, designers should focus on developing techniques
+to capture coarse-grain performance variations by brute                which speed up fast-forwarding and functional warming
+force. On the accuracy front, most proposals either do not             (e.g., direct execution [16]), as these ultimately deter-
+offer tight error bounds on their performance estimations              mine sampling simulation rate.
+[10,11,12,17], or require unrealistic assumptions about the
+                                                                     Paper outline. The rest of this paper is organized as
+microarchitecture (e.g., perfect branch prediction or cache
+                                                                     follows. Section 2 presents background on statistical simu-
+hierarchies) [4].
+                                                                     lation. Section 3 presents the SMARTS framework.
+                                                                     Section 4 presents an implementation of SMARTS in the
+1.2. The SMARTS approach
+                                                                     context of a microarchitecture simulation infrastructure.
+     We propose the Sampling Microarchitecture Simula-               Section 5 evaluates the effectiveness of the SMARTS
+tion (SMARTS) framework which applies statistical                    framework at accelerating microarchitecture simulation.
+sampling theory to address the aforementioned issues in              Finally, we conclude in Section 6.
+simulation sampling. Unlike prior approaches to simula-
+tion sampling, SMARTS prescribes an exact and
+                                                                     2. Statistical sampling
+constructive procedure for selecting a minimal subset from
+a benchmark’s instruction execution stream to achieve a                    The field of inferential statistics offers well-defined
+desired confidence interval. SMARTS uses a measure of                procedures to quantify and to ensure the quality of sample-
+variability (coefficient of variation) to determine the              derived estimates. This section provides basic background
+optimal sample that captures a program’s inherent varia-             on statistical sampling. We describe procedures for
+tion. An optimal sample generally consists of a large                selecting a sample for mean estimation and the mathe-
+number of small sampling units. Unbiased measurement                 matics for calculating the confidence in an estimate.
+of sampling units as small as 1000 instructions is possible                Statistical sampling attempts to estimate a given
+by applying careful functional warming—maintaining                   cumulative property of a population by measuring only a
+large microarchitectural state, such as branch predictors            sample, a subset of the population [13]. By examining an
+and the cache hierarchy—during fast-forwarding between               appropriately selected sample, one can infer the nature of
+sampling units.                                                      the property over the whole population in terms of total,
+     We evaluate SMARTS in the context of a wide-issue               mean, and proportion. The theory of sampling is
+out-of-order superscalar simulator called SMARTSim                   concerned with choosing a minimal but representative
+which is based on SimpleScalar 3.0 [2]. We employed                  sample to achieve a quantifiable accuracy and precision in
+SMARTSim to estimate the CPI and energy per instruction              the estimate. The theory does not presume a normally-
+(EPI) for 41 out of 45 SPEC2K benchmark/input combina-               distributed population. Our goal is to apply this theory to:
+tions on two microarchitecture configurations. We make               (1) identify a minimal but representative sample from the
+the following primary contributions:                                 population for microarchitecture simulation, and (2) estab-
+• Optimal sampling: SMARTSim achieves an actual aver-                lish a confidence level for the error on sample estimates.
+   age error of only 0.64% on CPI and 0.59% on EPI by                      Table 1 summarizes the standard statistical sampling
+   simulating fewer than 50 million instructions in detail           variables and terminology relevant to this paper. Simple
+   for each of the 41 SPEC2K benchmarks. This represents             random sampling selects a sample of n elements (a.k.a.
+   an exceedingly small fraction of the complete bench-              sampling units) at random from a population of N
+   mark streams, which range between 2 and 547 billion               elements. Measurements are taken on the selected
+   instructions.                                                     sampling units, and for a sufficiently large sample size
+                                                                     (i.e., n > 30 ) the sampled results can be meaningfully
+• Simulation speedup: On a 2 GHz Pentium 4,
+                                                                     extrapolated to provide an estimate for the whole popula-
+   SMARTSim can achieve average speedups of 35 and 60
+                                                                     tion. In particular, the true population mean X of a
+   relative to sim-outorder for 8-way and 16-way super-
+
+
+
+                                                                 2
+                Table 1. Sampling variables.                                      sampling. This approach selects sampling units from an
+                                                                                  ordered population at a fixed sampling interval k such that
+  Population variables            Sample variables                                n = N ⁄ k . Systematic sampling is most effective if the
+   N size                                  n size                                 population exhibits low homogeneity. In other words, the
+   X mean                                  x mean                                 measured property χ should not vary cyclically over the
+                                                                                  population sequence at the same periodicity as k or its
+  σ x standard deviation                 V̂ x coeff. of variation                 higher harmonics. Homogeneity in a population is quanti-
+  V x coeff. of variation ( 1 – α ) confidence level                              fied by the intraclass correlation coefficient δ x ; when the
+                                    ± ε ⋅ X confidence interval                   magnitude of δ x is negligible, the confidence calculations
+                                           k systematic-                          for systematic sampling are the same as described for
+                                             sampling interval                    random sampling. We verified experimentally that in our
+                                                                                  sampling results the population exhibits negligible homo-
+                                      B ( x ) bias of sample mean                 geneity on the order of – 1 × 10 –6 . This observation agrees
+                                                                                  with our intuition that realistic benchmarks do not have
+property χ is estimated by the sample mean x . The coeffi-
+                                                                                  sufficiently regular cyclic behavior at the periodicity rele-
+cient of variation is the standard deviation of χ
+                                                                                  vant to simulation sampling (tens of millions of
+normalized by X , V x = σ x ⁄ X . The likelihood that x is a
+                                                                                  instructions).
+good estimate of X improves with sample size and
+                                                                                       Measurement error is another source of inaccuracy for
+decreases with V x . SMARTS leverages the relationship
+                                                                                  both random and systematic sampling. Random errors lead
+between n, V x and desired confidence to minimize the
+                                                                                  to an increase in V̂ x and are accounted for by a corre-
+required sample size for a benchmark.
+                                                                                  spondingly lowered confidence in the estimate. On the
+       Formally, the confidence in a mean estimate is jointly
+                                                                                  other hand, systematic errors—for example, due to incor-
+quantified by two interdependent terms: confidence level
+                                                                                  rect cache hierarchy state prior to the start of a sampling
+( 1 – α ) and confidence interval ± ε ⋅ X . The interpretation
+                                                                                  unit [11]—introduce a bias in the estimate. The bias B ( x )
+of confidence level and interval is that, over a large
+                                                                                  is the average difference between X and x over all
+number of random sampling trials, a ( 1 – α ) fraction of
+                                                                                  possible sampling trials of a given configuration. For
+the trials should produce x that is within ± ε ⋅ X of X .1
+                                                                                  systematic sampling, there are exactly k possible system-
+The confidence interval achieved by a sample is
+                                                                                  atic sample phases, and hence, B ( x ) = Σx ⁄ k – X . If bias
+± ( [ ( z ⋅ V x ) ⁄ n ] ⋅ X ) where z is the 100 [ 1 – ( α ⁄ 2 ) ]
+                                                                                  is known, it can be accounted for by subtracting it from the
+percentile of the standard normal distribution. (We assume
+                                                                                  estimate, without affecting confidence. If the bias can only
+N » n » 1 to simplify the expressions in this paper.) For a
+                                                                                  be bounded, then it introduces a proportional amount of
+sample with a given V x and size n, one can choose a
+                                                                                  uncertainty in the estimate beyond the confidence interval.
+desired confidence level and solve for the achieved confi-
+dence interval, or vice versa.
+       To design a sampling simulation to meet a certain
+                                                                                  3. The SMARTS framework
+confidence, one begins by determining an appropriate n                                 This section presents a framework for Sampling
+based on the required confidence and V x , using the same                         Microarchitecture Simulation (SMARTS). SMARTS applies
+equations above. (Note that the population size does not                          statistical sampling to accelerate simulation-based perfor-
+impact the determination of n.) The true coefficient of                           mance measurements. Our presentation of SMARTS is
+variation of a population is rarely available in practice                         primarily developed around estimating average CPI, but
+unless the entire population is examined. Instead, V̂ x of a                      we provide results in Section 5.2 for estimating both CPI
+sufficiently large initial sample is commonly used in place                       and energy. The SMARTS framework is generally appli-
+of V x in computing the confidence of that sample. If the                         cable to other performance metrics, such as pipeline
+initial sample does not achieve the desired confidence, the                       resource utilization or average memory latency.
+required size of a subsequent sample can be computed
+                                           2
+using V̂ x , where n ≥ ( ( z ⋅ V̂ x ) ⁄ ε ) . In practice, the                    3.1. Technique overview
+required sample size can typically be found after one test                             Measuring the CPI of a benchmark’s full instruction
+sample.                                                                           stream on a detailed microarchitecture simulator is a time-
+       An approximation of random sampling of practical                           consuming proposition. SMARTS estimates the CPI in
+interest in microarchitecture simulation is systematic                            significantly less time by simulating and measuring only a
+                                                                                  tiny fraction of the stream on the detailed microarchitec-
+                                                                                  ture simulator. SMARTS assumes an execution-driven
+ 1. A less rigorous, but acceptable interpretation, is that for a given           simulator that supports detailed simulation and functional
+    sample there is a ( 1 – α ) probability that x is within ± ε ⋅ X of X .       simulation (a.k.a. fast-forwarding). In the detailed mode
+
+
+
+                                                                              3
+              Table 2. SMARTS variables.                             updates of the program, but leaves microarchitectural state
+                                                                     (e.g., cache hierarchy, branch predictors and target buffers,
+          U sampling unit size (instructions)
+                                                                     or pipeline state) unchanged. Stale microarchitectural state
+         W detailed warming (instructions)                           introduces a large bias in the measurement of individual
+          N benchmark length (instructions) / U                      sampling units and, consequently, the final estimate. We
+                                                                     have observed stale-state induced bias as high as 50% for
+all relevant microarchitecture details are accounted for.            sampling units of 10,000 instructions.
+Only programmer-visible architectural state (e.g., architec-              The stale-state effect can be ameliorated by intro-
+tural registers and memory) is updated in the functional             ducing a warming period where W instructions are
+mode. SMARTS uses the two simulation modes to sample                 simulated in detail to refresh the microarchitectural state
+CPI systematically at a fixed interval—detailed simulation           just prior to the measurement of a sampling unit [11]. We
+of the sampled instructions and functional simulation of             refer to this solution as detailed warming. Figure 1 graphi-
+the remaining instructions.                                          cally illustrate how SMARTS alternates between functional
+     SMARTS uses systematic sampling rather than random              simulation of [ U ( k – 1 ) – W ] instructions, detailed simu-
+sampling because systematic sampling is more straight-               lation of W warming instructions (without measurement),
+forward to implement in execution-driven simulators. In              and detailed simulation and measurement of U instruc-
+SMARTS, a sampling unit is defined as U consecutive                  tions. Increasing W can gradually reduce the bias below an
+instructions in a benchmark’s dynamic instruction stream             acceptable threshold.
+such that the population size N is the length of the stream               Unfortunately, detailed warming has two major short-
+divided by U. The exact number of instructions per                   comings: (1) detailed warming can be expensive because it
+sampling unit may vary slightly to align sampling units on           increases the amount of detailed simulation, and (2) in
+clock cycle boundaries. For systematic sampling at an                general the appropriate value of W is difficult to derive
+interval k, beginning at offset j, SMARTS repeatedly alter-          analytically because some microarchitectural state has
+nates between a functional simulation period of U ( k – 1 )          extremely long history. We will return to this discussion in
+instructions and a detailed simulation/measurement period            Section 4.3, where we measure the effect of W on bias in a
+of U instructions. A primary reason we base the popula-              reference implementation of SMARTS.
+tion on instructions rather than clock cycles is that one                 Between detailed simulation periods, select microar-
+cannot meaningfully count the number of detailed cycles              chitectural state could instead be maintained by functional
+elapsed during functional simulation.                                simulation with only a small overhead. We refer to this
+     Evaluating benchmarks in SMARTS provides an esti-               warming approach as functional warming. The cache hier-
+mated average CPI based on the n ⋅ U sampled                         archies and branch predictors are prime candidates for
+instructions. Equally important, the results include the             functional warming. By continuously warming microar-
+measured coefficient of variation V̂ CPI , that allows us to         chitectural state with very long history, we can analytically
+calculate the confidence of the CPI estimate, and if neces-          bound W for the remaining state to a manageably small
+sary, determine a new sample size to meet a specific                 value. In the majority of cases, the reduction in detailed
+degree of confidence. Section 5 describes how to set                 simulation more than offsets the performance overhead of
+SMARTS sampling parameters and prescribes an exact                   functional warming. A caveat to the functional warming
+procedure to generate an accurate performance estimate by            approach is that it may not always be able to accurately
+measuring only a minimal subset of a benchmark’s                     reproduce the correct microarchitectural state if correct
+instruction stream.                                                  warming requires exact knowledge of detailed execution.
+     A key challenge in SMARTS is how to compute the                 Moreover, timing-dependant behavior (e.g., operating
+correct microarchitectural state prior to detailed measure-          system scheduling activity) require timer approximation.
+ment of each sampling unit. Between sampling units,                  If functional warming simulates instructions in order, it
+functional simulation computes all architectural state               also may not accurately reflect the artifacts of out-of-order
+
+  Benchmark dynamic instruction stream
+  0           j                                            j+k                                          j + 2k                         N
+
+
+                                                                                                                    ... n sampling units
+
+                 U instructions are measured as a                U(k – 1) – W instructions are      W instructions of detailed
+                 sampling unit using detailed simulation         functionally simulated and large   simulation warm state before
+                                                                 structures may be warmed           each sampling unit
+
+                                          Figure 1. Systematic sampling in SMARTS.
+
+
+
+                                                                 4
+and speculative event ordering. A recent study [3] has
+                                                                                                6                      8-way
+suggested that out-of-order and speculative ordering has                                                   vpr
+minimal impact on CPI and other performance metrics. In                                         5
+
+
+
+
+                                                                     VCPI Coeff. of Variation
+Section 4.5 we corroborate these results and present our
+own analysis of the residual biases after functional                                            4
+warming. We believe functional warming is the most cost-
+                                                                                                3                        ammp
+effective approach to achieve accurate CPI estimation with
+simulation sampling.                                                                            2
+
+3.2. Benchmarks                                                                                 1
+
+     In this paper, we demonstrate the effectiveness of                                         0
+SMARTS by attempting to estimate the CPI and EPI of the                                              101 102 103 104 105 106 107 108 109
+SPEC CPU2000 (SPEC2K) integer and floating-point                                                         UU Sampling  UnitSize
+                                                                                                            Sam pling Unit Size(Instructions)
+                                                                                                                                (Instructions)
+benchmarks as measured on the SimpleScalar 3.0 sim-                                                 Figure 2. Coefficient of variation of CPI.
+outorder simulator [2] with the Wattch 1.02 power esti-
+mation extensions [1]. For improved realism, we modified                The baseline microarchitecture configuration in this
+the memory subsystem to include a store buffer and miss             study is an 8-way superscalar model that represents a
+status holding registers (MSHR), and model interconnect             processor in the current technology generation. A 16-way
+bottlenecks in the memory hierarchy. Our study includes             superscalar configuration also is included to reflect an
+the cross product of two microarchitecture configurations           aggressive future design point. This configuration has a
+and all 26 SPEC2K benchmarks as tabulated in [18]. We               wider datapath, larger out-of-order window, and larger
+evaluate all reference inputs except vpr-place and three            caches, to test the effects of an enlarged state set. The
+perlbmk inputs, as these inputs fail to simulate correctly in       details of the 8-way and 16-way configurations are
+sim-outorder. Overall, 41 benchmark/input set combi-                summarized in Table 3.
+nations are included in this study. To provide a reference
+data set for this study, we collect cycle-by-cycle traces of        3.3. Speedup opportunity
+instruction commits in sim-outorder for the entire                       The required sample size to estimate CPI at a given
+length of each benchmark. Simulating these SPEC2K                   confidence is directly proportional to the square of the
+benchmarks resulted in more than 7 trillion simulated               population’s coefficient of variation, n ∝ V CPI 2 . A bench-
+instructions per machine configuration.                             mark with a small V CPI implies a greater opportunity for
+                                                                    accelerated simulation because fewer instructions from the
+                                                                    benchmark need be simulated and measured in detail. To
+          Table 3. Machine configurations.
+                                                                    assess the potential speedup of SMARTS, we study V CPI of
+Parameter 8-way (baseline)            16-way                        all benchmarks in our test suite. A benchmark’s instruction
+                                                                    stream can be divided into a population using different
+RUU/LSQ        128/64                 256/128
+                                                                    values of U. Figure 2 plots V CPI of all benchmarks on the
+Memory         32KB 2-way L1I/D 64KB 2-way L1I/D                    8-way configuration as a function of U in the range of 10
+system         2 ports, 8 MSHR       4 ports, 16 MSHR               to 1 billion instructions. V CPI decreases with increasing U
+               1M 4-way L2           2M 8-way L2                    because short-term CPI variations within a window of U
+               16-entry store buffer 32-entry store buffer          instructions are hidden by averaging over the sampling
+ITLB/          4-way 128 entries/     4-way 128 entries/            unit. The V CPI curves for all benchmarks share the same
+DTLB           4-way 256 entries      4-way 256 entries             general shape, with a steep negative slope for U less than
+               200 cycle miss         200 cycle miss                1000, leveling off thereafter.
+L1/L2/mem 1/12/100 cycles             2/16/100 cycles                    The shapes of the V CPI curves argue against sampling
+latency                                                             approaches that use large sample unit sizes because for U
+                                                                    greater than 1000, V CPI (and hence n) does not decrease
+Functional     4 I-ALU                16 I-ALU
+                                                                    rapidly enough to compensate for the increased sample
+units          2 I-MUL/DIV            8 I-MUL/DIV
+                                                                    unit size. For instance, although very few sampling units
+               2 FP-ALU               8 FP-ALU
+                                                                    are required in the extreme case of U = 1 × 10 9 , the total
+               1 FP-MUL/DIV           4 FP-MUL/DIV
+                                                                    number of sampled instructions n ⋅ U is much greater than
+Branch         Combined 2K tables Combined 8K tables                when U is less than 1000. Figure 2 further makes the case
+predictor      7 cycle mispred.   10 cycle mispred.                 that single-sampling-unit approaches, the most commonly
+               1 prediction/cycle 2 predictions/cycle               employed approaches, cannot ensure accurate estimates
+
+
+
+                                                                5
+                                                                                                                                                                                                                                      CPI Error
+                                                           8-way                                                                                                                   16-way             99.7% confidence
+                                                                                                                                                                                                                                          ±1%
+                                                                                                                                                                                                       95% confidence
+                  percent of benchmark length for                                                                                                                                                                                                ±3%
+                    ±3% error with 99.7% confidence
+
+
+
+
+                                                                                                                                        0.0043%
+
+                                                                                                                                                  0.0032%
+
+                                                                                                                                                              0.0029%
+              0.0044%
+
+
+
+
+                                                                                                                                                                        0.0035%
+
+
+                                                                                                                                                                                  0.0010%
+                        0.0020%
+
+
+
+
+                                                                                                                                                                                            0.0010%
+
+                                                                                                                                                                                                       0.0249%
+
+                                                                                                                                                                                                                 0.0047%
+
+
+                                                                                                                                                                                                                            0.0220%
+
+                                                                                                                                                                                                                                      0.0034%
+                                  0.0004%
+
+                                              0.0016%
+
+                                                        0.0013%
+
+                                                                  0.0005%
+
+
+                                                                            0.0006%
+
+                                                                                      0.0004%
+
+                                                                                                0.0015%
+
+                                                                                                          0.0005%
+
+                                                                                                                        0.0028%
+
+
+
+
+                                                                                                                                                                                                                                                    0.0023%
+           Figure 3. Minimum instructions required. This graph shows the minimum number of instructions
+                                            which must be measured to achieve commonly used confidence intervals.
+since the coefficients of variation of many benchmarks are                                                                        tion rate of future processor cores). The right-hand-side
+non-negligible even for sampling units of over one billion                                                                        vertical axis estimates the corresponding runtimes on a
+instructions.                                                                                                                     2 GHz Pentium 4.
+     For U = 10, Figure 3 reports the values of n ⋅ U for                                                                              The plot shows that SMARTS simulation speed
+all benchmarks, assuming several commonly used confi-                                                                             decreases from S F to S D as W is increased; furthermore,
+dence targets. Even for a stringent confidence requirement                                                                        the anticipated future S D results in an earlier and sharper
+of ±1% error with 99.7% confidence, the worst-case                                                                                decrease. Therefore, unless W can be bounded to a reason-
+benchmark on the 8-way configuration in our study                                                                                 ably small value, full benchmark measurement by
+requires no more than 0.1% of its instruction stream to be                                                                        simulation sampling would remain prohibitively slow.
+measured. The number of instructions required to achieve                                                                               The simulation rate of SMARTS with functional
+a particular level of confidence does not vary significantly                                                                      warming can be derived from the expression for detailed
+across benchmarks because, for the most part, the bench-                                                                          warming by substituting S FW (the functional warming
+marks have similar values of V CPI . The exceedingly low                                                                          simulation rate) for S F . Functional warming allows us to
+detailed simulation requirement suggests that the simula-                                                                         bound W to less than a few thousand instructions—suffi-
+tion rate of SMARTS is insensitive to the speed of the                                                                            ciently few such that detailed warming does not affect the
+detailed microarchitecture simulation. Rather, the rate                                                                           simulation rate. This implies that the simulation rate of
+depends on the speed of the functional simulation                                                                                 SMARTS with functional warming stays close to the simu-
+performed for the great majority of the instruction stream                                                                        lation rate of S FW and is relatively insensitive to the
+between sampling units. This optimistic assessment of                                                                             performance of the detailed simulator. In other words, the
+speedup opportunity does not factor in the detailed simula-                                                                       SMARTS framework enables researchers to apply other-
+tion cost for microarchitectural state warming. We next                                                                           wise prohibitively slow detailed simulators to study
+present an analytical performance model for SMARTS to                                                                             complete benchmarks, provided efficient functional
+take into account the cost of detailed and functional                                                                             warming is possible. In the next section, we will present
+warming.                                                                                                                          our implementation of SMARTS where S FW ≈ 0.55 .
+
+3.4. Simulation speedup model                                                                                                                                                                                                              47 min
+                                                                                                                                    F
+
+
+
+
+      We develop a SMARTS performance model to consider
+the trade-off presented by functional warming. Let                                                                                                                                                                                              1 hour
+S F ≡ 1.0 represent the simulation rate of functional simu-
+lation, and S D represent the simulation rate of detailed
+simulation relative to S F . (Therefore, 1 ⁄ S D is the slow-
+                                                                                                                                                                                                                                                 2 hrs
+down of detailed simulation with respect to functional                                                                                                      SD = 1/60
+simulation.) The simulation rate of SMARTS using only                                                                                                       SD = 1/600                                                     1.9 days
+detailed and no functional warming is given by                                                                                                              SFW = 0.55, SD = 1/60                                                               12 hrs
+SF ( [ N – n ( U + W ) ] ⁄ N ) + SD [ ( n ( U + W ) ) ⁄ N ] . This
+expression is a weighted average of S F and S D over the
+fraction of the instruction stream simulated functionally
+versus in detail. Figure 4 plots the SMARTS simulation                                                                                  Figure 4. Modeled SMARTS simulation rate.
+rates for W between 0 and 10 million instructions for                                                                                  The two SD plots show the simulation rate without
+gcc-1, with S D = 1 ⁄ 60 (corresponding to today’s fastest                                                                          functional warming. The SFW plot shows the simulation
+detailed simulators) and S D = 1 ⁄ 600 (projected simula-                                                                               rate when using functional warming to bound W.
+
+
+
+
+                                                                                                                    6
+                                                                                        W = 100,000     W = 1000
+
+
+
+
+                     Figure 5. Optimal U. The left chart shows that the optimal U increases with W.
+                   The right chart shows that U = 1000 is a reasonable choice across benchmarks and W.
+
+4. SMARTS in practice                                               4.2. Optimal sampling unit size
+     To study and demonstrate the effectiveness of the                    SMARTSim allows the user to specify the sampling
+SMARTS framework, we developed SMARTSim, a concrete                 unit size U. In the analysis in Section 3.3, we have shown
+implementation of a sampling microarchitecture simulator.           that smaller unit sizes reduce the number of instructions
+In this section, we describe the implementation of                  simulated in detail if the cost of detailed warming is
+SMARTSim and revisit the issues of microarchitectural               ignored. However, because detailed warming adds an
+state generation in greater detail. In particular, we explain       overhead of W instructions of detailed simulation per
+the effect of detailed warming on the choice of sampling            sampling unit, the optimal value for U increases with
+unit size and analyze the effectiveness of detailed warming         increased W to amortize the overhead of detailed warming.
+and functional warming in generating accurate microarchi-           To illustrate the effect of W on the choice of U, Figure 5
+tectural state for sample measurements.                             (left) plots the fraction of instructions simulated in detail
+                                                                    (i.e., n(W + U)/N) for various values of U and W. The data
+4.1. SMARTSim                                                       points are based on SMARTSim execution of gcc-1 on the
+                                                                    8-way configuration, with n chosen for 99.7% confidence
+     SMARTSim is built on our enhanced sim-outorder
+                                                                    interval of ±3% in the CPI estimate. In the idealized case
+as described in Section 3.2. Sim-outorder supports a
+                                                                    where W = 0, the minimum U leads to the fewest detail-
+functional simulation mode, similar to the operation of
+                                                                    simulated instructions. For non-ideal W, however, the
+sim-fast in SimpleScalar, that runs approximately 60
+                                                                    optimal value of U lies in the range of 100 to 10,000
+times faster than detailed simulation. However, sim-
+                                                                    instructions. Figure 5 (right) locates the optimal values of
+outorder only supports functional simulation prior to
+                                                                    U for three other benchmarks, gcc-3, bzip2-1, and mesa.
+starting detailed simulation. SMARTSim allows repeated
+                                                                    Each benchmark is plotted for two values of W (1000 and
+transitions back-and-forth between functional and detailed
+                                                                    100,000) that are approximately the magnitudes needed
+simulation modes.
+                                                                    for sampling with and without functional warming, as
+     SMARTSim accepts sim-outorder command line
+                                                                    discussed in the following two sections. The optimal
+arguments and configuration files. In addition, SMARTSim
+                                                                    choice of U is not fixed across benchmarks. However, in
+accepts the systematic sampling parameters U, k, W, and j
+                                                                    all cases, including other SPEC2K benchmarks not shown,
+(described in Section 3.1). SMARTSim also supports two
+                                                                    fixing U to 1000 leads to a sufficiently small fraction of
+fast-forwarding options: functional simulation only and
+                                                                    detail-simulated instructions such that choosing the
+functional simulation with warming (a.k.a. functional
+                                                                    optimal U gains at most tens of minutes in SMARTSim run
+warming). For functional warming, SMARTSim performs
+                                                                    time. Therefore, we suggest using U = 1000 in all cases.
+in-order functional instruction execution and maintains the
+state of L1/L2 I/D caches, TLBs, and branch predictors in
+a fashion similar to sim-cache and sim-bpred of
+                                                                    4.3. Effectiveness of detailed warming
+SimpleScalar. In SMARTSim, functional warming opera-                     Microarchitectural state can always be warmed to an
+tions introduce an overhead of approximately 75% over               arbitrary degree of accuracy given sufficient detailed
+functional simulation alone.                                        warming. Unfortunately, the required amount of detailed
+                                                                    warming to obtain a given degree of accuracy cannot be
+                                                                    determined analytically. The required amount is a function
+
+
+
+                                                                7
+      Table 4. Detailed warming requirements                            of SMARTSim. Even 500,000 instructions warmed per
+        without functional warming. (8-way)                             sampling unit is a small fraction of the full benchmark.
+                                                                        Nevertheless, Table 4 does highlight a key shortcoming of
+ W to achieve                                                           the detailed-warming-only approach: the unpredictability
+                   Benchmarks
+ < 1.5% bias                                                            of W. Our empirical determination of W is impractical
+                   applu, apsi, art-1, art-2, eon-1, eon-2,             because it requires a priori knowledge of the true unbiased
+ W ≤ 50 × 10 3     equake, fma3d, gzip-1, gzip-2, gzip-3,               CPI derived from prohibitively time-consuming detailed
+                   gzip-4, lucas, mesa, sixtrack, twolf                 simulation of complete benchmarks.
+                   crafty, eon-3, gap, gcc-1, gcc-3, gcc-4,
+ W ≤ 250 × 10 3                                                         4.4. Bounding detailed warming
+                   mcf, swim, vortex-3, vpr
+                                                                             Functional warming helps redress the unpredictability
+                   ammp, bzip2-1, bzip2-2, galgel, gcc-2,
+ W ≤ 500 × 10 3                                                         of W in detailed warming. Functional warming of prob-
+                   gcc-5, gzip-5, vortex-1, vortex-2
+                                                                        lematic microarchitectural state allows us to bound W
+                   bzip2-3, facerec, mgrid, parser,
+ W > 500 × 10 3                                                         safely for the remaining state by analyzing the details of
+                   perlbmk, wupwise                                     the microarchitecture model. For example, to estimate
+                                                                        CPI, W needs to be chosen such that an instruction’s
+of both the benchmark behavior and the microarchitectural               latency cannot be influenced by unwarmed microarchitec-
+mechanisms involved. As a rule of thumb, we expect the                  tural state. This requires W to exceed the maximum
+amount of detailed warming to scale with the size of the                instruction stream distance that latency-influencing state
+microarchitectural state; however, there are counter-                   can propagate.
+examples.                                                                    An instruction can only affect the latency of another
+     To better understand the requirements of detailed                  instruction if there is some history of the former still
+warming (unaided by functional warming), we experimen-                  present at the time the latter is fetched. Outside of long-
+tally determine the minimum acceptable value of W for the               term architectural (register, memory, etc.) and microarchi-
+benchmarks with the 8-way configuration such that the                   tectural state (cache, TLB, branch predictor, etc.)
+bias due to residual microarchitectural state error is just             maintained by functional warming, the effects of an
+below ±1.5%. (We choose U = 1000 and n sufficient for a                 instruction are bounded by the instruction’s lifetime in the
+99.7% confidence interval of ±3%.) In systematic                        microprocessor. With the exception of store instructions,
+sampling, the true bias is the average error over all k                 when an instruction commits, its associated short-term
+possible systematic samples. Exact determination of bias                state is freed. A committed store instruction that misses in
+is prohibitively expensive, since k is typically on the order           the cache might stall a later store instruction by causing
+of 10,000 in this study. Therefore, we approximate the                  the store buffer to overflow. Hence, a worst-case bound on
+procedure by averaging the errors of 5 evenly distributed               W is the product of store-buffer depth, memory latency in
+systematic sampling runs (i.e., j = {0, k/5, 2k/5, 3k/5, 4k/            cycles, and the maximum IPC. For our 8-way configura-
+5}). Table 4 categorizes the studied benchmarks according               tion, this upper bound is 12,800 ( 16 × 100 × 8 )
+to their required values of W.                                          instructions. In practice, this worst-case behavior does not
+     Without functional warming, the required W varies                  occur; all the 8-way results presented in this paper were
+widely across benchmarks and inputs. Many benchmarks                    achieved with only 2000 instructions of detailed warming,
+are insensitive to the accuracy of microarchitectural state,            and 16-way results with 4000.
+requiring less than 50,000 instructions of detailed
+warming per measurement period. For some benchmarks,                    4.5. Effectiveness of functional warming
+however, even W = 500,000 results in unacceptable bias,
+                                                                             Even with both functional and detailed warming,
+as high as 25% for mgrid.
+                                                                        some inaccuracies in microarchitectural state remain and
+     With the exception of the benchmarks requiring more
+                                                                        contribute to errors in the estimates as bias. Table 5 reports
+than 500,000 instructions of detailed warming, detailed
+                                                                        the residual bias in the CPI estimated by SMARTSim when
+warming does not significantly impact the simulation rate
+                                                                        functional warming is employed in conjunction with
+
+             Table 5. CPI bias achieved with functional warming and minimal detailed warming.
+  8-way     vpr galgel           gcc-2    bzip2-2 parser        gzip-5      facerec    gcc-5    vortex-3 gcc-1 avg. rest (abs)
+  W = 2000 -1.6% 1.4%            -1.1%     -1.0%      1.0%      0.9%         0.9%      -0.8%      -0.6%    -0.5%         0.2%
+  16-way         mcf   gcc-2 vortex-3      eon-2      gcc-5 sixtrack wupwise bzip2-1              applu     mesa    avg. rest (abs)
+  W = 4000     1.9% -1.6%        1.2%      -1.1%      -1.1%     -0.9%        0.9%      0.8%       0.7%     -0.6%         0.2%
+
+
+
+                                                                  8
+detailed warming of the aforementioned values of W.                                                                                 n tuned for a second run is calculated from the V̂ x of the
+Benchmarks with the worst bias are presented in sorted-                                                                             initial run.
+order. The final column of the table gives the average                                                                                    A priori, the minimum value of n to achieve a given
+magnitude of remaining benchmarks’ bias. All bench-                                                                                 confidence is unknown for an arbitrary benchmark and
+marks have bias under ±2.0% and only 6 benchmarks in                                                                                simulated microarchitecture. Given a fixed confidence
+each configuration exceed ±1.0%. The bias is predomi-                                                                               target, n must be adjusted according to the coefficient of
+nantly due to wrong-path and out-of-order effects in                                                                                variation V CPI of the population. Based on our analysis of
+caches and the branch predictor. This set of results corrob-                                                                        V CPI of SPEC2K benchmarks (in Section 3.3), we conjec-
+orates our conclusion that functional-warming with                                                                                  ture that the values of V CPI tend to cluster around 1.0 for
+bounded W is effective in reducing microarchitectural                                                                               most benchmarks and simulated microarchitectures when
+state warming bias.                                                                                                                 U = 1000. Hence, from n init = ( z ⁄ ε ) 2 , we infer that
+                                                                                                                                    n init = 10,000 is likely to yield 99.7% confidence interval
+5. Using SMARTS                                                                                                                     of ±3%. Given N = 9,420,910 for the smallest of our
+                                                                                                                                    SPEC2K benchmarks, n init = 10,000 still represents a
+    This section outlines an exact procedure for esti-
+                                                                                                                                    very small fraction of detail-simulated instructions and
+mating a target metric using statistical simulation
+                                                                                                                                    hence has minimal impact on simulation turnaround time.
+sampling. We evaluate the effectiveness of this procedure
+                                                                                                                                          One run of SMARTS measurement with k = N ⁄ n init
+by estimating the CPI and energy per instruction (EPI) of
+                                                                                                                                    produces an initial estimate of average CPI and V̂ CPI of
+SPEC2K using SMARTSim.
+                                                                                                                                    the sample. Because the confidence of an estimate is
+                                                                                                                                    jointly quantified by the two interdependent terms confi-
+5.1. SMARTS procedure
+                                                                                                                                    dence level ( 1 – α ) and confidence interval ± ε ⋅ X,      X one
+     One iteration of a SMARTS measurement run requires                                                                             can either set a desired confidence level and calculate the
+the user to supply three sampling simulation parameters:                                                                            obtained confidence interval for a given sample, or vice
+W, U, and k. First, W is selected to exceed the bounded                                                                             versa. For a set confidence level ( 1 – α ) , the confidence
+history of the microarchitectural state as described in                                                                             interval is ± ( z ⋅ V̂ x ⋅ x ) ⁄ ( n ) where z is the
+Section 4.4. We recommend utilizing functional warming                                                                              100 [ 1 – ( α ⁄ 2 ) ] percentile of the standard normal distri-
+(see Section 4.5) whenever possible, as it greatly simpli-                                                                          bution. Commonly used confidence levels are 95% and
+fies the determination of W. Our 8-way results were                                                                                 99.7% (a.k.a. 3σ or virtually-certain). Corresponding
+achieved with W = 2000 instructions, and 16-way results                                                                             values of z are 1.97 and 3, respectively. If the confidence
+with W = 4000. Second, we suggest setting U = 1000. We                                                                              level and interval yielded by the initial sample are unac-
+have shown in Section 4.2 that U = 1000 is appropriate for                                                                          ceptable, the n tuned to achieve a desired confidence on the
+all SPEC2K benchmarks. Lastly, we elaborate on how to                                                                                                                  2
+                                                                                                                                    next sample is ( ( z ⋅ V̂ x ) ⁄ ε ) . If the initial confidence is
+determine n, and correspondingly k, to meet a desired                                                                               overly below target, we suggest slightly overestimating
+confidence in the following paragraphs.                                                                                             n tuned for the subsequent run. In any case, the actual
+     In general, the correct value for n must be determined                                                                         confidence achieved by the subsequent sample must be
+in a two-step process. First, a sampling measurement is                                                                             checked using the subsequent sample’s new V̂ CPI .
+made using a generic initial value n init that is a compro-                                                                               The above treatment of confidence considers only the
+mise between simulation rate and the likelihood of                                                                                  error introduced by statistical sampling. In practice, the
+meeting the confidence requirement on the first try. If the                                                                         true error margin in an estimate must also account for any
+choice of n init is shown to be insufficient after one                                                                              bias in the measurements. Recall from Section 2 that if the
+sampling simulation, a second step is required where                                                                                bias is known, it can be accounted for by subtracting it
+
+          10%
+                                                                   8-way                                                                                                            16-way
+              8%
+  CPI Error
+
+
+
+
+              6%          99.7% confidence interval
+              4%
+              2%
+              0%
+                                                                                                                        avg. rest
+
+
+
+
+                                                                                                                                                                                                                                               avg. rest
+                   ammp
+
+
+
+
+                                                                                                                                        ammp
+                                                                                               apsi
+
+
+
+
+                                                                                                                                               apsi
+                                gcc-2
+
+                                        bzip2-2
+
+                                                  gcc-1
+
+
+
+                                                                    gap
+
+                                                                           bzip2-3
+
+                                                                                     vortx-1
+
+
+
+                                                                                                      bzip2-1
+
+                                                                                                                gcc-3
+
+
+
+
+                                                                                                                                                            vortx-1
+
+                                                                                                                                                                      bzip2-2
+
+                                                                                                                                                                                gcc-2
+
+
+
+                                                                                                                                                                                                  bzip2-3
+
+                                                                                                                                                                                                            fma3d
+
+                                                                                                                                                                                                                    gcc-1
+
+                                                                                                                                                                                                                            bzip2-1
+                          vpr
+
+
+
+
+                                                          parser
+
+
+
+
+                                                                                                                                                      vpr
+
+
+
+
+                                                                                                                                                                                                                                      parser
+                                                                                                                                                                                        facerec
+
+
+
+
+               Figure 6. SMARTS results across SPEC2K with n = 10,000. Unacceptably large confidence intervals
+                                        (e.g., 8-way ammp, vpr, and gcc-2) can be improved by simulating with ntuned.
+
+
+
+                                                                                                                          9
+                         10%                                                                                                                              Figure 7 presents the results of applying SMARTS to
+  nJ/instruction Error
+                                                                             8-way
+                         8%                                                                                                                         estimating energy per instruction (EPI). As in CPI estima-
+                         6%                                                                                                                         tions, we find in most cases initial sampling simulations
+                                           99.7% confidence interval
+                                                                                                                                                    using n init = 10,000 achieves confidence intervals tighter
+                         4%
+                                                                                                                                                    than ±3%. Confidence intervals for EPI estimation tend to
+                         2%
+                                                                                                                                                    be tighter than CPI confidence intervals because of less
+                         0%                                                                                                                         variability in EPI. Unfortunately, the smaller predicted
+
+
+
+
+                                                                                                                                  avg. rest
+                               ammp
+
+
+
+
+                                                                                                                 apsi
+                                      bzip2-1
+
+
+                                                       gcc-2
+
+
+                                                                       bzip2-2
+                                                                                 gcc-1
+                                                                                         gap
+                                                                                                art-2
+                                                                                                        art-1
+
+
+                                                                                                                        bzip2-3
+                                                vpr
+
+
+                                                               lucas
+                                                                                                                                                    confidence intervals are overshadowed by the microarchi-
+                                                                                                                                                    tectural state warming bias. With the exception of gap, the
+                                                                                                                                                    actual errors are within the confidence interval. For gap,
+             Figure 7. SMARTS EPI results with n = 10,000.
+                                                                                                                                                    we have determined experimentally that the 2.2% error is
+from the estimate, without affecting confidence. If the bias                                                                                        almost entirely due to bias.
+can only be bounded, then it introduces a proportional                                                                                                    Table 6 compares simulation runtimes for functional
+amount of uncertainty in the estimate beyond the confi-                                                                                             (i.e., sim-fast), detailed (i.e., sim-outorder with
+dence interval.                                                                                                                                     detailed memory models), and SMARTSim simulation on a
+                                                                                                                                                    2 GHz Pentium 4. SPEC2K benchmarks on the 8-way
+5.2. Evaluation of performance and accuracy                                                                                                         configuration with the highest instruction counts are
+      We applied the procedure outlined above to SPEC2K                                                                                             shown in sorted order. As shown in Table 6, detailed simu-
+benchmarks using SMARTSim. Figure 6 reports results of                                                                                              lation takes on average 7.2 days and can take as long as 23
+CPI estimated using SMARTSim in one run with                                                                                                        days. In contrast, SMARTSim takes on average 5.0 hours
+n init = 10,000. Benchmarks with the worst confidence                                                                                               and in the worst-case slightly less than 16 hours.
+intervals are shown in sorted order, plus the average of the                                                                                        SMARTSim simulation speed is around 50% of functional-
+remaining benchmarks. For each benchmark, we show the                                                                                               only simulation for most microarchitecture configurations.
+actual achieved error and the predicted confidence interval
+calculated from V̂ x for 99.7% confidence. The confidence                                                                                           5.3. Comparison to SimPoint
+interval accounts for random error in the estimated CPI                                                                                                  A recent proposal, SimPoint [17], also enables
+that is introduced by systematic sampling. Notice that                                                                                              reduced simulation turnaround time. SimPoint selects
+actual error resulting from 10,000 sampling units is gener-                                                                                         representative subsets of benchmark traces via offline
+ally much less than the predicted confidence interval. A                                                                                            analysis of basic blocks. Using clustering algorithms,
+large part of this error can be attributed to the residual bias                                                                                     SimPoint selects and weights several large sampling units
+of imperfect microarchitectural state warming (functional                                                                                           (up to ten 100M-instruction sampling units) such that the
+warming with fixed W), with only a very small component                                                                                             frequency of each static basic block across the weighted
+caused by statistical sampling.                                                                                                                     units matches that block’s frequency in the full dynamic
+      For most of the benchmarks, n init achieves a confi-                                                                                          stream. A fundamental assumption of SimPoint is that all
+dence interval within ±3%. For benchmarks with                                                                                                      dynamic instances of basic block sequences with similar
+confidence intervals greater than ±3%, simulation                                                                                                   profiles have the same behavior, therefore a particular
+sampling needs to be repeated using n tuned —calculated                                                                                             sequence can be measured once and weighted appropri-
+from the V̂ x of the initial sample. For example, rerunning                                                                                         ately to represent all remaining instances.
+simulations for the 8-way configuration with n tuned of                                                                                                  SimPoint has two key advantages: (1) due to large
+66,531 (ammp), 23,321 (vpr), and 21,789 (gcc-2) achieve                                                                                             sampling units, SimPoint obviates the need for functional
+actual errors of 1.1%, 0.1%, and -0.9% with confidence                                                                                              warming and can be more quickly integrated into a simula-
+intervals of 3.0%, 2.9%, and 2.6%. To this confidence                                                                                               tion infrastructure, and (2) SimPoint allows early
+interval, we must still add an uncertainty due to microar-                                                                                          termination of simulation after all selected sections have
+chitectural state warming bias, which we empirically                                                                                                been visited. We implemented SimPoint with our
+bound to below 2%.                                                                                                                                  SimpleScalar toolset and verified our implementation
+                                                                                                                                                    against the published configuration and results in [17]. For
+
+                               Table 6. Runtimes for SMARTS compared to detailed and functional simulation. (8-way)
+  Runtime (hrs.) parser sixtrack mgrid galgel wupwise apsi twolf ammp mesa gap fma3d swim avg. rest
+  Detailed        541     466     414   405     346   344 343     323 279 266 265     223    98
+  Functional                                          9.2                7.9                   7.0              6.9                    5.9         5.8    5.8    5.5     4.7   4.5    4.5     3.8      1.7
+  SMARTS                                              15.8             13.6                12.1                 11.8                10.1           10.1 10.0     9.6     8.1   7.8    7.8     6.5      2.9
+
+
+
+                                                                                                                                              10
+                                                                        8-way                          SMARTS                            6. Conclusion
+             12%
+                                                                                                       SimPoint                               To address the need for improved simulation accuracy
+ CPI Error
+
+
+             9%
+                                                                                                                                         and performance, we propose the Sampling Microarchi-
+             6%
+                                                                                                                                         tecture Simulation (SMARTS) framework that applies
+             3%                                                                                                                          statistical sampling to microarchitecture simulation.
+             0%                                                                                                                          Unlike prior approaches to simulation sampling, SMARTS
+
+
+
+
+                                                                                                                        avg. rest
+                                                                                       ammp
+                           sixtrack
+                   gcc-2
+
+
+                                      gcc-1
+                                              fma3d
+                                                      gcc-4
+                                                              bzip2-1
+
+
+                                                                               gcc-3
+
+
+                                                                                              gcc-5
+                                                                                                      gzip-2
+                                                                                                               gzip-5
+                                                                         vpr
+                                                                                                                                         prescribes an exact and constructive procedure for
+                                                                                                                                         sampling a minimal subset of a benchmark’s instruction
+                                                                                                                                         execution stream to estimate the performance of the
+ Figure 8. Comparison of SMARTS with SimPoint.                                                                                           complete benchmark with quantifiable confidence. The
+                  SimPoint’s mean runtime per benchmark
+                                                                                                                                         SMARTS procedure obviates the need for full-stream simu-
+              is 2.8 hours compared to 5.0 hours for SMARTS.
+                                                                                                                                         lation by basing the strategy for optimal simulation
+                                                                                                                                         sampling on the outcomes of fast sampling simulation
+the benchmarks in [17] and our 8-way configuration,
+                                                                                                                                         runs.
+SimPoint resulted in an average improvement of 1.8 in
+                                                                                                                                              We evaluated the SMARTS framework in the context
+simulation rate over SMARTS.
+                                                                                                                                         of a wide-issue out-of-order superscalar simulator running
+     However, SimPoint has several shortcomings: (1) it
+                                                                                                                                         SPEC2K benchmarks with varying inputs under two simu-
+may result in arbitrarily high CPI error, (2) it does not
+                                                                                                                                         lated     processor   configurations.     SMARTSim,      an
+offer quantifiable confidence in estimates, and (3) some
+                                                                                                                                         implementation of SMARTS, is created by modifying
+microarchitecture configurations may cause large varia-
+                                                                                                                                         SimpleScalar’s sim-outorder to support systematic
+tions in behavior across different instances of similarly-
+                                                                                                                                         sampling. The results of our evaluations demonstrated the
+profiled basic block sequences.1
+                                                                                                                                         following: (1) SMARTSim achieves an actual average error
+     Figure 8 presents a comparison of CPI error between
+                                                                                                                                         of only 0.64% on CPI and 0.59% on EPI by simulating
+SimPoint and SMARTS for the benchmarks presented in
+                                                                                                                                         fewer than 50 million instructions in detail per benchmark.
+[17] running on our 8-way configuration. The comparison
+                                                                                                                                         (2) By simulating exceedingly small fractions of complete
+shows that SimPoint has a higher average error (3.7% vs.
+                                                                                                                                         benchmarks, SMARTSim achieves effective speeds of 9.2
+our 0.6%) and considerably higher worst-case error
+                                                                                                                                         MIPS and 9.0 MIPS simulating 8-way and 16-way out-of-
+(-14.3% for gcc-2).
+                                                                                                                                         order processors on a 2 GHz Pentium 4. This corresponds
+     Gcc-2 is an example where SimPoint produces an
+                                                                                                                                         to speedups of 35 and 60 times over full-stream simulation
+unacceptably high CPI error when running on our 8-way
+                                                                                                                                         with sim-outorder for the two configurations.
+configuration. However, simulation using the published
+                                                                                                                                              The outcomes of this study have two fundamental
+microarchitecture configuration in [17] only results in a
+                                                                                                                                         bearings on future simulator designs. First, designers
+1.6% error. In gcc-2, we observed that the basic block
+                                                                                                                                         should not attempt to accelerate detailed simulators at the
+sequences chosen by SimPoint exhibit large variations in
+                                                                                                                                         cost of coding complexity or abstraction errors; instead
+their L2 miss rate—due to variations in data cache
+                                                                                                                                         designers should focus on increasing the simulator’s flexi-
+locality—across dynamic instances on our microarchitec-
+                                                                                                                                         bility and realism. Second, designers should focus on
+ture configuration. Therefore, in this case, the SimPoint
+                                                                                                                                         techniques to speed up fast-forwarding and functional
+estimate based on just a single instance of the basic block
+                                                                                                                                         warming, because these ultimately determine sampling
+sequences yields a large error. In contrast, independent of
+                                                                                                                                         simulation time.
+benchmark and microarchitecture configuration, SMARTS
+uses the measured coefficient of variation to help gauge
+both the required sample size and the confidence in the                                                                                  Acknowledgment
+estimates.                                                                                                                                    The authors would like to thank Se-Hyun Yang, Zeba
+                                                                                                                                         Wunderlich, the members of the Carnegie Mellon Impetus
+1. Consider a basic block comprised of a pointer-chasing loop. The
+                                                                                                                                         group, and the anonymous reviewers for their feedback on
+   execution time of each dynamic instance depends on whether the                                                                        earlier drafts of this paper. This work was funded in part
+   pointer deference hits in the cache and hence is a function of the                                                                    by grants from IBM and Intel corporations, an NSF
+   cache design and the precise memory placement of the linked list                                                                      CAREER award, and an NSF Instrumentation award.
+   nodes.
+
+
+
+
+                                                                                                                                    11
+References                                                             [10] T. Lafage and A. Seznec, “Choosing Representative Slices
+                                                                            of Program Execution for Microarchitecture Simulations: A
+[1] D. Brooks, V. Tiwari, and M. Martonosi, “Wattch: A Frame-               Preliminary Application to the Data Stream,” In IEEE
+    work for Architectural-Level Power Analysis and Optimiza-               Workshop on Workload Characterization, ICCD, September
+    tions,” In Proceedings of the International Symposium on                2000.
+    Computer Architecture, June 2000.                                  [11] S. Laha, J. H. Patel, and R. K. Iyer, “Accurate Low-Cost
+[2] D. Burger and T. M. Austin, “The SimpleScalar Tool Set,                 Methods for Performance Evaluation of Cache Memory
+    Version 2.0,” Technical Report 1342, Computer Sciences                  Systems,” IEEE Transactions on Computers, Volume C-
+    Department, University of Wisconsin–Madison, June 1997.                 37(11), February 1988.
+[3] H. W. Cain, K. M. Lepak, B. A. Schwartz, and M. H.                 [12] G. Lauterbach, “Accelerating Architectural Simulation by
+    Lipasti, “Precise and Accurate Processor Simulation,” In                Parallel Execution of Trace Samples,” In Hawaii Interna-
+    Workshop on Computer Architecture Evaluation using                      tional Conference on System Sciences, Volume 1: Architec-
+    Commercial Workloads, HPCA, February 2002.                              ture, January 1994.
+[4] T. M. Conte, M. A. Hirsch, and K. N. Menezes, “Reducing            [13] P. S. Levy and S. Lemeshow, Sampling of Populations:
+    State Loss for Effective Trace Sampling of Superscalar                  Methods and Applications, John Wiley & Sons, Inc., 1999.
+    Processors,” In Proceedings of the International Conference        [14] S. Nussbaum and J. E. Smith, “Modeling Superscalar
+    on Computer Design, October 1996.                                       Processors via Statistical Simulation,” In Proceedings of the
+[5] M. Durbhakula, V. S. Pai, and S. Adve, “Improving the                   International Conference on Parallel Architectures and
+    Accuracy vs. Speed Tradeoff for Simulating Shared-                      Compilation Techniques, September 2001.
+    Memory Multiprocessors with ILP Processors,” In Proceed-           [15] M. Oskin, F. T. Chong, and M. K. Farrens, “HLS:
+    ings of the International Symposium on High-Performance                 Combining Statistical and Symbolic Simulation to Guide
+    Computer Architecture, January 1999.                                    Microprocessor Designs,” In Proceedings of the Interna-
+[6] S. Dwarkadas, J. R. Jump, and J. B. Sinclair, “Execution-               tional Symposium on Computer Architecture, June 2000.
+    Driven Simulation of Multiprocessors: Address and Timing           [16] S. K. Reinhardt, M. D. Hill, J. R. Larus, A. R. Lebeck, J. C.
+    Analysis,” IEEE Transactions on Modeling and Computer                   Lewis, and D. A. Wood, “The Wisconsin Wind Tunnel:
+    Simulation, Volume 4, No. 4, October 1994.                              Virtual Prototyping of Parallel Computers,” In Proceedings
+[7] J. W. Haskins and K. Skadron, “Minimal Subset Evaluation:               of the International Conference on Measurement and
+    Rapid Warm-Up for Simulated Hardware State,” In                         Modeling of Computer Systems, May 1993.
+    Proceedings of the International Conference on Computer            [17] T. Sherwood, E. Perelman, G. Hamerly, and B. Calder,
+    Design, September 2001.                                                 “Automatically Characterizing Large Scale Program
+[8] W. C. Hsu, H. Chen, and P. C. Yew, “On the Predictability               Behavior,” In Proceedings of the International Conference
+    of Program Behavior Using Different Input Data Sets,” In                on Architectural Support for Programming Languages and
+    Workshop on Interaction between Compilers and Computer                  Operating Systems, October 2002.
+    Architectures, HPCA, February 2002.                                [18] T. F. Wenisch, R. E. Wunderlich, B. Falsafi, J. C. Hoe.
+[9] AJ KleinOsowski, J. Flynn, N. Meares, and D. J. Lilja,                  “Applying SMARTS to SPEC CPU2000,” Technical Report
+    “Adapting the SPEC 2000 Benchmark Suite for Simulation-                 2003-1, Computer Architecture Lab at Carnegie Mellon,
+    Based Computer Architecture Research,” In IEEE Work-                    April 2003.
+    shop on Workload Characterization, ICCD, September
+    2000.
+
+
+
+
+                                                                  12
+

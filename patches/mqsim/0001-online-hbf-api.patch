@@ -1,0 +1,396 @@
+diff --git a/src/exec/SSD_Device.cpp b/src/exec/SSD_Device.cpp
+index d0c1263..1877b2f 100644
+--- a/src/exec/SSD_Device.cpp
++++ b/src/exec/SSD_Device.cpp
+@@ -200,6 +200,7 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
+ 			switch (parameters->HostInterface_Type)
+ 			{
+ 			case HostInterface_Types::SATA:
++			case HostInterface_Types::HBF:
+ 			{
+ 				stream_count = 1;
+ 				std::vector<flash_channel_ID_type> channel_ids;
+@@ -262,7 +263,9 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
+ 			}
+ 		}
+ 
+-		Utils::Logical_Address_Partitioning_Unit::Allocate_logical_address_for_flows(parameters->HostInterface_Type, (unsigned int)io_flows->size(),
++		HostInterface_Types partitioning_type = parameters->HostInterface_Type == HostInterface_Types::HBF
++			? HostInterface_Types::SATA : parameters->HostInterface_Type;
++		Utils::Logical_Address_Partitioning_Unit::Allocate_logical_address_for_flows(partitioning_type, (unsigned int)io_flows->size(),
+ 																					 parameters->Flash_Channel_Count, parameters->Chip_No_Per_Channel, parameters->Flash_Parameters.Die_No_Per_Chip, parameters->Flash_Parameters.Plane_No_Per_Die,
+ 																					 flow_channel_id_assignments, flow_chip_id_assignments, flow_die_id_assignments, flow_plane_id_assignments,
+ 																					 parameters->Flash_Parameters.Block_No_Per_Plane, parameters->Flash_Parameters.Page_No_Per_Block,
+@@ -360,6 +363,10 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
+ 																			 parameters->IO_Queue_Depth, Utils::Logical_Address_Partitioning_Unit::Get_total_device_lha_count(), parameters->Flash_Parameters.Page_Capacity / SECTOR_SIZE_IN_BYTE, dcm);
+ 
+ 			break;
++		case HostInterface_Types::HBF:
++			device->Host_interface = new SSD_Components::Host_Interface_HBF(device->ID() + ".HostInterface",
++																			 Utils::Logical_Address_Partitioning_Unit::Get_total_device_lha_count(), parameters->Flash_Parameters.Page_Capacity / SECTOR_SIZE_IN_BYTE, dcm);
++			break;
+ 		default:
+ 			break;
+ 		}
+diff --git a/src/exec/SSD_Device.h b/src/exec/SSD_Device.h
+index 94b1deb..ad0cce7 100644
+--- a/src/exec/SSD_Device.h
++++ b/src/exec/SSD_Device.h
+@@ -8,6 +8,7 @@
+ #include "../ssd/Host_Interface_Base.h"
+ #include "../ssd/Host_Interface_SATA.h"
+ #include "../ssd/Host_Interface_NVMe.h"
++#include "../ssd/Host_Interface_HBF.h"
+ #include "../ssd/Data_Cache_Manager_Base.h"
+ #include "../ssd/Data_Cache_Flash.h"
+ #include "../ssd/NVM_Firmware.h"
+diff --git a/src/sim/Engine.cpp b/src/sim/Engine.cpp
+index f214fa2..a8a37d7 100644
+--- a/src/sim/Engine.cpp
++++ b/src/sim/Engine.cpp
+@@ -53,8 +53,11 @@ namespace MQSimEngine
+ 	}
+ 
+ 	/// This is the main method of simulator which starts simulation process.
+-	void Engine::Start_simulation()
++	void Engine::Initialize_objects_once()
+ 	{
++		if (started) {
++			return;
++		}
+ 		started = true;
+ 
+ 		for(std::unordered_map<sim_object_id_type, Sim_Object*>::iterator obj = _ObjectList.begin();
+@@ -77,26 +80,41 @@ namespace MQSimEngine
+ 			obj->second->Start_simulation();
+ 		}
+ 		
+-		Sim_Event* ev = NULL;
+-		while (true) {
+-			if (_EventList->Count == 0 || stop) {
+-				break;
+-			}
++	}
+ 
+-			EventTreeNode* minNode = _EventList->Get_min_node();
+-			ev = minNode->FirstSimEvent;
++	bool Engine::Run_next_event()
++	{
++		Initialize_objects_once();
++		if (_EventList->Count == 0 || stop) {
++			return false;
++		}
+ 
+-			_sim_time = ev->Fire_time;
++		EventTreeNode* minNode = _EventList->Get_min_node();
++		Sim_Event* ev = minNode->FirstSimEvent;
+ 
+-			while (ev != NULL) {
+-				if(!ev->Ignore) {
+-					ev->Target_sim_object->Execute_simulator_event(ev);
+-				}
+-				Sim_Event* consumed_event = ev;
+-				ev = ev->Next_event;
+-				delete consumed_event;
++		_sim_time = ev->Fire_time;
++
++		while (ev != NULL) {
++			if(!ev->Ignore) {
++				ev->Target_sim_object->Execute_simulator_event(ev);
+ 			}
+-			_EventList->Remove(minNode);
++			Sim_Event* consumed_event = ev;
++			ev = ev->Next_event;
++			delete consumed_event;
++		}
++		_EventList->Remove(minNode);
++		return true;
++	}
++
++	bool Engine::Has_pending_events() const
++	{
++		return !stop && _EventList->Count != 0;
++	}
++
++	void Engine::Start_simulation()
++	{
++		Initialize_objects_once();
++		while (Run_next_event()) {
+ 		}
+ 	}
+ 
+@@ -132,4 +150,4 @@ namespace MQSimEngine
+ 	{
+ 		return false;
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/sim/Engine.h b/src/sim/Engine.h
+index d76771b..2197d10 100644
+--- a/src/sim/Engine.h
++++ b/src/sim/Engine.h
+@@ -31,6 +31,9 @@ namespace MQSimEngine {
+ 		Sim_Object* GetObject(sim_object_id_type object_id);
+ 		void RemoveObject(Sim_Object* obj);
+ 		void Start_simulation();
++		void Initialize_objects_once();
++		bool Run_next_event();
++		bool Has_pending_events() const;
+ 		void Stop_simulation();
+ 		bool Has_started();
+ 		bool Is_integrated_execution_mode();
+diff --git a/src/ssd/Host_Interface_Base.cpp b/src/ssd/Host_Interface_Base.cpp
+index 4c9f99e..42e63bd 100644
+--- a/src/ssd/Host_Interface_Base.cpp
++++ b/src/ssd/Host_Interface_Base.cpp
+@@ -33,7 +33,8 @@ namespace SSD_Components
+ 	Host_Interface_Base::Host_Interface_Base(const sim_object_id_type& id, HostInterface_Types type, LHA_type max_logical_sector_address, unsigned int sectors_per_page, 
+ 		Data_Cache_Manager_Base* cache)
+ 		: MQSimEngine::Sim_Object(id), type(type), max_logical_sector_address(max_logical_sector_address), 
+-		sectors_per_page(sectors_per_page), cache(cache)
++		sectors_per_page(sectors_per_page), input_stream_manager(NULL),
++		request_fetch_unit(NULL), cache(cache), pcie_switch(NULL)
+ 	{
+ 		_my_instance = this;
+ 	}
+@@ -186,4 +187,4 @@ namespace SSD_Components
+ 		host_interface(host_interface)
+ 	{
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/ssd/Host_Interface_Base.h b/src/ssd/Host_Interface_Base.h
+index 3095206..cc1679a 100644
+--- a/src/ssd/Host_Interface_Base.h
++++ b/src/ssd/Host_Interface_Base.h
+@@ -94,9 +94,11 @@ namespace SSD_Components
+ 		friend class Input_Stream_Manager_Base;
+ 		friend class Input_Stream_Manager_NVMe;
+ 		friend class Input_Stream_Manager_SATA;
++		friend class Input_Stream_Manager_HBF;
+ 		friend class Request_Fetch_Unit_Base;
+ 		friend class Request_Fetch_Unit_NVMe;
+ 		friend class Request_Fetch_Unit_SATA;
++		friend class Host_Interface_HBF;
+ 	public:
+ 		Host_Interface_Base(const sim_object_id_type& id, HostInterface_Types type, LHA_type max_logical_sector_address, 
+ 			unsigned int sectors_per_page, Data_Cache_Manager_Base* cache);
+diff --git a/src/ssd/Host_Interface_Defs.h b/src/ssd/Host_Interface_Defs.h
+index 64a54cd..0917239 100644
+--- a/src/ssd/Host_Interface_Defs.h
++++ b/src/ssd/Host_Interface_Defs.h
+@@ -5,7 +5,7 @@
+ #include <string>
+ #include "Host_Interface_NVMe_Priorities.h"
+ 
+-enum class HostInterface_Types { SATA, NVME };
++enum class HostInterface_Types { SATA, NVME, HBF };
+ 
+ #define NVME_FLUSH_OPCODE 0x0000
+ #define NVME_WRITE_OPCODE 0x0001
+diff --git a/src/ssd/Host_Interface_HBF.cpp b/src/ssd/Host_Interface_HBF.cpp
+new file mode 100644
+index 0000000..194a1c4
+--- /dev/null
++++ b/src/ssd/Host_Interface_HBF.cpp
+@@ -0,0 +1,118 @@
++#include "Host_Interface_HBF.h"
++
++#include <stdexcept>
++#include <utility>
++
++namespace SSD_Components
++{
++	Input_Stream_Manager_HBF::Input_Stream_Manager_HBF(
++		Host_Interface_Base* host_interface)
++		: Input_Stream_Manager_Base(host_interface)
++	{
++		input_streams.push_back(new Input_Stream_Base());
++	}
++
++	void Input_Stream_Manager_HBF::Handle_new_arrived_request(
++		User_Request* request)
++	{
++		request->Stream_id = 0;
++		request->STAT_InitiationTime = Simulator->Time();
++		if (request->Type == UserRequestType::READ) {
++			input_streams[0]->STAT_number_of_read_requests++;
++		} else {
++			input_streams[0]->STAT_number_of_write_requests++;
++		}
++		segment_user_request(request);
++		host_interface->broadcast_user_request_arrival_signal(request);
++	}
++
++	void Input_Stream_Manager_HBF::Handle_arrived_write_data(
++		User_Request* request)
++	{
++		Handle_new_arrived_request(request);
++	}
++
++	void Input_Stream_Manager_HBF::Handle_serviced_request(User_Request* request)
++	{
++		Host_Interface_HBF* hbf =
++			static_cast<Host_Interface_HBF*>(host_interface);
++		auto callback = hbf->callbacks.find(request);
++		if (callback == hbf->callbacks.end()) {
++			throw std::logic_error("HBF completion has no registered callback");
++		}
++		request->STAT_ResponseTime = Simulator->Time();
++		callback->second(request, Simulator->Time());
++		hbf->callbacks.erase(callback);
++		delete request;
++	}
++
++	void Input_Stream_Manager_HBF::segment_user_request(
++		User_Request* user_request)
++	{
++		LHA_type lsa = user_request->Start_LBA;
++		unsigned int handled_sectors = 0;
++		while (handled_sectors < user_request->SizeInSectors) {
++			const unsigned int page_offset =
++				static_cast<unsigned int>(lsa % host_interface->sectors_per_page);
++			unsigned int transaction_size =
++				host_interface->sectors_per_page - page_offset;
++			if (handled_sectors + transaction_size >
++				user_request->SizeInSectors) {
++				transaction_size =
++					user_request->SizeInSectors - handled_sectors;
++			}
++
++			const LPA_type lpa = lsa / host_interface->sectors_per_page;
++			const page_status_type bitmap =
++				((~page_status_type{0}) >>
++				  (sizeof(page_status_type) * 8 - transaction_size))
++				 << page_offset;
++			if (user_request->Type == UserRequestType::READ) {
++				user_request->Transaction_list.push_back(
++					new NVM_Transaction_Flash_RD(
++						Transaction_Source_Type::USERIO, 0,
++						transaction_size * SECTOR_SIZE_IN_BYTE, lpa, NO_PPA,
++						user_request, 0, bitmap, CurrentTimeStamp));
++				input_streams[0]->STAT_number_of_read_transactions++;
++			} else {
++				user_request->Transaction_list.push_back(
++					new NVM_Transaction_Flash_WR(
++						Transaction_Source_Type::USERIO, 0,
++						transaction_size * SECTOR_SIZE_IN_BYTE, lpa,
++						user_request, 0, bitmap, CurrentTimeStamp));
++				input_streams[0]->STAT_number_of_write_transactions++;
++			}
++			lsa += transaction_size;
++			handled_sectors += transaction_size;
++		}
++	}
++
++	Host_Interface_HBF::Host_Interface_HBF(
++		const sim_object_id_type& id, LHA_type max_logical_sector_address,
++		unsigned int sectors_per_page, Data_Cache_Manager_Base* cache)
++		: Host_Interface_Base(id, HostInterface_Types::HBF,
++			max_logical_sector_address, sectors_per_page, cache)
++	{
++		input_stream_manager = new Input_Stream_Manager_HBF(this);
++	}
++
++	void Host_Interface_HBF::Submit_hbf_request(
++		User_Request* request, HbfCompletionCallback callback)
++	{
++		if (request == NULL || !callback) {
++			throw std::invalid_argument("invalid HBF request or callback");
++		}
++		if (request->Start_LBA + request->SizeInSectors >
++			max_logical_sector_address) {
++			throw std::out_of_range("HBF request exceeds logical capacity");
++		}
++		callbacks.emplace(request, std::move(callback));
++		input_stream_manager->Handle_new_arrived_request(request);
++	}
++
++	void Host_Interface_HBF::Start_simulation() {}
++	void Host_Interface_HBF::Validate_simulation_config() {}
++	void Host_Interface_HBF::Execute_simulator_event(MQSimEngine::Sim_Event*) {}
++	void Host_Interface_HBF::Report_results_in_XML(
++		std::string, Utils::XmlWriter&) {}
++}
+diff --git a/src/ssd/Host_Interface_HBF.h b/src/ssd/Host_Interface_HBF.h
+new file mode 100644
+index 0000000..8ea8c44
+--- /dev/null
++++ b/src/ssd/Host_Interface_HBF.h
+@@ -0,0 +1,45 @@
++#ifndef HOST_INTERFACE_HBF_H
++#define HOST_INTERFACE_HBF_H
++
++#include <functional>
++#include <unordered_map>
++
++#include "Host_Interface_Base.h"
++#include "Host_Interface_Defs.h"
++#include "User_Request.h"
++
++namespace SSD_Components
++{
++	using HbfCompletionCallback = std::function<void(User_Request *, sim_time_type)>;
++
++	class Input_Stream_Manager_HBF : public Input_Stream_Manager_Base
++	{
++	public:
++		explicit Input_Stream_Manager_HBF(Host_Interface_Base* host_interface);
++		void Handle_new_arrived_request(User_Request* request);
++		void Handle_arrived_write_data(User_Request* request);
++		void Handle_serviced_request(User_Request* request);
++	private:
++		void segment_user_request(User_Request* user_request);
++	};
++
++	class Host_Interface_HBF : public Host_Interface_Base
++	{
++		friend class Input_Stream_Manager_HBF;
++	public:
++		Host_Interface_HBF(const sim_object_id_type& id,
++			LHA_type max_logical_sector_address, unsigned int sectors_per_page,
++			Data_Cache_Manager_Base* cache);
++		void Submit_hbf_request(User_Request* request,
++			HbfCompletionCallback callback);
++		void Start_simulation();
++		void Validate_simulation_config();
++		void Execute_simulator_event(MQSimEngine::Sim_Event*);
++		void Report_results_in_XML(std::string name_prefix,
++			Utils::XmlWriter& xmlwriter);
++	private:
++		std::unordered_map<User_Request*, HbfCompletionCallback> callbacks;
++	};
++}
++
++#endif
+diff --git a/src/utils/Logical_Address_Partitioning_Unit.cpp b/src/utils/Logical_Address_Partitioning_Unit.cpp
+index 2f45a8b..a6d583f 100644
+--- a/src/utils/Logical_Address_Partitioning_Unit.cpp
++++ b/src/utils/Logical_Address_Partitioning_Unit.cpp
+@@ -22,6 +22,10 @@ namespace Utils
+ 
+ 	void Logical_Address_Partitioning_Unit::Reset()
+ 	{
++		if (!initialized) {
++			return;
++		}
++
+ 		initialized = false;
+ 		pdas_per_flow.clear();
+ 		start_lhas_per_flow.clear();
+@@ -41,6 +45,13 @@ namespace Utils
+ 		}
+ 
+ 		delete[] resource_list;
++		resource_list = nullptr;
++		channel_count = 0;
++		chip_no_per_channel = 0;
++		die_no_per_chip = 0;
++		plane_no_per_die = 0;
++		total_pda_no = 0;
++		total_lha_no = 0;
+ 	}
+ 
+ 	void Logical_Address_Partitioning_Unit::Allocate_logical_address_for_flows(HostInterface_Types hostinterface_type, unsigned int concurrent_stream_no,

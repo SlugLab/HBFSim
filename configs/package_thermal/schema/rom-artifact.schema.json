@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HBFSim thermal ROM artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "payload", "payload_sha256"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "evidence_label", "sample_period_ns", "input_names", "output_names", "state_count", "a", "b", "bias", "c", "d", "offset", "solver_identity", "geometry_sha256", "training_split", "held_out_split", "held_out_max_error_c", "held_out_p95_error_c"],
+      "properties": {
+        "model_id": {"type": "string", "minLength": 1},
+        "evidence_label": {"enum": ["synthetic_fixture", "literature_parameterized", "calibrated_external_solver", "measured"]},
+        "sample_period_ns": {"type": "integer", "minimum": 1},
+        "input_names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "output_names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "state_count": {"type": "integer", "minimum": 1},
+        "a": {"$ref": "#/$defs/vector"}, "b": {"$ref": "#/$defs/vector"},
+        "bias": {"$ref": "#/$defs/vector"}, "c": {"$ref": "#/$defs/vector"},
+        "d": {"$ref": "#/$defs/vector"}, "offset": {"$ref": "#/$defs/vector"},
+        "solver_identity": {"type": "string", "minLength": 1},
+        "geometry_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "training_split": {"type": "string", "minLength": 1},
+        "held_out_split": {"type": "string", "minLength": 1},
+        "held_out_max_error_c": {"type": "number", "minimum": 0},
+        "held_out_p95_error_c": {"type": "number", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {"vector": {"type": "array", "items": {"type": "number"}}}
+}

@@ -1,0 +1,83 @@
+{
+  "attention_backend": "FLASHINFER",
+  "cache_root": "/dev/shm/hbfsim-vllm-live-cache",
+  "compiler": {
+    "CC": "/usr/bin/gcc-13",
+    "CXX": "/usr/bin/g++-13"
+  },
+  "generation_seconds": 0.2699959769961424,
+  "git_commit": "097b69aa97b99e01fa6409648d1f6b69551d22e5",
+  "hbf_selection": {
+    "max_bytes_per_storage": 0,
+    "parameter_regex": ""
+  },
+  "input_len": 32,
+  "load_seconds": 23.774775472993497,
+  "max_model_len": 64,
+  "max_num_batched_tokens": 64,
+  "mode": "baseline",
+  "model": "/home/victoryang00/Qwen3-30B-A3B",
+  "num_prompts": 1,
+  "output_len": 8,
+  "output_token_ids": [
+    [
+      271,
+      32313,
+      11,
+      1077,
+      594,
+      1430,
+      311,
+      7071
+    ]
+  ],
+  "output_tokens_per_second": 29.630071118112625,
+  "profile": null,
+  "prompt_token_ids": [
+    [
+      101089,
+      110350,
+      10712,
+      67973,
+      134127,
+      127483,
+      106251,
+      79611,
+      125037,
+      93960,
+      57363,
+      132400,
+      36609,
+      73982,
+      36733,
+      24959,
+      65768,
+      139708,
+      38625,
+      81403,
+      25990,
+      19431,
+      86659,
+      123869,
+      146851,
+      26498,
+      92844,
+      113915,
+      82989,
+      53702,
+      144940,
+      125145
+    ]
+  ],
+  "requests_per_second": 3.703758889764078,
+  "schema_version": 1,
+  "seed": 0,
+  "total_tokens_per_second": 148.15035559056312,
+  "triton_exact_bindings": 0,
+  "versions": {
+    "flashinfer-python": "0.6.1",
+    "torch": "2.9.1",
+    "triton": "3.5.1",
+    "vllm": "0.15.1"
+  }
+}

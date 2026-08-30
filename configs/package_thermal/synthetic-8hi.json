@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "name": "synthetic-8hi-plumbing",
+  "stage": "read_only",
+  "clock_mode": "model_time_replay",
+  "ambient_c": {
+    "value": 30.0,
+    "unit": "C",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "ambient boundary condition"}
+  },
+  "bin_width_ns": {
+    "value": 1000,
+    "unit": "ns",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "bin width"}
+  },
+  "gpu_power_semantics": {
+    "value": "compute_only",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "power allocation"}
+  },
+  "gpu_provider": {
+    "kind": "synthetic",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "GPU trace"},
+    "interpolation": "hold",
+    "samples": [
+      {"relative_time_ns": 0, "watts": 40.0},
+      {"relative_time_ns": 1000000, "watts": 60.0}
+    ]
+  },
+  "hbm_provider": {
+    "kind": "synthetic",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "HBM trace"},
+    "interpolation": "linear",
+    "samples": [
+      {"relative_time_ns": 0, "watts": 8.0},
+      {"relative_time_ns": 1000000, "watts": 12.0}
+    ]
+  },
+  "topology": {
+    "physical": {
+      "channels": 2,
+      "chips_per_channel": 1,
+      "dies_per_chip": 8,
+      "planes_per_die": 2
+    },
+    "stack_height": 8,
+    "node_names": [
+      "gpu", "hbm", "hbf.base",
+      "hbf.s0.l0", "hbf.s0.l1", "hbf.s0.l2", "hbf.s0.l3",
+      "hbf.s0.l4", "hbf.s0.l5", "hbf.s0.l6", "hbf.s0.l7",
+      "hbf.s1.l0", "hbf.s1.l1", "hbf.s1.l2", "hbf.s1.l3",
+      "hbf.s1.l4", "hbf.s1.l5", "hbf.s1.l6", "hbf.s1.l7"
+    ],
+    "die_mappings": [
+      {"channel": 0, "chip": 0, "die": 0, "package_stack": 1, "vertical_layer": 3, "thermal_node": "hbf.s1.l3"},
+      {"channel": 0, "chip": 0, "die": 1, "package_stack": 1, "vertical_layer": 4, "thermal_node": "hbf.s1.l4"},
+      {"channel": 0, "chip": 0, "die": 2, "package_stack": 1, "vertical_layer": 5, "thermal_node": "hbf.s1.l5"},
+      {"channel": 0, "chip": 0, "die": 3, "package_stack": 1, "vertical_layer": 6, "thermal_node": "hbf.s1.l6"},
+      {"channel": 0, "chip": 0, "die": 4, "package_stack": 1, "vertical_layer": 7, "thermal_node": "hbf.s1.l7"},
+      {"channel": 0, "chip": 0, "die": 5, "package_stack": 1, "vertical_layer": 0, "thermal_node": "hbf.s1.l0"},
+      {"channel": 0, "chip": 0, "die": 6, "package_stack": 1, "vertical_layer": 1, "thermal_node": "hbf.s1.l1"},
+      {"channel": 0, "chip": 0, "die": 7, "package_stack": 1, "vertical_layer": 2, "thermal_node": "hbf.s1.l2"},
+      {"channel": 1, "chip": 0, "die": 0, "package_stack": 0, "vertical_layer": 3, "thermal_node": "hbf.s0.l3"},
+      {"channel": 1, "chip": 0, "die": 1, "package_stack": 0, "vertical_layer": 4, "thermal_node": "hbf.s0.l4"},
+      {"channel": 1, "chip": 0, "die": 2, "package_stack": 0, "vertical_layer": 5, "thermal_node": "hbf.s0.l5"},
+      {"channel": 1, "chip": 0, "die": 3, "package_stack": 0, "vertical_layer": 6, "thermal_node": "hbf.s0.l6"},
+      {"channel": 1, "chip": 0, "die": 4, "package_stack": 0, "vertical_layer": 7, "thermal_node": "hbf.s0.l7"},
+      {"channel": 1, "chip": 0, "die": 5, "package_stack": 0, "vertical_layer": 0, "thermal_node": "hbf.s0.l0"},
+      {"channel": 1, "chip": 0, "die": 6, "package_stack": 0, "vertical_layer": 1, "thermal_node": "hbf.s0.l1"},
+      {"channel": 1, "chip": 0, "die": 7, "package_stack": 0, "vertical_layer": 2, "thermal_node": "hbf.s0.l2"}
+    ],
+    "provenance": {
+      "class": "C",
+      "source": "synthetic fixture informed by OCP HBF v0.7.0 organization",
+      "locator": "8Hi mapping",
+      "note": "channel-to-stack and die-to-layer permutation is explicit and synthetic"
+    }
+  },
+  "nand_energy": {
+    "read": {
+      "command_j": {"value": 0.000001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "read command"}},
+      "joules_per_byte": {"value": 1e-12, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "read bytes"}}
+    },
+    "program": {
+      "command_j": {"value": 0.000003, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "program command"}},
+      "joules_per_byte": {"value": 2e-12, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "program bytes"}}
+    },
+    "erase": {
+      "command_j": {"value": 0.00001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "erase command"}},
+      "joules_per_byte": {"value": 0.0, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "erase bytes"}}
+    }
+  },
+  "base_die": {
+    "idle_w": {"value": 0.5, "unit": "W", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base idle"}},
+    "command_j": {"value": 0.0000001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base command"}},
+    "joules_per_byte": {"value": 1e-13, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base bytes"}},
+    "thermal_node": "hbf.base"
+  },
+  "policy": {
+    "light_on_c": {"value": 80.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "light on"}},
+    "light_off_c": {"value": 75.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "light off"}},
+    "severe_on_c": {"value": 90.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "severe on"}},
+    "severe_off_c": {"value": 85.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "severe off"}},
+    "shutdown_on_c": {"value": 100.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "shutdown on"}},
+    "shutdown_off_c": {"value": 92.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "shutdown off"}},
+    "light_scale": {"value": 0.5, "unit": "ratio", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "service scaling"}},
+    "debounce_samples": 2,
+    "minimum_dwell_samples": 1,
+    "timing_provenance": {"class": "C", "source": "synthetic fixture", "locator": "policy timing"}
+  },
+  "evidence_label": "synthetic_fixture"
+}

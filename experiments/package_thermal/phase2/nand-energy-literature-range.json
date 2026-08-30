@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "evidence_class": "L",
+  "purpose": "Phase-II NAND/HBF energy-range evidence; never a product calibration",
+  "read_energy": {
+    "haven_rearchitected_hbf_model_pj_per_bit": {
+      "range": [
+        2.0,
+        10.5
+      ],
+      "range_kind": "approximate graph-read envelope",
+      "configuration_scope": "Figure 8(b): 8-Hi, 1/2/4 KB pages, 64/128/256/512/1024 blocks per subarray",
+      "method": "3D-FPIM plus NeuroSim, calibrated from industry-grade 3D NAND data",
+      "source": "HAVEN: High-Bandwidth Flash Augmented Vector ENgine for Large-Scale Approximate Nearest-Neighbor Search Acceleration",
+      "source_locator": "arXiv:2603.01175, Section 3.2 and Figure 8(b)",
+      "source_pdf_sha256": "a943692fcb8b17b95d1a230ff8ce1936863364642b3429d58078df1ce326c6dd",
+      "note": "Modeled design-space output read approximately from the published graph; not a measured HBF product range."
+    },
+    "contemporary_3d_nand_anchor_pj_per_bit": {
+      "value": 30.0,
+      "range_kind": "approximate calibration anchor reported by HAVEN",
+      "source_locator": "arXiv:2603.01175, Section 3.2; cited source [10] is Kudo et al., IEEE IMW 2025",
+      "note": "Secondary use as HAVEN's calibration anchor; not independently re-measured here."
+    },
+    "full_stack_mixed_dynamic_pj_per_bit": {
+      "range": [
+        32.5,
+        33.75
+      ],
+      "derived_from": "0.26-0.27 nJ/byte aggregate dynamic power/bandwidth points",
+      "source_locator": "arXiv:2608.11668, Figure 10(a)",
+      "source_pdf_sha256": "fdb3838704dec840343c1d18c0321ac1118edd04a73007acfba6cec6da61c59f",
+      "note": "Aggregate write-heavy stream intensity; not read-command energy and not comparable without traffic decomposition."
+    }
+  },
+  "program_energy": {
+    "joules_per_command_range": null,
+    "status": "not_identifiable_from_reviewed_public_sources"
+  },
+  "erase_energy": {
+    "joules_per_command_range": null,
+    "status": "not_identifiable_from_reviewed_public_sources"
+  },
+  "base_die_power": {
+    "watts_range": null,
+    "status": "not_identifiable_from_reviewed_public_sources"
+  },
+  "vendor_boundary": {
+    "source": "Sandisk HBF Fact Sheet, July 2025",
+    "public_values": "Gen2 and Gen3 target 0.8x and 0.64x Gen1 power",
+    "absolute_gen1_power_w": null,
+    "interpretation": "Relative roadmap factors cannot establish an absolute range."
+  },
+  "runtime_use": "none; Phase-II controlled profiles retain explicit Class-C command values"
+}

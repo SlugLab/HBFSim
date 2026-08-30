@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sluglab.github.io/HBFSim/hbf-profile.schema.json",
+  "title": "HBFSim device profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "capacity_bytes",
+    "page_bytes",
+    "read_latency_ns",
+    "program_latency_ns",
+    "channels",
+    "dies_per_channel",
+    "planes_per_die",
+    "pages_per_block",
+    "channel_width_bits",
+    "channel_transfer_rate_mtps",
+    "queue_depth",
+    "aggregate_bandwidth_bytes_per_s",
+    "hbm_cache_bytes",
+    "reference_sample_rate",
+    "reference_warmup_requests",
+    "time_scale",
+    "timing_tolerance_ns"
+  ],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "capacity_bytes": { "type": "integer", "minimum": 1 },
+    "page_bytes": { "type": "integer", "minimum": 512 },
+    "read_latency_ns": { "type": "integer", "minimum": 1 },
+    "program_latency_ns": { "type": "integer", "minimum": 1 },
+    "channels": { "type": "integer", "minimum": 1 },
+    "dies_per_channel": { "type": "integer", "minimum": 1 },
+    "planes_per_die": { "type": "integer", "minimum": 1 },
+    "pages_per_block": { "type": "integer", "minimum": 1 },
+    "channel_width_bits": { "type": "integer", "minimum": 1 },
+    "channel_transfer_rate_mtps": { "type": "integer", "minimum": 1 },
+    "queue_depth": { "type": "integer", "minimum": 1 },
+    "aggregate_bandwidth_bytes_per_s": { "type": "integer", "minimum": 1 },
+    "hbm_cache_bytes": { "type": "integer", "minimum": 0 },
+    "reference_sample_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "reference_warmup_requests": { "type": "integer", "minimum": 0 },
+    "time_scale": { "type": "integer", "minimum": 1 },
+    "timing_tolerance_ns": { "type": "integer", "minimum": 0 },
+    "nand_technology": { "type": "string", "enum": ["SLC", "MLC", "TLC", "QLC"] },
+    "plane_allocation_scheme": {
+      "type": "string",
+      "enum": [
+        "CWDP", "CWPD", "CDWP", "CDPW", "CPWD", "CPDW",
+        "WCDP", "WCPD", "WDCP", "WDPC", "WPCD", "WPDC",
+        "DCWP", "DCPW", "DWCP", "DWPC", "DPCW", "DPWC",
+        "PCWD", "PCDW", "PWCD", "PWDC", "PDCW", "PDWC"
+      ]
+    },
+    "page_read_latency_lsb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_csb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_msb_ns": { "type": "integer", "minimum": 1 },
+    "page_read_latency_tsb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_lsb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_csb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_msb_ns": { "type": "integer", "minimum": 1 },
+    "page_program_latency_tsb_ns": { "type": "integer", "minimum": 1 },
+    "empirical_vmem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind",
+        "source_sha256",
+        "source_capacity_bytes",
+        "quantile",
+        "sample_count",
+        "read_curve",
+        "program_p50_ns",
+        "program_p95_ns"
+      ],
+      "properties": {
+        "source_kind": { "type": "string", "minLength": 1 },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_capacity_bytes": { "type": "integer", "minimum": 1 },
+        "quantile": { "const": "p50" },
+        "sample_count": { "type": "integer", "minimum": 1 },
+        "read_curve": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pages", "cumulative_ns", "p95_ns"],
+            "properties": {
+              "pages": { "type": "integer", "minimum": 1, "maximum": 1023 },
+              "cumulative_ns": { "type": "integer", "minimum": 1 },
+              "p95_ns": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "program_p50_ns": { "type": "integer", "minimum": 1 },
+        "program_p95_ns": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

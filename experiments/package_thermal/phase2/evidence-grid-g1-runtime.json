@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "campaign": "phase2-g1-runtime-control-and-bandwidth",
+  "geometry": {
+    "value": "G1 one HBF stack, 30 C bottom sink, nonuniform layer geometry",
+    "evidence_class": "C",
+    "source": "accepted Phase-II 3D-ICE geometry campaign"
+  },
+  "thermal_model": {
+    "value": "grouped ERA, 224 states, 10 ms",
+    "evidence_class": "C",
+    "source": "accepted held-out 3D-ICE ROM validation"
+  },
+  "accelerator_power": {
+    "value": "30 W GPU compute plus 5 W explicit HBM.s0",
+    "evidence_class": "C",
+    "source": "controlled stationary-source sensitivity"
+  },
+  "hbf_energy": {
+    "value": "experiment profile records exact command energies",
+    "evidence_class": "C",
+    "source": "controlled sensitivity; not measured or production-calibrated"
+  },
+  "thermal_policy": {
+    "value": "TEST_ONLY_LOW_THRESHOLD",
+    "evidence_class": "C",
+    "source": "controlled causal validation; not a qualification limit"
+  },
+  "workload": {
+    "value": "MQSim physical media events from deterministic host requests",
+    "evidence_class": "C",
+    "source": "Phase-II experiment runner and per-run manifest"
+  },
+  "interpretation_limit": "Absolute sustainable bandwidth is conditional on the C-class NAND-energy and test-threshold sensitivity parameters."
+}

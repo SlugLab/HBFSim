@@ -1,0 +1,17 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry kernel(
+    .param .u64 kernel_ptr
+)
+{
+    .reg .pred %p1;
+    .reg .b32 %r<8>;
+    .reg .b64 %rd<8>;
+    ld.param.u64 %rd1, [kernel_ptr];
+    @%p1 ld.global.v2.u32 {%r4,%r5}, [%rd1+16];
+    ld.global.nc.L2::128B.u64 %rd2, [%rd1];
+    st.global.release.gpu.u32 [%rd1-4], %r2;
+    ret;
+}

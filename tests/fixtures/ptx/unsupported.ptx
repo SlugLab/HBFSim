@@ -1,0 +1,13 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry unsupported_kernel()
+{
+    atom.global.add.u32 %r1, [%rd2], 1;
+    ld.u32 %r1, [%rd2];
+    tex.1d.v4.f32.s32 {%f1,%f2,%f3,%f4}, [%tex, {%r1}];
+    suld.b.1d.b32.trap %r1, [%surf, {%r2}];
+    asm("mov.u32 %r1, %clock;");
+    ret;
+}

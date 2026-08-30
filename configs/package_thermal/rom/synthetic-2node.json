@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "payload": {
+    "model_id": "synthetic-two-node-plumbing",
+    "evidence_label": "synthetic_fixture",
+    "sample_period_ns": 1000,
+    "input_names": ["gpu", "hbf"],
+    "output_names": ["gpu_temp", "hbf_temp"],
+    "state_count": 2,
+    "a": [0.9, 0.0, 0.0, 0.8],
+    "b": [0.05, 0.01, 0.02, 0.04],
+    "bias": [2.5, 5.0],
+    "c": [1.0, 0.0, 0.0, 1.0],
+    "d": [0.0, 0.0, 0.0, 0.0],
+    "offset": [0.0, 0.0],
+    "solver_identity": "synthetic_fixture_not_3d_ice",
+    "geometry_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "training_split": "synthetic-training-fixture-v1",
+    "held_out_split": "synthetic-held-out-fixture-v1",
+    "held_out_max_error_c": 0.0,
+    "held_out_p95_error_c": 0.0
+  },
+  "payload_sha256": "c3e3ace53af706be0049ddc06f51ca9d9cf7caafe3b9ff8e7f326e06b59c276e"
+}

@@ -1,0 +1,15 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.func __hbfsim_resolve()
+{
+    ld.global.u32 %r1, [%rd1];
+    ret;
+}
+
+.func __bpftime_trampoline()
+{
+    st.global.u32 [%rd1], %r1;
+    ret;
+}

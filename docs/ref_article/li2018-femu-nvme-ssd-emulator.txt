@@ -1,0 +1,753 @@
+The CASE of FEMU: Cheap, Accurate, Scalable
+      and Extensible Flash Emulator
+  Huaicheng Li, Mingzhe Hao, and Michael Hao Tong, University of Chicago;
+Swaminatahan Sundararaman, Parallel Machines; Matias Bjørling, CNEX Labs;
+                  Haryadi S. Gunawi, University of Chicago
+           https://www.usenix.org/conference/fast18/presentation/li
+
+
+
+
+        This paper is included in the Proceedings of the
+   16th USENIX Conference on File and Storage Technologies.
+                February 12–15, 2018 • Oakland, CA, USA
+                           ISBN 978-1-931971-42-3
+
+
+
+
+                                        Open access to the Proceedings of
+                                         the 16th USENIX Conference on
+                                          File and Storage Technologies
+                                             is sponsored by USENIX.
+                  The CASE of FEMU:
+Cheap, Accurate, Scalable and Extensible Flash Emulator
+                          Huaicheng Li, Mingzhe Hao, Michael Hao Tong,
+                  Swaminatahan Sundararaman† , Matias Bjørling‡ , Haryadi S. Gunawi
+                                                       †                                            ‡
+                          University of Chicago            Parallel Machines                            CNEX Labs
+
+   A BSTRACT: FEMU is a software (QEMU-based)                                        195
+flash emulator for fostering future full-stack soft-                        60
+
+
+
+
+                                                              # of papers
+                                                                                            Top-8 in
+ware/hardware SSD research. FEMU is cheap (open-                            40               1 or R
+sourced), relatively accurate (0.5-38% variance as a                                       categories
+                                                                                                          First D
+                                                                            20
+drop-in replacement of OpenChannel SSD), scalable
+(can support 32 parallel channels/chips), and extensible                    0
+
+
+
+
+                                                                            1- -A
+
+                                                                            1- -A
+
+
+
+
+                                                                            R- -K
+                                                                            D- -K
+
+                                                                            D- -K
+                                                                            D- -K
+
+
+                                                                            R- -K
+
+                                                                            D- -A
+                                                                            R- -L
+
+
+                                                                            D- -L
+
+
+
+
+                                                                            D- -L
+
+                                                                            1- -L
+                                                                            1- -K
+                                                                            1- -K
+                                                                            R- -A
+                                                                            R- -L
+
+
+
+
+                                                                            1- -L
+
+
+
+
+                                                                            1- -A
+                                                                            D- -K
+
+
+
+                                                                            R- -K
+
+
+
+
+                                                                            R- A
+
+
+
+
+                                                                                 A
+                                                                            1- -L
+
+
+
+
+                                                                            1- -L
+                                                                            1- -L
+
+
+
+
+                                                                            1- -L
+
+
+
+
+                                                                               S-
+
+
+
+
+                                                                               E-
+                                                                               C
+
+                                                                               C
+
+
+
+                                                                               H
+                                                                               H
+                                                                               C
+                                                                               H
+                                                                               H
+                                                                               C
+
+
+
+                                                                               C
+
+                                                                               C
+                                                                               S
+
+
+
+
+                                                                               S
+
+                                                                               S
+
+                                                                               S
+(support internal-only and split-level SSD research).
+
+
+
+                                                                               H
+                                                                               C
+                                                                               H
+                                                                               C
+
+
+
+
+                                                                               C
+
+
+
+
+                                                                               H
+                                                                               S
+
+
+
+
+                                                                               S
+
+                                                                               E
+
+                                                                               E
+                                                                            1-
+1 Introduction                                                              Figure 1: Categorization of SSD research. The figure
+                                                                            is explained in Section §2.1. The first bar reaches 195 papers.
+Cheap and extensible research platforms are a key ingre-
+dient in fostering wide-spread SSD research. SSD simu-
+                                                                            and skipping QEMU AIO components, FEMU can scale
+lators such as DiskSim’s SSD model [9], FlashSim [13]
+                                                                            to 32 IO threads and still achieve a low latency (as low as
+and SSDSim [16], despite their popularity, only support
+internal-SSD research but not kernel-level extensions.                      52µs under a 2.3GHz CPU). As a result, FEMU can ac-
+                                                                            curately emulate 32 parallel channels/chips, without un-
+On the other hand, hardware research platforms such as
+                                                                            intended queueing delays.
+FPGA boards [28, 34, 46], OpenSSD [7], or OpenChan-
+nel SSD [11], support full-stack software/hardware re-                         Finally, FEMU is extensible. Being a QEMU-based
+search but their high costs (thousands of dollars per de-                   emulator, FEMU can support internal-SSD research
+vice) impair large-scale SSD research.                                      (only FEMU layer modification), kernel-only research
+   This leaves software-based emulator such as QEMU-                        such as software-defined flash (only Guest OS modi-
+based VSSIM [45], FlashEm [47], and LightNVM’s                              fication on top of unmodified FEMU), and split-level
+QEMU [6], as the cheap alternative platform. Unfortu-                       research (both Guest OS and FEMU modifications).
+nately, the state of existing emulators is bleak; they are                  FEMU also provides many new features not existent
+either outdated, non-scalable, or not open-sourced.                         in other emulators, such as OpenChannel and multi-
+   We argue that it is a critical time for storage re-                      device/RAID support, extensible interfaces via NVMe
+search community to have a new software-based em-                           commands, and page-level latency variability.
+ulator (more in §2). To this end, we present FEMU,
+a QEMU-based flash emulator, with the following four
+“CASE” benefits.
+                                                                            2 Extended Motivation
+   First, FEMU is cheap ($0) as it will be an open-                         2.1 T HE S TATE OF SSD R ESEARCH P LATFORMS :
+sourced software. FEMU has been successfully used in                        We reviewed 391 papers in more than 30 major systems
+several projects, some of which appeared in top-tier OS                     and storage conferences and journals published in the last
+and storage conferences [14, 43]. We hope FEMU will                         10 years, and categorized them as follows:
+be useful to broader communities.
+   Second, FEMU is (relatively) accurate. For exam-                              1. What was the scale of the research? [1]: single
+ple, FEMU can be used as a drop-in replacement for                                  SSD; [R]: RAID of SSDs (flash array); or [D]:
+OpenChannel SSD; thus, future research that extends                                 distributed/multi-node SSDs.
+LightNVM [11] can be performed on top of FEMU                                    2. What was the platform being used? [C]: commod-
+with relatively accurate results (e.g., 0.5-38% variance in                         ity SSDs; [E]: software SSD emulators (VSSIM
+our tests). With FEMU, prototyping SSD-related kernel                               [45] or FlashEm [47]); [H]: hardware platforms
+changes can be done without a real device.                                          (FPGA boards, OpenSSD [7], or OpenChannel SSD
+   Third, FEMU is scalable. As we optimized the QEMU                                [6]); or [S]: trace-based simulators (DiskSim+SSD
+stack with various techniques, such as exitless interrupt                           [9] or FlashSim [13] and SSDSim [16]).
+
+
+
+USENIX Association                                    16th USENIX Conference on File and Storage Technologies                           83
+  3. What layer was modified? [A]: application layer;           wherein some functionalities move up to the OS kernel
+     [K]: OS kernel; [L]: low-level SSD controller logic.       (K) and some other move down to the SSD firmware
+                                                                (L) [18, 31, 36]. So far, we found only 40 papers in
+   Note that some papers can fall into two sub-categories       split-level K+L category (i.e., modify both the kernel
+(e.g., modify both the kernel and the SSD logic). Fig-          and SSD logic layers), mostly done by companies with
+ure 1 shows the sorted order of the combined categories.        access to SSD controllers [19] or academic researchers
+For example, the most popular category is 1-S-L, where          with Linux+OpenSSD [21, 32] or with block-level em-
+195 papers target only single SSD (1), use simulator (S),       ulators (e.g., Linux+FlashEm) [29, 47]. OpenSSD with
+and modify the low-level SSD controller logic (L). How-         its single-threaded, single-CPU, whole-blocking GC ar-
+ever, simulators do not support running applications and        chitecture also has many known major limitations [43].
+operating systems.                                              FlashEm also has limitations as we elaborate more be-
+                                                                low. Note that the kernel-level LightNVM is not a suit-
+2.2 T HE L ACK OF L ARGE -S CALE SSD R ESEARCH :                able platform for split-level research (i.e., support K, but
+Our first motivation is the lack of papers in the distributed   not L). This is because its SSD layer (i.e., OpenChannel
+SSDs category (D-...), for example, for investigating the       SSD) is not modifiable; the white-box part of OpenChan-
+impact of SSD-related changes to distributed computing          nel SSD is the exposure of its internal channels and chips
+and graph frameworks. One plausible reason is the cost          to be managed by software (Linux LightNVM), but the
+of managing hardware (procurement, installation, main-          OpenChannel firmware logic itself is a black-box part.
+tenance, etc.). The top-8 categories in Figure 1, a total
+of 324 papers (83%), target single SSD (1-...) and flash        2.5 T HE S TATE OF E XISTING E MULATORS : We are
+array (R-...). The highest D category is D-C-A (as high-        only aware of three popular software-based emulators:
+lighted in the figure), where only 9 papers use commod-         FlashEm, LightNVM’s QEMU and VSSIM.
+ity SSDs (C) and modify the application layer (A). The             FlashEm [47] is an emulator built in the Linux block
+next D category is D-H-L, where hardware platforms (H)          level layer, hence less portable; it is rigidly tied to its
+are used for modifying the SSD controller logic (L). Un-        Linux version; to make changes, one must modify Linux
+fortunately, most of the 6 papers in this category are from     kernel. FlashEm is not open-sourced and its development
+large companies with large research budget (e.g., FPGA          stopped two years ago (confirmed by the creators).
+usage in Baidu [28] and Tencent [46]). Other hardware
+                                                                   LightNVM’s QEMU platform [6] is still in its early
+platforms such as OpenSSD [7] and OpenChannel SSD
+                                                                stage. Currently, it cannot emulate multiple channels (as
+[6] also cost thousands of dollars each, impairing multi-
+                                                                in OpenChannel SSD) and is only used for basic test-
+node non-simulation research, especially in academia.
+                                                                ing of 1 target (1 chip behind 1 channel). Worse, Light-
+2.3 T HE R ISE OF S OFTWARE -D EFINED F LASH : To-              NVM’s QEMU performance is not scalable to emulate
+day, research on host-managed (aka. “software-defined”          NAND latencies as it depends on vanilla QEMU NVMe
+or “user-programmable”) flash is growing [25, 28, 34, 35,       interface (as shown in the NVMe line in Figure 2a).
+41, 46]. However, such research is mostly done on top              VSSIM [45] is a QEMU/KVM-based platform that
+of expensive and hard-to-program FPGA platforms. Re-            emulates NAND flash latencies on a RAM disk, and has
+cently, a more affordable and simpler platform is avail-        been used in several papers. The major drawback of VS-
+able, OpenChannel SSD [6], managed by Linux-based               SIM is that it is built within QEMU’s IDE interface im-
+LightNVM [11]. Before its inception (2015), there were          plementation, which is not scalable. The upper-left red
+only 24 papers that performed kernel-only changes, since        line (IDE line) in Figure 2a shows the user-perceived IO
+then, 11 papers have been published, showing the suc-           read latency through VSSIM without any NAND-delay
+cess of OpenChannel SSD.                                        emulation added. More concurrent IO threads (x-axis)
+   However, there remains several issues. First, not all        easily multiply the average IO latency (y-axis). For ex-
+academic communities have budget to purchase such               ample from 1 to 4 IO threads, the average latency spikes
+devices. Even if they do, while prototyping the ker-            up from 152 to 583µs. The root cause is that IDE is not
+nel/application, it is preferable not to write too much to      supported with virtualization optimizations.
+and wear out the device. Thus, replacing OpenChannel               With this drawback, emulating internal SSD paral-
+SSD (during kernel prototyping) with a software-based           lelism is a challenge. VSSIM worked around the prob-
+emulator is desirable.                                          lem by only emulating NAND delays in another back-
+                                                                ground thread in QEMU, disconnected from the main IO
+2.4 T HE R ISE OF S PLIT-L EVEL A RCHITECTURE :                 path. Thus, for multi-threaded applications, to collect ac-
+While most existing research modify a single layer (ap-         curate results, users solely depend on VSSIM’s monitor-
+plication/kernel/SSD), some recent works show the ben-          ing tool [45, Figure 3], which monitors the IO latencies
+efits of “split-level” architecture [8, 19, 24, 38, 42],        emulated in the background thread. In other words, users
+
+
+
+84   16th USENIX Conference on File and Storage Technologies                                          USENIX Association
+cannot simply time the multi-threaded applications (due
+                                                                                      [a] Average Latency   [b] Emulating 50us
+to IDE poor scalability) at the user level.
+   Despite these limitations, we (and the community) are                        400
+                                                                                           IDE              +50us (Adv)
+
+
+
+
+                                                              IO Latency (us)
+greatly indebted to VSSIM authors as VSSIM provides a                           300      NVMe               +50us (Raw)
+base design for future QEMU-based SSD emulators. As                                       virtio
+                                                                                200          dp
+five years have passed, it is time to build a new emulator                               FEMU
+to keep up with the technology trends.                                          100
+                                                                                 50
+                                                                                  0
+3 FEMU                                                                                1 2 4 8 16 32 64 1     2    4   8 16 32 64
+We now present FEMU design and implementation.                                           # of threads            # of threads
+FEMU is implemented in QEMU v2.9 in 3929 LOC
+                                                              Figure 2: QEMU Scalability. The figure shows the scala-
+and acts as a virtual block device to the Guest OS.
+                                                              bility of QEMU’s IDE, NVMe, virtio, and dataplane (dp) inter-
+A typical software/hardware stack for SSD research is
+                                                              face implementations, as well as FEMU. The x-axis represents
+{Application+Host OS+SSD device}. With FEMU, the              the number of concurrent IO threads running at the user level.
+stack is {Application+Guest OS+FEMU}. The LOC                 Each thread performs random 4KB read IOs. The y-axis shows
+above excludes base OC extension structures from Light-       the user-perceived average IO latency. For Figure (a), the IDE
+NVM’s QEMU and FTL framework from VSSIM.                      and NVMe lines representing VSSIM and LightNVM’s QEMU
+   Due to space constraints, we omit the details of how       respectively are discussed in §2.5; virtio, dp, and FEMU lines
+FEMU works inside QEMU (e.g., FEMU’s FTL and GC               in §3.1. For Figure (b), the “+50µs (Raw)” line is discussed in
+management, IO queues), as they are similarly described       §3.2.1; the “+50µs (Adv)” line in “Result 3” part of §3.2.3.
+in VSSIM paper [45, Section 3]. We put them in FEMU
+release document [1]. In the rest of the paper, we focus      Guest OS’ NVMe driver “rings the doorbell [5]” to the
+on the main challenges of designing FEMU: achieving           device (QEMU in our case) that some IOs are in the
+scalability (§3.1) and accuracy (§3.2) and increasing us-     device queue. This “doorbell” is an MMIO operation
+ability and extensibility (§3.3).                             that will cause an expensive VM-exit (“world switch”
+   Note that all latencies reported here are user-perceived   [39]) from the Guest OS to QEMU. A similar operation
+(application-level) latencies on memory-backed virtual        must also be done upon IO completion. (2) QEMU uses
+storage and 24 dual-thread (2x) CPU cores running at          asynchronous IOs (AIO) to perform the actual read/write
+2.3GHz. According to our experiments, the average la-         (byte transfer) to the backing image file. This AIO com-
+tency is inversely proportional to CPU frequency, for ex-     ponent is needed to avoid QEMU being blocked by slow
+ample, QEMU NVMe latency under 1 IO thread is 35µs            IOs (e.g., on a disk image). However, the AIO overhead
+on a 2.3GHZ CPU and 23µs on a 4.0GHz CPU.                     becomes significant when the storage backend is a RAM-
+                                                              backed image.
+3.1 Scalability                                                  Our solutions: To address these problems, we lever-
+Scalability is an important property of a flash emula-        age the fact that FEMU purpose is for research prototyp-
+tor, especially with high internal parallelism of modern      ing, thus we perform the following modifications:
+SSDs. Unfortunately, stock QEMU exhibits a scalabil-             (1) We transform QEMU from an interrupt- to a
+ity limitation. For example, as shown in Figure 2a, with      polling-based design and disable the doorbell writes in
+QEMU NVMe (although it is more scalable than IDE),            the Guest OS (just 1 LOC commented out in the Linux
+more IO threads still increases the average IO latency        NVMe driver). We create a dedicated thread in QEMU to
+(e.g., with 8 IO threads, the average IO latency already      continuously poll the status of the device queue (a shared
+reaches 106µs). This is highly undesirable because typi-      memory mapped between the Guest OS and QEMU).
+cal read latency of modern SSDs can be below 100µs.           This way, the Guest OS still “passes” control to QEMU
+   More scalable alternatives to NVMe are virtio and dat-     but without the expensive VM exits. We emphasize that
+aplane (dp) interfaces [3, 30] (virtio/dp vs. NVMe lines      FEMU can still work without the changes in the Guest
+in Figure 2a). However, these interfaces are not as exten-    OS as we report later. This optimization can be treated
+sible as NVMe (which is more popular). Nevertheless,          as an optional feature, but the 1 LOC modification is ex-
+virtio and dp are also not scalable enough to emulate low     tremely simple to make in many different kernels.
+flash latencies. For example, at 32 IO threads, their IO         (2) We do not use virtual image file (in order to skip
+latencies already reach 185µs and 126µs, respectively.        the AIO subcomponent). Rather, we create our own
+   Problems: Collectively, all of the scalability bottle-     RAM-backed storage in QEMU’s heap space (with con-
+necks above are due to two reasons: (1) QEMU uses a           figurable size malloc()). We then modify QEMU’s
+traditional trap-and-emulate method to emulate IOs. The       DMA emulation logic to transfer data from/to our heap-
+
+
+
+USENIX Association                                    16th USENIX Conference on File and Storage Technologies                    85
+                                                             (a) Single-register model:
+backed storage, transparent to the Guest OS (i.e., the
+                                                                        P1            P1                 P2             P2
+Guest OS is not aware of this change).                        NAND           D-Reg         RAM   NAND           D-Reg         RAM
+
+   Results: The bold FEMU line in Figure 2a shows the        (b) Double-register model:                 time
+
+scalability achieved. In between 1-32 IO threads, FEMU                 P1 D-Reg P1
+                                                                                                                        More parallelism
+                                                              NAND           C-Reg
+                                                                                           RAM
+                                                                                                                        (Read P2
+can keep IO latency stable in less than 52µs, and even                                     P2 D-Reg P2                  finishes faster)
+                                                                                      NAND                     RAM
+below 90µs at 64 IO threads. If the single-line Guest-                                         C-Reg
+
+OS optimization is not applied (the removal of VM-exit),
+                                                            Figure 3: Single- vs. double-register model. (a) In
+the average latency is 189µs and 264µs for 32 and 64
+                                                            a single-register model, a plane only has one data register (D-
+threads, respectively (not shown in the graph). Thus, we
+                                                            Reg). Read of page P2 cannot start until P1 finishes using the
+recommend applying the single-line change in the Guest      register (i.e., the transfer to the controller’s RAM completes).
+OS to remove expensive VM exits.                            (b) In a double-register model, after P1 is read to the data reg-
+   The remaining scalability bottleneck now only comes      ister, it is copied quickly to the cache register (D-Reg to C-Reg).
+from QEMU’s single-thread “event loop” [4, 15], which       As the data register is free, read of P2 can begin (in parallel
+performs the main IO routine such as dequeueing the         with P1’s transfer to the RAM), hence finishes faster.
+device queue, triggering DMA emulations, and sending
+end-IO completions to the Guest OS. Recent works ad-        (Tf reeOf Channel1 =Tnow +Ttransf er , where Ttransf er
+dressed these limitations (with major changes) [10, 23],    is a configurable page transfer time over a channel)
+but have not been streamlined into QEMU’s main dis-         and the plane’s next free time (Tf reeOf P lane2 +=Twrite,
+tribution. We will explore the possibility of integrating   where Twrite is a configurable write/programming time
+other solutions in future development of FEMU.              of a NAND page). Thus, the end-io time of this write
+                                                            operation will be Tendio =Tf reeOf P lane2 .
+3.2 Accuracy                                                   Now, let us say a page read to the same plane
+We now discuss the accuracy challenges. We first de-        arrives while the write is ongoing. Here, we will
+scribe our delay mechanism (§3.2.1), followed by our        advance Tf reeOf P lane2 by Tread , where Tread is
+basic and advanced delay models (§3.2.2-3.2.3).             a configurable read time of a NAND page, and
+                                                            Tf reeOf Channel1 by Ttransf er . This read’s end-io time
+3.2.1 Delay Emulation                                       will be Tendio =Tf reeOf Channel1 (as this is a read oper-
+When an IO arrives, FEMU will issue the DMA                 ation, not a write IO).
+read/write command, then label the IO with an emulated         In summary, this basic queueing model represents a
+completion time (Tendio ) and add the IO to our “end-       single-register and uniform page latency model. That is,
+io queue,” sorted based on IO completion time. FEMU         every plane only has a single page register, hence can-
+dedicates an “end-io thread” that continuously takes an     not serve multiple IOs in parallel (i.e., a plane’s Tf ree
+IO from the head of the queue and sends an end-io inter-    represents IO serialization in that plane) and the NAND
+rupt to the Guest OS, once the IO’s emulated completion     page read, write, and transfer times (Tread , Twrite and
+time has passed current time (Tendio >Tnow ).               Ttransf er ) are all single values. We also note that GC
+   The “+50us (Raw)” line in Figure 2b shows a simple       logic can be easily added to this basic model; a GC is es-
+(and stable) result where we add a delay of 50µs to every   sentially a series of reads/writes (and erases, Terase ) that
+IO (Tendio =Tentry +50µs). Note that the end-to-end IO      will also advance plane’s and channel’s Tf ree .
+time is more than 50µs because of the Guest OS over-
+                                                            3.2.3 Advanced “OC” Delay Model
+head (roughly 20µs). Important to say that FEMU also
+does not introduce severe latency tail. In the experiment   While the model above is sufficient for basic comparative
+above, 99% of all the IOs are stable at 70µs. Only 0.01%    research (e.g., comparing different FTL/GC schemes,
+(99.99th percentile) of the IOs exhibit latency tail of     some researchers might want to emulate the detailed in-
+more than 105µs, which already exists in stock QEMU.        tricacies of modern hardware. Below, we show how we
+For example, in VSSIM, the 99th -percentile latency is      extend our model and achieve a more accurate delay em-
+already over 150µs.                                         ulation of OpenChannel SSD (“OC” for short).
+                                                               The OC’s NAND hardware has the following intrica-
+3.2.2 Basic Delay Model                                     cies. First, OC uses double-register planes; every plane
+The challenge now is to compute the end-io time (Tendio )   is built with two registers (data+cache registers), hence
+for every IO accurately. We begin with a basic de-          a NAND page read/write in a plane can overlap with a
+lay model by marking every plane and channel with           data transfer via the channel to the plane (i.e., more paral-
+their next free time (Tf ree ). For example, if a page      lelism). Figure 3 contrasts the single- vs. double-register
+write arrives to currently-free channel #1 and plane        models where the completion time of the second IO to
+#2, then we will advance the channel’s next free time       page P2 is faster in the double-register model.
+
+
+
+86   16th USENIX Conference on File and Storage Technologies                                             USENIX Association
+                                  [a] OC                             [b] FEMU                                           [a] Filebench               [b] Varmail
+                                                                                                     80
+                                                                                                                D-Reg         S-Reg                D-Reg
+                                                                                                     60
+
+
+
+
+                                                                                         Error (%)
+               1.6
+Latency (ms)
+
+
+
+
+               1.2                                                                                   40
+               0.8                                                                                   20
+               0.4                               1                                   1                0
+                 01                          2                                   2                         File Network OLTP Varmail Video Web
+
+
+
+
+                                                                                                                                                   16
+                                                                                                                                                   16 16
+                                                                                                                                                   1T 1P
+                                                                                                                                                   1T 6P
+                      2                    4 Y       1   2                     4 Y
+
+
+
+
+                                                                                                                                                     T
+                                                                                                                                                     T P
+                                                                                                                                                      1
+                                                                                                                                                      1P
+                              4                                  4                                        Server FS                 Server Proxy
+                          X        8   168                   X         8   168
+
+                                                                                           Figure 5: Filebench on OpenChannel SSD (OC)
+                                                                                           vs. FEMU. The figures are described in the “Result 2”
+Figure 4: OpenChannel SSD (OC) vs. FEMU. X: # of                                           segment of Section 3.2.3. The y-axis shows the latency dif-
+channels, Y: # of planes per channel. The figures are described                            ference (error) of the benchmark results on OC vs. FEMU
+in the “Result 1” segment of Section 3.2.3.                                                (Error=(Latf emu −Latoc )/Latoc ). D-Reg and S-Reg repre-
+                                                                                           sent the advanced and basic model respectively. The two bars
+   Second, OC uses a non-uniform page latency model;                                       with bold edge in Figures (a) and (b) are the same experiment
+that is, pages that are mapped to upper bits of MLC cells                                  and configuration (varmail with 16 threads on 16 planes).
+(“upper” pages) incur higher latencies than those mapped
+to lower bits (“Lower” pages); for example 48/64µs for                                     only 0.5-38%, which are 1.5-40× more accurate across
+lower/upper-page read and 900/2400µs for lower/upper-                                      the six benchmarks.
+page write. Making it more complex, the 512 pages in                                          We believe that these errors are reasonable as we deal
+each NAND block are not mapped in a uniformly inter-                                       with delay emulation of tens of µs granularity. We leave
+leaving manner as in “LuLuLuLu...”, but rather in a spe-                                   further optimization for future work; we might have
+cific way, “LLLLLLuLLuLLuu...”, where pages #0-6 and                                       missed other OC intricacies that should be incorporated
+#8-9 are mapped to Lower pages, pages #7 and #10 to                                        into our advanced model (as explained at the end of §2.4,
+upper pages, and the rest (“...”) have a repeating pat-                                    OC only exposes channels and chips, but other details
+tern of “LLuu”.                                                                            are not exposed by the vendor). Nevertheless, we inves-
+   Results: By incorporating this detailed model, FEMU                                     tigate further the residual errors, as shown in Figure 5b.
+can act as an accurate drop-in replacement of OC, which                                    Here, we use the varmail personality but we vary the
+we demonstrate with the following results.                                                 #IO threads [T] and #planes [P]. For example, in the 16
+   Result 1: Figure 4 compares the IO latencies on OC                                      threads on 16 planes configuration (x=“16T16P” in Fig-
+vs. FEMU. The workload is 16 IO threads performing                                         ure 5b, which is the same configuration used in experi-
+random reads uniformly spread throughout the storage                                       ments in Figure 5a), the error is 38%. However, the error
+space. We map the storage space to different configu-                                      decreases in less complex configurations (e.g., 0.7% er-
+rations. For example, x=1 and y=1 implies that OC                                          ror with single thread on single plane). Thus, higher er-
+and FEMU are configured with only 1 channel and 1                                          rors come from more complex configurations (e.g., more
+plane/channel, thus as a result, the average latency is                                    IO threads and more planes), which we explain next.
+high (z>1550µs) as all the 16 concurrent reads are con-                                       Result 3: We find that using an advanced model re-
+tending for the same plane and channel. The result for                                     quires more CPU computation, and this compute over-
+x=16 and y=1 implies that we use 16 channels with 1                                        head will backlog with higher thread count. To show
+plane/channel (a total of 16 planes). Here, the concur-                                    this, Figure 2b compares the simple +50µs delay emu-
+rent reads are absorbed in parallel by all the planes and                                  lation in our raw implementation (§3.2.1) vs. advanced
+channels, hence a faster average read latency (z<130µs).                                   model. Here, both cases simply add +50µs, but the ad-
+Overall, Figures 4a and 4b exhibit a highly similar pat-                                   vanced model must traverse many if-else statements (to
+tern, showing the success of our queuing delay emula-                                      check register, plane, and channel next free time), hence
+tion. The latency difference (error) is only between 0.8-                                  the compute overhead. Further scalability optimizations,
+11.6%; Error=(Latf emu −Latoc)/Latoc .                                                     as discussed at the end of §3.1 can help.
+   Result 2: Figure 5a shows the results from running
+several macrobenchmarks with six filebench personali-
+                                                                                           3.3 Usability and Extensibility
+ties, with 16 IO threads of concurrent reads/writes on 16
+planes across 4 channels. The figure only shows the la-                                    Being a software-based emulation platform, FEMU can
+tency difference (Error) which contrasts the accuracy                                      be extended in many different ways. We now describe
+of our basic and advanced delay models. With the basic                                     existing features/usabilities of FEMU, briefly showcase
+model, the resulting latencies are highly inaccurate (12-                                  successful extensions used in our recent work [14, 43] as
+57%), but with the advanced model, the error drops to                                      well as possible future work that FEMU features enable.
+
+
+
+USENIX Association                                                              16th USENIX Conference on File and Storage Technologies                       87
+                                                                                                       can add a new “pageMove fromAddr toAddr” NVMe com-
+
+
+
+
+                                                  Job Duration (x100 s)
+  Avg. Latency (ms)           [a] Varmail                                        [b] WordCount
+                      4                                                   10                           mand from the OS to FEMU/OC such that the data move-
+                      3                                                    8                           ment does not cross the PCIe interface. As mentioned
+                                                                           6
+                      2
+                                                                           4                           earlier, split-level architecture is trending [12, 20, 29, 40,
+                      1                                                    2                           44] and our NVMe-powered FEMU can be extended to
+                      0                                                    0
+                                      l      er                                            l      er   support more commands such as transactions, deduplica-
+                               e   nne troll                                        e   nne troll
+                           Plan Cha Con                                         Plan Cha Con
+                                                                                                       tion, and multi-stream.
+                          GC Blocking Levels                                   GC Blocking Levels
+                                                                                                       • Page-level latency variability: As discussed before
+Figure 6: Use examples.         Figure 6a is described in the                                          (§3.2), FEMU supports page-level latency variability.
+“FTL and GC schemes” segment of Section 3.3. Figure 6b is                                              Among SSD engineers, it is known that “not all chips are
+discussed in the “Distributed SSDs” segment of Section 3.3.                                            equal.” High quality chips are mixed with lesser quality
+                                                                                                       chips as long as the overall quality passes the standard.
+• FTL and GC schemes: In default mode, our FTL em-                                                     Bad chips can induce more error rates that require longer,
+ploys a dynamic mapping and a channel-blocking GC as                                                   repeated reads with different voltages. FEMU can also
+used in other simulators [9, 16]. One of our projects uses                                             be extended to emulate such delays.
+FEMU to compare different GC schemes: controller,
+                                                                                                       • Distributed SSDs: Multiple instances of FEMU can
+channel, and plane blocking [43]. In controller-blocking
+                                                                                                       be easily deployed across multiple machines (as simple
+GC, a GC operation “locks down” the controller, pre-
+                                                                                                       as running Linux hypervisor KVMs), which promotes
+venting any foreground IOs to be served (as in OpenSSD
+                                                                                                       more large-scale SSD research. For example, we are
+[7]). In channel-blocking GC, only channels involved in
+                                                                                                       also able to evaluate the performance of Hadoop’s word-
+GC page movement are blocked (as in SSDSim [16]). In
+                                                                                                       count workload on a cluster of machines running FEMU,
+plane-blocking GC, the most efficient one, page move-
+                                                                                                       but with different GC schemes as shown in Figure 6b.
+ment only flows within a plane without using any chan-
+                                                                                                       Since HDFS uses large IOs, which will eventually be
+nel (i.e., “copyback” [2]). Sample results are shown in
+                                                                                                       striped across many channels/planes, there is a smaller
+Figure 6a. Beyond our work, recent works also show the
+                                                                                                       performance gap between channel and plane blocking.
+benefits of SSD partitioning for performance isolation
+                                                                                                       We hope FEMU can spur more work that modifies the
+[11, 17, 22, 27, 37], which are done on either a simu-
+                                                                                                       SSD layer to speed up distributed computing frameworks
+lator or a hardware platform. More partitioning schemes
+                                                                                                       (e.g., distributed graph processing frameworks).
+can also be explored with FEMU.
+                                                                                                       • Page-level fault injection: Beyond performance-
+• White-box vs. black-box mode: FEMU can be used
+                                                                                                       related research, flash reliability research [26, 33] can
+as (1) a white-box device such as OpenChannel SSD
+                                                                                                       leverage FEMU as well (e.g., by injecting page-level
+where the device exposes physical page addresses and
+                                                                                                       corruptions and faults and observing how the high-level
+the FTL is managed by the OS such as in Linux Light-
+                                                                                                       software stack reacts).
+NVM or (2) a black-box device such as commodity SSDs
+where the FTL resides inside FEMU and only logical ad-                                                 • Limitations: FEMU is DRAM-backed, hence can-
+dresses are exposed to the OS.                                                                         not emulate large-capacity SSDs. Furthermore, for crash
+                                                                                                       consistency research, FEMU users must manually emu-
+• Multi-device support for flash-array research:
+                                                                                                       late “soft” crashes as hard reboots will wipe out the data
+FEMU is configurable to appear as multiple devices to
+                                                                                                       in the DRAM. Also, as mentioned before (§3.2), there is
+the Guest OS. For example, if FEMU exposes 4 SSDs,
+                                                                                                       room for improving accuracy.
+inside FEMU there will be 4 separate NVMe instances
+and FTL structures (with no overlapping channels) man-
+aged in a single QEMU instance. Previous emulators
+(VSSIM and LightNVM’s QEMU) do not support this.
+                                                                                                       4 Conclusion & Acknowledgments
+• Extensible OS-SSD NVMe commands: As FEMU                                                             As modern SSD internals are becoming more complex,
+supports NVMe, new OS-to-SSD commands can be                                                           their implications to the entire storage stack should be in-
+added (e.g., for host-aware SSD management or split-                                                   vestigated. In this context, we believe FEMU is a fitting
+level architecture [31]). For example, currently in Light-                                             research platform. We hope that our cheap and extensible
+NVM, a GC operation reads valid pages from OC to                                                       FEMU can speed up future SSD research.
+the host DRAM and then writes them back to OC.                                                            We thank Sam H. Noh, our shepherd, and the anony-
+This wastes host-SSD PCIe bandwidth; LightNVM fore-                                                    mous reviewers for their tremendous feedback. This ma-
+ground throughput drops by 50% under a GC. Our con-                                                    terial was supported by funding from NSF (grant Nos.
+versation with LightNVM developers suggests that one                                                   CNS-1526304 and CNS-1405959).
+
+
+
+88                    16th USENIX Conference on File and Storage Technologies                                                                 USENIX Association
+References                                                      [16] Yang Hu, Hong Jiang, Dan Feng, Lei Tian, Hao Luo, and
+                                                                     Shuping Zhang. Performance Impact and Interplay of
+ [1] https://github.com/ucare-uchicago/femu.
+                                                                     SSD Parallelism through Advanced Commands,
+ [2] Using COPYBACK Operations to Maintain Data                      Allocation Strategy and Data Granularity. In
+     Integrity in NAND Flash Devices. https://www.                   Proceedings of the 25th International Conference on
+     micron.com/~/media/documents/products/                          Supercomputing (ICS), 2011.
+     technical-note/nand-flash/tn2941_idm_
+                                                                [17] Jian Huang, Anirudh Badam, Laura Caulfield, Suman
+     copyback.pdf, 2008.
+                                                                     Nath, Sudipta Sengupta, Bikash Sharma, and
+ [3] Towards Multi-threaded Device Emulation in QEMU.                Moinuddin K. Qureshi. FlashBlox: Achieving Both
+     KVM Forum, 2014.                                                Performance Isolation and Uniform Lifetime for
+ [4] Improving the QEMU Event Loop. KVM Forum, 2015.                 Virtualized SSDs. In Proceedings of the 15th USENIX
+                                                                     Symposium on File and Storage Technologies (FAST),
+ [5] NVMe Specification 1.3. http://www.nvmexpress.
+                                                                     2017.
+     org, 2017.
+                                                                [18] Xavier Jimenez and David Novo. Wear Unleveling:
+ [6] Open-Channel Solid State Drives. http://lightnvm.
+                                                                     Improving NAND Flash Lifetime by Balancing Page
+     io, 2017.
+                                                                     Endurance. In Proceedings of the 12th USENIX
+ [7] The OpenSSD Project. http://openssd.io, 2017.                   Symposium on File and Storage Technologies (FAST),
+ [8] Violin Memory. All Flash Array Architecture, 2017.              2014.
+ [9] Nitin Agrawal, Vijayan Prabhakaran, Ted Wobber,            [19] William K. Josephson, Lars A. Bongo, David Flynn,
+     John D. Davis, Mark Manasse, and Rina Panigrahy.                Fusion-io, and Kai Li. DFS: A File System for
+     Design Tradeoffs for SSD Performance. In Proceedings            Virtualized Flash Storage. In Proceedings of the 8th
+     of the USENIX Annual Technical Conference (ATC),                USENIX Symposium on File and Storage Technologies
+     2008.                                                           (FAST), 2010.
+[10] Muli Ben-Yehuda, Michael Factor, Eran Rom, Avishay         [20] Jeong-Uk Kang, Jeeseok Hyun, Hyunjoo Maeng, and
+     Traeger, Eran Borovik, and Ben-Ami Yassour. Adding              Sangyeun Cho. The Multi-streamed Solid-State Drive.
+     Advanced Storage Controller Functionality via                   In the 6th Workshop on Hot Topics in Storage and File
+     Low-Overhead Virtualization. In Proceedings of the 10th         Systems (HotStorage), 2014.
+     USENIX Symposium on File and Storage Technologies          [21] Woon-Hak Kang, Sang-Won Lee, Bongki Moon,
+     (FAST), 2012.                                                   Gi-Hwan Oh, and Changwoo Min. X-FTL:
+[11] Matias Bjørling, Javier González, and Philippe Bonnet.         Transactional FTL for SQLite Databases. In Proceedings
+     LightNVM: The Linux Open-Channel SSD Subsystem.                 of the 2013 ACM SIGMOD International Conference on
+     In Proceedings of the 15th USENIX Symposium on File             Management of Data (SIGMOD), 2013.
+     and Storage Technologies (FAST), 2017.                     [22] Jaeho Kim, Donghee Lee, and Sam H. Noh. Towards
+[12] Tzi-cker Chiueh, Weafon Tsao, Hou-Chiang Sun,                   SLO Complying SSDs Through OPS Isolation. In
+     Ting-Fang Chien, An-Nan Chang, and Cheng-Ding                   Proceedings of the 13th USENIX Symposium on File and
+     Chen. Software Orchestrated Flash Array. In The 7th             Storage Technologies (FAST), 2015.
+     Annual International Systems and Storage Conference        [23] Tae Yong Kim, Dong Hyun Kang, Dongwoo Lee, and
+     (SYSTOR), 2014.                                                 Young Ik Eom. Improving Performance by Bridging the
+[13] Aayush Gupta, Youngjae Kim, and Bhuvan Urgaonkar.               Semantic Gap between Multi-queue SSD and I/O
+     DFTL: A Flash Translation Layer Employing                       Virtualization Framework. In Proceedings of the 31st
+     Demand-based Selective Caching of Page-level Address            IEEE Symposium on Massive Storage Systems and
+     Mappings. In Proceedings of the 14th International              Technologies (MSST), 2015.
+     Conference on Architectural Support for Programming        [24] Ana Klimovic, Heiner Litz, and Christos Kozyrakis.
+     Languages and Operating Systems (ASPLOS), 2009.                 ReFlex: Remote Flash ≈ Local Flash. In Proceedings of
+[14] Mingzhe Hao, Huaicheng Li, Michael Hao Tong,                    the 22nd International Conference on Architectural
+     Chrisma Pakha, Riza O. Suminto, Cesar A. Stuardo,               Support for Programming Languages and Operating
+     Andrew A. Chien, and Haryadi S. Gunawi. MittOS:                 Systems (ASPLOS), 2017.
+     Supporting Millisecond Tail Tolerance with Fast            [25] Sungjin Lee, Ming Liu, Sang Woo Jun, Shuotao Xu,
+     Rejecting SLO-Aware OS Interface. In Proceedings of             Jihong Kim, and Arvind. Application-Managed Flash.
+     the 26th ACM Symposium on Operating Systems                     In Proceedings of the 14th USENIX Symposium on File
+     Principles (SOSP), 2017.                                        and Storage Technologies (FAST), 2016.
+[15] Nadav Har’El, Nadav, Gordon, Abel, Landau, Alex,           [26] Justin Meza, Qiang Wu, Sanjeev Kumar, and Onur
+     Ben-Yehuda, Muli, Traeger, Avishay, Ladelsky, and               Mutlu. A Large-Scale Study of Flash Memory Failures
+     Razya. Efficient and Scalable Paravirtual I/O System. In        in the Field. In Proceedings of the 2015 ACM
+     Proceedings of the 2013 USENIX Annual Technical                 International Conference on Measurement and Modeling
+     Conference (ATC), 2013.                                         of Computer Systems (SIGMETRICS), 2015.
+
+
+
+
+USENIX Association                                       16th USENIX Conference on File and Storage Technologies          89
+[27] Mihir Nanavati, Jake Wires, and Andrew Warfield.          [38] Sriram Subramanian, Swaminathan Sundararaman,
+     Decibel: Isolation and Sharing in Disaggregated                Nisha Talagala, Andrea C. Arpaci-Dusseau, and
+     Rack-Scale Storage. In Proceedings of the 13th                 Remzi H. Arpaci-Dusseau. Snapshots in a Flash with
+     Symposium on Networked Systems Design and                      ioSnap. In Proceedings of the 2014 EuroSys Conference
+     Implementation (NSDI), 2017.                                   (EuroSys), 2014.
+[28] Jian Ouyang, Shiding Lin, Song Jiang, Zhenyu Hou,         [39] Jeremy Sugerman, Ganesh Venkitachalam, and
+     Yong Wang, and Yuanzheng Wang. SDF:                            Beng-Hong Lim. Virtualizing I/O Devices on VMware
+     Software-Defined Flash for Web-Scale Internet Storage          Workstation’s Hosted Virtual Machine Monitor. In
+     System. In Proceedings of the 18th International               Proceedings of the USENIX Annual Technical
+     Conference on Architectural Support for Programming            Conference (USENIX), 2001.
+     Languages and Operating Systems (ASPLOS), 2014.           [40] Animesh Trivedi, Nikolas loannou, Bernard Metzler,
+                                                                    Patrick Stuedi, Jonas Pfefferle, Ioannis Koltsidas,
+[29] Vijayan Prabhakaran, Thomas L. Rodeheffer, and
+                                                                    Kornilios Kourtis, and Thomas R. Gross. FlashNet:
+     Lidong Zhou. Transactional Flash. In Proceedings of the
+                                                                    Flash/Network Stack Co-design. In The 10th Annual
+     8th Symposium on Operating Systems Design and
+                                                                    International Systems and Storage Conference
+     Implementation (OSDI), 2008.
+                                                                    (SYSTOR), 2017.
+[30] Rusty Russell. virtio: Towards a De-Facto Standard for    [41] Peng Wang, Guangyu Sun, Song Jiang, Jian Ouyang,
+     Virtual I/O Devices. In ACM SIGOPS Operating                   Shiding Lin, Chen Zhang, and Jason Cong. An Efficient
+     Systems Review (OSR), 2008.                                    Design and Implementation of LSM-Tree based
+[31] Mohit Saxena, Michael M. Swift, and Yiying Zhang.              Key-Value Store on Open-Channel SSD. In Proceedings
+     FlashTier: a Lightweight, Consistent and Durable               of the 2014 EuroSys Conference (EuroSys), 2014.
+     Storage Cache. In Proceedings of the 2012 EuroSys         [42] Zev Weiss, Sriram Subramanian, Swaminathan
+     Conference (EuroSys), 2012.                                    Sundararaman, Nisha Talagala, Andrea C.
+[32] Mohit Saxena, Yiying Zhang, Michael M. Swift, Andrea           Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.
+     C. Arpaci Dusseau, and Remzi H. Arpaci Dusseau.                ANViL: Advanced Virtualization for Modern
+     Getting Real: Lessons in Transitioning Research                Non-Volatile Memory Devices. In Proceedings of the
+     Simulations into Hardware Systems. In Proceedings of           13th USENIX Symposium on File and Storage
+     the 11th USENIX Symposium on File and Storage                  Technologies (FAST), 2015.
+     Technologies (FAST), 2013.                                [43] Shiqin Yan, Huaicheng Li, Mingzhe Hao, Michael Hao
+                                                                    Tong, Swaminathan Sundararaman, Andrew A. Chien,
+[33] Bianca Schroeder, Raghav Lagisetty, and Arif Merchant.
+                                                                    and Haryadi S. Gunawi. Tiny-Tail Flash: Near-Perfect
+     Flash Reliability in Production: The Expected and the
+                                                                    Elimination of Garbage Collection Tail Latencies in
+     Unexpected. In Proceedings of the 14th USENIX
+                                                                    NAND SSDs. In Proceedings of the 15th USENIX
+     Symposium on File and Storage Technologies (FAST),
+                                                                    Symposium on File and Storage Technologies (FAST),
+     2016.
+                                                                    2017.
+[34] Sudharsan Seshadri, Mark Gahagan, Sundaram                [44] Jingpei Yang, Rajinikanth Pandurangan, Changho Choi,
+     Bhaskaran, Trevor Bunker, Arup De, Yanqin Jin, Yang            and Vijay Balakrishnan. AutoStream: Automatic Stream
+     Liu, and Steven Swanson. Willow: A                             Management for Multi-streamed SSDs. In The 10th
+     User-Programmable SSD. In Proceedings of the 11th              Annual International Systems and Storage Conference
+     Symposium on Operating Systems Design and                      (SYSTOR), 2017.
+     Implementation (OSDI), 2014.
+                                                               [45] Jinsoo Yoo, Youjip Won, Joongwoo Hwang, Sooyong
+[35] Zhaoyan Shen, Feng Chen, Yichen Jia, and Zili Shao.            Kang, Jongmoo Choi, Sungroh Yoon, and Jaehyuk Cha.
+     DIDACache: A Deep Integration of Device and                    VSSIM: Virtual machine based SSD simulator. In
+     Application for Flash Based Key-Value Caching. In              Proceedings of the 29th IEEE Symposium on Massive
+     Proceedings of the 15th USENIX Symposium on File and           Storage Systems and Technologies (MSST), 2013.
+     Storage Technologies (FAST), 2017.                        [46] Jianquan Zhang, Dan Feng, Jianlin Gao, Wei Tong,
+[36] Liang Shi, Kaijie Wu, Mengying Zhao, Chun Jason Xue,           Jingning Liu, Yu Hua, Yang Gao, Caihua Fang, Wen Xia,
+     Duo Liu, and Edwin H.-M. Sha. Retention Trimming for           Feiling Fu, and Yaqing Li. Application-Aware and
+     Lifetime Improvement of Flash Memory Storage                   Software-Defined SSD Scheme for Tencent Large-Scale
+     Systems. IEEE Transactions on Computer-Aided Design            Storage System. In Proceedings of 22nd IEEE
+     of Integrated Circuits and Systems (TCAD), 35(1),              International Conference on Parallel and Distributed
+     January 2016.                                                  Systems (ICPADS), 2016.
+[37] Dimitris Skourtis, Dimitris Achlioptas, Noah Watkins,     [47] Yiying Zhang, Leo Prasath Arulraj, Andrea C.
+     Carlos Maltzahn, and Scott Brandt. Flash on Rails:             Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.
+     Consistent Flash Performance through Redundancy. In            De-indirection for Flash-based SSDs with Nameless
+     Proceedings of the 2014 USENIX Annual Technical                Writes. In Proceedings of the 10th USENIX Symposium
+     Conference (ATC), 2014.                                        on File and Storage Technologies (FAST), 2012.
+
+
+
+
+90   16th USENIX Conference on File and Storage Technologies                                       USENIX Association
+

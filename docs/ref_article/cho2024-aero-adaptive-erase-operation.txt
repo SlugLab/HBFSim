@@ -1,0 +1,1351 @@
+                                         A ERO: Adaptive Erase Operation for Improving Lifetime
+                                          and Performance of Modern NAND Flash-Based SSDs
+                                                            Sungjun Cho                                            Beomjun Kim                                Hyunuk Cho
+                                                   allencho1222@postech.ac.kr                              beomjun0816@knu.ac.kr                        gusdnr9779@postech.ac.kr
+                                                           POSTECH                                       Kyungpook National University                         POSTECH
+                                                        Republic of Korea                                     Republic of Korea                             Republic of Korea
+
+                                                         Gyeongseob Seo                                              Onur Mutlu                             Myungsuk Kim
+                                                     syhbong9@knu.ac.kr                                          omutlu@gmail.com                         ms.kim@knu.ac.kr
+                                                 Kyungpook National University                                      ETH Zürich                       Kyungpook National University
+arXiv:2404.10355v1 [cs.AR] 16 Apr 2024
+
+
+
+
+                                                      Republic of Korea                                             Switzerland                           Republic of Korea
+
+                                                                                                                     Jisung Park
+                                                                                                            jisung.park@postech.ac.kr
+                                                                                                                    POSTECH
+                                                                                                                 Republic of Korea
+
+                                         Abstract                                                                             the number of fail bits necessary to accurately predict the near-
+                                         This work investigates a new erase scheme in NAND flash                              optimal erase latency. Second, A ERO aggressively yet safely
+                                         memory to improve the lifetime and performance of mod-                               reduces erase latency by leveraging a large reliability margin
+                                         ern solid-state drives (SSDs). In NAND flash memory, an                              present in modern SSDs. We demonstrate the feasibility and
+                                         erase operation applies a high voltage (e.g., > 20 V) to flash                       reliability of A ERO using 160 real 3D NAND flash chips,
+                                         cells for a long time (e.g., > 3.5 ms), which degrades cell                          showing that it enhances SSD lifetime over the conventional
+                                         endurance and potentially delays user I/O requests. While                            erase scheme by 43% without change to existing NAND flash
+                                         a large body of prior work has proposed various techniques                           chips. Our system-level evaluation using eleven real-world
+                                         to mitigate the negative impact of erase operations, no work                         workloads shows that an A ERO-enabled SSD reduces read tail
+                                         has yet investigated how erase latency should be set to fully                        latency by 34% on average over a state-of-the-art technique.
+                                         exploit the potential of NAND flash memory; most existing                            CCS Concepts: • Hardware → External storage.
+                                         techniques use a fixed latency for every erase operation which
+                                         is set to cover the worst-case operating conditions. To address                      Keywords: solid state drives (SSDs), NAND flash memory,
+                                         this, we propose A ERO (Adaptive ERase Operation), a new                             erase operation, SSD lifetime, I/O performance
+                                         erase scheme that dynamically adjusts erase latency to be just                       ACM Reference Format:
+                                         long enough for reliably erasing target cells, depending on the                      Sungjun Cho, Beomjun Kim, Hyunuk Cho, Gyeongseob Seo, Onur
+                                         cells’ current erase characteristics. A ERO accurately predicts                      Mutlu, Myungsuk Kim, and Jisung Park. 2024. A ERO: Adaptive
+                                         such near-optimal erase latency based on the number of fail                          Erase Operation for Improving Lifetime and Performance of Mod-
+                                         bits during an erase operation. To maximize its benefits, we                         ern NAND Flash-Based SSDs. In 29th ACM International Confer-
+                                         further optimize A ERO in two aspects. First, at the beginning                       ence on Architectural Support for Programming Languages and
+                                         of an erase operation, A ERO attempts to erase the cells for a                       Operating Systems, Volume 1 (ASPLOS ’24), April 27-May 1, 2024,
+                                         short time (e.g., 1 ms), which enables A ERO to always obtain                        La Jolla, CA, USA. ACM, New York, NY, USA, 18 pages. https:
+                                                                                                                              //doi.org/10.1145/3620666.3651341
+
+
+                                         Permission to make digital or hard copies of all or part of this work for            1    Introduction
+                                         personal or classroom use is granted without fee provided that copies are not        NAND flash memory is the prevalent memory technology
+                                         made or distributed for profit or commercial advantage and that copies bear
+                                         this notice and the full citation on the first page. Copyrights for components       in architecting modern storage systems. NAND flash-based
+                                         of this work owned by others than the author(s) must be honored. Abstracting         solid-state drives (SSDs) offer various advantages over tradi-
+                                         with credit is permitted. To copy otherwise, or republish, to post on servers or     tional hard disk drives, such as high performance and small
+                                         to redistribute to lists, requires prior specific permission and/or a fee. Request   form factor, while providing high device capacity (e.g., sev-
+                                         permissions from permissions@acm.org.                                                eral tens of terabytes per SSD [1–4]). Although there exist
+                                         ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+                                                                                                                              several emerging non-volatile memory technologies (e.g., [5–
+                                         © 2024 Copyright held by the owner/author(s). Publication rights licensed to
+                                         ACM.                                                                                 8]), NAND flash memory is (expected to be) the predominant
+                                         ACM ISBN 979-8-4007-0386-7/24/04                                                     technology for storage systems to meet the increasing capac-
+                                         https://doi.org/10.1145/3620666.3651341                                              ity demands of modern data-intensive applications.
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                            Cho et al.
+
+
+   The efficiency of erase operation performed by NAND                    Our goal in this work is to improve the lifetime and per-
+flash chips significantly affects SSD lifetime and I/O perfor-         formance of modern SSDs by mitigating the negative im-
+mance due to two key reasons. First, the high erase voltage            pact of erase operations. To this end, we propose A ERO
+physically damages flash cells. After experiencing a certain           (Adaptive ERase Operation), a new block erasure mecha-
+number of program and erase (P/E) cycles, a flash cell cannot          nism for NAND flash memory which is redesigned based on
+reliably store data, thereby limiting SSD lifetime. Second,            thorough characterization of real 3D TLC NAND flash chips.
+erase latency is significantly higher (e.g., 3.5 ms [9, 10])           The key idea of A ERO is to dynamically adjust erase latency
+than read and write latencies (e.g., 40 µs and 350 µs, respec-         to be just long enough for reliably erasing the target cells,
+tively [9]) due to the orders-of-magnitude larger granularity of       depending on the cells’ current erase characteristics.
+erase operations (i.e., a block) compared to read and program             Our key idea is simple, but it is challenging to accurately
+operations (i.e., a page). From the lifetime perspective, such         predict the minimum latency for a block in modern NAND
+a long latency leads an erase operation to have a much higher          flash memory. Even though prior work [41, 42] has demon-
+impact on cell endurance compared to a program operation               strated a strong correlation between the erase latency and
+that also applies a high voltage to target cells [11]. From the        P/E-cycle count (PEC) of a block, PEC alone is insufficient
+I/O performance perspective, an erase operation often delays           for accurate prediction of the minimum erase latency due to
+I/O requests for a long time (e.g., several milliseconds), which       high process variation across blocks. Our real-device charac-
+significantly increases the SSD tail latency [12, 13].                 terization results from 160 real 3D TLC NAND flash chips
+   An erase operation in modern SSDs often requires multiple           (§5) show high erase-latency variations even across blocks
+erase loops, which further increases the performance/lifetime          with the same PEC, e.g., a standard deviation of 2.7 ms in the
+impact of erase operations. A flash cell becomes more difficult        erase latency across blocks with 3.5K PEC.
+to erase as it experiences more P/E cycles [11, 14, 15], so               To address the challenge, A ERO introduces Fail-bit-count-
+an erase operation with the default erase voltage may fail             based Erase Latency Prediction (FELP) that accurately pre-
+to sufficiently erase every cell in the block, which we call           dicts near-optimal latency for an erase loop based on the
+an erase failure. To ensure data reliability, modern NAND              number of fail bits that occur in the previous loop. At the
+flash memory commonly employs the ISPE (Incremental Step               end of each erase loop, the ISPE scheme senses all the cells
+Pulse Erasure) scheme [16]; when an erase failure occurs, the          in the target block simultaneously and counts the number of
+ISPE scheme retries an erase loop with progressively higher            fail bits, i.e., the number of bitlines that contain one or more
+voltages until it can successfully erase all the cells in the          insufficiently-erased cells, so as to perform another loop if the
+block. We find that an erase failure occurs quite frequently           fail-bit count is larger than a threshold. We find that the fail-
+in modern SSDs with density-optimized NAND flash chips,                bit count can be an accurate proxy for the minimum latency
+which aggravates the wear-out and long tail latency problems.          of the next loop, as the more sufficiently the cells are erased,
+For example, our characterization study using 160 real 3D              the lower the fail-bit count. We construct a model between the
+triple-level cell (TLC) NAND flash chips shows that every              fail-bit count in an erase loop and the minimum erase latency
+erase operation requires at least two erase loops (up to five          required for the next loop, which enables A ERO to safely
+loops) after the target block experiences 2K P/E cycles.               reduce erase latency depending on the block’s characteristics.
+   Even though a large body of prior work [12, 13, 16–31]                 We further optimize A ERO in two aspects. First, we en-
+has investigated various optimizations to mitigate the nega-           able A ERO to also optimize single-loop erase operations by
+tive impact of erase operations, no work has yet investigated          performing the first erase loop in two steps: (i) shallow era-
+how erase latency should be set to fully exploit the potential         sure, which applies the erase voltage for a reduced amount of
+of NAND flash memory. To be specific, most existing tech-              time (e.g., 1 ms), and (ii) remainder erasure, which completes
+niques use a fixed latency for every erase operation which is          erasing the block only with the necessary time determined
+set by the manufacturers at design time based on the worst-            based on the fail-bit count in the shallow erasure. Second, we
+case operating conditions. Like other memory technologies              leverage the high error-correction capability of modern SSDs
+(e.g., DRAM), however, modern NAND flash memory also                   to further reduce erase latency without compromising reliabil-
+exhibits high process variation, which introduces significant          ity. To cope with the low reliability of NAND flash memory,
+differences in physical characteristics across flash cells [32–        modern SSDs commonly adopt sophisticated error-correction
+40]. For example, our real-device characterization study in            codes (ECC), which leads to a large ECC-capability margin
+§5 shows that it is possible to completely and reliably erase a        in many cases [14, 43]. Aggressive erase-latency reduction
+majority of blocks (e.g., 79%-90%) with much lower latency             would inevitably cause insufficient erasure of some flash cells,
+(e.g., by 17%-29%) than the default erase latency under many           potentially incurring more bit errors. To ensure data reliability,
+operating conditions. This means that flash cells frequently           A ERO carefully reduces erase latency for certain operating
+suffer from more erase-induced damage than needed, which,              conditions we find via extensive real-device characterization.
+in turn, degrades both SSD lifetime and I/O performance.                  A ERO provides high lifetime and performance benefits
+                                                                       with small overheads. A ERO requires only small changes
+                                                                   2
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+to existing SSD firmware or controller but no modification                                        it stores one-bit data per cell using two VTH states (top) and
+to NAND flash chips, thereby achieving high applicability                                         when it stores two bits per cell using four VTH states (bottom).
+and practicality. Our real-device characterization and system-                                    NAND Flash Operations. There are three basic operations to
+level evaluation with a state-of-the-art SSD simulator [44]                                       enable access to NAND flash memory: (i) program, (ii) read,
+show that A ERO enhances SSD lifetime by 13% and reduces                                          and (iii) erase operations. A program operation increases a
+the 99.9999th percentile read latency by 34% on average                                           target cell’s VTH level by applying a high program voltage
+compared to state-of-the-art techniques [16, 29–31].                                              (e.g., > 20 V). A read operation determines a cell’s VTH level
+   The key contributions of this work are as follows:                                             (i.e., the stored data) by applying a read-reference voltage
+• To our knowledge, this work is the first to identify a new op-                                  VREF to the cell’s control gate; depending on its VTH level,
+  portunity to safely reduce the erase latency without compro-                                    the cell operates as either an on-switch (VREF > VTH ) or
+  mising reliability, which significantly mitigates the negative                                  an off-switch (VREF < VTH ). Since a number of flash cells
+  impact of erase operations.                                                                     (e.g., > 217 ) share a WL, NAND flash memory performs read
+• We introduce A ERO, a new block erasure mechanism that                                          and program operations at a page granularity (e.g., 16 KiB).
+  dynamically adjusts the erase latency based on varying                                             An erase operation decreases a target cell’s VTH level by
+  erase characteristics of the target flash blocks.                                               applying a high erase voltage VERASE (e.g., > 20 V) to the
+• We validate the feasibility and reliability of A ERO via rig-                                   substrate. NAND flash memory performs an erase operation
+  orous characterization of real 3D NAND flash chips.                                             at block granularity, which causes erase latency tBERS to be
+• We evaluate the effectiveness of A ERO using real-world                                         significantly higher than program latency tPROG and read
+  workloads, showing large lifetime and performance benefits                                      latency tR (e.g., tBERS = 3.5 ms, tPROG = 400 µs, and
+  over state-of-the-art techniques [16, 29–31].                                                   tR = 40 µs [9]) but enables high erase bandwidth by concur-
+                                                                                                  rently erasing a large number of pages (e.g., more than 2K
+2     Background                                                                                  pages [9]) at once. As a program operation can only increase
+We provide a brief background on NAND flash memory nec-                                           a cell’s VTH level, a page needs to be erased first to program
+essary to understand the rest of the paper.                                                       data, which is called the erase-before-write property.
+
+2.1 NAND Flash Basics                                                                             2.2   NAND Flash Reliability
+NAND Flash Organization. Figure 1a depicts the hierarchi-                                         NAND flash memory is highly error-prone due to its imperfect
+cal organization of 3D NAND flash memory. A set of flash                                          physical characteristics. A flash cell leaks its charge (i.e., its
+cells form a NAND string ( 1 in Figure 1a) that is connected                                      VTH level decreases) over time, which is called retention loss.
+to a bitline (BL), and NAND strings of different BLs compose                                      Reading or programming cells slightly increases the VTH
+a block. The control gate of each cell at the same vertical lo-                                   levels of other cells in the same block (e.g., read/program
+cations in a block is connected to a wordline (WL) in parallel                                    disturbance [40, 45–50]). If a cell’s VTH level shifts beyond
+( 2 ), so all the cells at the same WL concurrently operate.                                      the VREF values (i.e., to adjacent VTH ranges corresponding
+                                                                                                  to different bit values), reading the cell causes a bit error.
+           BL𝟏 BL𝟐      BL𝒏                          VTH window                                      There are two major factors that significantly increase the
+                              # cells
+
+
+
+
+      2                                   1              VREF            0           SLC          raw bit-error rate (RBER) of NAND flash memory. First,
+     WL𝟏                                Erased                          Prog.          VTH
+     WL𝟐
+                                                                                                  the high voltage used in program/erase operations physically
+                 sss                                 VTH margin                Design Limit       damages flash cells, making the cells more error-prone. Sec-
+      …
+
+
+
+
+                    s
+             …
+
+
+
+                         …
+                 …
+
+
+
+
+     WL𝒎                                     VREF1        VREF2        VREF3                      ond, the MLC technique increases RBER because packing
+                              # cells
+
+
+
+
+  NAND                                  11           10           01           00    MLC
+1 string                                E.                                              VTH       more VTH states within a limited VTH window narrows the
+                                                     P1           P2           P3
+                                        VTH margin
+                                                                                                  margin between adjacent VTH states as shown in Figure 1b.
+    (a) NAND flash block                       (b) VTH distribution                                  To ensure data reliability, it is common practice to employ
+                                                                                                  strong error-correction codes (ECC). ECC stores redundant
+           Figure 1. Overview of 3D NAND flash memory.                                            bits called ECC parity, which enables detecting and correcting
+                                                                                                  raw bit errors in the codeword. To cope with the high RBER of
+                                                                                                  modern NAND flash memory, modern SSDs use sophisticated
+Data Storage Mechanism. A flash cell stores bit data as
+                                                                                                  ECC that can correct several tens of raw bit errors per 1-KiB
+a function of its threshold voltage (VTH ) level that highly                                      data (e.g., low-density parity-check (LDPC) codes [51]).
+depends on the amount of charge in the cell’s charge trap; the
+more the electrons in the charge trap layer, the higher the cell’s
+VTH level. To increase the storage density, a flash cell can                                      3     Motivation
+store multiple bits by controlling its VTH level more precisely,                                  We discuss (i) the importance of optimizing erase operations
+which is called multi-level cell (MLC) technology. Figure 1b                                      and (ii) limitations of existing techniques. Table 5 in Appen-
+compares the VTH distribution in NAND flash memory when                                           dix summarizes new terminologies defined in this work.
+                                                                                              3
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                                              Cho et al.
+
+                                                                                                       tBERS = (tEP + tVR) × 𝑛
+3.1   Negative Impact of Erase Operations                                                                                                                      Erase Pulse
+                                                                                     1st loop                2nd loop                        𝒏-th loop
+
+
+
+
+                                                                        Voltage
+Erase operation significantly affects both SSD lifetime and                                                                                                    Verify Read
+                                                                                  VERASE(𝑛)
+                                                                                              ∆VISPE
+I/O performance. First, an erase operation is the major source                                                                   …           EP(𝒏)             𝑭(𝒏) ≤ 𝑭PASS
+                                                                                                             EP(𝟐)
+                                                                                   1 EP(𝟏)                                                                      (Success)
+that limits SSD lifetime. The high voltage used in program
+                                                                                               2 VR(𝟏)                                     tEP (fixed) tVR           Time
+and erase operations damages flash cells, which makes a block
+unusable after experiencing a certain number of program and
+                                                                                    Figure 2. Incremental Step Pulse Erasure (ISPE) scheme.
+erase (P/E) cycles (e.g., 5K P/E cycles [15]) because it can
+no longer meet the retention requirements for a non-volatile
+storage medium (e.g., 1-year retention at 30◦ C [52]). Program             Figures 3a and 3b describe how a NAND flash chip per-
+operation also applies a high voltage to flash cells, but prior         forms a VR step. It simultaneously senses (or activates) all
+work has experimentally demonstrated that erase operation               the WLs in the block using a verify voltage VVERIFY ( 1 in
+accounts for 80% of cell stress due to the significantly longer         Figure 3a) that is between the erase state and the first program
+erase latency compared to program latency [11].                         state. If EP(𝑖) fails, it means that the target block has some
+   Second, the long erase latency often increases the tail la-          cells whose VTH levels are still higher than VVERIFY ( 2 in
+tency of user reads significantly, which is critical for data-          Figure 3b). Such cells would operate as an off-switch during
+center applications [12, 13]. In fact, the impact of erase op-          VR(𝑖) (the 𝑖-th VR step) because VTH > VVERIFY , making
+erations on the average I/O performance is trivial in modern            the corresponding BLs read as ‘0’ bits, called fail bits. Then,
+SSDs [13], since they occur much less frequently compared               VR(𝑖) counts 𝐹 (𝑖), the number of fail bits after EP(𝑖), using
+to read and program operations. For example, a block in                 on-chip counter logic [55, 58]. It judges that EP(𝑖) succeeds
+modern 3D NAND flash memory consists of more than 2K                    only when 𝐹 (𝑖) is lower than a predefined threshold 𝐹 PASS .
+pages [10, 53, 54], so one erase operation occurs after at least
+                                                                                                       BL1       BL2       BL3
+2K page writes (and even more page reads potentially). How-                             1       1       1         0                                      Target VTH state
+ever, an erase operation may block a page read for an order of             WL1 (VVERIFY)                                                    Erased
+magnitude longer time than read latency when it is no longer                                                                                                   Completely
+
+
+
+
+                                                                                                                                 # cells
+                                                                                                0       1         0
+                                                                           WL2 (VVERIFY)                                                                       erased cells
+possible to delay the erase operation under heavy user writes.
+                                                                                    …
+
+
+
+
+                                                                                                1       1         1                                       2       Fail cells
+                                                                          WLm (VVERIFY)
+3.2   Incremental Step Pulse Erasure (ISPE)                              Fail bits (#: 𝑭(𝒊)) 0               1         0                             VVERIFY           VTH
+The lifetime and performance impact of erase operations in-
+                                                                                  (a) WL-voltage control in VR                        (b) VTH distribution after EP
+creases even further in modern SSDs, as an erase operation
+often requires multiple erase loops. As a flash cell experi-                       Figure 3. Details of verify-read (VR) step in ISPE scheme.
+ences more P/E cycles, the cell becomes more difficult to
+erase [11, 15, 55]. Consequently, an erase operation may fail
+to sufficiently erase all the cells in a target block, which we         3.3          Limitations of Existing Techniques
+call an erase failure. To secure data reliability, it is common
+                                                                        A large body of prior work [12, 13, 16–31] has proposed
+practice to employ the Incremental Step Pulse Erasure (ISPE)
+                                                                        various optimizations to mitigate the negative impact of erase
+scheme [16, 56, 57] that retries to erase the block with an
+                                                                        operations, but none has yet investigated how erase latency
+increased erase voltage until completely erasing the block.
+                                                                        should be set to fully exploit the potential of NAND flash
+   Figure 2 shows how a NAND flash chip erases a block
+                                                                        memory. Like other memory technologies (e.g., DRAM),
+via multiple erase loops, each of which consists of two steps:
+                                                                        modern NAND flash memory also exhibits high process vari-
+(i) an erase-pulse (EP) step and (ii) a verify-read (VR) step.
+                                                                        ation that leads to significantly different physical characteris-
+An EP step (e.g., 1 in Figure 2) applies VERASE to the target
+                                                                        tics across flash cells. Prior works have demonstrated varying
+block for a fixed amount of time tEP (e.g., 3.5 ms) that is
+                                                                        physical characteristics across WLs [11, 32, 34–36, 38, 45]
+predefined by NAND manufacturers at design time. After
+                                                                        and blocks [15, 37, 40, 45] in modern 3D NAND flash mem-
+each EP step, a VR step (e.g., 2 ) checks if all the cells in the
+                                                                        ory. Unfortunately, most existing techniques adopt the ISPE
+block are sufficiently erased. When EP(𝑖) (the 𝑖-th EP step,
+                                                                        scheme that always uses the same erase-timing parameters
+𝑖 ≥ 1) fails to do so, the ISPE scheme performs EP(𝑖 +1) while
+                                                                        (e.g., tEP) for every block. Doing so potentially causes un-
+progressively increasing VERASE by a fixed amount ΔVISPE .
+                                                                        necessary erase-induced cell stress, e.g., when a block can be
+The ISPE scheme repeats this until completely erasing the
+                                                                        erased more easily compared to the worst-case block.
+block, leading to erasure latency tBERS as follows:
+                                                                        Limitations of the ISPE Scheme. To understand the potential
+                tBERS = (tEP + tVR) × 𝑁 ISPE,                (1)        of optimizing erase latency, we characterize 160 real 3D 48-
+                                                                        layer triple-level cell (TLC) NAND flash chips (see §5 for our
+where tVR is the VR latency (∼100 µs), and 𝑁 ISPE is the                characterization methodology). We measure 𝑚 tBERS , the min-
+number of erase loops required to completely erase the block.           imum tBERS to completely erase a block, for 19,200 blocks
+                                                                    4
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                                             ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+                               𝑁ISPE = 1     𝑁ISPE = 2        𝑁ISPE = 3     𝑁ISPE = 4          𝑁ISPE = 5                                VTH margin                              Erase Pulse   Verify Read
+
+
+
+
+                                                                                                                  # cells
+
+
+
+
+                                                                                                                                                                  Voltage
+                    100
+erased blocks [%]
+
+                                                                                                                              11        10     01       00
+  # completely
+
+
+
+                     80
+                              PEC: 0K       PEC: 1K                                                                           E.        P1     P2       P3 VTH
+                     60                                                                                                                                                                                Time
+                     40                     PEC: 2K                                                                          VTH window for programmed states
+                                                              PEC: 3K           PEC: 4K        PEC: 5K
+                     20                                                                                                                                           Start from here
+                      0                                                                                                        Same
+                          0    1   2    3   4   5   6    7    8 9 10 11 12 13 14 15 16 17
+                          0
+                               1
+                                   2
+                                        3
+                                            4
+                                                5
+                                                    6
+                                                         7
+                                                              8
+                                                                  9
+                                                                      10
+                                                                           11
+                                                                                12
+                                                                                     13
+                                                                                          14
+                                                                                               15
+                                                                                                    16
+                                                                                                         17
+                                                                                                                             VTH margin
+
+
+
+
+                                                                                                                  # cells
+
+
+
+
+                                                                                                                                                                  Voltage
+                                                             mtBERS [ms]                                                                    10    01    00
+                                                                                                                               E. 11        P1    P2     P3 VTH              SKIP      SKIP
+
+             Figure 4. Erase latency variation under different P/E cycles.                                                                                                                            Time
+                                                                                                                     Reduced
+                                                                                                                                          (a) DPES                          (b) Intelligent ISPE (i-ISPE)
+
+randomly selected from the 160 chips. Figure 4 shows the cu-                                                                Figure 5. High-level overview of existing ISPE optimizations.
+mulative distribution function (CDF) of 𝑚 tBERS (𝑃𝐸𝐶) across
+the tested blocks under different P/E-cycle counts (𝑃𝐸𝐶).
+   We make three key observations. First, an erase operation                                                      due to the differences in cell physics and erase mechanisms
+requires a number of erase loops in modern SSDs, signifi-                                                         between them [11]. Second, 3D NAND flash memory ex-
+cantly increasing not only erased-induced cell stress but also                                                    hibits higher process variation across cells compared to 2D
+erase latency. While all the tested blocks can be erased via a                                                    NAND flash memory [34, 35, 46]. Such characteristics sig-
+single erase loop at zero PEC, every block requires multiple                                                      nificantly limit the effectiveness of both DPES and 𝑖-ISPE in
+(2∼4) loops after 2K PEC, causing 2∼4× increases in tBERS                                                         modern NAND flash memory; (i) for DPES, it becomes more
+when using the ISPE scheme. Second, 𝑚 tBERS significantly                                                         challenging to secure the voltage window wide enough for
+varies even across blocks that require the same 𝑁 ISPE . This                                                     the program states; (ii) for 𝑖-ISPE, skipping the first erase
+clearly shows that a significant number of blocks are over                                                        loops incurs an erase failure more likely, which, in turn,
+erased under the ISPE scheme, suffering from more erase-                                                          rather requires the next erase loop with a higher VERASE
+induced stress than necessary. If we used the ISPE scheme,                                                        (i.e., more erase-induced stress) compared to the conventional
+40% of the blocks at 3K PEC would require 𝑁 ISPE = 3 and                                                          ISPE scheme. We quantitatively evaluate the effectiveness of
+thus experience the high erase voltage for 10.5 ms (purple                                                        DPES and 𝑖-ISPE in modern SSDs in §7.
+dots in Figure 4), while their 𝑚 tBERS values significantly
+vary. Third, there is considerable erase latency variation when                                                    4          A ERO: Adaptive Erase Operation
+𝑁 ISPE = 1. More than 70% (30%) of the blocks at zero PEC                                                         In this work, we propose A ERO (Adaptive ERase Operation)
+(1K PEC) require only 2.5 ms to be completely erased, which                                                       that enhances SSD lifetime and improves I/O performance
+is 29% lower than tBERS in the ISPE scheme (3.5 ms).                                                              by applying near-optimal erase latency for each target block.
+   We draw two conclusions based on our observations. First,                                                      The key idea of A ERO is simple. Unlike the ISPE scheme that
+modern NAND flash memory suffers from unnecessarily                                                               performs all erase-pulse (EP) steps with fixed latency tEP for
+longer erase latency (and thus more erase-induced cell stress)                                                    every block, A ERO dynamically adjusts tEP to be just long
+than actually needed. Second, if it is possible to accurately                                                     enough for complete erasure of a target block. A ERO uses the
+predict and use 𝑚 tBERS for a block, doing so would signifi-                                                      same VERASE (𝑖) for each EP(𝑖) as the ISPE scheme, so EP(𝑖)
+cantly mitigate the wear-out and long tail latency problems.                                                      in A ERO may also fail to completely erase the block even
+Limitations of the State-of-the-Art. To our knowledge,                                                            without tEP reduction. In such a case, A ERO also performs
+only a few prior works on 2D NAND flash memory [16,                                                               the next EP(𝑖 + 1) while trying to reduce tEP if possible, i.e.,
+29–31] propose to dynamically tune ISPE parameters. Fig-                                                          when it expects EP(𝑖 + 1) to completely erase the block with
+ure 5 depicts the high-level key ideas of (a) DPES (Dynamic                                                       reduced tEP. This means that A ERO reduces tEP in the final
+Program and Erase Scaling) [29–31] and (b) 𝑖-ISPE (intelli-                                                       erase loop (i.e., EP(𝑁 ISPE )) that completely erases the block,
+gent ISPE) [16]. DPES reduces erase-induced cell stress by                                                        thereby reducing the total erase latency tBERS as follows:
+decreasing VERASE , which narrows the voltage window for
+                                                                                                                                       tBERS = (tEP + tVR) × 𝑁 ISPE − ΔtEP,                                 (2)
+the program states. However, it also requires longer program
+latency to provide the same level of reliability as the original                                                  where ΔtEP is the amount of reduction in tEP in EP(𝑁 ISPE ).
+ISPE scheme by forming much narrower program VTH states.                                                             It would be ideal to dynamically optimize both VERASE and
+I-ISPE tracks each block’s 𝑁 ISPE to perform only the final                                                       tEP at the same time, but we decide to keep using the same
+erase loop EP(𝑁 ISPE ) while skipping the previous loops (e.g.,                                                   VERASE values in the ISPE scheme. This is because it is quite
+EP(1) and EP(2) in Figure 5b), which potentially reduces not                                                      challenging to accurately predict a near-optimal VERASE for
+only the erase-induced stress but also tBERS.                                                                     a block due to the high process variation in 3D NAND flash
+   Unfortunately, it is challenging to adopt DPES and 𝑖-ISPE                                                      memory. Inaccurate VERASE adjustment can cause insufficient
+in modern 3D NAND flash memory due to two reasons. First,                                                         or excessive erasure of flash cells as discussed in §3.3, which
+erasing 3D flash cells is more difficult compared to 2D cells                                                     can rather degrade SSD lifetime and I/O performance. We
+                                                                                                              5
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                                                     Cho et al.
+
+
+leave accurate predictions and simultaneous optimizations of                                            block can be completely erased via a single erase loop under
+both VERASE and tEP to future work.                                                                     many operating conditions. As shown in Figure 4, 76.5% of
+Fail-bit-count-based Erase Latency Prediction (FELP).                                                   the tested blocks require only EP(1) for complete erasure at
+A key challenge in A ERO is to accurately identify 𝑚 tEP (𝑖)                                            1K PEC (i.e., 20% of the maximum PEC).
+for a block, i.e., the minimum value of tEP in each EP step                                                We enable A ERO to optimize EP(1) by performing it in two
+(i.e., EP(𝑖)) just long enough to fully erase all the cells in the                                      steps. Figure 6b describes how A ERO reduces the effective
+block. Even though prior work [41, 42] has experimentally                                               tEP for a single-loop erase operation. Instead of using the
+demonstrated a strong correlation between a block’s PEC and                                             default tEP (e.g., 3.5 ms) for EP(1), A ERO first performs
+erase latency, i.e., the higher the block’s PEC, the longer the                                         a short EP step with the default VERASE (1), which we call
+latency for erasing the block [31], PEC alone is insufficient                                           shallow erasure, for a reduced amount of time tSE (e.g., 1
+for accurate prediction of near-optimal tEP due to high pro-                                            in Figure 6b). It then 2 performs an additional VR step to
+cess variation in modern NAND flash memory. As shown in                                                 obtain the number of fail bits after the shallow erasure (we
+Figure 4, 𝑚 tEP (𝑁 ISPE ) significantly varies even across blocks                                       denote shallow erasure as the 0-th erase loop in the rest of
+at the same PEC. This suggests that A ERO needs a way more                                              this paper, i.e., EP(0), VR(0), and 𝐹 (0) refer to the erase-pulse
+effective metric than PEC to figure out more precise erase                                              step, verify-read step, and fail-bit count in shallow erasure,
+characteristics (i.e., 𝑚 tEP (𝑖)) for individual flash blocks.                                          respectively). Finally, A ERO performs remainder erasure that
+    A ERO addresses the challenge via Fail-bit-count-based                                              also applies the default VERASE (1) but dynamically adjusts
+Erase Latency Prediction (FELP) that predicts 𝑚 tEP (𝑖 + 1)                                             the latency tRE (e.g., 0 ≤ tRE ≤ 2.5 ms) based on 𝐹 (0).
+based on 𝐹 (𝑖), the number of fail bits incurred by the previous                                        Leveraging ECC-Capability Margin. Prior work [32, 43]
+EP(𝑖). Our key intuition is that 𝐹 (𝑖) can likely be an accurate                                        has demonstrated that a large ECC-capability margin1 exists
+proxy of 𝑚 tEP (𝑖 +1) because the more sufficiently the cells are                                       in modern SSDs due to two reasons. First, modern SSDs
+erased by an EP step, the lower the fail-bit count. Commodity                                           commonly employ strong ECC to cope with the high RBER of
+NAND flash chips already calculate 𝐹 (𝑖) for the ISPE scheme                                            NAND flash memory in the worst-case operating conditions
+as explained in §3.2, so the implementation overhead of FELP                                            (e.g., 1-year retention time at 5K PEC). Second, it is common
+is trivial (see §6 for more detailed overhead analysis).                                                practice to employ read-retry in modern SSDs [43] to ensure
+   Figure 6a depicts how A ERO safely reduces tEP based on                                              data reliability. When a read page’s RBER exceeds the ECC
+FELP. Like the ISPE scheme, A ERO also performs a verify-                                               capability, read-retry repeats reading of the page with adjusted
+read step VR(𝑖) after each EP(𝑖), which results in 𝐹 (𝑖). If 𝐹 (𝑖)                                      VREF until it sufficiently lowers RBER, thereby leading to a
+is higher than a threshold 𝐹 HIGH (≫ 𝐹 PASS ), A ERO uses the                                           large ECC-capability margin.
+default tEP for the next EP(𝑖 + 1) considering that there is                                               A ERO leverages the large ECC-capability margin to re-
+no room for tEP reduction (e.g., 1 until EP(𝑁 ISPE − 1) in                                              duce tEP more aggressively by increasing the pass threshold
+Figure 6a). When 𝐹 PASS < 𝐹 (𝑖) ≤ 𝐹 HIGH , A ERO 2 reduces                                              𝐹 PASS in the ISPE scheme. Doing so would likely cause incom-
+tEP, i.e., it predicts and uses 𝑚 tEP (𝑖+1) for EP(𝑖+1), such that                                      plete erasure of a target block, which introduces additional
+the lower the value of 𝐹 (𝑖), the lower the value of 𝑚 tEP (𝑖 + 1).                                     bit errors. However, we hypothesize that A ERO can still en-
+Note that A ERO provides effectively the same reliability as                                            sure data reliability in many cases due to three key reasons.
+the ISPE scheme as long as 𝐹 (𝑁 ISPE ) ≤ 𝐹 PASS ( 3 ).                                                  First, a block’s reliability degrades as it experiences P/E cy-
+Shallow Erasure. As FELP needs 𝐹 (𝑖) to predict 𝑚 tEP (𝑖 + 1),                                          cling, so an even larger ECC-capability margin to tolerate
+it is difficult for A ERO to reduce tEP for the first EP step,                                          the additional errors exists at low PEC. Second, aggressive
+i.e., EP(1). Optimizing EP(1) is also important because a                                               tEP reduction mitigates erase-induced cell stress, which can
+                                                                                                        compensate for the additional errors as a long-term impact.
+                                                                                                        Third, a majority of additional fail cells due to increased 𝐹 PASS
+             1 ~ EP(𝒏 - 𝟏): No tEP reduction            𝑚tEP(𝑖)       Reduction
+                                                                                      Erase Pulse
+                                                                                                        would be programmed to higher VTH states under the data
+Voltage
+
+
+
+
+                         (𝑚tEP = tEP)                                                 Verify Read
+                                                            2
+                                                                   EP(𝒏)             𝑵ISPE = 𝒏          randomization technique [59, 60], e.g., 87.5% in TLC NAND
+                                        EP(𝒏 - 𝟏)
+                 EP(𝒏 - 𝟐)                                                                              flash memory. It means that such fail cells are unlikely to
+                         𝐹(𝑛 - 2) > 𝐹 HIGH 𝐹 PASS < 𝐹(𝑛 – 1) ≤ 𝐹 HIGH 3 𝐹(𝑛) ≤ 𝐹 PASS Time              cause bit error, significantly decreasing the reliability impact
+               (a) Fail-bit-count-based Erase Latency Predcition (FELP)                                 of aggressive tEP reduction. To maximize A ERO’s benefits
+                                                                                                        without compromising data reliability, we enhance FELP to
+                                                             Shallow Remainder                          also consider the expected ECC-capability margin for a target
+Voltage
+
+
+
+
+                                             Voltage
+
+
+
+
+          VERASE(1)                                    VERASE(1)    𝑚tEP(1)        Reduction            block by keeping the number of additional errors caused by
+                      EP(𝟏)                             1 EP(0)            EP(1)
+                                                                                                        aggressive tEP reduction below the current ECC-capability.
+                      tEP             Time                   tSE     2     tRE              Time
+
+                  (b) Shallow erasure to optimize the first erase loop
+                                                                                                            1 The difference between the maximum number of bit errors per code-
+                      Figure 6. Erase latency reduction in A ERO.                                       word that given ECC can correct and the number of bit errors in a codeword.
+                                                                                                    6
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                   ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+5     Device Characterization Study                                         We measure each block’s 𝑁 ISPE and 𝑚 tEP (𝑁 ISPE ) while track-
+To validate our key ideas and hypothesis in §4, we conduct                  ing 𝐹 (𝑖) in every EP(𝑖) under the m-ISPE scheme. Figure 7
+an extensive real-device characterization study.                            depicts the maximum value of 𝐹 (𝑁 ISPE ) within the blocks that
+                                                                            have the same 𝑚 tEP (𝑁 ISPE ), when we progressively increase
+5.1 Characterization Methodology                                            tEP by 0.5 ms in the final EP step (i.e., EP(𝑁 ISPE )).
+Infrastructure. We use an FPGA-based testing platform with
+                                                                                                             𝑚tEP(𝑁ISPE):     0.5    1     1.5   2   2.5      3     3.5
+a custom flash controller and temperature controller. The
+flash controller can perform not only basic NAND-flash com-                                                                    𝑵ISPE = 2                            𝑵ISPE = 3
+mands (i.e., for read, program, and erase operations) but also
+
+
+
+
+                                                                           Max.𝐹(𝑁ISPE) [a.u.]
+                                                                                                                              𝛿                                    𝛿
+low-level test commands such as GET/SET FEATURE com-                                                                                 𝛾                                        𝛾
+mands [61]. This feature allows us to modify tEP of each
+EP(𝑖) at a granularity of 0.5 ms and obtain 𝐹 (𝑖) from the chip                                                                𝑵ISPE = 4                            𝑵ISPE = 5
+after VR(𝑖). The temperature controller can maintain the oper-
+                                                                                                                              𝛿                                    𝛿
+ating temperature of the tested chips within ±1◦ C of the target
+temperature, thus minimizing unintended RBER variations                                                                              𝛾                                        𝛾
+
+potentially caused due to unstable temperature.                                                  0.5     1      1.5   2      2.5 3 3.5 0.5 1 1.5 2                2.5     3       3.5
+Methodology. We characterize 160 real 48-layer 3D TLC                                                                     Accumulated tEP in EP(𝑁ISPE) [ms]
+NAND flash chips from Samsung [62] in which the default
+tEP = 3.5 ms. To minimize the potential distortions in our                                             Figure 7. Impact of erase latency on the fail-bit count.
+results, for each test scenario, we evenly select 120 blocks
+from each chip at different physical locations and test all                   We make two key observations. First, the fail-bit count al-
+WLs in each selected block. We test a total of 3,686,400 WLs               most linearly decreases as tEP increases. While the negative
+(11,059,200 pages) to obtain statistically significant results.            correlation between 𝐹 (𝑖) and tEP is expected in §4, the cor-
+   We test the chips while varying PEC and retention time.                 relation is significantly high and consistent; increasing tEP
+Unless specified otherwise, we increase a block’s PEC by                   by 0.5 ms decreases 𝐹 (𝑁 ISPE ) by almost the same amount
+programming every page in the block using a random pattern                 𝛿 (≃ 5,000) in all tested blocks with different 𝑁 ISPE and
+and erasing the block with the default tEP in every erase                  𝑚 tEP (𝑁 ISPE ) values. This suggests that (i) erase latency has a
+loop. We follow the JEDEC industry standard [63] for an                    linear impact on the degree of erasure under the same erase
+accelerated lifetime test to analyze the reliability under the             voltage, and (ii) NAND manufacturers carefully set VERASE
+worst-case operating conditions. For example, to emulate a                 values (i.e., VERASE (𝑖) and ΔVISPE ) in the ISPE scheme to
+1-year retention time at 30◦ C, we bake the chips at 85◦ C for             avoid excessive increases in erase-induced cell stress and
+13 hours following the Arrhenius’ law [64].                                erase latency. Second, when 𝑚 tEP (𝑁 ISPE ) = 0.5 ms, 𝐹 (𝑁 ISPE )
+   To identify a block’s 𝑚 tBERS (i.e., 𝑁 ISPE and 𝑚 tEP (𝑁 ISPE )),       is quite consistent at a certain value 𝛾 (≪ 𝛿) in all test sce-
+we erase the block using a modified ISPE scheme (m-ISPE)                   narios. The result suggests that the lower the cell’s VTH level,
+that we design by modifying the original ISPE scheme in                    the more difficult it becomes to further reduce the VTH level.
+two aspects. First, we reduce the fixed latency tEP for each                  Our observations highlight the high potential of FELP. To
+EP(𝑖) from 3.5 ms to 0.5 ms, i.e., we split an erase loop                  confirm this, we analyze how a block’s 𝑚 tEP (𝑁 ISPE ) varies
+in the ISPE scheme into seven shorter loops. Second, we                    depending on its 𝐹 (𝑁 ISPE − 1). Figure 8 depicts the probability
+increase VERASE for every seven erase loops (not for every                 of 𝑚 tEP (𝑁 ISPE ) at different 𝑁 ISPE across the fail-bit ranges
+loop) to effectively emulate the ISPE scheme. If a block                   that we set based on 𝛾 and 𝛿 from Figure 7. A box at (𝑥, 𝑦) in
+requires 𝑛 loops under m-ISPE, we estimate 𝑁 ISPE = ⌈𝑛/7⌉                  Figure 8 represents the probability (in grayscale) that a block
+and 𝑚 tEP (𝑁 ISPE ) = 0.5×(1+((𝑛−1) mod 7)) of the block under             requires 𝑚 tEP (𝑁 ISPE ) = 𝑦 ms for complete erasure when its
+the ISPE scheme. Even though the m-ISPE scheme requires                    𝐹 (𝑁 ISPE − 1) belongs to 𝑥-th fail-bit range. We also plot the
+six additional ramping-up/down steps to charge/discharge                   fraction of blocks that belong to the 𝑥-th fail-bit range (top).
+voltage and VR steps for each erase loop compared to the                   Note that for the same 𝑁 ISPE , the sum of all fractions (top) is
+original ISPE scheme, its reliability impact is negligible; for            100%, and the sum of all probabilities at the same 𝑥-th fail-bit
+our 160 tested chips, the m-ISPE scheme hardly increases the               range (bottom) is 100%.
+average RBER (by less than 1%) compared to the original                       We make two key observations. First, FELP is highly
+ISPE scheme, under 1-year retention time at 5K PEC.                        effective at predicting 𝑚 tEP (𝑁 ISPE ). A majority of blocks
+                                                                           (e.g., ≥ 66% in 𝑁 ISPE = 4) in the same fail-bit range re-
+5.2   Fail-Bit Count vs Near-Optimal Erase Latency                         quire the same 𝑚 tEP (𝑁 ISPE ) under all different 𝑁 ISPE cases.
+To validate the feasibility of FELP, we analyze the relation-              Even though every fail-bit range contains some blocks whose
+ship between the minimum erase latency and fail-bit count.                 𝑚 tEP (𝑁 ISPE ) is lower compared to the majority of blocks, the
+                                                                       7
+ ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                                                                                                 Cho et al.
+ 𝑚tEP(𝑁ISPE) [ms] # blocks [%]
+
+                                         𝑁ISPE = 2          𝑁ISPE = 3          𝑁ISPE = 4       𝑁ISPE = 5                                    example, at 0.5K PEC, 2% blocks can be erased with tBERS
+                       3030                                                                                                 100
+                       2020                                                                                                                 = 2 ms when tSE =1 ms (the second fail-bit range), while
+
+
+
+
+                                                                                                           # of erased blocks [%]
+                       1010                                                                                                                 there exist no such blocks in the other tSE cases.
+                        00
+                                 3.5    71%               68%                66%              67%                                              Based on our observations, we conclude that A ERO can
+                                 2.5
+                                                                                                                                            significantly optimize not only multi-loop erase operations
+                                                                                                                                            but also single-loop erase operations using shallow erasure.
+                                 1.5
+                                                                                                                                            For our tested chips, we decide to set tSE = 1 ms to minimize
+                                 0.5                                                                                                        the probability of an over-erased block, which reduces both
+                                                                                                                                    0
+                                                                                                                                            erased-induced stress for 85% of blocks and the average erase
+                                                                 𝐹(𝑁ISPE - 1) [a.u.]
+                                                                                                                                            latency by 21% for single-loop erase operations.
+                             Figure 8. Erase-pulse latency depending on the fail-bit count.                                                 5.4       Reliability Margin for Aggressive tEP Reduction
+                                                                                                                                            To identify the ECC-capability margin for more aggressive
+ fraction is quite low (e.g., < 34% in 𝑁 ISPE = 4) in all the fail-                                                                         tEP reduction, we analyze the reliability impact of insuf-
+ bit ranges and 𝑁 ISPE cases. Second, 𝐹 (𝑁 ISPE − 1) is distributed                                                                         ficient erasure. We measure 𝑀RBER of each block, i.e., the
+ across blocks quite evenly in all 𝑁 ISPE cases. This highlights                                                                            maximum RBER within the pages in the block under 1-year
+ again that 𝐹 (𝑁 ISPE − 1) is an accurate proxy of 𝑚 tEP (𝑁 ISPE ),                                                                         retention time at 30◦ C, when we erase the block in two differ-
+ given that 𝑚 tEP (𝑁 ISPE ) also significantly varies across blocks                                                                         ent ways. First, we completely erase the block by performing
+ in a wide range as shown in Figure 4.                                                                                                      𝑁 ISPE erase loops with 𝑚 tEP (𝑁 ISPE ). Second, we insufficiently
+    Based on our observations, we draw two conclusions. First,                                                                              erase the block by performing only (𝑁 ISPE − 1) erase loops,
+ A ERO can accurately predict the minimum erase latency using                                                                               which results in 𝐹 PASS < 𝐹 (𝑁 ISPE − 1) ≤ 𝐹 HIGH . Figure 10
+ FELP, even for blocks that have varying erase characteristics.                                                                             depicts the maximum value of 𝑀RBER within the tested blocks
+ Second, the implementation of FELP requires only identify-                                                                                 when we program the blocks (a) after complete erasure and (b)
+ ing two values for fail-bit ranges, e.g., 𝛾 and 𝛿 in Figures 7 and                                                                         after insufficient erasure. For Figure 10b, we group the tested
+ 8, which can be done using our characterization methodology.                                                                               blocks depending on their 𝑁 ISPE and fail-bit range. We also
+ 5.3                                   Shallow Erasure: Feasibility & Parameter Setting                                                     plot (i) the ECC capability at 72 bits per 1 KiB and (ii) the
+                                                                                                                                            RBER requirement at 63 bits per 1 KiB to reflect sampling
+We validate the feasibility of shallow erasure and explore a                                                                                errors (i.e., a block is considered unusable if its 𝑀RBER > 63
+good latency value. Figure 9 shows the distribution of 𝐹 (0)                                                                                to incorporate a safety margin into the ECC capability).
+across blocks under different tSE = ⟨0.5 ms, 1 ms, 1.5 ms,
+2 ms⟩ and 𝑃𝐸𝐶 = ⟨0.1K, 0.5K⟩. We confirm that all the tested                                                                                                          𝑚tEP(𝑁ISPE): 0.5         1       1.5       2       2.5
+                                                                                                                                                105                       105
+blocks in the 𝑛-th fail-bit range can be completely erased via
+                                                                                                                                                 85    ECC capability      85
+subsequent remainder erasure with tRE = 0.5 × 𝑛 ms.                                                                                              65                        65
+                                                                                                                                            𝑀RBER
+
+
+
+
+                                                                                                                                                                          𝑀RBER
+
+
+
+
+                                                                                                                                                                                                         RBER requirement
+                                                                                                                                                 45     Margin             45
+                                     tSE = 0.5 ms   tSE = 1 ms     tSE = 1.5 ms    tSE = 2 ms
+                                                                                                                                                 25                        25          𝑁ISPE0:     1    2    3       4     5
+                                 80 tBERS = 2.7 ms tBERS = 2.6 ms tBERS = 2.5 ms tBERS = 2.6 ms                                                   5                         5
+                                 60                                                   PEC: 0.1K
+                                 40                                                                                                                   1 2 3 4 5                 F 1 𝜸
+                                                                                                                                                                             𝑭PASS      A 3      𝜹B 5 2𝛿 2B 7 3𝛿  3B 9 4𝛿
+                                                                                                                                                                                                                       4B
+# blocks [%]
+
+
+
+
+                                 20                                                                                                                         𝑁ISPE                             𝐹(𝑁ISPE − 1) [a.u.]
+                                  0
+                                 80 tBERS = 2.9 ms tBERS = 2.9 ms tBERS = 2.9 ms tBERS = 2.9 ms                                               (a) Completely erased                   (b) Incompletely erased
+                                 60                                                   PEC: 0.5K
+                                 40
+                                 20                                                                                                                 Figure 10. Reliability margin depending on erase status.
+                                  0
+
+
+                                                     𝐹(0): fail-bit count after shallow erasure [a.u.]                                         We make two key observations. First, we observe a large
+                                                                                                                                            reliability margin (i.e., 𝑅𝐵𝐸𝑅 𝑟𝑒𝑞𝑢𝑖𝑟𝑒𝑚𝑒𝑛𝑡 − 𝑀RBER ) that can
+                                        Figure 9. Fail-bit distribution under varying tSE.                                                  potentially be used to further reduce tEP especially in the
+                                                                                                                                            early lifetime stage of blocks. As shown in Figure 10a, when
+    We make three key observations from Figure 9. First, shal-                                                                              a block is completely erased, there always exists a positive
+ low erasure enables A ERO to reduce tEP for EP(1). A large                                                                                 reliability margin for all 𝑁 ISPE values up to 47 bit errors
+ fraction of blocks can be completely erased with lower la-                                                                                 (𝑁 ISPE = 1). Second, it is possible to further reduce tEP with-
+ tency than the default tEP (⟨80%, 85%, 86%, 88%⟩ for                                                                                       out compromising reliability in many operating conditions.
+ tSE = ⟨0.5 ms, 1 ms, 1.5 ms, 2 ms⟩). Second, tSE does                                                                                      As shown in Figure 10b, using an insufficiently-erased block
+ not significantly affect the average tBERS. We annotate the                                                                                still meets the RBER requirement (i.e., 𝑀RBER < 63) if either
+ average tBERS for each tSE case in Figure 9, which shows                                                                                   of the following two conditions is met: [C1: 𝑁 ISPE ≤ 3 and
+ their small variation (<10%). Third, with a low probability,                                                                               𝐹 (𝑁 ISPE − 1) < 𝛿] and [C2: 𝑁 ISPE = 4 and 𝐹 (3) < 𝛾]. This
+ shallow erasure may cause a block to be over-erased. For                                                                                   means that we can skip the final erase loop in such cases,
+                                                                                                                                        8
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                                             ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+thereby further increasing the amount of tEP reduction even                                                                      2D TLC    3D MLC             𝑁ISPE0:     1     2       3     4     5
+
+
+
+
+                                                                                                       Fail-bit count [a.u.]
+                                                                                                                                                      105
+higher than the default tEP in the ISPE scheme, i.e., ΔtEP                                                                                             85
+                                                                                                                                                        85                           ECC capability
+can be larger than tEP in (2). Note that A ERO can further                                                                                             65
+                                                                                                                                                        65
+
+
+
+
+                                                                                                                                                     𝑀RBER
+                                                                                                                                                                           RBER
+reduce 𝑚 tEP (𝑁 ISPE ) even if neither of [C1] and [C2] is met                                                                                         45
+                                                                                                                                                        45          requirement
+                                                                                                                                                       25
+                                                                                                                                                        25
+because increasing tEP by 0.5 ms in EP(𝑖) decreases 𝐹 (𝑖)                                                                                                           2D TLC                 3D MLC
+                                                                                                                                                        55
+by 𝛿 as demonstrated in §5.2. For example, a block requires                                                                       𝛿          𝛾             F 1 𝛾
+                                                                                                                                                         𝐹 PASS                     F 1 𝛾
+                                                                                                                                                                   𝛾A 3 𝛿B 5 2𝛿 𝐹 PASS     𝛾 3 𝛿B 5 2𝛿
+                                                                                                                                                                                           A          C
+𝑚 tEP (𝑁 ISPE ) = 1.5 ms for complete erasure when 𝑁 ISPE = 3                                                                                                             𝐹(𝑁ISPE − 1) [a.u.]
+and 𝛿 < 𝐹 (2) ≤ 2𝛿, but using tEP = 0.5 ms in EP(3) can still                                                                   (a) Fail-bit count             (b) 𝑀RBER after insufficient erasure
+meet the RBER requirement since doing so would decrease
+𝑀RBER below 63 (see the arrow in Figure 10 b).                                                                                     Figure 11. Erase characteristics of other chip types.
+     We conclude that A ERO can significantly mitigate the nega-
+tive impact of erase operations by leveraging not only the high                                           We make two key observations. First, although the exact
+process variation but also the large ECC-capability margin                                             values of 𝛿 and 𝛾 slightly vary depending on the chip type,
+present in modern SSDs. Table 1 shows the final 𝑚 tEP (𝑁 ISPE )                                        they are quite consistent within the same type of chips across
+model that we construct; each cell’s value ‘𝑡 1 / 𝑡 2 ’ indicates                                      all tested cases as shown in Figure 11a. This clearly shows that
+𝑚 tEP (𝑁 ISPE ) when A ERO leverages only the process variation                                        the strong linear relationship between the fail-bit count and
+(𝑡 1 ) and when also leveraging the ECC-capability margin (𝑡 2 ).                                      accumulate tEP also holds in the chips additionally tested.
+                                                                                                       Second, as shown in Figure 11b, the reliability impacts of
+   Table 1. Final model of 𝑚 tEP (𝑁 ISPE ) based on 𝐹 (𝑁 ISPE − 1).                                    insufficient erasure in the 2D TLC and 3D MLC chips ex-
+                                                                                                       hibit highly similar trends to those in the 3D TLC chips (cf.
+𝑁 ISPE
+                                             𝐹 (𝑁 ISPE − 1)                                            Figure 10b),2 suggesting the high feasibility of aggressive
+           ≤𝛾         ≤𝛿        ≤ 2𝛿       ≤ 3𝛿       ≤ 4𝛿       ≤ 5𝛿       ≤ 6𝛿        ≤ 7𝛿           tEP reduction also in the two types of chips. We conclude
+  1       0.5 / 0     1/0      1.5 / 0.5    2/1      2.5 / 1.5 2.5 / 2 2.5 / 2.5 2.5 / 2.5             that A ERO can be used for a wide range of chips with the
+  2       0.5 / 0     1/0      1.5 / 0.5    2/1      2.5 / 1.5    3/2      3.5 / 2.5    3.5 / 3        same methodology we use to construct the tEP model for
+  3       0.5 / 0     1/0      1.5 / 0.5    2/1      2.5 / 1.5    3/2      3.5 / 2.5    3.5 / 3        our tested chips (Table 1).
+  4       0.5 / 0    1 / 0.5    1.5 / 1    2 / 1.5    2.5 / 2    3 / 2.5    3.5 / 3    3.5 / 3.5
+  5      0.5 / 0.5    1/1      1.5 / 1.5    2/2      2.5 / 2.5    3/3      3.5 / 3.5 3.5 / 3.5
+                                                                                                        6                       Design and Implementation
+                                                                                                       We design A ERO FTL, an A ERO-enabled flash translation
+                                                                                                       layer (FTL), by extending the conventional page-level FTL [70]
+5.5      Applicability of A ERO for Other Types of Chips                                               with two key data structures: (i) Erase-timing Parameter
+                                                                                                       Table (EPT) and (ii) Shallow Erasure Flags (SEF). The EPT
+We expect that the key ideas of A ERO are generally applicable                                         is a simple table to stores 𝑚 tEP (𝑖) for each EP(𝑖) depending on
+to a wide range of NAND flash chips other than the chips                                               𝐹 (𝑖 − 1), which can be built via offline profiling of target chips
+used for our characterization study due to three reasons. First,                                       as in §5 (Table 1). The SEF is a bitmap that keeps track of
+our chips well represent modern 3D NAND flash memory be-                                               whether a block needs shallow erasure or not. Every bit in the
+cause most commercial chips including SMArT/TCAT/BiCS                                                  SEF is initially set to ‘0’, which is translated to TRUE. Doing
+have similar structures and cell types, e.g., vertical channel                                         so enables A ERO FTL to always perform shallow erasure for
+structures, gate-all-around cell transistors, and charge-trap                                          a fresh block that has experienced no P/E cycle.
+type flash cells [55, 57, 65], sharing key device characteris-
+tics like operation mechanisms and reliability characteristics.
+Second, the erase mechanism of NAND flash memory has not                                                                       2 The results shown in Figures 10b and 11b, which are remarkably similar,
+changed significantly for more than a decade. For example,                                             might seem counter-intuitive because it is well known that 3D NAND flash
+the ISPE scheme has been used since 2D SLC NAND flash                                                  memory exhibits better reliability compared to 2D NAND flash memory [33].
+memory [55, 57]. Third, AERO does not rely on chip-specific                                            Nevertheless, commodity 3D NAND flash chips provide a similar level of
+behaviors but leverages inherent erase characteristics, e.g.,                                          reliability to 2D chips because the better reliability characteristics of 3D
+the more completely the cells within a block are erased, the                                           NAND flash memory are used to avoid write-performance degradation over
+                                                                                                       2D NAND flash memory. Since its first development, a majority of 3D NAND
+lower the fail-bit count of the block.                                                                 flash memory has been designed to contain two planes [68], whereas state-of-
+   To support our hypothesis, we characterize two additional                                           the-art 2D chips consist of four planes [69]. The decrease in the number of
+types of NAND flash chips, (i) 2x-nm 2D TLC NAND flash                                                 planes per chip would inevitably limit the bandwidth of multi-plane writes in
+chips [66] and (ii) 48-layer 3D MLC NAND flash chips [67]                                              3D NAND flash chips to be around twice lower compared to 2D chips if the
+from Samsung. We use the same methodology as other device                                              same program-timing parameters were used (e.g., tPROG ≈ 1.2 ms in 2D
+                                                                                                       NAND flash memory [69]). To avoid this, manufacturers have reduced the
+characterizations. Figure 11 shows (a) the values of 𝛿 and 𝛾 for                                       program latency of 3D NAND flash memory by trading its better reliability,
+all tEP and 𝑁 ISPE cases (box plot) and (b) the maximum value                                          which enables sustaining (or even improving) the write bandwidth of 3D
+of 𝑀RBER within the tested block after insufficient erasure.                                           chips without compromising reliability compared to 2D chips.
+                                                                                                   9
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                       Cho et al.
+
+
+   Figure 12 illustrates how A ERO FTL dynamically adjusts                        consists of multiple (e.g., 2 or 4) planes, each of which has its
+erase latency. For erasing a block whose index (or ID) is 𝑘, it                   own flash cell array and page buffer. Planes in the same chips
+first looks up the corresponding (𝑘-th) bit in the SEF ( 1 in                     can operate concurrently if certain conditions are met, e.g.,
+Figure 12). If the flag bit is TRUE, A ERO FTL 2 performs                         only the same type of NAND flash operations (i.e., read, pro-
+shallow erasure by changing the target chip’s tEP to tSE                          gram, or erase operations) can be performed in parallel across
+with a SET FEATURE command. Then it 3 queries the EPT                             planes in a chip because they share part of peripheral circuitry.
+with 𝐹 (0) that can be obtained via a GET FEATURE com-                            Multi-plane operation can increase chip throughput linearly
+mand. Based on the query result, A ERO FTL 4 sets the chip’s                      with the number of planes per chip, thereby significantly im-
+tEP and performs remainder erasure. If the remainder era-                         proving SSD-internal parallelism and I/O performance.
+sure cannot reduce the effective latency of the first erase loop,                    A ERO can work with multi-plane erase operations due to
+A ERO FTL 5 sets the corresponding bit in the SEF to ‘1’ that                     two reasons. First, a NAND flash chip can individually set
+is translated to ‘FALSE’. Doing so allows A ERO FTL to skip                       tEP for each target block of a multi-plane erase operation.
+shallow erasure for the block in future, but directly performs                    Second, as soon as a target block is completely erased, it is
+EP(1) with the default tEP, thereby avoiding the unnecessary                      possible to inhibit the block from being further erased by the
+VR(0). The remaining process is straightforward. If an erase                      subsequent erase loops during a multi-plane erase operation.
+loop fails, A ERO FTL performs the next loop while adjusting                      Although the worst block (which requires the longest erase
+the chip’s tEP based on the value obtained from the EPT.                          latency) in target planes determines the latency of a multi-
+                                                                                  plane erase operation, A ERO can still sustain lifetime benefit
+                   𝒊   𝑭(𝒊) 𝒎tEP(𝒊 + 𝟏)                             Blk 0
+                                                                                  and reduce tail latency by erasing each block in target planes
+    ID SEF            …         …          2 Shallow Erasure:
+                                            tEP(0) = tSE (1 ms)
+                                                                                  only with necessary loops and times.
+     0  T            ≤ 3𝛿      1 ms                                 Blk 1
+    1   T    1T    0  …         …                                                 Implementation Overhead. A ERO FTL requires only two
+                                                𝐹(0) > 6𝜹
+    …   …          3 > 𝟔𝜹     2.5 ms                                              small changes to conventional SSDs. First, A ERO FTL can
+    𝒌    T   5F      ≤𝛿        0 ms       4 Remainder Erasure:     Blk 𝒌
+    … …            1  …         …          tEP(1) = tRE (2.5 ms)                  use GET/SET FEATURE commands to obtain 𝐹 (𝑖) and ad-
+   𝑛-1 F             > 7𝛿     3.5 ms                               Blk 𝑛-1        just tEP for each EP(𝑖), respectively, thereby requiring no
+                   … …          …
+Shallow Erasure       Erase-timing                                 NAND           change to commodity NAND flash chips. Second, the storage
+  Flags (SEF)     Parameter Table (EPT)                            Chips          overhead for the EPT and SEF is trivial. The EPT needs to
+                                                                                  keep 𝑇 × 𝐿 entries, where 𝑇 and 𝐿 indicate the number of pos-
+          Figure 12. Operational overview of A ERO FTL.                           sible tEP values and the maximum number of erase loops,
+                                                                                  respectively. In our current design, the EPT has 35 entries
+Misprediction Handling. While not observed in our real-                           (𝑇 = 7 and 𝐿 = 5), which requires only 140 bytes even when
+device characterization, it is possible that A ERO fails to com-                  using a 32-bit value per entry. The SEF needs to keep 1-bit in-
+pletely erase outlier blocks (which could potentially be missed                   formation for each block. In our tested chips, the block size is
+in the set of blocks we experimentally test) with reduced la-                     around 10 MB, so the SEP’s storage overhead is 1.25 × 10−6 %
+tency. A ERO FTL can easily handle such a misprediction be-                       (= 1/(8 × 107 )) of SSD capacity, e.g., 12.5 KB for a 1-TB
+cause it always checks 𝐹 (𝑁 ISPE ) anyways to verify whether a                    SSD. Note that modern SSDs contain several GB of internal
+block is completely erased. If A ERO FTL detects a mispredic-                     DRAM [76], so the storage overhead is negligible.
+tion, it repeats an additional EP step with appropriate VERASE
+and tEP until completely erasing the block; it uses the same                      7     Evaluation
+VERASE if the accumulated latency is lower than the default
+tBERS while increasing VERASE otherwise. Despite A ERO’s                          We evaluate the effectiveness of A ERO at improving the life-
+low misprediction rate, we evaluate its potential impact in §7.                   time and performance of modern NAND flash-based SSDs.
+Impact on ECC-Decoding Latency. Aggressive tEP reduc-
+tion in A ERO can potentially increase ECC-decoding latency                       7.1   Evaluation Methodology
+(e.g., in LDPC [51]), but its performance impact is limited                       We evaluate A ERO in two ways. First, we characterize 160
+due to two reasons. First, it is common practice to limit the                     real 3D TLC NAND flash chips to assess the lifetime en-
+number of iterations for hard-decision ECC decoding [71, 72]                      hancement of A ERO. Unless specified otherwise, we follow
+so that ECC-decoding latency (e.g., 8 µs [73]) can be hidden                      the real-device characterization methodology explained in
+by page sensing and data transfer. Second, the RBER require-                      §5.1. Second, we evaluate the impact of A ERO on I/O perfor-
+ment conservatively set in A ERO (e.g., 63 bits per 1 KiB)                        mance using MQSim [44], a state-of-the-art SSD simulator.
+ensures a low hard-decision failure rate (e.g., < 10−5 [73]),                        We compare five different erase schemes: (i) Baseline,
+hardly causing additional soft-decision LDPC decoding.                            (ii) i-ISPE, (iii) DPES, (iv) AEROCONS , and (v) AERO. Base-
+Multi-Plane Operations. Multi-plane operation is a widely                         line is the conventional ISPE scheme explained in §3.2. I-ISPE
+used feature in modern NAND flash-based SSDs to improve                           is the intelligent ISPE scheme [16] explained in §3.3, which
+I/O performance [55, 74, 75]. A typical NAND flash chip                           directly performs EP(𝑛) while skipping the previous EP steps
+                                                                             10
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                  ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+if the block has been completely erased by EP(𝑛) in the most-                                          Table 3. I/O characteristics of evaluated workloads.
+recent erase operation. DPES (explained in §3.3) mitigates
+erase stress by reducing erase voltage VERASE by 8–10%                                                                                  Read Avg. Req.       Avg. Inter Req.
+                                                                                                 Benchmark          Trace      Abbr.
+at a cost of 10–30% increase in write latency tPROG [31].                                                                               Ratio  Size           Arrival Time
+Since DPES is only applicable until 3K PEC in our tested                                                            ali_32      ali.A   7%        54 KB           16.3 ms
+chips (i.e., no matter how much tPROG increases, reducing                                                            ali_3      ali.B   52%       26 KB           111.8 ms
+                                                                                                  Alibaba
+VERASE can no longer meet the reliability requirements), we                                      Cloud [78]         ali_12      ali.C   69%       38 KB           57.9 ms
+use the same VERASE and tPROG values as in Baseline af-                                                             ali_121     ali.D   78%       18 KB           13.8 ms
+ter 3K PEC. AEROCONS and AERO dynamically adjust tEP                                                                ali_124     ali.E   95%       36 KB            5.1 ms
+for each EP(𝑖) at a granularity of 0.5 ms based on 𝐹 (𝑖 − 1).                                                       rsrch_0     rsrch   9%        9 KB            421.9 ms
+AEROCONS does not exploit the ECC-capability margin, i.e.,                                                           stg_0       stg    15%       12 KB           297.8 ms
+it is more conservative in tEP reduction compared to AERO                                    MSR                    hm_0         hm     36%       8 KB            151.5 ms
+                                                                                          Cambridge [79]            prxy_1      prxy    65%       13 KB            3.6 ms
+that adopts all optimizations in §4.
+Simulation Methodology. We extend MQSim in two aspects                                                              proj_2      proj    88%       42 KB           20.6 ms
+to model the behavior of modern SSDs more faithfully. First,                                                         usr_1       usr    91%       49 KB           13.4 ms
+we modify the NAND flash model of MQSim to emulate the
+erase characteristics of our 160 tested chips. To this end, dur-                  7.2                 Impact on SSD Lifetime
+ing our real-device characterization study in §5, we keep track                   To evaluate the lifetime enhancement of A ERO, we measure
+of erase-related metadata such as the minimum erase latency,                      𝑀RBER (𝑃𝐸𝐶) for each real tested block, the maximum RBER
+fail-bit count, and PEC for every tested block. For simula-                       within the pages in the block, while varying PEC under 1-
+tion, we then randomly select tested blocks and assign their                      year retention at 30◦ C. We construct five sets of 120 blocks
+metadata to each of the simulated blocks in MQSim. Because                        randomly selected from 160 real 3D NAND flash chips and
+MQSim already tracks PEC, a simulated block can accurately                        test each set while increasing PEC using one of the five erase
+emulate the erase characteristics of the corresponding real                       schemes. Figure 13 depicts the average 𝑀RBER across the
+block at a given PEC by simply looking up the metadata.                           tested blocks under different PEC.
+Second, we optimize the request scheduling algorithm of
+                                                                                                               Baseline        I-ISPE    DPES          AEROCONS
+                                                                                                                                                       AEROCO1        AERO
+MQSim to service user I/O requests with a higher priority                                        80
+                                                                                                           RBER requirement
+                                                                                 Average 𝑀RBER
+
+
+
+
+over SSD-internal read/write/erase operations, e.g., suspend-                                    60
+ing an ongoing erase operation [13]. Table 2 summarizes the                                                                                                +26%
+                                                                                                 40
+configurations of the simulated SSDs. We configure the archi-                                                                                   -25%       +30%
+                                                                                                 20
+tecture and timing parameters of simulated SSDs to be close                                                                                     5.3K       +43%
+to commodity high-end SSDs (e.g., [1]).                                                           0
+                                                                                                      0K       1K         2K      3K     4K       5K       6K       7K       8K
+                                                                                                                                         PEC
+           Table 2. Configurations of simulated SSDs.
+                                                                                                      Figure 13. Comparison of SSD lifetime and reliability.
+                   Capacity: 1024 GB        Interface: PCIe 4.0 (4 lanes)
+     SSD          GC policy: greedy [77]    Overprovisioning ratio: 20%              We make four key observations. First, both AERO and
+                    # of channels: 8          # of chips per channel: 2           AEROCONS significantly improve SSD lifetime over Baseline.
+                  # of planes per chip: 4   # of blocks per plane: 497            The average 𝑀RBER increases at a much slower rate with PEC
+                # of pages per block: 2,112      Page size: 16 KB                 in AEROCONS and AERO compared to in Baseline, which
+ NAND Flash       MLC technology: TLC              tR: 40 µs [9]                  clearly shows the high effectiveness of the erase latency re-
+   Chip        tEP (A ERO): 0.5 ms – 3.5 ms       tEP: 3.5 ms [9]                 duction in A ERO at lowering erase-induced cell stress. The
+                    tSE (A ERO): 1 ms           tPROG: 350 µs [9]
+                                                                                  slower increase in 𝑀RBER , in turn, enables a block to meet
+               tPROG: 385 µs (DPES, 0.5K PEC), 455 µs (DPES, 2.5K PEC)
+                                                                                  the RBER requirement at higher PEC in AERO (7.6K) and
+                                                                                  AEROCONS (6.9K) compared to Baseline (5.3K), significantly
+   For our performance evaluation, we study eleven work-                          enhancing SSD lifetime by 43% and 30%, respectively.
+loads selected from two benchmark suits, Alibaba Cloud                               Second, AERO further improves SSD lifetime considerably
+Traces [78] and Microsoft Research Cambridge (MSRC)                               over AEROCONS (by 10%) without compromising data reli-
+Traces [79], which are collected from real datacenter and                         ability. This highlights the high effectiveness of leveraging
+enterprise servers. For MSRC traces, we reduce the inter-                         the reliability margin to reduce erase latency more aggres-
+request arrival time by 10×, as similarly done in a large body                    sively. The aggressive tEP reduction causes high 𝑀RBER even
+of prior work to evaluate more realistic workloads [11, 29–                       for fresh blocks (i.e., 𝑀RBER (0) = 46 in AERO) but greatly
+31, 37, 44, 80–84]. Table 3 summarizes the I/O characteristics                    slows down 𝑀RBER increase (𝑀RBER (6𝐾) −𝑀RBER (0) =9.5),
+of the workloads used for our evaluation.                                         showing its high long-term benefits.
+                                                                            11
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                                                                       Cho et al.
+
+                                                                                    Baseline   I-ISPE        DPES            AEROCONS    AERO
+                                   1.4
+                                   1.0
+Normalized read tail latency
+
+
+
+
+                               (a)
+                                   0.6
+                                   0.2
+                                   1.4
+                                   1.0
+                               (b) 0.6
+                                   0.2
+                                   1.4
+                                   1.0
+                               (c) 0.6
+                                   0.2
+                                          ali.A ali.B ali.C ali.D ali.E rsrch stg   hm prxy proj usr G.M.           ali.A ali.B ali.C ali.D ali.E rsrch stg          hm prxy proj usr G.M.
+
+                                         Figure 14. The 99.99th (left) and 99.9999th (right) percentile read latency at 𝑃𝐸𝐶 = ⟨(a) 0.5K, (b) 2.5K, (c) 4.5K⟩.
+
+
+   Third, DPES also improves SSD lifetime considerably (by                                                              Table 4. Comparison of average I/O performance.
+26%) compared to Baseline, but its benefits are limited com-
+pared to both AEROCONS and AERO. Like AERO, DPES ex-                                                                               Geomean of Norm. Avg. Perf. at PEC = ⟨0.5K, 2.5K, 4.5K⟩
+                                                                                                              Erase Scheme          Norm. Avg.             Norm. Avg.               Norm. Avg.
+hibits rather high 𝑀RBER due to VERASE reduction until 3K                                                                        Read Latency [%]       Write Latency [%]           IOPS [%]
+PEC, which, in turn, enables its 𝑀RBER to increase more                                                             I-ISPE       ⟨100.0, 99.8, N/A⟩     ⟨100.0, 100.0, N/A⟩     ⟨100.0, 100.1, N/A⟩
+slowly later. However, DPES’s benefits are limited due to                                                           DPES         ⟨100.4, 101.3, 99.9⟩   ⟨110.8, 135.6, 100.0⟩    ⟨95.7, 87.8, 100.0⟩
+(i) its limited applicability (until 3K PEC) as well as (ii) its                                                AEROCONS          ⟨99.9, 99.7, 99.7⟩     ⟨99.8, 99.9, 99.8⟩     ⟨100.2, 100.3, 100.3⟩
+write-performance overheads.                                                                                        AERO          ⟨99.9, 99.6, 99.7⟩     ⟨99.8, 99.8, 99.9⟩     ⟨100.2, 100.4, 100.3⟩
+
+   Fourth, i-ISPE accelerates RBER increase, which, in turn,
+rather decreases SSD lifetime. In fact, i-ISPE provides the                                                  𝜏99.9999P , respectively) in the five simulated SSDs at 𝑃𝐸𝐶 =
+lowest 𝑀RBER among the compared SSDs at 𝑃𝐸𝐶 = ⟨0K,                                                           ⟨0.5K, 2.5K, 4.5K⟩ (all values are normalized to Baseline).
+1K⟩ where it is relatively easy to completely erase a block                                                     We make six observations from Figure 14. First, AERO
+compared to at high PEC. However, it frequently incurs an                                                    (AEROCONS ) significantly reduces 𝜏99.99P and 𝜏99.9999P com-
+erase failure as PEC increases, causing more erase-induced                                                   pared to Baseline by 22% (18%) and 26% (20%), respectively,
+cell stress as explained in §3.3. Consequently, i-ISPE leads                                                 on average across all the evaluated workloads and PEC. Sec-
+to shorter SSD lifetime by 25% even compared to Baseline,                                                    ond, A ERO achieves higher performance benefits at lower
+which shows its limited applicability in modern SSDs.                                                        PEC while still providing considerable performance improve-
+                                                                                                             ments at high PEC. AERO (AEROCONS ) outperforms Baseline
+7.3                             Impact on I/O Performance                                                    by ⟨35%, 24%, 9%⟩ (⟨32%, 15%, 7%⟩) when 𝑃𝐸𝐶 = ⟨0.5K,
+Average I/O Performance. To evaluate the performance im-                                                     2.5K, 4.5K⟩, reducing 𝜏99.99P and 𝜏99.9999P compared to Base-
+pact of A ERO, we first compare average I/O performance                                                      line by ⟨26%, 25%, 13%⟩ (⟨26%, 16%, 11%⟩) and ⟨43%,
+of the five SSDs in three aspects: (i) read latency, (ii) write                                              23%, 5%⟩ (⟨39%, 14%, 2%⟩) when 𝑃𝐸𝐶 = ⟨0.5K, 2.5K,
+latency, and (iii) I/O throughput (IOPS, input/output oper-                                                  4.5K⟩. This is because A ERO only reduces tEP in EP(𝑁 ISPE ),
+ations per second). Table 4 summarizes the three average                                                     which has a higher impact when 𝑁 ISPE is low. The high ben-
+performance values in i-ISPE, DPES, AEROCONS , and AERO                                                      efits at 0.5K PEC (Figure 14a) also clearly show the high
+that are normalized to Baseline, on average across all the                                                   effectiveness of shallow erasure, given that 𝑁 ISPE = 1 for
+workloads. We observe that all the evaluated SSDs except for                                                 most blocks. Third, A ERO improves I/O performance also
+DPES show almost the same average performance for all the                                                    when the workload is read-dominant (e.g., ali.E and usr).
+workloads and 𝑃𝐸𝐶 = ⟨0.5K, 2.5K, 4.5K⟩. This is because                                                      This highlights the importance of optimizing the latency of
+modern SSDs perform erase operations much less frequently                                                    erase operations that dictate read tail latency. Fourth, at 2.5K
+compared to reads and writes as explained in §3.1. Unlike                                                    PEC, AERO considerably reduces 𝜏99.99P and 𝜏99.9999P over
+the other SSDs, DPES significantly increases average write la-                                               AEROCONS by 11% on average (up to 34% and 22%, respec-
+tency and IOPS at 𝑃𝐸𝐶 = ⟨0.5K, 2.5K⟩, i.e., when the DPES                                                    tively), which shows the effectiveness of leveraging the ECC-
+scheme is applicable. Note that we do not evaluate i-ISPE at                                                 capability margin for further tEP reduction. Fifth, AERO also
+4.5K PEC, as it cannot meet the RBER requirement before                                                      reduces 𝜏99.99P and 𝜏99.9999P over i-ISPE by ⟨26%, 20%⟩ and
+PEC reaches 4.5K as shown in Figure 13.                                                                      ⟨43%, 23%⟩ at 𝑃𝐸𝐶 = ⟨0.5K, 2.5K⟩, respectively, on average
+Read Tail Latency. We evaluate the impact of A ERO on                                                        across all the evaluated workloads. At 0.5K PEC, both AERO
+SSD read tail latency that is critical in modern enterprise or                                               and i-ISPE can completely erase almost every block via a
+datacenter server systems [85, 86]. Figure 14 represents the                                                 single loop for which only A ERO can reduce tBERS using
+99.99th and 99.9999th percentile read latencies (𝜏99.99P and                                                 shallow erasure. Even though i-ISPE can also decrease 𝑁 ISPE
+                                                                                                        12
+ Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                                             ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+ (and thus tBERS) to less than 2 (7 ms) at 2.5K PEC by skip-                           A ERO since it is improbable but not impossible to happen. To
+ ping the first erase loops, AERO achieves higher benefits due                         this end, we make two assumptions on A ERO’s misprediction
+ to aggressive tEP reduction and slower 𝑁 ISPE increase (92%                           behavior based on our real-device characterization results.
+ of the blocks can be erased within two erase loops at 2.5K                            First, we consider each erase-latency prediction of A ERO
+ PEC). Sixth, AERO reduces 𝜏99.99P and 𝜏99.9999P over DPES                             as an independent trial with a constant failure (i.e., mispre-
+ by 22% and 25%, respectively, on average across all the eval-                         diction) rate for all blocks and operating conditions. This is
+ uated workloads and PEC. In particular, at 2.5K PEC, 𝜏99.99P                          because, although reliability characteristics significantly vary
+ of DPES rather often increases by 5% compared to Baseline                             across blocks and operating conditions, A ERO can accurately
+ due to the increase in tPROG, whereas AERO causes no per-                             predict the minimum erase latency for all tested chips, blocks,
+ formance degradation but provides 25% benefits on average                             and operating conditions as demonstrated in §5 (i.e., we ob-
+ across all worloads.                                                                  serve nothing suggesting that certain chips, blocks, or oper-
+ Impact of Erase Suspension. To better understand A ERO’s                              ating conditions are more prone to A ERO’s misprediction).
+ performance benefits, we evaluate the impact of erase suspen-                         Second, we assume that AERO performs an additional 0.5-ms
+ sion on read tail latency in AEROCONS and AERO. Figure 15                             EP step for each misprediction. We believe that 0.5 ms is long
+ shows 𝜏99.9P , 𝜏99.99P and 𝜏99.9999P in AEROCONS and AERO at                          enough for A ERO to handle a misprediction because the target
+ 𝑃𝐸𝐶 = ⟨0.5K, 2.5K, 4.5K⟩, averaged across all workloads,                              block must be largely (though not completely) erased even
+ when we disable the erase suspension scheme [13] (we also                             when a misprediction happens (otherwise, A ERO would not
+ plot the results with erase suspension for comparison). All                           have reduced erase latency). Figure 16 shows how A ERO’s
+ values are normalized to Baseline without erase suspension.                           misprediction rate affects its benefits in SSD lifetime (left)
+                           w/o erase suspension: Baseline   AEROCONS   AERO
+                                                                                       and read tail latency (right).
+                           w/o erase suspension: Baseline   AEROCONS   AERO
+          1
+read tail latency
+
+
+
+
+                                                                                                                     AEROCONS     AERO                              0%     1%   5%   10%    20%
+                                                                                      Lifetime improvement
+  Normalized
+
+
+
+
+       0.8                                                                                                   1.5                                             1.0
+
+
+
+
+                                                                                                                                         Read tail latency
+                                                                                                                                                                   AEROCONS       AERO
+       0.6                                                                                                                                                   0.9
+
+
+
+
+                                                                                                                                           (99.9999th)
+       0.4                                                                                                   1.4                                             0.8
+       0.2
+                                                                                                             1.3                                             0.7
+          0
+      𝑃𝐸𝐶               0.5K    2.5K 4.5K   0.5K    2.5K 4.5K   0.5K 2.5K 4.5K                                                                               0.6
+ Percentile                    99.9th              99.99th          99.9999th                                1.2                                             0.5
+                                                                                                                    0 1 5 10 20                                    0.5K 2.5K 4.5K 0.5K 2.5K 4.5K
+                Figure 15. Impact of erase suspension on read tail latency.                                        Misprediction rate [%]                                       PEC
+
+
+    We make two key observations. First, A ERO significantly                                                 Figure 16. Impact of misprediction rate on A ERO’s benefits.
+ improves I/O performance also when erase suspension is dis-
+ abled. AERO provides high benefits over Baseline, e.g., ⟨45%,                            We make two key observations. First, A ERO is highly ef-
+ 44%, 16%⟩ reductions in 𝜏99.9999P at 𝑃𝐸𝐶 = ⟨0.5K, 2.5K,                               fective at improving both SSD lifetime and I/O performance
+ 4.5K⟩. Second, the performance benefits of A ERO become                               even when mispredictions happen. Even under a high mis-
+ even higher when disabling erase suspension. For example,                             prediction rate of 20%, AERO (AEROCONS ) provides 42%
+ when erase suspension is enabled, AERO achieves ⟨43%, 23%,                            (29%) and 40% (37%) improvements over Baseline in SSD
+ 5%⟩ reduction in 𝜏99.9999P over Baseline at 𝑃𝐸𝐶 = ⟨0.5K,                              lifetime and read tail latency (at 0.5K PEC), respectively. This
+ 2.5K, 4.5K⟩, which is ⟨2%, 21%, 11%⟩ lower compared to                                is because AEROCONS and AERO are still able to reduce erase
+ when erase suspension is disabled. This is because, without                           latency when a misprediction happens, i.e., the amount of
+ erase suspension, a page read must wait for the completion of                         erase-latency reductions (e.g., up to 3.5 ms) is higher than
+ the entire ongoing erase loop, which significantly increases                          the misprediction penalty (e.g., 0.5 ms), in many cases. Sec-
+ the impact of erase latency on read tail latency compared to                          ond, the performance impact of misprediction becomes even
+ when the ongoing erase loop can be suspended. Note that,                              smaller as PEC increases. Compared to when no mispredic-
+ even though the erase suspension scheme often shows a higher                          tion occurs, 20% misprediction rate causes small increases
+ reduction in read tail latency to A ERO when they are applied                         (5.3% and 2.6% at 0.5K PEC in AERO and AEROCONS , re-
+ exclusively, it does not diminish the value of A ERO. This                            spectively) in 𝜏99.9999P , which significantly decreases (to 0.4%
+ is because A ERO also improves SSD lifetime significantly                             for both) at 4.5K PEC. This is because the total erase latency
+ and can be easily combined with erase suspension to further                           severely increases with PEC, thereby making the performance
+ reduce read tail latency.                                                             impact of misprediction much smaller.
+                                                                                       Impact of Reliability Margin. We evaluate how AERO’s
+ 7.4                Sensitivity Analysis                                               benefits change depending on the reliability margin that di-
+ Impact of Misprediction. Even though we have observed                                 rectly affects the effectiveness of aggressive tEP reduction.
+ no misprediction in our real-device characterization, we ana-                         To this end, we evaluate the performance and lifetime bene-
+ lyze the performance and lifetime impact of misprediction in                          fits of AERO while reducing the reliability requirement (i.e.,
+                                                                                 13
+  ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                                                            Cho et al.
+
+
+  the maximum raw bit errors per 1 KiB) to 40 and 50 (from                                                                reads) [12, 13]. Despite the significant lifetime and perfor-
+  63), which can happen when using weaker ECC. Figure 17                                                                  mance improvements made by the prior research, the existing
+  shows SSD lifetime (left) and read tail latency (right) of                                                              techniques erase a block using the conventional ISPE scheme,
+  AEROCONS and AERO under different reliability requirements,                                                             thereby causing over-erasure of blocks frequently. A ERO in-
+  normalized to Baseline. Note that the lifetime of Baseline and                                                          troduces only small implementation overheads and thus can
+  AEROCONS also degrades as the reliability requirement de-                                                               be easily integrated into the existing techniques to further
+  creases (because they can tolerate fewer errors).                                                                       improve the lifetime and performance of modern SSDs.
+                                                                                                                          Process Variation. Many prior studies [11, 15, 32, 34–37]
+                             AEROCONS   AERO                                AEROCONS   40 bits   50 bits   63 bits
+Lifetime improvement
+
+
+
+
+                       1.5                                            1.0                                                 leverage varying physical characteristics across flash cells to
+                                                  Read tail latency
+
+
+
+                                                                             99.99th             99.9999th                optimize modern SSDs. Hong et al. [11] propose a new erase
+                       1.4                                            0.9
+                       1.3                                            0.8                                                 scheme that applies a low voltage to error-prone WLs selec-
+                       1.2                                            0.7
+                                                                                                                          tively (while keeping the same voltage for the other WLs),
+                       1.1                                            0.6
+                       1.0                                            0.5                                                 which makes only a small fraction of weak WLs (temporarily)
+                          40      50       63                               0.5K 2.5K 4.5K 0.5K 2.5K 4.5K                 unusable but eventually extends SSD lifetime. To fully utilize
+                         RBER requirement [bit]                                          PEC                              the potential lifetime of NAND flash blocks, Kim et al. [15]
+                                                                                                                          propose a new block wear index that can reflect significant
+                       Figure 17. Impact of RBER requirement on A ERO’s benefits.
+                                                                                                                          endurance variation across blocks. Shim et al. [32] propose to
+                                                                                                                          skip some program-verify steps to improve I/O performance
+     We observe that AERO can still improve SSD lifetime when                                                             if the target WL has better reliability characteristics compared
+  the RBER requirement decreases considerably. Although the                                                               to other WLs. Out of many process-variation-aware optimiza-
+  chance for aggressive tEP reduction significantly decreases                                                             tions, to our knowledge, our work is the first to identify a new
+  when the RBER requirement is 40 bits (only if 𝑁 ISPE = 2 and                                                            optimization opportunity to improve both SSD lifetime and
+  𝐹 (1) < 𝛾 as shown in Figure 10b), it still allows 14% lifetime                                                         I/O performance by leveraging the significant variation in the
+  enhancement over AEROCONS . In particular, AERO achieves                                                                minimum erase latency across blocks.
+  the highest benefit at 2.5K PEC. This is because AERO can
+  completely erase most blocks with 𝑁 ISPE ≤ 3, which allows it
+  to aggressively reduce tEP for many blocks (𝑁 ISPE ≤ 3 and
+                                                                                                                          9   Conclusion
+  𝐹 (𝑁 ISPE − 1) < 𝛿 in Figure 10b).
+     Based on the key observations in our evaluation, we con-                                                             We propose A ERO, a new block erasure scheme that signifi-
+  clude that A ERO is highly effective at improving both SSD                                                              cantly improves both the lifetime and performance of modern
+  lifetime and I/O performance for many real-world workloads                                                              NAND flash-based SSDs by dynamically adjusting erase la-
+  under varying operating conditions. We believe that A ERO is                                                            tency. We identify new opportunities to optimize erase latency
+  a promising solution, considering its high lifetime and perfor-                                                         by leveraging varying characteristics across flash blocks and
+  mance benefits that come with almost negligible overheads.                                                              the large reliability margin in modern SSDs. Throughout ex-
+                                                                                                                          tensive characterization of 160 real 3D NAND flash chips,
+   8                     Related Work                                                                                     we demonstrate that it is possible to (i) accurately predict
+                                                                                                                          the minimum latency just long enough to completely erase a
+  To our knowledge, this work is the first to dynamically ad-
+                                                                                                                          block based on in-execution information (i.e., fail-bit count)
+  just erase latency by leveraging varying erase characteristics
+                                                                                                                          and (ii) aggressively yet safely reduce erase latency by ex-
+  across blocks, providing significant lifetime and performance
+                                                                                                                          ploiting the reliability margin. Our results show that A ERO
+  benefits for modern SSDs. We already discussed and com-
+                                                                                                                          effectively improves SSD lifetime and read tail latency with
+  pared to the state-of-the-art techniques [16, 31] closely related
+                                                                                                                          low overheads for diverse real-world enterprise and data cen-
+  to A ERO (§3.3 and §7). We briefly describe other related work
+                                                                                                                          ter workloads under varying operating conditions.
+  that aims to improve the lifetime and performance of SSDs.
+  Mitigating Negative Impact of Erase Operation. A large
+  body of prior work has proposed various techniques to miti-
+  gate the negative impact of erase operations on SSD lifetime                                                            Acknowledgments
+  and I/O performance. Many studies have optimized the al-                                                                We thank our shepherd Jian Huang and anonymous reviewers
+  gorithms of internal SSD management tasks, e.g., garbage                                                                of ASPLOS 2024 for their valuable feedback and comments.
+  collection [17–25] and wear leveling [26–28], to reduce the                                                             This work was supported by the MOTIE (Ministry of Trade,
+  number of erase operations invoked for servicing the same                                                               Industry and Energy) (1415181081), KSRC (Korea Semicon-
+  amount of user writes. To prevent an erase operation from                                                               ductor Research Consortium) (20019402), NRF (National
+  delaying latency-sensitive reads for a long time, some studies                                                          Research Foundation of Korea) (RS-2023-00283799), and
+  propose to suspend an ongoing erase operation to service user                                                           Samsung Electronics Co., Ltd (IO230411-05858-01). Jisung
+  reads (and resume the erase operation after completing the                                                              Park and Myungsuk Kim are the corresponding authors.
+                                                                                                                     14
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                    ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+A     Appendix: Terminology Summary                                                    and a 2.4Gb/s Interface. In Proceedings of the 2022 IEEE International
+                                                                                       Solid-State Circuits Conference (ISSCC), 2022.
+Table 5 summarizes new terminologies defined in this work.                        [11] Duwon Hong, Myungsuk Kim, Geonhee Cho, Dusol Lee, and Jihong
+                                                                                       Kim. GuardedErase: Extending SSD Lifetimes by Protecting Weak
+        Table 5. Summary of newly defined terminologies.                               Wordlines. In Proceedings of the 20th USENIX Conference on File and
+                                                                                       Storage Technologies (FAST), 2022.
+                                                                                  [12] Guanying Wu and Xubin He. Reducing SSD Read Latency via NAND
+    Terminology                           Definition
+                                                                                       Flash Program and Erase Suspension. In Proceedings of the 10th
+                                                                                       USENIX Conference on File and Storage Technologies (FAST), 2012.
+       𝑁 ISPE           Number of erase loops for complete erasure
+                                                                                  [13] Shine Kim, Jonghyun Bae, Hakbeom Jang, Wenjing Jin, Jeonghun
+    VR(𝑖) / EP(𝑖)          𝑖-th Verify-Read / Erase-Pulse step                         Gong, Seungyeon Lee, Tae Jun Ham, and Jae W. Lee. Practical Erase
+         𝐹 (𝑖)                Number of fail bits after EP(𝑖)                          Suspension for Modern Low-latency SSDs. In Proceedings of the 2019
+       𝐹 PASS                Predefined erase pass threshold                           USENIX Annual Technical Conference (ATC), 2019.
+                                                                                  [14] Yu Cai, Saugata Ghose, Erich F. Haratsch, Yixin Luo, and Onur Mutlu.
+       𝐹 HIGH                   Full erase pulse threshold                             Error Characterization, Mitigation, and Recovery in Flash-Memory-
+     tEP / tVR              Erase-Pulse / Verify-Read latency                          Based Solid-State Drives. Proceedings of the IEEE, 2017.
+     tSE / tRE             Shallow / Remainder erase latency                      [15] Myungsuk Kim, Myoungjun Chun, Duwon Hong, Yoona Kim, Geonhee
+                                                                                       Cho, Dusol Lee, and Jihong Kim. RealWear: Improving performance
+  𝑚 tBERS / 𝑚 tEP (𝑖)          Minimum tBERS / tEP (i)
+                                                                                       and lifetime of SSDs using a NAND aging marker. Performance
+       𝑀RBER                     Maximum raw bit errors                                Evaluation, 2021.
+                                                                                  [16] Dong Wook Lee, Sunghoon Cho, Byung Woo Kang, Sukkwang Park,
+                                                                                       Byoungjun Park, Myoung Kwan Cho, Kun-Ok Ahn, Ye Seok Yang,
+                                                                                       and Sung Wook Park. The Operation Algorithm for Improving the
+References                                                                             Reliability of TLC (Triple Level Cell) NAND Flash Characteristics. In
+ [1] Samsung. Samsung enterprise SSDs, 2023. https://semiconductor.                    Proceedings of the 2011 3rd IEEE International Memory Workshop
+     samsung.com/ssd/enterprise-ssd.                                                   (IMW), 2011.
+ [2] SK Hynix. SK Hynix enterprise SSDs, 2023. https://product.skhynix.           [17] Junghee Lee, Youngjae Kim, Galen M. Shipman, Sarp Oral, Feiyi Wang,
+     com/products/ssd/essd.go.                                                         and Jongman Kim. A Semi-Preemptive Garbage Collector for Solid
+ [3] Micron. Micron enterprise SSDs, 2023. https://www.micron.com/                     State Drives. In Proceedings of the IEEE International Symposium on
+     products/ssd/product-lines/9400.                                                  Performance Analysis of Systems and Software (ISPASS), 2011.
+ [4] Western Digital. Western Digital Data Center SSDs, 2023. https://www.        [18] Jinhua Cui, Youtao Zhang, Jianhang Huang, Weiguo Wu, and Jun Yang.
+     westerndigital.com/solutions/data-center/high-performance-ssd.                    ShadowGC: Cooperative Garbage Collection with Multi-level Buffer
+ [5] H-S Philip Wong, Simone Raoux, SangBum Kim, Jiale Liang, John P                   for Performance Improvement in NAND flash-based SSDs. In Proceed-
+     Reifenberg, Bipin Rajendran, Mehdi Asheghi, and Kenneth E Goodson.                ings of the 2018 Design, Automation & Test in Europe Conference &
+     Phase Change Memory. Proceedings of the IEEE, 2010.                               Exhibition (DATE), 2018.
+ [6] Mahmoud Zangeneh and Ajay Joshi. Design and Optimization of                  [19] Wonkyung Kang and Sungjoo Yoo. Dynamic Management of Key
+     Nonvolatile Multibit 1T1R Resistive RAM. IEEE Transactions on Very                States for Reinforcement Learning-Assisted Garbage Collection to
+     Large Scale Integration (VLSI) Systems, 2013.                                     Reduce Long Tail Latency in SSD. In Proceedings of the 55th Annual
+ [7] Sanjeev Aggarwal. STT–MRAM: High Density Persistent Memory                        Design Automation Conference (DAC), 2018.
+     Solution. https://www.flashmemorysummit.com/Proceedings2019/08-              [20] Narges Shahidi, Mahmut T. Kandemir, Mohammad Arjomand, Chita R.
+     07-Wednesday/20190807_NEWM-202B-1_Aggarwal.pdf, 2019.                             Das, Myoungsoo Jung, and Anand Sivasubramaniam. Exploring the
+ [8] Shoichiro Kawashima and Jeffrey S. Cross. FeRAM. Springer US,                     Potentials of Parallel Garbage Collection in SSDs for Enterprise Storage
+     2009.                                                                             Systems. In Proceedings of the International Conference for High
+ [9] Jiho Cho, D. Chris Kang, Jongyeol Park, Sang-Wan Nam, Jung-Ho                     Performance Computing, Networking, Storage and Analysis (SC), 2016.
+     Song, Bong-Kil Jung, Jaedoeg Lyu, Hogil Lee, Won-Tae Kim, Hongsoo            [21] Wonil Choi, Myoungsoo Jung, Mahmut Kandemir, and Chita Das.
+     Jeon, Sunghoon Kim, In-Mo Kim, Jae-Ick Son, Kyoungtae Kang, Sang-                 Parallelizing Garbage Collection with I/O to Improve Flash Resource
+     Won Shim, JongChul Park, Eungsuk Lee, Kyung-Min Kang, Sang-Won                    Utilization. In Proceedings of the 27th International Symposium on
+     Park, Jaeyun Lee, Seung Hyun Moon, Pansuk Kwak, ByungHoon                         High-Performance Parallel and Distributed Computing (HPDC), 2018.
+     Jeong, Cheon An Lee, Kisung Kim, Junyoung Ko, Tae-Hong Kwon,                 [22] Jiayang Guo, Yiming Hu, Bo Mao, and Suzhen Wu. Parallelism and
+     Junha Lee, Yohan Lee, Chaehoon Kim, Myeong-Woo Lee, Jeong-yun                     Garbage Collection Aware I/O Scheduler with Improved SSD Perfor-
+     Yun, HoJun Lee, Yonghyuk Choi, Sanggi Hong, JongHoon Park, Yoon-                  mance. In Proceedings of the 2017 IEEE International Parallel and
+     sung Shin, Hojoon Kim, Hansol Kim, Chiweon Yoon, Dae Seok Byeon,                  Distributed Processing Symposium (IPDPS), 2017.
+     Seungjae Lee, Jin-Yub Lee, and Jaihyuk Song. 30.3 A 512Gb 3b/Cell 7          [23] Wonkyung Kang, Dongkun Shin, and Sungjoo Yoo. Reinforcement
+     th-Generation 3D-NAND Flash Memory with 184MB/s Write Through-                    Learning-Assisted Garbage Collection to Mitigate Long-Tail Latency
+     put and 2.0 Gb/s Interface. In Proceedings of the 2021 IEEE Interna-              in SSD. ACM Transactions on Embedded Computing Systems (TECS),
+     tional Solid-State Circuits Conference (ISSCC), 2021.                             2017.
+[10] Moosung Kim, Sung Won Yun, Jungjune Park, Hyun Kook Park,                    [24] Pan Yang, Ni Xue, Yuqi Zhang, Yangxu Zhou, Li Sun, Wenwen Chen,
+     Jungyu Lee, Yeong Seon Kim, Daehoon Na, Sara Choi, Youngsun                       Zhonggang Chen, Wei Xia, Junke Li, and Kihyoun Kwon. Reducing
+     Song, Jonghoon Lee, Hyunjun Yoon, Kangbin Lee, Byunghoon Jeong,                   Garbage Collection Overhead in SSD Based on Workload Prediction.
+     Sanglok Kim, Junhong Park, Cheon An Lee, Jaeyun Lee, Jisang Lee,                  In Proceedings of the 11th USENIX Workshop on Hot Topics in Storage
+     Jin Young Chun, Joonsuc Jang, Younghwi Yang, Seung Hyun Moon,                     and File Systems (HotStorage), 2019.
+     Myunghoon Choi, Wontae Kim, Jungsoo Kim, Seokmin Yoon, Pansuk                [25] Junghee Lee, Youngjae Kim, Galen M. Shipman, Sarp Oral, and Jong-
+     Kwak, Myunghun Lee, Raehyun Song, Sunghoon Kim, Chiweon Yoon,                     man Kim. Preemptible I/O Scheduling of Garbage Collection for Solid
+     Dongku Kang, Jin-Yub Lee, and Jaihyuk Song. A 1Tb 3b/Cell 8th-                    State Drives. IEEE Transactions on Computer-Aided Design of Inte-
+     Generation 3D-NAND Flash Memory with 164MB/s Write Throughput                     grated Circuits and Systems (TCAD), 2013.
+                                                                             15
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                               Cho et al.
+
+
+[26] Muthukumar Murugan and David.H.C. Du. Rejuvenator: A Static                   [41] Shuo-Han Chen, Yuan-Hao Chang, Yu-Pei Liang, Hsin-Wen Wei, and
+     Wear Leveling Algorithm for NAND Flash Memory with Minimized                       Wei-Kuan Shih. An Erase Efficiency Boosting Strategy for 3D Charge
+     Overhead. In Proceedings of the 2011 IEEE 27th Symposium on Mass                   Trap NAND Flash. IEEE Transactions on Computers (TC), 2018.
+     Storage Systems and Technologies (MSST), 2011.                                [42] Hang-Ting Lue, Tzu-Hsuan Hsu, Chen-Jun Wu, Wei-Chen Chen, Teng-
+[27] Jun Li, Xiaofei Xu, Xiaoning Peng, and Jianwei Liao. Pattern-based                 Hao Yeh, Kuo-Pin Chang, Chih-Chang Hsieh, Pei-Ying Du, Yi-Hsuan
+     Write Scheduling and Read Balance-oriented Wear-Leveling for Solid                 Hsiao, Yu-Wei Jiang, Guan-Ru Lee, Roger Lo, Yan-Ru Su, Chiatze
+     State Drivers. In Proceedings of the 2019 35th Symposium on Mass                   Huang, Sheng-Chih Lai, Li-Yang Liang, Chieh-Fang Chen, Min-Feng
+     Storage Systems and Technologies (MSST), 2019.                                     Hung, Chih-Wei Hu, Chia-Jung Chiu, and Chih-Yuan Lu. A Novel
+[28] Dharamjeet, Yi-Shen Chen, Tseng-Yi Chen, Yuan-Hung Kuan, and                       Double-density, Single-Gate Vertical Channel (SGVC) 3D NAND Flash
+     Yuan-Hao Chang. LLSM: A Lifetime-Aware Wear-Leveling for LSM-                      That Is Tolerant to Deep Vertical Etching CD Variation and Possesses
+     Tree on NAND Flash Memory. IEEE Transactions on Computer-Aided                     Robust Read-disturb Immunity. In Proceedings of the 2015 IEEE
+     Design of Integrated Circuits and Systems (TCAD), 2022.                            International Electron Devices Meeting (IEDM), 2015.
+[29] Jaeyong Jeong, Sangwook Shane Hahn, Sungjin Lee, and Jihong Kim.              [43] Jisung Park, Myungsuk Kim, Myoungjun Chun, Lois Orosa, Jihong
+     Improving NAND Endurance by Dynamic Program and Erase Scaling.                     Kim, and Onur Mutlu. Reducing Solid-State Drive Read Latency by
+     In Proceedings of the 5th USENIX Workshop on Hot Topics in Storage                 Optimizing Read-Retry. In Proceedings of the 26th ACM International
+     and File Systems (HotStorage), 2013.                                               Conference on Architectural Support for Programming Languages and
+[30] Jaeyong Jeong, Sangwook Shane Hahn, Sungjin Lee, and Jihong Kim.                   Operating Systems (ASPLOS), 2021.
+     Lifetime Improvement of NAND Flash-based Storage Systems Using                [44] Arash Tavakkol, Juan Gómez-Luna, Mohammad Sadrosadati, Saugata
+     Dynamic Program and Erase Scaling. In Proceedings of the 12th                      Ghose, and Onur Mutlu. MQSim: A Framework for Enabling Realistic
+     USENIX Conference on File and Storage Technologies (FAST), 2014.                   Studies of Modern Multi-Queue SSD Devices. In Proceedings of the
+[31] Jaeyong Jeong, Song Youngsun, Sangwook Shane Hahn, Sungjin Lee,                    16th USENIX Conference on File and Storage Technologies (FAST),
+     and Jihong Kim. Dynamic Erase Voltage and Time Scaling for Ex-                     2018.
+     tending Lifetime of NAND Flash-Based SSDs. IEEE Transactions on               [45] Keonsoo Ha, Jaeyong Jeong, and Jihong Kim. An Integrated Approach
+     Computers (TC), 2017.                                                              for Managing Read Disturbs in High-Density NAND Flash Memory.
+[32] Youngseop Shim, Myungsuk Kim, Myoungjun Chun, Jisung Park,                         IEEE Transactions on Computer-Aided Design of Integrated Circuits
+     Yoona Kim, and Jihong Kim. Exploiting Process Similarity of 3D                     and Systems (TCAD), 2016.
+     Flash Memory for High Performance SSDs. In Proceedings of the 52nd            [46] Chun-Yi Liu, Yunju Lee, Myoungsoo Jung, Mahmut Taylan Kandemir,
+     Annual IEEE/ACM International Symposium on Microarchitecture (MI-                  and Wonil Choi. Prolonging 3D NAND SSD Lifetime via Read Latency
+     CRO), 2019.                                                                        Relaxation. In Proceedings of the 26th ACM International Conference
+[33] Yixin Luo, Saugata Ghose, Yu Cai, Erich F. Haratsch, and Onur Mutlu.               on Architectural Support for Programming Languages and Operating
+     Improving 3D NAND Flash Memory Lifetime by Tolerating Early                        Systems (ASPLOS), 2021.
+     Retention Loss and Process Variation. Proceedings of the ACM on               [47] Yu Cai, Onur Mutlu, Erich F. Haratsch, and Ken Mai. Program Interfer-
+     Measurement and Analysis of Computing Systems (POMACS), 2018.                      ence in MLC NAND Flash Memory: Characterization, Modeling, and
+[34] Yi Wang, Lisha Dong, and Rui Mao. P-Alloc: Process-Variation Toler-                Mitigation. In Proceedings of the IEEE 31st International Conference
+     ant Reliability Management for 3D Charge-Trapping Flash Memory.                    on Computer Design (ICCD), 2013.
+     ACM Transactions on Embedded Computing Systems (TECS), 2017.                  [48] Jisung Park, Jaeyong Jeong, Sungjin Lee, Youngsun Song, and Jihong
+[35] Shuo-Han Chen, Yen-Ting Chen, Hsin-Wen Wei, and Wei-Kuan Shih.                     Kim. Improving Performance and Lifetime of NAND Storage Sys-
+     Boosting the Performance of 3D Charge Trap NAND Flash with Asym-                   tems Using Relaxed Program Sequence. In Proceeindgs of the 53nd
+     metric Feature Process Size Characteristic. In Proceedings of the 2017             ACM/EDAC/IEEE Design Automation Conference (DAC), 2016.
+     54th ACM/EDAC/IEEE Design Automation Conference (DAC), 2017.                  [49] Myungsuk Kim, Jaehoon Lee, Sungjin Lee, Jisung Park, and Jihong
+[36] Chun-Hsiung Hung, Meng-Fan Chang, Yih-Shan Yang, Yao-Jen Kuo,                      Kim. Improving Performance and Lifetime of Large-page NAND
+     Tzu-Neng Lai, Shin-Jang Shen, Jo-Yu Hsu, Shuo-Nan Hung, Hang-                      Storages Using Erase-Free Subpage Programming. In Proceedings
+     Ting Lue, Yen-Hao Shih, Shih-Lin Huang, Ti-Wen Chen, Tzung Shen                    of the 54th ACM/EDAC/IEEE Design Automation Conference (DAC),
+     Chen, Chung Kuang Chen, Chi-Yu Hung, and Chih-Yuan Lu. Layer-                      2017.
+     Aware Program-and-Read Schemes for 3D Stackable Vertical-Gate                 [50] Yu Cai, Saugata Ghose, Yixin Luo, Ken Mai, Onur Mutlu, and Erich F.
+     BE-SONOS NAND Flash Against Cross-Layer Process Variations.                        Haratsch. Vulnerabilities in MLC NAND Flash Memory Programming:
+     IEEE Journal of Solid-State Circuits (JSSC), 2015.                                 Experimental Analysis, Exploits, and Mitigation Techniques. In Pro-
+[37] Jui-Nan Yen, Yao-Ching Hsieh, Cheng-Yu Chen, Tseng-Yi Chen, Chia-                  ceedings of the IEEE International Symposium on High Performance
+     Lin Yang, Hsiang-Yun Cheng, and Yixin Luo. Efficient Bad Block                     Computer Architecture (HPCA), 2017.
+     Management with Cluster Similarity. In Proceedings of the 2022 IEEE           [51] Robert Gallager. Low-Density Parity-Check Codes. IRE Transactions
+     International Symposium on High-Performance Computer Architecture                  on information theory, 1962.
+     (HPCA), 2022.                                                                 [52] JEDEC. JEDEC Solid State Technology Assn., Method for Developing
+[38] Qiao Li, Min Ye, Yufei Cui, Liang Shi, Xiaoqiang Li, Tei-Wei Kuo,                  Acceleration Models for Electronic Component Failure Mechanisms,
+     and Chun Jason Xue. Shaving Retries with Sentinels for Fast Read                   2022. https://www.jedec.org/standards-documents/docs/jesd91B.
+     over High-Density 3D Flash. In Proceedings of the 2020 53rd Annual            [53] Jong Yuh, Jason Li, Heguang Li, Yoshihiro Oyama, Cynthia Hsu,
+     IEEE/ACM International Symposium on Microarchitecture (MICRO),                     Pradeep Anantula, Stanley Jeong, Anirudh Amarnath, Siddhesh Darne,
+     2020.                                                                              Sneha Bhatia, Tianyu Tang, Aditya Arya, Naman Rastogi, Naoki
+[39] Yu Cai, Erich F. Haratsch, Onur Mutlu, and Ken Mai. Threshold Voltage              Ookuma, Hiroyuki Mizukoshi, Alex Yap, Demin Wang, Steve Kim,
+     Distribution in MLC NAND Flash Memory: Characterization, Analysis,                 Yonggang Wu, Min Peng, Jason Lu, Tommy Ip, Seema Malhotra, David
+     and Modeling. In Proceedings of the 2013 Design, Automation & Test                 Han, Masatoshi Okumura, Jiwen Liu, John Sohn, Hardwell Chibvon-
+     in Europe Conference & Exhibition (DATE), 2013.                                    godze, Muralikrishna Balaga, Aki Matsuda, Chakshu Puri, Chen Chen,
+[40] Yu Cai, Yixin Luo, Saugata Ghose, and Onur Mutlu. Read Disturb                     Indra K V, Chaitanya G, Venky Ramachandra, Yosuke Kato, Ravi
+     Errors in MLC NAND Flash Memory: Characterization, Mitigation, and                 Kumar, Huijuan Wang, Farookh Moogat, In-Soo Yoon, Kazushige
+     Recovery. In Proceedings of the 45th Annual IEEE/IFIP International                Kanda, Takahiro Shimizu, Noboru Shibata, Takashi Shigeoka, Kosuke
+     Conference on Dependable Systems and Networks (DSN), 2015.
+                                                                              16
+Aero: Adaptive Erase Operation for Improving Performance and Lifetime of Modern SSDs                   ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA
+
+
+     Yanagidaira, Takuyo Kodama, Ryo Fukuda, Yasuhiro Hirashima, and                   Kyung, and Jeong-Hyuk Choi. Three-Dimensional 128Gb MLC Ver-
+     Mitsuhiro Abe. A 1-Tb 4b/Cell 4-Plane 162-Layer 3D Flash Memory                   tical NAND Flash-Memory with 24-WL Stacked Layers and 50MB/s
+     With a 2.4-Gb/s I/O Speed Interface. In Proceedings of the 2022 IEEE              High-Speed Programming. In 2014 IEEE International Solid-State
+     International Solid- State Circuits Conference (ISSCC), 2022.                     Circuits Conference Digest of Technical Papers (ISSCC), 2014.
+[54] Bvunarvul Kim, Seungpil Lee, Beomseok Hah, Kanawoo Park, Yong-               [69] Daeyeal Lee, Ik Joon Chang, Sang-Yong Yoon, Joonsuc Jang, Dong-
+     soon Park, Kangwook Jo, Yujong Noh, Hyeoncheon Seol, Hyunsoo                      Su Jang, Wook-Ghee Hahn, Jong-Yeol Park, Doo-Gon Kim, Chiweon
+     Lee, Jaehyeon Shin, Seongjin Choi, Youngdon Jung, Sungho Ahn,                     Yoon, Bong-Soon Lim, Byung-Jun Min, Sung-Won Yun, Ji-Sang Lee, Il-
+     Yonghun Park, Sujeong Oh, Myungsu Kim, Seonauk Kim, Hyunwook                      Han Park, Kyung-Ryun Kim, Jeong-Yun Yun, Youse Kim, Yong-Sung
+     Park, Taeho Lee, Haeun Won, Minsung Kim, Cheulhee Koo, Yeon-                      Cho, Kyung-Min Kang, Sang-Hyun Joo, Jin-Young Chun, Jung-No
+     joo Choi, Suyoung Choi, Sechun Park, Dongkyu Youn, Junyoun Lim,                   Im, Seunghyuk Kwon, Seokjun Ham, Ansoo Park, Jae-Duk Yu, Nam-
+     Wonsun Park, Hwang Hur, Kichang Kwean, Hongsok Choi, Woopyo                       Hee Lee, Tae-Sung Lee, Moosung Kim, Hoosung Kim, Ki-Whan Song,
+     Jeong, Sungyong Chung, Jungdal Choi, and Seonyong Cha. 28.2 A                     Byung-Gil Jeon, Kihwan Choi, Jin-Man Han, Kye Hyun Kyung, Young-
+     High-Performance 1Tb 3b/Cell 3D-NAND Flash with a 194MB/s Write                   Ho Lim, and Young-Hyun Jun. A 64Gb 533Mb/s DDR Interface MLC
+     Throughput on over 300 Layers i. In Proceedings of the 2023 IEEE                  NAND Flash in Sub-20nm Technology. In 2012 IEEE International
+     International Solid- State Circuits Conference (ISSCC), 2023.                     Solid-State Circuits Conference (ISSCC), 2012.
+[55] Rino Micheloni, Luca Crippa, and Alessia Marelli. Inside NAND Flash          [70] Aayush Gupta, Youngjae Kim, and Bhuvan Urgaonkar. DFTL: A Flash
+     Memories. 2010.                                                                   Translation Layer Employing Demand-Based Selective Caching of
+[56] Shane C Hollmer, Chung-You Hu, Binh Q Le, Pau-Ling Chen, Jonathan                 Page-Level Address Mappings. In Proceedings of the 14th International
+     Su, Ravi Gutala, and Colin Bill. Erase verify scheme for NAND flash,              Conference on Architectural Support for Programming Languages and
+     1999. US Patent 6,009,014.                                                        Operating Systems (ASPLOS), 2009.
+[57] Seiichi Aritome. NAND Flash Memory Technologies. 2015.                       [71] Osso Vahabzadeh. LDPC codes: Principles and implementation aspects.
+[58] Takashi Ito and Yasuhiko Taito. SONOS Split-Gate eFlash Memory.                   In Flash Memory Summit (FMS), 2016.
+     Embedded Flash Memory for Embedded Systems: Technology, Design               [72] David Declercq. Improving Waterfall Performance of low cost FAID
+     for Sub-systems, and Innovations, 2018.                                           LDPC Decoders. In Flash Memory Summit (FMS), 2019.
+[59] Jaewon Cha and Sungho Kang. Data Randomization Scheme for En-                [73] Kai Zhao, Wenzhe Zhao, Hongbin Sun, Xiaodong Zhang, Nanning
+     durance Enhancement and Interference Mitigation of Multilevel Flash               Zheng, and Tong Zhang. LDPC-in-SSD: Making Advanced Error
+     Memory Devices. Etri Journal, 2013.                                               Correction Codes Work Effectively in Solid State Drives. In 11th
+[60] Michele Favalli, Cristian Zambelli, Alessia Marelli, Rino Micheloni,              USENIX Conference on File and Storage Technologies (FAST), 2013.
+     and Piero Olivo. A Scalable Bidimensional Randomization Scheme for           [74] Jisung Park, Roknoddin Azizi, Geraldo F. Oliveira, Mohammad
+     TLC 3D NAND Flash Memories. Micromachines, 2021.                                  Sadrosadati, Rakesh Nadig, David Novo, Juan Gómez-Luna, Myungsuk
+[61] ONFI Workgroup. Open NAND Flash Interface Specification 4.1.                      Kim, and Onur Mutlu. Flash-Cosmos: In-Flash Bulk Bitwise Opera-
+     http://www.onfi.org/~/media/onfi/specs/onfi_4_1_gold.pdf?la=en.                   tions Using Inherent Computation Capability of NAND Flash Memory.
+[62] Dongku Kang, Woopyo Jeong, Chulbum Kim, Doo-Hyun Kim,                             In Proceedings of the 2022 55th IEEE/ACM International Symposium
+     Yong Sung Cho, Kyung-Tae Kang, Jinho Ryu, Kyung-Min Kang,                         on Microarchitecture (MICRO), 2022.
+     Sungyeon Lee, Wandong Kim, Hanjun Lee, Jaedoeg Yu, Nayoung                   [75] Nika Mansouri Ghiasi, Jisung Park, Harun Mustafa, Jeremie Kim,
+     Choi, Dong-Su Jang, Jeong-Don Ihm, Doogon Kim, Young-Sun Min,                     Ataberk Olgun, Arvid Gollwitzer, Damla Senol Cali, Can Firtina, Haiyu
+     Moo-Sung Kim, An-Soo Park, Jae-Ick Son, In-Mo Kim, Pansuk Kwak,                   Mao, Nour Almadhoun Alserr, Rachata Ausavarungnirun, Nandita Vi-
+     Bong-Kil Jung, Doo-Sub Lee, Hyunggon Kim, Hyang-Ja Yang, Dae-                     jaykumar, Mohammed Alser, and Onur Mutlu. GenStore: A High-
+     Seok Byeon, Ki-Tae Park, Kye-Hyun Kyung, and Jeong-Hyuk Choi.                     Performance In-Storage Processing System for Genome Sequence
+     256Gb 3b/cell V-NAND Flash Memory with 48 Stacked WL Layers.                      Analysis. In Proceedings of the 27th ACM International Conference
+     In Proceedings of the 2016 IEEE International Solid-State Circuits                on Architectural Support for Programming Languages and Operating
+     Conference (ISSCC), 2016.                                                         Systems (ASPLOS), 2022.
+[63] JEDEC. JESD218B.02: Solid-State Drive (SSD) Requirements and                 [76] Lyle Smith. Samsung 990 Pro SSD Review (2TB), 2022. https://www.
+     Endurance Test Method, 2022. https://www.jedec.org/standards-                     storagereview.com/review/samsung-990-pro-ssd-review-2tb.
+     documents/docs/jesd218b01.                                                   [77] Li-Pin Chang and Tei-Wei Kuo. An Adaptive Striping Architecture
+[64] Svante Arrhenius. Über die Dissociationswärme und den Einfluss der                for Flash Memory Storage Systems of Embedded Systems. In Pro-
+     Temperatur auf den Dissociationsgrad der Elektrolyte. Zeitschrift für             ceedings of the Eighth IEEE Real-Time and Embedded Technology and
+     Physikalische Chemie, 1889.                                                       Applications Symposium (RTAS), 2002.
+[65] Rino Micheloni. 3D Flash Memories. 2016.                                     [78] Jinhong Li, Qiuping Wang, Patrick P. C. Lee, and Chao Shi. An In-
+[66] Kristian Vättö. Samsung SSD 840: Testing the endurance of TLC                     Depth Analysis of Cloud Block Storage Workloads in Large-Scale
+     NAND, 2012. https://www.anandtech.com/show/6459/samsung-ssd-                      Production. In Proceedings of the 2020 IEEE International Symposium
+     840-testing-the-endurance-of-tlc-nand.                                            on Workload Characterization (IISWC), 2020.
+[67] Billy Tallis. The Samsung 960 Pro (2TB) SSD review, 2016. https:             [79] Dushyanth Narayanan, Austin Donnelly, and Antony Rowstron. Write
+     //www.anandtech.com/show/10754/samsung-960-pro-ssd-review.                        Off-Loading: Practical Power Management for Enterprise Storage.
+[68] Ki-Tae Park, Jin-man Han, Daehan Kim, Sangwan Nam, Kihwan Choi,                   ACM Transactions on Storage (TOS), 2008.
+     Min-Su Kim, Pansuk Kwak, Doosub Lee, Yoon-He Choi, Kyung-Min                 [80] Rakesh Nadig, Mohammad Sadrosadati, Haiyu Mao, Nika Mansouri
+     Kang, Myung-Hoon Choi, Dong-Hun Kwak, Hyun-wook Park, Sang-                       Ghiasi, Arash Tavakkol, Jisung Park, Hamid Sarbazi-Azad, Juan Gómez
+     won Shim, Hyun-Jun Yoon, Doohyun Kim, Sang-won Park, Kangbin                      Luna, and Onur Mutlu. Venice: Improving Solid-State Drive Parallelism
+     Lee, Kuihan Ko, Dong-Kyo Shim, Yang-Lo Ahn, Jeunghwan Park,                       at Low Cost via Conflict-Free Accesses. In Proceedings of the 50th
+     Jinho Ryu, Donghyun Kim, Kyungwa Yun, Joonsoo Kwon, Seunghoon                     Annual International Symposium on Computer Architecture (ISCA),
+     Shin, Dongkyu Youn, Won-Tae Kim, Taehyun Kim, Sung-Jun Kim,                       2023.
+     Sungwhan Seo, Hyung-Gon Kim, Dae-Seok Byeon, Hyang-Ja Yang,                  [81] Renping Liu, Zhenhua Tan, Linbo Long, Yu Wu, Yujuan Tan, and
+     Moosung Kim, Myong-Seok Kim, Jinseon Yeon, Jaehoon Jang, Han-                     Duo Liu. Improving Fairness for SSD Devices through DRAM Over-
+     Soo Kim, Woonkyung Lee, Duheon Song, Sungsoo Lee, Kye-Hyun                        Provisioning Cache Management. IEEE Transactions on Parallel and
+                                                                                       Distributed Systems (TPDS), 2022.
+                                                                             17
+ASPLOS ’24, April 27-May 1, 2024, La Jolla, CA, USA                                                                                          Cho et al.
+
+
+[82] Renping Liu, Duo Liu, Xianzhang Chen, Yujuan Tan, Runyu Zhang, and        [85] Giuseppe DeCandia, Deniz Hastorun, Madan Jampani, Gunavardhan
+     Liang Liang. Self-Adapting Channel Allocation for Multiple Tenants             Kakulapati, Avinash Lakshman, Alex Pilchin, Swaminathan Sivasub-
+     Sharing SSD Devices. IEEE Transactions on Computer-Aided Design                ramanian, Peter Vosshall, and Werner Vogels. Dynamo: Amazon’s
+     of Integrated Circuits and Systems (TCAD), 2022.                               Highly Available Key-Value Store. In Proceedings of Twenty-First
+[83] Yina Lv, Liang Shi, Yunpeng Song, and Chun Jason Xue. Access                   ACM SIGOPS Symposium on Operating Systems Principles (SOSP),
+     Characteristic Guided Partition for NAND Flash based High-Density              2007.
+     SSDs. IEEE Transactions on Computer-Aided Design of Integrated            [86] Haryadi S. Gunawi, Mingzhe Hao, Riza O. Suminto, Agung Laksono,
+     Circuits and Systems (TCAD), 2023.                                             Anang D. Satria, Jeffry Adityatama, and Kurnia J. Eliazar. Why Does
+[84] Jiaojiao Wu, Jun Li, Zhibing Sha, Zhigang Cai, and Jianwei Liao.               the Cloud Stop Computing? Lessons from Hundreds of Service Outages.
+     Adaptive Switch on Wear Leveling for Enhancing I/O Latency and                 In Proceedings of the Seventh ACM Symposium on Cloud Computing
+     Lifetime of High-Density SSDs. IEEE Transactions on Computer-                  (SoCC), 2016.
+     Aided Design of Integrated Circuits and Systems (TCAD), 2022.
+
+
+
+
+                                                                          18
+

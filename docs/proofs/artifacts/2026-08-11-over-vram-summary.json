@@ -1,0 +1,14 @@
+{
+  "logical_bytes": 118111600640,
+  "physical_gpu_memory_mib": 97887,
+  "hbm_cache_bytes": 2147483648,
+  "iterations": 128,
+  "checksum": 14245581564465502923,
+  "baseline_checksum": 14245581564465502923,
+  "requests_submitted": 128,
+  "requests_completed": 128,
+  "modeled_launches": 1,
+  "unsafe_launches": 0,
+  "wall_ns": 178981713,
+  "full_artifact": "/mnt/disk2/hbfsim-over-vram-proof-20260811-nYKfkJ"
+}

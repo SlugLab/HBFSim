@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "adapter_mode": "timing_backed",
+  "validated_stack": {
+    "python": "3.13.9",
+    "vllm": "0.15.1",
+    "torch": "2.9.1+cu128",
+    "triton": "3.5.1",
+    "flashinfer-python": "0.6.1",
+    "driver": "595.84",
+    "compute_capability": "12.0"
+  },
+  "model": {
+    "path": "/home/victoryang00/Qwen3-30B-A3B",
+    "architecture": "Qwen3MoeForCausalLM"
+  },
+  "runtime": {
+    "attention_backend": "FLASHINFER",
+    "flashinfer_cc": "/usr/bin/gcc-13",
+    "flashinfer_cxx": "/usr/bin/g++-13",
+    "hbf_build_cuda": "13.0",
+    "hbf_build_cxx": "/usr/bin/g++-15"
+  },
+  "claims": {
+    "capacity_supported": false,
+    "opaque_timing_is_modeled": false,
+    "real_workload_adapter_execution": true,
+    "live_hbf_delay_injection": true
+  },
+  "validated_workload": {
+    "discovered_storage_count": 435,
+    "registered_storage_count": 1,
+    "registered_bytes": 16384,
+    "parameter_regex": "^model\\.layers\\.0\\.mlp\\.experts\\.w13_weight$",
+    "output_tokens_exact_match": true,
+    "coverage_decisions": 10339,
+    "fused_moe_launches": 2304,
+    "modeled_accesses": 24
+  }
+}

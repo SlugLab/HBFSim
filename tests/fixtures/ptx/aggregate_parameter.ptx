@@ -1,0 +1,10 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry aggregate_kernel(
+    .param .align 8 .b8 aggregate_value[24]
+)
+{
+    ret;
+}

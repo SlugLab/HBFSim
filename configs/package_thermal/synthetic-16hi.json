@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "name": "synthetic-16hi-plumbing",
+  "stage": "read_only",
+  "clock_mode": "model_time_replay",
+  "ambient_c": {
+    "value": 30.0,
+    "unit": "C",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "ambient sensitivity point", "note": "not measured or calibrated"}
+  },
+  "bin_width_ns": {
+    "value": 1000,
+    "unit": "ns",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "unit-test bin width", "note": "not a recommended scientific timestep"}
+  },
+  "gpu_power_semantics": {
+    "value": "compute_only",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "power allocation", "note": "synthetic sensitivity fixture"}
+  },
+  "gpu_provider": {
+    "kind": "synthetic",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "GPU trace", "note": "not measured"},
+    "interpolation": "hold",
+    "samples": [
+      {"relative_time_ns": 0, "watts": 40.0},
+      {"relative_time_ns": 1000000, "watts": 60.0}
+    ]
+  },
+  "hbm_provider": {
+    "kind": "synthetic",
+    "provenance": {"class": "C", "source": "synthetic fixture", "locator": "HBM trace", "note": "not measured"},
+    "interpolation": "linear",
+    "samples": [
+      {"relative_time_ns": 0, "watts": 8.0},
+      {"relative_time_ns": 1000000, "watts": 12.0}
+    ]
+  },
+  "topology": {
+    "physical": {
+      "channels": 1,
+      "chips_per_channel": 1,
+      "dies_per_chip": 16,
+      "planes_per_die": 2
+    },
+    "stack_height": 16,
+    "node_names": [
+      "gpu", "hbm", "hbf.base",
+      "hbf.s0.l0", "hbf.s0.l1", "hbf.s0.l2", "hbf.s0.l3",
+      "hbf.s0.l4", "hbf.s0.l5", "hbf.s0.l6", "hbf.s0.l7",
+      "hbf.s0.l8", "hbf.s0.l9", "hbf.s0.l10", "hbf.s0.l11",
+      "hbf.s0.l12", "hbf.s0.l13", "hbf.s0.l14", "hbf.s0.l15"
+    ],
+    "die_mappings": [
+      {"channel": 0, "chip": 0, "die": 0, "package_stack": 0, "vertical_layer": 5, "thermal_node": "hbf.s0.l5"},
+      {"channel": 0, "chip": 0, "die": 1, "package_stack": 0, "vertical_layer": 6, "thermal_node": "hbf.s0.l6"},
+      {"channel": 0, "chip": 0, "die": 2, "package_stack": 0, "vertical_layer": 7, "thermal_node": "hbf.s0.l7"},
+      {"channel": 0, "chip": 0, "die": 3, "package_stack": 0, "vertical_layer": 8, "thermal_node": "hbf.s0.l8"},
+      {"channel": 0, "chip": 0, "die": 4, "package_stack": 0, "vertical_layer": 9, "thermal_node": "hbf.s0.l9"},
+      {"channel": 0, "chip": 0, "die": 5, "package_stack": 0, "vertical_layer": 10, "thermal_node": "hbf.s0.l10"},
+      {"channel": 0, "chip": 0, "die": 6, "package_stack": 0, "vertical_layer": 11, "thermal_node": "hbf.s0.l11"},
+      {"channel": 0, "chip": 0, "die": 7, "package_stack": 0, "vertical_layer": 12, "thermal_node": "hbf.s0.l12"},
+      {"channel": 0, "chip": 0, "die": 8, "package_stack": 0, "vertical_layer": 13, "thermal_node": "hbf.s0.l13"},
+      {"channel": 0, "chip": 0, "die": 9, "package_stack": 0, "vertical_layer": 14, "thermal_node": "hbf.s0.l14"},
+      {"channel": 0, "chip": 0, "die": 10, "package_stack": 0, "vertical_layer": 15, "thermal_node": "hbf.s0.l15"},
+      {"channel": 0, "chip": 0, "die": 11, "package_stack": 0, "vertical_layer": 0, "thermal_node": "hbf.s0.l0"},
+      {"channel": 0, "chip": 0, "die": 12, "package_stack": 0, "vertical_layer": 1, "thermal_node": "hbf.s0.l1"},
+      {"channel": 0, "chip": 0, "die": 13, "package_stack": 0, "vertical_layer": 2, "thermal_node": "hbf.s0.l2"},
+      {"channel": 0, "chip": 0, "die": 14, "package_stack": 0, "vertical_layer": 3, "thermal_node": "hbf.s0.l3"},
+      {"channel": 0, "chip": 0, "die": 15, "package_stack": 0, "vertical_layer": 4, "thermal_node": "hbf.s0.l4"}
+    ],
+    "provenance": {
+      "class": "C",
+      "source": "synthetic fixture informed by OCP HBF v0.7.0 organization",
+      "locator": "explicit 16Hi sensitivity mapping",
+      "note": "die-to-layer permutation is explicit, synthetic, and not a measured package"
+    }
+  },
+  "nand_energy": {
+    "read": {
+      "command_j": {"value": 0.000001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "read command", "note": "sensitivity value"}},
+      "joules_per_byte": {"value": 1e-12, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "read bytes", "note": "sensitivity value"}}
+    },
+    "program": {
+      "command_j": {"value": 0.000003, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "program command", "note": "sensitivity value"}},
+      "joules_per_byte": {"value": 2e-12, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "program bytes", "note": "sensitivity value"}}
+    },
+    "erase": {
+      "command_j": {"value": 0.00001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "erase command", "note": "sensitivity value"}},
+      "joules_per_byte": {"value": 0.0, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "erase bytes", "note": "sensitivity value"}}
+    }
+  },
+  "base_die": {
+    "idle_w": {"value": 0.5, "unit": "W", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base idle", "note": "sensitivity value"}},
+    "command_j": {"value": 0.0000001, "unit": "J", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base command", "note": "sensitivity value"}},
+    "joules_per_byte": {"value": 1e-13, "unit": "J/byte", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "base bytes", "note": "sensitivity value"}},
+    "thermal_node": "hbf.base"
+  },
+  "policy": {
+    "light_on_c": {"value": 80.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "light on", "note": "not an OCP product threshold"}},
+    "light_off_c": {"value": 75.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "light off", "note": "sensitivity value"}},
+    "severe_on_c": {"value": 90.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "severe on", "note": "not an OCP product threshold"}},
+    "severe_off_c": {"value": 85.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "severe off", "note": "sensitivity value"}},
+    "shutdown_on_c": {"value": 100.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "shutdown on", "note": "not the OCP 105 C operating limit"}},
+    "shutdown_off_c": {"value": 92.0, "unit": "C", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "shutdown off", "note": "sensitivity value"}},
+    "light_scale": {"value": 0.5, "unit": "ratio", "provenance": {"class": "C", "source": "synthetic fixture", "locator": "service scaling", "note": "calibration/sensitivity parameter"}},
+    "debounce_samples": 2,
+    "minimum_dwell_samples": 1,
+    "timing_provenance": {"class": "C", "source": "synthetic fixture", "locator": "policy timing", "note": "sensitivity value"}
+  },
+  "evidence_label": "synthetic_fixture"
+}

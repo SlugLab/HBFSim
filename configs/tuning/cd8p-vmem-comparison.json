@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "source_sha256": "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f",
+  "source_capacity_bytes": 1920383410176,
+  "effective_capacity_bytes": 1919850381312,
+  "capacity_delta_bytes": 533028864,
+  "sample_count": 11,
+  "comparisons": [
+    {
+      "bytes": 4096,
+      "observed_p50_ns": 11133,
+      "observed_p95_ns": 38238,
+      "nominal_scalar_ns": 10008,
+      "nominal_relative_error": -0.10105092966855295,
+      "constant_page_ns": 11133,
+      "constant_page_relative_error": 0.0,
+      "empirical_ns": 11133,
+      "empirical_relative_error": 0.0
+    },
+    {
+      "bytes": 16384,
+      "observed_p50_ns": 41495,
+      "observed_p95_ns": 43033,
+      "nominal_scalar_ns": 10032,
+      "nominal_relative_error": -0.7582359320400048,
+      "constant_page_ns": 44532,
+      "constant_page_relative_error": 0.0731895409085432,
+      "empirical_ns": 41495,
+      "empirical_relative_error": 0.0
+    },
+    {
+      "bytes": 65536,
+      "observed_p50_ns": 168606,
+      "observed_p95_ns": 1247765,
+      "nominal_scalar_ns": 10128,
+      "nominal_relative_error": -0.9399309633109142,
+      "constant_page_ns": 178128,
+      "constant_page_relative_error": 0.05647485854595922,
+      "empirical_ns": 168606,
+      "empirical_relative_error": 0.0
+    },
+    {
+      "bytes": 262144,
+      "observed_p50_ns": 2824351,
+      "observed_p95_ns": 3860958,
+      "nominal_scalar_ns": 10512,
+      "nominal_relative_error": -0.996278083000307,
+      "constant_page_ns": 712512,
+      "constant_page_relative_error": -0.7477254066509439,
+      "empirical_ns": 2824351,
+      "empirical_relative_error": 0.0
+    },
+    {
+      "bytes": 1048576,
+      "observed_p50_ns": 10767793,
+      "observed_p95_ns": 11968167,
+      "nominal_scalar_ns": 12048,
+      "nominal_relative_error": -0.9988811077627514,
+      "constant_page_ns": 2850048,
+      "constant_page_relative_error": -0.7353173486897454,
+      "empirical_ns": 10767793,
+      "empirical_relative_error": 0.0
+    },
+    {
+      "bytes": 2097152,
+      "observed_p50_ns": 20254374,
+      "observed_p95_ns": 22163673,
+      "nominal_scalar_ns": 14096,
+      "nominal_relative_error": -0.999304051559431,
+      "constant_page_ns": 5700096,
+      "constant_page_relative_error": -0.7185745656715927,
+      "empirical_ns": 20254374,
+      "empirical_relative_error": 0.0
+    }
+  ],
+  "all_breakpoints_exact": true,
+  "command": [
+    "scripts/tune_vmem_profile.py",
+    "--input-csv",
+    "/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv",
+    "--base-profile",
+    "configs/profiles/nominal.json",
+    "--output-profile",
+    "configs/profiles/cd8p-vmem-p50.json",
+    "--output-report",
+    "configs/tuning/cd8p-vmem-comparison.json",
+    "--expected-sha256",
+    "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f"
+  ]
+}

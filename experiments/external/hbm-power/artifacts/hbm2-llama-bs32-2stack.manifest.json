@@ -1,0 +1,86 @@
+{
+  "adapter": {
+    "path": "/results/hbm_power_adapter.py",
+    "sha256": "4d9c2175ea6ebb577e3654d1718d10c62fefe2a78ee0f638742b7dd49a8cf2db"
+  },
+  "baseline_runner_args": [],
+  "evidence_level": "literature_bounded",
+  "external_tool": {
+    "commit": "4642c61f856cbd9d5d3f37d56214e5dbfa663703",
+    "dirty": true,
+    "remote": "https://github.com/CMU-SAFARI/HBM-Power.git",
+    "root": "/workspace"
+  },
+  "generated_at_utc": "2026-08-26T22:17:21+00:00",
+  "inputs": {
+    "baseline": null,
+    "organization": {
+      "path": "/workspace/sources/figure14/configs/HBM2_organization.json",
+      "sha256": "839054a767258856354fc3d9b49c4c84925599b39a0c8b8918f46cbd17e3aee7"
+    },
+    "power": {
+      "path": "/workspace/sources/figure14/configs/IDD_ours_allzeros.json",
+      "sha256": "2cea6f5454b69b4c69e48c42ac85f0a69a5449333572b50403861db9dd7bda71"
+    },
+    "timing": {
+      "path": "/workspace/sources/figure14/configs/HBM2_1.2Gbps_timing_BL4.json",
+      "sha256": "8d03638122dec8857c782f5f0c5f9103859f8110ec0ccf20d10ddaa6a07ef4b5"
+    }
+  },
+  "output": {
+    "columns": [
+      "time_ns",
+      "hbm_stack_0_w",
+      "hbm_stack_1_w"
+    ],
+    "interpolation": "hold",
+    "path": "/results/hbm2-llama-bs32-2stack.csv",
+    "sha256": "04c2f1faa1c759f98f9d3a11bdc45f931a00afbf1e93a2966b51596ed698ef5e",
+    "terminal_zero_sample": true
+  },
+  "power_scale_to_one_stack": 1.0,
+  "runner": {
+    "path": "/workspace/sources/drampower/build/bin/HBM2_runner",
+    "sha256": "9992bd6472ab8a587dd49cc401e28aaded994cc74b748ace1df409191de01277"
+  },
+  "runner_args": [],
+  "schema_version": 1,
+  "scientific_scope": "offline power-model projection; not an HBF specification and not a measurement of the available GDDR-equipped GPU",
+  "stacks": [
+    {
+      "active_power_w": 2.938869,
+      "average_power_w": 2.938869,
+      "baseline_power_w": 0.0,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM2_runner",
+        "/workspace/sources/figure14/configs/HBM2_organization.json",
+        "/workspace/sources/figure14/configs/HBM2_1.2Gbps_timing_BL4.json",
+        "/workspace/sources/figure14/configs/IDD_ours_allzeros.json",
+        "/workspace/traces/llm_batch_sweep/bs32_ctx1024.csv"
+      ],
+      "duration_ns": 379746,
+      "index": 0,
+      "runner_output_sha256": "f98ec8e3ea721061d13de1c687766ddab52a6edeff4c7c2e2a365cce837279dd",
+      "trace": "/workspace/traces/llm_batch_sweep/bs32_ctx1024.csv",
+      "trace_sha256": "abe3e660a3d1eb73bdda95115a9318757a7f9961aa40059b9a94bc52276ac33d"
+    },
+    {
+      "active_power_w": 2.938869,
+      "average_power_w": 2.938869,
+      "baseline_power_w": 0.0,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM2_runner",
+        "/workspace/sources/figure14/configs/HBM2_organization.json",
+        "/workspace/sources/figure14/configs/HBM2_1.2Gbps_timing_BL4.json",
+        "/workspace/sources/figure14/configs/IDD_ours_allzeros.json",
+        "/workspace/traces/llm_batch_sweep/bs32_ctx1024.csv"
+      ],
+      "duration_ns": 379746,
+      "index": 1,
+      "runner_output_sha256": "f98ec8e3ea721061d13de1c687766ddab52a6edeff4c7c2e2a365cce837279dd",
+      "trace": "/workspace/traces/llm_batch_sweep/bs32_ctx1024.csv",
+      "trace_sha256": "abe3e660a3d1eb73bdda95115a9318757a7f9961aa40059b9a94bc52276ac33d"
+    }
+  ],
+  "technology": "hbm2"
+}

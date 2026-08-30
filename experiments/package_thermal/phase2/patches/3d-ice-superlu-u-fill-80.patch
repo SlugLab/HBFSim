@@ -1,0 +1,17 @@
+diff --git a/superlu_mt-4.0.0/SRC/sp_ienv.c b/superlu_mt-4.0.0/SRC/sp_ienv.c
+index c5789a3..0d8bdfa 100644
+--- a/superlu_mt-4.0.0/SRC/sp_ienv.c
++++ b/superlu_mt-4.0.0/SRC/sp_ienv.c
+@@ -117,5 +117,11 @@ sp_ienv(int_t ispec)
+ #endif
+         case 6: return (-50);
+-        case 7: return (-50);
++        /*
++         * Phase-II capacity-only patch: the 16Hi 1 mm package mesh requires
++         * 82,472,535 U-column entries, while the stock 50x estimate reserves
++         * only 70,620,400.  Increase storage headroom without changing the
++         * matrix, ordering, factorization algorithm, or thermal equations.
++         */
++        case 7: return (-80);
+         case 8: return (-30);
+     }

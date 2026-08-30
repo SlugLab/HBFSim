@@ -1,0 +1,201 @@
+{
+  "adapter": {
+    "path": "/results/hbm_power_adapter.py",
+    "sha256": "4d9c2175ea6ebb577e3654d1718d10c62fefe2a78ee0f638742b7dd49a8cf2db"
+  },
+  "baseline_runner_args": [
+    "--dq-rate=0.0",
+    "--tsv-rate=0.0",
+    "--bg-rate=0.0"
+  ],
+  "evidence_level": "literature_bounded",
+  "external_tool": {
+    "commit": "4642c61f856cbd9d5d3f37d56214e5dbfa663703",
+    "dirty": true,
+    "remote": "https://github.com/CMU-SAFARI/HBM-Power.git",
+    "root": "/workspace"
+  },
+  "generated_at_utc": "2026-08-26T22:17:22+00:00",
+  "inputs": {
+    "baseline": {
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_baseline_nop_ref.csv",
+        "--dq-rate=0.0",
+        "--tsv-rate=0.0",
+        "--bg-rate=0.0"
+      ],
+      "duration_ns": 62400,
+      "runner_average_power_w": 0.04213,
+      "runner_output_sha256": "af0c5907dcee5f25a6ac660572b7b4a2600940840874774e1d581ca267361c7f",
+      "scaled_power_w": 1.34816,
+      "trace": "/workspace/sources/figure16/traces/hbm3_baseline_nop_ref.csv",
+      "trace_sha256": "564962c0d0a92f1bbdb556ad8ef08dc2f10be7b135e83c10e5db8040445cd87f"
+    },
+    "organization": {
+      "path": "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+      "sha256": "43ca739cb3c2a0f6ca0eee4735ebb22acd8595d22f3d32b2a46b74ff26d16b58"
+    },
+    "power": {
+      "path": "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+      "sha256": "8eb5821ccc8d428d33e7380ce6d90e3ff2d05d0851f24403c34cba60c85db6b5"
+    },
+    "timing": {
+      "path": "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+      "sha256": "0f37a587d34807fdba1a5668c097acfa6c36e95de4e2af312070537b29c5ffc7"
+    }
+  },
+  "output": {
+    "columns": [
+      "time_ns",
+      "hbm_stack_0_w",
+      "hbm_stack_1_w",
+      "hbm_stack_2_w",
+      "hbm_stack_3_w",
+      "hbm_stack_4_w",
+      "hbm_stack_5_w"
+    ],
+    "interpolation": "hold",
+    "path": "/results/hbm3e-random-read-6stack.csv",
+    "sha256": "e0f2ddbf1cf632aa719598f210be2fb6fe99e13a8bcbdee56b9a67cf745af9cf",
+    "terminal_zero_sample": true
+  },
+  "power_scale_to_one_stack": 32.0,
+  "runner": {
+    "path": "/workspace/sources/drampower/build/bin/HBM3_runner",
+    "sha256": "a31d247def9382ae6b5102cb83956bae246878520c5ce03fab7825a7227d0598"
+  },
+  "runner_args": [
+    "--dq-rate=0.5",
+    "--tsv-rate=0.5",
+    "--bg-rate=0.5"
+  ],
+  "schema_version": 1,
+  "scientific_scope": "offline power-model projection; not an HBF specification and not a measurement of the available GDDR-equipped GPU",
+  "stacks": [
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 0,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    },
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 1,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    },
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 2,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    },
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 3,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    },
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 4,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    },
+    {
+      "active_power_w": 37.201568,
+      "average_power_w": 38.549728,
+      "baseline_power_w": 1.34816,
+      "command": [
+        "/workspace/sources/drampower/build/bin/HBM3_runner",
+        "/workspace/sources/figure16/configs/HBM3_16Gb_8hi_organization.json",
+        "/workspace/sources/figure16/configs/HBM3_6400Mbps_timing.json",
+        "/workspace/sources/figure16/configs/HBM3_6400_power_datapattern.json",
+        "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+        "--dq-rate=0.5",
+        "--tsv-rate=0.5",
+        "--bg-rate=0.5"
+      ],
+      "duration_ns": 50021,
+      "index": 5,
+      "runner_output_sha256": "abcb9610c1273fd2fe10ad81c36c82c6d5257954564f4c409bbc5a045ff39cc4",
+      "trace": "/workspace/sources/figure16/traces/hbm3_random_read_4rpa.csv",
+      "trace_sha256": "89da1a4705b3bba46d7b64c5748e76c77d0dd9563ade01c408179806ac3df5bc"
+    }
+  ],
+  "technology": "hbm3e"
+}

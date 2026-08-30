@@ -1,0 +1,146 @@
+diff --git a/src/exec/Flash_Parameter_Set.cpp b/src/exec/Flash_Parameter_Set.cpp
+index f2694c5..8c984b8 100644
+--- a/src/exec/Flash_Parameter_Set.cpp
++++ b/src/exec/Flash_Parameter_Set.cpp
+@@ -8,9 +8,11 @@ NVM::FlashMemory::Command_Suspension_Mode Flash_Parameter_Set::CMD_Suspension_Su
+ sim_time_type Flash_Parameter_Set::Page_Read_Latency_LSB = 75000;
+ sim_time_type Flash_Parameter_Set::Page_Read_Latency_CSB = 75000;
+ sim_time_type Flash_Parameter_Set::Page_Read_Latency_MSB = 75000;
++sim_time_type Flash_Parameter_Set::Page_Read_Latency_TSB = 75000;
+ sim_time_type Flash_Parameter_Set::Page_Program_Latency_LSB = 750000;
+ sim_time_type Flash_Parameter_Set::Page_Program_Latency_CSB = 750000;
+ sim_time_type Flash_Parameter_Set::Page_Program_Latency_MSB = 750000;
++sim_time_type Flash_Parameter_Set::Page_Program_Latency_TSB = 750000;
+ sim_time_type Flash_Parameter_Set::Block_Erase_Latency = 3800000;//Block erase latency in nano-seconds
+ unsigned int Flash_Parameter_Set::Block_PE_Cycles_Limit = 10000;
+ sim_time_type Flash_Parameter_Set::Suspend_Erase_Time = 700000;//in nano-seconds
+@@ -40,6 +42,9 @@ void Flash_Parameter_Set::XML_serialize(Utils::XmlWriter& xmlwriter)
+ 		case Flash_Technology_Type::TLC:
+ 			val = "TLC";
+ 			break;
++		case Flash_Technology_Type::QLC:
++			val = "QLC";
++			break;
+ 		default:
+ 			break;
+ 	}
+@@ -76,6 +81,10 @@ void Flash_Parameter_Set::XML_serialize(Utils::XmlWriter& xmlwriter)
+ 	val = std::to_string(Page_Read_Latency_MSB);
+ 	xmlwriter.Write_attribute_string(attr, val);
+ 
++	attr = "Page_Read_Latency_TSB";
++	val = std::to_string(Page_Read_Latency_TSB);
++	xmlwriter.Write_attribute_string(attr, val);
++
+ 	attr = "Page_Program_Latency_LSB";
+ 	val = std::to_string(Page_Program_Latency_LSB);
+ 	xmlwriter.Write_attribute_string(attr, val);
+@@ -88,6 +97,10 @@ void Flash_Parameter_Set::XML_serialize(Utils::XmlWriter& xmlwriter)
+ 	val = std::to_string(Page_Program_Latency_MSB);
+ 	xmlwriter.Write_attribute_string(attr, val);
+ 
++	attr = "Page_Program_Latency_TSB";
++	val = std::to_string(Page_Program_Latency_TSB);
++	xmlwriter.Write_attribute_string(attr, val);
++
+ 	attr = "Block_Erase_Latency";
+ 	val = std::to_string(Block_Erase_Latency);
+ 	xmlwriter.Write_attribute_string(attr, val);
+@@ -144,6 +157,8 @@ void Flash_Parameter_Set::XML_deserialize(rapidxml::xml_node<> *node)
+ 					Flash_Technology = Flash_Technology_Type::MLC;
+ 				else if (strcmp(val.c_str(), "TLC") == 0)
+ 					Flash_Technology = Flash_Technology_Type::TLC;
++				else if (strcmp(val.c_str(), "QLC") == 0)
++					Flash_Technology = Flash_Technology_Type::QLC;
+ 				else PRINT_ERROR("Unknown flash technology type specified in the input file")
+ 			} else if (strcmp(param->name(), "CMD_Suspension_Support") == 0) {
+ 				std::string val = param->value();
+@@ -168,6 +183,9 @@ void Flash_Parameter_Set::XML_deserialize(rapidxml::xml_node<> *node)
+ 			} else if (strcmp(param->name(), "Page_Read_Latency_MSB") == 0) {
+ 				std::string val = param->value();
+ 				Page_Read_Latency_MSB = std::stoull(val);
++			} else if (strcmp(param->name(), "Page_Read_Latency_TSB") == 0) {
++				std::string val = param->value();
++				Page_Read_Latency_TSB = std::stoull(val);
+ 			} else if (strcmp(param->name(), "Page_Program_Latency_LSB") == 0) {
+ 				std::string val = param->value();
+ 				Page_Program_Latency_LSB = std::stoull(val);
+@@ -177,6 +195,9 @@ void Flash_Parameter_Set::XML_deserialize(rapidxml::xml_node<> *node)
+ 			} else if (strcmp(param->name(), "Page_Program_Latency_MSB") == 0) {
+ 				std::string val = param->value();
+ 				Page_Program_Latency_MSB = std::stoull(val);
++			} else if (strcmp(param->name(), "Page_Program_Latency_TSB") == 0) {
++				std::string val = param->value();
++				Page_Program_Latency_TSB = std::stoull(val);
+ 			} else if (strcmp(param->name(), "Block_Erase_Latency") == 0) {
+ 				std::string val = param->value();
+ 				Block_Erase_Latency = std::stoull(val);
+diff --git a/src/exec/Flash_Parameter_Set.h b/src/exec/Flash_Parameter_Set.h
+index 373e5e1..7744d9a 100644
+--- a/src/exec/Flash_Parameter_Set.h
++++ b/src/exec/Flash_Parameter_Set.h
+@@ -13,9 +13,11 @@ public:
+ 	static sim_time_type Page_Read_Latency_LSB;
+ 	static sim_time_type Page_Read_Latency_CSB;
+ 	static sim_time_type Page_Read_Latency_MSB;
++	static sim_time_type Page_Read_Latency_TSB;
+ 	static sim_time_type Page_Program_Latency_LSB;
+ 	static sim_time_type Page_Program_Latency_CSB;
+ 	static sim_time_type Page_Program_Latency_MSB;
++	static sim_time_type Page_Program_Latency_TSB;
+ 	static sim_time_type Block_Erase_Latency;//Block erase latency in nano-seconds
+ 	static unsigned int Block_PE_Cycles_Limit;
+ 	static sim_time_type Suspend_Erase_Time;//in nano-seconds
+diff --git a/src/exec/SSD_Device.cpp b/src/exec/SSD_Device.cpp
+index d0c1263..1e25e10 100644
+--- a/src/exec/SSD_Device.cpp
++++ b/src/exec/SSD_Device.cpp
+@@ -68,6 +68,20 @@ SSD_Device::SSD_Device(Device_Parameter_Set *parameters, std::vector<IO_Flow_Par
+ 			average_flash_read_latency = (read_latencies[0] + read_latencies[1] + read_latencies[2]) / 3;
+ 			average_flash_write_latency = (write_latencies[0] + write_latencies[1] + write_latencies[2]) / 3;
+ 			break;
++		case Flash_Technology_Type::QLC:
++			read_latencies = new sim_time_type[4];
++			read_latencies[0] = parameters->Flash_Parameters.Page_Read_Latency_LSB;
++			read_latencies[1] = parameters->Flash_Parameters.Page_Read_Latency_CSB;
++			read_latencies[2] = parameters->Flash_Parameters.Page_Read_Latency_MSB;
++			read_latencies[3] = parameters->Flash_Parameters.Page_Read_Latency_TSB;
++			write_latencies = new sim_time_type[4];
++			write_latencies[0] = parameters->Flash_Parameters.Page_Program_Latency_LSB;
++			write_latencies[1] = parameters->Flash_Parameters.Page_Program_Latency_CSB;
++			write_latencies[2] = parameters->Flash_Parameters.Page_Program_Latency_MSB;
++			write_latencies[3] = parameters->Flash_Parameters.Page_Program_Latency_TSB;
++			average_flash_read_latency = (read_latencies[0] + read_latencies[1] + read_latencies[2] + read_latencies[3]) / 4;
++			average_flash_write_latency = (write_latencies[0] + write_latencies[1] + write_latencies[2] + write_latencies[3]) / 4;
++			break;
+ 		default:
+ 			throw std::invalid_argument("The specified flash technologies is not supported");
+ 		}
+diff --git a/src/nvm_chip/flash_memory/FlashTypes.h b/src/nvm_chip/flash_memory/FlashTypes.h
+index ef1e8af..486b6f1 100644
+--- a/src/nvm_chip/flash_memory/FlashTypes.h
++++ b/src/nvm_chip/flash_memory/FlashTypes.h
+@@ -25,7 +25,7 @@ typedef uint64_t LPA_type;
+ typedef uint64_t PPA_type;
+ typedef uint64_t command_code_type;
+ 
+-enum class Flash_Technology_Type { SLC = 1, MLC = 2, TLC = 3 };
++enum class Flash_Technology_Type { SLC = 1, MLC = 2, TLC = 3, QLC = 4 };
+ 
+ #define FREE_PAGE 0x0000000000000000ULL
+ #define NO_LPA 0xffffffffffffffffULL
+diff --git a/src/nvm_chip/flash_memory/Flash_Chip.h b/src/nvm_chip/flash_memory/Flash_Chip.h
+index 9f76da6..6791b70 100644
+--- a/src/nvm_chip/flash_memory/Flash_Chip.h
++++ b/src/nvm_chip/flash_memory/Flash_Chip.h
+@@ -90,6 +90,10 @@ namespace NVM
+ 				} else if (flash_technology == Flash_Technology_Type::TLC) {
+ 					//From: Yaakobi et al., "Characterization and Error-Correcting Codes for TLC Flash Memories", ICNC 2012
+ 					latencyType = (pageID <= 5) ? 0 : ((pageID <= 7) ? 1 : (((pageID - 8) >> 1) % 3));;
++				} else if (flash_technology == Flash_Technology_Type::QLC) {
++					// No published physical-page-to-latency-class layout is used here for QLC;
++					// this is a round-robin approximation across the four LSB/CSB/MSB/TSB classes.
++					latencyType = pageID % 4;
+ 				}
+ 
+ 				switch (CMDCode)

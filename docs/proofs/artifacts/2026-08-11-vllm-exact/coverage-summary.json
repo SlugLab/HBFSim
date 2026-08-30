@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_artifact": "/dev/shm/hbfsim-vllm-exact-smoke12-20260811/coverage.jsonl",
+  "source_bytes": 3803670,
+  "source_sha256": "069ddea7bfbcab1d902994793e95457808cc8262120cb0032bbdcd99f787ea47",
+  "coverage_decisions": 10339,
+  "fused_moe_launches": 2304,
+  "modeled_launches": 24,
+  "modeled_fused_moe_launches": 24,
+  "reason_counts": {
+    "allowed": 9171,
+    "opaque_unmodeled_timing": 1168
+  },
+  "modeled_module_ids": {
+    "ptx:sha256:483ba5a96e4a347f9a1b9dd40b009066d53f7c94ba698b54eaf838089b5bcf53": 24
+  },
+  "raw_artifact_hashes": {
+    "pass-manifests.jsonl": "c14ffb43bbb304603805fe58d52a832b365de9f14f20501fb96dece272273acb",
+    "registration.json": "7019cedaa2b553a9bd0eaa89832e53f19512a5f86658232a701e117e38b21e79",
+    "result.json": "0ec34728478f2a042d0b94657cf68917b5562c44b72ec2dfbba56b020c551be4",
+    "triton-bindings.jsonl": "6bd67973696b1fd3accd7527f1d0661739bd29c3aac93c25d2f3f8f34dfa275a"
+  }
+}

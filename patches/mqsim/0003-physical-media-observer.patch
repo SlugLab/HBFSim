@@ -1,0 +1,236 @@
+diff --git a/src/nvm_chip/flash_memory/Flash_Chip.cpp b/src/nvm_chip/flash_memory/Flash_Chip.cpp
+index c78d78f..d4c82cb 100644
+--- a/src/nvm_chip/flash_memory/Flash_Chip.cpp
++++ b/src/nvm_chip/flash_memory/Flash_Chip.cpp
+@@ -19,7 +19,8 @@ namespace NVM
+ 			lastTransferStart(INVALID_TIME), executionStartTime(INVALID_TIME), expectedFinishTime(INVALID_TIME),
+ 			STAT_readCount(0), STAT_progamCount(0), STAT_eraseCount(0),
+ 			STAT_totalSuspensionCount(0), STAT_totalResumeCount(0),
+-			STAT_totalExecTime(0), STAT_totalXferTime(0), STAT_totalOverlappedXferExecTime(0)
++			STAT_totalExecTime(0), STAT_totalXferTime(0), STAT_totalOverlappedXferExecTime(0),
++			media_activity_observer(nullptr), media_activity_observer_context(nullptr)
+ 		{
+ 			int bits_per_cell = static_cast<int>(flash_technology);
+ 			_readLatency = new sim_time_type[bits_per_cell];
+@@ -52,6 +53,13 @@ namespace NVM
+ 		{
+ 			connectedReadyHandlers.push_back(function);
+ 		}
++
++		void Flash_Chip::Connect_to_media_activity_observer(
++			Media_Activity_Observer observer, void* context) noexcept
++		{
++			media_activity_observer = observer;
++			media_activity_observer_context = context;
++		}
+ 		
+ 		void Flash_Chip::Start_simulation()
+ 		{
+@@ -111,7 +119,61 @@ namespace NVM
+ 				PRINT_ERROR("Flash chip " << ID() << ": executing a flash operation on a busy die!")
+ 			}
+ 
+-			targetDie->Expected_finish_time = Simulator->Time() + Get_command_execution_latency(command->CommandCode, command->Address[0].PageID);
++			const sim_time_type command_start_time = Simulator->Time();
++			const sim_time_type command_latency = Get_command_execution_latency(
++				command->CommandCode, command->Address[0].PageID);
++			targetDie->Expected_finish_time = command_start_time + command_latency;
++
++			if (media_activity_observer != nullptr) {
++				if (command->Observer_source.size() != command->Address.size()
++					|| command->Observer_bytes.size() != command->Address.size()) {
++					throw std::invalid_argument(
++						"Observed flash command metadata does not match its addresses.");
++				}
++				Media_Activity_Kind kind;
++				switch (command->CommandCode) {
++					case CMD_READ_PAGE:
++					case CMD_READ_PAGE_MULTIPLANE:
++					case CMD_READ_PAGE_COPYBACK:
++					case CMD_READ_PAGE_COPYBACK_MULTIPLANE:
++						kind = Media_Activity_Kind::READ;
++						break;
++					case CMD_PROGRAM_PAGE:
++					case CMD_PROGRAM_PAGE_MULTIPLANE:
++					case CMD_PROGRAM_PAGE_COPYBACK:
++					case CMD_PROGRAM_PAGE_COPYBACK_MULTIPLANE:
++						kind = Media_Activity_Kind::PROGRAM;
++						break;
++					case CMD_ERASE_BLOCK:
++					case CMD_ERASE_BLOCK_MULTIPLANE:
++						kind = Media_Activity_Kind::ERASE;
++						break;
++					default:
++						throw std::invalid_argument("Unsupported observed flash command.");
++				}
++
++				for (std::size_t index = 0; index < command->Address.size(); ++index) {
++					const Physical_Page_Address& address = command->Address[index];
++					const Media_Transaction_Source source =
++						command->Observer_source[index];
++					const std::uint64_t bytes = kind == Media_Activity_Kind::ERASE
++						? 0
++						: command->Observer_bytes[index];
++					media_activity_observer(Media_Activity{
++						kind,
++						static_cast<std::uint64_t>(command_start_time),
++						static_cast<std::uint64_t>(targetDie->Expected_finish_time),
++						static_cast<std::uint32_t>(address.ChannelID),
++						static_cast<std::uint32_t>(address.ChipID),
++						static_cast<std::uint32_t>(address.DieID),
++						static_cast<std::uint32_t>(address.PlaneID),
++						static_cast<std::uint64_t>(address.BlockID),
++						static_cast<std::uint64_t>(address.PageID),
++						bytes,
++						source,
++					}, media_activity_observer_context);
++				}
++			}
+ 			targetDie->CommandFinishEvent = Simulator->Register_sim_event(targetDie->Expected_finish_time,
+ 				this, command, static_cast<int>(Chip_Sim_Event_Type::COMMAND_FINISHED));
+ 			targetDie->CurrentCMD = command;
+diff --git a/src/nvm_chip/flash_memory/Flash_Chip.h b/src/nvm_chip/flash_memory/Flash_Chip.h
+index 6791b70..c4dba3b 100644
+--- a/src/nvm_chip/flash_memory/Flash_Chip.h
++++ b/src/nvm_chip/flash_memory/Flash_Chip.h
+@@ -9,6 +9,7 @@
+ #include "FlashTypes.h"
+ #include "Die.h"
+ #include "Flash_Command.h"
++#include "Media_Activity_Observer.h"
+ #include <vector>
+ #include <stdexcept>
+ 
+@@ -81,6 +82,8 @@ namespace NVM
+ 			void Execute_simulator_event(MQSimEngine::Sim_Event*);
+ 			typedef void(*ChipReadySignalHandlerType) (Flash_Chip* targetChip, Flash_Command* command);
+ 			void Connect_to_chip_ready_signal(ChipReadySignalHandlerType);
++			void Connect_to_media_activity_observer(
++				Media_Activity_Observer observer, void* context) noexcept;
+ 			
+ 			sim_time_type Get_command_execution_latency(command_code_type CMDCode, flash_page_ID_type pageID)
+ 			{
+@@ -145,6 +148,8 @@ namespace NVM
+ 			void finish_command_execution(Flash_Command* command);
+ 			void broadcast_ready_signal(Flash_Command* command);
+ 			std::vector<ChipReadySignalHandlerType> connectedReadyHandlers;
++			Media_Activity_Observer media_activity_observer;
++			void* media_activity_observer_context;
+ 		};
+ 	}
+ }
+diff --git a/src/nvm_chip/flash_memory/Flash_Command.h b/src/nvm_chip/flash_memory/Flash_Command.h
+index 8da2db8..a79aa01 100644
+--- a/src/nvm_chip/flash_memory/Flash_Command.h
++++ b/src/nvm_chip/flash_memory/Flash_Command.h
+@@ -5,6 +5,7 @@
+ #include "FlashTypes.h"
+ #include "Physical_Page_Address.h"
+ #include "Page.h"
++#include "Media_Activity_Observer.h"
+ 
+ 
+ #define CMD_READ 0x0030
+@@ -37,6 +38,10 @@ namespace NVM
+ 			command_code_type CommandCode;
+ 			std::vector<Physical_Page_Address> Address;
+ 			std::vector<PageMetadata> Meta_data;
++			// Observer-only metadata. MQSim scheduling and completion code never
++			// consults these vectors.
++			std::vector<Media_Transaction_Source> Observer_source;
++			std::vector<std::uint64_t> Observer_bytes;
+ 		};
+ 	}
+ }
+diff --git a/src/nvm_chip/flash_memory/Media_Activity_Observer.h b/src/nvm_chip/flash_memory/Media_Activity_Observer.h
+new file mode 100644
+index 0000000..51e1e83
+--- /dev/null
++++ b/src/nvm_chip/flash_memory/Media_Activity_Observer.h
+@@ -0,0 +1,45 @@
++#ifndef MEDIA_ACTIVITY_OBSERVER_H
++#define MEDIA_ACTIVITY_OBSERVER_H
++
++#include <cstdint>
++
++namespace NVM
++{
++	namespace FlashMemory
++	{
++		enum class Media_Activity_Kind : std::uint8_t
++		{
++			READ,
++			PROGRAM,
++			ERASE
++		};
++
++		enum class Media_Transaction_Source : std::uint8_t
++		{
++			USER_IO,
++			CACHE,
++			GC_WL,
++			MAPPING
++		};
++
++		struct Media_Activity
++		{
++			Media_Activity_Kind Kind;
++			std::uint64_t Start_time_ns;
++			std::uint64_t End_time_ns;
++			std::uint32_t Channel;
++			std::uint32_t Chip;
++			std::uint32_t Die;
++			std::uint32_t Plane;
++			std::uint64_t Block;
++			std::uint64_t Page;
++			std::uint64_t Bytes;
++			Media_Transaction_Source Source;
++		};
++
++		using Media_Activity_Observer = void (*)(
++			const Media_Activity& activity, void* context) noexcept;
++	}
++}
++
++#endif // !MEDIA_ACTIVITY_OBSERVER_H
+diff --git a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+index 0b659d9..62dfca2 100644
+--- a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
++++ b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+@@ -4,6 +4,25 @@
+ #include "Stats.h"
+ 
+ namespace SSD_Components {
++	namespace {
++		NVM::FlashMemory::Media_Transaction_Source to_media_source(
++			Transaction_Source_Type source)
++		{
++			using MediaSource = NVM::FlashMemory::Media_Transaction_Source;
++			switch (source) {
++				case Transaction_Source_Type::USERIO:
++					return MediaSource::USER_IO;
++				case Transaction_Source_Type::CACHE:
++					return MediaSource::CACHE;
++				case Transaction_Source_Type::GC_WL:
++					return MediaSource::GC_WL;
++				case Transaction_Source_Type::MAPPING:
++					return MediaSource::MAPPING;
++			}
++			return MediaSource::USER_IO;
++		}
++	}
++
+ 	/*hack: using this style to emulate event/delegate*/
+ 	NVM_PHY_ONFI_NVDDR2* NVM_PHY_ONFI_NVDDR2::_my_instance;
+ 
+@@ -173,6 +192,10 @@ namespace SSD_Components {
+ 			it != transaction_list.end(); it++) {
+ 			dieBKE->ActiveTransactions.push_back(*it);
+ 			dieBKE->ActiveCommand->Address.push_back((*it)->Address);
++			dieBKE->ActiveCommand->Observer_source.push_back(
++				to_media_source((*it)->Source));
++			dieBKE->ActiveCommand->Observer_bytes.push_back(
++				static_cast<std::uint64_t>((*it)->Data_and_metadata_size_in_byte));
+ 			NVM::FlashMemory::PageMetadata metadata;
+ 			metadata.LPA = (*it)->LPA;
+ 			dieBKE->ActiveCommand->Meta_data.push_back(metadata);

@@ -1,0 +1,2049 @@
+TileLens: Efficiently Using Large-Granularity Memory Systems
+with Transparent Two-Dimensional Memory Layout
+Jae Hyung Ju* , Euijun Chung* , Hritvik Taneja, Anish Saxena,
+Shinnung Jeong, Hyesoon Kim, Moinuddin K. Qureshi
+
+Georgia Institute of Technology
+Atlanta, Georgia, USA
+{jhju,euijun,htaneja3,asaxena317,sjeong306,moin}@gatech.edu,hyesoon@cc.gatech.edu
+
+arXiv:2607.04031v1 [cs.AR] 4 Jul 2026
+
+Abstract
+Large Language Model (LLM) inference is bottlenecked by the capacity and bandwidth of GPU High-Bandwidth Memory (HBM).
+Recent proposals, such as High-Bandwidth Flash (HBF) and RoMe,
+offer higher capacity or bandwidth than HBM, but require a minimum access granularity of kilobytes (e.g., 4 KB). We show that
+these Large-Granularity Memory Systems (LGMS) can degrade the
+performance of tiled matrix-multiplication, which is the dominant
+operation in LLM inference, by up to an order of magnitude. The
+root cause of the slowdown is read amplification, where memory
+requests fetch far more data than the tile actually needs. This waste
+stems from a fundamental mismatch between the two-dimensional
+nature of compute tiles and the one-dimensional memory layout,
+leading to each request spilling well beyond the tile boundaries.
+To mitigate read amplification, we propose to use tile-major layout for LGMS. Rather than storing data as an one-dimensional
+strip, tile-major layout reshapes each contiguous memory block
+into a two-dimensional rectangle, aligning memory granularity
+with tile boundaries. To ease the adoption of tile-major layout on
+GPUs, we propose TileLens, lightweight software and hardware
+extensions that collectively cover major classes of GPU kernels.
+TileLens-SW extends GPU DSLs so that DSL-based kernels (e.g.,
+CUTLASS, FlashAttention) can adopt tile-major in global memory by changing only the layout descriptor. TileLens-HW extends
+the Tensor Memory Accelerator (TMA) for transparent tile-major
+support in TMA-based kernels (e.g., cuBLAS, DeepGEMM) without code changes. We evaluate TileLens on a cycle-level simulator using matrix-multiplication kernels from Qwen-3 30B and
+Llama-3.1 70B. Combining a tile-major layout with an adaptive
+hardware prefetcher, TileLens achieves near-HBM performance
+on HBF-augmented GPUs with a 5 𝜇s HBF NAND read latency, reducing the geomean slowdown from 1.61–6.49× with conventional
+layouts to within 1% of an HBM-only baseline.
+
+Keywords
+GPU, HBM, HBF, Hybrid memory system, LLM
+
+1
+
+Introduction
+
+The rapid adoption of Large Language Models (LLMs) is pushing
+the limits of current GPU memory systems. Model sizes have grown
+to require up to terabytes of GPU memory [1, 9, 22, 41]. Moreover,
+emerging capabilities such as reasoning, multimodality, and agentic
+behavior require larger per-user state. LLM inference is dominated
+by matrix multiplications that read model weights and user state
+for each generated token with little data reuse. As a result, GPU
+* Equal contribution.
+
+memory capacity and bandwidth are the main bottlenecks for LLM
+inference performance [24].
+New GPU memory technologies have been proposed to address
+these bottlenecks by providing higher capacity or bandwidth than
+the current HBM (High-Bandwidth Memory). High-Bandwidth Flash
+(HBF) [11, 12, 24, 37] is an emerging technology that stacks NAND
+flash memory dies in a manner similar to HBM, offering 8–16×
+the capacity with comparable bandwidth. RoMe [25] reclaims the
+bandwidth consumed by the address and command buses for data
+transfers by increasing the HBM access granularity to 4 KB. Both
+proposals require a minimum access granularity of kilobytes, much
+larger than the 32 B granularity of HBM. However, the impact of
+employing such Large-Granularity Memory Systems (LGMS) on
+GPUs for LLM inference has not been well studied.
+We show that using LGMS on GPUs results in read amplification
+during matrix multiplication (matmul), where each memory access
+fetches more data than what is useful for computation. Matmul
+kernels on GPUs split matrices into two-dimensional (2-D) tiles and
+schedule the tiles across CTAs (cooperative thread array, or thread
+block) [30, 31, 46]. The width of the 2-D compute tile is typically 64–
+512 bytes, which is much smaller than the kilobyte-scale granularity
+of LGMS. Thus, in LGMS, each access fetches a one-dimensional
+strip that extends far beyond the two-dimensional compute tile.
+Read amplification degrades matmul performance by up to an
+order of magnitude with conventional layouts, as shown in Figure 1(b). Matrices are stored in column- or row-major layout, where an
+entire column or row is contiguous in memory. In column-major
+layout, each CTA accesses columns of the weight matrix that are not
+used by other CTAs, and read amplification directly wastes bandwidth. Caching the excess data is infeasible: on an H200 GPU with
+32× amplification, hundreds of megabytes of data must be buffered
+to avoid wasting bandwidth. In row-major layout, overfetched data
+may be reused by other CTAs, but this sharing introduces a straggler problem. Without read amplification, each CTA can proceed
+as soon as its own memory requests arrive. With shared memory
+requests among CTAs (Figure 1-(b)), however, no CTA in the group
+can proceed until all outstanding requests have arrived. The slowest straggler request thus delays all dependent CTAs, serializing
+execution that would otherwise overlap.
+The root cause of read amplification is the conflict between the 1D global memory layout in current GPUs and the 2-D tiled matmuls
+on LGMS. Our insight is that if the contiguous memory block is
+two-dimensional and fits within a compute tile, read amplification
+can be eliminated. The goal of this paper is to design a low-cost
+architectural support for GPUs that maintains the benefits of LGMS
+without the read amplification penalty. We mainly focus on HBF,
+
+GPU
+
+
+
+
+
+HBM
+
+Tiled GEMM
+
+Baseline (HBM)
+GPU
+
+
+
+    
+
+Column-major layout
+
+
+­ 
+
+
+HBF
+
+ 
+
+Compute Tile
+
+Row-major layout
+
+
+
+
+
+High Bandwidth Flash (HBF)
+
+
+ 
+
+(a) Large-Granularity
+Memory Systems (LGMS)
+
+
+
+      
+
+32x Read amplification;
+Data unused within the CTA
+
+
+
+Compute Tile
+
+Tile-major layout (ours)
+
+
+
+
+
+Compute Tile ...
+
+16 CTAs must stall until the slowest
+memory request is finished
+
+ 
+
+  
+
+
+
+ 
+
+(b) Read Amplification causing BW waste and CTA stalls
+
+...
+
+
+
+
+
+Compute Tile
+
+
+
+Memory Tile
+
+a × b = 4096,
+e.g., (a, b) = (64, 64)
+
+(c) Tile-Major layout
+
+Figure 1: (a) HBF and RoMe both require a minimum access granularity of 4 KB, 128× coarser than HBM’s 32 B sectors. (b)
+Under one-dimensional (row- or column-major) memory layout, each 4 KB access fetches data mostly outside the compute tile,
+wasting bandwidth and stalling CTAs that await the same memory request. (c) Tile-major layout shapes the 4 KB region as a
+two-dimensional rectangle (e.g., 64 × 64 for FP8) that fits within the compute tile, such that every fetched byte is consumed.
+where high read latency amplifies the performance impact of read
+amplification, posing a more demanding challenge.
+To this end, we propose to use tile-major layout for LGMS to mitigate read amplification. Tile-major layout reshapes the contiguous
+unit of memory from a 1-D strip to a 2-D rectangle. We decouple the
+memory layout from the compute tile by introducing the concept
+of memory tiles: rectangular units of data that are contiguous in
+global memory. For example, Figure 1-(c) shapes a 4 KB FP8 region
+as a 64 × 64 memory tile that fits within the compute tile. As long
+as the compute tile dimensions are multiples of the memory tile
+dimensions, read amplification is eliminated in tile-major layout.
+However, the vast configurability of tile-major layouts poses a
+challenge to their adoption. Unlike row- or column-major, tile-major
+is not a single but a family of configurable layouts parameterized
+by the memory tile dimensions. Because the correctness of a GPU
+kernel depends on the global memory layout it assumes, separate
+code is required for different memory tile shapes. To address this,
+we propose TileLens, lightweight software and hardware extensions that collectively cover all major classes of GPU kernels with
+transparent support for multiple memory tile configurations.
+TileLens-SW extends GPU DSLs to support tile-major in global
+memory. While the layout abstraction of GPU DSLs can represent arbitrary layouts, their code generation only supports row- or
+column-major layouts in global memory. The DSL layouts were not
+utilized for global memory because HBM’s access granularity is fine
+enough that simple row- or column-major layouts already achieve
+high bandwidth utilization. We extend the DSL to support tile-major
+global memory layouts by viewing a tiled two-dimensional matrix
+as a four-dimensional tensor and loading tiles with the corresponding four-dimensional coordinates and tile dimensions. Through
+this change, kernel libraries built on DSL frameworks (e.g., CUTLASS [31]) and high-performance kernels (e.g., FlashAttention [6])
+can adopt a tile-major layout by changing only the layout descriptor,
+without modifying the compute logic.
+Next, we propose TileLens-HW to support kernels that do not use
+the DSL and to provide additional flexibility in tile sizes. Our insight
+is that if a dedicated hardware converts logical tensor indices into
+memory addresses, minimal changes will allow it to transparently
+support tile-major layout. Because kernels will interact with the
+hardware only through logical tensor indices, most of the code
+
+can be agnostic to the global memory layout. Such hardware exists
+across GPU and accelerator architectures, including NVIDIA Tensor
+Memory Accelerator (TMA) [27], AMD shim DMA [4], and Intel 2D
+block loads [13]. We demonstrate our approach on the TMA, widely
+used to load matmul weights on recent NVIDIA GPUs. TileLens-HW
+extends the TMA hardware to support tile-major layout, enabling a
+single kernel that uses the TMA (e.g., cuBLAS [30], DeepGEMM [7])
+to simultaneously support multiple tile-major layouts.
+We modify the TMA so we can pass the memory tile dimensions
+to the TMA descriptor as a runtime argument. With the information, additional hardware logic computes the address for the given
+tile-major layout as if the TMA was called for row- or column-major
+layout. Through TileLens-HW, a single GPU kernel or binary can
+support multiple memory tile configurations simultaneously, without rewriting the code or recompilation. Because TMA is essential
+for high-performance kernels on recent NVIDIA GPUs, TileLens
+covers most of the optimized kernels. Kernels that do not use TMA
+can adopt a tile-major layout by modifying their address computation (Section 3.2).
+While tile-major layout addresses read amplification on LGMS,
+integrating HBF into a GPU system requires additional microarchitectural changes. To address HBF’s limited write endurance, we
+only allocate weight matrices to HBF while keeping KV cache and
+activations on HBM. For HBF to coexist with HBM, we propose a
+mixed-granularity L2 cache. To effectively hide microsecond-scale
+read latency of HBFs, 4 KB-granularity miss status holding registers (MSHRs) are added to track more concurrent HBF requests,
+while an adaptive stride prefetcher fills the bandwidth to hide HBF
+latencies that are orders of magnitude longer than HBM latencies.
+We evaluate on a cycle-level simulator and show tile-major brings
+HBF-augmented GPU performance from a 1.61–6.49× geomean
+slowdown to within 1% of an HBM-only system.
+Contribution. This paper makes the following contributions.
+(1) To the best of our knowledge, this is the first paper to analyze
+the read amplification problem that occurs on GPUs with LGMS.
+We show that read amplification degrades the performance of
+matmul kernels by an order of magnitude.
+(2) We propose using tile-major layout for LGMS. This layout maps
+a contiguous memory region into 2-D memory tiles, enabling
+the use of LGMS without read amplification.
+2
+
+Tiled (M, N, K) Matrix-Multiplication
+
+(3) We propose TileLens, which addresses the configurability challenge of tile-major layouts by extending GPU DSLs (TileLensSW) and TMA (TileLens-HW) to transparently support tilemajor layouts regardless of memory tile shape and size.
+(4) We evaluate TileLens on matmul kernels from the Qwen-3
+30B [48] and Llama-3.1 70B [9] and show that TileLens avoids
+the performance loss due to read amplification in LGMS.
+
+
+
+
+
+
+Compute Tile 
+
+
+
+
+
+
+ 
+
+
+2 Background and Motivation
+2.1 LLM Inference
+
+Figure 2: Tiled matrix multiplication on GPUs. Each CTA
+loads a compute tile from global memory and iterates along
+the K dimension to perform reduction on the output.
+
+LLM inference consists of two phases: prefill and decode. The decode phase generates output tokens autoregressively, and the model
+weights and per-user state (KV cache) must be read for each generated token. As recent reasoning workloads produce increasingly
+long outputs, the decode phase dominates end-to-end latency [10].
+GPU memory capacity and bandwidth are the two main bottlenecks for LLM inference. During the decode phase, model weights
+are read but reused only once per token, making memory bandwidth the bottleneck for latency. Increasing the batch size improves
+throughput by amortizing load across tokens, but a larger batch
+also increases the KV cache size, making memory capacity the
+bottleneck for further throughput gains.
+
+2.2
+
+memory to compute a partial matmul. Compute tile dimensions
+typically range from 32 to 512 elements per side.
+
+2.4
+
+Emerging Memory Systems for GPUs
+
+
+
+
+
+0 8 16 24
+1 9 17 25
+2 10 18 26
+3 11 19 27
+4 12 20 28 ...
+5 13 21 29
+
+0 1 2 3 4 5 6 7
+8 9 10 11 12 13 14 15
+ 16 17 18 19 20 21 22 23
+24 25 26 27 28 29 30 31
+
+...
+
+...
+
+Several memory systems have recently been proposed to overcome
+the capacity and bandwidth limitations of GPU HBM for LLM inference. These systems share a common architectural consequence:
+a minimum read granularity of kilobytes (e.g., 4 KB), far larger than
+HBM’s 32 B. We refer to them collectively as Large-Granularity
+Memory Systems (LGMS).
+HBF. High-Bandwidth Flash (HBF) [37] stacks NAND flash dies, copackaged with GPUs via a silicon interposer. HBF provides memory
+bandwidth comparable to HBM (∼1.6 TB/s per stack for Gen1) while
+offering 8–16× the capacity per stack due to the higher density of
+NAND flash cells. Its minimum access granularity is on the order
+of kilobytes, constrained by factors such as NAND page size and
+ECC requirements. HBF also exhibits read latency on the order of
+microseconds (1–10 𝜇s), significantly higher than HBM’s ∼100 ns.
+RoMe. RoMe [25] increases the access granularity of HBM from
+32 B to 4 KB. Fewer commands per unit of data frees up address
+(command) pins to carry data, increasing data bandwidth by 12.5%.
+
+2.3
+
+Data Layout in GPU Memory System
+
+Row-major and column-major are the two standard global memory
+layouts used for matrix multiplication, as shown in Figure 3. In
+row-major, elements in the same row are contiguous in memory;
+in column-major, elements in the same column are contiguous. For
+weight matrices in LLM inference deployments, column-major, the
+layout that keeps the K-dimension in Figure 2 contiguous, is the
+dominant choice [34]. Widely used frameworks such as PyTorch default to column-major, and certain quantization formats in NVIDIA
+GPUs require column-major weights [31, 32].
+
+(a) Column-major layout
+
+(b) Row-major layout
+
+
+
+
+
+Figure 3: Address offsets of an 8 × 8 matrix under (a) columnmajor and (b) row-major layout.
+
+2.5
+
+Challenges of Employing LGMS
+
+We show that LGMS causes severe read amplification in tiled matrix multiplication. Because the weight matrix is stored in a onedimensional layout (row- or column-major), each 4 KB access returns a contiguous strip along a single dimension, most of which
+falls outside the two-dimensional compute tile boundary (Figure 1(b)). This read amplification degrades performance through (1)
+wasted memory bandwidth and (2) straggler-induced CTA stalls.
+Bandwidth waste. When the extra data from read amplification
+is not reused, it is discarded, directly wasting memory bandwidth.
+Retaining it on-chip for future reuse is infeasible at the required
+scale: on an NVIDIA H200 GPU with 132 SMs, a 32× amplification
+factor over 128 KB of shared memory per SM produces 528 MB of
+amplified data per iteration, far exceeding the 50 MB L2 cache size.
+CTA stalls due to straggler accesses. A single compute tile requires multiple 4 KB memory requests, and the CTA cannot begin
+
+Matrix Multiplication on GPUs
+
+Most of the time in LLM decode is spent on matrix multiplications,
+where for an input matrix of size 𝑀 × 𝐾, the weight matrix of size
+𝐾 × 𝑁 is read from GPU global memory to compute the 𝑀 × 𝑁
+output matrix (Figure 2). Mixture-of-experts (MoE) models route
+tokens to each expert’s weight matrix, but each expert performs
+the same matmul, so the same memory access pattern applies.
+Tiled Matrix Multiplication. GPU matmul implementations [30,
+31, 46] partition the matrices into compute tiles as shown in Figure 2,
+each assigned to a cooperative thread array (CTA) for parallel execution. At each iteration over the 𝐾 dimension, a tile of the weight
+matrix is loaded from GPU global memory into on-chip scratchpad
+3
+
+
+
+Count
+
+103
+10
+
+
+
+
+ 
+ 
+
+2
+
+100
+
+...
+
+
+
+101
+0
+
+5
+
+10
+
+HBF Read Latency (μs)
+
+Factor Normalized
+to HBM-only GPU
+
+
+
+Stalled Compute Tiles
+
+15
+
+(a) Distribution of HBF latencies
+
+(b) Straggler Effect
+
+Figure 4: (a) Log-scale distribution of HBF read latencies
+showing a long tail. (b) A CTA must wait for all outstanding
+memory requests to complete before starting computation;
+the slowest (straggler) request determines the execution time.
+
+Timeline
+
+CTA 0
+CTA 1
+SM 1 CTA 2
+CTA 3
+LGMS matmul (4KB granularity)
+SM 0
+
+SM 0
+SM 1
+
+CTA 0
+CTA 1
+CTA 2
+CTA 3
+
+Timeline
+
+...
+
+3
+
+0
+
+8.0x
+
+11.2x
+
+10.1x
+3.9x
+
+3.3x
+
+1
+Read
+Stall Cycles
+Amplification Bandwidth Efficiency
+
+Execution Time
+
+1.0x
+
+Tile-Major Data Layout
+
+Read amplification arises because the one-dimensional global memory layout produces 4 KB strips that do not align with two-dimensional
+compute tiles. Therefore we propose to use tile-major layout, which
+reshapes the contiguous unit of global memory from a one-dimensional
+strip into a two-dimensional rectangle that fits within a compute
+tile. We call this rectangular unit the memory tile (Figure 7-(a)).
+
+...
+...
+...
+...
+...
+
+3.1
+
+Decoupling Memory Tile and Compute Tile
+
+A contiguous 4 KB region can be shaped as any ℎ × 𝑤 rectangle
+satisfying ℎ × 𝑤 × 𝑠 = 4096, where 𝑠 is the element size in bytes.
+For FP8 (𝑠 = 1), row-major corresponds to the extreme (1, 4096)
+and column-major to (4096, 1); both extend far beyond compute
+tile boundaries, causing read amplification. By selecting a shape
+that fits within a compute tile, e.g., (64, 64), every byte in each 4 KB
+fetch is consumed by the kernel, eliminating read amplification.
+However, the memory layout is static (fixed at allocation time),
+while the compute tile shape varies across kernels (e.g., 128 × 128
+vs. 256 × 64). Matching the memory tile exactly to one kernel’s
+compute tile would not work for others. Tile-major layout avoids
+this mismatch by decoupling the memory tile from the compute tile,
+as shown in Figure 7-(b). The memory tile 𝑎 × 𝑏 is chosen small
+enough to divide evenly into many compute tile sizes: for example,
+a 64 × 64 FP8 memory tile fits within compute tiles of 64 × 64,
+128 × 128, 256 × 256, and so on. An 𝑀 × 𝑁 matrix is viewed as a
+grid of (𝑀/𝑎) × (𝑁 /𝑏) memory tiles, each packed contiguously in
+physical memory.
+
+
+
+Figure 5: CTA execution timelines under baseline HBM (top)
+and LGMS (bottom). CTAs share the same 4 KB requests, creating implicit synchronization; the straggler request stalls
+all CTAs that depend on it.
+Figure 6 quantifies the impact of stragglers on Qwen-3 30B
+fused_moe with a 128 × 256 FP16 compute tile on a simulated
+HBF system. The simulation setup is shown in Section 6.2. Columnmajor layout suffers 10.1× read amplification, which increases stall
+cycles by 14.8× and degrades execution time by 11.2× relative to
+an HBM baseline. Row-major layout reduces read amplification to
+3.9× through reusing the rows across CTAs, but straggler-induced
+stalls still degrade execution time by 3.3×.
+
+2.6
+
+5
+
+Column Major
+Row Major
+
+14.8x
+
+paper does not advocate for any specific LGMS technology; rather,
+we identify read amplification as a general consequence of large
+access granularity and propose a solution that applies to any LGMS.
+Our goal is to obtain the capacity and bandwidth benefits of LGMS
+while eliminating read amplification, with only lightweight changes
+to GPU software and hardware for practical adoption. We focus
+more on HBF as its longer access latency combined with the read
+amplification makes the problem more challenging.
+
+: Memory
+: Compute
+...
+...
+
+10
+
+16.0x
+
+Figure 6: Performance degradation due to read amplification
+on LGMS. Metrics measured on Qwen-3 fused_moe kernel on
+a hybrid HBM/HBF-stack GPU. While memory bandwidth
+does not get wasted with row-major, straggler effect causes
+long stalls that underutilize the bandwidth.
+
+computation until all of them complete. As Figure 4 shows, LGMS
+access latencies exhibit a long tail: the slowest outstanding request
+determines each CTA’s execution time.
+This effect compounds across CTAs. When multiple CTAs share
+4 KB requests due to overlapping tile regions, the straggler request
+becomes an implicit synchronization point: all dependent CTAs
+stall until it completes, even though they are otherwise independent.
+As shown in Figure 5, this implicit synchronization serializes CTA
+execution and stretches the total kernel runtime.
+
+Baseline matmul (32B granularity)
+
+15
+
+Goal of the Paper
+
+3.2
+
+Existing works that propose LGMS for GPUs [11, 12, 25] focus
+on scaling memory capacity and bandwidth but do not address
+read amplification arising from tiled matmul access patterns. This
+
+Address Translation
+
+We use column-major as the baseline in our explanation; the same
+approach applies to row-major, with rows and columns swapped.
+4
+
+
+
+
+
+    
+
+0 4 16 20
+
+ 1 5 17 21
+2 6 18 22
+3 7 19 23 ...
+
+8 12 24 28
+9 13 25 29 
+10 14 26 30
+
+11 15 27 31
+
+ 
+
+ 
+ 
+
+(a) Tile-major layoutwith
+4x2 memory tile
+
+  
+
+ 
+­ 
+
+
+ 
+
+
+
+
+
+­ 
+  
+
+  
+     
+
+
+
+(b) Various memory tile configurations
+
+
+
+
+
+
+
+
+
+   
+   
+ 
+   
+
+
+ 
+
+(c) Address offset computation for tile-major layout
+
+Figure 7: (a) Address offsets of an 8 × 8 matrix under tile-major layout with 4 × 2 memory tile. (b) Memory tile shapes for a 4 KB
+region relative to a compute tile (dashed). Memory tiles beyond the compute tile (4096 × 1) cause read amplification; shapes
+that fit within (e.g., 64 × 64) eliminate it. (c) Tile-major address translation: element (𝑖, 𝑗) is decomposed into an inter-tile index
+(𝑇𝑖 ,𝑇 𝑗 ) and an intra-tile index (𝑖 ′, 𝑗 ′ ). The tile-major offset is the linear tile index times 4 KB plus the intra-tile offset.
+In column-major layout, element (𝑖, 𝑗) of a 𝐾 × 𝑁 matrix has byte
+offset ( 𝑗 · 𝐾 + 𝑖) · 𝑠 from the matrix base address, where 𝑠 is the
+element size in bytes. As illustrated in Figure 7-(c), for a memory
+tile 𝑎 × 𝑏 (where 𝑎 · 𝑏 · 𝑠 = 4096), we decompose (𝑖, 𝑗) into inter-tile
+index (𝑇𝑖 ,𝑇 𝑗 ) indicating which memory tile an element belongs to,
+and intra-tile index (𝑖 ′, 𝑗 ′ ) indicating its position within that tile:
+𝑇𝑖 = ⌊𝑖/𝑎⌋,
+
+𝑖 ′ = 𝑖 mod 𝑎,
+
+𝑇 𝑗 = ⌊ 𝑗/𝑏⌋,
+
+𝑗 ′ = 𝑗 mod 𝑏.
+
+memory tile shape. If GPU software and hardware allowed kernels
+transparent to the global memory layout, such effort can be eliminated. The transparent support would also enable legacy kernels
+that assume row/column major to use tile-major without changes,
+minimizing the overhead of transitioning to LGMS based GPUs.
+
+4
+
+(1)
+
+We propose TileLens, lightweight extensions to GPU software and
+hardware that transparently enable tile-major layout in GPU global
+memory. Our observation is that transparent tile-major remapping
+requires minimal changes if there is a dedicated hardware which
+computes memory addresses from logical coordinates of a tensor.
+Because such address computation unit will enable most code to
+remain agnostic to the global memory layout, they would be a
+natural transition point for tile-major.
+Fortunately the address computation hardware already exists
+across GPU and accelerator architectures, including NVIDIA Tensor
+Memory Accelerator (TMA) [27], AMD shim DMA [4], and Intel 2D
+block loads [13]. We demonstrate our approach on the TMA, widely
+used to load matmul weights on recent NVIDIA GPUs. However
+the same approach can be employed on other similar accelerators
+to transparently support tile-major with minimal overhead.
+We present three adoption paths: TileLens-SW enables DSLbased kernels to use tile-major by changing only the layout descriptor (Section 4.2); TileLens-HW extends the TMA hardware
+such that non-DSL kernels including low level binaries to gain
+transparent support (Section 4.3); and kernels that use neither TMA
+nor the DSL can adopt tile-major layout by modifying their address
+computation, either in source code or through compiler-based binary instrumentation (Section 4.4).
+
+The tile-major byte offset from the matrix base address is:
+offsettile =
+
+(𝑇 𝑗 · 𝐾𝑎 + 𝑇𝑖 )
+| {z }
+
+linear memory tile index
+
+·𝑎 ·𝑏 · 𝑠 +
+| {z }
+4 KB
+
+( 𝑗 ′ · 𝑎 + 𝑖′) · 𝑠
+|
+{z
+}
+
+(2)
+
+intra-tile col-major offset
+
+The first term computes how many 4KB tiles are between the matrix
+base address and the tile base address (memory tiles ordered columnmajor); the second term locates the element inside the tile. Because
+𝑎 and 𝑏 are always powers of two (𝑎·𝑏 ·𝑠 = 4096 = 212 ), decomposing
+(𝑖, 𝑗) into inter/intra tile coordinates requires only bit shifts and
+masks (e.g., 𝑇𝑖 = 𝑖 ≫ log2 𝑎, 𝑖 ′ = 𝑖 & (𝑎−1)).
+
+3.3
+
+Memory Alignment Requirements
+
+We assume the memory allocator aligns the matrix base address to
+the LGMS granularity and that virtual-to-physical address translation is also aligned to the LGMS granularity. GPUs use huge pages
+on the order of MB to reduce TLB pressure, and even the largest
+memory granularity of tens of KB will fit. We also assume that the
+weight matrix dimensions are evenly divisible by the corresponding memory tile dimensions. We analyzed the dimensions used in
+recent LLMs (Qwen [48], Deepseek [22], Llama [9], Minimax [21],
+GPT-OSS [2]), and their dimensions are at least a multiple of 256. If
+the alignment is not satisfied, weights can be padded.
+
+3.4
+
+TileLens: Transparent Tile-Major Layout
+
+4.1
+
+Challenges of Adopting Tile-Major Layout
+
+Unlike row- or column-major, tile-major is not a single layout but
+a family of layouts parameterized by the memory tile dimensions
+(𝑎, 𝑏). Figure 7-(b) shows three valid memory tile shapes with the
+same total size. Moreover, the large memory granularity makes
+GPU kernel performance sensitive to the shape of the memory
+tile, turning it into an additional tunable parameter. Currently, the
+correctness of a kernel depends on the global memory layout it
+is assuming, and a separate kernel needs to be written for each
+
+Tensor Memory Accelerator (TMA)
+
+As GPU compute throughput and memory bandwidth grew, the
+computation of global memory addresses from logical indices began
+to limit matmul performance [23]. The TMA, introduced in the
+NVIDIA Hopper architecture [27], is a dedicated hardware that
+handles address computation and data movement asynchronously
+with the GPU core, allowing better overlap of data transfer and
+matmul compute. Such overlap is essential for high-performance
+matmul kernels, which is why it is widely used [43].
+5
+
+TMA Descriptor
+❶
+❸
+
+Ks
+0
+2Ks
+1s (K+1)s (2K+1)s ...
+ 2s (K+2)s (2K+2)s
+3s (K+3)s (2K+3)s
+
+❶  
+
+
+
+
+ 
+
+
+
+...
+
+❷   
+
+
+
+
+­
+❷ 
+❹ 
+
+where 𝑎 · 𝑏 · 𝑠 = 4096 for a 4 KB granularity memory. The two
+additional dimensions separate the intra-tile and inter-tile indices.
+The third-dimension stride of 𝑎𝑏 = 4096/𝑠 elements corresponds to
+exactly one 4 KB memory tile, so adjacent tiles are contiguous in
+memory and aligned to the memory granularity.
+At runtime, the 2-D matrix coordinates (𝑖, 𝑗) are converted to 4D coordinates (𝑖 ′, 𝑗 ′,𝑇𝑖 ,𝑇 𝑗 ) via Equation 1, and the TMA descriptor
+and load calls are updated accordingly. CuTe-based kernels thus
+adopt a tile-major layout by changing only the layout descriptor,
+without modifying the compute logic.
+
+TMA Tile Load
+
+❸
+
+
+❹ 
+
+
+4.3
+
+
+
+*u should be either one of 32/64/128B
+
+Figure 8: TMA descriptor and TMA load operation.
+Figure 8 illustrates the input and operation of the TMA. Before kernel launch, the host creates a TMA descriptor that specifies
+the global tensor’s (1) base address, (2) dimensions (e.g. (𝐾, 𝑁 )),
+(3) stride for each dimension (e.g. (1, 𝐾)), and (4) data type. During
+kernel execution, the TMA load is issued with (1) logical coordinates of the tile base (𝑖, 𝑗), (2) tile dimensions (𝑢, 𝑣), and (3) shared
+memory destination address. The TMA computes global memory
+addresses for data in the tile, issues memory requests, writes the
+returned data to shared memory, and signals the core when done.
+Tensor Strides and Address. Stride specifies how much the memory address changes when the corresponding coordinate is incremented by one. In Figure 8-Left, the stride is 𝐾 in the horizontal
+dimension. Given a set of coordinates (𝑖 1, 𝑖 2, ...) and corresponding
+strides (𝑠1, 𝑠2, ...), the memory address is the sum of each coordinate
+multiplied by its stride (𝑖 1𝑠 1 + 𝑖 2𝑠 2 + ...), plus the base address. Note
+that the dimension order does not matter here as long as the strides
+are correctly paired to the coordinates, and strides need not be
+monotonically increasing for higher dimensions. TMA assumes the
+first dimension is contiguous (stride=1), so for an 𝑁 -dimensional
+tensor, 𝑁 −1 stride values are specified in the descriptor.
+
+4.2
+
+TileLens-SW: Tile-Major via DSL Extension
+
+GPU DSLs such as CuTe [31] provide layout abstractions that decouple compute logic from memory layout, allowing kernels to support
+different layouts by changing only the DSL layout descriptor. While
+the CuTe layout descriptor can express a wide range of layouts,
+including tile-major layouts, its internal code-generation logic only
+supports 1-D global memory layout, i.e., row- or column-major.
+This restriction was never a problem with HBM, where its 32 B
+granularity fit within a compute tile with just linear layouts. Global
+memory did not need such flexibility; the layout abstractions were
+instead used for on-chip data arrangement in registers and shared
+memory, where layout choices traditionally affected performance.
+On LGMS, the restriction becomes problematic because kernels
+require tile-major ordering in GPU global memory.
+TileLens-SW extends CuTe to support tile-major in global memory by viewing a tiled 𝐾 × 𝑁 matrix as a four-dimensional tensor:
+
+
+
+
+
+
+
+
+
+
+
+
+= 
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+= 
+
+
+
+
+
+
+
+
+
+(a) 2-D Tensor view
+
+(b) 3-D Tensor view
+
+(c) 4-D Tensor view
+
+Figure 9: A single 384×128 column-major matrix and the
+128×64 tile at logical coordinates (256, 64), viewed as equivalent (a) 2-D, (b) 3-D, and (c) 4-D TMA tensor descriptors.
+Moreover, except for the contiguous first dimension, the programmer is free to reorder the remaining dimensions, along with
+their strides, tile sizes, and coordinates. Kernels routinely use the
+different views to simplify coordinate computation from the CTA
+
+shape = (𝑎, 𝑏, 𝐾/𝑎, 𝑁 /𝑏),
+stride = (1, 𝑎, 𝑎𝑏, 𝐾𝑏),
+
+TileLens-HW: Tile-Major Aware TMA
+
+In this section, we propose TileLens-HW, an extension to address
+computation hardware like TMA to provide transparent tile-major
+support for non-DSL kernels. With TileLens-HW all kernels that
+utilize TMA can be switched to use tile-major by only providing a
+different TMA descriptor at runtime. Our insight is that because
+TMA operates on logical tensor indices rather than memory addresses, the index-to-address mapping is fully contained within the
+TMA. Thus it is a natural place to apply tile-major remapping.
+TileLens-HW adds two fields to the TMA descriptor: (1) the
+contiguous dimension of the global matrix 𝐾, and (2) the memory
+tile dimensions (𝑎, 𝑏), with 𝑎 ·𝑏 ·𝑠 = 4096 for 4 KB access granularity.
+Our TMA extension uses these fields to perform tile-major address
+remapping internally, so a single kernel binary supports different
+memory tile configurations without recompilation. We only modify
+the TMA’s source address (srcAddr) computation logic.
+Challenges of Supporting Tile-Major in TMA. Transparently
+supporting tile-major through hardware is challenging because
+programmers can view the same tensor in multiple ways. TMA
+must produce correct tile-major addresses regardless of the view.
+For example, for a single 2-D matrix, the programmer can choose to
+view it as a higher-dimensional tensor in multiple ways. Consider
+an FP8 384×128 matrix in column-major shown in Figure 9, and the
+kernel wants to load a 128 × 64 tile at logical coordinates (256, 64).
+This load can be expressed as any of the following:
+• 2D: (384, 128) tensor, (256, 64) coordinates, (128, 64) tile.
+• 3D: (128, 128, 3) tensor, (0, 64, 2) coordinates, (128, 64, 1) tile.
+• 4D: (128, 64, 3, 2) tensor, (0, 0, 2, 1) coordinates, (128, 64, 1, 1) tile.
+
+(3)
+6
+
+(a)
+
+2
+
+... 0
+
+1
+
+cn
+t3
+D
+
+1
+
+cnt3D
+
+×
+
+×
+...
+
+
+
+...
+cnt2D = 0
+
+cnt2D
+
+＋
+
+
+
+...
+
+
+
+0 K 2K
+1 K+1 2K+1 ...
+2 K+2 2K+2
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+  
+  
+
+
+
+×
+
+
+
+
+
+×
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(a) a = u
+
+(b) a > u
+
+(c) TileLens-HW for a > u
+
+
+
+Split & Sum
+
+
+<< log b
+
+×
+
+
+
+(a) Original tileBase computation
+
+tileBase = offsettile = (𝐾 · 𝑗 + 𝑖 · 𝑏) · 𝑠.
+
+...
+
+...
+
+ 
+
+we call this the leading stride. This invariant gives the hardware
+a simple rule for decomposing arbitrary multidimensional coordinates into row and column indices. Dimensions with stride ≥ 𝐾
+contribute to the column index, and the rest to the row index.
+TileLens-HW. TileLens-HW adds two fields to the TMA descriptor: (1) the memory tile dimensions (𝑎, 𝑏), both powers of two,
+where 𝑎 is the contiguous dimension, and (2) the leading stride
+𝐾, which identifies the column dimension as described above. Using these fields, the TMA engine performs tile-major remapping
+during its two phases: tileBase address computation and counterbased srcAddr generation within the tile. We describe the required
+modifications to each phase under two cases.
+Case 1: Aligned Tiles. In the simplest case, the memory tile and
+TMA tile have the same contiguous width (𝑎 = 𝑢), and the TMA tile
+spans an integer number of memory tiles in the non-contiguous
+dimension (𝑣 is a multiple of 𝑏), as shown in Figure 12-(a).
+To compute tileBase, we use the leading stride to split the
+multidimensional coordinates into row index 𝑖 and column index
+𝑗 (Figure 7-(c)): dimensions with a stride smaller than the leading
+stride contribute to 𝑖, and the rest contribute to 𝑗. In hardware, this
+is a split and sum unit (Figure 11-(b)), where each coordinate×stride
+product is routed to a different addition tree based on a comparison
+with the leading stride. The sum of coordinate×stride products with
+strides smaller than 𝐾 is i, the rest is 𝐾 𝑗. The rest of the tileBase
+computation hardware is entirely reused.
+Because memory tiles evenly divide the global matrix (𝐾 and 𝑁
+are multiples of 𝑎 and 𝑏, respectively), 𝑖 and 𝑗 are always aligned to
+memory tile boundaries, and Equation 2 simplifies to:
+
+ 
+ 
+
+coord3D
+
+＋
+
+
+
+
+
+
+
+
+
+
+Figure 12: Two cases of tile-major with memory tile of (a, b)
+on TMA loading (u, v) tile. (a) 𝑎 = 𝑢. (b) 𝑎 > 𝑢. (c) Additional
+TileLens-HW logic for 𝑎 > 𝑢 case.
+
+index and iteration count. For a hardware solution to be viable,
+tile-major remapping must handle all these representations with
+minimal overhead, without a separate circuit for each combination.
+TMA Microarchitecture. While the exact microarchitecture of
+TMA is not publicly documented, we assume a simple counter-based
+hardware similar to DMA engines that support multi-dimensional
+data transfer [45, 50]. We model the TMA operation as two phases.
+In the first phase, TMA computes the tile base address (tileBase)
+from the coordinates and strides (Figure 11-(a)). In the second phase,
+a hardware unit with incrementing counters generates source and
+destination addresses (src/dstAddr) and issues memory requests
+(Figure 10-(a, b)). The counters represent the coordinates within the
+TMA tile, and the source address is a sum of the counters multiplied
+by corresponding strides, plus tilebase. The destination address
+simply increments in the coordinate order (simplifying swizzling).
+Invariants in TMA calls. Two invariants in TMA calls enable a
+hardware extension with minimal overhead. First, the contiguous
+dimension 𝑢 of every TMA tile is a power of two in bytes (e.g., 32 B,
+64 B, or 128 B), except for special cases of sub-byte types (e.g., FP6 on
+Blackwell) [29]. The reason is for shared memory swizzling, where
+TMA uses bit permutations within a power-of-two width. Usage
+of swizzling is essential for matmul performance [43]. Since the
+memory tile dimensions 𝑎 and 𝑏 are also powers of two, one divides
+the other, guaranteeing alignment in the contiguous dimension.
+Second, regardless of how the programmer views a columnmajor 𝐾 × 𝑁 matrix, stepping from one column to the next always
+requires skipping at least 𝐾 elements. Any valid tensor view must
+therefore encode this skip as a stride ≥ 𝐾 in at least one dimension;
+
+coord2D
+
+
+
+   
+
+
+
+
+
+(b) Offset computation
+
+Figure 10: srcAddr computation: (a) counters sweep the tile
+dimensions, (b) srcAddr computation through multiplications and additions of counters, strides, and tileBase.
+
+coord1D
+
+
+
+   
+
+The only difference from the column-major offset (offsetcol =
+(𝐾 · 𝑗 + 𝑖) · 𝑠) is that 𝑖 is multiplied by 𝑏, which reduces to a single
+variable bit-shift (≪ log2 𝑏) (Figure 11).
+With tileBase, the TMA generates srcAddr for each memory
+request within the TMA tile. In a standard column-major load,
+a single counter steps 𝑣 times with a stride of 𝐾 to traverse the
+non-contiguous dimension. In tile-major, however, rows within a
+memory tile are only 𝑎 elements apart, and after 𝑏 rows the counter
+must jump to the next memory tile, 𝑏 · 𝐾 elements away.
+
+＋
+
+
+
+(4)
+
+ 
+
+(b) TileLens-HW for tileBase
+
+Figure 11: (a) Computation of the tile base address from coordinates and strides. (b) TileLens-HW’s extension for the
+tile-major address computation reuses most existing logic.
+7
+
+We handle this strided behavior by splitting the dimension with
+stride 𝐾 into two nested counters:
+strides: (1, . . . , 𝑎, 𝑏 · 𝐾 , . . .),
+| {z }
+replaces 𝐾
+
+tile: (𝑢, . . . , 𝑏, 𝑣/𝑏 , . . .)
+|{z}
+
+latency, limited write endurance, and coexistence with HBM in a
+hybrid memory hierarchy. To evaluate the end-to-end feasibility
+of an HBF-augmented GPU, we provide solutions in this section to
+address such challenges. These solutions provide a complete system
+baseline for a fair evaluation on an HBF-augmented GPU.
+
+(5)
+
+replaces 𝑣
+
+The inner counter steps 𝑏 times with stride 𝑎 (within one memory
+tile), and the outer counter steps 𝑣/𝑏 times with stride 𝑏 · 𝐾 (advancing to the next memory tile). The rest of the TMA operation is
+identical: we only change the initialization.
+Case 2: Wide Memory Tile (𝑎 > 𝑢). When the memory tile is
+wider than the TMA tile in the contiguous dimension (𝑢 < 𝑎, but 𝑢
+divides 𝑎), the engine computes tileBase and counter strides as
+in Case 1, as if the memory tile size is 𝑢 × 𝑏 and not 𝑎 × 𝑏. The only
+correction needed is a bit permutation after srcAddr computation.
+Because both 𝑢 and 𝑎 are powers of two, the correction from the
+assumed 𝑢 × 𝑏 sub-tile to the actual 𝑎 × 𝑏 memory tile reduces to a
+bit permutation within the intra-tile offset.
+For example, if the TMA tile is 32×32 but the memory tile is 128×
+32 (4 KB), the 12-bit offset changes from (sub-tile2 | col5 | row5 ) to
+(col5 | sub-tile2 | row5 ), where subscripts denote bit widths.
+Note that Case2 does not necessarily lead to read amplification.
+For example, if the contiguous dimension of a compute tile is wider
+than 128B, optimized kernels (e.g. cuBLAS [30]) issue multiple TMA
+loads within the compute tile to apply shared memory swizzling.
+Hardware Overhead. The overhead of our extension is minimal.
+The extensions are the split and sum unit (Figure 11-(b)), stride and
+tile dimension converter (Equation 5), bit permutation (Figure 12(c)), and the control logic to appropriately apply the conversion.
+The split and sum logic is the most dominant, requiring up to five
+(TMA supports up to 5-D) additional 32-bit comparators, adders,
+and routing logic. The total additional hardware is estimated to be
+3-4K gates, similar to a single 32-bit multiplier.
+Default Tile-Major for LGMS Allocations. The hardware extension enables a deployment path that requires no kernel code
+changes for legacy kernels. The only required change is allocating
+in tile-major, and passing the descriptor with the memory tile dimension and leading stride at runtime. With minimal modifications
+to the GPU system software, even such changes could be unnecessary by using tile-major by default for HBF and having a default
+memory tile size. The leading stride can be specified when the user
+changes the allocation function to use HBF or other LGMS.
+
+4.4
+
+5.1
+
+In a hybrid HBM+HBF memory system, tensors have distinct access characteristics, and we place each tensor accordingly. Model
+weights are read-only during inference, making them natural candidates for HBF. On the other hand, activation and KV cache accesses
+involve both reads and writes, and we store these only on HBM.
+The choice between HBM and HBF is thus made per tensor at allocation time. Each matmul reads its weight operand from HBF and
+its input activations from HBM. TileLens does not affect endurance,
+as tile-major layout changes only the arrangement of the weights
+written at load time, not the amount of data written.
+
+5.2
+
+Mixed-Granularity L2 Cache & MSHR
+
+In a HBM+HBF hybrid system, the L2 cache must handle two different access granularities: 32 B for HBM and 4 KB for HBF. When
+an HBF read returns a full 4 KB block, we always insert the full
+4 KB block into L2. With tile-major, the entire 4 KB block is useful,
+and the 4 KB insertion improves hit rates for subsequent accesses
+within the same tile. Without tile-major the policy pollutes the L2,
+but otherwise leaves the memory bandwidth underutilized.
+The MSHR structures must also be adapted. 128 B MSHR entries
+are quickly populated due to the microsecond-scale HBF latencies.
+We partition the MSHR and track HBF requests at 4 KB granularity,
+increasing the trackable HBF pages by 32×.
+
+5.3
+
+Adaptive Prefetching for HBF
+
+Even with a tile-major layout, HBF’s read latency remains over 100×
+longer than HBM’s. To hide this latency, the memory controller
+must keep enough requests in flight to saturate the HBF bus.
+We add a hardware stride prefetcher to the memory controller.
+In a tiled matmul kernel, each CTA iterates along the K dimension
+in fixed-size steps, so the stride is the compute tile size along K. For
+each demand access, the prefetcher speculatively issues 𝑑 additional
+read requests at stride offsets ahead of the current position. The
+goal is to choose 𝑑 so that the total number of in-flight requests
+saturates the HBF bus throughout kernel execution.
+At any point during execution, the GPU issues one wave of
+demand requests per K-iteration, accessing 𝑝 wave = 𝑁 SM𝐶 SM 𝑝 tile
+requests, where 𝑁 SM is the number of SMs, 𝐶 SM is the number of
+CTAs per SM, and 𝑝 tile is the number of requests per compute tile.
+To saturate a bus with bandwidth 𝐵 over a NAND read latency
+of 𝐿 cycles, we need 𝑝 wave (𝑑 + 1) ≥ 𝐵𝐿, giving:
+
+Adoption for Non-TMA/Non-DSL Kernels
+
+Kernels that use neither TMA nor a DSL can adopt tile-major layout
+by modifying their address-computation code directly. The tile
+coordinate decomposition (Section 3.2) operates on logical indices
+(𝑖, 𝑗) and reduces to bit shifts and masks, adding minimal overhead
+per memory access. When only the compiled binary is available
+(e.g., cuDNN, cuBLAS), a binary instrumentation pass can inject
+address remapping instructions before each global memory access.
+
+5
+
+Allocation and Data Placement
+
+
+
+
+𝐾
+𝑑 = min
+,
+(6)
+𝑝 wave TILE_K
+The degree is capped at 𝐾/TILE_K, the number of K-iterations
+per tensor, to prevent prefetching beyond the tensor boundary. In
+practice, we multiply the first term by 2× to compensate for NAND
+plane collisions, which empirically prevent all in-flight requests
+from being serviced simultaneously.
+
+System Support for HBF-Augmented GPUs
+
+Tile-major layout addresses the read amplification problem common to all LGMS. Adopting HBF technology on GPUs, however,
+requires addressing additional system-level challenges: long read
+8
+
+𝐵𝐿
+
+
+
+The degree adapts dynamically as thread blocks retire. As blocks
+complete execution, 𝑝 wave decreases and 𝑑 increases automatically,
+ensuring that the remaining blocks issue enough prefetches to keep
+the bus saturated. This is critical at the end of a kernel, where a few
+straggler blocks would otherwise underutilize the HBF bus. Because
+𝑑 depends only on hardware parameters and 𝑝 wave , it requires no
+convergence period and reacts immediately when a block retires.
+This prefetcher is not a general-purpose mechanism: it exploits
+the fact that tiled GEMM has a known, fixed access stride equal
+to the compute tile size. Designing a prefetcher that handles irregular access patterns on LGMS is an interesting direction, but it is
+orthogonal to this work; we leave it for future work.
+
+are collected from an NVIDIA H200 GPU using a SASS-level tracer
+built on NVBit [47]. The simulated GPU configuration in Table 1
+matches the H200’s 132 SMs, shared memory, and L2 cache size.
+Table 1: H200-class GPU Parameters
+SMs
+Warp Scheduler
+L1 cache per SM
+L2 cache (total)
+
+Workloads. We evaluate on matmul kernels from two representative LLM models: Qwen-3 30B [48], which uses mixture-of-experts
+(MoE, kernel named fused_moe), and Llama-3.1 70B [9], which uses
+dense feed-forward layers. Each model uses a fixed BF16 compute
+tile for weight: 128 × 256 for Qwen and 64 × 128 for Llama. Traces
+are collected with batch sizes of 16, 64, and 256 for both models.
+All configurations remain memory-bound for Qwen due to MoE
+routing, whereas Llama transitions to compute-bound at a batch
+size of 256. Larger models in the same family scale by adding layers or experts while reusing the same kernel structure and similar
+tile configurations, so per-kernel behavior is representative across
+model sizes.
+TileLens-HW Performance Modeling. The tile-major remapping in TileLens-HW adds a multiplexer for dimension classification
+and four bit-shifts and one addition for the tile base address computation, totaling approximately 5–7 additional cycles. TMA 2D
+loads already incur roughly 170 cycles of overhead on top of regular
+global memory load latency for descriptor processing and address
+generation [38]. Moreover, high-performance kernels overlap TMA
+loads with computation, so the additional latency is fully hidden in
+practice. We therefore do not model any additional TileLens-HW
+latency in our simulation.
+Summary. We evaluate the performance impact of three global
+memory layouts on LGMS: column-major, row-major, and tilemajor with (64, 32) memory tile size. Section 6.3 presents the main
+results as normalized execution time across memory configurations and layouts. Sections 6.4 and 6.5 break down the sources of
+degradation: bandwidth utilization and straggler-induced stalls, respectively. Sections 6.6 and 6.7 present analyses of HBF read latency
+and memory tile shape. Section 6.8 evaluates RoMe.
+
+6 Evaluation
+6.1 GPU-HBF System Configurations
+GPU System. We evaluate tile-major layout on an H200-class GPU
+under three memory configurations (Figure 13): HBM-only as the
+baseline, and a daisy-chained HBM+HBF system with and without
+the SRAM buffer used in H3 [11]. In the HBM only configuration
+there are 6 HBM3e stacks. In the daisy-chained configuration there
+are 6 HBF stacks, connected to 6 HBM stacks which are time-sharing
+the data bus. The daisy-chain design follows, which also places a
+40MB SRAM latency-hiding buffer on the HBM base die. We also
+evaluate a configuration without the SRAM buffer, where the GPU
+L2 is used as a staging area for data from HBF with 4 KB insertions.
+All configurations derive their timing parameters from NVIDIA
+H200 and HBM3E specifications [26].
+When we employ the SRAM buffer in the daisy-chained configuration, our prefetcher targets two tiers: prefetches with a smaller
+degree (distance 1 through 𝑑) fill the L2 cache, while far prefetches
+(distance 𝑑+1 through 2𝑑) fill the SRAM buffer.
+Memory Stacks. We use HBM3e with 16 channels per stack with
+64B granularity (32B per pseudo-channel). The 6 HBM3e stacks
+provide a total data bandwidth of 4.915 TB/s. We assume HBF also
+has 16 channels per stack with the same total bandwidth, but with
+4 KB granularity. All data buses run at 3200 MHz (6.4 Gbps per pin),
+with 64 pins per channel. HBM row buffer hit and miss latencies are
+14 ns and 42 ns, respectively. For HBF latency, we sweep the NAND
+page read latency across 1, 2, 5, 10, and 20 µs to cover the range
+of current and projected flash technologies [11, 12, 24, 37]. The
+total internal bandwidth of HBF is set to 2.5× the bus bandwidth to
+model concurrent NAND plane access [8, 18].
+
+6.2
+
+6.3
+
+Simulator. We use Macsim [16], a cycle-level GPU simulator, extended with DRAM, RoMe, and HBF memory models. Kernel traces
+: HBF
+
+: SRAM buffer
+
+GPU
+
+GPU
+
+GPU
+
+(a) HBM-only
+
+(b) Daisy-Chain
+
+(c) Daisy-Chain + SRAM buffer
+
+Kernel Execution Latency per Layout
+
+We compare three system configurations: no prefetching (No Pref),
+adaptive prefetching (Pref), and adaptive prefetching with the H3
+SRAM buffer (Pref+SRAM). Tile-major layouts consistently outperform linear layouts across LGMS configurations with an adaptive
+prefetcher (Figure 14), even without SRAM buffers.
+Column-major layout suffers 3–10× slowdown across all HBF
+configurations, even with the SRAM buffer. Row-major layout reduces amplification but still incurs a geometric mean (geomean)
+slowdown of 1.61× under HBF due to straggler effects. Tile-major
+layout with adaptive prefetching reduces the geomean slowdown
+to 1.01× at 5 𝜇s NAND latency; adding an SRAM buffer yields a
+comparable 1.00×, indicating that the prefetcher alone is sufficient
+to hide HBF latency. Without prefetching, tile-major can underperform row-major at high latencies (e.g., Qwen results), as read
+
+Methodology
+
+: HBM
+
+132 @ 2.0 GHz
+4 warps per SM / Round Robin
+256 KB (4-way, 30-cycle hit)
+50 MB (16-way, 270-cycle hit)
+
+Figure 13: GPU System configurations for evaluation.
+9
+
+Execution Time
+norm. over HBM-only
+
+3
+
+Qwen3-30B MoE
+
+3.9× 3.7×
+
+9.5× 8.5× 6.9× 8.4× 8.6× 7.7×
+
+Llama-70B MLP
+
+13.3×8.7× 8.9× 8.0× 4.8× 4.2× 7.7× 6.6× 5.6×
+Column-Major
+Row-Major
+Tile-Major (Ours)
+
+2
+1
+0
+No
+
+f f
+f f
+f f
+Pre Pre Pref A+M o Pre Pre Pref A+M o Pre Pre Pref A+M
+SR N
+SR N
+SR
+
+Batch 16
+
+Batch 64
+
+Batch 256
+
+No
+
+f f
+f f
+f f
+Pre Pre Pref A+M o Pre Pre Pref A+M o Pre Pre Pref A+M
+SR N
+SR N
+SR
+
+Batch 16
+
+Batch 64
+
+Batch 256
+
+Figure 14: Normalized kernel execution time for Qwen MoE and Llama FFN kernels under three global memory layouts. HBF
+results are shown at 5 𝜇s NAND latency with three Daisy-Chain configurations (No Prefetcher, Prefetcher, Prefetcher+SRAM
+Buffer). All values are normalized to the HBM-only baseline.
+
+5
+4
+3
+2
+1
+0
+
+Row-Major
+
+Qwen3-30B MoE
+
+B=16
+
+B=64 B=256
+
+Tile-Major (Ours)
+
+HBM-only
+
+Avg. Mem. Latency
+per K Iteration ( s)
+
+Effective BW (TB/s)
+
+Column-Major
+
+Llama-70B MLP
+
+HBF Peak = 4.92 TB/s
+
+B=16
+
+10 s
+
+9s
+
+7s
+
+7s
+
+5
+0 Row-Major Row-Major Tile-Major Tile-Major
+(no pref)
+
+(+ pref)
+
+(no pref)
+
+(+ pref)
+
+Figure 16: Average compute tile arrival latency breakdown
+for the Qwen MoE kernel on 5 𝜇s HBF. Tile-major reduces
+the total latency by 1.5×.
+period between the first and last arrival (straggler wait). Figure 16
+shows this breakdown for the Qwen’s MoE kernel with row- and
+tile-major layouts on 5 𝜇s HBF. The kernel uses a 128 × 256 BF16
+compute tile, where each row forms a 512 B contiguous strip.
+
+amplification in the row-major layout serves as implicit prefetching.
+Tile-major eliminates this overfetching, so every CTA issues its
+own demand requests to HBF, unless the prefetcher proactively
+issues requests ahead of demand to hide HBF latency.
+
+CTA 0: Distribution
+Page Latency ( s)
+
+Bandwidth Utilization
+
+Figure 15 shows the effective memory bandwidth during the runtime of the MoE and Dense models. Column-major layout saturates
+the memory bus with amplified reads, but most fetched data falls
+outside the compute tile and is evicted from L2 before reuse, reducing effective bandwidth to 11–26% of peak (a 3.9–9.3× waste).
+With row-major, as part of the fetched data is reused by other CTAs
+before eviction, effective bandwidth is higher than with columnmajor layout. However, straggler-induced synchronization prevents
+CTAs from issuing enough concurrent requests to saturate the
+bus, limiting effective utilization to 33-92% on HBF. Tile-major
+layout achieves 70–98% bandwidth utilization across all HBF configurations, matching or exceeding the HBM baseline. The adaptive
+prefetcher sometimes pushes utilization above the HBM-only baseline, which lacks a prefetcher; the exception is Llama at batch size
+256, where the kernel becomes compute-bound.
+
+6.5
+
+10
+
+B=64 B=256
+
+Figure 15: Effective memory bandwidth utilization in TB/s
+at 5𝜇s NAND latency. Peak bus bandwidth for HBM is also
+shown. Llama becomes compute-bound at a batch size of 256.
+
+6.4
+
+Memory Wait (Nothing Arrived)
+Memory Wait (Straggler)
+
+15
+
+20
+
+CDF
+
+med=13.4
+max=12.0
+med=6.2
+
+10
+med=5.2
+
+0 Row-Major
+
+Col-Major
+
+0.5
+0.0
+
+Tile-Major
+
+CTA 0: Page Latency CDF
+
+1.0
+
+Straggler-Induced CTA Stalls
+
+max=19.0
+
+max=15.6
+
+Row-Major + Pref (128 pg/k)
+Col-Major + Pref (256 pg/k)
+Tile-Major + Pref (16 pg/k)
+
+0
+
+5
+
+10
+
+15
+
+Page Latency ( s)
+
+20
+
+Figure 17: Per-request latency distribution (top) and CDF
+(bottom) for a single 128 × 256 compute tile of the Qwen
+MoE kernel on 5 𝜇s HBF with prefetching. Read amplification increases the number of outstanding requests per tile,
+amplifying straggler delays.
+
+To quantify the straggler effect, we measure the average latency
+from when a CTA issues all memory requests for a compute tile to
+when the last request arrives. We break this latency into two phases:
+(1) the period before any request arrives (queueing), and (2) the
+10
+
+Execution Time
+norm. over HBM-only
+
+Qwen3-30B MoE
+
+2
+6 8 4
+64x3 128x1 256x 512x
+
+2
+6 8 4
+64x3 128x1 256x 512x
+
+cache, performance degrades because the straggler effect depends
+on the number of outstanding requests, not on whether the data is
+cached. The optimal shape is one that fits entirely within the compute tile, at which point read amplification is eliminated regardless
+of cache capacity.
+
+6.8
+
+RoMe
+
+In this section, we evaluate memory layouts on RoMe [25]. We
+assume RoMe increases the number of HBM3e channels from 16
+to 18 per stack (12.5% higher bandwidth), yielding 5.53 TB/s total
+bandwidth across six stacks, with a 4 KB access granularity. Memory
+latency is derived from HBM3e timings and bus transfer time as
+described in the original paper. Because RoMe latency remains at
+the scale of DRAM, no prefetcher is used.
+Figure 20 shows the execution time of matmul kernels. Columnmajor layout shows up to 10× slowdown due to bandwidth waste,
+confirming that large access granularity requires the kernel to be
+aware of the global memory layout even with DRAM scale latencies.
+However there is a minimal difference between row-major and
+tile-major, each showing 1.02–1.13× and 1.05–1.12× speedup against
+HBM-only. The straggler effect does not appear as the low latency
+of HBM can be easily hidden even with a smaller degree of memorylevel parallelism (MLP). But as the NAND latency increases, and
+the headroom in the required MLP for high bandwidth utilization
+reduces, the straggler effect significantly degrades performance.
+
+Tile-Major (Ours)
+
+Llama-70B MLP
+
+7 8.4× 8.4× 8.5× 9.2× 18.2× 8.5× 9.3× 10.4×14.2×62.5×
+6
+5
+4
+3
+2
+1
+0 1 s 2 s 5 s 10 s 20 s 1 s 2 s 5 s 10 s 20 s
+HBF NAND Read Latency
+
+Figure 18: Kernel execution time sensitivity to HBF NAND
+read latency (1–20 𝜇s). Tile-major with prefetching maintains near-HBM performance up to 10 𝜇s, while row-major
+degrades beyond 5 𝜇s.
+
+Column-Major
+
+Execution Time
+norm. over HBM-only
+
+6.7
+
+No Overfetching
+Overfetching
+
+Figure 19: Normalized kernel execution time for tile-major
+as memory tile shape varies for a 128 × 256 compute tile.
+Wider tiles fit within the tile boundary; narrower tiles extend
+beyond it, increasing read amplification and straggler delays.
+
+Figure 18 shows kernel execution time as we sweep HBF page read
+latency from 1 to 20 𝜇s at a batch size of 64. Column-major layout
+suffers 8–10× slowdown across all latencies, as read amplification
+dominates regardless of HBF speed. At 1–2 𝜇s, the difference between row-major and tile-major is small because the latency is short
+enough to tolerate the additional outstanding requests. Beyond 5 𝜇s,
+row-major degrades significantly as straggler delays compound and
+CTAs can no longer sustain enough memory-level parallelism to
+hide the access latency. Tile-major with prefetching maintains nearHBM performance up to 10 𝜇s; at 20 𝜇s, the slowdown increases to
+3–4×, indicating the prefetcher’s coverage limit.
+
+Row-Major
+
+4
+3
+2
+1
+0
+
+Llama-70B MLP
+
+Memory Tile Shape (a × b)
+
+HBF Latency Sensitivity
+
+Column-Major
+
+Qwen3-30B MoE
+
+Memory Tile Shape Sensitivity
+
+Figure 19 shows kernel execution time as the memory tile shape
+varies for a fixed 128 × 256 BF16 compute tile on 5 𝜇s HBF with
+prefetching. We sweep tile widths from 64 elements (matching the
+GPU’s 128 B cache line for BF16) up to 512, keeping the memory
+tile area fixed at 4 KB. As the tile becomes narrower and taller, each
+4 KB request extends further beyond the compute tile boundary,
+increasing both read amplification and the number of outstanding
+requests per tile. Even when the amplified data fits within the L2
+
+Qwen
+
+Row-Major
+
+Llama
+
+5.4×4.9× 5.8×6.7×
+
+3
+2
+1
+0
+
+16 64 256 4 16 64
+
+Effective BW (TB/s)
+
+6.6
+
+Execution Time
+norm. over HBM-only
+
+In the row-major layout, the queueing phase (blue) is shorter
+because another CTA may have already issued a request for the
+same 4 KB block. However, row-major requires 128 outstanding
+requests per compute tile, whereas tile-major requires only 16.
+Although the additional 112 requests (448 KB) could transfer in
+∼0.09 𝜇s at 4.9 TB/s, the observed latency increase is 3.2 𝜇s. This
+gap is explained by the straggler effect: with 8× more outstanding
+requests, the probability that the slowest request falls in the tail of
+the latency distribution increases substantially.
+Figure 17 (top) shows the per-request latency distribution for
+each layout. Tile-major and row-major exhibit similar median latencies, but row-major has a longer tail due to bursty request patterns
+and higher queueing contention. Column-major suffers the worst
+tail latency because read amplification floods the memory controller with concurrent requests. The CDF (bottom) visualizes this
+straggler effect: row-major exhibits a long tail extending to 15 𝜇s,
+whereas tile-major concentrates nearly all arrivals around 5 𝜇s.
+
+Tile-Major (Ours)
+
+Qwen
+5
+4
+3
+2
+1
+0
+
+Batch Size
+
+Llama
+
+RoMe Peak = 5.53 TB/s
+
+16 64 256 4 16 64
+
+Figure 20: RoMe evaluation results: execution time and effective bandwidth. Straggler effect disappears with low latency.
+11
+
+7
+
+8
+
+Related Work
+
+Conclusion
+
+We identified read amplification as a fundamental performance
+problem in large-granularity memory systems (LGMS) and especially HBF for GPU-based LLM inference, arising from the mismatch
+between 1-D memory layouts and 2-D compute tiles. We proposed
+tile-major layout, which reshapes each contiguous 4 KB memory
+region to fit within a compute tile, eliminating read amplification.
+To adopt tile-major on existing GPUs, we presented TileLens:
+TileLens-SW extends the CuTe DSL to support tile-major in software, and TileLens-HW extends the TMA engine for transparent
+hardware support. Evaluated on dense and MoE LLM kernels from
+Llama-3.1 70B and Qwen-3 30B, tile-major layout with adaptive
+prefetching effectively eliminates read amplification, bringing HBFaugmented GPU performance from a 1.61–6.49× geomean slowdown to within 1% of an HBM-only baseline at 5𝜇s NAND latency.
+
+Address remapping for spatial locality. Impulse [5] adds configurable address remapping at the CPU memory controller for
+improved spatial locality. Akin et al. [3] propose bit-shuffle remapping in 3D-stacked DRAM for data reorganization. GS-DRAM [39]
+enables strided access across DRAM chips using a single command,
+at the cost of aliasing and additional tag bits. These works target
+cache-line-level (32–128 B) spatial locality on CPU DRAM, whereas
+tile-major targets 4 KB page utilization on large-granularity GPU
+memory with no aliasing or cache modifications.
+GPU data layout optimization. ASTA [44] reorganizes data into
+tiled blocks for AoS-to-SoA coalescing on standard GPU memory.
+Rhu et al. [36] dynamically select access granularity to reduce
+over-fetching. Piccolo [40] and CODA [15] optimize data layout
+to coalesce and avoid bank conflicts. These works address spatial
+locality within the existing memory hierarchy; tile-major targets the
+access granularity mismatch introduced by LGMS. NVIDIA’s CuTe
+DSL [31] can represent tile-major layouts as hierarchical shapestride pairs; our TileLens-SW leverages this property to adopt a
+tile-major layout with only a layout descriptor change, rather than
+a kernel rewrite.
+Tiled memory layout in GPU texture units. GPU texture memory uses tile-based layouts such as Morton/Z-order curves to improve 2D spatial locality for texture sampling [28], targeting 64–
+128 B cache lines for element-wise graphics accesses. Tile-major
+layout follows the same principle of matching layout to access
+dimensionality, but targets 4 KB pages and uses axis-aligned rectangular tiles so each page belongs to a single compute tile, unlike
+Morton/Z-order layouts whose bit-interleaved addressing spans
+multiple tile boundaries.
+Large-granularity memory systems for GPUs. H3 [11], HAVEN
+[12], and RoMe [25] explore alternative GPU memory architectures,
+while ZnG [49] and BaM [35] use SSD-class flash over PCIe for data
+analytics. But HAVEN assumes sequential flash-friendly accesses,
+H3 does not address tiled-GEMM read amplification, and RoMe increases access granularity to 4 KB without considering its mismatch
+with 2D compute tiles. ZnG and BaM also target millisecond-latency
+external flash, not co-packaged microsecond-latency HBF.
+HBF for LLM inference. Recent works study HBF for LLM inference at the system level: Son et al. [42] analyze the throughput
+benefits and endurance challenges of using HBF as the main GPU
+memory. Kyung et al. [19] show that the write-once, read-many
+access pattern of the KV cache allows storing it in HBF despite the
+limited write endurance. Park et al. [33] propose a custom base die
+that manages an HBM+HBF pool, hiding HBF latencies with layerwise prefetching and buffered write-back. However, these studies
+evaluate HBF at the system level, using roofline-style analytical
+models to assess serving throughput, rather than a microarchitectural performance model. To the best of our knowledge, this is the
+first paper to analyze and address the read amplification problem
+on HBF-based GPUs.
+GPU prefetching. Prior GPU prefetching work focuses on what
+to prefetch in irregular DRAM-backed workloads [14, 17, 20]. With
+tile-major layout, accesses become deterministic, so the problem
+shifts to how aggressively to prefetch.
+
+References
+[1] Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal
+Anadkat, et al. 2023. Gpt-4 technical report. arXiv preprint arXiv:2303.08774
+(2023).
+[2] Sandhini Agarwal, Lama Ahmad, Jason Ai, Sam Altman, Andy Applebaum, Edwin
+Arbus, Rahul K Arora, Yu Bai, Bowen Baker, Haiming Bao, et al. 2025. gpt-oss-120b
+& gpt-oss-20b model card. arXiv preprint arXiv:2508.10925 (2025).
+[3] Berkin Akin, Franz Franchetti, and James C Hoe. 2015. Data reorganization in
+memory using 3D-stacked DRAM. ACM SIGARCH Computer Architecture News
+43, 3S (2015), 131–143.
+[4] AMD. 2026. Versal Adaptive SoC AIE-ML Architecture Manual (AM020). https:
+//docs.amd.com/r/en-US/am020-versal-aie-ml.
+[5] John Carter, Wilson Hsieh, Leigh Stoller, Mark Swanson, Lixin Zhang, Erik Brunvand, Al Davis, Chen-Chi Kuo, Ravindra Kuramkote, Michael Parker, et al. 1999.
+Impulse: Building a smarter memory controller. In Proceedings Fifth International
+Symposium on High-Performance Computer Architecture. IEEE, 70–79.
+[6] Tri Dao. 2023. Flashattention-2: Faster attention with better parallelism and work
+partitioning. arXiv preprint arXiv:2307.08691 (2023).
+[7] DeepSeek-AI. 2025. DeepGEMM: Clean and Efficient FP8 GEMM Kernels with
+Fine-Grained Scaling. https://github.com/deepseek-ai/DeepGEMM.
+[8] Cagdas Dirik and Bruce Jacob. 2009. The performance of PC solid-state disks
+(SSDs) as a function of bandwidth, concurrency, device architecture, and system
+organization. ACM SIGARCH Computer Architecture News 37, 3 (2009), 279–289.
+[9] Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, Abhishek
+Kadian, Ahmad Al-Dahle, Aiesha Letman, Akhil Mathur, Alan Schelten, Alex
+Vaughan, et al. 2024. The llama 3 herd of models. arXiv preprint arXiv:2407.21783
+(2024).
+[10] Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Peiyi Wang, Qihao Zhu,
+Runxin Xu, Ruoyu Zhang, Shirong Ma, Xiao Bi, et al. 2025. Deepseek-r1: Incentivizing reasoning capability in llms via reinforcement learning. arXiv preprint
+arXiv:2501.12948 (2025).
+[11] Minho Ha, Euiseok Kim, and Hoshik Kim. 2026. H 3: Hybrid Architecture Using
+High Bandwidth Memory and High Bandwidth Flash for Cost-Efficient LLM
+Inference. IEEE Computer Architecture Letters (2026).
+[12] Po-Kai Hsu, Weihong Xu, Qunyou Liu, Tajana Rosing, and Shimeng Yu. 2026.
+HAVEN: High-Bandwidth Flash Augmented Vector Engine for Large-Scale Approximate Nearest-Neighbor Search Acceleration. arXiv preprint arXiv:2603.01175
+(2026).
+[13] Intel. 2025. Optimizing Explicit SIMD Kernels. https://www.intel.com/content/
+www/us/en/docs/oneapi/optimization-guide-gpu/2025-2/optimizing-explicitsimd-kernels.html.
+[14] Adwait Jog, Onur Kayiran, Asit K Mishra, Mahmut T Kandemir, Onur Mutlu,
+Ravishankar Iyer, and Chita R Das. 2013. Orchestrated scheduling and prefetching for GPGPUs. In Proceedings of the 40th Annual International Symposium on
+Computer Architecture. 332–343.
+[15] Hyojong Kim, Ramyad Hadidi, Lifeng Nai, Hyesoon Kim, Nuwan Jayasena, Yasuko Eckert, Onur Kayiran, and Gabriel Loh. 2018. Coda: Enabling co-location of
+computation and data for multiple gpu systems. ACM Transactions on Architecture
+and Code Optimization (TACO) 15, 3 (2018), 1–23.
+[16] Hyesoon Kim, Jaekyu Lee, Nagesh B Lakshminarayana, Jaewoong Sim, Jieun Lim,
+and Tri Pho. 2012. Macsim: A cpu-gpu heterogeneous simulation framework
+user guide. Georgia Institute of Technology (2012), 1–57.
+[17] Gunjae Koo, Hyeran Jeon, Zhenhong Liu, Nam Sung Kim, and Murali Annavaram.
+2018. Cta-aware prefetching and scheduling for gpu. In 2018 IEEE International
+12
+
+Parallel and Distributed Processing Symposium (IPDPS). IEEE, 137–148.
+[18] Gunjae Koo, Kiran Kumar Matam, Te I, HV Krishna Giri Narra, Jing Li, Hung-Wei
+Tseng, Steven Swanson, and Murali Annavaram. 2017. Summarizer: trading
+communication with computing near storage. In Proceedings of the 50th Annual
+IEEE/ACM International Symposium on Microarchitecture. 219–231.
+[19] Kwanhee Kyung, Yeon Ji Moon, Juhwan Cho, and Jung Ho Ahn. 2026. HighBandwidth Flash for KV Caches: Endurance and Performance Implications. IEEE
+Computer Architecture Letters (2026).
+[20] Jaekyu Lee, Nagesh B Lakshminarayana, Hyesoon Kim, and Richard Vuduc.
+2010. Many-thread aware prefetching mechanisms for GPGPU applications. In
+2010 43rd Annual IEEE/ACM International Symposium on Microarchitecture. IEEE,
+213–224.
+[21] Aonian Li, Bangwei Gong, Bo Yang, Boji Shan, Chang Liu, Cheng Zhu, Chunhao
+Zhang, Congchao Guo, Da Chen, Dong Li, et al. 2025. Minimax-01: Scaling
+foundation models with lightning attention. arXiv preprint arXiv:2501.08313
+(2025).
+[22] Aixin Liu, Bei Feng, Bing Xue, Bingxuan Wang, Bochao Wu, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang, Chong Ruan, et al. 2024. Deepseek-v3
+technical report. arXiv preprint arXiv:2412.19437 (2024).
+[23] Weile Luo, Ruibo Fan, Zeyu Li, Dayou Du, Hongyuan Liu, Qiang Wang, and
+Xiaowen Chu. 2025. Dissecting the nvidia hopper architecture through microbenchmarking and multiple level analysis. arXiv preprint arXiv:2501.12084
+(2025).
+[24] Xiaoyu Ma and David Patterson. 2026. Challenges and Research Directions for
+Large Language Model Inference Hardware. arXiv preprint arXiv:2601.05047
+(2026).
+[25] Hwayong Nam, Seungmin Baek, Jumin Kim, Michael Jaemin Kim, and Jung Ho
+Ahn. 2026. RoMe: Row Granularity Access Memory System for Large Language
+Models. In 2026 IEEE International Symposium on High Performance Computer
+Architecture (HPCA).
+[26] NVIDIA. 2023. NVIDIA H200 GPU Datasheet. https://resources.nvidia.com/enus-gpu-resources/hpc-datasheet-sc23.
+[27] NVIDIA. 2024. NVIDIA H100 Tensor Core GPU Architecture. https://resources.
+nvidia.com/en-us-hopper-architecture/nvidia-h100-tensor-c.
+[28] NVIDIA. 2026. CUDA Toolkit Documentation 13.2. https://docs.nvidia.com/
+cuda/.
+[29] NVIDIA. 2026.
+cuTensorMapEncodeTiled — CUDA Driver API Reference. https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__TENSOR_
+_MEMORY.html.
+[30] NVIDIA. 2026. NVIDIA cuBLAS Documentation. https://docs.nvidia.com/cuda/
+cublas/.
+[31] NVIDIA. 2026. NVIDIA CUTLASS Documentation. https://docs.nvidia.com/
+cutlass/latest/.
+[32] NVIDIA. 2026. Parallel Thread Execution ISA Version 9.2. https://docs.nvidia.
+com/cuda/parallel-thread-execution/.
+[33] Junho Park, Hyowon An, Haeseok Suh, Youngsu Yoon, Hyuni Lee, and Joungho
+Kim. 2026. HBM-HBF-Centric Memory Pooling Architecture With Custom Base
+Die for Terabyte-Scale LLM Inference. IEEE Computer Architecture Letters (2026).
+[34] Adam Paszke, Sam Gross, Soumith Chintala, Gregory Chanan, Edward Yang,
+Zachary DeVito, Zeming Lin, Alban Desmaison, Luca Antiga, and Adam Lerer.
+2017. Automatic differentiation in PyTorch. In NIPS-W.
+[35] Zaid Qureshi, Vikram Sharma Mailthody, Isaac Gelado, Seungwon Min, Amna
+Masood, Jeongmin Park, Jinjun Xiong, Chris J Newburn, Dmitri Vainbrand, I-Hsin
+Chung, et al. 2023. GPU-initiated on-demand high-throughput storage access
+in the BaM system architecture. In Proceedings of the 28th ACM International
+Conference on Architectural Support for Programming Languages and Operating
+Systems, Volume 2. 325–339.
+[36] Minsoo Rhu, Michael Sullivan, Jingwen Leng, and Mattan Erez. 2013. A localityaware memory hierarchy for energy-efficient GPU architectures. In Proceedings of
+the 46th Annual IEEE/ACM International Symposium on Microarchitecture. 86–98.
+[37] SANDISK. 2025. SANDISK unveils the future of memory architecture for AI,
+introducing: High Bandwidth Flash. https://documents.sandisk.com/content/
+dam/asset-library/en_us/assets/public/sandisk/collateral/company/SandiskHBF-Fact-Sheet.pdf.
+[38] SemiAnalysis. 2026. Blackwell Micro-Architecture Benchmarking. https://github.
+com/SemiAnalysisAI/microbench-blackwell
+[39] Vivek Seshadri, Thomas Mullins, Amirali Boroumand, Onur Mutlu, Phillip B
+Gibbons, Michael A Kozuch, and Todd C Mowry. 2015. Gather-scatter DRAM:
+In-DRAM address translation to improve the spatial locality of non-unit strided
+accesses. In Proceedings of the 48th International Symposium on Microarchitecture.
+267–280.
+[40] Changmin Shin, Jaeyong Song, Hongsun Jang, Dogeun Kim, Jun Sung, Taehee
+Kwon, Jae Hyung Ju, Frank Liu, Yeonkyu Choi, and Jinho Lee. 2025. Piccolo:
+Large-scale graph processing with fine-grained in-memory scatter-gather. In
+2025 IEEE International Symposium on High Performance Computer Architecture
+(HPCA). IEEE, 641–656.
+[41] Mohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper,
+and Bryan Catanzaro. 2019. Megatron-lm: Training multi-billion parameter
+
+language models using model parallelism. arXiv preprint arXiv:1909.08053 (2019).
+[42] Dowon Son, Yonggon Park, Hyunuk Cho, Hyungkyu Ham, Onur Mutlu, Sungjin
+Lee, Gwangsun Kim, and Jisung Park. 2026. Exploring High-Bandwidth Flash for
+Modern LLM Inference: Opportunities and Challenges. IEEE Computer Architecture Letters (2026).
+[43] Benjamin F Spector, Simran Arora, Aaryan Singhal, Daniel Y Fu, and Christopher
+Ré. 2024. Thunderkittens: Simple, fast, and adorable ai kernels. arXiv preprint
+arXiv:2410.20399 (2024).
+[44] I-Jui Sung, Geng Daniel Liu, and Wen-Mei W Hwu. 2012. DL: A data layout
+transformation system for heterogeneous computing. In 2012 Innovative Parallel
+Computing (InPar). IEEE, 1–11.
+[45] Texas Instruments. 2012. TMS320C6472/TMS320TCI648x DSP Enhanced DMA
+(EDMA3) Controller User’s Guide. https://www.ti.com/lit/ug/spru727e/spru727e.
+pdf.
+[46] Philippe Tillet, Hsiang-Tsung Kung, and David Cox. 2019. Triton: an intermediate
+language and compiler for tiled neural network computations. In Proceedings of
+the 3rd ACM SIGPLAN International Workshop on Machine Learning and Programming Languages. 10–19.
+[47] Oreste Villa, Mark Stephenson, David Nellans, and Stephen W Keckler. 2019.
+Nvbit: A dynamic binary instrumentation framework for nvidia gpus. In Proceedings of the 52nd Annual IEEE/ACM International Symposium on Microarchitecture.
+372–383.
+[48] An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng,
+Bowen Yu, Chang Gao, Chengen Huang, Chenxu Lv, et al. 2025. Qwen3 technical
+report. arXiv preprint arXiv:2505.09388 (2025).
+[49] Jie Zhang and Myoungsoo Jung. 2020. ZnG: Architecting GPU multi-processors
+with new flash for scalable data analysis. In 2020 ACM/IEEE 47th Annual International Symposium on Computer Architecture (ISCA). IEEE, 1064–1075.
+[50] Weiyu Zhou, Zheng Wang, Chao Chen, Yike Li, Yongkui Yang, Zhuoyu Wu,
+and Anupam Chattopadhyay. 2025. Tensor Manipulation Unit (TMU): Reconfigurable, Near-Memory Tensor Manipulation for High-Throughput AI SoC. IEEE
+Transactions on Very Large Scale Integration (VLSI) Systems (2025).
+
+13
+
+

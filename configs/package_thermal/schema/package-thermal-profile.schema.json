@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sluglab.example/hbfsim/package-thermal-profile.schema.json",
+  "title": "HBFSim package thermal profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "stage", "clock_mode", "ambient_c", "bin_width_ns", "gpu_provider", "topology", "nand_energy", "base_die", "policy", "evidence_label"],
+  "anyOf": [
+    {"required": ["gpu_power_semantics", "hbm_provider"]},
+    {"required": ["package_architecture", "near_memory", "accelerator_power_semantics", "power_model_evidence_level"]}
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"type": "string", "minLength": 1},
+    "stage": {"enum": ["read_only", "shadow", "active"]},
+    "clock_mode": {"enum": ["model_time_replay", "live_monotonic"]},
+    "ambient_c": {"$ref": "#/$defs/sourcedScalar"},
+    "bin_width_ns": {"$ref": "#/$defs/sourcedScalar"},
+    "gpu_power_semantics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": {"enum": ["board_total", "compute_only"]},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "gpu_provider": {"$ref": "#/$defs/provider"},
+    "hbm_provider": {"$ref": "#/$defs/provider"},
+    "package_architecture": {
+      "enum": ["gddr_gpu_hbf", "hbm_gpu_hbf", "synthetic"]
+    },
+    "near_memory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "placement", "provenance", "power_sources"],
+      "properties": {
+        "kind": {"enum": ["none", "gddr7", "hbm2", "hbm2e", "hbm3", "hbm3e", "hbm4", "synthetic"]},
+        "placement": {"enum": ["board", "interposer", "stacked", "external"]},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "power_sources": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/nearMemoryPowerSource"}
+        }
+      }
+    },
+    "accelerator_power_semantics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": {"enum": ["board_total_lumped", "gpu_compute_only", "gpu_plus_gddr_lumped", "gpu_compute_plus_explicit_hbm"]},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "power_model_evidence_level": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": {"enum": ["sensitivity_only", "literature_bounded", "calibrated", "measured"]},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "timeline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {"type": "boolean", "default": false}
+      }
+    },
+    "topology": {
+      "type": "object", "additionalProperties": false,
+      "required": ["physical", "stack_height", "node_names", "die_mappings", "provenance"],
+      "properties": {
+        "physical": {
+          "type": "object", "additionalProperties": false,
+          "required": ["channels", "chips_per_channel", "dies_per_chip", "planes_per_die"],
+          "properties": {
+            "channels": {"type": "integer", "minimum": 1},
+            "chips_per_channel": {"type": "integer", "minimum": 1},
+            "dies_per_chip": {"type": "integer", "minimum": 1},
+            "planes_per_die": {"type": "integer", "minimum": 1}
+          }
+        },
+        "stack_height": {"enum": [8, 16]},
+        "node_names": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "die_mappings": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["channel", "chip", "die", "package_stack", "vertical_layer", "thermal_node"],
+            "properties": {
+              "channel": {"type": "integer", "minimum": 0},
+              "chip": {"type": "integer", "minimum": 0},
+              "die": {"type": "integer", "minimum": 0},
+              "package_stack": {"type": "integer", "minimum": 0},
+              "vertical_layer": {"type": "integer", "minimum": 0},
+              "thermal_node": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "nand_energy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["read", "program", "erase"],
+      "properties": {
+        "read": {"$ref": "#/$defs/operationEnergy"},
+        "program": {"$ref": "#/$defs/operationEnergy"},
+        "erase": {"$ref": "#/$defs/operationEnergy"}
+      }
+    },
+    "base_die": {
+      "type": "object", "additionalProperties": false,
+      "required": ["idle_w", "command_j", "joules_per_byte", "thermal_node"],
+      "properties": {
+        "idle_w": {"$ref": "#/$defs/sourcedScalar"},
+        "command_j": {"$ref": "#/$defs/sourcedScalar"},
+        "joules_per_byte": {"$ref": "#/$defs/sourcedScalar"},
+        "thermal_node": {"type": "string", "minLength": 1}
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["light_on_c", "light_off_c", "severe_on_c", "severe_off_c", "shutdown_on_c", "shutdown_off_c", "light_scale", "debounce_samples", "minimum_dwell_samples", "timing_provenance"],
+      "properties": {
+        "light_on_c": {"$ref": "#/$defs/sourcedScalar"},
+        "light_off_c": {"$ref": "#/$defs/sourcedScalar"},
+        "severe_on_c": {"$ref": "#/$defs/sourcedScalar"},
+        "severe_off_c": {"$ref": "#/$defs/sourcedScalar"},
+        "shutdown_on_c": {"$ref": "#/$defs/sourcedScalar"},
+        "shutdown_off_c": {"$ref": "#/$defs/sourcedScalar"},
+        "light_scale": {"$ref": "#/$defs/sourcedScalar"},
+        "debounce_samples": {"type": "integer", "minimum": 1},
+        "minimum_dwell_samples": {"type": "integer", "minimum": 0},
+        "timing_provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "evidence_label": {"enum": ["synthetic_fixture", "literature_parameterized", "calibrated_external_solver", "measured"]}
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["class", "source", "locator"],
+      "properties": {
+        "class": {"enum": ["S", "L", "C", "M"]},
+        "source": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "minLength": 1},
+        "note": {"type": "string"},
+        "dataset_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "calibration_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "sourcedScalar": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "unit", "provenance"],
+      "properties": {
+        "value": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "provider": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "provenance"],
+      "properties": {
+        "kind": {"enum": ["synthetic", "trace", "nvml"]},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "interpolation": {"enum": ["hold", "linear"]},
+        "samples": {"type": "array", "items": {"type": "object"}},
+        "trace_path": {"type": "string"},
+        "nvml_library": {"type": "string"},
+        "device_index": {"type": "integer", "minimum": 0}
+      }
+    },
+    "nearMemoryPowerSource": {
+      "type": "object", "additionalProperties": false,
+      "required": ["thermal_node", "provider"],
+      "properties": {
+        "thermal_node": {"type": "string", "minLength": 1},
+        "provider": {"$ref": "#/$defs/provider"}
+      }
+    },
+    "operationEnergy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["command_j", "joules_per_byte"],
+      "properties": {
+        "command_j": {"$ref": "#/$defs/sourcedScalar"},
+        "joules_per_byte": {"$ref": "#/$defs/sourcedScalar"}
+      }
+    }
+  }
+}

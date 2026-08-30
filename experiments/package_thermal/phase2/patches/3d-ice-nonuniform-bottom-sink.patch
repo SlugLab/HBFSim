@@ -1,0 +1,100 @@
+diff --git a/sources/power_grid.c b/sources/power_grid.c
+index 091c4f8..cd0349a 100644
+--- a/sources/power_grid.c
++++ b/sources/power_grid.c
+@@ -524,13 +524,20 @@ void power_grid_fill
+                      cell_tmp=cell_tmp->Next)
+                 {
+                     
+-                    *tmp += ( get_thermal_conductivity (tgrid->LayersProfile + layer_info,
+-                                                         0, 0,
+-                                                         dimensions, 2)
+-                              * cell_tmp->Data.length
+-                              * cell_tmp->Data.width
++                    SolidTC_t conductivity =
++                        get_thermal_conductivity (tgrid->LayersProfile + layer_info,
++                                                  0, 0, dimensions, 2) ;
++                    *tmp += (  2.0
++                             * conductivity
++                             * tgrid->BottomHeatSink->AmbientHTC
++                             * cell_tmp->Data.length
++                             * cell_tmp->Data.width
+                             )
+-                              / (get_cell_height (dimensions, layer_info) / 2.0) ;
++                            /
++                            (  get_cell_height (dimensions, layer_info)
++                             * tgrid->BottomHeatSink->AmbientHTC
++                             + 2.0 * conductivity
++                            ) ;
+                     tmp++;
+                 }
+             }
+@@ -541,11 +548,19 @@ void power_grid_fill
+                      cell_tmp=cell_tmp->Next)
+                 {
+                     
+-                    *tmp += (  get_thermal_conductivity_non_uniform (cell_tmp, 2)
++                    SolidTC_t conductivity =
++                        get_thermal_conductivity_non_uniform (cell_tmp, 2) ;
++                    *tmp += (  2.0
++                             * conductivity
++                             * tgrid->BottomHeatSink->AmbientHTC
+                              * cell_tmp->Data.length
+                              * cell_tmp->Data.width
+                             )
+-                             / (get_cell_height (dimensions, layer_info) / 2.0) ;
++                            /
++                            (  get_cell_height (dimensions, layer_info)
++                             * tgrid->BottomHeatSink->AmbientHTC
++                             + 2.0 * conductivity
++                            ) ;
+                     tmp++;
+                 }
+             }
+diff --git a/sources/system_matrix.c b/sources/system_matrix.c
+index 07e05fd..3b51758 100644
+--- a/sources/system_matrix.c
++++ b/sources/system_matrix.c
+@@ -654,6 +654,42 @@ static SystemMatrix_t add_solid_column_non_uniform
+                         ) ;
+                         break;
+ 
++                case TDICE_LAYER_SOLID_CONNECTED_TO_PCB :
++
++                    matrix_tmp[matrix_tmp_index_3][2] += (  2.0
++                            * get_thermal_conductivity (thermal_grid->LayersProfile + layer_index,
++                                                        0, 0,
++                                                        dimensions, 2)
++                            * thermal_grid->BottomHeatSink->AmbientHTC
++                            * node->Data.length
++                            * node->Data.width
++                        )
++                        /
++                        (  get_cell_height (dimensions, layer_index)
++                            * thermal_grid->BottomHeatSink->AmbientHTC
++                            + 2.0
++                            * get_thermal_conductivity (thermal_grid->LayersProfile + layer_index,
++                                                        0, 0,
++                                                        dimensions, 2)
++                        ) ;
++                        break;
++
++                case TDICE_LAYER_SOURCE_CONNECTED_TO_PCB :
++
++                    matrix_tmp[matrix_tmp_index_3][2] += (  2.0
++                            * get_thermal_conductivity_non_uniform (node, 2)
++                            * thermal_grid->BottomHeatSink->AmbientHTC
++                            * node->Data.length
++                            * node->Data.width
++                        )
++                        /
++                        (  get_cell_height (dimensions, layer_index)
++                            * thermal_grid->BottomHeatSink->AmbientHTC
++                            + 2.0
++                            * get_thermal_conductivity_non_uniform (node, 2)
++                        ) ;
++                        break;
++
+ 
+                 case TDICE_LAYER_CHANNEL_4RM :
+                     if (node->Data.isChannel == 1)

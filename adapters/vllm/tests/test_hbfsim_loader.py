@@ -232,6 +232,25 @@ def test_explicit_model_close_is_idempotent(tmp_path):
     assert not hasattr(model, "_hbfsim_timing_session")
 
 
+def test_closes_all_registered_sessions_before_runtime_teardown(tmp_path):
+    sessions = [FakeSession(), FakeSession()]
+    models = []
+    for index, session in enumerate(sessions):
+        model = FakeModel([
+            ("weight", FakeParameter(FakeStorage(0x1000 + index * 0x4000,
+                                                   0x1000))),
+        ])
+        loader_module.register_model_storages(
+            model, config(tmp_path / str(index)),
+            session_factory=lambda _, value=session: value)
+        models.append(model)
+
+    loader_module.close_active_sessions()
+    loader_module.close_active_sessions()
+
+    assert all(session.closed for session in sessions)
+
+
 def test_loader_delegates_then_registers_finalized_model(monkeypatch, tmp_path):
     from vllm.config.load import LoadConfig
 

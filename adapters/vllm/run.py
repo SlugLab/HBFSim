@@ -301,6 +301,8 @@ def main() -> int:
     output_path = report / "result.json"
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print(json.dumps(manifest, indent=2, sort_keys=True))
+    if args.mode == "timing":
+        hbfsim_loader.close_active_sessions()
     del outputs
     del llm
     gc.collect()

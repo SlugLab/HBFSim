@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import re
+import weakref
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -26,6 +27,7 @@ _TIMING_MODELS = {"reference": 0, "fast": 1, "hybrid": 2}
 _PACKAGE_THERMAL_STAGES = {"off": 0, "read_only": 1, "shadow": 2, "active": 3}
 _UINTPTR_LIMIT = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 _REGISTERED = False
+_ACTIVE_SESSIONS: weakref.WeakSet[Any] = weakref.WeakSet()
 
 
 class HbfSimError(RuntimeError):
@@ -340,6 +342,7 @@ def register_model_storages(
     storages, parameter_count = _discover_storages(model)
     pathlib.Path(config.report_dir).mkdir(parents=True, exist_ok=True)
     session = session_factory(config)
+    _ACTIVE_SESSIONS.add(session)
     try:
         matcher = re.compile(config.parameter_regex)
         selected = [
@@ -392,6 +395,7 @@ def register_model_storages(
         return manifest
     except Exception:
         session.close()
+        _ACTIVE_SESSIONS.discard(session)
         raise
 
 
@@ -400,7 +404,24 @@ def close_model_session(model: Any) -> None:
     if session is None:
         return
     session.close()
+    _ACTIVE_SESSIONS.discard(session)
     delattr(model, "_hbfsim_timing_session")
+
+
+def close_active_sessions() -> None:
+    """Close every registered timing session before CUDA teardown."""
+    errors: list[Exception] = []
+    for session in list(_ACTIVE_SESSIONS):
+        try:
+            session.close()
+        except Exception as error:
+            errors.append(error)
+        else:
+            _ACTIVE_SESSIONS.discard(session)
+    if errors:
+        raise HbfSimError(
+            f"failed to close {len(errors)} active HBFSim timing session(s)"
+        ) from errors[0]
 
 
 class HbfSimModelLoader(BaseModelLoader):

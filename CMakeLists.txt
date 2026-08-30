@@ -1011,6 +1011,15 @@ if(HBFSIM_ENABLE_MQSIM)
         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
     )
 
+    add_executable(
+        hbf_access_trace_replay benchmarks/mqsim/hbf_access_trace_replay.cpp
+    )
+    target_link_libraries(hbf_access_trace_replay PRIVATE hbfsim_core)
+    target_include_directories(
+        hbf_access_trace_replay
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+    )
+
     if(HBFSIM_ENABLE_PACKAGE_THERMAL)
         add_executable(
             phase2_thermal_load_runner
@@ -1034,6 +1043,17 @@ if(HBFSIM_ENABLE_MQSIM)
         )
         set_tests_properties(
             mqsim_benchmark
+            PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+        add_test(
+            NAME app0_access_trace_replay
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_app0_access_trace_replay.py"
+                "$<TARGET_FILE:hbf_access_trace_replay>"
+        )
+        set_tests_properties(
+            app0_access_trace_replay
             PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         )
     endif()

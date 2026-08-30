@@ -21,7 +21,9 @@ add_custom_command(
         "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
         "${CMAKE_CURRENT_SOURCE_DIR}/hbf_microbench_kernel.cu"
         -o "${HBFSIM_MICROBENCH_PTX}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hbf_microbench_kernel.cu"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/hbf_microbench_kernel.cu"
+        "${CMAKE_CURRENT_SOURCE_DIR}/hbf_access_observation.cuh"
     VERBATIM
 )
 add_custom_target(hbf_microbench_ptx DEPENDS "${HBFSIM_MICROBENCH_PTX}")

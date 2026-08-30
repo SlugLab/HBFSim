@@ -1,4 +1,7 @@
 #include <hbfsim/api.h>
+#include <hbfsim/profile.hpp>
+
+#include "hbf_access_observation.cuh"
 
 #include <cuda_runtime_api.h>
 #include <cuda.h>
@@ -14,6 +17,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
 #include <stdexcept>
 #include <string>
@@ -36,6 +40,8 @@ struct Options {
     std::string package_thermal_stage{"off"};
     std::string package_thermal_profile;
     std::string package_thermal_model;
+    std::string access_path{"none"};
+    std::string access_trace;
     std::uint64_t bytes{8ULL << 20};
     std::uint64_t iterations{256};
     std::uint64_t seed{0};
@@ -107,6 +113,44 @@ extern "C" __global__ void hbf_access_kernel(
     *output = checksum;
 }
 
+extern "C" __global__ void hbf_observe_access_kernel(
+    std::uint64_t* data, const std::uint64_t* byte_offsets,
+    std::uint64_t iterations, std::uint64_t seed, bool mixed_write,
+    std::uint64_t* output, HbfAccessObservation* observations,
+    std::uint64_t observation_capacity,
+    std::uint64_t* observation_count_out)
+{
+    if (blockIdx.x != 0 || threadIdx.x != 0) {
+        return;
+    }
+    std::uint64_t checksum = device_splitmix(seed ^ 0x48424653494dULL);
+    std::uint64_t observation_count = 0;
+    for (std::uint64_t index = 0; index < iterations; ++index) {
+        const auto byte_offset = byte_offsets[index];
+        const auto word = byte_offset / sizeof(std::uint64_t);
+        const auto read_begin_ns = hbf_observation_clock_ns();
+        auto value = data[word];
+        const auto read_end_ns = hbf_observation_clock_ns();
+        hbf_record_access(observations, observation_capacity,
+                          observation_count, byte_offset, 0,
+                          read_begin_ns, read_end_ns);
+        if (mixed_write && (index & 1U) != 0) {
+            value ^= device_splitmix(seed + index);
+            const auto write_begin_ns = hbf_observation_clock_ns();
+            data[word] = value;
+            const auto write_end_ns = hbf_observation_clock_ns();
+            hbf_record_access(observations, observation_capacity,
+                              observation_count, byte_offset, 1,
+                              write_begin_ns, write_end_ns);
+        }
+        checksum = rotate_left(checksum ^ (value + index), 13);
+    }
+    *output = checksum;
+    if (observation_count_out != nullptr) {
+        *observation_count_out = observation_count;
+    }
+}
+
 namespace {
 
 std::uint64_t parse_unsigned(std::string_view value, const char* name)
@@ -139,6 +183,8 @@ Options parse_options(int argc, char** argv)
         else if (argument == "--package-thermal-stage") result.package_thermal_stage = value;
         else if (argument == "--package-thermal-profile") result.package_thermal_profile = value;
         else if (argument == "--package-thermal-model") result.package_thermal_model = value;
+        else if (argument == "--access-path") result.access_path = value;
+        else if (argument == "--access-trace") result.access_trace = value;
         else if (argument == "--bytes") result.bytes = parse_unsigned(value, "bytes");
         else if (argument == "--iterations") result.iterations = parse_unsigned(value, "iterations");
         else if (argument == "--seed") result.seed = parse_unsigned(value, "seed");
@@ -157,6 +203,21 @@ Options parse_options(int argc, char** argv)
     }
     const std::unordered_set<std::string> thermal_stages{
         "off", "read_only", "shadow", "active"};
+    const std::unordered_set<std::string> access_paths{
+        "none", "observe", "live"};
+    if (!access_paths.contains(result.access_path)) {
+        fail("invalid per-access path");
+    }
+    const bool observe = result.access_path == "observe";
+    if (observe != !result.access_trace.empty()) {
+        fail("--access-trace is required only for the observe path");
+    }
+    if (observe && result.mode != "baseline") {
+        fail("per-access observation requires baseline mode to avoid mixed timing semantics");
+    }
+    if (result.access_path == "live" && result.mode == "baseline") {
+        fail("per-access live injection requires a non-baseline HBFSim mode");
+    }
     if (!thermal_stages.contains(result.package_thermal_stage)) {
         fail("invalid package thermal stage");
     }
@@ -247,9 +308,58 @@ std::string prepare_backing(
     return path.data();
 }
 
+void write_access_trace(
+    const Options& options, const hbfsim::Profile& profile,
+    const std::vector<HbfAccessObservation>& observations)
+{
+    if (std::filesystem::exists(options.access_trace)) {
+        fail("refusing to overwrite per-access observation trace");
+    }
+    const auto parent = std::filesystem::path(options.access_trace).parent_path();
+    if (!parent.empty()) {
+        std::filesystem::create_directories(parent);
+    }
+    std::ofstream output(options.access_trace);
+    if (!output) {
+        fail("cannot open per-access observation trace");
+    }
+    output << "sequence,byte_offset,media_logical_address,media_bytes,operation,gpu_begin_ns,gpu_end_ns\n";
+    for (std::size_t index = 0; index < observations.size(); ++index) {
+        const auto& observation = observations[index];
+        if (observation.sequence != index ||
+            observation.byte_offset % sizeof(std::uint64_t) != 0 ||
+            observation.byte_offset >= options.bytes ||
+            observation.bytes != sizeof(std::uint64_t) ||
+            observation.operation > 1 ||
+            observation.gpu_end_ns < observation.gpu_begin_ns ||
+            observation.reserved != 0) {
+            fail("invalid per-access observation record");
+        }
+        const auto media_logical_address =
+            (observation.byte_offset / profile.page_bytes) * profile.page_bytes;
+        if (media_logical_address >
+            profile.capacity_bytes - profile.page_bytes) {
+            fail("per-access observation exceeds media profile capacity");
+        }
+        output << observation.sequence << ','
+               << observation.byte_offset << ','
+               << media_logical_address << ','
+               << profile.page_bytes << ','
+               << observation.operation << ','
+               << observation.gpu_begin_ns << ','
+               << observation.gpu_end_ns << '\n';
+    }
+    if (!output) {
+        fail("failed while writing per-access observation trace");
+    }
+}
+
 void write_report(const Options& options, std::uint64_t checksum,
                   std::uint64_t baseline, std::uint64_t elapsed_ns,
-                  std::uint64_t span, const hbfsim_stats& stats)
+                  std::uint64_t span, const hbfsim_stats& stats,
+                  const std::string& timing_backend,
+                  std::uint64_t observed_accesses,
+                  std::uint64_t expected_observed_accesses)
 {
     std::ofstream output(options.output);
     if (!output) fail("cannot open benchmark output");
@@ -261,6 +371,8 @@ void write_report(const Options& options, std::uint64_t checksum,
            << options.package_thermal_stage << "\",\n"
            << "  \"logical_bytes\": " << options.bytes << ",\n"
            << "  \"iterations\": " << options.iterations << ",\n"
+           << "  \"access_path\": \"" << options.access_path << "\",\n"
+           << "  \"timing_backend\": \"" << timing_backend << "\",\n"
            << "  \"seed\": " << options.seed << ",\n"
            << "  \"access_span_bytes\": " << span << ",\n"
            << "  \"checksum\": " << checksum << ",\n"
@@ -273,6 +385,25 @@ void write_report(const Options& options, std::uint64_t checksum,
            << stats.reference_requests << "},\n"
            << "  \"timing\": {\"modeled_ns\": "
            << stats.fast_modeled_ns << "},\n"
+           << "  \"per_access\": {\n"
+           << "    \"observation_enabled\": "
+           << (options.access_path == "observe" ? "true" : "false") << ",\n"
+           << "    \"observation_injects_delay\": false,\n"
+           << "    \"live_injection_requested\": "
+           << (options.access_path == "live" ? "true" : "false") << ",\n"
+           << "    \"live_injection_supported\": "
+           << (timing_backend == "device_request_ring" ? "true" : "false") << ",\n"
+           << "    \"host_launch_fallback_is_per_access\": false,\n"
+           << "    \"observed_accesses\": " << observed_accesses << ",\n"
+           << "    \"expected_observed_accesses\": "
+           << expected_observed_accesses << ",\n"
+           << "    \"trace\": ";
+    if (options.access_trace.empty()) {
+        output << "null\n";
+    } else {
+        output << std::quoted(options.access_trace) << '\n';
+    }
+    output << "  },\n"
            << "  \"coverage\": {\"unsafe_launches\": 0}\n"
            << "}\n";
 }
@@ -286,12 +417,17 @@ int main(int argc, char** argv)
     void* data = nullptr;
     std::uint64_t* device_offsets = nullptr;
     std::uint64_t* device_output = nullptr;
+    HbfAccessObservation* device_observations = nullptr;
+    std::uint64_t* device_observation_count = nullptr;
     CUmodule module = nullptr;
     try {
         const auto options = parse_options(argc, argv);
+        const auto profile = hbfsim::load_profile(options.profile);
         const auto offsets = make_offsets(options);
         const auto values = initial_values(options, offsets);
         const auto expected = reference_checksum(options, offsets, values);
+        const auto expected_observations = options.iterations +
+            (options.pattern == "mixed_rw" ? options.iterations / 2 : 0);
         cuda_check(cudaFree(nullptr), "initialize CUDA");
 
         const bool baseline_mode = options.mode == "baseline";
@@ -332,6 +468,16 @@ int main(int argc, char** argv)
             if (create_status != HBFSIM_OK) {
                 fail("HBFSim context creation failed");
             }
+        }
+        std::string timing_backend = "none";
+        if (context != nullptr) {
+            const auto* backend = hbfsim_timing_backend(context);
+            timing_backend = backend == nullptr ? "unavailable" : backend;
+        }
+        if (options.access_path == "live" &&
+            timing_backend != "device_request_ring") {
+            fail("per-access live injection unavailable: timing backend is " +
+                 timing_backend);
         }
 
         if (options.mode == "capacity") {
@@ -382,6 +528,20 @@ int main(int argc, char** argv)
                               cudaMemcpyHostToDevice), "copy offsets");
         cuda_check(cudaMalloc(&device_output, sizeof(std::uint64_t)),
                    "cudaMalloc output");
+        std::uint64_t observation_capacity = 0;
+        if (options.access_path == "observe") {
+            observation_capacity = expected_observations;
+            cuda_check(cudaMalloc(&device_observations,
+                                  observation_capacity *
+                                      sizeof(HbfAccessObservation)),
+                       "cudaMalloc observations");
+            cuda_check(cudaMalloc(&device_observation_count,
+                                  sizeof(std::uint64_t)),
+                       "cudaMalloc observation count");
+            cuda_check(cudaMemset(device_observation_count, 0,
+                                  sizeof(std::uint64_t)),
+                       "initialize observation count");
+        }
         std::ifstream ptx_input(HBFSIM_MICROBENCH_PTX_PATH,
                                 std::ios::binary);
         if (!ptx_input) fail("cannot open microbenchmark PTX");
@@ -389,14 +549,22 @@ int main(int argc, char** argv)
         driver_check(cuModuleLoadDataEx(&module, ptx.c_str(), 0, nullptr,
                                        nullptr), "cuModuleLoadDataEx");
         CUfunction function = nullptr;
+        const char* kernel_name = options.access_path == "observe"
+            ? "hbf_observe_access_kernel" : "hbf_access_kernel";
         driver_check(cuModuleGetFunction(&function, module,
-                                         "hbf_access_kernel"),
+                                         kernel_name),
                      "cuModuleGetFunction");
         auto iterations = options.iterations;
         auto seed = options.seed;
         bool mixed_write = options.pattern == "mixed_rw";
-        void* arguments[]{&data, &device_offsets, &iterations, &seed,
-                          &mixed_write, &device_output};
+        void* base_arguments[]{&data, &device_offsets, &iterations, &seed,
+                               &mixed_write, &device_output};
+        void* observation_arguments[]{
+            &data, &device_offsets, &iterations, &seed, &mixed_write,
+            &device_output, &device_observations, &observation_capacity,
+            &device_observation_count};
+        void** arguments = options.access_path == "observe"
+            ? observation_arguments : base_arguments;
         const auto begin = std::chrono::steady_clock::now();
         driver_check(cuLaunchKernel(function, 1, 1, 1, 1, 1, 1, 0, nullptr,
                                     arguments, nullptr),
@@ -406,6 +574,22 @@ int main(int argc, char** argv)
         std::uint64_t checksum = 0;
         cuda_check(cudaMemcpy(&checksum, device_output, sizeof(checksum),
                               cudaMemcpyDeviceToHost), "copy checksum");
+        std::uint64_t observed_accesses = 0;
+        std::vector<HbfAccessObservation> observations;
+        if (options.access_path == "observe") {
+            cuda_check(cudaMemcpy(&observed_accesses, device_observation_count,
+                                  sizeof(observed_accesses),
+                                  cudaMemcpyDeviceToHost),
+                       "copy observation count");
+            if (observed_accesses != expected_observations) {
+                fail("per-access observation count mismatch");
+            }
+            observations.resize(observed_accesses);
+            cuda_check(cudaMemcpy(observations.data(), device_observations,
+                                  observations.size() * sizeof(observations[0]),
+                                  cudaMemcpyDeviceToHost), "copy observations");
+            write_access_trace(options, profile, observations);
+        }
         hbfsim_stats stats{};
         if (context != nullptr && hbfsim_get_stats(context, &stats) != HBFSIM_OK) {
             fail("hbfsim_get_stats failed");
@@ -418,11 +602,21 @@ int main(int argc, char** argv)
                           *std::min_element(offsets.begin(), offsets.end()) + 8;
         write_report(options, checksum, expected,
                      std::chrono::duration_cast<std::chrono::nanoseconds>(
-                     end - begin).count(), span, stats);
+                     end - begin).count(), span, stats, timing_backend,
+                     observed_accesses, expected_observations);
 
         driver_check(cuModuleUnload(module), "cuModuleUnload");
         module = nullptr;
 
+        if (device_observation_count != nullptr) {
+            cuda_check(cudaFree(device_observation_count),
+                       "cudaFree observation count");
+            device_observation_count = nullptr;
+        }
+        if (device_observations != nullptr) {
+            cuda_check(cudaFree(device_observations), "cudaFree observations");
+            device_observations = nullptr;
+        }
         cuda_check(cudaFree(device_output), "cudaFree output");
         device_output = nullptr;
         cuda_check(cudaFree(device_offsets), "cudaFree offsets");
@@ -447,6 +641,8 @@ int main(int argc, char** argv)
         if (module != nullptr) (void)cuModuleUnload(module);
         if (context != nullptr) hbfsim_context_destroy(context);
         if (device_output != nullptr) (void)cudaFree(device_output);
+        if (device_observation_count != nullptr) (void)cudaFree(device_observation_count);
+        if (device_observations != nullptr) (void)cudaFree(device_observations);
         if (device_offsets != nullptr) (void)cudaFree(device_offsets);
         return 1;
     }

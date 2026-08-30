@@ -46,7 +46,7 @@ def main() -> int:
 	"pass_execution_mutex",
 	"cuLaunchKernelEx",
         "hbfsim_approve_original_cuda_function",
-        "gate_decision > 1",
+        "gate_approve(func, kernel_params, extra) != 0",
         "patched_kernel_by_ptx_variant",
         "patched_kernel_by_original_function",
         "find_patched_kernel_function_for_original",

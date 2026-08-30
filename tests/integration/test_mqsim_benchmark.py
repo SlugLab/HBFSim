@@ -42,6 +42,8 @@ def main() -> int:
     assert result["effective_profile"]["blocks_per_plane"] >= 16
     assert result["workload"] == {
         "operation": "read",
+        "pattern": "sequential",
+        "seed": 0,
         "requests": 4096,
         "bytes_per_request": 16384,
         "arrival_gap_ns": 0,

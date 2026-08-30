@@ -184,10 +184,12 @@ namespace hbfsim
         {
             HbfRequest descriptor;
             SSD_Components::User_Request *mqsim_request;
+            bool readmitted{false};
         };
 
         explicit Impl(const Profile &requested_profile)
-            : profile(requested_profile)
+            : profile(requested_profile),
+              queue_depth(std::max<std::size_t>(1, requested_profile.queue_depth))
         {
             validate_profile(profile);
             if (profile.channel_width_bits % 8 != 0)
@@ -231,6 +233,14 @@ namespace hbfsim
             while (pending_requests != 0 && Simulator->Run_next_event())
             {
             }
+            // Requests still waiting for a queue slot were never handed to
+            // MQSim, so this object still owns them.
+            for (auto *waiting : admission_queue)
+            {
+                delete waiting->mqsim_request;
+                delete waiting;
+            }
+            admission_queue.clear();
             Simulator->Reset();
             injector.reset();
             device.reset();
@@ -258,7 +268,33 @@ namespace hbfsim
             staged.clear();
         }
 
+        // The device accepts at most queue_depth requests concurrently. A
+        // request whose arrival event fires while the device is full waits in
+        // admission_queue and is re-registered when a slot frees, so the wait
+        // shows up in the request's modeled latency. Without this bound the
+        // adapter handed MQSim every request the moment its arrival event
+        // fired, which models a device with unlimited outstanding requests.
         void submit_to_device(Submission *submission)
+        {
+            if (submission->readmitted)
+            {
+                // release_admission_slots already took the slot for this
+                // request; taking a second one here would overcount.
+                submission->readmitted = false;
+                dispatch_to_device(submission);
+                return;
+            }
+            if (in_device >= queue_depth)
+            {
+                admission_queue.push_back(submission);
+                return;
+            }
+            ++in_device;
+            dispatch_to_device(submission);
+        }
+
+        // The caller has already taken the slot in in_device.
+        void dispatch_to_device(Submission *submission)
         {
             host->Submit_hbf_request(
                 submission->mqsim_request,
@@ -288,8 +324,28 @@ namespace hbfsim
                         .checksum = 0,
                         .reserved = 0,
                     });
+                    --in_device;
+                    release_admission_slots();
                 });
             delete submission;
+        }
+
+        // Called from inside a completion callback, which runs while MQSim is
+        // servicing an event. Handing the next request straight to
+        // Submit_hbf_request here would re-enter request segmentation from
+        // within request completion, so the waiting request is registered as a
+        // fresh arrival event at the current simulation time instead.
+        void release_admission_slots()
+        {
+            while (in_device < queue_depth && !admission_queue.empty())
+            {
+                auto *next = admission_queue.front();
+                admission_queue.pop_front();
+                next->readmitted = true;
+                ++in_device;
+                Simulator->Register_sim_event(Simulator->Time(),
+                                              injector.get(), next);
+            }
         }
 
         Profile profile;
@@ -303,6 +359,14 @@ namespace hbfsim
         std::deque<HbfCompletion> completions;
         std::size_t pending_requests{0};
         std::uint64_t bandwidth_cursor_ns{0};
+        // queue_depth is the profile's declared depth. in_device counts the
+        // requests holding one of those slots: handed to MQSim and not yet
+        // completed, plus any re-registered at the current time by
+        // release_admission_slots. admission_queue holds the requests that
+        // arrived while every slot was taken.
+        std::size_t queue_depth{1};
+        std::size_t in_device{0};
+        std::deque<Submission *> admission_queue;
     };
 
     void ArrivalInjector::Execute_simulator_event(MQSimEngine::Sim_Event *event)

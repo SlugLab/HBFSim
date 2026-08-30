@@ -817,6 +817,16 @@ if(HBFSIM_ENABLE_MQSIM)
     )
 
     add_executable(
+        mqsim_queue_depth_test tests/integration/mqsim_queue_depth_test.cpp
+    )
+    target_link_libraries(mqsim_queue_depth_test PRIVATE hbfsim_core)
+    add_test(NAME mqsim_queue_depth COMMAND mqsim_queue_depth_test)
+    set_tests_properties(
+        mqsim_queue_depth
+        PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+
+    add_executable(
         hbf_mqsim_bench benchmarks/mqsim/hbf_mqsim_bench.cpp
     )
     target_link_libraries(hbf_mqsim_bench PRIVATE hbfsim_core)

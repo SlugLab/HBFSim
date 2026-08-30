@@ -97,20 +97,20 @@ int main()
         "cp.reduce.async.bulk.global.shared::cta.bulk_group.add.u32 "
         "[%rd1], [%r1], %r2;"));
 
-    // The three bulk TENSOR prefixes are deliberately left alone, because
-    // parse_tma on branch feature/sm120-exact-stage1 models them properly
-    // rather than refusing them: cp.async.bulk.tensor.,
-    // cp.reduce.async.bulk.tensor. and cp.async.bulk.prefetch.tensor. Marking
-    // them unsupported here would refuse, once that branch merges, exactly the
-    // launches it can model. This pass closes the gap that branch leaves open,
-    // and stays out of what it handles.
-    CHECK(!counted_unsupported(
+    // The bulk TENSOR families are counted here too. Branch
+    // feature/sm120-exact-stage1 models them in parse_tma, and an earlier
+    // version of this test required them NOT to be counted so the two would
+    // not collide on merge. That was wrong: hybrid has no parse_tma, so the
+    // exclusion left them neither modeled nor reported, preserving the exact
+    // hole this file exists to close. They stay counted until that branch
+    // merges, and the merge commit removes them from both sides at once.
+    CHECK(counted_unsupported(
         "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::"
         "complete_tx::bytes [%r1], [tmap, {%r2,%r3}], [%r4];"));
-    CHECK(!counted_unsupported(
+    CHECK(counted_unsupported(
         "cp.reduce.async.bulk.tensor.2d.global.shared::cta.add.tile."
         "bulk_group [tmap, {%r2,%r3}], [%r1];"));
-    CHECK(!counted_unsupported(
+    CHECK(counted_unsupported(
         "cp.async.bulk.prefetch.tensor.2d.L2.global.tile "
         "[tmap, {%r2,%r3}];"));
 

@@ -57,16 +57,18 @@ bool unsupported_memory_instruction(const std::string& line,
         // cp.async.bulk.wait_group -- which touch no memory and must not be
         // reported as unsupported memory operations.
         //
-        // The three bulk TENSOR prefixes are excluded by the lookaheads:
-        // cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
-        // cp.async.bulk.prefetch.tensor. Those are the prefixes parse_tma
-        // accepts on branch feature/sm120-exact-stage1, where they are modeled
-        // rather than refused. Matching them here would refuse, once that
-        // branch merges, exactly the launches it can model. This pattern
-        // closes the gap that branch leaves open -- the plain
-        // cp.async.ca/cg.shared.global form, which its unsupported pattern
-        // does not match either -- and stays out of what it handles.
-        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|cp\.async(?!\.bulk\.(?:tensor|prefetch\.tensor)\.)\S*\.global\S*|cp\.reduce\.async(?!\.bulk\.tensor\.)\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
+        // The bulk TENSOR families are matched here too, deliberately. Branch
+        // feature/sm120-exact-stage1 models them in parse_tma, and an earlier
+        // version of this pattern excluded them so the two would not collide
+        // on merge. That was the wrong trade: hybrid has no parse_tma, so
+        // excluding them left those instructions neither modeled nor reported
+        // -- the exact fail-open hole this pattern exists to close, preserved
+        // on the only branch that exists today. When
+        // feature/sm120-exact-stage1 merges, remove the three prefixes it
+        // handles (cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
+        // cp.async.bulk.prefetch.tensor.) from this pattern in the same
+        // commit, so the coverage hole is never open in between.
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
     std::smatch match;
     if (!std::regex_match(line, match, expression)) {
         return false;

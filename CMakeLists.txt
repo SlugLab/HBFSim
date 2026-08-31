@@ -88,6 +88,7 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL)
         src/package_thermal/model_policy.cpp
         src/package_thermal/runtime.cpp
         src/package_thermal/reporting.cpp
+        src/retention_refresh.cpp
     )
     target_compile_definitions(
         hbfsim_core PUBLIC HBFSIM_ENABLE_PACKAGE_THERMAL=1
@@ -181,6 +182,24 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL)
             "$<TARGET_FILE:hbfsim_test_thermal_wrong_abi>"
             "$<TARGET_FILE:hbfsim_test_thermal_create_failure>"
     )
+
+    add_executable(
+        hbfsim_retention_refresh_tests
+        tests/cpu/retention_refresh_test.cpp
+    )
+    target_link_libraries(hbfsim_retention_refresh_tests PRIVATE hbfsim_core)
+    target_compile_options(hbfsim_retention_refresh_tests PRIVATE -UNDEBUG)
+    add_test(
+        NAME retention_refresh
+        COMMAND hbfsim_retention_refresh_tests
+    )
+
+    add_executable(
+        hbfsim_retention_refresh_cli
+        experiments/retention_refresh/retention_refresh_cli.cpp
+    )
+    target_link_libraries(hbfsim_retention_refresh_cli PRIVATE hbfsim_core)
+    target_compile_options(hbfsim_retention_refresh_cli PRIVATE -UNDEBUG)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)

@@ -262,6 +262,9 @@ namespace hbfsim
                         .get<std::uint64_t>(),
                 .hbm_cache_bytes =
                     document.at("hbm_cache_bytes").get<std::uint64_t>(),
+                // Optional: absent means the readahead stays off.
+                .readahead_pages = document.value("readahead_pages",
+                                                  std::uint32_t{0}),
                 .reference_sample_rate =
                     document.at("reference_sample_rate").get<double>(),
                 .reference_warmup_requests =

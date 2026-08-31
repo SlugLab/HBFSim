@@ -178,12 +178,158 @@ CapacityResolveResult CapacityPageService::resolve(
         resident_range_ids_.erase(logical_page);
         return {.status = RequestStatus::IoError};
     }
+
+    // The demand is served; only now are the following pages queued. Fetching
+    // them here would put the readahead on the demand's own critical path,
+    // which is the one thing a readahead must never do.
+    queue_readahead_locked(logical_page);
     if (operation == 1 && !cache_.mark_dirty(logical_page)) {
         return {.status = RequestStatus::IoError};
     }
     return {.status = RequestStatus::Ready,
             .frame_address = *frame,
             .media = media};
+}
+
+void CapacityPageService::set_readahead_pages(std::uint32_t pages)
+{
+    std::lock_guard lock(mutex_);
+    readahead_pages_ = pages;
+    if (pages == 0) {
+        readahead_queue_.clear();
+    }
+}
+
+std::uint64_t CapacityPageService::readahead_pages_fetched() const
+{
+    std::lock_guard lock(mutex_);
+    return readahead_fetched_;
+}
+
+std::uint64_t CapacityPageService::readahead_pages_skipped() const
+{
+    std::lock_guard lock(mutex_);
+    return readahead_skipped_;
+}
+
+void CapacityPageService::queue_readahead_locked(std::uint64_t demanded_page)
+{
+    if (readahead_pages_ == 0) {
+        return;
+    }
+    // A queue longer than this means the demand stream is outrunning the
+    // worker, and the oldest entries have gone stale anyway.
+    constexpr std::size_t kQueueLimit = 1024;
+    for (std::uint32_t step = 1; step <= readahead_pages_; ++step) {
+        if (readahead_queue_.size() >= kQueueLimit) {
+            ++readahead_skipped_;
+            return;
+        }
+        const auto page = demanded_page + step;
+        if (page < demanded_page) {
+            return;  // the page number wrapped
+        }
+        if (cache_.resolve(page).has_value()) {
+            continue;  // already resident, nothing to fetch
+        }
+        try {
+            readahead_queue_.push_back(page);
+        } catch (...) {
+            return;
+        }
+    }
+}
+
+bool CapacityPageService::fill_free_frame_locked(std::uint64_t logical_page)
+{
+    if (cache_.resolve(logical_page).has_value() ||
+        resident_range_ids_.contains(logical_page)) {
+        return false;  // became resident between queueing and now
+    }
+    // The speculative read comes FIRST, before any resident page is disturbed.
+    // An earlier version evicted a victim and then read, so a read that failed
+    // -- an address past the end of the backing store is the ordinary case --
+    // destroyed a valid resident page and returned false. A readahead is a
+    // guess, and a guess must never cost a page that a demand actually brought
+    // in.
+    std::vector<std::byte> page;
+    std::uint32_t range_id = 0;
+    try {
+        auto routed = backing_.read_page(logical_page, page_bytes_);
+        if (routed.status != RequestStatus::Ready ||
+            routed.bytes.size() != page_bytes_ || routed.range_id == 0) {
+            return false;
+        }
+        range_id = routed.range_id;
+        page = std::move(routed.bytes);
+    } catch (...) {
+        return false;
+    }
+
+    // Only now, with the bytes in hand, is a frame taken. Once the cache is
+    // warm there is never a free one, and a readahead that gave up here would
+    // do nothing at all in the only regime capacity mode exists for, so it
+    // takes a victim instead. Two limits keep that from costing more than it
+    // saves: the victim must be clean, because writing a dirty page back costs
+    // a program on the media and a program is far dearer than the read this
+    // would save; and the page it brings in is published unreferenced, so a
+    // page nothing ever asks for is the first candidate to be evicted again.
+    auto frame = cache_.free_frame();
+    if (!frame.has_value()) {
+        auto eviction = cache_.begin_eviction();
+        if (!eviction.has_value()) {
+            return false;
+        }
+        if (eviction->dirty) {
+            (void)cache_.cancel_eviction(*eviction);
+            return false;
+        }
+        if (!cache_.complete_eviction(*eviction)) {
+            return false;
+        }
+        resident_range_ids_.erase(eviction->logical_page);
+        frame = eviction->frame_address;
+    }
+    try {
+        if (!frame_io_.host_to_frame(*frame, page)) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    try {
+        const auto [entry, inserted] =
+            resident_range_ids_.emplace(logical_page, range_id);
+        (void)entry;
+        if (!inserted) {
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    if (!cache_.publish(logical_page, *frame, /*referenced=*/false)) {
+        resident_range_ids_.erase(logical_page);
+        return false;
+    }
+    return true;
+}
+
+bool CapacityPageService::run_one_readahead()
+{
+    std::lock_guard lock(mutex_);
+    if (readahead_queue_.empty()) {
+        return false;
+    }
+    const auto page = readahead_queue_.front();
+    readahead_queue_.pop_front();
+    if (fill_free_frame_locked(page)) {
+        ++readahead_fetched_;
+    } else {
+        ++readahead_skipped_;
+    }
+    // One queue entry was consumed either way, so the caller should ask again
+    // before going back to sleep.
+    return true;
 }
 
 RequestStatus CapacityPageService::flush()

@@ -39,6 +39,7 @@
     "queue_depth": { "type": "integer", "minimum": 1 },
     "aggregate_bandwidth_bytes_per_s": { "type": "integer", "minimum": 1 },
     "hbm_cache_bytes": { "type": "integer", "minimum": 0 },
+    "readahead_pages": { "type": "integer", "minimum": 0 },
     "reference_sample_rate": { "type": "number", "minimum": 0, "maximum": 1 },
     "reference_warmup_requests": { "type": "integer", "minimum": 0 },
     "time_scale": { "type": "integer", "minimum": 1 },

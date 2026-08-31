@@ -138,6 +138,16 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
               &CapacityRuntime::start_worker, this,
               &CapacityRuntime::stop_worker, this)
 {
+    // The production path for the capacity-mode readahead. Without this the
+    // feature was reachable only from tests and the benchmark, so no run that
+    // a user could start would ever enable it. A profile that does not name
+    // `readahead_pages` gets 0, which leaves the readahead off.
+    //
+    // Setting it after the worker has started is safe: the queue only fills on
+    // a demand miss, and a demand miss cannot happen before a range has been
+    // registered, which happens after this constructor returns. Until then the
+    // worker's idle branch finds an empty queue.
+    service_.set_readahead_pages(profile.readahead_pages);
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     CUstream stream = nullptr;
     if (::cuStreamCreate(&stream, CU_STREAM_NON_BLOCKING) != CUDA_SUCCESS ||

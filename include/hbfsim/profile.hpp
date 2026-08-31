@@ -92,6 +92,10 @@ namespace hbfsim
         std::uint32_t queue_depth;
         std::uint64_t aggregate_bandwidth_bytes_per_s;
         std::uint64_t hbm_cache_bytes;
+        // Pages the capacity-mode readahead queues after a demand miss.
+        // 0 switches it off, which is the default a profile gets when the
+        // field is absent, so no existing profile changes behaviour.
+        std::uint32_t readahead_pages;
         double reference_sample_rate;
         std::uint32_t reference_warmup_requests;
         std::uint32_t time_scale;

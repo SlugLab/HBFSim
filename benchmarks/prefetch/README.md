@@ -14,7 +14,7 @@ the commands.
 | `benchmarks/prefetch/hbf_prefetch_bench.cpp` | Sweeps one access stream through the model and prints JSON |
 | `src/host_service/capacity_page_service.cpp` | The real system-side readahead, in capacity mode |
 | `tests/cpu/capacity_readahead_test.cpp` | Its contract: off by default, never forces a writeback, never drains on the demand's own path |
-| `benchmarks/prefetch/hbf_capacity_readahead_bench.cpp` | Drives the real readahead and reports media reads avoided |
+| `benchmarks/prefetch/hbf_capacity_readahead_bench.cpp` | Drives the real readahead and reports demand-path and total media reads separately |
 | `scripts/run_prefetch_accuracy_sweep.py` | Runs all three streams and writes the artifact and a CSV |
 | `docs/proofs/artifacts/prefetch-accuracy-sweep.json` | The swept cells |
 | `docs/proofs/artifacts/prefetch-accuracy-sweep.csv` | The same cells, flat, for plotting |
@@ -66,7 +66,7 @@ is issued), `--buffer-pages`, `--max-in-flight`, `--seed`.
 ## The real readahead, as opposed to the model
 
 `hbf_capacity_readahead_bench` exercises `CapacityPageService` directly. It
-reports media reads avoided, not wall-clock time, and touches no GPU.
+counts media reads rather than wall-clock time, and touches no GPU.
 
 Does the implementation reproduce what the model predicts for a next-page
 policy, which is (P-1)/P for P pages per expert:

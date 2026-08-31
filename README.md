@@ -535,14 +535,20 @@ The design contract and implementation plan are in:
 - `docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md`
 - `docs/superpowers/plans/2026-08-09-hbfsim-hybrid.md`
 
-## Roadmap
+## Phase-III full-chain temperature simulation
 
-1. Calibrate a sampled GPU-local LogP path against MQSim so modeled delay can
-   be separated from current request-path overhead.
-2. Validate the file-backed cache with public automatic PTX and an over-VRAM
-   workload, then add the calibrated GPU-local hybrid model.
-3. Run the deterministic CUDA fault matrix and TinyLlama through llama.cpp,
-   then extend the existing GPU/CD8P thermal checkpoint to the calibrated path.
+The `全链路温度模拟` publication branch completes the prototype-vLLM-0.15
+path from device-local per-access observation and offline MQSim replay through
+package temperature, retention-equivalent age, refresh demand, and projected
+extra media energy/latency. It also provides an energy-conserving workload
+schedule mapper for finite external HBM-Power traces.
+
+The retention/refresh path is an offline causal projection, not per-access live
+delay injection. HBM2/HBM3E artifacts remain literature-bounded model inputs;
+the available RTX PRO 6000 uses GDDR7 and is not treated as HBM hardware.
+Architecture, build commands, verification targets, and scientific claim
+boundaries are documented in
+[`docs/phase3-full-chain-temperature-simulation.md`](docs/phase3-full-chain-temperature-simulation.md).
 
 ## Phase-II package-thermal study
 
@@ -580,6 +586,9 @@ but its explicit-delay probes do not establish application HBF traffic or
 performance.  APP-2 preserves a successful native Qwen baseline and a formal
 NO-GO: the current vLLM 0.26/Triton 3.6 fused-MoE launch contract is not
 compatible with the adapter pinned to vLLM 0.15.1/Triton 3.5.1.  No APP-2
-thermal numbers are claimed.  Retention/refresh remains deferred.  See
+thermal numbers are claimed in the Phase-II result.  The Phase-III
+`全链路温度模拟` branch supersedes only the retention/refresh deferral with the
+bounded offline projection described above; it does not convert the APP-2
+platform NO-GO into a live result.  See
 `reports/phase2/FINAL-PHASE2-REPORT.md` for the exact claim and evidence
 boundary.

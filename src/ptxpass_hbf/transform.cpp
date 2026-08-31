@@ -77,6 +77,44 @@ bool unsupported_memory_instruction(const std::string& line,
     return true;
 }
 
+std::string joined_statement(const std::string& pending,
+                             const std::string& line)
+{
+    if (pending.empty()) {
+        return line;
+    }
+    auto trimmed = line;
+    const auto first = trimmed.find_first_not_of(" \t");
+    if (first != std::string::npos) {
+        trimmed.erase(0, first);
+    }
+    return pending + " " + trimmed;
+}
+
+// A PTX statement may be written across several physical lines. The rewrite
+// path matches per line, which is enough for the forms it rewrites, but the
+// unsupported scan must see whole statements: an asynchronous copy split
+// across two lines matches neither line on its own, so scanning per line lets
+// it through unreported, and if the same kernel also holds an ordinary
+// ld.global the module is still marked instrumented. The launch then proceeds
+// with an unreported access, which is the fail-open case the scan exists to
+// prevent.
+bool statement_is_open(const std::string& text)
+{
+    auto without_comment = text;
+    if (const auto comment = without_comment.find("//");
+        comment != std::string::npos) {
+        without_comment.erase(comment);
+    }
+    const auto last = without_comment.find_last_not_of(" \t\r");
+    if (last == std::string::npos) {
+        return false;
+    }
+    const auto character = without_comment[last];
+    return character != ';' && character != '{' && character != '}' &&
+           character != ':';
+}
+
 std::string replace_address(const PtxMemoryOp& op,
                             const std::string& scratch)
 {
@@ -154,6 +192,7 @@ TransformResult transform_ptx(const TransformRequest& request)
     bool selected = false;
     int brace_depth = 0;
     std::uint64_t scratch_id = 0;
+    std::string pending_statement;
     static const std::regex function_expression(
         R"(\.(?:visible\s+)?(?:entry|func)\s+([A-Za-z0-9_$.]+))");
 
@@ -241,11 +280,19 @@ TransformResult transform_ptx(const TransformRequest& request)
                 result.modified = true;
                 continue;
             }
+            // Accumulate physical lines into one logical statement before
+            // scanning, so a statement split across lines is seen whole.
+            pending_statement = joined_statement(pending_statement, line);
+            if (statement_is_open(pending_statement)) {
+                output << line << '\n';
+                continue;
+            }
             std::string opcode;
-            if (unsupported_memory_instruction(line, opcode)) {
+            if (unsupported_memory_instruction(pending_statement, opcode)) {
                 ++result.coverage.unsupported_instructions;
                 result.coverage.unsupported_opcodes.push_back(opcode);
             }
+            pending_statement.clear();
         }
 
         output << line << '\n';

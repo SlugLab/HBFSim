@@ -148,6 +148,41 @@ int main()
     CHECK(!counted_unsupported(
         "cp.async.bulk.shared::cluster.shared::cta [%r1], [%r2], %r3;"));
 
+    // A statement split across physical lines has to be seen whole. Neither
+    // half matches the pattern on its own, so scanning per line lets the
+    // access through unreported; and if the same kernel also holds an ordinary
+    // global load, the module is still marked instrumented and the launch
+    // proceeds with an access nothing recorded.
+    {
+        hbfsim::ptx::TransformRequest request{};
+        request.full_ptx =
+            ".version 8.0\n.target sm_120\n.address_size 64\n"
+            ".visible .entry probe(.param .u64 probe_param_0)\n"
+            "{\n"
+            "    .reg .b32 %r<8>;\n"
+            "    .reg .b64 %rd<8>;\n"
+            "    ld.param.u64 %rd1, [probe_param_0];\n"
+            "    cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::"
+            "complete_tx::bytes\n"
+            "        [%r1], [tmap, {%r2,%r3}], [%r4];\n"
+            "    ret;\n"
+            "}\n";
+        const auto split = hbfsim::ptx::transform_ptx(request);
+
+        hbfsim::ptx::TransformRequest one_line{};
+        one_line.full_ptx = request.full_ptx;
+        const auto position = one_line.full_ptx.find("bytes\n");
+        one_line.full_ptx.replace(position + 5, 10, " ");
+        const auto joined = hbfsim::ptx::transform_ptx(one_line);
+
+        // Written on one line or on two, the same statement must be counted
+        // the same number of times.
+        CHECK(split.coverage.unsupported_instructions ==
+              joined.coverage.unsupported_instructions);
+        CHECK(split.coverage.unsupported_instructions >
+              baseline_unsupported());
+    }
+
     // The recorded opcode has to name the instruction, so the coverage record
     // says which operation was refused.
     {

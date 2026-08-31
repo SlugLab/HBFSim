@@ -218,6 +218,12 @@ if(HBFSIM_ENABLE_PACKAGE_THERMAL)
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_phase2_timeline_analysis.py"
                 "${CMAKE_CURRENT_SOURCE_DIR}"
         )
+        add_test(
+            NAME hbm_power_energy_mapping
+            COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_hbm_power_energy_mapping.py"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/experiments/external/hbm-power/energy_conserving_mapper.py"
+        )
     endif()
 endif()
 

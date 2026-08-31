@@ -35,3 +35,27 @@ python3 hbm_power_adapter.py \
   --manifest hbm2-power.manifest.json
 ```
 
+## Long-timescale mapping
+
+`energy_conserving_mapper.py` maps a finite adapter trace onto an explicit
+macro schedule.  It does not concatenate or loop the short trace.  The mapper
+integrates the source once, separates manifest-declared baseline and active
+power, and applies this equation independently to every stack:
+
+```text
+E_out = P_baseline * resident_equivalent_time
+      + P_active * active_equivalent_time
+```
+
+The schedule is a contiguous CSV with columns:
+
+```text
+start_ns,end_ns,phase,resident_fraction,activity_fraction
+```
+
+The activity fraction must not exceed the resident fraction.  The output
+manifest records source, schedule, and output hashes; source and target energy;
+and the numerical conservation error.  The mapped trace is a macro power and
+energy envelope only.  It does not preserve command-level temporal correlation,
+does not turn a mismatched HBM workload into an application measurement, and
+does not represent the local GDDR7 GPU.

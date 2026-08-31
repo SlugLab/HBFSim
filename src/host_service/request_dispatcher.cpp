@@ -313,9 +313,75 @@ bool RequestDispatcher::submit_next(std::uint64_t ticket,
     return true;
 }
 
+bool RequestDispatcher::submit_speculative(const HbfRequest& request)
+{
+    // 64 is arbitrary but bounded. The readahead is advisory, so losing the
+    // oldest speculative read is better than letting this grow.
+    constexpr std::size_t kSpeculativeQueueLimit = 64;
+    if (speculative_.size() >= kSpeculativeQueueLimit) {
+        ++speculative_dropped_;
+        return false;
+    }
+    try {
+        speculative_.push_back(request);
+    } catch (...) {
+        ++speculative_dropped_;
+        return false;
+    }
+    return true;
+}
+
+bool RequestDispatcher::drain_one_speculative()
+{
+    if (speculative_.empty()) {
+        return false;
+    }
+    auto request = speculative_.front();
+    speculative_.pop_front();
+
+    const auto ticket = kSpeculativeTicketBit | next_speculative_ticket_++;
+    // UNVERIFIED, PLEASE CHECK: next_speculative_ticket_ wraps after 2^63
+    // speculative reads. That is not reachable in any run this project makes,
+    // but nothing here enforces it.
+    request.sequence = ticket;
+    PreparedDispatch prepared{};
+    prepared.media_actions[0] = request;
+    prepared.media_action_count = 1;
+
+    const auto [group_it, inserted] = groups_by_ticket_.emplace(
+        ticket, DispatchGroup{.original = request, .prepared = prepared});
+    if (!inserted) {
+        // A ticket collision here would mean the reserved space is not
+        // reserved. Drop the speculative read rather than disturb a real
+        // group: a missing speculative read costs accuracy, touching someone
+        // else's group costs correctness.
+        ++speculative_dropped_;
+        return false;
+    }
+    if (!submit_next(ticket, group_it->second)) {
+        groups_by_ticket_.erase(group_it);
+        ++speculative_dropped_;
+        return false;
+    }
+    ++speculative_submitted_;
+    return true;
+}
+
 bool RequestDispatcher::publish(std::uint64_t ticket,
                                 DispatchGroup& group)
 {
+    if ((ticket & kSpeculativeTicketBit) != 0) {
+        // Nothing is waiting on a speculative read, so there is no slot to
+        // write and no completion to hand back. The modeled time it spent in
+        // the engine has already done its work: it occupied the engine while
+        // demand traffic was queued behind it.
+        //
+        // Deliberately does NOT erase the group here. Both callers erase after
+        // publish returns, one of them through the very iterator that was used
+        // to reach this call, so erasing here invalidated that iterator and
+        // the caller then erased through it.
+        return true;
+    }
     auto& completion = group.prepared.completion;
     if (group.legacy && engine_.finalize) {
         try {
@@ -400,6 +466,17 @@ bool RequestDispatcher::poll_once()
             fail_all();
             return true;
         }
+    }
+
+    // A speculative read goes in only when this poll found no demand to pop
+    // and nothing is already in flight, so it can never delay a request a warp
+    // is blocked on. The completion loop below then drains it, and publish()
+    // discards its completion because no slot is behind it.
+    //
+    // One per poll on purpose: the demand ring is re-read on the next poll
+    // before another speculative read is considered.
+    if (!progressed && groups_by_ticket_.empty()) {
+        (void)drain_one_speculative();
     }
 
     while (!groups_by_ticket_.empty()) {

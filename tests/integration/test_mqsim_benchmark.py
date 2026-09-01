@@ -45,6 +45,8 @@ def main() -> int:
         "requests": 4096,
         "bytes_per_request": 16384,
         "arrival_gap_ns": 0,
+        "pattern": "sequential",
+        "seed": 0,
     }
     assert result["requests"]["submitted"] == 4096
     assert result["requests"]["completed"] == 4096

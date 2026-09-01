@@ -39,3 +39,8 @@ availability/semantics fields; IDs and their order remain real Qwen evidence.
 
 All main experiments keep `readahead_pages=0` because PR #5 did not pass its
 production-reachability and completion-ordering gate.
+
+Formal sweeps randomize the ratio/policy/timing-mode execution order with
+`--order-seed`. `--ratio` and `--policy` may be repeated to restrict expensive
+reference/MQSim validation to preselected points without changing the canonical
+cell manifest or its `CellID`.

@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import pathlib
+import random
 import subprocess
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -26,6 +27,7 @@ RATIOS: tuple[tuple[int, int], ...] = (
     (1, 16),
 )
 POLICIES = ("clock", "lru", "belady")
+RATIO_BY_NAME = {f"{hbm}:{hbf}": (hbm, hbf) for hbm, hbf in RATIOS}
 
 
 def canonical_sha256(value: object) -> str:
@@ -542,6 +544,24 @@ def main() -> int:
     parser.add_argument("--git-commit", required=True)
     parser.add_argument("--environment-fingerprint", required=True)
     parser.add_argument("--repetition", type=int, default=0)
+    parser.add_argument(
+        "--ratio",
+        action="append",
+        choices=tuple(RATIO_BY_NAME),
+        help="limit execution to one or more requested HBM:HBF ratios",
+    )
+    parser.add_argument(
+        "--policy",
+        action="append",
+        choices=POLICIES,
+        help="limit execution to one or more cache policies",
+    )
+    parser.add_argument(
+        "--order-seed",
+        type=int,
+        default=0,
+        help="seed used only to randomize configuration execution order",
+    )
     parser.add_argument("--timing-binary", type=pathlib.Path)
     parser.add_argument(
         "--timing-mode",
@@ -565,36 +585,49 @@ def main() -> int:
     ):
         parser.error("--timing-binary is required for fast/hybrid/mqsim")
     timing_event_dir = args.output_dir / "timing-events"
-    for ratio in RATIOS:
+    selected_ratios = (
+        [RATIO_BY_NAME[name] for name in args.ratio] if args.ratio else list(RATIOS)
+    )
+    selected_policies = args.policy or list(POLICIES)
+    execution_plan = [
+        (ratio, policy, timing_mode)
+        for ratio in selected_ratios
+        for policy in selected_policies
+        for timing_mode in timing_modes
+    ]
+    random.Random(args.order_seed).shuffle(execution_plan)
+    for ratio, policy, timing_mode in execution_plan:
         geometry = capacity_geometry(inventory, ratio, int(profile["page_bytes"]))
-        for policy in POLICIES:
-            for timing_mode in timing_modes:
-                result = replay_cell(
-                    accesses,
-                    inventory,
-                    profile,
-                    trace_meta,
-                    geometry,
-                    policy,
-                    args.git_commit,
-                    args.environment_fingerprint,
-                    args.repetition,
-                    timing_mode,
-                    args.timing_binary,
-                    args.profile,
-                    timing_event_dir,
-                )
-                cell_path = raw_dir / f"{result['cell_id']}.json"
-                cell_path.write_text(
-                    json.dumps(result, indent=2, sort_keys=True) + "\n",
-                    encoding="utf-8",
-                )
-                results.append(result)
+        result = replay_cell(
+            accesses,
+            inventory,
+            profile,
+            trace_meta,
+            geometry,
+            policy,
+            args.git_commit,
+            args.environment_fingerprint,
+            args.repetition,
+            timing_mode,
+            args.timing_binary,
+            args.profile,
+            timing_event_dir,
+        )
+        cell_path = raw_dir / f"{result['cell_id']}.json"
+        cell_path.write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        results.append(result)
     summary = {
         "schema_version": 1,
         "status": "PASS",
         "evidence_class": "TRACE_DRIVEN_MODELED",
         "timing_modes": timing_modes,
+        "selected_ratios": [f"{hbm}:{hbf}" for hbm, hbf in selected_ratios],
+        "selected_policies": selected_policies,
+        "execution_order_seed": args.order_seed,
+        "execution_order_randomized": len(execution_plan) > 1,
         "timing_boundary": (
             "cache/traffic results are exact for the frozen trace and policy; "
             "each cell names its timing engine and separates modeled device "

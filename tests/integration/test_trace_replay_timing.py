@@ -127,6 +127,54 @@ def main() -> int:
         assert len(constrained) == 1
         assert constrained[0]["misses"] == 3
         assert constrained[0]["modeled_device_time_ns"] == 30_096
+        assert summary["execution_order_seed"] == 0
+        assert summary["execution_order_randomized"] is True
+
+        filtered_output = work / "filtered-output"
+        filtered = subprocess.run(
+            [
+                sys.executable,
+                str(replay),
+                "--trace",
+                str(trace),
+                "--model-manifest",
+                str(manifest),
+                "--profile",
+                str(profile),
+                "--output-dir",
+                str(filtered_output),
+                "--git-commit",
+                "c" * 40,
+                "--environment-fingerprint",
+                "d" * 64,
+                "--timing-binary",
+                str(timing_binary),
+                "--timing-mode",
+                "fast",
+                "--timing-mode",
+                "hybrid",
+                "--ratio",
+                "1:4",
+                "--policy",
+                "belady",
+                "--order-seed",
+                "17",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert json.loads(filtered.stdout) == {"status": "PASS", "cell_count": 2}
+        filtered_summary = json.loads(
+            (filtered_output / "replay-summary.json").read_text()
+        )
+        assert filtered_summary["selected_ratios"] == ["1:4"]
+        assert filtered_summary["selected_policies"] == ["belady"]
+        assert filtered_summary["execution_order_seed"] == 17
+        assert {cell["simulator_mode"] for cell in filtered_summary["cells"]} == {
+            "hbf-fast",
+            "hbf-hybrid",
+        }
     return 0
 
 

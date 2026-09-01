@@ -113,6 +113,14 @@ hbfsim::Profile tiny_profile()
         .reference_warmup_requests = 0,
         .time_scale = 1,
         .timing_tolerance_ns = 0,
+        .page_read_latency_lsb_ns = 1,
+        .page_read_latency_csb_ns = 1,
+        .page_read_latency_msb_ns = 1,
+        .page_read_latency_tsb_ns = 1,
+        .page_program_latency_lsb_ns = 1,
+        .page_program_latency_csb_ns = 1,
+        .page_program_latency_msb_ns = 1,
+        .page_program_latency_tsb_ns = 1,
     };
 }
 

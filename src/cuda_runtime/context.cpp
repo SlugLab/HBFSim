@@ -1764,6 +1764,124 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
     return HBFSIM_OK;
 }
 
+extern "C" int hbfsim_get_stats_v2(hbfsim_context* context,
+                                     hbfsim_stats_v2* out,
+                                     std::size_t out_size)
+{
+    if (context == nullptr || out == nullptr ||
+        out_size < sizeof(hbfsim_stats_v2)) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation || context->control_mapping == MAP_FAILED) {
+        return HBFSIM_IO_ERROR;
+    }
+    hbfsim::host_service::ControlView control(context->control_mapping,
+                                               context->control_bytes);
+    if (!control.valid()) {
+        return HBFSIM_IO_ERROR;
+    }
+    const auto saturating_add = [](std::uint64_t left,
+                                   std::uint64_t right) {
+        return right > std::numeric_limits<std::uint64_t>::max() - left
+                   ? std::numeric_limits<std::uint64_t>::max()
+                   : left + right;
+    };
+    const auto saturating_multiply = [](std::uint64_t left,
+                                        std::uint64_t right) {
+        return right != 0 &&
+                       left > std::numeric_limits<std::uint64_t>::max() / right
+                   ? std::numeric_limits<std::uint64_t>::max()
+                   : left * right;
+    };
+    const auto* header = control.header();
+    const auto requests_total = hbfsim::host_service::atomic_load(
+        header->request_producer, std::memory_order_acquire);
+    const auto reference_requests = hbfsim::host_service::atomic_load(
+        header->reference_requests, std::memory_order_acquire);
+    const auto fast_modeled_ns = hbfsim::host_service::atomic_load(
+        header->fast_modeled_ns, std::memory_order_acquire);
+
+    hbfsim_stats_v2 result{};
+    result.schema_version = HBFSIM_STATS_V2_SCHEMA_VERSION;
+    result.requests_total = requests_total;
+    // PR #5 is intentionally not integrated, so every submitted request is a
+    // demand request and the speculative count is exactly zero.
+    result.demand_requests = requests_total;
+    result.speculative_requests = 0;
+    result.modeled_device_time_ns = fast_modeled_ns;
+    if (reference_requests == 0) {
+        result.valid_fields |= HBFSIM_STATS_V2_VALID_MODELED_DEVICE_TIME;
+    }
+
+    std::lock_guard lifecycle(context->capacity_mutex);
+    if (context->profile != nullptr) {
+        result.configured_hbm_cache_bytes =
+            context->profile->hbm_cache_bytes;
+        result.actual_page_aligned_hbm_cache_bytes =
+            context->profile->page_bytes == 0
+                ? 0
+                : (context->profile->hbm_cache_bytes /
+                   context->profile->page_bytes) *
+                      context->profile->page_bytes;
+    }
+    if (context->capacity != nullptr && context->profile != nullptr) {
+        const auto capacity = context->capacity->stats_v2();
+        const auto page_bytes = context->profile->page_bytes;
+        result.valid_fields |= HBFSIM_STATS_V2_VALID_CAPACITY |
+                               HBFSIM_STATS_V2_VALID_HOST_SERVICE_TIME |
+                               HBFSIM_STATS_V2_VALID_BACKING_IO_TIME |
+                               HBFSIM_STATS_V2_VALID_H2D_COPY_TIME |
+                               HBFSIM_STATS_V2_VALID_DTOH_COPY_TIME;
+        result.host_service_time_ns = capacity.host_service_time_ns;
+        result.backing_io_wall_time_ns = capacity.backing_io_wall_time_ns;
+        result.h2d_copy_time_ns = capacity.h2d_copy_time_ns;
+        result.dtoh_copy_time_ns = capacity.dtoh_copy_time_ns;
+        result.resident_bytes_current = saturating_multiply(
+            capacity.resident_pages_current, page_bytes);
+        result.resident_bytes_peak = saturating_multiply(
+            capacity.resident_pages_peak, page_bytes);
+        result.free_frames = capacity.free_frames;
+        result.frame_count = capacity.frame_count;
+        result.hits = capacity.cache_hits;
+        result.misses = capacity.cache_misses;
+        result.clean_evictions = capacity.clean_evictions;
+        result.dirty_evictions = capacity.dirty_evictions;
+        result.writeback_bytes = capacity.writeback_bytes;
+        result.hbf_read_bytes = capacity.hbf_read_bytes;
+        result.hbf_program_bytes = capacity.hbf_program_bytes;
+        result.coalesced_misses = capacity.coalesced_misses;
+        result.in_flight_pages = capacity.evicting_pages;
+        result.page_residence_time_ns = capacity.page_residence_time_ns;
+        result.completed_residences = capacity.completed_residences;
+        if (capacity.completed_residences != 0) {
+            result.valid_fields |=
+                HBFSIM_STATS_V2_VALID_PAGE_RESIDENCE_TIME;
+        }
+        const auto accesses =
+            saturating_add(capacity.cache_hits, capacity.cache_misses);
+        if (accesses != 0) {
+            result.byte_hit_ratio =
+                static_cast<double>(capacity.cache_hits) /
+                static_cast<double>(accesses);
+            result.page_hit_ratio = result.byte_hit_ratio;
+            result.valid_fields |= HBFSIM_STATS_V2_VALID_BYTE_HIT_RATIO |
+                                   HBFSIM_STATS_V2_VALID_PAGE_HIT_RATIO;
+        }
+        for (const auto& mapping : context->capacity_mappings) {
+            if (mapping != nullptr && mapping->active) {
+                result.hbf_logical_bytes = saturating_add(
+                    result.hbf_logical_bytes,
+                    saturating_multiply(mapping->page_count, page_bytes));
+            }
+        }
+        result.hbf_actually_accessed_bytes = saturating_add(
+            result.hbf_read_bytes, result.hbf_program_bytes);
+    }
+    std::memcpy(out, &result, sizeof(result));
+    return HBFSIM_OK;
+}
+
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 {
     if (context == nullptr || range_base == nullptr) {

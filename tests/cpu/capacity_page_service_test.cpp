@@ -96,6 +96,14 @@ int main()
             },
         });
 
+    const auto initial_stats = service.stats_v2();
+    CHECK(initial_stats.demand_requests == 0);
+    CHECK(initial_stats.cache_hits == 0);
+    CHECK(initial_stats.cache_misses == 0);
+    CHECK(initial_stats.frame_count == 2);
+    CHECK(initial_stats.resident_pages_current == 0);
+    CHECK(initial_stats.free_frames == 2);
+
     const auto page_zero = service.resolve(0, 0);
     CHECK(page_zero.status == hbfsim::RequestStatus::Ready);
     CHECK(page_zero.media.flags ==
@@ -141,6 +149,25 @@ int main()
     CHECK(cache.dirty_pages() == 0);
     CHECK(backing.read_page(2, page_bytes) ==
           std::vector<std::byte>(page_bytes, std::byte{0xa5}));
+
+    const auto stats = service.stats_v2();
+    CHECK(stats.demand_requests == 6);
+    CHECK(stats.cache_hits == 2);
+    CHECK(stats.cache_misses == 4);
+    CHECK(stats.cache_hits + stats.cache_misses == stats.demand_requests);
+    CHECK(stats.hbf_read_bytes == stats.cache_misses * page_bytes);
+    CHECK(stats.hbf_program_bytes == stats.dirty_evictions * page_bytes);
+    CHECK(stats.clean_evictions + stats.dirty_evictions ==
+          stats.completed_residences);
+    CHECK(stats.resident_pages_current <= stats.frame_count);
+    CHECK(stats.free_frames + stats.resident_pages_current +
+              stats.evicting_pages ==
+          stats.frame_count);
+    CHECK(stats.resident_pages_peak <= stats.frame_count);
+    CHECK(stats.host_service_time_ns > 0);
+    CHECK(stats.backing_io_wall_time_ns > 0);
+    CHECK(stats.h2d_copy_time_ns > 0);
+    CHECK(stats.dtoh_copy_time_ns > 0);
 
     hbfsim::runtime::HbmCache retry_cache({0x3000});
     frames.emplace(0x3000, std::vector<std::byte>(page_bytes));

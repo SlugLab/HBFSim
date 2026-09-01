@@ -40,6 +40,34 @@ struct CapacityBackingIo {
     std::function<RequestStatus()> flush;
 };
 
+// Additive capacity observability.  Raw counters are exported instead of
+// embedding ratios so callers can serialize a zero denominator as JSON null.
+// Fields that are unavailable in this synchronous baseline remain absent from
+// this snapshot and are represented by the public v2 validity mask.
+struct CapacityStatsV2Snapshot {
+    std::uint64_t demand_requests{0};
+    std::uint64_t cache_hits{0};
+    std::uint64_t cache_misses{0};
+    std::uint64_t coalesced_misses{0};
+    std::uint64_t clean_evictions{0};
+    std::uint64_t dirty_evictions{0};
+    std::uint64_t hbf_read_bytes{0};
+    std::uint64_t hbf_program_bytes{0};
+    std::uint64_t writeback_bytes{0};
+    std::uint64_t host_service_time_ns{0};
+    std::uint64_t backing_io_wall_time_ns{0};
+    std::uint64_t h2d_copy_time_ns{0};
+    std::uint64_t dtoh_copy_time_ns{0};
+    std::uint64_t page_residence_time_ns{0};
+    std::uint64_t completed_residences{0};
+    std::uint64_t frame_count{0};
+    std::uint64_t resident_pages_current{0};
+    std::uint64_t resident_pages_peak{0};
+    std::uint64_t free_frames{0};
+    std::uint64_t evicting_pages{0};
+    std::uint64_t dirty_pages{0};
+};
+
 class CapacityPageService {
   public:
     using ModelProgram =
@@ -58,18 +86,24 @@ class CapacityPageService {
         std::optional<std::uint32_t> range_id = std::nullopt);
     RequestStatus flush(std::uint64_t first_page,
                         std::uint64_t page_count);
+    [[nodiscard]] CapacityStatsV2Snapshot stats_v2() const;
 
   private:
     RequestStatus writeback(const runtime::CacheEviction& eviction);
+    RequestStatus flush_backing();
     RequestStatus flush_range(std::uint64_t first_page,
                               std::uint64_t page_count);
+    void update_residency_stats_locked();
+    void record_residence_end_locked(std::uint64_t logical_page);
 
     CapacityBackingIo backing_;
     runtime::HbmCache& cache_;
     std::size_t page_bytes_;
     CapacityFrameIo frame_io_;
     std::unordered_map<std::uint64_t, std::uint32_t> resident_range_ids_;
-    std::mutex mutex_;
+    std::unordered_map<std::uint64_t, std::uint64_t> resident_since_ns_;
+    CapacityStatsV2Snapshot stats_v2_;
+    mutable std::mutex mutex_;
 };
 
 }  // namespace hbfsim::host_service

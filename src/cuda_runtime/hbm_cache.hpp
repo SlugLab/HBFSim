@@ -16,6 +16,14 @@ struct CacheEviction {
     bool dirty;
 };
 
+struct HbmCacheSnapshot {
+    std::size_t frame_count{0};
+    std::size_t resident_pages{0};
+    std::size_t free_frames{0};
+    std::size_t evicting_pages{0};
+    std::size_t dirty_pages{0};
+};
+
 class HbmCache {
   public:
     explicit HbmCache(std::vector<std::uint64_t> frame_addresses);
@@ -35,6 +43,7 @@ class HbmCache {
         bool dirty_only);
     bool cancel_eviction(const CacheEviction& eviction);
     bool complete_eviction(const CacheEviction& eviction);
+    [[nodiscard]] HbmCacheSnapshot snapshot() const;
 
   private:
     struct Frame {

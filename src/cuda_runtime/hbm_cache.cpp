@@ -236,4 +236,19 @@ bool HbmCache::complete_eviction(const CacheEviction& eviction)
     return true;
 }
 
+HbmCacheSnapshot HbmCache::snapshot() const
+{
+    std::lock_guard lock(mutex_);
+    const auto occupied = page_to_frame_.size() + evicting_pages_.size();
+    const auto free_frames =
+        occupied <= frames_.size() ? frames_.size() - occupied : 0;
+    return {
+        .frame_count = frames_.size(),
+        .resident_pages = page_to_frame_.size(),
+        .free_frames = free_frames,
+        .evicting_pages = evicting_pages_.size(),
+        .dirty_pages = dirty_pages_,
+    };
+}
+
 }  // namespace hbfsim::runtime

@@ -45,6 +45,10 @@ class CapacityRuntime {
     RequestStatus flush(
         host_service::CapacityPageService::ModelProgram model_program,
         std::optional<std::uint32_t> range_id = std::nullopt);
+    [[nodiscard]] host_service::CapacityStatsV2Snapshot stats_v2() const
+    {
+        return service_.stats_v2();
+    }
     void stop();
     [[nodiscard]] bool release_cuda_resources() noexcept;
 

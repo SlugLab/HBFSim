@@ -16,6 +16,7 @@ import time
 from typing import Any
 
 from model_inventory import ModelInventory
+from routed_capture_compat import install_vllm_routed_experts_deferred_binding
 from trace_collector import JsonlTraceCollector, TraceRequest
 
 
@@ -125,6 +126,8 @@ def main() -> int:
         }
     )
 
+    install_vllm_routed_experts_deferred_binding()
+
     inventory = ModelInventory(args.model_manifest)
     config = json.loads((args.model / "config.json").read_text(encoding="utf-8"))
     prompt_ids = deterministic_prompts(
@@ -148,6 +151,7 @@ def main() -> int:
         "moe_backend_required": "TRITON",
         "enforce_eager": True,
         "enable_return_routed_experts": True,
+        "routed_experts_capture_binding": "deferred-until-buffer-init",
         "readahead_pages": 0,
         "gpu_memory_utilization": args.gpu_memory_utilization,
     }

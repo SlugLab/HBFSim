@@ -9,6 +9,10 @@ The current implementation is deliberately split into evidence layers:
 
 - `runner.py` uses vLLM's supported `enable_return_routed_experts` path and
   writes real route IDs plus the frozen safetensors tensor metadata to JSONL.
+- `routed_capture_compat.py` compensates for the frozen vLLM 0.15.1
+  initialization order without editing `site-packages`: model-construction and
+  dummy-run calls see a no-op deferred proxy, while real forwards after buffer
+  initialization reach vLLM's original capturer.
 - `trace_validation.py` checks layer counts, top-k cardinality, expert ranges,
   tensor offsets/shapes/bytes, access ordering, and optional token/route repeat
   equivalence.

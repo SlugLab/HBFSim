@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sluglab.example/hbfsim/qwen-moe-trace-v1.schema.json",
+  "title": "HBFSim Qwen MoE routed-expert trace event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "request_id",
+    "sequence_id",
+    "prompt_id",
+    "phase",
+    "token_step",
+    "layer_id",
+    "topk_expert_ids",
+    "topk_weights",
+    "expert_tensors",
+    "access_order_sequence_begin",
+    "access_order_sequence_end",
+    "host_monotonic_timestamp_ns",
+    "gpu_event_timestamp_ns",
+    "previous_compute_gap_ns",
+    "model_fingerprint",
+    "environment_fingerprint",
+    "git_commit"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string"},
+    "request_id": {"type": "string"},
+    "sequence_id": {"type": "integer", "minimum": 0},
+    "prompt_id": {"type": "integer", "minimum": 0},
+    "phase": {"enum": ["prefill", "decode"]},
+    "token_step": {"type": "integer", "minimum": 0},
+    "route_token_index": {"type": "integer", "minimum": 0},
+    "layer_id": {"type": "integer", "minimum": 0},
+    "topk_expert_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "topk_weights": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "array", "items": {"type": "number"}}
+      ]
+    },
+    "expert_tensors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "expert_id",
+          "tensor",
+          "tensor_kind",
+          "source_shard",
+          "source_offset_begin",
+          "source_offset_end",
+          "tensor_bytes",
+          "shape",
+          "dtype",
+          "page_begin",
+          "page_end",
+          "access_order_sequence"
+        ]
+      }
+    },
+    "access_order_sequence_begin": {"type": "integer", "minimum": 0},
+    "access_order_sequence_end": {"type": "integer", "minimum": 0},
+    "host_monotonic_timestamp_ns": {"type": "integer", "minimum": 0},
+    "gpu_event_timestamp_ns": {"type": ["integer", "null"]},
+    "previous_compute_gap_ns": {"type": ["integer", "null"]},
+    "model_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "environment_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "git_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+  },
+  "additionalProperties": true
+}

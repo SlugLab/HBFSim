@@ -1,0 +1,9 @@
+[project]
+name = "hbfsim-vllm-capacity"
+version = "0.1.0"
+description = "Auditable Qwen routed-expert tracing and capacity replay"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.ruff]
+line-length = 88

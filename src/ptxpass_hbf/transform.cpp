@@ -51,13 +51,68 @@ bool unsupported_memory_instruction(const std::string& line,
                                     std::string& opcode)
 {
     static const std::regex expression(
-        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
+        // The `cp.async` and `cp.reduce.async` alternatives require `.global`
+        // in the opcode on purpose. The same families carry pure
+        // synchronisation forms -- cp.async.commit_group, cp.async.wait_group,
+        // cp.async.bulk.wait_group -- which touch no memory and must not be
+        // reported as unsupported memory operations.
+        //
+        // The bulk TENSOR families are matched here too, deliberately. Branch
+        // feature/sm120-exact-stage1 models them in parse_tma, and an earlier
+        // version of this pattern excluded them so the two would not collide
+        // on merge. That was the wrong trade: hybrid has no parse_tma, so
+        // excluding them left those instructions neither modeled nor reported
+        // -- the exact fail-open hole this pattern exists to close, preserved
+        // on the only branch that exists today. When
+        // feature/sm120-exact-stage1 merges, remove the three prefixes it
+        // handles (cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
+        // cp.async.bulk.prefetch.tensor.) from this pattern in the same
+        // commit, so the coverage hole is never open in between.
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
     std::smatch match;
     if (!std::regex_match(line, match, expression)) {
         return false;
     }
     opcode = match[1].str();
     return true;
+}
+
+std::string joined_statement(const std::string& pending,
+                             const std::string& line)
+{
+    if (pending.empty()) {
+        return line;
+    }
+    auto trimmed = line;
+    const auto first = trimmed.find_first_not_of(" \t");
+    if (first != std::string::npos) {
+        trimmed.erase(0, first);
+    }
+    return pending + " " + trimmed;
+}
+
+// A PTX statement may be written across several physical lines. The rewrite
+// path matches per line, which is enough for the forms it rewrites, but the
+// unsupported scan must see whole statements: an asynchronous copy split
+// across two lines matches neither line on its own, so scanning per line lets
+// it through unreported, and if the same kernel also holds an ordinary
+// ld.global the module is still marked instrumented. The launch then proceeds
+// with an unreported access, which is the fail-open case the scan exists to
+// prevent.
+bool statement_is_open(const std::string& text)
+{
+    auto without_comment = text;
+    if (const auto comment = without_comment.find("//");
+        comment != std::string::npos) {
+        without_comment.erase(comment);
+    }
+    const auto last = without_comment.find_last_not_of(" \t\r");
+    if (last == std::string::npos) {
+        return false;
+    }
+    const auto character = without_comment[last];
+    return character != ';' && character != '{' && character != '}' &&
+           character != ':';
 }
 
 std::string replace_address(const PtxMemoryOp& op,
@@ -137,6 +192,7 @@ TransformResult transform_ptx(const TransformRequest& request)
     bool selected = false;
     int brace_depth = 0;
     std::uint64_t scratch_id = 0;
+    std::string pending_statement;
     static const std::regex function_expression(
         R"(\.(?:visible\s+)?(?:entry|func)\s+([A-Za-z0-9_$.]+))");
 
@@ -224,11 +280,19 @@ TransformResult transform_ptx(const TransformRequest& request)
                 result.modified = true;
                 continue;
             }
+            // Accumulate physical lines into one logical statement before
+            // scanning, so a statement split across lines is seen whole.
+            pending_statement = joined_statement(pending_statement, line);
+            if (statement_is_open(pending_statement)) {
+                output << line << '\n';
+                continue;
+            }
             std::string opcode;
-            if (unsupported_memory_instruction(line, opcode)) {
+            if (unsupported_memory_instruction(pending_statement, opcode)) {
                 ++result.coverage.unsupported_instructions;
                 result.coverage.unsupported_opcodes.push_back(opcode);
             }
+            pending_statement.clear();
         }
 
         output << line << '\n';

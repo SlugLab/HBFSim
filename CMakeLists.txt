@@ -854,6 +854,15 @@ if(HBFSIM_ENABLE_MQSIM)
         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
     )
 
+    add_executable(
+        hbf_trace_timing benchmarks/replay/hbf_trace_timing.cpp
+    )
+    target_link_libraries(hbf_trace_timing PRIVATE hbfsim_core)
+    target_include_directories(
+        hbf_trace_timing
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+    )
+
     if(BUILD_TESTING)
         find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
         add_test(
@@ -865,6 +874,28 @@ if(HBFSIM_ENABLE_MQSIM)
         )
         set_tests_properties(
             mqsim_benchmark
+            PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+        add_test(
+            NAME trace_timing
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_trace_timing.py"
+                "$<TARGET_FILE:hbf_trace_timing>"
+        )
+        set_tests_properties(
+            trace_timing
+            PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+        add_test(
+            NAME trace_replay_timing_integration
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_trace_replay_timing.py"
+                "$<TARGET_FILE:hbf_trace_timing>"
+        )
+        set_tests_properties(
+            trace_replay_timing_integration
             PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         )
     endif()

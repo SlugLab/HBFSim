@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import pathlib
+import subprocess
 from dataclasses import dataclass
 from typing import Any, Iterable
 
@@ -161,26 +162,114 @@ def capacity_geometry(
     requested_hbm = math.floor(inventory.expert_weight_bytes * requested_alpha)
     expert_pages = ceil_div(inventory.expert_bytes, page_bytes)
     expert_slot_bytes = expert_pages * page_bytes
+    total_experts = inventory.num_layers * inventory.num_experts
     slots = (
-        inventory.num_layers * inventory.num_experts
+        total_experts
         if hbf == 0
-        else requested_hbm // expert_slot_bytes
+        else min(total_experts, requested_hbm // expert_slot_bytes)
     )
     actual_hbm = slots * expert_slot_bytes
-    actual_hbf = inventory.expert_weight_bytes - actual_hbm
+    resident_expert_weight_bytes = slots * inventory.expert_bytes
+    actual_hbf = max(
+        0, inventory.expert_weight_bytes - resident_expert_weight_bytes
+    )
     return {
         "requested_ratio": f"{hbm}:{hbf}",
         "requested_alpha": requested_alpha,
         "requested_hbm_bytes": requested_hbm,
         "actual_hbm_bytes": actual_hbm,
         "actual_hbf_bytes": actual_hbf,
-        "achieved_alpha": safe_ratio(actual_hbm, inventory.expert_weight_bytes),
-        "achieved_ratio_hbf_over_hbm": safe_ratio(actual_hbf, actual_hbm),
+        "resident_expert_weight_bytes": resident_expert_weight_bytes,
+        "page_alignment_padding_bytes": (
+            actual_hbm - resident_expert_weight_bytes
+        ),
+        "achieved_alpha": safe_ratio(
+            resident_expert_weight_bytes, inventory.expert_weight_bytes
+        ),
+        "achieved_ratio_hbf_over_hbm": safe_ratio(
+            actual_hbf, resident_expert_weight_bytes
+        ),
         "cache_frame_count": actual_hbm // page_bytes,
         "page_bytes": page_bytes,
         "complete_expert_slots": slots,
         "expert_slot_bytes": expert_slot_bytes,
     }
+
+
+def run_timing_engine(
+    binary: pathlib.Path,
+    mode: str,
+    profile_path: pathlib.Path,
+    event_dir: pathlib.Path,
+    miss_keys: list[ExpertKey],
+    inventory: ModelInventory,
+    geometry: dict[str, Any],
+) -> dict[str, Any]:
+    resolved_binary = binary.resolve(strict=True)
+    resolved_profile = profile_path.resolve(strict=True)
+    event_dir.mkdir(parents=True, exist_ok=True)
+    event_identity = {
+        "miss_keys": miss_keys,
+        "expert_bytes": inventory.expert_bytes,
+        "expert_slot_bytes": geometry["expert_slot_bytes"],
+        "page_bytes": geometry["page_bytes"],
+    }
+    event_path = event_dir / f"{canonical_sha256(event_identity)}.jsonl"
+    lines: list[str] = []
+    for sequence, (layer, expert) in enumerate(miss_keys, start=1):
+        flat_expert = layer * inventory.num_experts + expert
+        lines.append(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "sequence": sequence,
+                    "logical_address": (
+                        flat_expert * int(geometry["expert_slot_bytes"])
+                    ),
+                    "bytes": int(geometry["expert_slot_bytes"]),
+                    "page_bytes": int(geometry["page_bytes"]),
+                    "operation": "read",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n"
+        )
+    encoded = "".join(lines).encode("utf-8")
+    if event_path.exists():
+        if event_path.read_bytes() != encoded:
+            raise RuntimeError("timing event identity collision")
+    else:
+        event_path.write_bytes(encoded)
+    completed = subprocess.run(
+        [
+            str(resolved_binary),
+            "--profile",
+            str(resolved_profile),
+            "--events",
+            str(event_path),
+            "--mode",
+            mode,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(completed.stdout)
+    if (
+        result.get("status") != "PASS"
+        or int(result["requests"]["input_expert_misses"]) != len(miss_keys)
+        or int(result["requests"]["submitted"])
+        != len(miss_keys)
+        * ceil_div(inventory.expert_bytes, int(geometry["page_bytes"]))
+    ):
+        raise RuntimeError("timing engine returned an invalid result")
+    result["events"] = {
+        "path": str(event_path.resolve()),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+        "count": len(miss_keys),
+    }
+    return result
 
 
 def replay_cell(
@@ -193,6 +282,10 @@ def replay_cell(
     git_commit: str,
     environment_fingerprint: str,
     repetition: int,
+    timing_mode: str = "analytic",
+    timing_binary: pathlib.Path | None = None,
+    profile_path: pathlib.Path | None = None,
+    timing_event_dir: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     keys = [access.key for access in accesses]
     slots = int(geometry["complete_expert_slots"])
@@ -201,6 +294,10 @@ def replay_cell(
     hits = 0
     misses = 0
     evictions = 0
+    miss_keys: list[ExpertKey] = []
+    resident_peak_objects = (
+        inventory.num_layers * inventory.num_experts if full_preloaded else 0
+    )
     per_object: dict[ExpertKey, dict[str, int]] = {}
     phase_stats: dict[str, dict[str, int]] = {}
     for position, access in enumerate(accesses):
@@ -225,6 +322,7 @@ def replay_cell(
             phase["hit_count"] += 1
         else:
             misses += 1
+            miss_keys.append(access.key)
             item["miss_count"] += 1
             phase["miss_count"] += 1
         if victim is not None:
@@ -233,15 +331,64 @@ def replay_cell(
                 victim,
                 {"access_count": 0, "miss_count": 0, "eviction_count": 0},
             )["eviction_count"] += 1
+        if policy is not None:
+            resident_peak_objects = max(
+                resident_peak_objects, len(policy.resident())
+            )
 
     expert_bytes = inventory.expert_bytes
     total_access_bytes = len(accesses) * expert_bytes
     hit_bytes = hits * expert_bytes
     miss_bytes = misses * expert_bytes
+    media_read_bytes = misses * int(geometry["expert_slot_bytes"])
     bandwidth = int(profile["aggregate_bandwidth_bytes_per_s"])
     read_latency_ns = int(profile["read_latency_ns"])
-    transfer_ns = ceil_div(expert_bytes * 1_000_000_000, bandwidth)
-    modeled_read_ns = 0 if full_preloaded else misses * (read_latency_ns + transfer_ns)
+    page_bytes = int(geometry["page_bytes"])
+    expert_pages = ceil_div(expert_bytes, page_bytes)
+    page_transfer_ns = ceil_div(page_bytes * 1_000_000_000, bandwidth)
+    serialized_modeled_ns_per_miss = expert_pages * (
+        read_latency_ns + page_transfer_ns
+    )
+    timing_result: dict[str, Any] | None = None
+    if timing_mode == "analytic":
+        modeled_read_ns = misses * serialized_modeled_ns_per_miss
+        exposed_stall_ns = modeled_read_ns
+        emulator_wall_ns = None
+        simulator_mode = "analytic-profile-serial-upper-bound"
+        timing_evidence_class = "ANALYTIC_PROFILE_UPPER_BOUND"
+        modeled_time_semantics = (
+            "sum of nominal read latency plus aggregate-bandwidth transfer; "
+            "conservative serialized analytic bound, not HBFSim fast/hybrid "
+            "or MQSim device execution"
+        )
+    else:
+        if (
+            timing_binary is None
+            or profile_path is None
+            or timing_event_dir is None
+        ):
+            raise ValueError("external timing mode requires binary/profile/event dir")
+        timing_result = run_timing_engine(
+            timing_binary,
+            timing_mode,
+            profile_path,
+            timing_event_dir,
+            miss_keys,
+            inventory,
+            geometry,
+        )
+        modeled_read_ns = int(timing_result["modeled_device_service_ns"])
+        exposed_stall_ns = int(timing_result["demand_exposed_stall_ns"])
+        emulator_wall_ns = int(
+            timing_result["emulator_dispatcher_wall_time_ns"]
+        )
+        simulator_mode = str(timing_result["engine"])
+        timing_evidence_class = (
+            "MQSIM_REFERENCE_MODELED"
+            if timing_mode == "mqsim"
+            else "FAST_OR_HYBRID_MODELED"
+        )
+        modeled_time_semantics = str(timing_result["scheduling_semantics"])
     object_rows = []
     for (layer, expert), values in sorted(per_object.items()):
         object_rows.append(
@@ -263,7 +410,7 @@ def replay_cell(
         "actual_bytes": geometry["actual_hbm_bytes"],
         "policy": policy_name,
         "hbf_profile": str(profile.get("name", "unknown")),
-        "simulator_mode": "analytic-profile-serial-upper-bound",
+        "simulator_mode": simulator_mode,
         "prefetch": {"readahead_pages": 0},
         "seed": 0,
         "repetition": repetition,
@@ -271,7 +418,13 @@ def replay_cell(
     conservation = {
         "request_conservation": hits + misses == len(accesses),
         "byte_conservation": hit_bytes + miss_bytes == total_access_bytes,
-        "hbf_read_conservation": miss_bytes == miss_bytes,
+        "hbf_read_conservation": (
+            len(miss_keys) == misses
+            and media_read_bytes
+            == misses
+            * ceil_div(expert_bytes, int(geometry["page_bytes"]))
+            * int(geometry["page_bytes"])
+        ),
         "no_unsigned_underflow": all(
             value >= 0
             for value in (hits, misses, evictions, hit_bytes, miss_bytes)
@@ -283,7 +436,7 @@ def replay_cell(
         "schema_version": 2,
         "status": "PASS",
         "evidence_class": "TRACE_DRIVEN_MODELED",
-        "timing_evidence_class": "ANALYTIC_PROFILE_UPPER_BOUND",
+        "timing_evidence_class": timing_evidence_class,
         "cell_id": canonical_sha256(manifest),
         "cell_manifest": manifest,
         "trace": trace_meta,
@@ -300,21 +453,34 @@ def replay_cell(
                 "backing_io_wall_time_ns": None,
                 "h2d_copy_time_ns": None,
                 "dtoh_copy_time_ns": None,
-                "emulator_dispatcher_wall_time_ns": None,
+                "emulator_dispatcher_wall_time_ns": emulator_wall_ns,
                 "application_wall_time_ns": None,
             },
             "capacity": {
                 "configured_hbm_cache_bytes": geometry["requested_hbm_bytes"],
                 "actual_page_aligned_hbm_cache_bytes": geometry["actual_hbm_bytes"],
                 "hbf_logical_bytes": geometry["actual_hbf_bytes"],
-                "hbf_actually_accessed_bytes": miss_bytes,
-                "resident_bytes_current": geometry["actual_hbm_bytes"]
-                if full_preloaded
-                else min(slots, len(set(keys))) * geometry["expert_slot_bytes"],
-                "resident_bytes_peak": geometry["actual_hbm_bytes"]
-                if full_preloaded
-                else min(slots, len(set(keys))) * geometry["expert_slot_bytes"],
-                "free_frames": 0 if full_preloaded else max(0, slots - len(set(keys))),
+                "hbf_actually_accessed_bytes": media_read_bytes,
+                "resident_bytes_current": (
+                    inventory.num_layers
+                    * inventory.num_experts
+                    * geometry["expert_slot_bytes"]
+                    if full_preloaded
+                    else len(policy.resident()) * geometry["expert_slot_bytes"]
+                ),
+                "resident_bytes_peak": (
+                    resident_peak_objects * geometry["expert_slot_bytes"]
+                ),
+                "free_frames": max(
+                    0,
+                    geometry["cache_frame_count"]
+                    - (
+                        inventory.num_layers * inventory.num_experts
+                        if full_preloaded
+                        else len(policy.resident())
+                    )
+                    * ceil_div(inventory.expert_bytes, geometry["page_bytes"]),
+                ),
                 "hits": hits,
                 "misses": misses,
                 "byte_hit_ratio": safe_ratio(hit_bytes, total_access_bytes),
@@ -322,7 +488,7 @@ def replay_cell(
                 "clean_evictions": evictions,
                 "dirty_evictions": 0,
                 "writeback_bytes": 0,
-                "hbf_read_bytes": miss_bytes,
+                "hbf_read_bytes": media_read_bytes,
                 "hbf_program_bytes": 0,
                 "duplicate_misses": 0,
                 "coalesced_misses": 0,
@@ -334,9 +500,9 @@ def replay_cell(
                 "queue_depth_histogram": None,
                 "engine_outstanding_requests": None,
                 "per_channel_utilization": None,
-                "demand_waiting_time_ns": modeled_read_ns,
+                "demand_waiting_time_ns": exposed_stall_ns,
                 "speculative_waiting_time_ns": None,
-                "demand_exposed_stall_ns": modeled_read_ns,
+                "demand_exposed_stall_ns": exposed_stall_ns,
                 "hidden_prefetched_stall_ns": 0,
                 "late_prefetch_stall_ns": 0,
             },
@@ -348,15 +514,21 @@ def replay_cell(
             "hit_bytes": hit_bytes,
             "miss_bytes": miss_bytes,
             "hbf_bytes_per_route_token_expert_access": safe_ratio(
-                miss_bytes, len(accesses)
+                media_read_bytes, len(accesses)
             ),
-            "serialized_modeled_ns_per_miss": read_latency_ns + transfer_ns,
-            "modeled_time_semantics": (
-                "sum of nominal read latency plus aggregate-bandwidth transfer; "
-                "conservative serialized analytic bound, not HBFSim fast/hybrid "
-                "or MQSim device execution"
+            "serialized_modeled_ns_per_miss": serialized_modeled_ns_per_miss,
+            "demand_media_reads": (
+                misses
+                * ceil_div(expert_bytes, int(geometry["page_bytes"]))
             ),
+            "speculative_media_reads": 0,
+            "total_media_reads": (
+                misses
+                * ceil_div(expert_bytes, int(geometry["page_bytes"]))
+            ),
+            "modeled_time_semantics": modeled_time_semantics,
         },
+        "timing_engine": timing_result,
         "conservation": conservation,
     }
 
@@ -370,6 +542,12 @@ def main() -> int:
     parser.add_argument("--git-commit", required=True)
     parser.add_argument("--environment-fingerprint", required=True)
     parser.add_argument("--repetition", type=int, default=0)
+    parser.add_argument("--timing-binary", type=pathlib.Path)
+    parser.add_argument(
+        "--timing-mode",
+        action="append",
+        choices=("analytic", "fast", "hybrid", "mqsim"),
+    )
     args = parser.parse_args()
     if args.output_dir.exists():
         raise FileExistsError(args.output_dir)
@@ -380,33 +558,51 @@ def main() -> int:
     results: list[dict[str, Any]] = []
     raw_dir = args.output_dir / "raw"
     raw_dir.mkdir()
+    timing_modes = args.timing_mode or ["analytic"]
+    if (
+        any(mode != "analytic" for mode in timing_modes)
+        and args.timing_binary is None
+    ):
+        parser.error("--timing-binary is required for fast/hybrid/mqsim")
+    timing_event_dir = args.output_dir / "timing-events"
     for ratio in RATIOS:
         geometry = capacity_geometry(inventory, ratio, int(profile["page_bytes"]))
         for policy in POLICIES:
-            result = replay_cell(
-                accesses,
-                inventory,
-                profile,
-                trace_meta,
-                geometry,
-                policy,
-                args.git_commit,
-                args.environment_fingerprint,
-                args.repetition,
-            )
-            cell_path = raw_dir / f"{result['cell_id']}.json"
-            cell_path.write_text(
-                json.dumps(result, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
-            results.append(result)
+            for timing_mode in timing_modes:
+                result = replay_cell(
+                    accesses,
+                    inventory,
+                    profile,
+                    trace_meta,
+                    geometry,
+                    policy,
+                    args.git_commit,
+                    args.environment_fingerprint,
+                    args.repetition,
+                    timing_mode,
+                    args.timing_binary,
+                    args.profile,
+                    timing_event_dir,
+                )
+                cell_path = raw_dir / f"{result['cell_id']}.json"
+                cell_path.write_text(
+                    json.dumps(result, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                results.append(result)
     summary = {
         "schema_version": 1,
         "status": "PASS",
         "evidence_class": "TRACE_DRIVEN_MODELED",
+        "timing_modes": timing_modes,
         "timing_boundary": (
             "cache/traffic results are exact for the frozen trace and policy; "
-            "timing is an analytic serialized upper bound pending HBFSim/MQSim replay"
+            "each cell names its timing engine and separates modeled device "
+            "service, exposed stall, and emulator wall time; external timing "
+            "uses page-granular ordered blocking misses without compute gaps"
+            if any(mode != "analytic" for mode in timing_modes)
+            else "cache/traffic results are exact for the frozen trace and "
+            "policy; timing is a serialized analytic upper bound"
         ),
         "cell_count": len(results),
         "trace": trace_meta,
@@ -415,6 +611,7 @@ def main() -> int:
                 "cell_id": item["cell_id"],
                 "ratio": item["geometry"]["requested_ratio"],
                 "policy": item["policy"],
+                "simulator_mode": item["cell_manifest"]["simulator_mode"],
                 "actual_hbm_bytes": item["geometry"]["actual_hbm_bytes"],
                 "actual_hbf_bytes": item["geometry"]["actual_hbf_bytes"],
                 "hits": item["stats_v2"]["capacity"]["hits"],

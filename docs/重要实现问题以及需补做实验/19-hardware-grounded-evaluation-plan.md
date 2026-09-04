@@ -1,8 +1,8 @@
 # 基于真实硬件锚点的 HBFSim Evaluation 重构方案
 
-**对象：** HBFSim 论文 Evaluation 章节与实验执行计划  
-**项目：** [SlugLab/HBFSim](https://github.com/SlugLab/HBFSim)  
-**日期：** 2026-09-04  
+**对象：** HBFSim 论文 Evaluation 章节与实验执行计划
+**项目：** [SlugLab/HBFSim](https://github.com/SlugLab/HBFSim)
+**日期：** 2026-09-04
 **依据：** HBFSim 当前实现与实验状态、OCEAN，以及 FAST/SC/ISCA/TCAD 中具有代表性的模拟器与仿真器工作。
 
 ---
@@ -19,17 +19,17 @@
 
 因此建议将当前 14 个细碎问题压缩为 **3 个主 Evaluation Questions，加 1 个有条件保留的问题**：
 
-> **EQ1 — Hardware-grounded fidelity.**  
+> **EQ1 — Hardware-grounded fidelity.**
 > 对于现有物理代理能够覆盖的行为，HBFSim 能否保持真实 GPU 工作负载的语义，并准确复现闪存后备内存层的延迟分布、带宽饱和、排队效应和缓存/容量转折？
 
-> **EQ2 — Fidelity–cost trade-off.**  
+> **EQ2 — Fidelity–cost trade-off.**
 > HBFSim 的 reference、fast 与 hybrid 路径分别需要多少成本，其误差—速度 Pareto 前沿如何，研究者应如何选择？
 
-> **EQ3 — Benchmark utility.**  
+> **EQ3 — Benchmark utility.**
 > HBFSim 能否给出一个稳定、可复现、可解释的系统设计边界？以 30B 级 LLM 为例，HBM 有效驻留率、HBF 服务能力、预取与 serving concurrency 如何共同决定性能可行域？
 
-> **EQ4 — Thermal sustainability（有条件保留）.**  
-> 温度闭环是否改变 HBF 的长期可持续服务率及应用结论？  
+> **EQ4 — Thermal sustainability（有条件保留）.**
+> 温度闭环是否改变 HBF 的长期可持续服务率及应用结论？
 > **只有在“温度 → HBF 服务率/刷新流量 → 每次访问时序”真正接入运行时，并完成硬件代理校准后，EQ4 才能保留为主问题。**
 
 原 RQ5“边缘到云端”建议从本篇主线移除，可作为附录中的小型前瞻场景，或单独成文。TCO、车载、NAND 类型、die geometry 等也不应与基础保真度争夺正文篇幅。
@@ -207,7 +207,7 @@ OCEAN 的 litmus tests 也值得借鉴：性能吻合不能替代语义正确，
 
 Cylon 在真实 CXL-SSD 原型 CMM-H 与软件模拟平台之间建立对应，最有价值的三个方法是：
 
-1. **归一化工作集：** 当真实原型和模拟器的 cache capacity 不同，用  
+1. **归一化工作集：** 当真实原型和模拟器的 cache capacity 不同，用
    \[
    r=\frac{\text{working-set size}}{\text{cache capacity}}
    \]
@@ -288,7 +288,7 @@ Accel-Sim 使用大量 workload/kernel 和硬件计数器验证，不只看一�
 | OCP HBF specification | 合法参数范围、协议粒度、功能边界 | 实际设备性能 |
 | HBFSim fast/hybrid | 大规模真实工作负载的快速探索 | 在未校准区间内的硬件真值 |
 
-**关键修正：DRAMFS 不是“真实硬件基准”。**  
+**关键修正：DRAMFS 不是“真实硬件基准”。**
 它是必要且有价值的对照，但其作用是测量 HBFSim 已经付出的软件路径开销。只有 CXL SSD、NVMe/闪存设备或其他物理平台才能作为硬件锚点。
 
 ---
@@ -976,7 +976,7 @@ checksum_ok
 - 计算误差、rank correlation、transition error；
 - 输出 fidelity card。
 
-**若绝对误差未达门槛：** 修正模型或降级为 trend/ranking claim。  
+**若绝对误差未达门槛：** 修正模型或降级为 trend/ranking claim。
 **若 ranking 也不稳定：** 不进入 EQ3。
 
 ## Gate 4 — Application and practicality
@@ -1087,49 +1087,49 @@ checksum_ok
 
 # 17. 参考文献及具体借鉴点
 
-1. **Yiwei Yang et al.** “OCEAN: Open-Source CXL Emulation for Hyperscale Architecture and Networking.” 标注 SC’26，2026。  
+1. **Yiwei Yang et al.** “OCEAN: Open-Source CXL Emulation for Hyperscale Architecture and Networking.” 标注 SC’26，2026。
    借鉴：fidelity-first 组织；真实 CXL Type-3 锚点；latency/bandwidth/contention 分层验证；`Tstall=max(0,Tsim-TIPC)`；calibration decomposition；litmus tests。
 
-2. **Yoon et al.** [“Cylon: A CXL-SSD Emulation Platform,” FAST ’26](https://www.usenix.org/conference/fast26/presentation/yoon).  
+2. **Yoon et al.** [“Cylon: A CXL-SSD Emulation Platform,” FAST ’26](https://www.usenix.org/conference/fast26/presentation/yoon).
    借鉴：真实 CXL-SSD 原型对比；normalized WSS/cache ratio；强制 hit/miss 与 zero-latency 控制；微基准之后再做 policy/prefetch use case。
 
-3. **Arash Tavakkol et al.** [“MQSim: A Framework for Enabling Realistic Studies of Modern Multi-Queue SSD Devices,” FAST ’18](https://www.usenix.org/conference/fast18/presentation/tavakkol).  
+3. **Arash Tavakkol et al.** [“MQSim: A Framework for Enabling Realistic Studies of Modern Multi-Queue SSD Devices,” FAST ’18](https://www.usenix.org/conference/fast18/presentation/tavakkol).
    借鉴：多真实设备；稳态/预条件化；synthetic 与 real trace 双重验证；平均和最大误差；验证后再做系统洞见。
 
-4. **Huaicheng Li et al.** [“FEMU: A Fast, Accurate, Scalable and Extensible NVMe SSD Emulator,” FAST ’18](https://www.usenix.org/conference/fast18/presentation/li).  
+4. **Huaicheng Li et al.** [“FEMU: A Fast, Accurate, Scalable and Extensible NVMe SSD Emulator,” FAST ’18](https://www.usenix.org/conference/fast18/presentation/li).
    借鉴：accuracy、speed、scalability、extensibility 分开论证；真实设备对齐；guest-observed performance。
 
-5. **Sangjin Kim et al.** [“NVMeVirt: A Versatile Software-Defined Virtual NVMe Device,” FAST ’23](https://www.usenix.org/conference/fast23/presentation/kim-sangjin).  
+5. **Sangjin Kim et al.** [“NVMeVirt: A Versatile Software-Defined Virtual NVMe Device,” FAST ’23](https://www.usenix.org/conference/fast23/presentation/kim-sangjin).
    借鉴：多类型设备与配置；percentile distribution；重复实验；GC 时间序列；应用验证；清晰的 Evaluation Questions。
 
-6. **Y. Wang et al.** [“CXL-DMSim: A Full-System CXL Disaggregated Memory Simulator with Comprehensive Silicon Validation,” IEEE TCAD](https://doi.org/10.1109/TCAD.2025.3607145).  
+6. **Y. Wang et al.** [“CXL-DMSim: A Full-System CXL Disaggregated Memory Simulator with Comprehensive Silicon Validation,” IEEE TCAD](https://doi.org/10.1109/TCAD.2025.3607145).
    借鉴：硬件校准；LMbench/STREAM/Redis-YCSB 多层验证；显式分析误差区间；验证后再做 CXL-SSD cache/prefetch 扩展。
 
-7. **Gregory R. Ganger et al.** [“Timing-Accurate Storage Emulation,” FAST ’02](https://www.usenix.org/legacy/events/fast02/full_papers/ganger/ganger.pdf).  
+7. **Gregory R. Ganger et al.** [“Timing-Accurate Storage Emulation,” FAST ’02](https://www.usenix.org/legacy/events/fast02/full_papers/ganger/ganger.pdf).
    借鉴：目标设备尚不存在时，如何把模拟器的 service time 与 emulator overhead 分开，并用 component simulator 验证服务时间。
 
-8. **Mahmoud Khairy et al.** [“Accel-Sim: An Extensible Simulation Framework for Validated GPU Modeling,” ISCA ’20](https://doi.org/10.1109/ISCA45697.2020.00047).  
+8. **Mahmoud Khairy et al.** [“Accel-Sim: An Extensible Simulation Framework for Validated GPU Modeling,” ISCA ’20](https://doi.org/10.1109/ISCA45697.2020.00047).
    借鉴：跨大量 workload/kernel 与硬件 counter 的 correlation；对 benchmark 工具而言应验证 ranking，而不只验证单点均值。
 
-9. **Yiwei Yang et al.** [“CXLMemSim: A Pure Software Simulated CXL.mem for Performance Characterization”](https://arxiv.org/abs/2303.06153).  
+9. **Yiwei Yang et al.** [“CXLMemSim: A Pure Software Simulated CXL.mem for Performance Characterization”](https://arxiv.org/abs/2303.06153).
    借鉴：真实硬件稀缺背景下的软件模拟定位；sampling period 与误差/开销权衡；unmodified application。
 
-10. **D. D. Sharma, R. Blankenship, D. S. Berger.** [“An Introduction to the Compute Express Link (CXL) Interconnect,” ACM Computing Surveys, 2024](https://doi.org/10.1145/3669900).  
+10. **D. D. Sharma, R. Blankenship, D. S. Berger.** [“An Introduction to the Compute Express Link (CXL) Interconnect,” ACM Computing Surveys, 2024](https://doi.org/10.1145/3669900).
     用途：界定 CXL proxy 与 HBF target 的共同点和差异，避免把 CXL SSD 直接写成 HBF。
 
-11. **OCP HBF Specification v0.7.0.** [HBFSim 仓库中的规范副本](https://github.com/SlugLab/HBFSim/blob/hybrid/docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf).  
+11. **OCP HBF Specification v0.7.0.** [HBFSim 仓库中的规范副本](https://github.com/SlugLab/HBFSim/blob/hybrid/docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf).
     用途：参数合法范围、协议粒度和功能边界；不作为性能 ground truth。
 
-12. **HBFSim current experiment work order.** [Experiments needed before submission](https://github.com/SlugLab/HBFSim/blob/hybrid/docs/%E9%87%8D%E8%A6%81%E5%AE%9E%E7%8E%B0%E9%97%AE%E9%A2%98%E4%BB%A5%E5%8F%8A%E9%9C%80%E8%A1%A5%E5%81%9A%E5%AE%9E%E9%AA%8C/15-experiments-we-must-add-before-submission.md).  
+12. **HBFSim current experiment work order.** [Experiments needed before submission](https://github.com/SlugLab/HBFSim/blob/hybrid/docs/%E9%87%8D%E8%A6%81%E5%AE%9E%E7%8E%B0%E9%97%AE%E9%A2%98%E4%BB%A5%E5%8F%8A%E9%9C%80%E8%A1%A5%E5%81%9A%E5%AE%9E%E9%AA%8C/15-experiments-we-must-add-before-submission.md).
     用途：把现有 23 项内部任务重新映射到 EQ1–EQ4，而不是逐项放进正文。
 
-13. **HBFSim PR #3.** [Make the profile queue_depth field bound outstanding MQSim requests](https://github.com/SlugLab/HBFSim/pull/3).  
+13. **HBFSim PR #3.** [Make the profile queue_depth field bound outstanding MQSim requests](https://github.com/SlugLab/HBFSim/pull/3).
     用途：说明旧 queue-depth 结果失效，所有相关数据必须在修复后重跑。
 
-14. **HBFSim PR #4.** [Count asynchronous global copies as unsupported instead of dropping them](https://github.com/SlugLab/HBFSim/pull/4).  
+14. **HBFSim PR #4.** [Count asynchronous global copies as unsupported instead of dropping them](https://github.com/SlugLab/HBFSim/pull/4).
     用途：EQ1 coverage 的基础；experiment branch 通过 `80fd29c` 集成，上游 PR 状态独立。
 
-15. **HBFSim PR #5.** [Prefetch: capacity-mode readahead, plus the model and accuracy experiment](https://github.com/SlugLab/HBFSim/pull/5).  
+15. **HBFSim PR #5.** [Prefetch: capacity-mode readahead, plus the model and accuracy experiment](https://github.com/SlugLab/HBFSim/pull/5).
     用途：候选预取机制；当前 experiment snapshot 未集成，后续采用时须建立新快照，且合成模型与真实 end-to-end measurement 必须严格区分。
 
 ---

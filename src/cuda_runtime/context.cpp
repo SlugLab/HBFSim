@@ -11,7 +11,6 @@
 
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
 #include <cuda.h>
-#include <cuda_runtime_api.h>
 #endif
 
 #include <algorithm>
@@ -539,7 +538,7 @@ ReleaseResult release_context(hbfsim_context* context,
             quarantine();
             return ReleaseResult::quarantined;
         }
-        if (::cudaDeviceSynchronize() != cudaSuccess) {
+        if (::cuCtxSynchronize() != CUDA_SUCCESS) {
             quarantine();
             return ReleaseResult::quarantined;
         }
@@ -605,7 +604,7 @@ ReleaseResult release_context(hbfsim_context* context,
     reap_or_terminate(context);
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (context->cuda_registered) {
-        if (::cudaHostUnregister(context->control_mapping) != cudaSuccess) {
+        if (::cuMemHostUnregister(context->control_mapping) != CUDA_SUCCESS) {
             if (retire_token != 0) {
                 launch_gate_quarantine(context, retire_token);
             }
@@ -879,19 +878,25 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
 
     if (register_with_cuda) {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
-        if (::cudaHostRegister(context->control_mapping, context->control_bytes,
-                               cudaHostRegisterMapped |
-                                   cudaHostRegisterPortable) != cudaSuccess) {
+        if (::cuMemHostRegister(context->control_mapping,
+                                context->control_bytes,
+                                CU_MEMHOSTREGISTER_DEVICEMAP |
+                                    CU_MEMHOSTREGISTER_PORTABLE) !=
+            CUDA_SUCCESS) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
         context->cuda_registered = true;
-        if (::cudaHostGetDevicePointer(&context->device_control,
-                                       context->control_mapping, 0) !=
-            cudaSuccess) {
+        CUdeviceptr device_control = 0;
+        if (::cuMemHostGetDevicePointer(&device_control,
+                                        context->control_mapping, 0) !=
+                CUDA_SUCCESS ||
+            device_control == 0) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
+        context->device_control = reinterpret_cast<void*>(
+            static_cast<std::uintptr_t>(device_control));
         CUcontext cuda_context = nullptr;
         CUdevice device = -1;
         if (::cuCtxGetCurrent(&cuda_context) != CUDA_SUCCESS ||

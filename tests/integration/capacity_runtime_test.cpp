@@ -306,7 +306,7 @@ int main()
     for (const char* operation : {"cuMemGetAllocationGranularity",
                                   "cuMemAddressReserve", "cuMemCreate",
                                   "cuMemMap", "cuMemSetAccess",
-                                  "cudaHostAlloc", "cuCtxSetCurrent",
+                                  "cuMemHostAlloc", "cuCtxSetCurrent",
                                   "cuCtxGetCurrent", "cuCtxGetDevice"}) {
         fakeCudaCapacityReset();
         fakeCudaCapacityFail(operation, 1);

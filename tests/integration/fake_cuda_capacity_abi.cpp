@@ -165,6 +165,23 @@ CUresult CUDAAPI cuMemSetAccess(CUdeviceptr address, std::size_t bytes,
                : CUDA_ERROR_INVALID_VALUE;
 }
 
+CUresult CUDAAPI cuMemHostAlloc(void** data, std::size_t bytes,
+                                unsigned int flags)
+{
+    if (flags != 0) {
+        return CUDA_ERROR_INVALID_VALUE;
+    }
+    return fakeCudaImplHostAlloc(data, bytes) == 0
+               ? CUDA_SUCCESS
+               : CUDA_ERROR_OUT_OF_MEMORY;
+}
+
+CUresult CUDAAPI cuMemFreeHost(void* data)
+{
+    return fakeCudaImplFreeHost(data) == 0 ? CUDA_SUCCESS
+                                           : CUDA_ERROR_INVALID_VALUE;
+}
+
 cudaError_t CUDARTAPI cudaHostAlloc(void** data, std::size_t bytes,
                                     unsigned int flags)
 {

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -69,6 +70,14 @@ def main() -> int:
     require("hbfsim_coverage_add_range" not in exported,
             "launch gate exports a range-registration bypass")
 
+    dynamic = subprocess.run(
+        [sys.argv[6], "-d", str(library)],
+        check=True, text=True, capture_output=True
+    ).stdout
+    require("libcudart.so" not in dynamic,
+            "launch gate has a direct libcudart dependency; runtime forwarding "
+            "could cross CUDA runtime providers")
+
     source = pathlib.Path(sys.argv[3]).read_text()
     require("hbfsim_coverage_add_range" not in source,
             "launch gate source retains a range-registration bypass")
@@ -90,6 +99,26 @@ def main() -> int:
             "driver-entry lookup map contains invalid runtime API names")
     require("RTLD_DEFAULT" not in source,
             "lookup substitution must not rediscover wrappers via RTLD_DEFAULT")
+    driver_resolver = function_body(source, "driver_symbol(")
+    raw_resolver = function_body(source, "raw_dlsym(")
+    runtime_resolver = function_body(
+        source, "void* runtime_symbol(const char* name)\n{")
+    driver_synchronize = function_body(
+        source, "CUresult synchronize_driver_context()\n{")
+    require("raw_dlsym(driver, name)" in driver_resolver and
+            "RTLD_NOW | RTLD_LOCAL" in driver_resolver and
+            'environment_or("HBFSIM_CUDA_DRIVER", "libcuda.so.1")' in
+            driver_resolver and
+            'dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5")' in raw_resolver,
+            "gated driver forwarding does not use an explicit raw local handle")
+    require("raw_dlsym(RTLD_NEXT, name)" in runtime_resolver,
+            "runtime forwarding is not relative to the preload link-map entry")
+    require('driver_symbol("cuCtxSynchronize")' in driver_synchronize and
+            "CUDA_ERROR_NOT_INITIALIZED" in driver_synchronize and
+            "::cudaDeviceSynchronize" not in source,
+            "range mutation does not synchronize the active driver context")
+    require(re.search(r"(?<![A-Za-z0-9_])dlsym\(RTLD_NEXT", source) is None,
+            "runtime forwarding bypasses the provider-neutral resolver")
     driver_lifecycle = {
         "cuModuleLoadDataEx", "cuModuleUnload", "cuCtxDestroy",
         "cuCtxDestroy_v2", "cuCtxDetach", "cuDevicePrimaryCtxReset",
@@ -117,7 +146,7 @@ def main() -> int:
     module_load = function_body(source, "cuModuleLoadDataEx(")
     require("module_load_transactions().take" in module_load and
             module_load.find("module_load_transactions().take") <
-            module_load.find("dlsym(RTLD_NEXT") and
+            module_load.find('driver_symbol("cuModuleLoadDataEx")') and
             "live_module_identity" in module_load and
             "module_identities().associate" in module_load,
             "module load does not bind successful exact pass provenance")
@@ -177,6 +206,14 @@ def main() -> int:
     require(driver_multi.find("runtime_launch_in_progress") <
             driver_multi.find("launch_guard()"),
             "driver multi-device runtime bypass must precede range locking")
+    driver_ex_forward = function_body(source, "forward_driver_ex(")
+    require("driver_symbol(symbol)" in driver_ex_forward,
+            "public driver Ex forwarding does not use the frozen local driver")
+    require('extern "C" void* dlsym(' not in source and
+            "remember_private_launch_ex_original" not in source and
+            "exact_private_launch_ex_original" not in source,
+            "launch gate must not replace handle-specific dlsym results; "
+            "capacity callers enforce pointer provenance before opaque launches")
     return 0
 
 

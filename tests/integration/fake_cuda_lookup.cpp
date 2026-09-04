@@ -369,6 +369,31 @@ int cudaHostUnregister(void*)
     return unregister_fails ? 1 : 0;
 }
 
+int cuMemHostRegister_v2(void* host, std::size_t bytes, unsigned int flags)
+{
+    return cudaHostRegister(host, bytes, flags);
+}
+
+int cuMemHostGetDevicePointer_v2(std::uintptr_t* device, void* host,
+                                 unsigned int flags)
+{
+    if (device == nullptr || host == nullptr || flags != 0) {
+        return 1;
+    }
+    *device = reinterpret_cast<std::uintptr_t>(host);
+    return 0;
+}
+
+int cuCtxSynchronize()
+{
+    return cudaDeviceSynchronize();
+}
+
+int cuMemHostUnregister(void* host)
+{
+    return cudaHostUnregister(host);
+}
+
 int cudaThreadExit()
 {
     return destroy_context(current_context);
@@ -722,7 +747,7 @@ int fakeCudaImplHostAlloc(void** data, std::size_t bytes)
 {
     std::lock_guard lock(capacity_mutex);
     if (data == nullptr || bytes == 0 ||
-        capacity_should_fail_locked("cudaHostAlloc")) {
+        capacity_should_fail_locked("cuMemHostAlloc")) {
         return 1;
     }
     void* storage = std::malloc(bytes);
@@ -740,7 +765,7 @@ int fakeCudaImplFreeHost(void* data)
     std::lock_guard lock(capacity_mutex);
     const auto found = capacity_pinned.find(data);
     if (found == capacity_pinned.end() ||
-        capacity_should_fail_locked("cudaFreeHost")) {
+        capacity_should_fail_locked("cuMemFreeHost")) {
         return 1;
     }
     std::free(data);

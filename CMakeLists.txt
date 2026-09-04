@@ -650,6 +650,9 @@ if(CUDAToolkit_FOUND)
             endforeach()
         endif()
         find_program(HBFSIM_NM_EXECUTABLE NAMES llvm-nm nm REQUIRED)
+        find_program(
+            HBFSIM_READELF_EXECUTABLE NAMES llvm-readelf readelf REQUIRED
+        )
         add_test(
             NAME launch_gate_symbols
             COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
@@ -657,8 +660,9 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "${HBFSIM_NM_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/launch_gate.cpp"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/context.cpp"
-                    "${CUDAToolkit_VERSION}"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/context.cpp"
+                     "${CUDAToolkit_VERSION}"
+                     "${HBFSIM_READELF_EXECUTABLE}"
         )
         add_test(
             NAME cuda_lookup_interposition
@@ -667,6 +671,16 @@ if(CUDAToolkit_FOUND)
                     "$<TARGET_FILE:hbfsim_launch_gate>"
                     "$<TARGET_FILE:fake_cuda_lookup>"
                     "${CUDAToolkit_VERSION}"
+        )
+        add_test(
+            NAME late_loaded_launch_gate
+            COMMAND
+                "${CMAKE_COMMAND}" -E env
+                "HBFSIM_CUDA_DRIVER=$<TARGET_FILE:fake_cuda_lookup>"
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_late_loaded_launch_gate.py"
+                "$<TARGET_FILE:hbfsim_launch_gate>"
+                "$<TARGET_FILE:fake_cuda_lookup>"
         )
         if(HBFSIM_ENABLE_CUDA)
             add_test(
@@ -695,7 +709,10 @@ endif()
 
 if(HBFSIM_ENABLE_CUDA)
     target_compile_definitions(hbfsim_core PRIVATE HBFSIM_ENABLE_CUDA_RUNTIME=1)
-    target_link_libraries(hbfsim_core PRIVATE CUDA::cudart CUDA::cuda_driver)
+    # hbfsim_core is loaded into framework processes whose CUDA runtime may be
+    # older than the toolkit used to build HBFSim.  Keep it driver-only so the
+    # vLLM extension cannot introduce a second libcudart provider.
+    target_link_libraries(hbfsim_core PRIVATE CUDA::cuda_driver)
     enable_language(CUDA)
 
     add_subdirectory(benchmarks/cuda)
@@ -723,6 +740,20 @@ if(HBFSIM_ENABLE_CUDA)
         hbfsim_vllm_extension PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
+    if(BUILD_TESTING)
+        add_test(
+            NAME vllm_extension_driver_only
+            COMMAND
+                "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_vllm_extension_driver_only.py"
+                "$<TARGET_FILE:hbfsim_vllm_extension>"
+                "${HBFSIM_READELF_EXECUTABLE}"
+                "${HBFSIM_NM_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/context.cpp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/capacity_runtime.cpp"
+        )
+    endif()
 
     if(BUILD_TESTING AND TARGET fake_cuda_lookup AND TARGET hbfsim_launch_gate)
         add_executable(

@@ -11,7 +11,7 @@ import collections
 import heapq
 import math
 from dataclasses import dataclass
-from typing import Hashable, Iterable
+from typing import Iterable
 
 ExpertKey = tuple[int, int]
 

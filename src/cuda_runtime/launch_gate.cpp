@@ -42,11 +42,27 @@ struct CudaDomain {
 };
 
 std::optional<CudaDomain> current_cuda_domain();
+void* runtime_symbol(const char* name);
+CUresult synchronize_driver_context();
 
 const char* environment_or(const char* name, const char* fallback)
 {
     const char* value = std::getenv(name);
     return value != nullptr && value[0] != '\0' ? value : fallback;
+}
+
+bool diagnostic_enabled(const char* name)
+{
+    const char* value = std::getenv(name);
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
+
+hbfsim::GateDecision diagnostic_forward_only(const char* kernel)
+{
+    return {.allowed = true,
+            .module_id = "diagnostic:forward-only",
+            .kernel = kernel,
+            .reason = "diagnostic_forward_only"};
 }
 
 class RuntimeGate {
@@ -107,7 +123,7 @@ class RuntimeGate {
             if (!domain.has_value() ||
                 !timing_bindings().active_domain(domain->context,
                                                  domain->device) ||
-                ::cudaDeviceSynchronize() != cudaSuccess) {
+                synchronize_driver_context() != CUDA_SUCCESS) {
                 return -1;
             }
             if (publish(publish_state) != 0) {
@@ -257,10 +273,37 @@ hbfsim::ModuleLoadTransactionStore& module_load_transactions()
     return transactions;
 }
 
+void* raw_dlsym(void* handle, const char* name)
+{
+    using type = void* (*)(void*, const char*);
+    static auto original = reinterpret_cast<type>(
+        dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5"));
+    return original == nullptr ? nullptr : original(handle, name);
+}
+
+void* runtime_symbol(const char* name)
+{
+    // Resolve the runtime that follows this preload object in the caller's
+    // link map.  The gate must not acquire a build-toolkit libcudart
+    // dependency: PyTorch/vLLM may intentionally use a different compatible
+    // CUDA runtime, and forwarding into another runtime corrupts its handles.
+    return raw_dlsym(RTLD_NEXT, name);
+}
+
 void* driver_symbol(const char* name)
 {
-    static void* driver = dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
-    return driver == nullptr ? nullptr : dlsym(driver, name);
+    static void* driver = dlopen(
+        environment_or("HBFSIM_CUDA_DRIVER", "libcuda.so.1"),
+        RTLD_NOW | RTLD_LOCAL);
+    return driver == nullptr ? nullptr : raw_dlsym(driver, name);
+}
+
+CUresult synchronize_driver_context()
+{
+    using type = CUresult (*)();
+    auto synchronize = reinterpret_cast<type>(
+        driver_symbol("cuCtxSynchronize"));
+    return synchronize == nullptr ? CUDA_ERROR_NOT_INITIALIZED : synchronize();
 }
 
 std::optional<hbfsim::ModuleIdentity> live_module_identity(CUmodule module)
@@ -714,6 +757,9 @@ inspect_bounded(Handle handle, std::string runtime_module_id,
 hbfsim::GateDecision inspect_function_launch(CUfunction function,
                                              void** arguments, void** extra)
 {
+    if (diagnostic_enabled("HBFSIM_DIAGNOSTIC_FORWARD_ONLY")) {
+        return diagnostic_forward_only("driver_function_launch");
+    }
     const auto module_id = handle_id(function);
     const auto kernel = function_name(function);
     if (extra != nullptr) {
@@ -735,6 +781,9 @@ hbfsim::GateDecision inspect_function_launch(CUfunction function,
 hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
                                            void** arguments)
 {
+    if (diagnostic_enabled("HBFSIM_DIAGNOSTIC_FORWARD_ONLY")) {
+        return diagnostic_forward_only("runtime_kernel_launch");
+    }
     const CUfunction function = kernel_function(kernel);
     if (function != nullptr) {
         return inspect_function_launch(function, arguments, nullptr);
@@ -762,9 +811,12 @@ hbfsim::GateDecision inspect_kernel_launch(cudaKernel_t kernel,
 
 hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
 {
+    if (diagnostic_enabled("HBFSIM_DIAGNOSTIC_FORWARD_ONLY")) {
+        return diagnostic_forward_only("runtime_symbol_launch");
+    }
     using get_function_type = cudaError_t (*)(cudaFunction_t*, const void*);
     static auto get_function = reinterpret_cast<get_function_type>(
-        dlsym(RTLD_NEXT, "cudaGetFuncBySymbol"));
+        runtime_symbol("cudaGetFuncBySymbol"));
     cudaFunction_t runtime_function = nullptr;
     if (get_function == nullptr ||
         get_function(&runtime_function, symbol) != cudaSuccess ||
@@ -814,7 +866,7 @@ CUresult driver_launch(const char* symbol, CUfunction function,
                        void** parameters, void** extra)
 {
     auto original =
-        reinterpret_cast<driver_launch_type>(dlsym(RTLD_NEXT, symbol));
+        reinterpret_cast<driver_launch_type>(driver_symbol(symbol));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -839,7 +891,7 @@ cudaError_t runtime_launch(const char* symbol, const void* function, dim3 grid,
                            std::size_t shared_memory, cudaStream_t stream)
 {
     auto original =
-        reinterpret_cast<runtime_launch_type>(dlsym(RTLD_NEXT, symbol));
+        reinterpret_cast<runtime_launch_type>(runtime_symbol(symbol));
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
@@ -860,7 +912,7 @@ cudaError_t kernel_launch(const char* symbol, cudaKernel_t kernel, dim3 grid,
                           std::size_t shared_memory, cudaStream_t stream)
 {
     auto original =
-        reinterpret_cast<kernel_launch_type>(dlsym(RTLD_NEXT, symbol));
+        reinterpret_cast<kernel_launch_type>(runtime_symbol(symbol));
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
@@ -929,7 +981,7 @@ HBFSIM_DRIVER_LAUNCH(cuLaunchKernel_ptsz)
             CUresult (*)(CUfunction, unsigned int, unsigned int, unsigned int, \
                          unsigned int, unsigned int, unsigned int,             \
                          unsigned int, CUstream, void**);                      \
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, #name));       \
+        auto original = reinterpret_cast<type>(driver_symbol(#name));          \
         if (original == nullptr)                                               \
             return CUDA_ERROR_NOT_INITIALIZED;                                 \
         if (runtime_launch_in_progress)                                        \
@@ -971,25 +1023,32 @@ HBFSIM_RUNTIME_LAUNCH(cudaLaunchCooperativeKernel_ptsz)
 HBFSIM_KERNEL_LAUNCH(__cudaLaunchKernel)
 HBFSIM_KERNEL_LAUNCH(__cudaLaunchKernel_ptsz)
 
+CUresult forward_driver_ex(const char* symbol, const CUlaunchConfig* config,
+                           CUfunction function, void** parameters, void** extra)
+{
+    using type =
+        CUresult (*)(const CUlaunchConfig*, CUfunction, void**, void**);
+    auto original = reinterpret_cast<type>(driver_symbol(symbol));
+    return original == nullptr
+               ? CUDA_ERROR_NOT_INITIALIZED
+               : original(config, function, parameters, extra);
+}
+
 #define HBFSIM_DRIVER_EX(name)                                                 \
     extern "C" CUresult name(const CUlaunchConfig* config,                     \
                              CUfunction function, void** parameters,           \
                              void** extra)                                     \
     {                                                                          \
-        using type =                                                           \
-            CUresult (*)(const CUlaunchConfig*, CUfunction, void**, void**);   \
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, #name));       \
-        if (original == nullptr)                                               \
-            return CUDA_ERROR_NOT_INITIALIZED;                                 \
         if (runtime_launch_in_progress)                                        \
-            return original(config, function, parameters, extra);              \
+            return forward_driver_ex(#name, config, function, parameters,      \
+                                     extra);                                   \
         auto guard = runtime_gate().launch_guard();                            \
         const auto decision =                                                  \
             inspect_function_launch(function, parameters, extra);              \
         if (!approve(decision))                                                \
             return CUDA_ERROR_NOT_SUPPORTED;                                   \
         RuntimeLaunchScope scope;                                              \
-        return original(config, function, parameters, extra);                  \
+        return forward_driver_ex(#name, config, function, parameters, extra);  \
     }
 HBFSIM_DRIVER_EX(cuLaunchKernelEx)
 HBFSIM_DRIVER_EX(cuLaunchKernelEx_ptsz)
@@ -1000,7 +1059,7 @@ HBFSIM_DRIVER_EX(cuLaunchKernelEx_ptsz)
     {                                                                          \
         using type =                                                           \
             cudaError_t (*)(const cudaLaunchConfig_t*, const void*, void**);   \
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, #name));       \
+        auto original = reinterpret_cast<type>(runtime_symbol(#name));         \
         if (original == nullptr)                                               \
             return cudaErrorInitializationError;                               \
         auto guard = runtime_gate().launch_guard();                            \
@@ -1015,6 +1074,9 @@ HBFSIM_RUNTIME_EX(cudaLaunchKernelExC_ptsz)
 
 hbfsim::GateDecision opaque_launch(const char* kind)
 {
+    if (diagnostic_enabled("HBFSIM_DIAGNOSTIC_FORWARD_ONLY")) {
+        return diagnostic_forward_only(kind);
+    }
     auto& gate = runtime_gate().gate();
     return hbfsim::uninspectable_launch_decision(
         gate.has_ranges(), gate.has_strict_ranges(), kind);
@@ -1023,7 +1085,7 @@ hbfsim::GateDecision opaque_launch(const char* kind)
 extern "C" CUresult cuLaunch(CUfunction function)
 {
     using type = CUresult (*)(CUfunction);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuLaunch"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuLaunch"));
     if (original == nullptr)
         return CUDA_ERROR_NOT_INITIALIZED;
     if (runtime_launch_in_progress)
@@ -1038,7 +1100,7 @@ extern "C" CUresult cuLaunchGrid(CUfunction function, int grid_width,
                                  int grid_height)
 {
     using type = CUresult (*)(CUfunction, int, int);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuLaunchGrid"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuLaunchGrid"));
     if (original == nullptr)
         return CUDA_ERROR_NOT_INITIALIZED;
     if (runtime_launch_in_progress) {
@@ -1055,7 +1117,7 @@ extern "C" CUresult cuLaunchGridAsync(CUfunction function, int grid_width,
 {
     using type = CUresult (*)(CUfunction, int, int, CUstream);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuLaunchGridAsync"));
+        reinterpret_cast<type>(driver_symbol("cuLaunchGridAsync"));
     if (original == nullptr)
         return CUDA_ERROR_NOT_INITIALIZED;
     if (runtime_launch_in_progress) {
@@ -1071,7 +1133,7 @@ extern "C" CUresult cuLaunchGridAsync(CUfunction function, int grid_width,
     extern "C" CUresult name(CUgraphExec graph, CUstream stream)               \
     {                                                                          \
         using type = CUresult (*)(CUgraphExec, CUstream);                      \
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, #name));       \
+        auto original = reinterpret_cast<type>(driver_symbol(#name));          \
         if (original == nullptr)                                               \
             return CUDA_ERROR_NOT_INITIALIZED;                                 \
         if (runtime_launch_in_progress)                                        \
@@ -1088,7 +1150,7 @@ HBFSIM_DRIVER_GRAPH(cuGraphLaunch_ptsz)
     extern "C" cudaError_t name(cudaGraphExec_t graph, cudaStream_t stream)    \
     {                                                                          \
         using type = cudaError_t (*)(cudaGraphExec_t, cudaStream_t);           \
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, #name));       \
+        auto original = reinterpret_cast<type>(runtime_symbol(#name));         \
         if (original == nullptr)                                               \
             return cudaErrorInitializationError;                               \
         auto guard = runtime_gate().launch_guard();                            \
@@ -1106,7 +1168,7 @@ cuLaunchCooperativeKernelMultiDevice(CUDA_LAUNCH_PARAMS* launches,
 {
     using type = CUresult (*)(CUDA_LAUNCH_PARAMS*, unsigned int, unsigned int);
     auto original = reinterpret_cast<type>(
-        dlsym(RTLD_NEXT, "cuLaunchCooperativeKernelMultiDevice"));
+        driver_symbol("cuLaunchCooperativeKernelMultiDevice"));
     if (original == nullptr)
         return CUDA_ERROR_NOT_INITIALIZED;
     if (runtime_launch_in_progress)
@@ -1132,7 +1194,7 @@ cudaLaunchCooperativeKernelMultiDevice(struct cudaLaunchParams* launches,
     using type =
         cudaError_t (*)(struct cudaLaunchParams*, unsigned int, unsigned int);
     auto original = reinterpret_cast<type>(
-        dlsym(RTLD_NEXT, "cudaLaunchCooperativeKernelMultiDevice"));
+        runtime_symbol("cudaLaunchCooperativeKernelMultiDevice"));
     if (original == nullptr)
         return cudaErrorInitializationError;
     auto guard = runtime_gate().launch_guard();
@@ -1201,7 +1263,7 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     using type = CUresult (*)(CUmodule*, const void*, unsigned int,
                               CUjit_option*, void**);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuModuleLoadDataEx"));
+        reinterpret_cast<type>(driver_symbol("cuModuleLoadDataEx"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1230,7 +1292,7 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
 extern "C" CUresult cuModuleUnload(CUmodule module)
 {
     using type = CUresult (*)(CUmodule);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuModuleUnload"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuModuleUnload"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1246,7 +1308,7 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
 extern "C" CUresult cuCtxDestroy(CUcontext context)
 {
     using type = CUresult (*)(CUcontext);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDestroy"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuCtxDestroy"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1265,7 +1327,7 @@ extern "C" CUresult cuCtxDestroy(CUcontext context)
 extern "C" CUresult cuCtxDestroy_v2(CUcontext context)
 {
     using type = CUresult (*)(CUcontext);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDestroy_v2"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuCtxDestroy_v2"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1284,7 +1346,7 @@ extern "C" CUresult cuCtxDestroy_v2(CUcontext context)
 extern "C" CUresult cuCtxDetach(CUcontext context)
 {
     using type = CUresult (*)(CUcontext);
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuCtxDetach"));
+    auto original = reinterpret_cast<type>(driver_symbol("cuCtxDetach"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1304,7 +1366,7 @@ extern "C" CUresult cuDevicePrimaryCtxReset(CUdevice device)
 {
     using type = CUresult (*)(CUdevice);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxReset"));
+        reinterpret_cast<type>(driver_symbol("cuDevicePrimaryCtxReset"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1323,7 +1385,7 @@ extern "C" CUresult cuDevicePrimaryCtxReset_v2(CUdevice device)
 {
     using type = CUresult (*)(CUdevice);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxReset_v2"));
+        reinterpret_cast<type>(driver_symbol("cuDevicePrimaryCtxReset_v2"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1342,7 +1404,7 @@ extern "C" CUresult cuDevicePrimaryCtxRelease(CUdevice device)
 {
     using type = CUresult (*)(CUdevice);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuDevicePrimaryCtxRelease"));
+        reinterpret_cast<type>(driver_symbol("cuDevicePrimaryCtxRelease"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1361,7 +1423,7 @@ extern "C" CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device)
 {
     using type = CUresult (*)(CUdevice);
     auto original = reinterpret_cast<type>(
-        dlsym(RTLD_NEXT, "cuDevicePrimaryCtxRelease_v2"));
+        driver_symbol("cuDevicePrimaryCtxRelease_v2"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1382,7 +1444,7 @@ extern "C" CUresult cuGreenCtxDestroy(CUgreenCtx context)
     using type = CUresult (*)(CUgreenCtx);
     using from_green_type = CUresult (*)(CUcontext*, CUgreenCtx);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGreenCtxDestroy"));
+        reinterpret_cast<type>(driver_symbol("cuGreenCtxDestroy"));
     auto from_green = reinterpret_cast<from_green_type>(
         driver_symbol("cuCtxFromGreenCtx"));
     CUcontext cuda_context = nullptr;
@@ -1409,7 +1471,8 @@ extern "C" CUresult cuGreenCtxDestroy(CUgreenCtx context)
 extern "C" cudaError_t cudaDeviceReset()
 {
     using type = cudaError_t (*)();
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cudaDeviceReset"));
+    auto original =
+        reinterpret_cast<type>(runtime_symbol("cudaDeviceReset"));
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
@@ -1430,7 +1493,8 @@ extern "C" cudaError_t cudaDeviceReset()
 extern "C" cudaError_t cudaThreadExit()
 {
     using type = cudaError_t (*)();
-    auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, "cudaThreadExit"));
+    auto original =
+        reinterpret_cast<type>(runtime_symbol("cudaThreadExit"));
     if (original == nullptr) {
         return cudaErrorInitializationError;
     }
@@ -1522,6 +1586,9 @@ void substitute_gated_launch(const char* symbol, void** function,
     if (function == nullptr || *function == nullptr) {
         return;
     }
+    if (diagnostic_enabled("HBFSIM_DIAGNOSTIC_PRESERVE_LOOKUP_PROVIDER")) {
+        return;
+    }
     if (void* replacement = interposed_wrapper_address(symbol, per_thread)) {
         *function = replacement;
     }
@@ -1534,7 +1601,7 @@ extern "C" CUresult cuGetProcAddress(const char* symbol, void** function,
 {
     using type = CUresult (*)(const char*, void**, int, cuuint64_t);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGetProcAddress"));
+        reinterpret_cast<type>(driver_symbol("cuGetProcAddress"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1554,7 +1621,7 @@ extern "C" CUresult cuGetProcAddress_v2(const char* symbol, void** function,
     using type = CUresult (*)(const char*, void**, int, cuuint64_t,
                               CUdriverProcAddressQueryResult*);
     auto original =
-        reinterpret_cast<type>(dlsym(RTLD_NEXT, "cuGetProcAddress_v2"));
+        reinterpret_cast<type>(driver_symbol("cuGetProcAddress_v2"));
     if (original == nullptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -1579,7 +1646,8 @@ cudaError_t runtime_driver_entry_point(const char* lookup_symbol,
     if (cuda_version == nullptr) {
         using type = cudaError_t (*)(const char*, void**, unsigned long long,
                                      cudaDriverEntryPointQueryResult*);
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, lookup_symbol));
+        auto original =
+            reinterpret_cast<type>(runtime_symbol(lookup_symbol));
         if (original != nullptr) {
             result = original(symbol, function, flags, status);
         }
@@ -1587,7 +1655,8 @@ cudaError_t runtime_driver_entry_point(const char* lookup_symbol,
         using type = cudaError_t (*)(const char*, void**, unsigned int,
                                      unsigned long long,
                                      cudaDriverEntryPointQueryResult*);
-        auto original = reinterpret_cast<type>(dlsym(RTLD_NEXT, lookup_symbol));
+        auto original =
+            reinterpret_cast<type>(runtime_symbol(lookup_symbol));
         if (original != nullptr) {
             result = original(symbol, function, *cuda_version, flags, status);
         }
@@ -1629,27 +1698,3 @@ HBFSIM_RUNTIME_DRIVER_ENTRY(cudaGetDriverEntryPoint_ptsz)
 
 HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion)
 HBFSIM_RUNTIME_DRIVER_ENTRY_VERSIONED(cudaGetDriverEntryPointByVersion_ptsz)
-
-// Triton 3.5 resolves cuLaunchKernelEx from a private libcuda handle. A normal
-// LD_PRELOAD export and CUDA's cuGetProcAddress interposition cannot see that
-// handle-specific lookup, so substitute only these launch entry points. Calls
-// made by this gate use RTLD_NEXT and continue to resolve the real driver.
-extern "C" void* dlsym(void* handle, const char* symbol)
-{
-    using type = void* (*)(void*, const char*);
-    static auto original = reinterpret_cast<type>(
-        dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5"));
-    if (original == nullptr) {
-        return nullptr;
-    }
-    void* resolved = original(handle, symbol);
-    if (handle != RTLD_NEXT && resolved != nullptr) {
-        if (std::strcmp(symbol, "cuLaunchKernelEx") == 0) {
-            return wrapper_address(&cuLaunchKernelEx);
-        }
-        if (std::strcmp(symbol, "cuLaunchKernelEx_ptsz") == 0) {
-            return wrapper_address(&cuLaunchKernelEx_ptsz);
-        }
-    }
-    return resolved;
-}

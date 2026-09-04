@@ -44,3 +44,47 @@ Formal sweeps randomize the ratio/policy/timing-mode execution order with
 `--order-seed`. `--ratio` and `--policy` may be repeated to restrict expensive
 reference/MQSim validation to preselected points without changing the canonical
 cell manifest or its `CellID`.
+
+## E6 experts-only capacity staging
+
+The E6 path is explicitly opt-in.  A per-cell, generated `.dist-info` overlay
+exposes one `vllm.general_plugins` entry point, `hbfsim_capacity`; the overlay
+and `VLLM_PLUGINS=hbfsim_capacity` are present only for an E6 cell.  The plugin
+registers the custom `hbfsim_capacity` load format and lazily replaces the
+`Qwen3MoeForCausalLM` architecture for that process.  With the overlay absent,
+vLLM resolves its native Qwen model and default loader unchanged.
+
+The capacity loader is local-only and fails closed unless the frozen model,
+manifest SHA256, model fingerprint, geometry, shard sizes, and all 18,432
+expert tensor header records agree.  It reads safetensors payloads only for
+non-expert keys.  Expert payloads are mapped read-only through one worker-owned
+HBFSim context during model load, which allocates the full-resident capacity
+cache early and holds it until teardown.
+
+The model allocates routers and all native non-expert parameters, but no
+`SharedFusedMoE` expert parameters.  For each layer it computes native top-k
+routing, stages the unique selected experts through the instrumented
+`hbfsim_capacity_copy_bf16` kernel into one reusable ordinary BF16 `w13`/`w2`
+workspace, remaps expert IDs to compact slots, and calls frozen vLLM
+`fused_experts`.  HBFSim logical pointers are never passed to the fused-MoE
+kernel.  The generation state machine rejects duplicate in-flight stages,
+stale generations, and use before staging completion.
+
+`run_capacity_pilot.py` enforces Python 3.13, vLLM 0.15.1, Torch CUDA 12.8,
+the frozen manifest, local/offline model use, at least 4 GiB free disk, and a
+continuous no-external-GPU-process gate before importing the CUDA workload.  A
+watchdog records any external compute process appearing during the cell; such a
+cell is marked contaminated.  It never terminates, pauses, or modifies another
+process and never uses a dummy memory reservation.
+
+Required E6 environment variables are:
+
+- `HBFSIM_CAPACITY_MANIFEST` and `HBFSIM_CAPACITY_MANIFEST_SHA256`
+- `HBFSIM_CAPACITY_LIBRARY`, `HBFSIM_CAPACITY_PROFILE`, and
+  `HBFSIM_CAPACITY_REPORT_DIR`
+- `HBFSIM_CAPACITY_NVCC`, `HBFSIM_CAPACITY_PASS_LIBRARY`, and
+  `HBFSIM_CAPACITY_PREPARE_PTX`
+
+The E6 contract is single-rank, eager, BF16, `max_num_seqs=1`, with EPLB,
+expert parallelism, sequence-parallel MoE, shared experts, quantization,
+speculation, and online downloads disabled.

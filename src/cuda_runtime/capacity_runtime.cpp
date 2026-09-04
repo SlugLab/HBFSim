@@ -2,7 +2,6 @@
 
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
 #include <cuda.h>
-#include <cuda_runtime_api.h>
 #endif
 
 #include <chrono>
@@ -59,7 +58,7 @@ CapacityRuntime::PinnedPage CapacityRuntime::PinnedPage::allocate(
     }
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     void* data = nullptr;
-    if (::cudaHostAlloc(&data, bytes, cudaHostAllocDefault) != cudaSuccess ||
+    if (::cuMemHostAlloc(&data, bytes, 0) != CUDA_SUCCESS ||
         data == nullptr) {
         throw std::runtime_error("failed to allocate CUDA capacity bounce page");
     }
@@ -76,7 +75,7 @@ bool CapacityRuntime::PinnedPage::release() noexcept
 {
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
     if (data_ != nullptr) {
-        if (::cudaFreeHost(data_) != cudaSuccess) {
+        if (::cuMemFreeHost(data_) != CUDA_SUCCESS) {
             return false;
         }
     }

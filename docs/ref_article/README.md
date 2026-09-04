@@ -722,7 +722,11 @@ either axis, so nothing here can be used as a measurement.
 > 2026-02-10.
 
 - Original filename: `HBF_Workload_and_Roadmap_Joungho_Kim.pdf`; the creation
-  time recorded inside the PDF is 2026-02-10, matching the seminar date.
+  time recorded inside the PDF is 2026-02-10, matching the seminar date. The
+  cover page of the deck itself prints `2026.2. 3`, seven days earlier than the
+  creation time; the likely reading is that the cover carries the date the deck
+  was prepared and the file was exported on the day of the seminar, but nobody
+  has confirmed that with the author.
 - Obtained by pulling the real link out of the HTML of
   <https://tera.kaist.ac.kr/home> and downloading it from there.
 - SHA-256: `7e4af8289b1a9fac887ba42e464bcb90149e84a3c97b130b5a923b020e49de9c`.

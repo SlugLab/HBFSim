@@ -2,10 +2,10 @@
 
 **What this directory is.** Fourteen places in the code where our reading of the source
 does not match what we expected, written up one point per file and numbered 00 to 14 with
-no 06, followed by four files that are not code points, numbered 15 to 18: the experiments that
+no 06, followed by five files that are not code points, numbered 15 to 19: the experiments that
 have to be added before submission, the questions only you can answer, a priority-ordered
-list of work we could add before 2026-09-15, and a check of every claim we make about the
-device against the OCP specification. One further file sits in the subdirectory
+list of work we could add before 2026-09-15, a check of every claim we make about the
+device against the OCP specification, and the hardware-grounded Evaluation plan. One further file sits in the subdirectory
 `cuda-problems-from-new-collaborator/` and did not come from us. You wrote the
 implementation, so every point here is a question rather than a finding: we describe the
 lines we read, why the lines surprised us, and where our reading could be wrong. Any of
@@ -35,7 +35,7 @@ points were written, which carried no meaning, and a point's number here does no
 the number the same point had earlier. The directory was renamed at the same time, from
 `docs/可能潜在代码实现问题请求审查` to `docs/重要实现问题以及需补做实验`.
 
-**The four files that are not code points.**
+**The five files that are not code points.**
 
 - `15-experiments-we-must-add-before-submission.md` — the experiments that have to be run
   before submission, sixteen items in six groups, described in full at the end of this
@@ -51,6 +51,9 @@ the number the same point had earlier. The directory was renamed at the same tim
   actually says, with a page number for every item, and seven statements of our own that
   the specification forces us to withdraw or change. Four of the code points below exist
   because of findings in that file.
+- `19-hardware-grounded-evaluation-plan.md` — hardware-grounded Evaluation structure,
+  validation contract, fidelity/cost methodology, and concentrated HBM–HBF LLM
+  design-space study.
 
 **The subdirectory `cuda-problems-from-new-collaborator/`.** One file,
 `cuda-architecture-compatibility.md`, which is not one of our review points. That file
@@ -161,7 +164,7 @@ point that remains is not confused with the point that fell.
 
 ## What each file here is for, and the one list kept outside this directory
 
-The fourteen code points and the four files that go with the fourteen code points all live
+The fourteen code points and the five files that go with the fourteen code points all live
 in this directory. One list is still kept outside: `todo/facts-to-verify.md`.
 
 - **Files `00-...` through `14-...`** — places where the code does something other than
@@ -185,6 +188,9 @@ in this directory. One list is still kept outside: `todo/facts-to-verify.md`.
 - **`17-contributions-and-experiments-we-could-add.md` and
   `18-spec-conformance-findings.md`** — the work we could add and the check against the OCP
   specification, both described at the top of this README.
+- **`19-hardware-grounded-evaluation-plan.md`** — the formal Evaluation methodology and
+  execution plan, including hardware reference hierarchy, fidelity/cost validation, claim
+  gates, and the concentrated HBM–HBF LLM design-space study.
 - **`todo/facts-to-verify.md`, the one list outside this directory** — facts that have to
   be checked before they are allowed into the paper.
 

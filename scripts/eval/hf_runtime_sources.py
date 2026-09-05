@@ -31,6 +31,8 @@ DIST_FILES = ('METADATA', 'WHEEL', 'INSTALLER', 'RECORD')
 REQUIRED_DIRECTORIES = ('flashinfer/data/csrc', 'flashinfer_cubin/cubins')
 ABSENT_PATTERNS = ('flashinfer/data/aot', 'flashinfer_jit_cache*', 'torch_c_dlpack_ext*')
 STDLIB_FILES = ('multiprocessing/shared_memory.py', 'multiprocessing/resource_tracker.py', 'tempfile.py')
+TUNING_SOURCE_FILES = ('vllm/model_executor/layers/fused_moe/__init__.py',
+                       'vllm/model_executor/layers/batch_invariant.py')
 # The initial 80-file source audit is extended with the selected loader/iterator,
 # execution config aliases, greedy sampler and no-EP dispatch decisions.
 SOURCE_FILES = tuple('''
@@ -135,8 +137,9 @@ def _dist_directory(name, version):
     return name.replace('-', '_') + '-' + version + '.dist-info'
 
 
-def _paths(site, stdlib):
-    paths = {'site-packages/'+name: site/name for name in SOURCE_FILES}
+def _paths(site, stdlib, include_tuning=False):
+    paths = {'site-packages/'+name: site/name
+             for name in SOURCE_FILES + (TUNING_SOURCE_FILES if include_tuning else ())}
     paths.update({'stdlib/'+name: stdlib/name for name in STDLIB_FILES})
     for name, version in DISTRIBUTIONS.items():
         directory = _dist_directory(name, version)
@@ -202,11 +205,13 @@ def _valid_file_identity(value):
         all(type(number) is int and number >= 0 for number in value.values())
 
 
-def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only):
+def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only, include_tuning=False):
+    if type(include_tuning) is not bool:
+        raise ValueError('runtime source extension must be an explicit boolean')
     if any(not path.is_absolute() or str(path) != os.path.normpath(str(path))
            for path in (site, stdlib)):
         raise ValueError('runtime roots must be canonical absolute paths')
-    paths = _paths(site, stdlib)
+    paths = _paths(site, stdlib, include_tuning)
     if set(artifacts) != set(paths) or set(states) != set(paths):
         raise ValueError('runtime source artifact set differs from finite contract')
     total = 0; ancestors = {}
@@ -253,31 +258,35 @@ def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only)
         raise ValueError('invalid bounded interpreter identity')
     if not test_only and interpreter['path'] != str(DEFAULT_INTERPRETER):
         raise ValueError('overridden interpreter requires TEST_ONLY evidence')
-    return dict(schema_version=1, evidence='TEST_ONLY' if test_only else 'RUNTIME_SOURCE_METADATA',
+    document = dict(schema_version=1, evidence='TEST_ONLY' if test_only else 'RUNTIME_SOURCE_METADATA',
         provenance='MOCK' if test_only else 'RUNTIME_SOURCE_METADATA', test_only=test_only,
         source_root=str(site), stdlib_root=str(stdlib), artifacts={k: metadata.digest(v) for k,v in artifacts.items()},
         source_states=states, directory_observations=presence, absent_patterns=list(ABSENT_PATTERNS),
-        distributions=_distribution_metadata(artifacts), source_file_count=len(SOURCE_FILES),
+        distributions=_distribution_metadata(artifacts), source_file_count=len(SOURCE_FILES)+(len(TUNING_SOURCE_FILES) if include_tuning else 0),
         stdlib_file_count=len(STDLIB_FILES), total_source_metadata_bytes=total, interpreter=interpreter,
         weight_payload_rehashed=False, all_runtime_binaries_authenticated=False,
         scientific_validation_passed=False,
         boundary='Selected Python sources and distribution metadata only; RECORD targets, native package binaries and directory contents are not authenticated.')
+    if include_tuning:document['source_extension']='MOE_TUNING_V1'
+    return document
 
 
-def collect_runtime_sources(*, source_root=None, stdlib_root=None, interpreter=None):
+def collect_runtime_sources(*, source_root=None, stdlib_root=None, interpreter=None, include_tuning=False):
     """Read the finite installed set; explicit path overrides always yield MOCK."""
+    if type(include_tuning) is not bool:
+        raise ValueError('runtime source extension must be an explicit boolean')
     test_only = any(value is not None for value in (source_root, stdlib_root, interpreter))
     site = Path(source_root or DEFAULT_SOURCE_ROOT).absolute()
     stdlib = Path(stdlib_root or DEFAULT_STDLIB_ROOT).absolute()
-    return _collect(site, stdlib, interpreter, test_only)
+    return _collect(site, stdlib, interpreter, test_only, include_tuning)
 
 
-def _collect(site, stdlib, interpreter, test_only):
+def _collect(site, stdlib, interpreter, test_only, include_tuning=False):
     if site.resolve() != site or stdlib.resolve() != stdlib:
         raise ValueError('runtime roots must be canonical directories')
     presence = _presence(site)
     budget = dict(remaining=MAX_TOTAL_BYTES); artifacts = {}; states = {}
-    for name, path in sorted(_paths(site, stdlib).items()):
+    for name, path in sorted(_paths(site, stdlib, include_tuning).items()):
         boundary = site if name.startswith('site-packages/') else stdlib
         raw, state = metadata.snapshot(path, header=False, budget=budget, limit=MAX_FILE_BYTES, confined_to=boundary)
         artifacts[name], states[name] = raw, state
@@ -285,7 +294,7 @@ def _collect(site, stdlib, interpreter, test_only):
     metadata.assert_current(states)
     if _presence(site) != presence:
         raise ValueError('runtime directory/package presence changed while reading')
-    document = _assemble(site, stdlib, artifacts, states, presence, identity, test_only)
+    document = _assemble(site, stdlib, artifacts, states, presence, identity, test_only, include_tuning)
     return RuntimeSourcesSnapshot(metadata.canonical(document), tuple(sorted(artifacts.items())))
 
 
@@ -295,11 +304,14 @@ def validate_runtime_sources(snapshot):
        len(snapshot.manifest_bytes) > 8 << 20:
         raise ValueError('invalid bounded runtime source snapshot')
     document = metadata.strict_object(snapshot.manifest_bytes)
+    include_tuning='source_extension' in document
+    if include_tuning and document['source_extension']!='MOE_TUNING_V1':
+        raise ValueError('unsupported runtime source extension')
     artifacts = dict(snapshot.artifacts)
     if len(artifacts) != len(snapshot.artifacts):
         raise ValueError('duplicate runtime source artifact')
     expected = _assemble(Path(document['source_root']), Path(document['stdlib_root']), artifacts,
-        document['source_states'], document['directory_observations'], document['interpreter'], document['test_only'])
+        document['source_states'], document['directory_observations'], document['interpreter'], document['test_only'], include_tuning)
     if metadata.canonical(document) != metadata.canonical(expected):
         raise ValueError('runtime source manifest differs from frozen derivation')
     return expected
@@ -309,7 +321,7 @@ def recheck_runtime_sources(snapshot):
     """Rehash only the same finite runtime inputs; never follow RECORD entries."""
     document = validate_runtime_sources(snapshot)
     current = _collect(Path(document['source_root']), Path(document['stdlib_root']),
-        document['interpreter']['path'], document['test_only'])
+        document['interpreter']['path'], document['test_only'], 'source_extension' in document)
     if current.manifest_bytes != metadata.canonical(document):
         raise ValueError('installed runtime sources changed after freezing')
     return dict(status='RUNTIME_SOURCES_UNCHANGED',

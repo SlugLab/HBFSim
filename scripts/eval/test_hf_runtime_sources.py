@@ -42,6 +42,48 @@ class RuntimeSourceTests(unittest.TestCase):
         return sources.collect_runtime_sources(source_root=self.site, stdlib_root=self.stdlib,
                                                 interpreter=self.interpreter)
 
+    def collect_tuning(self):
+        return sources.collect_runtime_sources(source_root=self.site,stdlib_root=self.stdlib,
+            interpreter=self.interpreter,include_tuning=True)
+
+    def prepare_tuning(self):
+        for name in ('vllm/model_executor/layers/fused_moe/__init__.py',
+                     'vllm/model_executor/layers/batch_invariant.py'):
+            (self.site/name).write_bytes(b'# TEST_ONLY tuning source; never execute\n')
+
+    def test_tuning_extension_preserves_base_snapshot_and_freezes_exact_extra_sources(self):
+        base=self.collect();self.prepare_tuning();extended=self.collect_tuning()
+        original=sources.validate_runtime_sources(base);report=sources.validate_runtime_sources(extended)
+        self.assertNotIn('source_extension',original)
+        self.assertEqual(report['source_extension'],'MOE_TUNING_V1')
+        self.assertEqual(set(dict(extended.artifacts))-set(dict(base.artifacts)),{
+            'site-packages/vllm/model_executor/layers/fused_moe/__init__.py',
+            'site-packages/vllm/model_executor/layers/batch_invariant.py'})
+        self.assertEqual(report['source_file_count'],original['source_file_count']+2)
+        self.assertTrue(report['test_only']);self.assertEqual(report['provenance'],'MOCK')
+        self.assertEqual(sources.validate_runtime_sources(self.collect()),original)
+
+    def test_tuning_extension_requires_sources_and_rechecks_without_frozen_validation_io(self):
+        with self.assertRaises(FileNotFoundError):self.collect_tuning()
+        self.prepare_tuning();snapshot=self.collect_tuning()
+        with mock.patch.object(os,'open',side_effect=AssertionError('frozen validation must not open originals')):
+            sources.validate_runtime_sources(snapshot)
+        sources.recheck_runtime_sources(snapshot)
+        (self.site/'vllm/model_executor/layers/batch_invariant.py').write_bytes(b'changed source')
+        with self.assertRaises(ValueError):sources.recheck_runtime_sources(snapshot)
+
+    def test_tuning_extension_cannot_be_resealed_as_base_or_unknown_version(self):
+        self.prepare_tuning();snapshot=self.collect_tuning()
+        for value in (None,'MOE_TUNING_V2',True):
+            document=json.loads(snapshot.manifest_bytes)
+            if value is None:del document['source_extension']
+            else:document['source_extension']=value
+            changed=replace(snapshot,manifest_bytes=sources.metadata.canonical(document))
+            with self.assertRaises(ValueError):sources.validate_runtime_sources(changed)
+        with self.assertRaises(ValueError):
+            sources.collect_runtime_sources(source_root=self.site,stdlib_root=self.stdlib,
+                interpreter=self.interpreter,include_tuning=1)
+
     def test_finite_snapshot_is_immutable_mock_and_record_is_not_binary_authentication(self):
         snapshot = self.collect(); report = sources.validate_runtime_sources(snapshot)
         self.assertEqual(report['provenance'], 'MOCK')

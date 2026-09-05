@@ -46,3 +46,15 @@ Standalone CPU update, 2026-09-05T16:58Z: HF configuration/ownership helpers and
 existing adapter regressions pass 57/57 tests. Evidence:
 `results/gold/hf-routing-runner/helpers-phase-attempt-001/`. No GPU probe, model
 arm, storage payload or formal matrix cell was run by this phase.
+
+Standalone CPU update,2026-09-05T17:46Z: selected installed runtime sources
+were frozen and rechecked (131 artifacts /7,961,389 source-metadata bytes). The
+source unit passes15/15 tests and metadata compatibility27/27. Evidence:
+`results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`. This is
+input identity evidence; no inference import, model arm or formal cell ran.
+
+Standalone CPU/compile update,2026-09-05T17:47Z: private C6.1 emission passes
+independent reviews,64/64 final CPU regression (25.54s) and29 direct/helper-linked
+PTX assembly fixtures. Handoff:
+`results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`. Public future
+admission remains closed pending C6.2; no GPU gold or formal cell was run.

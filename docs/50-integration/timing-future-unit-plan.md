@@ -14,7 +14,7 @@
 
 This is a plan, not implemented support or a gate receipt. It was prepared against integration commit `dd853762b6ef94c522918a1efcf147293c3175a2`, frozen B `fc829992ecdc3ca68881656722b67a31067c5d33` and frozen S `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`. The 64-byte design/build-command revision was checked at `13a416accf775339556459a514c9a37fc0c33b76`. Re-record the integration SHA and dirty patch when implementation starts.
 
-The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. C6.1 emission is the next implementation task.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
+The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. The private C6.1 emitter is committed at `1f0f45b`, with independent reviews and64/64 final CPU regression PASS. C6.2 complete plugin/build/loader admission is next.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
 
 Read [execution-plan C](../49-eval-audit/execution-plan.md), [G5](../49-eval-audit/claim-gates.md), [async semantics](../skills/04-cuda-async-cpasync-tma.md), [device/control ABI](../skills/05-device-helper-and-control-abi.md) and [server safety](../skills/10-server-experiment-safety.md). The literal S ABI9 dependency rule still applies to an actual S helper port. This plan instead defines a new complete device-local ABI and leaves the shared host/device layout at version4.
 
@@ -355,3 +355,30 @@ future transform admission. The whole-unit checklist below remains open for C6.
 - [ ] CPU/compile evidence and actual GPU/SASS evidence labeled separately; G5 thresholds unchanged.
 - [ ] Capacity, reference/hybrid/empirical async, general CFG and cp.async/TMA remain rejected and independently blocked.
 - [ ] Parent receives exact files, tests, evidence and remaining claim boundaries before integration; parent owns commits.
+
+## C6.1 reviewed implementation checkpoint
+
+Commit `1f0f45b` closes private emission and its CPU/compile proof. The public
+mode still refuses `timing_future_unit_incomplete`, `kUnitComplete` remains false,
+and the build option defaults OFF. This is not the C5+C6 complete-admission state.
+
+`parse_module_spanned` and `emit_timing_futures` preserve exact source spans and
+real setup def/use. Each supported scalar producer has separate local64/32-byte
+state, native bits and a valid predicate. Actual emitted forward guards protect
+call-parameter marshalling, since predicated parameter transfers do not assemble.
+The wait's returned bits feed the actual consumer; executed overwrites,
+store/fence and terminal drains preserve predicates and conservation. Required
+launch dimensions are validated statically; reported CTA storage still assumes
+the declared maximum block size, which C6.2 must enforce at actual launch.
+The optional native-store guard rejects full-span HBF overlap and overflow.
+
+Independent review closed malformed header/comment insertion, contradictory
+required geometry, conditional second-producer handling, and quoted executable
+tokens being erased. Legal module string metadata and quoted comments remain.
+The final CPU phase is64/64 PASS in25.54s; focused CPU/compile9/9 and29 direct plus
+helper-linked PTX fixtures pass. OFF helper bytes match the frozen C5 OFF image.
+No kernel was launched. Exact14-file sources, reviewed/build/public-gate hashes,
+all meaningful REDs and final status are frozen in
+`results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
+C6.2 admission, C6.3 optimized SASS dependency gold and C6.4 guarded hardware
+controls remain open; the independent TMA/capacity/empirical families stay closed.

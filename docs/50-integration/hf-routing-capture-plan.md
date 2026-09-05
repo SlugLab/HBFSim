@@ -687,3 +687,36 @@ The combined adapter-directory CPU phase passes 57/57 tests in 0.236 s
 `results/gold/hf-routing-runner/helpers-phase-attempt-001/`.
 Runtime source/cache preflight, controlled imports, model construction/generation,
 collector publication and parent triplet validation remain pending.
+
+## Runtime source checkpoint
+
+Commit `e46147f` adds the finite read-only `hf_runtime_sources` helper. It freezes
+88 selected package Python files, three stdlib files, and four distribution
+metadata files for each of ten pinned packages (131 artifacts). Per-file and
+aggregate source limits are16/128 MiB; directory discovery stops at entry4097,
+and reads use at most1 MiB chunks. The separately bounded interpreter identity
+is not counted as source metadata. Duplicate .dist-info/.egg-info discovery
+matches the installed Python first-hyphen convention. Frozen validation opens
+no original source, joins common ancestor identities and recomputes all selected
+artifact and metadata claims; explicit source/interpreter overrides remain MOCK.
+It never follows RECORD targets or authenticates every native runtime binary.
+
+Fifteen source controls and the27-test shared metadata compatibility suite pass,
+with independent specification and quality PASS. Evidence is in
+`results/gold/hf-routing-runner/runtime-sources-attempt-001/`. The original
+combined scan/ancestor RED contained an incomplete fake directory entry; only
+its ancestor failure is meaningful. The separately labelled reconstruction of
+the pre-fix enumeration algorithm demonstrates5000 consumed entries versus the
+4097 stop contract; the corrected fixture and current implementation pass.
+
+The real selected-source freeze at2026-09-05T17:46:01Z took0.289s, saved
+7,961,389 source/metadata bytes and rechecked unchanged originals. Manifest SHA256:
+`4259d8c28a5a1b104bf6caa809c6599adc3c669505a511b45cfca719989d42d3`.
+The interpreter SHA256 is
+`2e963eaa2dd6751b97f96c1532ad79fb4a318b99f7d9c0e112f0a943f5a814ce`.
+Artifacts and exact implementation hashes are in
+`results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`.
+No inference package, model, GPU or storage payload was used. This is a selected
+runtime-input snapshot, not worker execution or capture-origin evidence. Runtime
+cache/import observations, selected MoE tuning-file identity, actual worker
+construction/generation/trace cleanup and the parent triplet remain pending.

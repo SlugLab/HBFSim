@@ -51,6 +51,14 @@ Every executed consume must have a successful wait on all relevant paths. Issued
 
 B detects global ordinary/bulk/tensor async copy families as unsupported memory operations and preserves synchronization-only instructions without falsely classifying them as memory. S is available for selective semantic integration after the dependency closure and regression gates. A restricted straight-line, single-group subset may be a future implementation target only after its wait structure is proved.
 
+Phase-two C6.1 adds a private [ordinary scalar emitter](../../src/ptxpass_hbf/future_transform.cpp).
+It uses [byte-spanned parsing](../../src/ptxpass_hbf/ptx_ir.cpp), actual setup
+def/use, per-producer valid state and wait-return data dependencies. Executed
+overwrites/store/fence/exit drains conserve pending loads; general source CFG
+remains rejected. Generated forward guards serve helper-call marshalling only.
+The static CTA bound assumes a declared block limit; actual launch enforcement
+belongs to C6.2. This emitter is evaluation-only and public admission is closed.
+
 ## Explicitly unsupported behavior
 
 B has no modeled ordinary `cp.async`, deferred ordinary loads or TMA/TensorMap lifecycle. S cannot be directly merged or declared correct for arbitrary predication, loops, diamonds, early exits or multiple dynamic groups. The empty commit helper alone is not proof that all straight-line S programs are wrong: the static pass supplies bookkeeping, whose generalization is the unresolved issue.
@@ -66,6 +74,13 @@ Other hazards are ordinary `cp.async` falling through the older S regex, treatin
 B's [async coverage tests](../../tests/cpu/ptx_async_copy_coverage_test.cpp) prove rejection cases when executed. The earlier static reproduction is described in [async audit §3](../49-eval-audit/async-tma-audit.md) and its [probe script](../../scripts/eval/audit_async_probe.py); linked raw evidence must exist before citing a specific execution. S GPU test sources are catalogued by S17/S18; they were not run for this knowledge pack.
 
 Required future gates include predicate false/true then unconditional use, diamond/loop/reissue/early exit/multiple consumers, D/W checksum and residual sweep, descriptor A→B with distinct bytes, missing acquire/wrong generation rejection, barrier phase and source reuse, dynamic group N=1/0, daemon loss and timeout, and optimized final PTX→SASS issue/wait/consumer mapping. CPU transform PASS alone cannot close these GPU gates.
+
+C6.1 has independent specification/quality PASS and64/64 final CPU tests.
+Twenty-nine PTX programs pass direct and embedded-helper-linked assembly, with
+CPU interpretation checking values/predicates/conservation. Header/comment and
+quoted-token counterexamples are retained. Evidence:
+`results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
+These checks establish private emission, not optimized SASS or GPU semantics.
 
 ## What not to change casually
 

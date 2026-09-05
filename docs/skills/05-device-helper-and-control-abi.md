@@ -84,6 +84,12 @@ keeps its mapping quarantined. Opaque launches stay refused for the process afte
 any explicit future observation, including after unload, because C5 cannot
 inspect graph-held module references. Never-future processes retain defaults.
 
+C6.1 adds the optional `__hbfsim_timing_future_native_store_guard_v1`. It checks
+the complete positive finite native-store span against all registered HBF
+intervals, including outside-start overlap and arithmetic overflow. It performs
+no media reservation. The private emitter uses it before native output stores;
+public admission still remains closed pending C6.2.
+
 ## Explicitly unsupported behavior
 
 Mixing separately built helper/control versions, treating the reserved marker symbol alone as trusted module identity, or binding by kernel name when multiple PTX variants exist. No future or TensorMap control records are present in B. `ControlHeader` in the generic protocol header is not interchangeable with the larger runtime `SharedControlHeader`.
@@ -103,6 +109,13 @@ failed target then passed its focused recheck. Actual optimized PTX/cubin assemb
 proves ABI/code presence. Native-load-to-consumer SASS dependencies and GPU gold
 remain unproven; capacity/reference/hybrid/empirical futures and cp.async/TMA are
 outside this unit.
+
+The subsequent private C6.1 phase passes64/64 CPU tests in25.54s, with separate
+review and29 direct/helper-linked PTX assembly fixtures. It preserves the C5
+public gate and default-OFF helper byte identity. Frozen evidence is under
+`results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`; this later
+phase supersedes the earlier interrupted59/60 CPU checkpoint as current CPU
+regression evidence, without claiming GPU/optimized-SASS gold.
 
 ## What not to change casually
 

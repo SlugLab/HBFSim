@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `f150d18` (HF runtime observation and owned-memory helpers; ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `1f0f45b` (private C6.1 emission and HF selected runtime sources; ongoing code checkpoint).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -43,7 +43,7 @@ were not duplicated. See [donor map](50-integration/sm120-donor-map.md).
 | Gate | Current evidence | Limit |
 |---|---|---|
 | GOLD-0 | Exact frozen base 42/42 CPU; original pipeline 20/20 | CPU configuration only |
-| GOLD-1 | Parser/coverage and future analysis targeted 6/6; latest CPU phase 55/55 | No new production future/TMA transformer |
+| GOLD-1 | Private C6.1 emitter/interpreter and29 PTX assembly controls; latest CPU phase64/64 | No new production future/TMA transformer |
 | GOLD-2 | CPU future oracle and counterexamples pass | GPU semantic gold NOT RUN |
 | GOLD-3 | Representative synchronous SM120 image assembled/disassembled; immutable cache 9/9 controls | Resolver/load/next-address mapping recorded; future/TMA mapping NOT PROVEN |
 | GOLD-4 | Runner CPU/compile 20/20; old real D0 K1 and ten K64 controls complete | Old D500 K64 failed fixed G2; corrected clock interval awaits hardware recheck because GPU is busy |
@@ -59,7 +59,7 @@ Recorded gold directories: `results/gold/base`, `async-counterexample`,
 CPU analysis and oracle units received separate specification and quality
 reviews. Scheduler specification/quality reviews pass, and its 46-test final
 suite passed in 39.26 s. Concurrent media replay and its manifest wrapper also
-pass both reviews. Latest full optional CPU CTest after the clock correction: 55/55 in 33.44 s, recorded in `results/gold/phase-clock-interval/`. The unchanged pipeline
+pass both reviews. The clock correction passed55/55 CPU tests in33.44s. The later reviewed C6.1 phase passes64/64 in25.54s, recorded in `results/gold/timing-future-unit/c6-emitter/attempt-026/`. The unchanged pipeline
 previously passed 20/20 in 4.848 s at the causal/media checkpoint.
 
 Additional targeted CPU gates: storage collector 34/34 (4.122 s), exact-arrival
@@ -112,8 +112,16 @@ Focused CPU/compile checks pass 18/18; default-off checks pass 7/7. The final CP
 phase passed 59/60 during an unrelated worker import RED, then that sole failed
 target passed its focused recheck. Frozen source and evidence:
 `results/gold/timing-future-unit/handoff/attempt-001/`.
-Future admission remains `timing_future_unit_incomplete`; C6 emission, optimized
-native dependency mapping and GPU gold remain open.
+Commit `1f0f45b` subsequently closes private C6.1 emission: real setup and byte
+spans, typed native bits carried through actual wait returns, executed predicate
+state and drains, finite producer allocation and full-span native-store refusal.
+Independent reviews pass; final CPU phase64/64 in25.54s and29 direct/helper-linked
+PTX programs assemble. The default-OFF helper matches C5 byte-for-byte. Evidence:
+`results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
+Future admission remains `timing_future_unit_incomplete`; C6.2 public
+plugin/build/loader closure, optimized native dependency mapping and GPU gold
+remain open. Static CTA quantities assume a declared maximum block size; they
+are not an actual-launch geometry proof.
 
 Initial GPU-unavailable evidence came from the sandbox. Host execution was
 verified on 2026-09-05, without a driver repair. The GPU_EXCLUSIVE guard retained
@@ -187,6 +195,15 @@ namespace deletion. The combined adapter directory passes 57/57 CPU tests in
 0.236 s; evidence is `results/gold/hf-routing-runner/helpers-phase-attempt-001/`.
 No POSIX segment or inference runtime was used by this helper phase. Real worker
 construction/generation, source/cache checks and parent triplet remain pending.
+
+The selected runtime source freezer passes15 CPU controls and both reviews;
+shared metadata compatibility passes27/27 after bounding individual reads to
+1MiB. A real131-artifact source/metadata snapshot and current recheck passed in
+0.289s at2026-09-05T17:46:01Z. It saved7,961,389 bytes plus separate interpreter
+identity under `results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`.
+No inference package was imported. The snapshot excludes complete native binary
+authentication and capture-origin claims; import/cache observation, worker
+execution and the parent native/capture/repeat closure remain pending.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

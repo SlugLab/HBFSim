@@ -58,6 +58,13 @@ not close these buffers, and native cleanup swallows errors: verify saved handle
 and the exact owned name, then require process exit separately. Name-based unlink
 and resource-tracker cleanup are not atomic against hostile namespace replacement.
 
+The private [runtime source freezer](../../scripts/eval/hf_runtime_sources.py)
+reads a finite131-artifact installed set, rejects duplicate discoverable package
+metadata and source aliases, and rechecks exact frozen identities. Fifteen CPU
+controls and a real7,961,389-byte snapshot pass. This does not authenticate all
+native binaries or prove runtime import/cache selection. Evidence is in
+`results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

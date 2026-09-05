@@ -23,7 +23,7 @@ runtime estimates or predict a validated completion date.
 | Three storage pairing controls | 0.488 / 0.448 / 0.511 s | MOCK ledgers, native replay; 3 requests each, no SSD payload |
 | Three media controls | 0.192 / 0.174 / 0.215 s | Fixed QD1 / fixed QD4 / closed-loop QD4; 12 synthetic reads each |
 | Existing evaluation pipeline | 4.848 s | 20/20 tests |
-| HF metadata verifier | 2.696 s | 26/26 CPU controls; no real weights or GPU |
+| HF metadata verifier compatibility | 2.137 s | 27/27 CPU controls including1MiB read chunks; no real weights or GPU |
 | Real HF metadata refresh | 1.822 s | 19,912,432 metadata bytes, no tensor payload |
 | HF inventory adapter | 2.455 s | 13/13 CPU controls; published frozen metadata only |
 | Real HF frozen adaptation | 2.371 s | 9,625,635-byte normalized inventory; no checkpoint reads |
@@ -31,9 +31,13 @@ runtime estimates or predict a validated completion date.
 | C5 focused closure | 3.17 s | 18/18 CPU/fake-driver/optimized compile checks; no GPU |
 | C5 default-off compatibility | 1.64 s | 7/7 checks; no future implementation in OFF helper |
 | C5 CPU phase | 25.49 s + 0.35 s | 59/60 then sole concurrent worker-import failure rechecked PASS |
+| C6.1 final CPU phase | 25.54 s | 64/64 exact reviewed-source tests; public mode closed |
+| C6.1 focused CPU/compile | 6.21 s | 9/9 checks including29 direct and helper-linked PTX fixtures; no GPU |
 | HF runtime configuration observer | 0.059 s | 10/10 CPU object controls; no runtime import or GPU |
 | HF owned shared-memory scope | 0.005 s | 11/11 fake namespace/descriptor controls; no POSIX allocation |
 | HF helper adapter phase | 0.236 s suite / 0.416 s process | 57/57 CPU tests; no model construction or generation |
+| HF selected runtime source unit | 0.680 s | 15/15 CPU fixture controls; no runtime imports |
+| Real selected runtime source snapshot | 0.289 s | 131 artifacts /7,961,389 bytes plus separate interpreter identity; original-input recheck, no runtime imports |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 
@@ -42,8 +46,8 @@ Evidence: `results/gold/base/frozen-config/execution.json`,
 `results/gold/phase-cpu/eval-pipeline.json`, and
 `results/gold/inventory/execution.json`. Wall time above is not CPU-core time.
 The media phase and scheduler execution records are in `results/gold/phase-media/`
-and `results/gold/scheduler/`. The newest full-phase record is
-`results/gold/phase-clock-interval/execution.json`. Three-cell inputs, exact commands and wrapper
+and `results/gold/scheduler/`. The newest full CPU phase is
+`results/gold/timing-future-unit/c6-emitter/attempt-026/tests.json`. Three-cell inputs, exact commands and wrapper
 durations are in `results/gold/concurrent-replay/pilot-3-cell/summary.json`.
 The durable causal pilot is in `results/gold/prefetch-replay/pilot-3-policy/`;
 its runtime applies only to the small synthetic input.

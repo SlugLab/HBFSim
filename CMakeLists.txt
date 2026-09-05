@@ -874,6 +874,23 @@ endif()
 # Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
 if(HBFSIM_ENABLE_EVAL_TOOLS)
+    # Offline parser/analysis only. This does not link a partial future/TMA
+    # ABI into the production transformer or runtime.
+    add_library(hbfsim_eval_ptx STATIC
+        src/ptxpass_hbf/ptx_ir.cpp
+        src/ptxpass_hbf/ptx_async_op.cpp)
+    target_include_directories(hbfsim_eval_ptx PUBLIC src/ptxpass_hbf)
+    target_compile_features(hbfsim_eval_ptx PUBLIC cxx_std_20)
+    if(BUILD_TESTING)
+        foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold)
+            add_executable(${eval_ptx_test}_test
+                tests/cpu/${eval_ptx_test}_test.cpp)
+            target_link_libraries(${eval_ptx_test}_test PRIVATE hbfsim_eval_ptx)
+            add_test(NAME eval_${eval_ptx_test} COMMAND ${eval_ptx_test}_test)
+            set_tests_properties(eval_${eval_ptx_test} PROPERTIES
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        endforeach()
+    endif()
     add_library(hbfsim_prefetch_model STATIC src/prefetch/prefetch_model.cpp)
     target_include_directories(hbfsim_prefetch_model PUBLIC include)
     target_compile_features(hbfsim_prefetch_model PUBLIC cxx_std_20)

@@ -67,6 +67,33 @@ __device__ std::uint64_t gpu_time_ns()
     return now;
 }
 
+struct EvalDelayClock {
+    __device__ __forceinline__ std::uint64_t operator()() const
+    {
+        std::uint64_t now;
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(now) : : "memory");
+        return now;
+    }
+};
+
+// Keep a separately inspectable PTX boundary: no mapped host-control loads,
+// memory operations or liveness polling may enter the measured clock interval.
+__device__ __noinline__ hbfsim::device::EvalDelayInterval eval_delay_clock_wait(
+    std::uint64_t delay_ns, std::uint64_t timeout_ns)
+{
+    return hbfsim::device::eval_delay_clock_interval(
+        delay_ns, timeout_ns, EvalDelayClock{});
+}
+
+__device__ bool eval_delay_control_ready(
+    const SharedControlHeader* header, std::uint64_t expected_generation)
+{
+    return system_acquire(&header->shutdown) == 0 &&
+           system_acquire(&header->fault) == 0 &&
+           system_acquire(&header->heartbeat_ns) != 0 &&
+           system_acquire(&header->control_generation) == expected_generation;
+}
+
 __device__ void bounded_sleep(std::uint32_t& delay_ns)
 {
     __nanosleep(delay_ns);
@@ -539,31 +566,21 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 (void)system_fetch_add(&__hbfsim_eval_delay_counters.trace_overflow, 1);
                 resolution.status = RequestStatus::Unsupported;
             } else {
-                const auto begin = gpu_time_ns();
-                auto finish = begin;
-                if (system_acquire(&header->shutdown) != 0 ||
-                    system_acquire(&header->fault) != 0 ||
-                    system_acquire(&header->heartbeat_ns) == 0 ||
-                    header->request_timeout_ns == 0) {
+                // D=0 and positive D share the same safety checks, all outside
+                // the interval. Cache the finite timeout before the first clock
+                // sample; a short clock-only wait never polls mapped host RAM.
+                const auto timeout_ns = system_acquire(&header->request_timeout_ns);
+                const bool live = eval_delay_control_ready(header, expected_generation) &&
+                                  timeout_ns != 0;
+                const auto interval = eval_delay_clock_wait(
+                    live ? config.delay_ns : 0, timeout_ns);
+                resolution.status = live ? interval.status : RequestStatus::DaemonLost;
+                if (!eval_delay_control_ready(header, expected_generation)) {
                     resolution.status = RequestStatus::DaemonLost;
-                }
-                while (resolution.status == RequestStatus::Ready && config.delay_ns != 0 && hbfsim::device::eval_delay_remaining(
-                           finish, begin, config.delay_ns) != 0) {
-                    if (system_acquire(&header->shutdown) != 0 ||
-                        system_acquire(&header->fault) != 0 ||
-                        system_acquire(&header->control_generation) != expected_generation) {
-                        resolution.status = RequestStatus::DaemonLost;
-                        break;
-                    }
-                    if (finish - begin >= header->request_timeout_ns) {
-                        resolution.status = RequestStatus::Timeout;
-                        break;
-                    }
-                    finish = gpu_time_ns();
                 }
                 auto* traces = reinterpret_cast<hbfsim::device::EvalDelayTrace*>(config.trace_address);
                 traces[index] = {std::uint64_t{blockIdx.x} * blockDim.x + threadIdx.x,
-                                 address, begin, finish, config.delay_ns};
+                                 address, interval.begin_ns, interval.finish_ns, config.delay_ns};
             }
         } else {
             resolution = range->mode == 1 && header->timing_model != 0

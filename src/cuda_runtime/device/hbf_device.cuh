@@ -130,6 +130,31 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t eval_delay_remaining(
 {
     return now - begin >= delay ? 0 : delay - (now - begin);
 }
+// Internal experiment timing only; neither this result nor the clock callable
+// is part of the shared control ABI. Timeout and delay are cached scalar values.
+struct EvalDelayInterval {
+    std::uint64_t begin_ns;
+    std::uint64_t finish_ns;
+    RequestStatus status;
+};
+template <typename Clock>
+HBFSIM_HOST_DEVICE inline EvalDelayInterval eval_delay_clock_interval(
+    std::uint64_t delay_ns, std::uint64_t timeout_ns, Clock clock)
+{
+    const auto begin = clock();
+    auto finish = begin;
+    auto status = timeout_ns == 0 ? RequestStatus::DaemonLost
+                                 : RequestStatus::Ready;
+    while (status == RequestStatus::Ready &&
+           eval_delay_remaining(finish, begin, delay_ns) != 0) {
+        if (finish - begin >= timeout_ns) {
+            status = RequestStatus::Timeout;
+            break;
+        }
+        finish = clock();
+    }
+    return {begin, finish, status};
+}
 static_assert(sizeof(EvalDelayConfig) == 32);
 static_assert(sizeof(EvalDelayCounters) == 48);
 static_assert(sizeof(EvalDelayTrace) == 40);

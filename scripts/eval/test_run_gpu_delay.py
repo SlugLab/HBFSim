@@ -4,6 +4,7 @@ import ctypes
 import json
 import pathlib
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,81 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class DelayHelperTests(unittest.TestCase):
+    def test_clock_only_wait_has_finite_timeout_zero_and_wraparound_semantics(self):
+        header = ROOT / 'src/cuda_runtime/device/hbf_device.cuh'
+        self.assertIn('eval_delay_clock_interval', header.read_text(), 'clock-only interval helper is missing')
+        source = r'''
+#include "src/cuda_runtime/device/hbf_device.cuh"
+#include <cassert>
+#include <cstdint>
+#include <initializer_list>
+#include <limits>
+struct Clock {
+  std::initializer_list<std::uint64_t> samples;
+  unsigned* reads;
+  std::uint64_t operator()() const {
+    assert(*reads < samples.size()); // A nonterminating wait cannot obtain more samples.
+    return samples.begin()[(*reads)++];
+  }
+};
+int main() {
+  using namespace hbfsim::device;
+  unsigned reads=0;
+  auto zero=eval_delay_clock_interval(0, 1000, Clock{{100}, &reads});
+  assert(zero.begin_ns==100 && zero.finish_ns==100 && reads==1);
+  assert(zero.status==RequestStatus::Ready);
+  reads=0;
+  auto exact=eval_delay_clock_interval(500, 1000, Clock{{100,200,500,600}, &reads});
+  assert(exact.begin_ns==100 && exact.finish_ns==600 && reads==4);
+  assert(exact.status==RequestStatus::Ready);
+  reads=0;
+  auto timeout=eval_delay_clock_interval(500, 250, Clock{{100,200,300,400}, &reads});
+  assert(timeout.finish_ns==400 && reads==4 && timeout.status==RequestStatus::Timeout);
+  reads=0;
+  auto missing_timeout=eval_delay_clock_interval(500, 0, Clock{{100}, &reads});
+  assert(missing_timeout.finish_ns==100 && reads==1);
+  assert(missing_timeout.status==RequestStatus::DaemonLost);
+  reads=0;
+  auto wrapped=eval_delay_clock_interval(100, 1000,
+      Clock{{std::numeric_limits<std::uint64_t>::max()-50,10,60}, &reads});
+  assert(wrapped.finish_ns==60 && reads==3 && wrapped.status==RequestStatus::Ready);
+  // Preserve the existing loop's completion-before-timeout precedence when a
+  // clock sample has already reached the requested delay.
+  reads=0;
+  auto completed=eval_delay_clock_interval(500, 250, Clock{{0,1000}, &reads});
+  assert(completed.status==RequestStatus::Ready && reads==2);
+}
+'''
+        with tempfile.TemporaryDirectory(prefix='.test-delay-clock-', dir=ROOT) as tmp:
+            cpp = pathlib.Path(tmp) / 'clock.cpp'; cpp.write_text(source)
+            binary = pathlib.Path(tmp) / 'clock'
+            subprocess.run(['g++-13', '-std=c++20', '-I', str(ROOT), str(cpp), '-o', str(binary)],
+                           check=True, capture_output=True)
+            subprocess.run([str(binary)], check=True, timeout=5)
+
+    @unittest.skipUnless(os.environ.get('HBFSIM_DELAY_COMPILE_BUILD'), 'requires explicit compile-only CUDA build path')
+    def test_compiled_wait_interval_has_no_host_memory_or_liveness_operations(self):
+        build = pathlib.Path(os.environ['HBFSIM_DELAY_COMPILE_BUILD']).resolve()
+        ptx = (build / 'generated/hbf_device.ptx').read_text()
+        match = re.search(r'(?m)^(?:\.visible\s+)?\.func\b[^;{}]*eval_delay_clock_wait[^;{}]*\{', ptx)
+        self.assertIsNotNone(match, 'dedicated compiled clock-only wait function is missing')
+        begin = match.end(); depth = 1; end = begin
+        while depth and end < len(ptx):
+            depth += (ptx[end] == '{') - (ptx[end] == '}'); end += 1
+        self.assertEqual(depth, 0)
+        body = ptx[begin:end-1]
+        self.assertGreaterEqual(body.count('%globaltimer'), 2, 'interval requires start and loop clock samples')
+        self.assertNotRegex(body, r'\b(?:ld|st)\.(?!param\b)', 'measured clock helper must not load/store host or device memory')
+        self.assertNotRegex(body, r'\b(?:atom\.|nanosleep\b|membar\b|fence\b|call(?:\.|\s))',
+                            'measured clock helper must contain only clock/control/register operations')
+        source = (ROOT / 'src/cuda_runtime/device/hbf_device.cu').read_text()
+        experiment = source.split('if (experiment == hbfsim::device::EvalDelayAction::Apply) {', 1)[1].split('} else {\n            resolution =', 1)[0]
+        self.assertEqual(experiment.count('eval_delay_control_ready(header, expected_generation)'), 2,
+                         'D=0 and positive delays require the same pre/post safety checks')
+        before, after = experiment.split('eval_delay_clock_wait(', 1)
+        self.assertIn('eval_delay_control_ready(header, expected_generation)', before)
+        self.assertIn('eval_delay_control_ready(header, expected_generation)', after)
+
     def test_experiment_contract_is_separate_from_control_abi(self):
         header = ROOT / 'src/cuda_runtime/device/hbf_device.cuh'
         self.assertIn('EvalDelayConfig', header.read_text(), 'explicit opt-in contract missing')

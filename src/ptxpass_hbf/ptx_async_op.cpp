@@ -31,23 +31,6 @@ bool has(const std::vector<std::string>& values, std::string_view token)
     return std::find(values.begin(), values.end(), token) != values.end();
 }
 
-std::vector<std::string> registers(std::string_view input)
-{
-    static const std::regex expression(
-        R"((?:%[A-Za-z][A-Za-z0-9_$]*|[A-Za-z_$][A-Za-z0-9_$.]*))");
-    std::string text(input);
-    std::vector<std::string> result;
-    for (std::sregex_iterator it(text.begin(), text.end(), expression), end;
-         it != end; ++it) {
-        const auto value = it->str();
-        if (value != "_" && std::find(result.begin(), result.end(), value) ==
-                                result.end()) {
-            result.push_back(value);
-        }
-    }
-    return result;
-}
-
 std::vector<std::string> register_occurrences(std::string_view input)
 {
     static const std::regex expression(
@@ -76,9 +59,17 @@ std::optional<std::uint32_t> unsigned_immediate(std::string_view value)
 
 std::string single_address(const std::string& operand)
 {
-    const auto found = registers(operand);
-    if (found.size() != 1) throw ParseError("async address requires one symbol");
-    return found.front();
+    static const std::string symbol =
+        R"((?:%[A-Za-z][A-Za-z0-9_$]*|[A-Za-z_$][A-Za-z0-9_$.]*))";
+    static const std::regex address(
+        "^\\s*(?:\\[\\s*(" + symbol + ")\\s*\\]|(" + symbol + "))\\s*$");
+    std::smatch match;
+    if (!std::regex_match(operand, match, address)) {
+        throw ParseError("async address requires one unmodified symbol");
+    }
+    const auto value = match[1].matched ? match[1].str() : match[2].str();
+    if (value == "_") throw ParseError("async address cannot be discarded");
+    return value;
 }
 
 std::optional<AsyncInstruction> parse_tma(

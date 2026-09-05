@@ -365,6 +365,8 @@ Module parse_module(std::string_view ptx)
     static const std::regex function_expression(
         R"(\.(?:visible\s+)?(?:entry|func)\s+([A-Za-z0-9_$.]+))");
     static const std::regex function_directive(R"(\.(?:entry|func)\b)");
+    static const std::regex location_expression(
+        R"(^\.loc[ \t]+[0-9]+[ \t]+[0-9]+[ \t]+[0-9]+[ \t]*$)");
     static const std::regex label_expression(
         R"(^\s*([A-Za-z_$][A-Za-z0-9_$.]*)\s*:\s*$)");
     static const std::regex inline_label_expression(
@@ -384,6 +386,9 @@ Module parse_module(std::string_view ptx)
         if (function == nullptr) {
             std::smatch match;
             if (std::regex_search(line, match, function_expression)) {
+                if (line.find(';') != std::string::npos) {
+                    throw ParseError("PTX function prototypes are unsupported");
+                }
                 module.functions.push_back({.name = match[1].str()});
                 function = &module.functions.back();
                 waiting_for_body = true;
@@ -401,6 +406,10 @@ Module parse_module(std::string_view ptx)
             continue;
         }
         if (waiting_for_body) {
+            if (line.find(';') != std::string::npos ||
+                std::regex_search(line, function_directive)) {
+                throw ParseError("PTX function declaration has no body");
+            }
             if (line.find('{') != std::string::npos) {
                 if (!trim(line.substr(line.find('{') + 1)).empty()) {
                     throw ParseError("packed PTX function body is unsupported");
@@ -445,8 +454,8 @@ Module parse_module(std::string_view ptx)
             // Never join one to the next memory instruction.
             if (clean == ".loc" || clean.starts_with(".loc ") ||
                 clean.starts_with(".loc\t")) {
-                if (semicolon != std::string::npos) {
-                    throw ParseError("PTX location directive cannot contain an instruction");
+                if (!std::regex_match(clean, location_expression)) {
+                    throw ParseError("unsupported PTX location directive");
                 }
                 continue;
             }

@@ -116,6 +116,31 @@ void unsupported_function_header_is_rejected()
         "ld.global.u32 %r1, [%rd1];\nret;\n}\n");
 }
 
+void prototype_cannot_consume_kernel()
+{
+    reject_module(".extern .func helper();\n" +
+                  module_with("ld.global.u32 %r1, [%rd1];\nret;\n"));
+}
+
+void location_with_multiline_instruction_is_rejected()
+{
+    reject_module(module_with(
+        ".loc 1 17 0 ld.global.u32 %r1,\n[%rd1];\nret;\n"));
+}
+
+void async_address_expression_is_rejected()
+{
+    for (const char* address : {"[%bar+8]", "[%bar + %bar]"}) {
+        try {
+            (void)hbfsim::ptx::parse_async_instruction(
+                "mbarrier.init.shared::cta.b64", {address, "1"});
+        } catch (const hbfsim::ptx::ParseError&) {
+            continue;
+        }
+        throw std::runtime_error("async address expression was discarded");
+    }
+}
+
 }  // namespace
 
 int main()
@@ -138,5 +163,8 @@ int main()
     run("location_with_instruction", location_with_instruction_is_rejected);
     run("inline_label", inline_label_is_rejected);
     run("unsupported_function_header", unsupported_function_header_is_rejected);
+    run("function_prototype", prototype_cannot_consume_kernel);
+    run("location_multiline", location_with_multiline_instruction_is_rejected);
+    run("async_address_expression", async_address_expression_is_rejected);
     return failures == 0 ? 0 : 1;
 }

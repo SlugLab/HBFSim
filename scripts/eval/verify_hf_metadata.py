@@ -99,7 +99,7 @@ def read_exact(fd, count, offset, budget):
     budget['remaining'] -= count
     parts = []; read = 0
     while read < count:
-        raw = os.pread(fd, count-read, offset+read)
+        raw = os.pread(fd, min(count-read, 1 << 20), offset+read)
         if not raw: raise ValueError('truncated metadata read')
         parts.append(raw); read += len(raw)
     return b''.join(parts)

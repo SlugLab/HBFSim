@@ -337,5 +337,20 @@ class MetadataRefreshTests(unittest.TestCase):
             with self.assertRaises(ValueError):verifier.validate_refresh(out)
         self.assertEqual(opens,[])
 
+    def test_bounded_snapshot_reads_in_one_mib_chunks_without_changing_ranges(self):
+        path=self.base/'source-fixture';raw=b'x'*((2<<20)+3);path.write_bytes(raw)
+        calls=[];pread=os.pread
+        def observed(fd,count,offset):
+            calls.append((count,offset))
+            self.assertLessEqual(count,1<<20)
+            return pread(fd,count,offset)
+        budget={'remaining':len(raw)}
+        with mock.patch.object(verifier.os,'pread',side_effect=observed):
+            data,state=verifier.snapshot(path,header=False,budget=budget,limit=16<<20,confined_to=self.base)
+        self.assertEqual(data,raw);self.assertEqual(budget['remaining'],0)
+        self.assertEqual(calls,[(1<<20,0),(1<<20,1<<20),(3,2<<20)])
+        self.assertEqual(state['read_ranges'],[[0,len(raw)]])
+        self.assertEqual(state['metadata_sha256'],hashlib.sha256(raw).hexdigest())
+
 
 if __name__=='__main__':unittest.main()

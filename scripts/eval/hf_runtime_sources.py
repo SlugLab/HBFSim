@@ -205,22 +205,22 @@ def _valid_file_identity(value):
         all(type(number) is int and number >= 0 for number in value.values())
 
 
-def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only, include_tuning=False):
-    if type(include_tuning) is not bool:
-        raise ValueError('runtime source extension must be an explicit boolean')
-    if any(not path.is_absolute() or str(path) != os.path.normpath(str(path))
-           for path in (site, stdlib)):
-        raise ValueError('runtime roots must be canonical absolute paths')
-    paths = _paths(site, stdlib, include_tuning)
+def validate_selected_buffers(paths, artifacts, states, *, per_file_bytes,
+                              total_bytes, ancestor_bindings=None):
+    """Reconcile a caller-declared finite set of canonical regular-file buffers.
+
+    No input paths are opened. Callers derive paths and byte limits from their
+    own fixed contract; optional ancestor bindings join another frozen input.
+    """
     if set(artifacts) != set(paths) or set(states) != set(paths):
         raise ValueError('runtime source artifact set differs from finite contract')
-    total = 0; ancestors = {}
+    total = 0; ancestors = dict(ancestor_bindings or {})
     for name, path in paths.items():
         raw = artifacts[name]; state = states[name]
-        if type(raw) is not bytes or len(raw) > MAX_FILE_BYTES:
+        if type(raw) is not bytes or len(raw) > per_file_bytes:
             raise ValueError('runtime source exceeds per-file byte bound')
         total += len(raw)
-        if total > MAX_TOTAL_BYTES:
+        if total > total_bytes:
             raise ValueError('runtime source exceeds aggregate byte bound')
         if type(state) is not dict or set(state) != {
             'path','realpath','chain','file_identity','read_bytes','metadata_sha256','read_ranges'} or \
@@ -243,6 +243,18 @@ def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only,
            metadata.canonical(state['read_ranges']) != metadata.canonical([[0, len(raw)]]) or \
            state['metadata_sha256'] != metadata.digest(raw):
             raise ValueError('runtime source buffer differs from observed identity/read range')
+    return total, ancestors
+
+
+def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only, include_tuning=False):
+    if type(include_tuning) is not bool:
+        raise ValueError('runtime source extension must be an explicit boolean')
+    if any(not path.is_absolute() or str(path) != os.path.normpath(str(path))
+           for path in (site, stdlib)):
+        raise ValueError('runtime roots must be canonical absolute paths')
+    paths = _paths(site, stdlib, include_tuning)
+    total, _ = validate_selected_buffers(paths, artifacts, states,
+        per_file_bytes=MAX_FILE_BYTES, total_bytes=MAX_TOTAL_BYTES)
     if set(presence) != set(REQUIRED_DIRECTORIES) or any(
         row != dict(path=str(site/name), device=row.get('device'), inode=row.get('inode'), present=True) or
         any(type(row.get(key)) is not int or row[key] < 0 for key in ('device', 'inode'))

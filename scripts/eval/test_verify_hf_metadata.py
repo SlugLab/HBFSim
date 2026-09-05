@@ -327,5 +327,15 @@ class MetadataRefreshTests(unittest.TestCase):
             with self.assertRaises(ValueError):verifier.verify(checkpoint,donor,self.base/'refresh',test_only=True)
         self.assertTrue(inserted)
 
+    def test_frozen_receipt_link_is_refused_before_opening_its_target(self):
+        _,_,_,out,_=self.run_fixture();receipt=out/'receipt.json';target=self.base/'outside-bundle-receipt'
+        receipt.rename(target);receipt.symlink_to(target);opens=[];original=os.open
+        def observed(path,*args,**kwargs):
+            if str(path)==str(target):opens.append(str(path))
+            return original(path,*args,**kwargs)
+        with mock.patch.object(verifier.os,'open',side_effect=observed):
+            with self.assertRaises(ValueError):verifier.validate_refresh(out)
+        self.assertEqual(opens,[])
+
 
 if __name__=='__main__':unittest.main()

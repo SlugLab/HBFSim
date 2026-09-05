@@ -105,8 +105,13 @@ def read_exact(fd, count, offset, budget):
     return b''.join(parts)
 
 
-def snapshot(path, *, header, budget, limit, expected=None):
+def snapshot(path, *, header, budget, limit, expected=None, confined_to=None):
     before = path_state(path)
+    if confined_to is not None:
+        boundary=Path(confined_to).resolve()
+        if not Path(before['realpath']).is_relative_to(boundary) or any(
+            'target' in hop and Path(hop['path']).is_relative_to(boundary) for hop in before['chain']):
+            raise ValueError('frozen artifact link/escape rejected before open')
     if expected is not None:
         ident=before['file_identity']
         if before['realpath']!=expected['realpath'] or ident['size']!=expected['size_bytes'] or ident['mtime_ns']!=expected['mtime_ns']:
@@ -321,7 +326,7 @@ def identities(receipt):
 
 
 def publish_complete(out, receipt):
-    raw,_=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'])
+    raw,_=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'],confined_to=out)
     if strict_object(raw)!=receipt:raise ValueError('receipt changed before final publication')
     marker=dict(schema_version=1,status='METADATA_VERIFIED',receipt_sha256=digest(raw),
                 observation_identity_sha256=receipt['observation_identity_sha256'])
@@ -409,7 +414,7 @@ def _validate_refresh(out, *, require_complete):
     out=Path(out).resolve()
     if not out.is_relative_to(ROOT) or out.is_relative_to(ROOT/'results/runs'):
         raise ValueError('invalid metadata bundle boundary')
-    raw,receipt_state=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'])
+    raw,receipt_state=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'],confined_to=out)
     receipt=strict_object(raw)
     if receipt.get('schema_version')!=1 or receipt.get('status')!='METADATA_VERIFIED' or \
        receipt.get('scientific_validation_passed') is not False or receipt.get('weight_payload_rehashed') is not False or \
@@ -424,7 +429,7 @@ def _validate_refresh(out, *, require_complete):
     marker_state=None
     if require_complete:
         if not (out/'COMPLETE.json').is_file():raise ValueError('metadata publication is incomplete')
-        marker_raw,marker_state=snapshot(out/'COMPLETE.json',header=False,budget=dict(remaining=4096),limit=4096)
+        marker_raw,marker_state=snapshot(out/'COMPLETE.json',header=False,budget=dict(remaining=4096),limit=4096,confined_to=out)
         marker=strict_object(marker_raw)
         if marker!=dict(schema_version=1,status='METADATA_VERIFIED',receipt_sha256=digest(raw),
                         observation_identity_sha256=receipt['observation_identity_sha256']):
@@ -437,7 +442,7 @@ def _validate_refresh(out, *, require_complete):
     for name,sha in receipt['artifacts'].items():
         if Path(name).is_absolute() or '..' in Path(name).parts or (out/name).is_symlink():
             raise ValueError('unsafe frozen artifact')
-        raw,state=snapshot(out/name,header=False,budget=budget,
+        raw,state=snapshot(out/name,header=False,budget=budget,confined_to=out,
                            limit=LIMITS['donor_bytes'] if name=='donor.json' else LIMITS['file_bytes']+8)
         if not Path(state['realpath']).is_relative_to(out) or state['chain']!=path_state(out/name)['chain'] or digest(raw)!=sha:
             raise ValueError('frozen artifact hash/path mismatch')
@@ -471,7 +476,7 @@ def validate_refresh(out):
 
 def check_current_inputs(out):
     receipt=validate_refresh(out)
-    raw,_=snapshot(Path(out)/'donor.json',header=False,budget=dict(remaining=LIMITS['donor_bytes']),limit=LIMITS['donor_bytes'])
+    raw,_=snapshot(Path(out)/'donor.json',header=False,budget=dict(remaining=LIMITS['donor_bytes']),limit=LIMITS['donor_bytes'],confined_to=out)
     if digest(raw)!=receipt['legacy_inventory_sha256']:raise ValueError('donor changed after frozen validation')
     donor=strict_object(raw)
     blobs,states=current_snapshots(Path(receipt['checkpoint']),donor)

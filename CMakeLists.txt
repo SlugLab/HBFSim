@@ -870,3 +870,22 @@ if(HBFSIM_ENABLE_MQSIM)
         )
     endif()
 endif()
+
+# Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
+option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
+if(HBFSIM_ENABLE_EVAL_TOOLS)
+    add_library(hbfsim_prefetch_model STATIC src/prefetch/prefetch_model.cpp)
+    target_include_directories(hbfsim_prefetch_model PUBLIC include)
+    target_compile_features(hbfsim_prefetch_model PUBLIC cxx_std_20)
+    add_executable(hbf_prefetch_bench benchmarks/prefetch/hbf_prefetch_bench.cpp)
+    target_link_libraries(hbf_prefetch_bench PRIVATE hbfsim_prefetch_model)
+    if(BUILD_TESTING)
+        add_executable(prefetch_model_test tests/cpu/prefetch_model_test.cpp)
+        target_link_libraries(prefetch_model_test PRIVATE hbfsim_prefetch_model)
+        add_test(NAME prefetch_model COMMAND prefetch_model_test)
+        add_test(NAME prefetch_report
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_prefetch_report.py"
+                "$<TARGET_FILE:hbf_prefetch_bench>")
+    endif()
+endif()

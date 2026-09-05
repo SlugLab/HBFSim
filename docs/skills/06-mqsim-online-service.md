@@ -73,3 +73,14 @@ Completion observations keep the raw callback time and bandwidth-bounded
 reported completion separate. QD counts held admission slots, including slots
 reserved for non-reentrant re-admission. Callers drain diagnostics after each
 returned completion; this is CPU evidence, not physical SSD acquisition.
+
+The independent evaluation executable `hbf_concurrent_trace_timing` stages all
+fixed arrivals before advancing events. Its separate `closed_loop_qd` mode
+replenishes a completed software slot at the reported completion time; it does
+not pretend the two policies have identical actual arrivals. Per-request output
+keeps admission queue delay, media-service span, interface-bound delay and
+consume residual separate, with held-slot QD duration accounting. Resource
+selection stays in the shared profile/address mapper. Unmapped N requires a
+separate `PROJECTED_ANALYTICAL` model; this tool does not fabricate that point.
+These media replay results remain PROJECTED and are not a causal decode DAG,
+physical SSD measurement, calibrated model claim or live-serving trace.

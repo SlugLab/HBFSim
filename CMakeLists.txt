@@ -936,6 +936,16 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
             ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/adapters/vllm_capacity")
     endif()
     if(HBFSIM_ENABLE_MQSIM)
+        add_executable(hbf_concurrent_trace_timing benchmarks/replay/hbf_concurrent_trace_timing.cpp)
+        target_link_libraries(hbf_concurrent_trace_timing PRIVATE hbfsim_core)
+        target_include_directories(hbf_concurrent_trace_timing PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        if(BUILD_TESTING)
+            add_test(NAME concurrent_trace_timing
+                COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_concurrent_trace_timing.py"
+                    "$<TARGET_FILE:hbf_concurrent_trace_timing>")
+        endif()
         add_executable(hbf_trace_timing benchmarks/replay/hbf_trace_timing.cpp)
         target_link_libraries(hbf_trace_timing PRIVATE hbfsim_core)
         target_include_directories(hbf_trace_timing PRIVATE

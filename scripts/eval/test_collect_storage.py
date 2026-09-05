@@ -122,6 +122,15 @@ class CollectorTests(unittest.TestCase):
                 self.engine(plan, reader=lambda offset, size: calls.append(offset))
             self.assertEqual(calls, [])
 
+    def test_ambiguous_request_id_types_reject_before_reads(self):
+        for value in (True,1.5,None,''):
+            plan=self.plan()
+            plan['requests'][-1]['request_id']=value
+            calls=[]
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                self.engine(plan,reader=lambda offset,size:calls.append(offset))
+            self.assertEqual(calls,[])
+
     def test_formal_minimum_bounds_and_short_reads_fail(self):
         settings = self.settings()
         settings['mode'] = 'formal'

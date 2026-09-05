@@ -120,6 +120,13 @@ def settings_checked(settings):
     return result
 
 
+def request_identity(value):
+    """Opaque source IDs preserve strings or integers; replay may remap them."""
+    if type(value) is int or (isinstance(value,str) and value):
+        return value
+    raise ValueError('request ID must be an integer or nonempty string')
+
+
 def validate_requests(plan):
     if plan['kind'] not in ('fixed_arrival_trace', 'closed_loop_qd') or type(plan['qd']) is not int or not 1 <= plan['qd'] <= 128:
         raise ValueError('invalid arrival family or bounded QD')
@@ -139,7 +146,7 @@ def validate_requests(plan):
             raise ValueError('request escapes authorized file span')
         if offset % alignment or size % alignment or request['operation'] != 'read':
             raise ValueError('request alignment/read operation mismatch')
-        if request['request_id'] in ids:
+        if request_identity(request['request_id']) in ids:
             raise ValueError('duplicate request ID')
         ids.add(request['request_id'])
         if plan['kind'] == 'fixed_arrival_trace':

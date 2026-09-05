@@ -942,6 +942,9 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
         add_test(NAME prefetch_causal_core
             COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/eval/test_prefetch_replay.py")
+        add_test(NAME storage_arrival_conversion
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scripts/eval/test_storage_arrivals.py")
     endif()
     if(HBFSIM_ENABLE_MQSIM)
         add_executable(hbf_mqsim_service benchmarks/replay/hbf_mqsim_service.cpp)

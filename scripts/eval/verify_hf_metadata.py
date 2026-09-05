@@ -410,13 +410,9 @@ def verify(checkpoint, donor, out, *, test_only=False):
         raise
 
 
-def _validate_refresh(out, *, require_complete):
-    out=Path(out).resolve()
-    if not out.is_relative_to(ROOT) or out.is_relative_to(ROOT/'results/runs'):
-        raise ValueError('invalid metadata bundle boundary')
-    raw,receipt_state=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'],confined_to=out)
-    receipt=strict_object(raw)
-    if receipt.get('schema_version')!=1 or receipt.get('status')!='METADATA_VERIFIED' or \
+def validate_receipt_contract(receipt):
+    """Shared claim boundary for disk bundles and immutable consumer snapshots."""
+    if type(receipt.get('schema_version')) is not int or receipt.get('schema_version')!=1 or receipt.get('status')!='METADATA_VERIFIED' or \
        receipt.get('scientific_validation_passed') is not False or receipt.get('weight_payload_rehashed') is not False or \
        receipt.get('weight_payload_sha256') is not None or receipt.get('limits')!=LIMITS or \
        receipt.get('payload_identity_status')!='HISTORICAL_ONLY_NOT_CURRENTLY_AUTHENTICATED' or \
@@ -426,6 +422,37 @@ def _validate_refresh(out, *, require_complete):
         raise ValueError('invalid metadata-only claim boundary')
     if (receipt['evidence'],receipt['provenance']) not in (('TEST_ONLY','MOCK'),('CHECKPOINT_METADATA','CHECKPOINT_METADATA')):
         raise ValueError('invalid evidence attribution')
+
+
+def validate_frozen_payloads(receipt, loaded):
+    """Reconcile already bounded, hash-checked artifact buffers without file IO."""
+    validate_receipt_contract(receipt)
+    document=strict_object(loaded['donor.json']);records,_=donor_files(document)
+    if set(loaded)!={'donor.json','tensors.json',*(artifact_path(n) for n in records)} or set(receipt['inputs'])!=set(records):
+        raise ValueError('incomplete frozen bundle')
+    blobs={name:loaded[artifact_path(name)] for name in records}
+    for name,state in receipt['inputs'].items():
+        ranges=[[0,len(blobs[name])]] if name in SMALL else [[0,8],[8,len(blobs[name])-8]]
+        if state['read_bytes']!=len(blobs[name]) or state['metadata_sha256']!=digest(blobs[name]) or state['read_ranges']!=ranges:
+            raise ValueError('snapshot metadata mismatch')
+    table={};summary=validate_tensor_inventory(document,blobs,receipt['inputs'],table=table)
+    if strict_object(loaded['tensors.json'])!=table:raise ValueError('normalized tensor table mismatch')
+    metadata,observation=identities(receipt)
+    if receipt['summary']!=summary or receipt['metadata_identity_sha256']!=metadata or receipt['observation_identity_sha256']!=observation or \
+       receipt['historical_model_fingerprint']!=document['ModelFingerprint'] or \
+       receipt['legacy_inventory_sha256']!=digest(loaded['donor.json']) or \
+       receipt['metadata_bytes_read']!=sum(len(b) for b in blobs.values()):
+        raise ValueError('metadata receipt reconciliation failed')
+    return document,table
+
+
+def _validate_refresh(out, *, require_complete):
+    out=Path(out).resolve()
+    if not out.is_relative_to(ROOT) or out.is_relative_to(ROOT/'results/runs'):
+        raise ValueError('invalid metadata bundle boundary')
+    raw,receipt_state=snapshot(out/'receipt.json',header=False,budget=dict(remaining=LIMITS['file_bytes']),limit=LIMITS['file_bytes'],confined_to=out)
+    receipt=strict_object(raw)
+    validate_receipt_contract(receipt)
     marker_state=None
     if require_complete:
         if not (out/'COMPLETE.json').is_file():raise ValueError('metadata publication is incomplete')
@@ -448,22 +475,7 @@ def _validate_refresh(out, *, require_complete):
             raise ValueError('frozen artifact hash/path mismatch')
         loaded[name]=raw
         frozen_states[name]=state
-    document=strict_object(loaded['donor.json']);records,_=donor_files(document)
-    if set(loaded)!={'donor.json','tensors.json',*(artifact_path(n) for n in records)} or set(receipt['inputs'])!=set(records):
-        raise ValueError('incomplete frozen bundle')
-    blobs={name:loaded[artifact_path(name)] for name in records}
-    for name,state in receipt['inputs'].items():
-        ranges=[[0,len(blobs[name])]] if name in SMALL else [[0,8],[8,len(blobs[name])-8]]
-        if state['read_bytes']!=len(blobs[name]) or state['metadata_sha256']!=digest(blobs[name]) or state['read_ranges']!=ranges:
-            raise ValueError('snapshot metadata mismatch')
-    table={};summary=validate_tensor_inventory(document,blobs,receipt['inputs'],table=table)
-    if strict_object(loaded['tensors.json'])!=table:raise ValueError('normalized tensor table mismatch')
-    metadata,observation=identities(receipt)
-    if receipt['summary']!=summary or receipt['metadata_identity_sha256']!=metadata or receipt['observation_identity_sha256']!=observation or \
-       receipt['historical_model_fingerprint']!=document['ModelFingerprint'] or \
-       receipt['legacy_inventory_sha256']!=digest(loaded['donor.json']) or \
-       receipt['metadata_bytes_read']!=sum(len(b) for b in blobs.values()):
-        raise ValueError('metadata receipt reconciliation failed')
+    validate_frozen_payloads(receipt,loaded)
     assert_current(frozen_states)
     check_artifact_set(out,expected_files)
     return receipt

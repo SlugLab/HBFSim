@@ -10,12 +10,21 @@ import json
 import math
 from pathlib import Path
 
-from inventory_checkpoint import identity, positive, validate_inventory, write_json
+from inventory_checkpoint import identity, positive, write_json
+from freeze_storage_split import regular_bytes
+from evaluation_inventory import (load_hf_snapshot, validate_evaluation_inventory,
+                                  publish_hf_document)
+from verify_hf_metadata import canonical, digest, strict_object
 
 
 def budget_fast_tier(inv, *, fast_bytes, active_sequences, context_tokens,
-                     kv_element_bytes, workspace_bytes, safety_bytes, legacy_ratio=None):
-    validate_inventory(inv)
+                     kv_element_bytes, workspace_bytes, safety_bytes, legacy_ratio=None,
+                     hf_snapshot=None, inventory_file_bytes=None):
+    validate_evaluation_inventory(inv, hf_snapshot=hf_snapshot)
+    hf = inv['format'] == 'HF_SAFETENSORS'
+    if hf and (type(inventory_file_bytes) is not bytes or
+               canonical(strict_object(inventory_file_bytes)) != canonical(inv)):
+        raise ValueError('HF budget requires the exact matching inventory file bytes')
     for name, value in (("fast_bytes", fast_bytes), ("active_sequences", active_sequences),
                         ("context_tokens", context_tokens), ("kv_element_bytes", kv_element_bytes)):
         positive(value, name)
@@ -46,7 +55,7 @@ def budget_fast_tier(inv, *, fast_bytes, active_sequences, context_tokens,
             selected.append([expert["layer"], expert["expert"]])
             remaining_pages -= required
     allocated = (pages - remaining_pages) * inv["page_bytes"]
-    return {"schema_version": 1, "inventory_sha256": identity(inv),
+    result = {"schema_version": 1, "inventory_sha256": identity(inv),
             "fast_bytes": fast_bytes, "resident_non_offloaded_bytes": resident,
             "active_sequences": active_sequences, "context_tokens": context_tokens,
             "kv_element_bytes": kv_element_bytes, "kv_bytes": kv_bytes,
@@ -67,6 +76,12 @@ def budget_fast_tier(inv, *, fast_bytes, active_sequences, context_tokens,
             "budget_order": "whole_experts_greedy_layer_then_expert; no partial expert",
             "rho_interpretation": "CAPACITY_BUDGET_NOT_OBSERVED_RESIDENCY",
             "legacy_ratio": legacy_ratio, "cache_validation": "NOT_EXECUTED"}
+    if hf:
+        result.update(model_binding=inv['model_binding'],
+                      inventory_file_sha256=digest(inventory_file_bytes),
+                      source_kind=inv['source_kind'], provenance=inv['provenance'],
+                      scientific_validation_passed=False)
+    return result
 
 
 def main():
@@ -77,10 +92,20 @@ def main():
                  "workspace-bytes", "safety-bytes"):
         parser.add_argument("--" + name, required=True, type=int)
     parser.add_argument("--legacy-ratio", type=float)
+    parser.add_argument("--hf-metadata-refresh", type=Path)
     args = parser.parse_args()
-    result = budget_fast_tier(json.loads(args.inventory.read_text()), **{
-        key: value for key, value in vars(args).items() if key not in ("inventory", "output")})
-    write_json(args.output, result)
+    snapshot = load_hf_snapshot(args.hf_metadata_refresh) if args.hf_metadata_refresh else None
+    raw = regular_bytes(args.inventory.absolute())
+    inv = strict_object(raw)
+    result = budget_fast_tier(inv, hf_snapshot=snapshot, inventory_file_bytes=raw, **{
+        key: value for key, value in vars(args).items()
+        if key not in ("inventory", "output", "hf_metadata_refresh")})
+    if inv['format'] == 'HF_SAFETENSORS':
+        if args.output.resolve() == args.inventory.resolve():
+            raise ValueError('HF budget cannot replace its inventory input')
+        publish_hf_document(args.output, result, hf_snapshot=snapshot)
+    else:
+        write_json(args.output, result)
     print(json.dumps({key: result[key] for key in ("C_fast_effective", "rho", "achieved_rho")}))
 
 

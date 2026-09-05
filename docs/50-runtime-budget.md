@@ -38,6 +38,8 @@ runtime estimates or predict a validated completion date.
 | HF helper adapter phase | 0.236 s suite / 0.416 s process | 57/57 CPU tests; no model construction or generation |
 | HF selected runtime source unit | 0.680 s | 15/15 CPU fixture controls; no runtime imports |
 | Real selected runtime source snapshot | 0.289 s | 131 artifacts /7,961,389 bytes plus separate interpreter identity; original-input recheck, no runtime imports |
+| HF passive import/cache observer | 0.847 s | 11/11 fake-module controls; no inference imports |
+| HF source/import plus adapter phase | 1.528 + 0.455 s suites /2.334 s processes | 26/26 plus57/57 CPU tests; no GPU or model execution |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 

@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `1f0f45b` (private C6.1 emission and HF selected runtime sources; ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `c12d3b0` (HF effective import/cache observer; C6.2 integration ongoing).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -204,6 +204,14 @@ identity under `results/gold/hf-routing-runner/runtime-sources-real-attempt-001/
 No inference package was imported. The snapshot excludes complete native binary
 authentication and capture-origin claims; import/cache observation, worker
 execution and the parent native/capture/repeat closure remain pending.
+
+The passive runtime import/cache observer is now committed at `c12d3b0`, with
+11 CPU tests and both reviews. It reconciles loaded module origins and effective
+private destinations without runtime imports or cache-creation calls. Module
+substitution, active log redirection and live Triton manager overrides are
+rejected. Source/import controls pass26/26 and existing adapters57/57; evidence
+is `results/gold/hf-routing-runner/imports-phase-attempt-001/`. Actual controlled
+imports, worker execution/cleanup and parent triplet validation remain pending.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

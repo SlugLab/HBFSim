@@ -720,3 +720,35 @@ No inference package, model, GPU or storage payload was used. This is a selected
 runtime-input snapshot, not worker execution or capture-origin evidence. Runtime
 cache/import observations, selected MoE tuning-file identity, actual worker
 construction/generation/trace cleanup and the parent triplet remain pending.
+
+## Passive runtime import/cache checkpoint
+
+Commit `c12d3b0` adds `hf_runtime_imports.observe_runtime_imports`. It validates
+existing selected module origins against the frozen source buffers, observes
+runtime versions and exact cache/log/temp paths, and requires the complete
+FlashInfer import group. It never imports a missing runtime or invokes CUDA,
+discovery, artifact status, download, compiler or cache-creation APIs.
+Explicit module/environment injections and fixture snapshots remain MOCK.
+The supplied device capability is a separate owned-worker input, not a device
+observation authenticated by this helper.
+
+The helper reads `tempfile.tempdir`, Torch hub override and usage-status cache
+without invoking their potentially stateful helpers. Triton's import-capable
+manager descriptors are never read: existing override state and the already
+loaded native `getenv` reader must show no manager override. This also catches
+a live C-environment setting omitted from an injected/Python environment view.
+Its selected path/bool descriptors remain finite. FlashInfer's private logfile
+must match both the declared filename and the active open stream; package cubin
+paths remain read-only inputs, and an inactive relative dump path is not claimed
+to be a private cache. A null optional DLPack library has an undetermined cause.
+
+Independent specification/quality reviews pass. Eleven CPU tests retain REDs
+for module substitution, redirected/absent/closed log streams and the live
+manager environment. The source/import phase passes26/26 tests in1.528s; existing
+adapter tests pass57/57 in0.455s (combined83 tests, process wall1.695+0.639s).
+Evidence: `results/gold/hf-routing-runner/runtime-imports-attempt-001/` and
+`results/gold/hf-routing-runner/imports-phase-attempt-001/`.
+No real runtime import, model construction/generation, POSIX shared-memory
+allocation or GPU acquisition was performed. Pre-import isolation/guards,
+selected MoE tuning inputs, worker execution/cleanup, parent triplet ownership
+and independent raw/trace validation remain pending.

@@ -58,3 +58,9 @@ independent reviews,64/64 final CPU regression (25.54s) and29 direct/helper-link
 PTX assembly fixtures. Handoff:
 `results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`. Public future
 admission remains closed pending C6.2; no GPU gold or formal cell was run.
+
+Standalone CPU update,2026-09-05T18:10Z: the passive runtime import/cache
+observer passes11 tests and independent reviews. The related source/import
+controls pass26/26 and adapter regression57/57. Evidence:
+`results/gold/hf-routing-runner/imports-phase-attempt-001/`. No real vLLM/Torch
+import, model arm or formal matrix cell was launched.

@@ -65,6 +65,13 @@ controls and a real7,961,389-byte snapshot pass. This does not authenticate all
 native binaries or prove runtime import/cache selection. Evidence is in
 `results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`.
 
+The private [import/cache observer](../../scripts/eval/hf_runtime_imports.py)
+checks already-loaded modules and effective paths, including actual open log
+streams and native Triton environment overrides. It does not call the import-
+capable manager descriptors, runtime discovery, CUDA or cache-creation methods.
+Eleven CPU tests and both reviews pass; the related source/import plus adapter
+phase passes83 tests. This does not yet create a guarded executable worker.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

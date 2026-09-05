@@ -889,3 +889,29 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
                 "$<TARGET_FILE:hbf_prefetch_bench>")
     endif()
 endif()
+
+
+if(HBFSIM_ENABLE_EVAL_TOOLS)
+    if(BUILD_TESTING)
+        add_test(NAME capacity_trace_policy
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}" -m unittest discover
+                -s "${CMAKE_CURRENT_SOURCE_DIR}/adapters/vllm_capacity/tests"
+                -p "test_*.py")
+        set_tests_properties(capacity_trace_policy PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/adapters/vllm_capacity")
+    endif()
+    if(HBFSIM_ENABLE_MQSIM)
+        add_executable(hbf_trace_timing benchmarks/replay/hbf_trace_timing.cpp)
+        target_link_libraries(hbf_trace_timing PRIVATE hbfsim_core)
+        target_include_directories(hbf_trace_timing PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        if(BUILD_TESTING)
+            foreach(eval_replay_test IN ITEMS trace_timing trace_replay_timing)
+                add_test(NAME ${eval_replay_test}
+                    COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_${eval_replay_test}.py"
+                        "$<TARGET_FILE:hbf_trace_timing>")
+            endforeach()
+        endif()
+    endif()
+endif()

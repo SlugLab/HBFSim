@@ -63,6 +63,7 @@ def validate_trace(
     tensor_access_count = 0
     recomputed_bytes = 0
     access_sequences: list[int] = []
+    observed_access_bytes = 0
     with trace_path.open("r", encoding="utf-8") as stream:
         for line in stream:
             event = json.loads(line)
@@ -72,7 +73,7 @@ def validate_trace(
             ids = [int(value) for value in event["topk_expert_ids"]]
             if len(ids) != inventory.top_k or len(set(ids)) != len(ids):
                 raise ValueError("invalid top-k cardinality")
-            expected_tensors: dict[str, tuple[int, tuple[int, ...], str]] = {}
+            expected_tensors: dict[str, tuple] = {}
             for expert in ids:
                 record = inventory.expert(layer, expert)
                 recomputed_bytes += record.total_bytes
@@ -81,10 +82,19 @@ def validate_trace(
                         tensor.bytes,
                         tensor.shape,
                         tensor.tensor_kind,
+                        tensor.dtype,
+                        expert,
+                        tensor.source_shard,
+                        tensor.file_offset_begin,
+                        tensor.file_offset_end,
                     )
             observed = event["expert_tensors"]
             if len(observed) != len(expected_tensors):
                 raise ValueError("tensor access cardinality mismatch")
+            observed_keys = [item["tensor"] for item in observed]
+            if (len(set(observed_keys)) != len(observed_keys)
+                    or set(observed_keys) != set(expected_tensors)):
+                raise ValueError("tensor access identity mismatch")
             for item in observed:
                 key = item["tensor"]
                 expected = expected_tensors.get(key)
@@ -94,8 +104,14 @@ def validate_trace(
                     int(item["tensor_bytes"]),
                     tuple(int(value) for value in item["shape"]),
                     item["tensor_kind"],
+                    item["dtype"],
+                    int(item["expert_id"]),
+                    item["source_shard"],
+                    int(item["source_offset_begin"]),
+                    int(item["source_offset_end"]),
                 ) != expected:
                     raise ValueError(f"tensor metadata mismatch: {key}")
+                observed_access_bytes += int(item["tensor_bytes"])
                 access_sequences.append(int(item["access_order_sequence"]))
             per_layer[layer] += 1
             per_phase[str(event["phase"])] += 1
@@ -112,7 +128,7 @@ def validate_trace(
         "topk_cardinality": True,
         "tensor_shape_dtype_bytes_match_manifest": True,
         "total_access_bytes_recomputed": recomputed_bytes
-        == expert_access_count * inventory.expert_bytes,
+        == expert_access_count * inventory.expert_bytes == observed_access_bytes,
         "access_order_contiguous": access_sequences
         == list(range(len(access_sequences))),
         "trace_summary_event_count": event_count
@@ -128,6 +144,7 @@ def validate_trace(
             "expert_access_count": expert_access_count,
             "tensor_access_count": tensor_access_count,
             "recomputed_expert_access_bytes": recomputed_bytes,
+            "observed_tensor_access_bytes": observed_access_bytes,
             "per_layer_event_count": {
                 str(key): value for key, value in sorted(per_layer.items())
             },

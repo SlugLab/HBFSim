@@ -412,6 +412,8 @@ def replay_cell(
         "actual_bytes": geometry["actual_hbm_bytes"],
         "policy": policy_name,
         "hbf_profile": str(profile.get("name", "unknown")),
+        "hbf_profile_sha256": canonical_sha256(profile),
+        "hbf_profile_config": profile,
         "simulator_mode": simulator_mode,
         "prefetch": {"readahead_pages": 0},
         "seed": 0,

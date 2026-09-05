@@ -7,6 +7,7 @@ import unittest
 
 from model_inventory import ModelInventory
 from trace_replay import TraceAccess, capacity_geometry, replay_cell
+from trace_validation import validate_trace
 
 
 def tensor(name: str, begin: int, shape: list[int]) -> dict[str, object]:
@@ -104,6 +105,61 @@ class TraceReplayTest(unittest.TestCase):
         self.assertEqual(capacity["hits"] + capacity["misses"], 3)
         self.assertTrue(all(result["conservation"].values()))
         self.assertEqual(capacity["hbf_read_bytes"], capacity["misses"] * 16_384)
+
+    def test_profile_contents_bind_cell_identity(self) -> None:
+        accesses = [TraceAccess((0, 0), "prefill", "r", 0, 0, 0)]
+        geometry = capacity_geometry(self.inventory, (1, 1), 16_384)
+        results = []
+        for latency in (10, 1_000_000):
+            profile = {"name": "same-name", "read_latency_ns": latency,
+                       "aggregate_bandwidth_bytes_per_s": 1_000_000_000}
+            results.append(replay_cell(
+                accesses, self.inventory, profile,
+                {"trace_fingerprint": "c" * 64}, geometry, "lru",
+                "d" * 40, "e" * 64, 0))
+        self.assertNotEqual(results[0]["cell_id"], results[1]["cell_id"])
+        for result, latency in zip(results, (10, 1_000_000)):
+            self.assertEqual(result["cell_manifest"]["hbf_profile_config"]
+                             ["read_latency_ns"], latency)
+            self.assertEqual(len(result["cell_manifest"]["hbf_profile_sha256"]), 64)
+
+    def validation_fixture(self):
+        work = pathlib.Path(self.temporary.name)
+        summary = work / "summary.json"
+        summary.write_text(json.dumps({
+            "protocol": {"num_prompts": 1, "input_len": 1, "output_len": 1},
+            "trace": {"event_count": 1},
+        }))
+        event = {"model_fingerprint": self.inventory.model_fingerprint,
+                 "layer_id": 0, "topk_expert_ids": [0], "phase": "prefill",
+                 "expert_tensors": self.inventory.compact_tensor_accesses(0, [0])}
+        for sequence, item in enumerate(event["expert_tensors"]):
+            item["access_order_sequence"] = sequence
+        return work / "trace.jsonl", summary, event
+
+    def test_valid_complete_tensor_trace(self) -> None:
+        trace, summary, event = self.validation_fixture()
+        trace.write_text(json.dumps(event) + "\n")
+        result = validate_trace(trace, summary, self.inventory)
+        self.assertTrue(all(result["validation"]["checks"].values()))
+
+    def test_duplicate_tensor_cannot_replace_missing_tensor(self) -> None:
+        trace, summary, event = self.validation_fixture()
+        event["expert_tensors"][1] = {**event["expert_tensors"][0],
+                                       "access_order_sequence": 1}
+        trace.write_text(json.dumps(event) + "\n")
+        with self.assertRaises(ValueError):
+            validate_trace(trace, summary, self.inventory)
+
+    def test_wrong_dtype_or_source_is_rejected(self) -> None:
+        for field, value in (("dtype", "WRONG"), ("source_shard", "wrong"),
+                             ("source_offset_begin", 100), ("expert_id", 1)):
+            with self.subTest(field=field):
+                trace, summary, event = self.validation_fixture()
+                event["expert_tensors"][0][field] = value
+                trace.write_text(json.dumps(event) + "\n")
+                with self.assertRaises(ValueError):
+                    validate_trace(trace, summary, self.inventory)
 
 
 if __name__ == "__main__":

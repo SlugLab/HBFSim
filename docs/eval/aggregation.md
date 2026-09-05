@@ -1,0 +1,13 @@
+# Aggregation and report boundaries
+
+There is one canonical capacity replay: `adapters/vllm_capacity/trace_replay.py`. It writes per-cell `raw/<cell_id>.json`, `replay-summary.json`, `replay-summary.csv`, and timing event files when using an external timing engine. The summary is a per-cell table, not an independent-repeat statistical aggregator. The offline prefetch sweep produces a separate model JSON/CSV with its own disclaimer; never append those rows to measured GPU tables.
+
+Group only records with the same code/build, model and trace identity, environment, evidence class, profile hash, mode, cache policy, requested AND achieved capacity, prefetch configuration, workload and timing-scale convention. Keep repetition/run-order seed distinct from workload seed. Trace hashes deliberately change when the captured input changes: record the grouping policy for independent prompts before aggregating.
+
+For measured independent runs, report median and a declared 95% bootstrap confidence interval; report sample count and resampling seed. Show hardware sample IQR on parity plots when that is the declared method. Deterministic replay has no measurement CI by repeating an identical input. CI/error-bar generation is PLANNED analysis, not an implemented tool here. Never average per-run percentiles into a pooled percentile, average speedup ratios without a declared paired estimator, mix calibration with held-out points, or pool different evidence classes.
+
+Capacity invariants are `hits + misses = accesses`, read bytes equal padded expert-slot bytes times misses, and traffic/page conservation. Preserve payload bytes versus allocated/padded bytes. Zero denominators remain null. Keep OOM, invalid geometry, parse failures, rejected coverage and unavailable runs as explicit invalid/missing points; never replace them with zero latency or silently exclude them from denominators.
+
+Prefetch invariants are `hits + misses = demand_accesses`, `used + wasted = issued`, and `total_ns = compute_ns + stall_ns`. Total media reads are demand misses plus speculative issued reads. A hit can still wait for an in-flight read. `recovered_fraction` is signed and negative when speculation is harmful; high next-page success is not expert-router prediction accuracy.
+
+Existing runtime coverage/report schemas are unchanged. Offline replay's `stats_v2` is not a public ABI upgrade. `scripts/hbf_eval`, `scripts/qwen3_moe_capacity.py`, their named tests and Qwen JSON profiles from the task's hypothetical file list do not exist on the audited capacity branch. Do not invent an aggregation or serving runner under those names.

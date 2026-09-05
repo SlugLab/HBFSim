@@ -3,6 +3,7 @@
 #include <hbfsim/protocol.hpp>
 
 #include <json.hpp>
+#include "replay_json.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -20,6 +21,7 @@
 
 namespace {
 using Json = nlohmann::json;
+using hbfsim::eval::integer;
 
 void publish(const std::string& path, const Json& result)
 {
@@ -44,16 +46,6 @@ void publish(const std::string& path, const Json& result)
     const bool published = good && ::link(temporary.data(), path.c_str()) == 0;
     ::unlink(temporary.data());
     if (!published) throw std::runtime_error("cannot publish output; target may already exist");
-}
-
-std::uint64_t integer(const Json& object, const char* key)
-{
-    const auto& value = object.at(key);
-    if (value.is_number_unsigned()) return value.get<std::uint64_t>();
-    if (!value.is_number_integer() || value.get<std::int64_t>() < 0) {
-        throw std::invalid_argument(std::string(key) + " requires a nonnegative integer");
-    }
-    return static_cast<std::uint64_t>(value.get<std::int64_t>());
 }
 
 struct Options {

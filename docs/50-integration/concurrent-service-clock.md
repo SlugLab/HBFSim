@@ -27,3 +27,17 @@ at that exact time; bandwidth-adjusted completion never returned early; count,
 byte and optional observation conservation; idle and backward-clock behavior.
 This API supplies clock coordination only. It is not a completed compute DAG,
 prefetch implementation, physical SSD calibration or GPU correctness proof.
+
+The optional `hbf_mqsim_service` executable exposes this API through JSON lines.
+One process owns one engine. A `submit` command validates an entire batch of
+positive unique IDs and aligned read extents before accepting any request;
+`until` returns one reported-ready completion or the exact clock horizon.
+Every response includes drained arrival/admission/completion observations.
+`finish` requires zero pending work and exact count/byte conservation. EOF
+without `finish`, invalid commands, and unmapped topology requests fail closed.
+The initial record labels the source `MQSIM_SIMULATED`, provenance `PROJECTED`,
+and scope `READ_ONLY_MEDIA_SERVICE_NOT_HARDWARE`. A caller must freeze the
+profile, executable identity, and command/response transcript separately.
+Protocol controls live in `tests/integration/test_mqsim_service.py`; the original
+concurrent executable uses the same extracted integer validator without changing
+its accepted input or output contract.

@@ -38,9 +38,16 @@ Original Triton functions must bind to rewritten functions from the same PTX dig
 
 Selective physically backed timing registration, storage deduplication and registration manifests, exact Triton variant binding, deterministic generation comparison, validated supplied expert inventories, complete-object CLOCK/LRU/Belady offline placement and serial timing replay. Belady's future knowledge is an offline oracle, not an implementable runtime predictor. B's separate prefetch model is also offline and behind optional evaluation tooling.
 
+The phase-two `trace_collector.py` and `routed_capture_compat.py` port only route materialization and explicit reversible callback binding. They preserve request/tensor identity but do not launch vLLM or authenticate capture origin. The validation CLI now keeps missing native/repeat controls INCOMPLETE and CPU fixtures TEST_ONLY; tensor consistency alone cannot produce real-routing gold. `routing_metrics.py` and `run_prefetch.py` consume separate frozen routing and compute inputs as TRACE_COMPOSED projections, never live serving.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.
+
+The current project has distinct GGUF F16 and HF BF16 checkpoint views. A
+metadata refresh may verify headers, config/index and file identity without
+rehashing weights; historical payload hashes remain historical evidence. Never
+substitute their fingerprints because expert dimensions happen to agree.
 
 ## Common failure modes
 

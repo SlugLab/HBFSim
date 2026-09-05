@@ -28,12 +28,20 @@ need not be contiguous ([NVIDIA PTX special-register contract](https://docs.nvid
 One triplet does not establish repeated hardware noise or full matrix G2 gold.
 No inherited-lock scheduler adapter or long-form metric exporter is installed.
 
-All 18 runner CPU/compile controls pass (3.294 s); no injected result is
+All 20 runner CPU/compile controls pass (3.676 s); no injected result is
 accepted as a formal measurement. CPU and compile-only controls pass on CUDA 13 with a consistent g++-13 host/core
 build. The original mixed GCC build failed during linking and remains negative
 evidence. Successful build configuration and commands are recorded in
 `results/gold/known-delay/`. Existing helper ABI and PTX controls also pass.
-No GPU kernel, timing or observed occupancy measurement has run on this host.
+Guarded host execution subsequently completed ten D0 K64 controls, then a D500
+point failed fixed G2. Host-control reads inside the wait caused a median
+615,808-ns interval for requested 500 ns. Commit `13a416a` introduces an
+inspectable clock-only helper with cached scalar timeout, common pre/post
+shutdown/fault/heartbeat/generation checks, and no global-memory operations in
+the compiled wait function. CPU clock/timeout/wrap tests, three ABI/PTX checks
+and 55 phase tests pass. The new hardware attempt stopped before payload on
+foreign GPU use; this fix has no passing hardware G2 claim. Old raw failures and
+the new blocked attempt are retained in `results/gold/known-delay/`.
 
 One representative SM120 image was assembled and disassembled with cuobjdump
 and nvdisasm. `results/gold/known-delay/sass-control/mapping-notes.md` records

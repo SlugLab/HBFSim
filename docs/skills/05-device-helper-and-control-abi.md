@@ -52,6 +52,10 @@ The opt-in [known-delay experiment](../50-integration/known-delay-harness.md)
 adds module-local `EvalDelayConfig`, counters and traces outside the shared ABI.
 Magic zero retains production resolution. Enabled registered TIMING reads keep
 the existing checks/grouping/translation; D=0 performs no synthetic wait.
+`eval_delay_clock_wait` takes cached scalar delay/timeout; common liveness and
+generation checks run before and after both D0 and positive intervals. Its
+compiled PTX has no host/global-memory polling inside the wait. This proves
+structure, not hardware timing accuracy.
 Registered capacity/writes are rejected in that experiment. This synchronous
 benchmark is not a future issue/poll/wait ABI or an async semantic proof.
 

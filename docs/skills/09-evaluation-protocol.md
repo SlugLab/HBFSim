@@ -43,6 +43,18 @@ Semantic/static tests, MQSim, inventory, offline replay and rendering run on CPU
 
 Existing schema/mock/matrix/renderer infrastructure, CPU semantic regression, MQSim synthetic arrivals, supplied-inventory serial replay, and standalone offline prefetch model. The strict renderer rejects MOCK and missing/inconsistent required cells. These capabilities make infrastructure reviewable; they do not mean EQ1–EQ4 are complete.
 
+Phase-two tool contracts are documented in [storage acquisition](../50-integration/storage-collector.md),
+[storage pairing](../50-integration/storage-pairing.md) and
+[causal projection](../50-integration/causal-prefetch-projection.md). The
+immutable scheduler, split preparation, native concurrent service, real metadata
+budgets and routing statistics provide raw evidence infrastructure. A validated
+raw result still needs its independent scientific gate before formal export.
+Observed-arrival replay retains actual timestamps, even for a closed-loop
+source. Closed-loop policy comparison instead replenishes each arm from its own
+completions; these are different comparisons and carry distinct mode identities.
+GPU unavailability must be established at the actual host execution boundary;
+sandbox driver visibility alone is not host resource evidence.
+
 ## Explicitly unsupported behavior
 
 No labeling hypothetical HBF as a measured device; GDDR7 as HBM; SSD as HBF ground truth; serial stall sums as live decode time; configured batch size as actual active sequences; synthetic routes as real Qwen routing; or offline prefetch gain as runtime gain. Missing heatmap cells cannot be interpolated into experiments. Absent crossings must remain absent. Statistical confidence intervals do not remove uncertainty in hypothetical model assumptions.

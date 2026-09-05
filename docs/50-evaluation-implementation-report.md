@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `6444b71` (owned HF request composition; C6.2 review ongoing).
+- Ending committed implementation SHA at this checkpoint: `cf37966` (optional MoE tuning source extension; C6.2 review fixes ongoing).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -226,6 +226,16 @@ objects are CPU fixtures; no real inference import, model load, generation or
 POSIX segment occurred. Controlled import entrypoint, selected tuning inputs,
 parent resource/exit/current-input checks and independent triplet validation
 remain unfinished. The body has no CLI and writes no completion marker.
+
+The optional `MOE_TUNING_V1` runtime-source extension is committed at `cf37966`.
+It adds exactly two selector/override sources and preserves byte-identical
+validation of the base131-artifact contract. Eighteen source tests and both
+reviews pass. The real133-artifact snapshot/current recheck at
+2026-09-05T18:49:21Z passed in0.328s, freezing7,998,813 source-metadata bytes;
+all131 older buffers match. Evidence:
+`results/gold/hf-routing-runner/runtime-sources-tuning-real-attempt-001/`.
+Selected tuning JSON/absence and actual loaded tuning state remain separate
+unfinished gates; no inference import or GPU execution occurred.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

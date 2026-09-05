@@ -65,6 +65,12 @@ controls and a real7,961,389-byte snapshot pass. This does not authenticate all
 native binaries or prove runtime import/cache selection. Evidence is in
 `results/gold/hf-routing-runner/runtime-sources-real-attempt-001/`.
 
+The optional `MOE_TUNING_V1` source extension adds only the fused-MoE package
+initializer and batch-invariant selector, preserving the base snapshot format.
+Eighteen source tests and both reviews pass; the real133-artifact snapshot and
+recheck preserve all131 base buffers. This extension does not select a tuning
+JSON or observe loaded kernel configuration.
+
 The private [import/cache observer](../../scripts/eval/hf_runtime_imports.py)
 checks already-loaded modules and effective paths, including actual open log
 streams and native Triton environment overrides. It does not call the import-

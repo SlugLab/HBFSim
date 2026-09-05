@@ -70,3 +70,9 @@ composition passes both reviews and95 related tests (38 worker/source/import,
 57 adapters). Evidence: `results/gold/hf-routing-runner/loaded-arm-phase-attempt-001/`.
 This uses CPU runtime fixtures, creates no real model arm or POSIX segment, and
 changes no formal matrix count. Complete guarded triplet remains unfinished.
+
+Standalone CPU update,2026-09-05T18:49:21Z: the optional MoE source extension
+passes18 tests/both reviews; the real133-artifact source snapshot and current
+recheck pass with all131 base buffers unchanged. Evidence:
+`results/gold/hf-routing-runner/runtime-sources-tuning-real-attempt-001/`.
+No selected tuning JSON, loaded kernel state, model arm or matrix cell was acquired.

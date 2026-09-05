@@ -11,6 +11,10 @@ struct FutureEmissionOptions {
 };
 struct FutureEmission {
     std::string ptx;
+    // Exact replacement body for composing independently validated kernels
+    // from one original module, without reparsing generated helper calls.
+    SourceSpan body_span;
+    std::string body;
     FuturePlan plan;
     // One statically owned local record per producer; no speculative reuse.
     std::uint32_t allocated_thread_futures{0};
@@ -20,9 +24,9 @@ struct FutureEmission {
     std::uint32_t assumed_maximum_block_threads{0};
     std::uint32_t allocated_cta_futures{0};
 };
-// Private CPU/compile-only C6.1 entry point. This is not wired into the public
-// transformer, loader identity, configuration enablement, or launch admission.
-// C5 kUnitComplete remains false. This text alone is never a gold receipt.
+// Validated emission primitive. The complete opt-in plugin additionally binds
+// identity, manifest, embedded helper and runtime launch resources. This text
+// alone is never a launch authorization or scientific gold receipt.
 [[nodiscard]] FutureEmission emit_timing_futures(std::string_view source,
     std::string_view kernel, const FutureEmissionOptions& options={});
 }

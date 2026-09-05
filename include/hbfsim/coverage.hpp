@@ -78,6 +78,17 @@ struct UnsupportedParameter {
     std::string operation;
 };
 
+struct FutureKernelContract {
+    std::uint32_t static_producers{0}, maximum_block_threads{0};
+    std::array<std::uint32_t,3> required_threads{}, maximum_threads{};
+    bool operator==(const FutureKernelContract&) const = default;
+};
+
+[[nodiscard]] std::string future_contract_json(const std::string& original_sha256,
+                                              const std::string& helper_sha256);
+[[nodiscard]] std::string future_contract_identity(const std::string& contract);
+[[nodiscard]] std::string future_kernel_contract_symbol(const std::string& kernel);
+
 struct ModuleManifest {
     std::string module_id;
     std::string kernel;
@@ -88,6 +99,9 @@ struct ModuleManifest {
     std::vector<UnsupportedParameter> unsupported_parameters;
     std::string transform_mode{"synchronous"};
     std::optional<timing_future::ModuleRequirements> future_requirements;
+    std::optional<FutureKernelContract> future_kernel;
+    std::string future_contract;
+    std::string future_manifest_sha256;
 };
 
 struct ArgumentSlot {
@@ -107,6 +121,7 @@ struct KernelLaunch {
     std::string module_id;
     std::string kernel;
     std::vector<LaunchParameter> parameters;
+    std::array<std::uint32_t,3> grid{}, block{};
 };
 
 struct GateDecision {
@@ -147,6 +162,11 @@ class CoverageGate {
     [[nodiscard]] bool has_capacity_ranges() const;
     [[nodiscard]] bool has_strict_ranges() const;
     [[nodiscard]] GateDecision check_launch(const KernelLaunch& launch) const;
+    [[nodiscard]] std::optional<ModuleManifest> manifest(const std::string& module,
+                                                       const std::string& kernel) const;
+    [[nodiscard]] bool future_module_contract(const std::string& module,
+        const timing_future::ModuleRequirements& requirements,const std::string& helper_sha256) const;
+    [[nodiscard]] std::vector<ModuleManifest> module_manifests(const std::string& module) const;
 
   private:
     struct AddressRange {

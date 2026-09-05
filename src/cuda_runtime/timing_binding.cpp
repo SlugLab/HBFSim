@@ -368,4 +368,12 @@ bool TimingBindingRegistry::future_module(ModuleHandle module) const noexcept
     return found!=modules_.end() && found->second.future;
 }
 
+void TimingBindingRegistry::quarantine_future_module(ModuleHandle module) noexcept
+{
+    std::scoped_lock lock(mutex_);
+    future_observed_=true;quarantined_=true;retiring_=true;
+    const auto found=modules_.find(module);
+    if(found!=modules_.end()){found->second.future=true;found->second.generation=0;}
+}
+
 }  // namespace hbfsim

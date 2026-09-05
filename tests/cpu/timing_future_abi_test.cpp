@@ -40,7 +40,9 @@ int main()
     CHECK(valid_requirements(ModuleRequirements{}));
     auto requirement=ModuleRequirements{}; requirement.token_bytes=80; CHECK(!valid_requirements(requirement));
     requirement=ModuleRequirements{}; requirement.metadata_bytes=24; CHECK(!valid_requirements(requirement));
+#if !defined(HBFSIM_TIMING_FUTURE_UNIT_COMPLETE)
     CHECK(!kUnitComplete);
+#endif
     std::puts("PASS: exact token/metadata marshaling and unchanged shared ABI4");
 }
 #endif

@@ -21,6 +21,7 @@ struct TransformRequest {
     std::string ebpf_communication_data_symbol{"constData"};
     bool trusted_existing_helper{false};
     std::string transform_mode{"synchronous"};
+    std::vector<std::string> future_kernels;
 };
 
 struct TransformResult {
@@ -31,5 +32,6 @@ struct TransformResult {
 
 TransformResult transform_ptx(const TransformRequest& request);
 std::string_view embedded_device_helper();
+std::string embedded_device_helper_sha256();
 
 }  // namespace hbfsim::ptx

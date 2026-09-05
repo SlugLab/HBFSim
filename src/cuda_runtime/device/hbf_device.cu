@@ -616,6 +616,10 @@ extern "C" __device__ hbfsim::timing_future::ModuleConfig
     __hbfsim_timing_future_config_v1 = {};
 extern "C" __device__ hbfsim::timing_future::Counters
     __hbfsim_timing_future_counters_v1 = {};
+// CUDA module lifetime owns this finite allocation. The host binds its exact
+// symbol address/size, and reserves a conservative cumulative launch budget.
+extern "C" __device__ hbfsim::timing_future::Trace
+    __hbfsim_timing_future_trace_v1[hbfsim::timing_future::kTraceCapacity] = {};
 
 namespace {
 namespace future = hbfsim::timing_future;

@@ -1,11 +1,15 @@
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
+#include <memory>
 #include <mutex>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,7 +29,8 @@ int control_copy_fail_position = 0;
 int control_copy_calls = 0;
 bool unload_fails = false;
 bool lifecycle_fails = false;
-int launch_count = 0;
+std::atomic_int launch_count{0};
+int launch_error=0;
 int synchronize_count = 0;
 bool synchronize_fails = false;
 int unregister_count = 0;
@@ -41,6 +46,51 @@ int future_contract_mode=0;
 hbfsim::timing_future::ModuleRequirements future_requirements{};
 hbfsim::timing_future::ModuleRequirements future_helper_abi{};
 hbfsim::timing_future::ModuleConfig future_config{};
+hbfsim::timing_future::Counters future_counters{};
+hbfsim::timing_future::Trace future_trace[hbfsim::timing_future::kTraceCapacity];
+std::array<unsigned char,32> future_helper_hash{};
+std::array<unsigned char,32> future_kernel_hash{};
+std::vector<int> future_copy_events;
+// TEST_ONLY: opt-in image fixtures retain independent module-owned storage and
+// extract kernel constants from the actual plugin PTX passed to the loader.
+struct FutureImage {
+    std::uintptr_t context{current_context};
+    std::array<std::uint8_t,32> identity{module_identity};
+    hbfsim::timing_future::ModuleRequirements requirements{future_requirements};
+    hbfsim::timing_future::ModuleRequirements helper{future_helper_abi};
+    hbfsim::timing_future::ModuleConfig config{};
+    hbfsim::timing_future::Counters counters{};
+    hbfsim::timing_future::Trace trace[hbfsim::timing_future::kTraceCapacity]{};
+    std::array<unsigned char,32> helper_hash{future_helper_hash};
+    std::uint64_t alias{0}, generation{0};
+    std::unordered_map<std::string,std::vector<unsigned char>> kernels;
+};
+struct FutureFunction { void* module; std::string name; };
+bool future_image_mode=false;
+std::uintptr_t next_image_handle=0x8000,next_function_handle=0x10000;
+std::unordered_map<void*,std::unique_ptr<FutureImage>> future_images;
+std::unordered_map<void*,FutureFunction> future_functions;
+std::unordered_map<void*,void*> kernel_function_fixtures;
+int future_kernel_lookup_failure=0;
+
+bool future_image_memory(std::uintptr_t address,std::size_t size,bool write)
+{
+    const auto within=[&](const void* data,std::size_t bytes) {
+        const auto begin=reinterpret_cast<std::uintptr_t>(data);
+        return address>=begin && size<=bytes && address-begin<=bytes-size;
+    };
+    for(const auto& [_,image]:future_images) {
+        const auto& m=*image;
+        if(within(&m.config,sizeof(m.config)) || within(&m.counters,sizeof(m.counters)) ||
+           within(&m.alias,sizeof(m.alias)) || within(&m.generation,sizeof(m.generation)))return true;
+        if(!write) {
+            if(within(m.identity.data(),m.identity.size()) || within(&m.requirements,sizeof(m.requirements)) ||
+               within(&m.helper,sizeof(m.helper)) || within(m.helper_hash.data(),m.helper_hash.size()))return true;
+            for(const auto& [_,bytes]:m.kernels)if(within(bytes.data(),bytes.size()))return true;
+        }
+    }
+    return false;
+}
 std::uintptr_t pointer_context = 0xCA00;
 int pointer_device = 3;
 unsigned int pointer_memory_type = 2;
@@ -227,6 +277,25 @@ int cuModuleLoadDataEx(void** module, const void* image, unsigned int, void*,
         std::strcmp(image_name, "fail-a") == 0) {
         return 1;
     }
+    if(future_image_mode) {
+        auto state=std::make_unique<FutureImage>();
+        const std::string ptx(image_name);
+        const std::regex constant(R"(\.b8\s+(__hbfsim_timing_future_kernel_[a-f0-9]{64}_v1)\[(\d+)\]\s*=\s*\{([^}]*)\})");
+        for(std::sregex_iterator it(ptx.begin(),ptx.end(),constant),end;it!=end;++it) {
+            const auto count=std::stoul((*it)[2]);
+            if(count>64)return 1;
+            auto& bytes=state->kernels[(*it)[1]];bytes.resize(count);
+            std::istringstream values((*it)[3]);std::string value;std::size_t index=0;
+            while(std::getline(values,value,',')) {
+                const auto byte=std::stoul(value,nullptr,0);
+                if(index>=count || byte>255)return 1;
+                bytes[index++]=static_cast<unsigned char>(byte);
+            }
+        }
+        *module=reinterpret_cast<void*>(next_image_handle++);
+        future_images.emplace(*module,std::move(state));module_loaded=true;
+        return 0;
+    }
     module_loaded = true;
     control_alias = 0;
     control_generation = 0;
@@ -236,6 +305,10 @@ int cuModuleLoadDataEx(void** module, const void* image, unsigned int, void*,
 
 int cuModuleUnload(void* module)
 {
+    if(future_image_mode) {
+        if(unload_fails || future_images.erase(module)!=1)return 1;
+        module_loaded=!future_images.empty();return 0;
+    }
     if (module != reinterpret_cast<void*>(fake_module_value) ||
         !module_loaded || unload_fails) {
         return 1;
@@ -263,6 +336,11 @@ int destroy_context(std::uintptr_t target_context)
         live_domains.erase(target_context);
     }
     if (target_context == current_context) {
+        if(future_image_mode) {
+            for(auto it=future_images.begin();it!=future_images.end();) {
+                if(it->second->context==target_context)it=future_images.erase(it);else ++it;
+            }
+        }
         module_loaded = false;
         current_context = 0;
         current_device = -1;
@@ -368,6 +446,8 @@ int cudaDeviceSynchronize()
     return synchronize_fails ? 1 : 0;
 }
 
+int cuCtxSynchronize() { return cudaDeviceSynchronize(); }
+
 int cudaHostUnregister(void*)
 {
     ++unregister_count;
@@ -379,8 +459,13 @@ int cudaThreadExit()
     return destroy_context(current_context);
 }
 
-int cuFuncGetModule(void** module, void*)
+int cuFuncGetModule(void** module, void* function)
 {
+    if(future_image_mode) {
+        const auto it=future_functions.find(function);
+        if(!module || it==future_functions.end() || !future_images.count(it->second.module))return 1;
+        *module=it->second.module;return 0;
+    }
     if (!module_loaded || module == nullptr) {
         return 1;
     }
@@ -388,8 +473,25 @@ int cuFuncGetModule(void** module, void*)
     return 0;
 }
 
-int cuFuncGetName(const char** name, void*)
+int cuKernelGetFunction(void** function,void* kernel)
 {
+    const auto it=kernel_function_fixtures.find(kernel);
+    if(!function || it==kernel_function_fixtures.end())return 1;
+    *function=it->second;return 0;
+}
+
+void fakeCudaSetKernelFunction(void* kernel,void* function)
+{
+    kernel_function_fixtures.insert_or_assign(kernel,function);
+}
+
+int cuFuncGetName(const char** name, void* function)
+{
+    if(future_image_mode) {
+        const auto it=future_functions.find(function);
+        if(!name || it==future_functions.end() || !future_images.count(it->second.module))return 1;
+        *name=it->second.name.c_str();return 0;
+    }
     if (!module_loaded || name == nullptr) {
         return 1;
     }
@@ -542,12 +644,34 @@ int cuMemGetAddressRange_v2(std::uintptr_t* base, std::size_t* size,
     return fake_mem_get_address_range(base, size);
 }
 
-int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
+int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void* module,
                          const char* name)
 {
     if (!module_loaded || address == nullptr || size == nullptr ||
         name == nullptr) {
         return 1;
+    }
+    if(future_image_mode) {
+        const auto it=future_images.find(module);
+        if(it==future_images.end())return 1;
+        auto& m=*it->second;
+        const auto value=[&](void* data,std::size_t bytes) {
+            *address=reinterpret_cast<std::uintptr_t>(data);*size=bytes;return 0;
+        };
+        if(std::strcmp(name,"__hbfsim_module_identity")==0)return value(m.identity.data(),m.identity.size());
+        if(std::strcmp(name,"__hbfsim_control")==0)return value(&m.alias,sizeof(m.alias));
+        if(std::strcmp(name,"__hbfsim_control_generation")==0)return value(&m.generation,sizeof(m.generation));
+        if(std::strcmp(name,"__hbfsim_timing_future_requirements_v1")==0)return value(&m.requirements,sizeof(m.requirements));
+        if(std::strcmp(name,"__hbfsim_timing_future_helper_abi_v1")==0)return value(&m.helper,sizeof(m.helper));
+        if(std::strcmp(name,"__hbfsim_timing_future_config_v1")==0)return value(&m.config,sizeof(m.config));
+        if(std::strcmp(name,"__hbfsim_timing_future_counters_v1")==0)return value(&m.counters,sizeof(m.counters));
+        if(std::strcmp(name,"__hbfsim_timing_future_trace_v1")==0)return value(m.trace,sizeof(m.trace));
+        if(std::strcmp(name,"__hbfsim_timing_future_helper_sha256_v1")==0)return value(m.helper_hash.data(),m.helper_hash.size());
+        if(std::strncmp(name,"__hbfsim_timing_future_kernel_",30)==0 && future_kernel_lookup_failure)
+            return future_kernel_lookup_failure;
+        const auto kernel=m.kernels.find(name);
+        if(kernel!=m.kernels.end())return value(kernel->second.data(),kernel->second.size());
+        return 500; // Exact CUDA_ERROR_NOT_FOUND, distinct from inaccessible.
     }
     if (std::strcmp(name, "__hbfsim_module_identity") == 0) {
         if (!marker_available) {
@@ -562,12 +686,26 @@ int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
         if (future_contract_mode==6) return 999; // Inaccessible is not absent.
         *address=reinterpret_cast<std::uintptr_t>(&future_requirements);*size=sizeof(future_requirements);return 0;
     }
-    if (future_contract_mode && std::strcmp(name,"__hbfsim_timing_future_helper_abi_v1")==0) {
-        *address=reinterpret_cast<std::uintptr_t>(&future_helper_abi);*size=sizeof(future_helper_abi);return 0;
+    if (future_contract_mode && future_contract_mode!=13 && std::strcmp(name,"__hbfsim_timing_future_helper_abi_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(&future_helper_abi);*size=sizeof(future_helper_abi)-(future_contract_mode==14?8:0);return 0;
     }
     if (future_contract_mode && future_contract_mode!=3 && std::strcmp(name,"__hbfsim_timing_future_config_v1")==0) {
         *address=reinterpret_cast<std::uintptr_t>(&future_config);
         *size=future_contract_mode==4 ? 12 : sizeof(future_config);return 0;
+    }
+    if(future_contract_mode && future_contract_mode!=7 && std::strcmp(name,"__hbfsim_timing_future_trace_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(future_trace)+(future_contract_mode==11?1:0);
+        *size=sizeof(future_trace)-(future_contract_mode==8?64:0);return 0;
+    }
+    if(future_contract_mode && std::strcmp(name,"__hbfsim_timing_future_counters_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(&future_counters);
+        *size=sizeof(future_counters)-(future_contract_mode==9?8:0);return 0;
+    }
+    if(future_contract_mode && std::strcmp(name,"__hbfsim_timing_future_helper_sha256_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(future_helper_hash.data());*size=future_helper_hash.size();return 0;
+    }
+    if(future_contract_mode && future_contract_mode!=12 && std::strncmp(name,"__hbfsim_timing_future_kernel_",30)==0) {
+        *address=reinterpret_cast<std::uintptr_t>(future_kernel_hash.data());*size=future_kernel_hash.size();return 0;
     }
     if (!control_symbols_available) {
         return 1;
@@ -783,11 +921,26 @@ int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
         }
     }
     ++control_copy_calls;
+    if(future_image_mode) {
+        if(control_copy_fails || (control_copy_fail_position && control_copy_calls==control_copy_fail_position) ||
+           !source || !future_image_memory(destination,size,true))return 1;
+        std::memcpy(reinterpret_cast<void*>(destination),source,size);return 0;
+    }
+    if(future_contract_mode) {
+        int event=0;
+        if(destination==reinterpret_cast<std::uintptr_t>(&future_config)+offsetof(hbfsim::timing_future::ModuleConfig,enabled) && size==4)
+            event=*static_cast<const std::uint32_t*>(source)?6:1;
+        else if(destination==reinterpret_cast<std::uintptr_t>(&future_counters))event=2;
+        else if(destination==reinterpret_cast<std::uintptr_t>(&future_config))event=3;
+        else if(destination==reinterpret_cast<std::uintptr_t>(&control_generation))event=4;
+        else if(destination==reinterpret_cast<std::uintptr_t>(&control_alias))event=5;
+        future_copy_events.push_back(event);
+    }
     if (control_copy_fails ||
         (control_copy_fail_position != 0 &&
          control_copy_calls == control_copy_fail_position) ||
         destination == 0 || source == nullptr ||
-        (size != sizeof(std::uint64_t) &&
+        (size != sizeof(std::uint64_t) && !(destination==reinterpret_cast<std::uintptr_t>(&future_counters) && size==sizeof(future_counters)) &&
          !(future_contract_mode && destination>=reinterpret_cast<std::uintptr_t>(&future_config) &&
            destination+size<=reinterpret_cast<std::uintptr_t>(&future_config)+sizeof(future_config)))) {
         return 1;
@@ -813,8 +966,12 @@ int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
             return 0;
         }
     }
+    if(future_image_mode) {
+        if(!destination || !future_image_memory(source,size,false))return 1;
+        std::memcpy(destination,reinterpret_cast<const void*>(source),size);return 0;
+    }
     if (destination == nullptr || source == 0 ||
-        (size != module_identity.size() &&
+        (size != module_identity.size() && !(source==reinterpret_cast<std::uintptr_t>(&future_counters) && size==sizeof(future_counters)) &&
          !(future_contract_mode && ((source==reinterpret_cast<std::uintptr_t>(&future_requirements) && size==sizeof(future_requirements)) ||
            (source==reinterpret_cast<std::uintptr_t>(&future_helper_abi) && size==sizeof(future_helper_abi)) ||
            (source==reinterpret_cast<std::uintptr_t>(&future_config) && size==sizeof(future_config)))))) {
@@ -829,7 +986,7 @@ int cuLaunchKernel(void*, unsigned int, unsigned int, unsigned int,
                    void*, void**, void**)
 {
     ++launch_count;
-    return 0;
+    return launch_error;
 }
 
 int cuLaunchKernelEx(const void*, void*, void**, void**)
@@ -948,11 +1105,32 @@ void fakeCudaSetControlCopyFailure(int fail)
 
 void fakeCudaSetFutureContract(int mode)
 {
-    future_contract_mode=mode;future_requirements={};future_helper_abi={};future_config={};
+    future_contract_mode=mode;future_requirements={};future_helper_abi={};future_config={};future_counters={};future_copy_events.clear();
     if(mode==2)future_requirements.token_bytes=80;
     if(mode==5)future_helper_abi.metadata_version=2;
 }
+int fakeCudaSetFutureHelperHash(const void* data,std::size_t bytes) {
+    if(!data || bytes!=future_helper_hash.size())return -1;
+    std::memcpy(future_helper_hash.data(),data,bytes);return 0;
+}
+int fakeCudaSetFutureKernelHash(const void* data,std::size_t bytes) {
+    if(!data || bytes!=future_kernel_hash.size())return -1;
+    std::memcpy(future_kernel_hash.data(),data,bytes);return 0;
+}
+int fakeCudaFutureCopyCount(){return static_cast<int>(future_copy_events.size());}
+int fakeCudaFutureCopyEvent(unsigned index){return index<future_copy_events.size()?future_copy_events[index]:-1;}
 std::uint32_t fakeCudaFutureEnabled() { return future_config.enabled; }
+
+void fakeCudaEnableImageFixtures() { future_image_mode=true; }
+void* fakeCudaImageFunction(void* module,const char* name) {
+    if(!future_image_mode || !future_images.count(module) || !name)return nullptr;
+    auto function=reinterpret_cast<void*>(next_function_handle++);
+    future_functions.emplace(function,FutureFunction{module,name});return function;
+}
+std::uint32_t fakeCudaImageEnabled(void* module) {
+    auto it=future_images.find(module);return it==future_images.end()?0:it->second->config.enabled;
+}
+void fakeCudaImageKernelLookupFailure(int code) { future_kernel_lookup_failure=code; }
 
 void fakeCudaSetControlCopyFailurePosition(int position)
 {
@@ -974,6 +1152,7 @@ int fakeCudaLaunchCount()
 {
     return launch_count;
 }
+void fakeCudaSetLaunchFailure(int error){launch_error=error;}
 
 void fakeCudaSetHostUnregisterFailure(int fail)
 {

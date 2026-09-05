@@ -577,6 +577,11 @@ void add_registers(Function& function, const std::string& declaration)
 }
 } // namespace
 
+std::string masked_ptx_source(std::string_view source)
+{
+    std::vector<SourceSpan> strings;return span_mask(source,strings);
+}
+
 Module parse_module_spanned(std::string_view source, std::string_view selected_entry)
 {
     std::vector<SourceSpan> strings;

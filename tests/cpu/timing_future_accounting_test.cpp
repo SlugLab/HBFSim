@@ -10,6 +10,25 @@ using namespace hbfsim::timing_future;
 // may have diverged; this exercises the same lane-local accounting as CUDA.
 int main()
 {
+    // Exercise the actual lane transition functions behind every traced path.
+    // One successful modeled issue record, at most one ready record and one
+    // terminal record. Pending polls and repeated terminal operations are free.
+    for(bool separate_ready:{false,true})for(auto error:{0U,kTimeout,kUnsupported,kDaemonLost})
+    for(auto kind:{WaitKind::Dependency,WaitKind::Ordering}) {
+        DeviceTimingFutureV1 f{0x1000,7,100,300,1000,0x4000,11,State::Issued,kPending};
+        TimingFutureLaneMetadataV1 m{1,32,9,4,1,0,11};
+        unsigned records=1;
+        for(unsigned now=100;now<300;++now) {
+            const auto t=poll_state(f,m,0,9,4,0x1000,7,now,0);
+            CHECK(t.status==kPending && t.events==0);
+        }
+        if(separate_ready)records+=bool(poll_state(f,m,0,9,4,0x1000,7,300,0).events);
+        records+=bool(consume_state(f,m,0,9,4,0x1000,7,350,error,kind).events);
+        for(unsigned repeat=0;repeat<100;++repeat)
+            records+=bool(consume_state(f,m,0,9,4,0x1000,7,350,0,kind).events);
+        CHECK(records<=kMaximumRecordsPerProducer);
+        if(!error && separate_ready)CHECK(records==kMaximumRecordsPerProducer);
+    }
     for(auto kind : {WaitKind::Dependency,WaitKind::Ordering}) {
         DeviceTimingFutureV1 original{0x1000,7,100,300,1000,0x4000,11,State::Issued,kPending};
         TimingFutureLaneMetadataV1 metadata{1,32,9,4,0x5,0,11};

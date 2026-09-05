@@ -1,6 +1,7 @@
 #include "hbfsim/coverage.hpp"
 
 #include <json.hpp>
+#include <openssl/sha.h>
 
 #include <algorithm>
 #include <iomanip>
@@ -10,6 +11,33 @@
 #include <utility>
 
 namespace hbfsim {
+std::string future_contract_json(const std::string& original_sha256,
+                                 const std::string& helper_sha256)
+{
+    return nlohmann::json{{"identity_domain","hbfsim.timing-load-future.v1"},
+        {"original_ptx_sha256",original_sha256},{"transform_mode",timing_future::kMode},
+        {"device_future_abi",1},{"device_future_bytes",64},{"lane_metadata_abi",1},
+        {"lane_metadata_bytes",32},{"shared_control_abi",4},{"helper_sha256",helper_sha256},
+        {"subset","straight_line_scalar_read_v1"},{"time_scale",1},{"maximum_thread_futures",16},
+        {"maximum_block_threads",1024},{"trace_capacity",timing_future::kTraceCapacity},
+        {"trace_record_bytes",sizeof(timing_future::Trace)},
+        {"maximum_records_per_producer",timing_future::kMaximumRecordsPerProducer}}.dump();
+}
+
+std::string future_contract_identity(const std::string& contract)
+{
+    unsigned char digest[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(contract.data()),contract.size(),digest);
+    std::ostringstream out;out<<std::hex<<std::setfill('0');
+    for (auto byte:digest) out<<std::setw(2)<<static_cast<unsigned>(byte);
+    return out.str();
+}
+
+std::string future_kernel_contract_symbol(const std::string& kernel)
+{
+    return "__hbfsim_timing_future_kernel_"+future_contract_identity(kernel)+"_v1";
+}
+
 namespace {
 
 bool strict_policy(RangePolicy policy)
@@ -189,6 +217,23 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             .maximum_block_threads=u32("maximum_block_threads"),
             .required_capabilities=integer("required_capabilities",UINT64_MAX),.reserved=integer("reserved",UINT64_MAX)};
     }
+    if(json.contains("future_contract")) manifest.future_contract=json.at("future_contract").dump();
+    if(json.contains("future_kernel")) {
+        const auto& k=json.at("future_kernel");
+        if(!k.is_object() || k.size()!=4)throw std::invalid_argument("invalid future kernel contract");
+        const auto u32=[](const auto& v) {
+            if(!v.is_number_unsigned() || v.template get<std::uint64_t>()>UINT32_MAX)
+                throw std::invalid_argument("invalid future geometry integer");
+            return v.template get<std::uint32_t>();
+        };
+        FutureKernelContract c{u32(k.at("static_producers")),u32(k.at("maximum_block_threads"))};
+        const auto dims=[&](const char* key,auto& output) {
+            const auto& a=k.at(key);if(!a.is_array() || a.size()!=3)throw std::invalid_argument("invalid future geometry axes");
+            for(unsigned i=0;i<3;++i)output[i]=u32(a[i]);
+        };
+        dims("required_threads",c.required_threads);dims("maximum_threads",c.maximum_threads);
+        manifest.future_kernel=c;
+    }
     for (const auto& parameter :
          json.value("unsupported_parameters", nlohmann::json::array())) {
         manifest.unsupported_parameters.push_back({
@@ -197,6 +242,7 @@ ModuleManifest module_manifest_from_json(const std::string& text)
         });
     }
     // Reuse add_module's validation contract at the parse boundary.
+    if(manifest.future_requirements)manifest.future_manifest_sha256=future_contract_identity(json.dump());
     CoverageGate validator;
     validator.add_module(manifest);
     return manifest;
@@ -209,6 +255,29 @@ void CoverageGate::add_module(ModuleManifest manifest)
         future!=manifest.future_requirements.has_value() ||
         (future && !timing_future::valid_requirements(*manifest.future_requirements)))
         throw std::invalid_argument("invalid future module contract");
+    if(!future && (manifest.future_kernel || !manifest.future_contract.empty()))
+        throw std::invalid_argument("future metadata on synchronous manifest");
+    if(future && (!manifest.future_contract.empty() || manifest.future_kernel)) {
+        const auto c=nlohmann::json::parse(manifest.future_contract);
+        const auto hex=[](const std::string& s) { return s.size()==64 && s.find_first_not_of("0123456789abcdef")==std::string::npos; };
+        const auto original=c.at("original_ptx_sha256").get<std::string>();
+        const auto helper=c.at("helper_sha256").get<std::string>();
+        if(!hex(original) || !hex(helper) || manifest.future_contract!=future_contract_json(original,helper) ||
+            manifest.module_id!="ptx:sha256:"+future_contract_identity(manifest.future_contract) || !manifest.future_kernel)
+            throw std::invalid_argument("future identity contract mismatch");
+        const auto& k=*manifest.future_kernel;
+        const auto valid_dims=[](const auto& d) {
+            if(d==std::array<std::uint32_t,3>{})return true;
+            std::uint64_t count=1;
+            for(auto axis:d){if(!axis || count>UINT64_MAX/axis)return false;count*=axis;}
+            return true;
+        };
+        if(!k.static_producers || k.static_producers>manifest.future_requirements->maximum_thread_futures ||
+            !k.maximum_block_threads || k.maximum_block_threads>manifest.future_requirements->maximum_block_threads ||
+            !valid_dims(k.required_threads) || !valid_dims(k.maximum_threads) ||
+            (k.required_threads!=std::array<std::uint32_t,3>{} && k.maximum_threads!=std::array<std::uint32_t,3>{}))
+            throw std::invalid_argument("invalid future resource contract");
+    }
     if (manifest.module_id.empty() || manifest.kernel.empty()) {
         throw std::invalid_argument(
             "coverage module and kernel identity are required");
@@ -223,6 +292,10 @@ void CoverageGate::add_module(ModuleManifest manifest)
         indices.push_back(parameter.index);
     }
     std::unique_lock lock(mutex_);
+    for(const auto& [_,old]:modules_) if(old.module_id==manifest.module_id &&
+        (future || old.future_requirements) &&
+        (old.transform_mode!=manifest.transform_mode || old.future_contract!=manifest.future_contract))
+            throw std::invalid_argument("conflicting module-wide future identity");
     const auto key = module_key(manifest.module_id, manifest.kernel);
     if (const auto old=modules_.find(key); old!=modules_.end() &&
         (future || old->second.future_requirements)) {
@@ -242,9 +315,43 @@ void CoverageGate::add_module(ModuleManifest manifest)
             previous.future_requirements->maximum_thread_futures!=manifest.future_requirements->maximum_thread_futures ||
             previous.future_requirements->maximum_block_threads!=manifest.future_requirements->maximum_block_threads)
             throw std::invalid_argument("conflicting immutable future module manifest");
+        if(previous.future_kernel!=manifest.future_kernel || previous.future_contract!=manifest.future_contract ||
+            previous.future_manifest_sha256!=manifest.future_manifest_sha256)
+            throw std::invalid_argument("conflicting immutable future kernel contract");
         return;
     }
     modules_.insert_or_assign(key, std::move(manifest));
+}
+
+std::optional<ModuleManifest> CoverageGate::manifest(const std::string& module,
+                                                   const std::string& kernel) const
+{
+    std::shared_lock lock(mutex_);
+    auto it=modules_.find(module_key(module,kernel));
+    return it==modules_.end() ? std::nullopt : std::optional<ModuleManifest>{it->second};
+}
+
+bool CoverageGate::future_module_contract(const std::string& module,
+    const timing_future::ModuleRequirements& requirements,const std::string& helper) const
+{
+    std::shared_lock lock(mutex_);bool found=false;
+    for(const auto& [_,m]:modules_)if(m.module_id==module) {
+        if(!m.future_kernel || !m.future_requirements || m.future_contract.empty() ||
+            !m.instrumented || m.cubin_only || !m.unsupported_parameters.empty() ||
+            (m.ptx_target!="sm_120" && m.ptx_target!="sm_120a") ||
+            requirements.maximum_thread_futures!=m.future_requirements->maximum_thread_futures ||
+            requirements.maximum_block_threads!=m.future_requirements->maximum_block_threads ||
+            nlohmann::json::parse(m.future_contract).at("helper_sha256")!=helper)return false;
+        found=true;
+    }
+    return found;
+}
+
+std::vector<ModuleManifest> CoverageGate::module_manifests(const std::string& module) const
+{
+    std::shared_lock lock(mutex_);std::vector<ModuleManifest> result;
+    for(const auto& [_,m]:modules_)if(m.module_id==module)result.push_back(m);
+    return result;
 }
 
 void CoverageGate::add_range(std::uintptr_t begin, std::uintptr_t end)
@@ -321,9 +428,30 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
     // Future contracts must not reach either the native early return or the
     // synchronous TIMING unmodeled fallback while the unit is incomplete.
     const auto future=modules_.find(module_key(launch.module_id,launch.kernel));
-    if (future!=modules_.end() && future->second.future_requirements)
-        return {.allowed=false,.module_id=launch.module_id,.kernel=launch.kernel,
-                .reason="timing_future_unit_incomplete"};
+    if (future!=modules_.end() && future->second.future_requirements) {
+        const auto& m=future->second;
+        if(!timing_future::kUnitComplete)return rejected(launch,"timing_future_unit_incomplete");
+        if(!m.future_kernel || m.future_contract.empty() || !m.instrumented || m.cubin_only ||
+            !m.unsupported_parameters.empty())return rejected(launch,"timing_future_manifest_unavailable");
+        if(std::ranges::any_of(ranges_,[](const auto& r){return r.policy!=RangePolicy::TimingBacked;}))
+            return rejected(launch,"timing_future_capacity_unsupported");
+        const auto& k=*m.future_kernel;
+        std::uint64_t threads=1,blocks=1;
+        for(unsigned i=0;i<3;++i) {
+            if(!launch.block[i] || !launch.grid[i] || threads>UINT64_MAX/launch.block[i] || blocks>UINT64_MAX/launch.grid[i] ||
+                (k.required_threads[i] && launch.block[i]!=k.required_threads[i]) ||
+                (k.maximum_threads[i] && launch.block[i]>k.maximum_threads[i]))
+                return rejected(launch,"timing_future_launch_geometry");
+            threads*=launch.block[i];blocks*=launch.grid[i];
+        }
+        if(threads>k.maximum_block_threads || blocks>timing_future::kTraceCapacity/threads/
+            k.static_producers/timing_future::kMaximumRecordsPerProducer)
+            return rejected(launch,"timing_future_launch_budget");
+        // Future helpers validate every computed address; no synchronous
+        // parameter-based TIMING fallback can authorize this unit.
+        return {.allowed=true,.module_id=launch.module_id,.kernel=launch.kernel,
+            .ptx_target=m.ptx_target,.reason="timing_future_validated",.modeled=true};
+    }
     const bool opaque_aggregate = std::ranges::any_of(
         launch.parameters, [](const LaunchParameter& parameter) {
             return parameter.opaque_aggregate;

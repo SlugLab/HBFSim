@@ -11,7 +11,8 @@ int main()
       "parameters":[],"unsupported_parameters":[]})";
     hbfsim::CoverageGate gate;gate.add_module(hbfsim::module_manifest_from_json(text));
     auto decision=gate.check_launch({.module_id="future",.kernel="kernel"});
-    CHECK(!decision.allowed);CHECK(decision.reason=="timing_future_unit_incomplete");
+    CHECK(!decision.allowed);CHECK(decision.reason==(hbfsim::timing_future::kUnitComplete ?
+        "timing_future_manifest_unavailable" : "timing_future_unit_incomplete"));
     gate.add_range(0x1000,0x2000,hbfsim::RangePolicy::TimingBacked);
     CHECK(!gate.check_launch({.module_id="future",.kernel="kernel"}).allowed);
     bool conflict=false;

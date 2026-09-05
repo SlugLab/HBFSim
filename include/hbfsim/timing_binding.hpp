@@ -80,6 +80,7 @@ class TimingBindingRegistry {
     [[nodiscard]] bool future_unit_observed() const noexcept;
     void reject_future_module(ModuleHandle module, std::uintptr_t cuda_context,
                               int device_ordinal) noexcept;
+    void quarantine_future_module(ModuleHandle module) noexcept;
     void set_next_generation_for_test(std::uint64_t generation) noexcept;
 
   private:

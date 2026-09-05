@@ -1,16 +1,22 @@
 #include "hbfsim/durable_append.hpp"
 #include "transform.hpp"
 #include <hbfsim/timing_future_abi.hpp>
+#include <hbfsim/coverage.hpp>
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+#include "future_transform.hpp"
+#endif
 
 #include <json.hpp>
 #include <openssl/sha.h>
 
 #include <array>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iomanip>
 #include <mutex>
+#include <map>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -86,43 +92,14 @@ bool parameter_feeds_memory_address(const std::string& body,
     return std::regex_search(body, memory_address);
 }
 
-std::vector<PassParameter> parameter_metadata(const std::string& ptx,
-                                              const std::string& kernel)
+std::vector<PassParameter> decode_parameters(const std::string& declarations,
+                                             const std::string& body)
 {
-    const auto entry = ptx.find(".entry " + kernel);
-    if (entry == std::string::npos) {
-        return {};
-    }
-    const auto begin = ptx.find('(', entry);
-    const auto end =
-        begin == std::string::npos ? std::string::npos : ptx.find(')', begin);
-    if (end == std::string::npos) {
-        return {};
-    }
-
-    const auto body_begin = ptx.find('{', end);
-    auto body_end = std::string::npos;
-    int depth = 0;
-    for (auto cursor = body_begin;
-         cursor != std::string::npos && cursor < ptx.size(); ++cursor) {
-        if (ptx[cursor] == '{') {
-            ++depth;
-        } else if (ptx[cursor] == '}' && --depth == 0) {
-            body_end = cursor;
-            break;
-        }
-    }
-    if (body_begin == std::string::npos || body_end == std::string::npos) {
-        return {};
-    }
-    const std::string body =
-        ptx.substr(body_begin + 1, body_end - body_begin - 1);
     static const std::regex parameter(
         R"(\.param((?:\s+\.[A-Za-z][A-Za-z0-9_]*(?:\s+\d+)?)*)\s+([A-Za-z0-9_$.]+)(?:\[(\d+)\])?)");
     static const std::regex type_qualifier(
         R"(\.(pred|[A-Za-z]+[0-9]+)(?:\s|$))");
     static const std::regex alignment_qualifier(R"(\.align\s+(\d+))");
-    const std::string declarations = ptx.substr(begin + 1, end - begin - 1);
     std::vector<PassParameter> parameters;
     std::size_t index = 0;
     std::size_t offset = 0;
@@ -168,6 +145,51 @@ std::vector<PassParameter> parameter_metadata(const std::string& ptx,
     return parameters;
 }
 
+// Preserve the legacy synchronous finder and decoding behavior.
+std::vector<PassParameter> parameter_metadata(const std::string& ptx,
+                                              const std::string& kernel)
+{
+    const auto entry=ptx.find(".entry "+kernel);
+    if(entry==std::string::npos)return {};
+    const auto begin=ptx.find('(',entry);
+    const auto end=begin==std::string::npos ? std::string::npos : ptx.find(')',begin);
+    if(end==std::string::npos)return {};
+    const auto body_begin=ptx.find('{',end);
+    auto body_end=std::string::npos;int depth=0;
+    for(auto cursor=body_begin;cursor!=std::string::npos && cursor<ptx.size();++cursor) {
+        if(ptx[cursor]=='{')++depth;
+        else if(ptx[cursor]=='}' && --depth==0){body_end=cursor;break;}
+    }
+    if(body_begin==std::string::npos || body_end==std::string::npos)return {};
+    return decode_parameters(ptx.substr(begin+1,end-begin-1),
+                             ptx.substr(body_begin+1,body_end-body_begin-1));
+}
+
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+std::vector<PassParameter> future_parameter_metadata(const std::string& ptx,
+                                                     const hbfsim::ptx::Function& function)
+{
+    const auto masked=hbfsim::ptx::masked_ptx_source(ptx);
+    // The admitted scalar header is flat. Its only following attributes are
+    // validated reqntid/maxntid dimensions, which contain no parentheses.
+    // Anchor to that selected body's byte span, never to another name search.
+    const auto end=masked.rfind(')',function.body_begin);
+    const auto begin=end==std::string::npos ? std::string::npos : masked.rfind('(',end);
+    if(begin==std::string::npos || begin>=end || end>=function.body_begin)
+        throw std::invalid_argument("invalid validated future parameter span");
+    auto parameters=decode_parameters(masked.substr(begin+1,end-begin-1),
+        masked.substr(function.body_begin+1,function.body_end-function.body_begin-1));
+    if(parameters.size()!=function.parameter_types.size())
+        throw std::invalid_argument("future parameter manifest count mismatch");
+    for(const auto& p:parameters) {
+        const auto type=function.parameter_types.find(p.name);
+        if(type==function.parameter_types.end() || scalar_width(type->second)!=p.width || p.kind=="opaque_aggregate")
+            throw std::invalid_argument("future parameter manifest type mismatch");
+    }
+    return parameters;
+}
+#endif
+
 constexpr std::string_view module_identity_symbol = "__hbfsim_module_identity";
 
 std::array<unsigned char, SHA256_DIGEST_LENGTH> sha256(const std::string& text)
@@ -195,6 +217,9 @@ class TrustedModuleRegistry {
         std::string value;
         bool previously_emitted;
         std::string mode{"synchronous"};
+        std::string original;
+        std::vector<std::string> kernels;
+        std::map<std::string,std::string> kernel_manifests;
     };
 
     Identity identity_for(const std::string& ptx,const std::string& mode)
@@ -203,16 +228,8 @@ class TrustedModuleRegistry {
         std::lock_guard lock(mutex_);
         if (ptx.find(module_identity_symbol) == std::string::npos) {
             if (mode=="synchronous") return {.value=state,.previously_emitted=false,.mode=mode};
-            const auto helper=hex_identity(sha256(std::string(hbfsim::ptx::embedded_device_helper())));
-            const auto contract=nlohmann::json{{"subset","straight_line_scalar_read"},
-                {"time_scale",1},{"maximum_thread_futures",hbfsim::timing_future::kMaximumThreadFutures},
-                {"maximum_block_threads",hbfsim::timing_future::kMaximumBlockThreads}}.dump();
-            const auto record=nlohmann::json{{"identity_domain","hbfsim.timing-load-future.v1"},
-                {"original_ptx_sha256",state},{"transform_mode",mode},{"device_future_abi",1},
-                {"device_future_bytes",64},{"lane_metadata_abi",1},{"lane_metadata_bytes",32},
-                {"shared_control_abi",4},{"helper_sha256",helper},
-                {"admission_contract_sha256",hex_identity(sha256(contract))}}.dump();
-            return {.value=hex_identity(sha256(record)),.previously_emitted=false,.mode=mode};
+            const auto contract=hbfsim::future_contract_json(state,hbfsim::ptx::embedded_device_helper_sha256());
+            return {.value=hbfsim::future_contract_identity(contract),.previously_emitted=false,.mode=mode,.original=ptx};
         }
         const auto found = emitted_states_.find(state);
         if (found == emitted_states_.end()) {
@@ -220,7 +237,7 @@ class TrustedModuleRegistry {
                 "untrusted preexisting HBFSim module identity");
         }
         if (found->second.mode!=mode) throw std::invalid_argument("transform_mode_mismatch");
-        return {.value=found->second.value,.previously_emitted=true,.mode=mode};
+        auto identity=found->second;identity.previously_emitted=true;return identity;
     }
 
     void record(const std::string& emitted_ptx, const Identity& identity)
@@ -241,7 +258,8 @@ TrustedModuleRegistry& trusted_modules()
     return registry;
 }
 
-std::string inject_module_identity(std::string ptx, const std::string& identity)
+std::string inject_module_identity(std::string ptx, const std::string& identity,
+                                  std::size_t safe_boundary=std::string::npos)
 {
     if (ptx.find(module_identity_symbol) != std::string::npos) {
         return ptx;
@@ -250,9 +268,11 @@ std::string inject_module_identity(std::string ptx, const std::string& identity)
     const auto newline = directives_end == std::string::npos
                              ? std::string::npos
                              : ptx.find('\n', directives_end);
-    const auto insert = newline == std::string::npos ? 0 : newline + 1;
+    const auto insert = safe_boundary!=std::string::npos ? safe_boundary :
+        (newline == std::string::npos ? 0 : newline + 1);
     std::ostringstream declaration;
-    declaration << ".visible .const .align 8 .b8 " << module_identity_symbol
+    declaration << (safe_boundary==std::string::npos ? "" : "\n")
+                << ".visible .const .align 8 .b8 " << module_identity_symbol
                 << "[32] = {";
     for (std::size_t index = 0; index < SHA256_DIGEST_LENGTH; ++index) {
         if (index != 0) {
@@ -333,21 +353,65 @@ extern "C" int process_input(const char* input, int length, char* output)
                 "ebpf_communication_data_symbol", "constData"),
             .transform_mode=mode,
         };
-        const auto trusted_identity =
+        if(mode==hbfsim::timing_future::kMode &&
+            (request_json.contains("maximum_thread_futures") || request_json.contains("maximum_block_threads")))
+            throw std::invalid_argument("fixed_future_resource_contract: thread=16 block=1024");
+        auto trusted_identity =
             trusted_modules().identity_for(request.full_ptx,mode);
-        if (mode==hbfsim::timing_future::kMode) {
+        if (mode==hbfsim::timing_future::kMode && !hbfsim::timing_future::kUnitComplete) {
             (void)copy_output(nlohmann::json{{"error","timing_future_unit_incomplete"},
                 {"transform_identity",trusted_identity.value}}.dump(),length,output);
             return 65;
         }
         request.trusted_existing_helper =
             trusted_identity.previously_emitted;
+        nlohmann::json future_fields=nlohmann::json::object();
+        std::vector<PassParameter> parameters;
+        std::size_t identity_boundary=std::string::npos;
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+        if (mode==hbfsim::timing_future::kMode) {
+            request.full_ptx=trusted_identity.original;
+            if (std::find(trusted_identity.kernels.begin(),trusted_identity.kernels.end(),request.to_patch_kernel)==trusted_identity.kernels.end())
+                trusted_identity.kernels.push_back(request.to_patch_kernel);
+            request.future_kernels=trusted_identity.kernels;
+            const auto parsed=hbfsim::ptx::parse_module_spanned(request.full_ptx,request.to_patch_kernel);
+            identity_boundary=parsed.address_size_directive.end;
+            const auto emission=hbfsim::ptx::emit_timing_futures(request.full_ptx,request.to_patch_kernel);
+            const auto& f=*std::find_if(parsed.functions.begin(),parsed.functions.end(),[&](const auto& f){return f.name==request.to_patch_kernel;});
+            parameters=future_parameter_metadata(request.full_ptx,f);
+            const auto dims=[](const auto& value) { return value.value_or(std::array<std::uint32_t,3>{}); };
+            future_fields={
+                {"transform_mode",mode},
+                {"future_requirements",{{"abi_version",1},{"struct_bytes",48},{"token_bytes",64},
+                    {"metadata_version",1},{"metadata_bytes",32},{"shared_control_abi",4},
+                    {"maximum_thread_futures",16},{"maximum_block_threads",1024},
+                    {"required_capabilities",1},{"reserved",0}}},
+                {"future_contract",nlohmann::json::parse(hbfsim::future_contract_json(
+                    hex_identity(sha256(request.full_ptx)),hbfsim::ptx::embedded_device_helper_sha256()))},
+                {"future_kernel",{{"static_producers",emission.allocated_thread_futures},
+                    {"maximum_block_threads",emission.assumed_maximum_block_threads},
+                    {"required_threads",dims(f.required_thread_dimensions)},
+                    {"maximum_threads",dims(f.maximum_thread_dimensions)}}}};
+        }
+#endif
         auto transformed = hbfsim::ptx::transform_ptx(request);
         const auto& identity = trusted_identity.value;
         transformed.output_ptx =
-            inject_module_identity(std::move(transformed.output_ptx), identity);
-        const auto parameters =
-            parameter_metadata(request.full_ptx, request.to_patch_kernel);
+            inject_module_identity(std::move(transformed.output_ptx), identity,identity_boundary);
+        if (mode==hbfsim::timing_future::kMode) {
+            const hbfsim::timing_future::ModuleRequirements r{};
+            std::ostringstream globals;
+            const auto bytes=[&](const char* name,const unsigned char* data,std::size_t size) {
+                globals<<"\n.visible .const .align 8 .b8 "<<name<<"["<<size<<"] = {";
+                for(std::size_t i=0;i<size;++i)globals<<(i?", ":"")<<static_cast<unsigned>(data[i]);
+                globals<<"};\n";
+            };
+            bytes("__hbfsim_timing_future_requirements_v1",reinterpret_cast<const unsigned char*>(&r),sizeof(r));
+            const auto helper=sha256(std::string(hbfsim::ptx::embedded_device_helper()));
+            bytes("__hbfsim_timing_future_helper_sha256_v1",helper.data(),helper.size());
+            transformed.output_ptx.insert(identity_boundary,globals.str());
+        }
+        if(mode=="synchronous")parameters=parameter_metadata(request.full_ptx,request.to_patch_kernel);
 
         std::vector<std::string> relevant_unsupported;
         for (const auto& opcode : transformed.coverage.unsupported_opcodes) {
@@ -375,7 +439,7 @@ extern "C" int process_input(const char* input, int length, char* output)
                 {"kind", parameter.kind},
             });
         }
-        append_manifest({
+        nlohmann::json manifest={
             {"module_id", "ptx:sha256:" + identity},
             {"kernel", request.to_patch_kernel},
             {"ptx_target", ptx_target(request.full_ptx)},
@@ -388,7 +452,24 @@ extern "C" int process_input(const char* input, int length, char* output)
              transformed.coverage.rewritten_instructions},
             {"unsupported_instructions", relevant_unsupported.size()},
             {"unsupported_opcodes", relevant_unsupported},
-        });
+        };
+        manifest.update(future_fields);
+        if(mode==hbfsim::timing_future::kMode) {
+            manifest["ptx_target"]="sm_120";
+            manifest["rewritten_instructions"]=future_fields.at("future_kernel").at("static_producers");
+            // Hash each exact complete manifest into module-owned read-only
+            // storage. Original identity remains stable across selected kernels.
+            trusted_identity.kernel_manifests[request.to_patch_kernel]=manifest.dump();
+            std::ostringstream declarations;
+            for(const auto& [kernel,text]:trusted_identity.kernel_manifests) {
+                const auto hash=sha256(text);
+                declarations<<"\n.visible .const .align 8 .b8 "<<hbfsim::future_kernel_contract_symbol(kernel)<<"[32] = {";
+                for(std::size_t i=0;i<hash.size();++i)declarations<<(i?", ":"")<<static_cast<unsigned>(hash[i]);
+                declarations<<"};\n";
+            }
+            transformed.output_ptx.insert(identity_boundary,declarations.str());
+        }
+        append_manifest(manifest);
 
         const auto response =
             nlohmann::json{

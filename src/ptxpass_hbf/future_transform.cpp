@@ -290,8 +290,10 @@ FutureEmission emit_timing_futures(std::string_view source,std::string_view kern
     output.allocated_cta_futures=output.allocated_thread_futures*options.maximum_block_threads;
     plan.maximum_live.cta_futures=plan.maximum_live.thread_futures*options.maximum_block_threads;
     output.plan=std::move(plan);
+    output.body_span={f.body_begin+1,f.body_end};
+    output.body="\n"+w.declarations.str()+init.str()+transformed;
     output.ptx=std::string(source.substr(0,header_end))+declarations+
-        std::string(source.substr(header_end,f.body_begin+1-header_end))+"\n"+w.declarations.str()+init.str()+transformed+std::string(source.substr(f.body_end));
+        std::string(source.substr(header_end,f.body_begin+1-header_end))+output.body+std::string(source.substr(f.body_end));
     return output;
 }
 }

@@ -79,6 +79,8 @@ class ParseError : public std::runtime_error {
 };
 
 [[nodiscard]] Module parse_module(std::string_view ptx);
+// Exact byte-length mask from the same lexer used by the validated span parser.
+[[nodiscard]] std::string masked_ptx_source(std::string_view ptx);
 // Explicit offline API. The synchronous transform keeps its existing parser.
 [[nodiscard]] Module parse_module_spanned(std::string_view ptx, std::string_view selected_entry={});
 

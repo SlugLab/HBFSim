@@ -11,13 +11,21 @@
 
 namespace hbfsim::timing_future {
 
-// C5 infrastructure cannot authorize an executable future transformation.
+// Published only by the complete, explicitly enabled helper/host build.
+#if defined(HBFSIM_TIMING_FUTURE_UNIT_COMPLETE) && HBFSIM_TIMING_FUTURE_UNIT_COMPLETE
+inline constexpr bool kUnitComplete = true;
+#else
 inline constexpr bool kUnitComplete = false;
+#endif
 inline constexpr std::uint32_t kAbiVersion = 1;
 inline constexpr std::uint32_t kSharedControlAbi = 4;
 inline constexpr std::uint64_t kFastScalarTiming = 1;
 inline constexpr std::uint32_t kMaximumThreadFutures = 16;
 inline constexpr std::uint32_t kMaximumBlockThreads = 1024;
+inline constexpr std::uint64_t kTraceCapacity = 65536;
+// Issue plus model-ready plus consume/drain/error. Native and rejected issues
+// write no trace; repeated Pending polls write no trace; terminal is once.
+inline constexpr std::uint32_t kMaximumRecordsPerProducer = 3;
 inline constexpr std::uint32_t kPending=0, kReady=1, kTimeout=5,
     kUnsupported=6, kDaemonLost=7;
 inline constexpr const char* kMode = "timing_load_future_v1";

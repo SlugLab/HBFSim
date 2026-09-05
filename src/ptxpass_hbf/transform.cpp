@@ -2,6 +2,13 @@
 
 #include "ptx_memory_op.hpp"
 #include "ptx_source.hpp"
+#include <hbfsim/timing_future_abi.hpp>
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+#include "future_transform.hpp"
+#endif
+#include <openssl/sha.h>
+#include <algorithm>
+#include <iomanip>
 
 #if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
 #include "hbf_device_ptx.hpp"
@@ -191,8 +198,41 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
 
 TransformResult transform_ptx(const TransformRequest& request)
 {
-    if (request.transform_mode=="timing_load_future_v1")
-        throw std::invalid_argument("timing_future_unit_incomplete");
+    if (request.transform_mode=="timing_load_future_v1") {
+        if (!timing_future::kUnitComplete)
+            throw std::invalid_argument("timing_future_unit_incomplete");
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES) && defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+        const auto masked=masked_ptx_source(request.full_ptx);
+        static const std::regex target(R"(^[ \t]*\.target[ \t]+sm_120[ \t]*(?:\n|$))",std::regex::multiline);
+        static const std::regex any_target(R"(^[ \t]*\.target\b)",std::regex::multiline);
+        if (!std::regex_search(masked,target) ||
+            std::distance(std::sregex_iterator(masked.begin(),masked.end(),any_target),std::sregex_iterator{})!=1)
+            throw std::invalid_argument("timing_future_target_mismatch");
+        auto kernels=request.future_kernels;
+        if (kernels.empty()) kernels.push_back(request.to_patch_kernel);
+        std::vector<FutureEmission> emissions;
+        TransformResult result;
+        for (const auto& kernel:kernels) {
+            emissions.push_back(emit_timing_futures(request.full_ptx,kernel));
+            result.coverage.rewritten_instructions+=emissions.back().allocated_thread_futures;
+        }
+        std::sort(emissions.begin(),emissions.end(),[](const auto& a,const auto& b) {
+            return a.body_span.begin>b.body_span.begin;
+        });
+        result.output_ptx=request.full_ptx;
+        for (const auto& e:emissions)
+            result.output_ptx.replace(e.body_span.begin,e.body_span.end-e.body_span.begin,e.body);
+        // Use the original validated directive boundary. Generated calls need
+        // the actual embedded definitions, not unverified extern prototypes.
+        const auto module=parse_module_spanned(request.full_ptx,kernels.front());
+        const auto boundary=module.address_size_directive.end;
+        result.output_ptx.insert(boundary,"\n"+std::string(kEmbeddedDevicePtx)+"\n");
+        result.modified=true;
+        return result;
+#else
+        throw std::invalid_argument("timing_future_helper_unavailable");
+#endif
+    }
     if (request.transform_mode!="synchronous")
         throw std::invalid_argument("unsupported_transform_mode");
     TransformResult result{.output_ptx = {}, .coverage = {}, .modified = false};
@@ -329,6 +369,16 @@ TransformResult transform_ptx(const TransformRequest& request)
                              request.trusted_existing_helper);
     }
     return result;
+}
+
+std::string embedded_device_helper_sha256()
+{
+    const auto helper=embedded_device_helper();
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(helper.data()),helper.size(),hash);
+    std::ostringstream out;out<<std::hex<<std::setfill('0');
+    for (auto byte:hash) out<<std::setw(2)<<static_cast<unsigned>(byte);
+    return out.str();
 }
 
 std::string_view embedded_device_helper()

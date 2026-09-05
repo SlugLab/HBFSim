@@ -69,7 +69,7 @@ def main():
         assert code!=0,'quarantined registration silently loaded an unclassified future'
         return
     if scenario in ('wrong-token','lookup-error'):assert code!=0;return
-    if scenario in ('clear-failure','missing-config','short-config'):assert code!=0
+    if scenario in ('clear-failure','missing-config','short-config','rollback'):assert code!=0
     else:assert code==0,code
     if scenario=='before':assert api.activate_with_capabilities(10,0x9000,0xCA00,3,c.byref(caps),c.byref(gen))==0
     # The existing fake driver maps this fixture function to its loaded module.
@@ -91,7 +91,8 @@ def main():
     assert launch(function,1,1,1,32,1,1,0,None,None,None)!=0
     assert f.fakeCudaLaunchCount()==0
     assert f.fakeCudaFutureEnabled()==0
-    if scenario=='clear-failure':
+    if scenario in ('clear-failure','rollback'):
+        assert code==801
         token=c.c_size_t();assert api.begin_retire(10,gen.value,c.byref(token))!=0
     else:
         token=c.c_size_t();result=api.begin_retire(10,gen.value,c.byref(token))

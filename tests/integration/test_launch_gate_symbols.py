@@ -109,7 +109,8 @@ def main() -> int:
             'driver_symbol("cuModuleGetGlobal_v2")' in source and
             'driver_symbol("cuMemcpyDtoH_v2")' in source,
             "module load does not verify the live transformed identity")
-    handle_id = function_body(source, "handle_id(")
+    # Select the definition, excluding its earlier forward declaration/calls.
+    handle_id = function_body(source, "std::string handle_id(CUfunction function)\n{")
     require("module_identities().lookup" in handle_id and
             "live_module_identity" not in handle_id and
             "__hbfsim_module_identity" not in handle_id,

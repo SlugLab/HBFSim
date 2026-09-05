@@ -2,6 +2,7 @@
 #include "hbfsim/launch_gate_abi.hpp"
 #include "hbfsim/module_identity.hpp"
 #include "hbfsim/timing_binding.hpp"
+#include "../ptxpass_hbf/transform.hpp"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -11,12 +12,15 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <sstream>
+#include <set>
 #include <utility>
 
 #ifdef cuGetProcAddress
@@ -42,6 +46,8 @@ struct CudaDomain {
 };
 
 std::optional<CudaDomain> current_cuda_domain();
+std::string handle_id(CUfunction function);
+std::string function_name(CUfunction function);
 
 const char* environment_or(const char* name, const char* fallback)
 {
@@ -148,19 +154,31 @@ class RuntimeGate {
     void refresh_manifests()
     {
         std::scoped_lock lock(manifest_mutex_);
+        std::set<std::string> present;
         const char* path = std::getenv("HBFSIM_PASS_MANIFEST_PATH");
         if (path == nullptr || path[0] == '\0') {
+            present_future_manifests_.clear();
             return;
         }
         std::ifstream input(path);
         std::string line;
         while (std::getline(input, line)) {
             try {
-                gate_.add_module(hbfsim::module_manifest_from_json(line));
+                auto manifest=hbfsim::module_manifest_from_json(line);
+                if(manifest.future_requirements)present.insert(manifest.future_manifest_sha256);
+                gate_.add_module(std::move(manifest));
             } catch (const std::exception&) {
                 // A concurrent pass may still be appending its last line.
+                if(!input.eof() && line.find("timing_load_future_v1")!=std::string::npos)
+                    future_manifest_error_.store(true,std::memory_order_release);
             }
         }
+        present_future_manifests_=std::move(present);
+    }
+    bool future_manifests_valid() const noexcept { return !future_manifest_error_.load(std::memory_order_acquire); }
+    bool future_manifest_present(const hbfsim::ModuleManifest& manifest) {
+        std::scoped_lock lock(manifest_mutex_);
+        return present_future_manifests_.contains(manifest.future_manifest_sha256);
     }
 
     bool approve(const hbfsim::GateDecision& decision) noexcept
@@ -178,6 +196,8 @@ class RuntimeGate {
     hbfsim::CoverageWriter writer_;
     std::mutex manifest_mutex_;
     hbfsim::LaunchRangeSynchronizer range_launch_sync_;
+    std::atomic_bool future_manifest_error_{false};
+    std::set<std::string> present_future_manifests_;
 };
 
 RuntimeGate& runtime_gate()
@@ -368,6 +388,36 @@ void erase_module_identity(hbfsim::ModuleHandle module, void*) noexcept
     module_identities().erase(module);
 }
 
+struct FutureBudget { std::uint64_t alias,generation,remaining; };
+std::mutex future_budget_mutex;
+std::map<hbfsim::ModuleHandle,FutureBudget> future_budgets;
+struct FutureGeometry { std::array<std::uint32_t,3> grid,block; };
+thread_local std::optional<FutureGeometry> future_geometry;
+struct FutureGeometryScope {
+    std::optional<FutureGeometry> old{future_geometry};
+    explicit FutureGeometryScope(FutureGeometry geometry) { future_geometry=geometry; }
+    ~FutureGeometryScope(){future_geometry=old;}
+};
+
+enum class FutureManifestMatch { Absent, Matched, Invalid };
+
+FutureManifestMatch future_manifest_match(CUmodule module,const hbfsim::ModuleManifest& manifest)
+{
+    using get_type=CUresult (*)(CUdeviceptr*,std::size_t*,CUmodule,const char*);
+    using read_type=CUresult (*)(void*,CUdeviceptr,std::size_t);
+    static auto get=reinterpret_cast<get_type>(driver_symbol("cuModuleGetGlobal_v2"));
+    static auto read=reinterpret_cast<read_type>(driver_symbol("cuMemcpyDtoH_v2"));
+    CUdeviceptr address=0;std::size_t size=0;std::array<unsigned char,32> digest{};
+    const auto symbol=hbfsim::future_kernel_contract_symbol(manifest.kernel);
+    if(!get || !read)return FutureManifestMatch::Invalid;
+    const auto lookup=get(&address,&size,module,symbol.c_str());
+    if(lookup==CUDA_ERROR_NOT_FOUND)return FutureManifestMatch::Absent;
+    if(lookup!=CUDA_SUCCESS || !address || size!=digest.size() ||
+        read(digest.data(),address,size)!=CUDA_SUCCESS)return FutureManifestMatch::Invalid;
+    std::ostringstream hex;hex<<std::hex<<std::setfill('0');for(auto b:digest)hex<<std::setw(2)<<static_cast<unsigned>(b);
+    return hex.str()==manifest.future_manifest_sha256 ? FutureManifestMatch::Matched : FutureManifestMatch::Invalid;
+}
+
 bool read_future_requirements(CUmodule module,
     std::optional<hbfsim::timing_future::ModuleRequirements>& result) noexcept
 {
@@ -412,7 +462,11 @@ hbfsim::FutureInitialization initialize_future_control(hbfsim::ModuleHandle raw_
         ModuleConfig zero{};
         const bool config_clear=config_found && config_bytes==sizeof(zero) &&
             put(config_address,&zero,sizeof(zero))==CUDA_SUCCESS;
-        return clear && alias_clear && config_clear;
+        if(clear && alias_clear && config_clear) {
+            std::lock_guard lock(future_budget_mutex);future_budgets.erase(raw_module);
+            return true;
+        }
+        return false;
     };
     if (!alias) return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
     ModuleRequirements helper{};ModuleConfig previous{};
@@ -426,17 +480,61 @@ hbfsim::FutureInitialization initialize_future_control(hbfsim::ModuleHandle raw_
         requirements.maximum_thread_futures<=helper.maximum_thread_futures &&
         requirements.maximum_block_threads<=helper.maximum_block_threads;
     if (!valid) return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    const auto identity=live_module_identity(module);
+    auto& runtime=runtime_gate();runtime.refresh_manifests();
+    if(!kUnitComplete || !generation || !supports(capabilities,requirements) ||
+        std::memcmp(&helper,&requirements,sizeof(helper)) || !identity || !runtime.future_manifests_valid() ||
+        !runtime.gate().future_module_contract(hbfsim::module_id_from_identity(*identity),requirements,
+            hbfsim::ptx::embedded_device_helper_sha256()))
+        return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    bool present_manifest=false;
+    // Same-original-PTX images can contain different immutable subsets of the
+    // cached kernel manifests. Only an exact NOT_FOUND is absent; inaccessible
+    // or mismatched present constants invalidate this image's initialization.
+    for(const auto& manifest:runtime.gate().module_manifests(hbfsim::module_id_from_identity(*identity))) {
+        const auto match=future_manifest_match(module,manifest);
+        if(match==FutureManifestMatch::Absent)continue;
+        if(match!=FutureManifestMatch::Matched || !runtime.future_manifest_present(manifest))
+            return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+        present_manifest=true;
+    }
+    if(!present_manifest)
+        return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    CUdeviceptr trace_address=0,counter_address=0,hash_address=0;
+    std::size_t trace_bytes=0,counter_bytes=0,hash_bytes=0;
+    std::array<unsigned char,32> hash{};
+    std::ostringstream hash_hex;
+    const bool storage=get(&trace_address,&trace_bytes,module,"__hbfsim_timing_future_trace_v1")==CUDA_SUCCESS &&
+        trace_bytes==kTraceCapacity*sizeof(Trace) && trace_address && trace_address%alignof(Trace)==0 &&
+        trace_address<=UINT64_MAX-trace_bytes &&
+        get(&counter_address,&counter_bytes,module,"__hbfsim_timing_future_counters_v1")==CUDA_SUCCESS &&
+        counter_bytes==sizeof(Counters) && counter_address && counter_address%alignof(Counters)==0 &&
+        get(&hash_address,&hash_bytes,module,"__hbfsim_timing_future_helper_sha256_v1")==CUDA_SUCCESS &&
+        hash_bytes==hash.size() && read(hash.data(),hash_address,hash.size())==CUDA_SUCCESS;
+    hash_hex<<std::hex<<std::setfill('0');for(auto byte:hash)hash_hex<<std::setw(2)<<static_cast<unsigned>(byte);
+    if(!storage || hash_hex.str()!=hbfsim::ptx::embedded_device_helper_sha256())
+        return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
     ModuleConfig disabled{};
     disabled.control_alias=alias;disabled.control_generation=generation;
+    disabled.trace_address=trace_address;disabled.trace_capacity=kTraceCapacity;
     disabled.maximum_thread_futures=requirements.maximum_thread_futures;
     disabled.maximum_block_threads=requirements.maximum_block_threads;
-    if (put(config_address,&disabled,sizeof(disabled))!=CUDA_SUCCESS ||
-        !initialize_module_control(raw_module,alias,generation,nullptr))
+    const std::uint32_t off=0;Counters counters{};Counters observed{};ModuleConfig copied{};
+    if (put(config_address+offsetof(ModuleConfig,enabled),&off,sizeof(off))!=CUDA_SUCCESS ||
+        put(counter_address,&counters,sizeof(counters))!=CUDA_SUCCESS ||
+        put(config_address,&disabled,sizeof(disabled))!=CUDA_SUCCESS ||
+        !initialize_module_control(raw_module,alias,generation,nullptr) ||
+        read(&copied,config_address,sizeof(copied))!=CUDA_SUCCESS || std::memcmp(&copied,&disabled,sizeof(copied)) ||
+        read(&observed,counter_address,sizeof(observed))!=CUDA_SUCCESS || std::memcmp(&observed,&counters,sizeof(counters)))
         return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
-    // C5 deliberately has no enabling write. C6 must bind validated trace
-    // storage and complete emission before enablement can be published last.
-    (void)capabilities;
-    return hbfsim::FutureInitialization::Unavailable;
+    const std::uint32_t on=1;
+    auto expected=disabled;expected.enabled=1;
+    if(put(config_address+offsetof(ModuleConfig,enabled),&on,sizeof(on))!=CUDA_SUCCESS ||
+        read(&copied,config_address,sizeof(copied))!=CUDA_SUCCESS || !valid_trace_span(copied) ||
+        std::memcmp(&copied,&expected,sizeof(copied)))
+        return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    { std::lock_guard lock(future_budget_mutex);future_budgets.insert_or_assign(raw_module,FutureBudget{alias,generation,kTraceCapacity}); }
+    return hbfsim::FutureInitialization::Ready;
 }
 
 void erase_context_state(std::uintptr_t cuda_context) noexcept
@@ -476,6 +574,30 @@ hbfsim::GateDecision require_timing_binding(hbfsim::GateDecision decision,
         (!known && timing_bindings().future_unit_observed())) {
         decision.allowed=false;
         decision.reason="timing_future_unit_incomplete";
+        if(!hbfsim::timing_future::kUnitComplete)return decision;
+        decision.reason="timing_future_binding_unavailable";
+        if(!known || !future_geometry || !timing_binding_ready(function))return decision;
+        auto& runtime=runtime_gate();runtime.refresh_manifests();
+        const auto id=handle_id(function);const auto kernel=function_name(function);
+        auto manifest=runtime.gate().manifest(id,kernel);
+        if(!manifest || !manifest->future_requirements || !runtime.future_manifests_valid() ||
+            !runtime.future_manifest_present(*manifest))return decision;
+        if(future_manifest_match(module,*manifest)!=FutureManifestMatch::Matched)return decision;
+        decision=runtime.gate().check_launch({.module_id=id,.kernel=kernel,
+            .grid=future_geometry->grid,.block=future_geometry->block});
+        if(!decision.allowed)return decision;
+        std::uint64_t records=hbfsim::timing_future::kMaximumRecordsPerProducer*manifest->future_kernel->static_producers;
+        for(auto axis:future_geometry->grid)records*=axis;
+        for(auto axis:future_geometry->block)records*=axis;
+        std::lock_guard lock(future_budget_mutex);
+        auto budget=future_budgets.find(module_handle(module));
+        if(budget==future_budgets.end() || records>budget->second.remaining) {
+            decision.allowed=false;decision.reason="timing_future_trace_budget_exhausted";
+        } else {
+            // Reservations are serialized and never returned after an enqueue
+            // error: lack of execution has not been proved.
+            budget->second.remaining-=records;
+        }
         return decision;
     }
     if (decision.allowed && decision.modeled && decision.address != 0 &&
@@ -620,6 +742,13 @@ int invalidate_retire(std::uintptr_t raw_token) noexcept
     auto* token = reinterpret_cast<RetireToken*>(raw_token);
     if (token->invalidated) {
         return 0;
+    }
+    if(timing_bindings().has_future_modules()) {
+        const auto domain=current_cuda_domain();
+        using sync_type=CUresult (*)();
+        const auto sync=reinterpret_cast<sync_type>(driver_symbol("cuCtxSynchronize"));
+        if(!domain || !timing_bindings().active_domain(domain->context,domain->device) ||
+            !sync || sync()!=CUDA_SUCCESS)return -1;
     }
     if (!timing_bindings().invalidate(token->owner, token->generation,
                                       initialize_module_control, nullptr)) {
@@ -817,11 +946,11 @@ hbfsim::GateDecision inspect_function_launch(CUfunction function,
     const auto module_id = handle_id(function);
     const auto kernel = function_name(function);
     if (extra != nullptr) {
-        return require_timing_binding(runtime_gate().gate().has_ranges()
+        const auto saved=future_geometry;future_geometry.reset();
+        const auto result=require_timing_binding(runtime_gate().gate().has_ranges()
                    ? unavailable(module_id, kernel)
-                   : hbfsim::GateDecision{.allowed = true,
-                                          .module_id = module_id,
-                                          .kernel = kernel}, function);
+                   : hbfsim::GateDecision{.allowed=true,.module_id=module_id,.kernel=kernel},function);
+        future_geometry=saved;return result;
     }
     using get_info_type =
         CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
@@ -923,6 +1052,7 @@ CUresult driver_launch(const char* symbol, CUfunction function,
                         block_z, shared_memory, stream, parameters, extra);
     }
     auto launch_guard = runtime_gate().launch_guard();
+    FutureGeometryScope geometry({{grid_x,grid_y,grid_z},{block_x,block_y,block_z}});
     const auto decision = inspect_function_launch(function, parameters, extra);
     if (!approve(decision)) {
         return CUDA_ERROR_NOT_SUPPORTED;
@@ -944,6 +1074,11 @@ cudaError_t runtime_launch(const char* symbol, const void* function, dim3 grid,
         return cudaErrorInitializationError;
     }
     auto launch_guard = runtime_gate().launch_guard();
+    FutureGeometryScope geometry({{grid.x,grid.y,grid.z},{block.x,block.y,block.z}});
+    // Geometry alone does not admit cooperative runtime semantics. This
+    // dispatch also serves those wrappers, which remain unsupported for futures.
+    if(std::strcmp(symbol,"cudaLaunchKernel")!=0 &&
+       std::strcmp(symbol,"cudaLaunchKernel_ptsz")!=0)future_geometry.reset();
     const auto decision = inspect_symbol_launch(function, arguments);
     if (!approve(decision)) {
         return cudaErrorNotSupported;
@@ -965,6 +1100,7 @@ cudaError_t kernel_launch(const char* symbol, cudaKernel_t kernel, dim3 grid,
         return cudaErrorInitializationError;
     }
     auto launch_guard = runtime_gate().launch_guard();
+    FutureGeometryScope geometry({{grid.x,grid.y,grid.z},{block.x,block.y,block.z}});
     const auto decision = inspect_kernel_launch(kernel, arguments);
     if (!approve(decision)) {
         return cudaErrorNotSupported;
@@ -1356,6 +1492,23 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
         return CUDA_ERROR_NOT_INITIALIZED;
     }
     std::lock_guard transition(lifecycle_transition_mutex());
+    auto guard=runtime_gate().retirement_guard();
+    if(timing_bindings().future_module(module_handle(module))) {
+        bool owned=false;
+        {std::lock_guard lock(future_budget_mutex);owned=future_budgets.contains(module_handle(module));}
+        if(owned) {
+            const auto domain=current_cuda_domain();
+            using sync_type=CUresult (*)();
+            const auto sync=reinterpret_cast<sync_type>(driver_symbol("cuCtxSynchronize"));
+            if(!domain || !timing_bindings().active_domain(domain->context,domain->device) ||
+                !sync || sync()!=CUDA_SUCCESS)return CUDA_ERROR_NOT_PERMITTED;
+            const auto cleared=initialize_future_control(module_handle(module),0,0,{}, {},nullptr);
+            if(cleared==hbfsim::FutureInitialization::Quarantine) {
+                timing_bindings().quarantine_future_module(module_handle(module));
+                return CUDA_ERROR_NOT_PERMITTED;
+            }
+        }
+    }
     const auto result = original(module);
     if (result == CUDA_SUCCESS) {
         module_identities().erase(module_handle(module));

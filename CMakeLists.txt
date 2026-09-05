@@ -5,7 +5,8 @@ project(HBFSim VERSION 0.1.0 LANGUAGES CXX)
 option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON)
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
 option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF)
-option(HBFSIM_ENABLE_TIMING_FUTURES "Build C5 timing-future infrastructure (admission remains closed)" OFF)
+option(HBFSIM_ENABLE_TIMING_FUTURES "Build explicitly selected scalar TIMING futures" OFF)
+option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
 
 if(HBFSIM_ENABLE_CUDA)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -46,6 +47,19 @@ include(CTest)
 include(cmake/Dependencies.cmake)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
+if(HBFSIM_ENABLE_EVAL_TOOLS OR HBFSIM_ENABLE_TIMING_FUTURES)
+    add_library(hbfsim_eval_ptx STATIC src/ptxpass_hbf/ptx_ir.cpp
+        src/ptxpass_hbf/ptx_async_op.cpp src/ptxpass_hbf/ptx_analysis.cpp)
+    target_include_directories(hbfsim_eval_ptx PUBLIC src/ptxpass_hbf)
+    target_compile_features(hbfsim_eval_ptx PUBLIC cxx_std_20)
+    set_target_properties(hbfsim_eval_ptx PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+if(HBFSIM_ENABLE_TIMING_FUTURES)
+    add_library(hbfsim_future_emitter STATIC src/ptxpass_hbf/future_transform.cpp)
+    target_link_libraries(hbfsim_future_emitter PUBLIC hbfsim_eval_ptx)
+    set_target_properties(hbfsim_future_emitter PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 add_library(
     hbfsim_core STATIC
     src/api.cpp
@@ -84,8 +98,9 @@ target_include_directories(
 target_compile_features(hbfsim_core PUBLIC cxx_std_20)
 if(HBFSIM_ENABLE_TIMING_FUTURES)
     target_compile_definitions(hbfsim_core PUBLIC HBFSIM_ENABLE_TIMING_FUTURES=1)
+    target_link_libraries(hbfsim_core PUBLIC hbfsim_future_emitter)
 endif()
-target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS})
+target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS} OpenSSL::Crypto)
 set_target_properties(hbfsim_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
     hbfsim_core
@@ -500,6 +515,12 @@ endif()
 find_package(CUDAToolkit 12.8 QUIET)
 if(CUDAToolkit_FOUND)
     if(HBFSIM_ENABLE_CUDA)
+        if(HBFSIM_ENABLE_TIMING_FUTURES)
+            if(CUDAToolkit_VERSION VERSION_LESS "13.0" OR NOT CUDAToolkit_VERSION VERSION_LESS "14.0" OR NOT HBFSIM_CUDA_ARCHITECTURE STREQUAL "120")
+                message(FATAL_ERROR "Complete timing futures require CUDA 13 and numeric sm_120")
+            endif()
+            target_compile_definitions(hbfsim_core PUBLIC HBFSIM_TIMING_FUTURE_UNIT_COMPLETE=1)
+        endif()
         if(CMAKE_CUDA_HOST_COMPILER)
             set(HBFSIM_NVCC_HOST_COMPILER "${CMAKE_CUDA_HOST_COMPILER}")
         else()
@@ -701,6 +722,20 @@ elseif(HBFSIM_ENABLE_CUDA)
     message(FATAL_ERROR "HBFSIM_ENABLE_CUDA requires CUDA Toolkit 12.8 or newer")
 endif()
 
+if(BUILD_TESTING AND HBFSIM_ENABLE_CUDA)
+    add_test(NAME timing_future_unit_plugin COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_unit.py"
+        "$<TARGET_FILE:ptxpass_hbf_plugin>" "$<IF:$<BOOL:${HBFSIM_ENABLE_TIMING_FUTURES}>,on,off>"
+        "${CUDAToolkit_NVCC_EXECUTABLE}")
+    set_tests_properties(timing_future_unit_plugin PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(HBFSIM_ENABLE_TIMING_FUTURES)
+        add_test(NAME timing_future_unit_loader COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_unit_loader.py"
+            "$<TARGET_FILE:hbfsim_launch_gate>" "$<TARGET_FILE:fake_cuda_lookup>" "$<TARGET_FILE:ptxpass_hbf_plugin>")
+        set_tests_properties(timing_future_unit_loader PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+endif()
+
 if(HBFSIM_ENABLE_CUDA)
     target_compile_definitions(hbfsim_core PRIVATE HBFSIM_ENABLE_CUDA_RUNTIME=1)
     target_link_libraries(hbfsim_core PRIVATE CUDA::cudart CUDA::cuda_driver)
@@ -878,8 +913,8 @@ if(HBFSIM_ENABLE_MQSIM)
     endif()
 endif()
 
-# Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
-option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
+# Replay/model tools stay offline. The validated scalar parser/emitter is also
+# linked by the explicit timing-future option above.
 if(BUILD_TESTING AND HBFSIM_ENABLE_TIMING_FUTURES)
     foreach(future_test IN ITEMS abi state binding admission accounting)
         add_executable(timing_future_${future_test}_test tests/cpu/timing_future_${future_test}_test.cpp)
@@ -890,7 +925,7 @@ endif()
 if(BUILD_TESTING AND HBFSIM_ENABLE_CUDA)
     add_test(NAME timing_future_plugin COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_plugin.py"
-        "$<TARGET_FILE:ptxpass_hbf_plugin>")
+        "$<TARGET_FILE:ptxpass_hbf_plugin>" "$<IF:$<BOOL:${HBFSIM_ENABLE_TIMING_FUTURES}>,on,off>")
     set_tests_properties(timing_future_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     if(HBFSIM_ENABLE_TIMING_FUTURES)
         add_executable(timing_future_context_test tests/integration/timing_future_context_test.cpp)
@@ -936,14 +971,7 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
             add_test(NAME eval_${future_test} COMMAND ${future_test}_test)
         endforeach()
     endif()
-    # Offline parser/analysis only. This does not link a partial future/TMA
-    # ABI into the production transformer or runtime.
-    add_library(hbfsim_eval_ptx STATIC
-        src/ptxpass_hbf/ptx_ir.cpp
-        src/ptxpass_hbf/ptx_async_op.cpp
-        src/ptxpass_hbf/ptx_analysis.cpp)
-    target_include_directories(hbfsim_eval_ptx PUBLIC src/ptxpass_hbf)
-    target_compile_features(hbfsim_eval_ptx PUBLIC cxx_std_20)
+    # Reuse the parser library for offline tests as well as explicit futures.
     if(BUILD_TESTING)
         foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold ptx_future_gold ptx_span ptx_setup)
             add_executable(${eval_ptx_test}_test
@@ -954,9 +982,7 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
         endforeach()
         if(HBFSIM_ENABLE_TIMING_FUTURES)
-            # Private C6.1 emitter proof only. No link to the public transform.
-            add_library(hbfsim_future_emitter STATIC src/ptxpass_hbf/future_transform.cpp)
-            target_link_libraries(hbfsim_future_emitter PUBLIC hbfsim_eval_ptx)
+            # Direct emission tests complement the complete plugin tests.
             add_executable(ptx_future_emit_driver tests/cpu/ptx_future_emit_driver.cpp)
             target_link_libraries(ptx_future_emit_driver PRIVATE hbfsim_future_emitter)
             add_test(NAME timing_future_emitter_cpu COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"

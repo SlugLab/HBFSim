@@ -251,6 +251,20 @@ set_tests_properties(
     ptx_transform PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_executable(
+    ptx_async_copy_coverage_test tests/cpu/ptx_async_copy_coverage_test.cpp
+)
+target_link_libraries(ptx_async_copy_coverage_test PRIVATE hbfsim_core)
+target_include_directories(
+    ptx_async_copy_coverage_test
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+)
+add_test(NAME ptx_async_copy_coverage COMMAND ptx_async_copy_coverage_test)
+set_tests_properties(
+    ptx_async_copy_coverage
+    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 add_executable(ptxpass_hbf src/ptxpass_hbf/main.cpp)
 target_link_libraries(ptxpass_hbf PRIVATE hbfsim_core)
 target_include_directories(
@@ -535,6 +549,12 @@ if(CUDAToolkit_FOUND)
             PRIVATE
                 HBFSIM_TEST_DEVICE_HELPER_PTX=1
                 "HBFSIM_TEST_DEVICE_PTX_ARCHITECTURE=${HBFSIM_CUDA_ARCHITECTURE}"
+        )
+    endif()
+
+    if(HBFSIM_ENABLE_CUDA)
+        target_compile_definitions(
+            ptx_async_copy_coverage_test PRIVATE HBFSIM_TEST_DEVICE_HELPER_PTX=1
         )
     endif()
 

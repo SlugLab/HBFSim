@@ -1,0 +1,25 @@
+test_automatic_watermark (test_eval_pipeline.PipelineTests.test_automatic_watermark) ... ok
+test_context_mixing (test_eval_pipeline.PipelineTests.test_context_mixing) ... ok
+test_duplicate (test_eval_pipeline.PipelineTests.test_duplicate) ... ok
+test_final_guard_implicit_and_explicit (test_eval_pipeline.PipelineTests.test_final_guard_implicit_and_explicit) ... ok
+test_fraction (test_eval_pipeline.PipelineTests.test_fraction) ... ok
+test_incomplete_grid_leaves_no_bundle (test_eval_pipeline.PipelineTests.test_incomplete_grid_leaves_no_bundle) ... ok
+test_invalid_overlap (test_eval_pipeline.PipelineTests.test_invalid_overlap) ... ok
+test_json_input (test_eval_pipeline.PipelineTests.test_json_input) ... ok
+test_manifest_hash_and_provenance (test_eval_pipeline.PipelineTests.test_manifest_hash_and_provenance) ... ok
+test_missing_column (test_eval_pipeline.PipelineTests.test_missing_column) ... ok
+test_missing_sibling_metric (test_eval_pipeline.PipelineTests.test_missing_sibling_metric) ... ok
+test_mock_valid (test_eval_pipeline.PipelineTests.test_mock_valid) ... ok
+test_negative_raw_time (test_eval_pipeline.PipelineTests.test_negative_raw_time) ... ok
+test_nonpositive_count_dimension (test_eval_pipeline.PipelineTests.test_nonpositive_count_dimension) ... ok
+test_numeric_nonfinite (test_eval_pipeline.PipelineTests.test_numeric_nonfinite) ... ok
+test_parity_does_not_mix_profiles (test_eval_pipeline.PipelineTests.test_parity_does_not_mix_profiles) ... ok
+test_provenance_closed_enum (test_eval_pipeline.PipelineTests.test_provenance_closed_enum) ... ok
+test_same_renderer_accepts_data_replacement (test_eval_pipeline.PipelineTests.test_same_renderer_accepts_data_replacement) ... ok
+test_strict_mock_rejects_every_row (test_eval_pipeline.PipelineTests.test_strict_mock_rejects_every_row) ... ok
+test_wrong_unit (test_eval_pipeline.PipelineTests.test_wrong_unit) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 4.933s
+
+OK

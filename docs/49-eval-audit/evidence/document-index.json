@@ -1,0 +1,2086 @@
+[
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计.md",
+    "sha256": "ffa14208d5e8b20056c02e047b59e8b02cef682bd7f11912740b654ff6646286",
+    "lines": 731,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 5,
+        "title": "# 评估章主线设计:四个实验怎么论证模拟器可信"
+      },
+      {
+        "line": 7,
+        "title": "## 五句话总览"
+      },
+      {
+        "line": 13,
+        "title": "## 零、结论与要点(只读这一节)"
+      },
+      {
+        "line": 17,
+        "title": "### 四个实验一览"
+      },
+      {
+        "line": 25,
+        "title": "### 页数账:上界 2 页,图保持 6 张"
+      },
+      {
+        "line": 31,
+        "title": "### 三句话说清评估章怎么论证模拟器可信"
+      },
+      {
+        "line": 39,
+        "title": "### 近五年的做法,一句话"
+      },
+      {
+        "line": 43,
+        "title": "### 需要用户拍板的六件事(编号与项目未决事项清单同号)"
+      },
+      {
+        "line": 54,
+        "title": "## 一、四实验主线"
+      },
+      {
+        "line": 60,
+        "title": "### E1 机制保真(mechanism fidelity)"
+      },
+      {
+        "line": 70,
+        "title": "#### 复现一:复现 CD8P 实测延迟曲线在留出点上的值(子块 E1.2)"
+      },
+      {
+        "line": 86,
+        "title": "#### 复现二:复现真实器件的排队与饱和行为(子块 E1.4)"
+      },
+      {
+        "line": 92,
+        "title": "#### 复现三:复现真实后备存储带来的端到端减速(子块 E1.3)"
+      },
+      {
+        "line": 100,
+        "title": "#### 三类复现之前要过的四项先决检查(子块 E1.0,不进正文,只在方法节留一句话)"
+      },
+      {
+        "line": 106,
+        "title": "#### E1 的其余三个子块"
+      },
+      {
+        "line": 116,
+        "title": "#### E1 的核心图"
+      },
+      {
+        "line": 122,
+        "title": "#### E1 已有的数据"
+      },
+      {
+        "line": 128,
+        "title": "#### E1 的限定与措辞门槛"
+      },
+      {
+        "line": 134,
+        "title": "#### E1 的降级路径"
+      },
+      {
+        "line": 138,
+        "title": "### E2 保真度的价格"
+      },
+      {
+        "line": 166,
+        "title": "### E3 假设档案与 N×tR 投影"
+      },
+      {
+        "line": 200,
+        "title": "### E4 路由翻转测验与 dense/MoE 适用范围"
+      },
+      {
+        "line": 222,
+        "title": "## 二、近五年,模拟买不到的硬件怎么过验证关"
+      },
+      {
+        "line": 230,
+        "title": "### 处境跟我们最像的那一篇:CXL-DMSim"
+      },
+      {
+        "line": 240,
+        "title": "### 另外几篇近年工具论文,验证一律落在真实硬件上"
+      },
+      {
+        "line": 248,
+        "title": "### 反例检索:零命中,以及唯一一个不锚真件的同类模拟器去了哪里"
+      },
+      {
+        "line": 256,
+        "title": "### 旁证:器件一旦买得到,同类论文就不再接受模拟"
+      },
+      {
+        "line": 261,
+        "title": "### 三条结论,直接回答用户的问题"
+      },
+      {
+        "line": 269,
+        "title": "### 这一章的未取到项"
+      },
+      {
+        "line": 278,
+        "title": "## 三、微基准怎么论证模拟器可信"
+      },
+      {
+        "line": 284,
+        "title": "### 第 0 步(前提)机制与参数分离"
+      },
+      {
+        "line": 290,
+        "title": "### 第 1 步 校准与验证分离"
+      },
+      {
+        "line": 296,
+        "title": "### 第 2 步 跨器件与跨引擎参照"
+      },
+      {
+        "line": 302,
+        "title": "### 第 3 步 误差地图"
+      },
+      {
+        "line": 308,
+        "title": "### 第 4 步 应用级留出差分"
+      },
+      {
+        "line": 314,
+        "title": "### 第 5 步 排名保真"
+      },
+      {
+        "line": 320,
+        "title": "### 这六步怎么收尾"
+      },
+      {
+        "line": 328,
+        "title": "## 四、对合作者三句建议与 19 号规划的裁决"
+      },
+      {
+        "line": 344,
+        "title": "## 五、对用户三个关切的直接回答"
+      },
+      {
+        "line": 348,
+        "title": "### (a) 三模式成本差异显著性"
+      },
+      {
+        "line": 358,
+        "title": "### (b) 6787p 物理介质怎么用进主线"
+      },
+      {
+        "line": 378,
+        "title": "### (c) dense/MoE 洞察实验放哪、怎么写"
+      },
+      {
+        "line": 388,
+        "title": "## 六、风险与降级"
+      },
+      {
+        "line": 392,
+        "title": "### 温度线"
+      },
+      {
+        "line": 398,
+        "title": "### U787 能力盘点"
+      },
+      {
+        "line": 402,
+        "title": "### 队列深度重跑"
+      },
+      {
+        "line": 406,
+        "title": "### 在线 serving 缺失"
+      },
+      {
+        "line": 410,
+        "title": "### 其余检查简列"
+      },
+      {
+        "line": 416,
+        "title": "## 七、需用户拍板的六项"
+      },
+      {
+        "line": 420,
+        "title": "### #24 温度线 C3 是否从挑战、标题、摘要降为讨论一节"
+      },
+      {
+        "line": 424,
+        "title": "### #25 E3 走解析降级时核心主张的措辞"
+      },
+      {
+        "line": 428,
+        "title": "### #26 措辞门槛表是否作为事前注册政策"
+      },
+      {
+        "line": 432,
+        "title": "### #27「benchmarking framework」定位句取哪一档强度"
+      },
+      {
+        "line": 436,
+        "title": "### #28 −8.10% 与 −3.72% 双条件一句话写法"
+      },
+      {
+        "line": 440,
+        "title": "### #29 删减顺序③触发时 dense/MoE 收窄的预授权"
+      },
+      {
+        "line": 446,
+        "title": "## 附录 A 执行细节、人天排期、删减顺序与决断点"
+      },
+      {
+        "line": 450,
+        "title": "### 每一项谁跑、几天、依赖的代码是否已存在"
+      },
+      {
+        "line": 462,
+        "title": "### 排期总账"
+      },
+      {
+        "line": 466,
+        "title": "### 预先声明的删减顺序,按对三条判据的伤害从小到大"
+      },
+      {
+        "line": 472,
+        "title": "### 三个决断点"
+      },
+      {
+        "line": 476,
+        "title": "### 论文侧并行做的事(不占 GPU)"
+      },
+      {
+        "line": 482,
+        "title": "## 附录 B 需合作者回答与执行的十一项"
+      },
+      {
+        "line": 500,
+        "title": "## 附录 C 逐条去向:19 号规划、大纲 14 问、15 号工作单"
+      },
+      {
+        "line": 502,
+        "title": "### C.1 19 号规划(C0)逐条"
+      },
+      {
+        "line": 529,
+        "title": "### C.2 大纲 14 问的去向"
+      },
+      {
+        "line": 546,
+        "title": "### C.3 15 号工作单 23 项的去向"
+      },
+      {
+        "line": 576,
+        "title": "## 附录 D 先例的使用方式与引用核实状态"
+      },
+      {
+        "line": 608,
+        "title": "## 附录 E 被否决或降级的元素去了哪里"
+      },
+      {
+        "line": 648,
+        "title": "## 附录 F 红蓝对抗过程摘要"
+      },
+      {
+        "line": 652,
+        "title": "### 三份候选的打分"
+      },
+      {
+        "line": 662,
+        "title": "### 裁判是否敢押这篇论文(原文照录)"
+      },
+      {
+        "line": 670,
+        "title": "### 站得住的攻击,举其要"
+      },
+      {
+        "line": 681,
+        "title": "### 被判夸大或部分驳倒的攻击,举其要"
+      },
+      {
+        "line": 692,
+        "title": "## 附录 G 快的那一层为什么不需要替身:HBM、GDDR7 与 6787p"
+      },
+      {
+        "line": 696,
+        "title": "### G.1 快的那一层从来不被模拟"
+      },
+      {
+        "line": 700,
+        "title": "### G.2 6787p 上没有 HBM,跑实验的 GPU 上也没有"
+      },
+      {
+        "line": 710,
+        "title": "### G.3 由此产生的两条披露义务,正文必须写"
+      },
+      {
+        "line": 716,
+        "title": "### G.4 「用快速 NAND 介质模拟 HBF 很坏的一种状态」的精确版"
+      },
+      {
+        "line": 728,
+        "title": "### G.5 两句界线"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/01-事实清单.md",
+    "sha256": "b4ce87d7888014bd1ccd77cffd86c04befdbdb39c38e2c80d8472753f834e647",
+    "lines": 88,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 评估主线设计的事实清单(主 agent 汇编,2026-09-04)"
+      },
+      {
+        "line": 5,
+        "title": "## 用户裁定(逐字,最高优先)"
+      },
+      {
+        "line": 14,
+        "title": "## 硬约束"
+      },
+      {
+        "line": 21,
+        "title": "## 三个运行模式与已有成本数字"
+      },
+      {
+        "line": 35,
+        "title": "## 标定与保真现状"
+      },
+      {
+        "line": 43,
+        "title": "## 队列深度修复(重大,影响已有数字)"
+      },
+      {
+        "line": 48,
+        "title": "## 温度线现状"
+      },
+      {
+        "line": 55,
+        "title": "## MoE 与预取素材(PR #5 分支,未进实验分支)"
+      },
+      {
+        "line": 63,
+        "title": "## 硬件"
+      },
+      {
+        "line": 70,
+        "title": "## 大纲与工作单现状"
+      },
+      {
+        "line": 76,
+        "title": "## 相邻工作(详见四份简报文件)"
+      },
+      {
+        "line": 85,
+        "title": "## 19 号规划(合作者现任方案,全文另存)"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/02-先例简报-HBF评估论文.md",
+    "sha256": "6d7039351ddd55934f98b2d79dcf85cc5fddf09f99c5bad41f32e26d7c0a94d5",
+    "lines": 146,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# HBF 评估类论文的评估方法先例简报"
+      },
+      {
+        "line": 7,
+        "title": "## 1. FlashAccel(我们的对比对象)"
+      },
+      {
+        "line": 30,
+        "title": "## 2. TileLens"
+      },
+      {
+        "line": 55,
+        "title": "## 3. HAVEN"
+      },
+      {
+        "line": 78,
+        "title": "## 4. Micron HotInfra'26《Is High-Bandwidth Flash All You Need?》"
+      },
+      {
+        "line": 99,
+        "title": "## 5. 《HBF Sucks!》(li2026,HBF characterization)"
+      },
+      {
+        "line": 121,
+        "title": "## 综合判断"
+      },
+      {
+        "line": 123,
+        "title": "### 一个读过这批论文的 FAST 审稿人会用什么标准审我们"
+      },
+      {
+        "line": 135,
+        "title": "### dense vs MoE 洞察实验的现成对照点"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/03-先例简报-模拟器验证方法.md",
+    "sha256": "8c59bb202060949c92282e891592ee632610229cbfec928515133c799cdf1a2b",
+    "lines": 183,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 5,
+        "title": "## 1. Cylon(FAST '26)— 给买不到/拿不全的 CXL-SSD 做全系统仿真"
+      },
+      {
+        "line": 20,
+        "title": "## 2. CXLMemSim(合作者前作)— 纯软件模拟买不到的 CXL.mem"
+      },
+      {
+        "line": 35,
+        "title": "## 3. FEMU(FAST '18)— 软件闪存仿真器"
+      },
+      {
+        "line": 50,
+        "title": "## 4. MQSim(FAST '18)— 我们 reference 路径的介质模型来源(重点)"
+      },
+      {
+        "line": 72,
+        "title": "## 5. Accel-Sim(ISCA 2020)— GPU 模拟器验证的标杆"
+      },
+      {
+        "line": 87,
+        "title": "## 6. SMARTS(ISCA 2003)— 统计抽样方法学出处"
+      },
+      {
+        "line": 102,
+        "title": "## 7. SimPoint(ASPLOS 2002)"
+      },
+      {
+        "line": 117,
+        "title": "## 8. Photon(MICRO 2023)— 细粒度 GPU 抽样"
+      },
+      {
+        "line": 132,
+        "title": "## 9. PKA(MICRO 2021)— 规模化负载的硅片验证抽样"
+      },
+      {
+        "line": 147,
+        "title": "## 10. Sieve(HPCA/会议未在正文页眉给出,Ghent,2023)— 分层抽样"
+      },
+      {
+        "line": 162,
+        "title": "## 综合一:存储/体系结构模拟器论文\"证明有用\"的标准套路(按出现频率)"
+      },
+      {
+        "line": 175,
+        "title": "## 综合二:微基准→宏观负载的论证链条通常怎么搭"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/04-先例简报-Optane与CXL先例.md",
+    "sha256": "dd37858f8948faf41656f02c55453bf908bbe68e3d09c1a80d139826d06b43d2",
+    "lines": 188,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 3,
+        "title": "## 抓取受阻说明"
+      },
+      {
+        "line": 9,
+        "title": "## 问题 1:Optane 上市前(2011–2016)持久内存论文的模拟方法"
+      },
+      {
+        "line": 11,
+        "title": "### 1a. Intel PMEP:定制微码硬件平台,按 LLC 停顿周期比例注入额外停顿"
+      },
+      {
+        "line": 25,
+        "title": "### 1b. NOVA(FAST '16)用 PMEP:两点式取值,覆盖快慢两端"
+      },
+      {
+        "line": 35,
+        "title": "### 1c. Mnemosyne(ASPLOS '11):软件 TSC 自旋延迟 + 明说参数是投影 + 三点延迟扫描"
+      },
+      {
+        "line": 49,
+        "title": "### 1d. NV-Heaps(ASPLOS '11):Pin 内存层次模拟 + 参数取自已发表模型与\"业界讨论\" + 校准数字"
+      },
+      {
+        "line": 59,
+        "title": "### 1e. Quartz(Middleware '15):纯商品硬件——性能计数器 + epoch 末注入自旋延迟 + 内存控制器热控寄存器限带宽"
+      },
+      {
+        "line": 73,
+        "title": "### 1f. Quartz 被 FAST 论文使用的实例:WORT(FAST '17)"
+      },
+      {
+        "line": 87,
+        "title": "## 问题 2:FAST '20 Empirical Guide——真器件与此前模拟假设的差别"
+      },
+      {
+        "line": 125,
+        "title": "## 问题 3:CXL 硬件稀缺期(2022–2023)的跨 NUMA 模拟"
+      },
+      {
+        "line": 127,
+        "title": "### Pond(ASPLOS '23)"
+      },
+      {
+        "line": 143,
+        "title": "### TPP(ASPLOS '23,Meta)"
+      },
+      {
+        "line": 157,
+        "title": "### 事后清算:MICRO '23 \"Demystifying CXL Memory\""
+      },
+      {
+        "line": 169,
+        "title": "## 问题 4:关于\"模拟不存在的硬件如何验证保真度\"的方法论段落"
+      },
+      {
+        "line": 180,
+        "title": "## 对 HBF 模拟这篇 FAST 投稿可借用的论证套路"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/05-先例简报-FAST补查与撞车检索.md",
+    "sha256": "3e4a4549c7d58ea72413cc5480cfd625df6099a006ba69db98c51c6f3bb30089",
+    "lines": 50,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 3,
+        "title": "## 第一件:FAST 系模拟器/仿真器论文的验证章节"
+      },
+      {
+        "line": 5,
+        "title": "### (a) NVMeVirt(FAST '23)【一手核实,读的是官方 PDF 全文】"
+      },
+      {
+        "line": 13,
+        "title": "### (b) Amber / SimpleSSD 2.0(MICRO '18)【一手核实,读的是 arXiv 全文】"
+      },
+      {
+        "line": 20,
+        "title": "### (c) VSSIM(MSST '13)与 FEMU(FAST '18,OpenChannel/lightnvm 时代)【一手核实,均读全文】"
+      },
+      {
+        "line": 34,
+        "title": "## 第二件:撞车检索(2026-03 以来)"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/06-近五年验证实践调查.md",
+    "sha256": "9e03fdaca63f203e309f44eba21d9cc934c054471458c26abcbaea1264fb15dc",
+    "lines": 49,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 近五年(2021–2026)模拟器/仿真器论文验证关实践调查报告"
+      },
+      {
+        "line": 7,
+        "title": "## 一、CXL-DMSim 一手核实(引用元数据已核死)"
+      },
+      {
+        "line": 23,
+        "title": "## 二、反例检索:零命中"
+      },
+      {
+        "line": 38,
+        "title": "## 三、旁证:Optane 真件普及后,SOSP 的分层内存论文都用真件"
+      },
+      {
+        "line": 43,
+        "title": "## 总结:近五年的验证关通行标准"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/07-红蓝-实验分支现状核查.md",
+    "sha256": "68a60756d08e1ee1706c310e1f48a9770e1936c1ce7bd9cfaf9638a2d71884bd",
+    "lines": 177,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 候选 D2:基准化最大化的评估主线"
+      },
+      {
+        "line": 9,
+        "title": "## 总骨架:4 个大实验与 3 页分配"
+      },
+      {
+        "line": 25,
+        "title": "## (a) 四个大实验"
+      },
+      {
+        "line": 27,
+        "title": "### E1 物理介质锚定的标定与留出验证"
+      },
+      {
+        "line": 50,
+        "title": "### E2 三模式成本拆账与选择指南"
+      },
+      {
+        "line": 66,
+        "title": "### E3 已发表 HBF 假设在同一执行框架下的重演(基准化的旗舰)"
+      },
+      {
+        "line": 85,
+        "title": "### E4 真实专家路由下的 dense/MoE 适用范围"
+      },
+      {
+        "line": 107,
+        "title": "## (b) 微基准怎么论证可信:完整链条"
+      },
+      {
+        "line": 123,
+        "title": "## (c) 14 问与 23 项的映射表(无静默丢弃)"
+      },
+      {
+        "line": 167,
+        "title": "## (d) 与 C0 的差异点清单及理由"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/08-红蓝-候选D1可信度最大化.md",
+    "sha256": "694b01237941bf231af1904d0c029b5406be7c45c676f671e0963b8493cc69ed",
+    "lines": 221,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 候选 D1:「可信度最大化」评估主线"
+      },
+      {
+        "line": 5,
+        "title": "## 总纲:一句话主线与四个实验"
+      },
+      {
+        "line": 18,
+        "title": "## (a) 四个大实验"
+      },
+      {
+        "line": 20,
+        "title": "### E1 三介质保真度(Tri-media fidelity)"
+      },
+      {
+        "line": 53,
+        "title": "### E2 保真度的价格(Fidelity–cost)"
+      },
+      {
+        "line": 86,
+        "title": "### E3 HBF 服务包络(HBF service envelope)"
+      },
+      {
+        "line": 112,
+        "title": "### E4 dense 与 MoE 在 HBF 上的差别与适用范围(helpful insight)"
+      },
+      {
+        "line": 140,
+        "title": "## (b) 微基准到宏观负载的论证链条"
+      },
+      {
+        "line": 156,
+        "title": "## (c) Q1–Q14 与 15 号工作单 23 项的映射表"
+      },
+      {
+        "line": 209,
+        "title": "## (d) 与 C0(19 号规划)的差异点清单"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/09-红蓝-候选D2基准化最大化.md",
+    "sha256": "808d543637072206e647e0d5cf25ae5342f85cf45aa85d9f0e7a471e1458fea8",
+    "lines": 74,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 实验分支 exp/hbm-hbf-capacity-qwen3-30b-a3b(顶端 3714484)基础设施与产物核查"
+      },
+      {
+        "line": 9,
+        "title": "## 1. commit 7241d6d「freeze randomized measured E5 matrix」:是协议冻结,不是实测结果"
+      },
+      {
+        "line": 29,
+        "title": "## 2. 真实 Qwen MoE 专家轨迹捕获(6f5cbc1)"
+      },
+      {
+        "line": 41,
+        "title": "## 3. 页粒度 HBF 回放时序引擎(d270003)"
+      },
+      {
+        "line": 47,
+        "title": "## 4. 真实轨迹容量比扫描(a7c1db2)"
+      },
+      {
+        "line": 51,
+        "title": "## 5. audited expert staging workflow(f29dc57)与 capacity statistics v2(c48feef)"
+      },
+      {
+        "line": 57,
+        "title": "## 6. 分支上有没有新的实测数字?没有"
+      },
+      {
+        "line": 61,
+        "title": "## 7. 对照 19 号规划逐子实验判定"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/10-红蓝-红队一保真方法学.md",
+    "sha256": "9c6ab59421e5a80c92982eab2f05b6481e88f0f13ee264f261a4be63bee7a55d",
+    "lines": 136,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 红队报告:保真度方法学视角"
+      },
+      {
+        "line": 7,
+        "title": "## 一、对候选 C0(19 号规划)的攻击"
+      },
+      {
+        "line": 9,
+        "title": "### C0-1 §5 的硬件 A/B 与它的全部退路,在已冻结的实现上一条都跑不通"
+      },
+      {
+        "line": 16,
+        "title": "### C0-2 「HBFSim 被验证了」这句话里,被验证的到底是哪个引擎,C0 从头到尾没说"
+      },
+      {
+        "line": 23,
+        "title": "### C0-3 措辞门槛表的数值没有出处,而且按先例是自杀性的"
+      },
+      {
+        "line": 30,
+        "title": "### C0-4 EQ1-B/C 的微基准不经过 GPU 注入路径,一行配置的近邻工具就能给出同样的证据"
+      },
+      {
+        "line": 37,
+        "title": "### C0-5 统计设计漏了三件事:模拟侧无变异、器件无预处理协议、标定与验证隔两个月"
+      },
+      {
+        "line": 46,
+        "title": "## 二、对候选 D1 的攻击"
+      },
+      {
+        "line": 48,
+        "title": "### D1-1 三介质迁移论证的 DRAM 那条腿是断的,而它是 D1 新增的主轴"
+      },
+      {
+        "line": 55,
+        "title": "### D1-2 链条第 3 环整个押在 E1.3 上,而 E1.3 的前提未知、退路已被证明不可执行、失败后链条无定义"
+      },
+      {
+        "line": 62,
+        "title": "### D1-3 D1 自己引用的 Empirical Guide 教训要求验证排队与饱和,而 D1 的基础设施恰好验不了这一维"
+      },
+      {
+        "line": 69,
+        "title": "### D1-4 E2.3 的 2×3 规模交叉表混着两个不同的适配器,回答不了 eq2"
+      },
+      {
+        "line": 76,
+        "title": "### D1-5 图 1(b) 承诺的延迟 CDF 叠画,模型侧给不出诚实的分布"
+      },
+      {
+        "line": 85,
+        "title": "## 三、对候选 D2 的攻击"
+      },
+      {
+        "line": 87,
+        "title": "### D2-1 E3-c「排序不变性」是模式间内部一致性,被包装成可信度证据,先例引用是错位的"
+      },
+      {
+        "line": 94,
+        "title": "### D2-2 把 reference 路径的可信度「接到 MQSim 的 FAST'18 验证上」——接不上,PR#3 就是反例"
+      },
+      {
+        "line": 101,
+        "title": "### D2-3 E1-c 的 Quartz 类比缺了 Quartz 的关键零件,降级路径退化成再拟合一条曲线"
+      },
+      {
+        "line": 108,
+        "title": "### D2-4 四到六个档案上算 Spearman,统计上是空转"
+      },
+      {
+        "line": 115,
+        "title": "### D2-5 E1-b 的 3/3 重切分:512 页那个「留出点」其实是外推点,弱点 2 换了个名字回到论文里"
+      },
+      {
+        "line": 124,
+        "title": "## 四、三个候选共同的盲区"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/11-红蓝-红队二可行性.md",
+    "sha256": "cad60525655a0f83454abdc1bca8ff31693efc023f9a39d8fda9c3e92974f5c2",
+    "lines": 101,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 红队报告:视角三(可信度与基准化采纳)"
+      },
+      {
+        "line": 7,
+        "title": "## 一、对候选 C0(19 号规划)的攻击"
+      },
+      {
+        "line": 29,
+        "title": "## 二、对候选 D1 的攻击"
+      },
+      {
+        "line": 57,
+        "title": "## 三、对候选 D2 的攻击"
+      },
+      {
+        "line": 85,
+        "title": "## 四、三个候选共同的盲区"
+      },
+      {
+        "line": 99,
+        "title": "## 五、一句话裁读(供裁决方参照,不是裁决)"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/12-红蓝-红队三可信与基准化.md",
+    "sha256": "466538cc6b69808397ab0bc01f6121cb70df2e81f11fa72a94ca5b3741bb2294",
+    "lines": 129,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 红队报告(视角二:可行性与测量假象)"
+      },
+      {
+        "line": 7,
+        "title": "## 一、对候选 C0(19 号规划)的攻击"
+      },
+      {
+        "line": 44,
+        "title": "## 二、对候选 D1 的攻击"
+      },
+      {
+        "line": 78,
+        "title": "## 三、对候选 D2 的攻击"
+      },
+      {
+        "line": 111,
+        "title": "## 四、三个候选共同的盲区"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/13-红蓝-蓝队处置.md",
+    "sha256": "7f620786d1cca047caa3a61181528b6b0306ed3345956645ce7e729a454e899c",
+    "lines": 142,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 蓝队处置报告"
+      },
+      {
+        "line": 15,
+        "title": "## 一、红队 1(保真度方法学)"
+      },
+      {
+        "line": 39,
+        "title": "## 二、红队 2(可行性与测量假象)"
+      },
+      {
+        "line": 79,
+        "title": "## 三、红队 3(可信度与基准化)"
+      },
+      {
+        "line": 119,
+        "title": "## 四、修复后的最优合并形态 M"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/14-红蓝-裁判裁决.md",
+    "sha256": "eb7c85c1481e6cad4546948ea8cb4a7da65b7a6165716179938f27b0d86d8f61",
+    "lines": 240,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 裁决"
+      },
+      {
+        "line": 7,
+        "title": "## 一、逐条攻击裁决"
+      },
+      {
+        "line": 9,
+        "title": "### 红队 1(保真度方法学)"
+      },
+      {
+        "line": 30,
+        "title": "### 红队 2(可行性与测量假象)"
+      },
+      {
+        "line": 59,
+        "title": "### 红队 3(可信度与基准化采纳)"
+      },
+      {
+        "line": 85,
+        "title": "## 二、三候选打分与 verdict"
+      },
+      {
+        "line": 87,
+        "title": "### C0(19 号规划)"
+      },
+      {
+        "line": 94,
+        "title": "### D1(可信度最大化)"
+      },
+      {
+        "line": 100,
+        "title": "### D2(基准化最大化)"
+      },
+      {
+        "line": 108,
+        "title": "## 三、bet_the_paper"
+      },
+      {
+        "line": 118,
+        "title": "## 四、合并后的最终 4 实验主线 M"
+      },
+      {
+        "line": 122,
+        "title": "### E1 机制保真(约 1.1 页,基石)——骨架取 D1,规范取 C0,F1–F6 取蓝队"
+      },
+      {
+        "line": 137,
+        "title": "### E2 保真度的价格(约 0.5 页)——问题定义取 D1/用户 eq2,载体取 D2 E2-b"
+      },
+      {
+        "line": 145,
+        "title": "### E3 假设档案与 N×tR 投影(约 0.7 页)——概念取 D2,重锚定取 D1 E3.2/item 15,核心主张取 15 号文件"
+      },
+      {
+        "line": 153,
+        "title": "### E4 路由翻转测验与 dense/MoE 适用范围(约 0.4 页)——升格取红 3 盲区 1/蓝队,dense 对照取 D1 E4.3(本裁决补回)"
+      },
+      {
+        "line": 161,
+        "title": "### 排期总账(合作者,8 执行日 + 3 日历日交接/缓冲/裁决)"
+      },
+      {
+        "line": 166,
+        "title": "## 五、未决决定分流"
+      },
+      {
+        "line": 168,
+        "title": "### 写作层,只有用户能拍板(逐条给选项与代价)"
+      },
+      {
+        "line": 176,
+        "title": "### 代码/实验层,进合作者问题清单(HBFSim/docs/重要实现问题以及需补做实验/)"
+      },
+      {
+        "line": 191,
+        "title": "## 六、打捞清单(被否或降级元素的去处)"
+      },
+      {
+        "line": 230,
+        "title": "## 七、静默丢弃检查"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/15-红蓝-综合内容包.md",
+    "sha256": "89ca709e371a4beec701273ba739f8c3cadb5eafe7a58891b3c6784adff2876d",
+    "lines": 384,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 评估主线设计·综合内容包(供 prose-writer 起草正式文档)"
+      },
+      {
+        "line": 7,
+        "title": "## 0. 一页结论"
+      },
+      {
+        "line": 9,
+        "title": "### 最终 4 实验一览表"
+      },
+      {
+        "line": 21,
+        "title": "### 三句话说清评估章怎么论证模拟器可信"
+      },
+      {
+        "line": 27,
+        "title": "### 用户四条逐字约束清点结果(裁判审计的复核)"
+      },
+      {
+        "line": 33,
+        "title": "## 1. 最终 4 实验主线"
+      },
+      {
+        "line": 35,
+        "title": "### E1 机制保真(Mechanism fidelity)——约 1.1 页,基石"
+      },
+      {
+        "line": 77,
+        "title": "### E2 保真度的价格(Fidelity–cost)——约 0.5 页"
+      },
+      {
+        "line": 95,
+        "title": "### E3 假设档案与 N×tR 投影(Assumption archives & projection)——约 0.7 页"
+      },
+      {
+        "line": 118,
+        "title": "### E4 路由翻转测验与 dense/MoE 适用范围(Routing flip test)——约 0.4 页"
+      },
+      {
+        "line": 139,
+        "title": "## 2. 微基准怎么论证模拟器可信:完整论证链"
+      },
+      {
+        "line": 159,
+        "title": "## 3. 对合作者 eq1/eq2/eq3 与 19 号规划的逐条裁决表"
+      },
+      {
+        "line": 161,
+        "title": "### 合作者三句建议"
+      },
+      {
+        "line": 169,
+        "title": "### 19 号规划(C0)逐条"
+      },
+      {
+        "line": 202,
+        "title": "## 4. 对用户三个关切的直接回答"
+      },
+      {
+        "line": 204,
+        "title": "### (a) 三模式成本差异显著性"
+      },
+      {
+        "line": 212,
+        "title": "### (b) 6787p 物理介质怎么用进主线"
+      },
+      {
+        "line": 220,
+        "title": "### (c) dense/MoE 洞察实验放哪、怎么写"
+      },
+      {
+        "line": 228,
+        "title": "## 5. 先例的使用方式"
+      },
+      {
+        "line": 257,
+        "title": "## 6. Q1–Q14 与 23 项工作单到 4 实验的完整映射表"
+      },
+      {
+        "line": 259,
+        "title": "### 大纲 14 问"
+      },
+      {
+        "line": 278,
+        "title": "### 15 号工作单 23 项"
+      },
+      {
+        "line": 299,
+        "title": "## 7. 风险与降级"
+      },
+      {
+        "line": 303,
+        "title": "### 任务点名的四条风险"
+      },
+      {
+        "line": 312,
+        "title": "### 其余闸门(简列)"
+      },
+      {
+        "line": 318,
+        "title": "## 8. 两份清单"
+      },
+      {
+        "line": 320,
+        "title": "### 需用户拍板(写作层,每条给选项与代价)"
+      },
+      {
+        "line": 329,
+        "title": "### 需合作者回答/执行(代码与实验层,进 HBFSim/docs/重要实现问题以及需补做实验/)"
+      },
+      {
+        "line": 345,
+        "title": "## 9. 打捞清单(被否或降级元素的去处)"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/16-备选稿A-opus45直写.md",
+    "sha256": "e675f796c8d7fcf21bd597f509de918acdab5cfeb34d30bbbd04ad5f6e9149c1",
+    "lines": 412,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 3,
+        "title": "# 评估章主线设计:四个实验怎么论证模拟器可信"
+      },
+      {
+        "line": 5,
+        "title": "## 零、结论与要点(只读这一节)"
+      },
+      {
+        "line": 7,
+        "title": "### 对用户问题的正面回答"
+      },
+      {
+        "line": 19,
+        "title": "### 先说三个术语"
+      },
+      {
+        "line": 25,
+        "title": "### 四个实验一览"
+      },
+      {
+        "line": 32,
+        "title": "### 页数与图表预算"
+      },
+      {
+        "line": 38,
+        "title": "### 三句话说清评估章怎么论证模拟器可信"
+      },
+      {
+        "line": 46,
+        "title": "### 需要用户拍板的六项(编号与项目未决事项清单同号)"
+      },
+      {
+        "line": 57,
+        "title": "## 一、近五年,模拟买不到的硬件怎么过验证关"
+      },
+      {
+        "line": 61,
+        "title": "### 近五年的规律"
+      },
+      {
+        "line": 83,
+        "title": "### Quartz 的定位"
+      },
+      {
+        "line": 87,
+        "title": "### E1 怎么落实「尽可能复现现有实验结果」"
+      },
+      {
+        "line": 99,
+        "title": "## 二、四实验主线"
+      },
+      {
+        "line": 103,
+        "title": "### E1 机制保真"
+      },
+      {
+        "line": 128,
+        "title": "### E2 保真度的价格"
+      },
+      {
+        "line": 140,
+        "title": "### E3 假设档案与 N×tR 投影"
+      },
+      {
+        "line": 156,
+        "title": "### E4 路由翻转测验与 dense/MoE 适用范围"
+      },
+      {
+        "line": 174,
+        "title": "## 三、微基准怎么论证模拟器可信"
+      },
+      {
+        "line": 204,
+        "title": "## 四、对用户三个关切的直接回答"
+      },
+      {
+        "line": 208,
+        "title": "### (a) 三模式成本差异显著性"
+      },
+      {
+        "line": 218,
+        "title": "### (b) 6787p 物理介质怎么用进主线"
+      },
+      {
+        "line": 230,
+        "title": "### (c) dense/MoE 洞察实验放哪、怎么写"
+      },
+      {
+        "line": 245,
+        "title": "## 五、风险与降级"
+      },
+      {
+        "line": 249,
+        "title": "### 温度线"
+      },
+      {
+        "line": 255,
+        "title": "### 6787p 能力盘点"
+      },
+      {
+        "line": 261,
+        "title": "### 队列深度重跑"
+      },
+      {
+        "line": 267,
+        "title": "### 在线 serving 缺失"
+      },
+      {
+        "line": 273,
+        "title": "### 其余检查简列"
+      },
+      {
+        "line": 283,
+        "title": "## 六、需用户拍板的六项"
+      },
+      {
+        "line": 287,
+        "title": "### #24 温度线 C3 是否从挑战、标题、摘要降为讨论一节"
+      },
+      {
+        "line": 293,
+        "title": "### #25 E3 走解析降级时核心主张的措辞"
+      },
+      {
+        "line": 297,
+        "title": "### #26 措辞门槛表是否作为事前注册政策"
+      },
+      {
+        "line": 301,
+        "title": "### #27「benchmarking framework」定位句取哪一档强度"
+      },
+      {
+        "line": 305,
+        "title": "### #28 −8.10% 与 −3.72% 双条件一句话写法"
+      },
+      {
+        "line": 309,
+        "title": "### #29 删减顺序③触发时 dense/MoE 收窄的预授权"
+      },
+      {
+        "line": 315,
+        "title": "## 附录 A 执行细节、人天排期、删减顺序与决断点"
+      },
+      {
+        "line": 317,
+        "title": "### 每一项谁跑、几天、依赖的代码是否已存在"
+      },
+      {
+        "line": 329,
+        "title": "### 排期总账"
+      },
+      {
+        "line": 333,
+        "title": "### 预先声明的删减顺序,按对三条判据的伤害从小到大"
+      },
+      {
+        "line": 344,
+        "title": "### 三个决断点"
+      },
+      {
+        "line": 350,
+        "title": "### 论文侧并行做的事(不占 GPU)"
+      },
+      {
+        "line": 356,
+        "title": "## 附录 B 需合作者回答与执行的十一项"
+      },
+      {
+        "line": 374,
+        "title": "## 附录 C 对合作者三句建议与 19 号规划的裁决"
+      },
+      {
+        "line": 376,
+        "title": "### 合作者三句建议"
+      },
+      {
+        "line": 384,
+        "title": "### 19 号规划(C0)的总裁决"
+      },
+      {
+        "line": 390,
+        "title": "## 附录 D 先例的使用方式与引用核实状态"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/17-备选稿B-opus5直写.md",
+    "sha256": "8c3d4978c2aa853a6dd6a36c7b616fbd6b664eebcf2559e0a4483c0ddb9c127a",
+    "lines": 681,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 3,
+        "title": "# 评估章主线设计:四个实验怎么论证模拟器可信"
+      },
+      {
+        "line": 5,
+        "title": "## 零、结论与要点(只读这一节)"
+      },
+      {
+        "line": 7,
+        "title": "### 先说三个词"
+      },
+      {
+        "line": 11,
+        "title": "### 三句话说清评估章怎么论证模拟器可信"
+      },
+      {
+        "line": 19,
+        "title": "### 近五年的做法给出的答案,一句话"
+      },
+      {
+        "line": 23,
+        "title": "### 最终四个实验"
+      },
+      {
+        "line": 33,
+        "title": "### 页数与人天的账"
+      },
+      {
+        "line": 41,
+        "title": "### 需要用户拍板的六件事(编号与项目未决事项清单同号)"
+      },
+      {
+        "line": 54,
+        "title": "## 一、近五年,模拟买不到的硬件怎么过验证关"
+      },
+      {
+        "line": 64,
+        "title": "### 三条回答,先列全"
+      },
+      {
+        "line": 68,
+        "title": "### 第一条的依据:目标硬件买不到时,别人怎么做"
+      },
+      {
+        "line": 80,
+        "title": "### 第一条的反面依据:反例检索零命中,以及唯一的对照"
+      },
+      {
+        "line": 88,
+        "title": "### 第一条的旁证:器件普及之后,模拟版反而成了被批评的缺陷"
+      },
+      {
+        "line": 94,
+        "title": "### 第二条:Quartz(2015)在本文档里的位置"
+      },
+      {
+        "line": 98,
+        "title": "### 第三条:「尽可能复现现有实验结果」在 E1 里是什么"
+      },
+      {
+        "line": 102,
+        "title": "### 这一章没取到的东西"
+      },
+      {
+        "line": 108,
+        "title": "## 二、四实验主线"
+      },
+      {
+        "line": 114,
+        "title": "### E1 机制保真(mechanism fidelity)"
+      },
+      {
+        "line": 120,
+        "title": "#### 复现一:CD8P 实测延迟曲线在留出点上的值(原 E1.2)"
+      },
+      {
+        "line": 138,
+        "title": "#### 复现二:CD8P 裸盘的排队与饱和行为(原 E1.4)"
+      },
+      {
+        "line": 144,
+        "title": "#### 复现三:真实后备存储接进应用之后的端到端减速(原 E1.3 三臂差分)"
+      },
+      {
+        "line": 150,
+        "title": "#### 三项支撑子块,不占复现的位置"
+      },
+      {
+        "line": 158,
+        "title": "#### 第 0 天的先决检查(不进正文,方法节留一句话)"
+      },
+      {
+        "line": 164,
+        "title": "#### 正文呈现纪律"
+      },
+      {
+        "line": 168,
+        "title": "#### E1 的核心图"
+      },
+      {
+        "line": 174,
+        "title": "#### E1 已有的数据与误差参照系"
+      },
+      {
+        "line": 178,
+        "title": "#### E1 的限定与措辞门槛"
+      },
+      {
+        "line": 184,
+        "title": "#### E1 的降级路径"
+      },
+      {
+        "line": 188,
+        "title": "### E2 保真度的价格"
+      },
+      {
+        "line": 216,
+        "title": "### E3 假设档案与 N×tR 投影"
+      },
+      {
+        "line": 250,
+        "title": "### E4 路由翻转测验与 dense/MoE 适用范围"
+      },
+      {
+        "line": 272,
+        "title": "## 三、微基准怎么论证模拟器可信"
+      },
+      {
+        "line": 276,
+        "title": "### 第 0 环(前提)机制与参数分离"
+      },
+      {
+        "line": 282,
+        "title": "### 第 1 环 校准与验证分离"
+      },
+      {
+        "line": 288,
+        "title": "### 第 2 环 跨器件与跨引擎参照"
+      },
+      {
+        "line": 294,
+        "title": "### 第 3 环 误差地图"
+      },
+      {
+        "line": 300,
+        "title": "### 第 4 环 应用级留出差分"
+      },
+      {
+        "line": 306,
+        "title": "### 第 5 环 排名保真"
+      },
+      {
+        "line": 312,
+        "title": "### 六环怎么收尾"
+      },
+      {
+        "line": 320,
+        "title": "## 四、对合作者三句建议与 19 号规划的裁决"
+      },
+      {
+        "line": 336,
+        "title": "## 五、对用户三个关切的直接回答"
+      },
+      {
+        "line": 340,
+        "title": "### (a) 三模式成本差异显著性"
+      },
+      {
+        "line": 350,
+        "title": "### (b) 6787p 物理介质怎么用进主线"
+      },
+      {
+        "line": 370,
+        "title": "### (c) dense/MoE 洞察实验放哪、怎么写"
+      },
+      {
+        "line": 380,
+        "title": "## 六、风险与降级"
+      },
+      {
+        "line": 384,
+        "title": "### 温度线"
+      },
+      {
+        "line": 390,
+        "title": "### 6787p 能力盘点"
+      },
+      {
+        "line": 394,
+        "title": "### 队列深度重跑"
+      },
+      {
+        "line": 398,
+        "title": "### 在线 serving 缺失"
+      },
+      {
+        "line": 402,
+        "title": "### 其余检查简列"
+      },
+      {
+        "line": 408,
+        "title": "## 七、需用户拍板的六项"
+      },
+      {
+        "line": 412,
+        "title": "### #24 温度线 C3 是否从挑战、标题、摘要降为讨论一节"
+      },
+      {
+        "line": 416,
+        "title": "### #25 E3 走解析降级时核心主张的措辞"
+      },
+      {
+        "line": 420,
+        "title": "### #26 措辞门槛表是否作为事前注册政策"
+      },
+      {
+        "line": 424,
+        "title": "### #27「benchmarking framework」定位句取哪一档强度"
+      },
+      {
+        "line": 428,
+        "title": "### #28 −8.10% 与 −3.72% 双条件一句话写法"
+      },
+      {
+        "line": 432,
+        "title": "### #29 删减顺序③触发时 dense/MoE 收窄的预授权"
+      },
+      {
+        "line": 438,
+        "title": "## 附录 A 执行细节、人天排期、删减顺序与决断点"
+      },
+      {
+        "line": 440,
+        "title": "### 每一项谁跑、几天、依赖的代码是否已存在"
+      },
+      {
+        "line": 452,
+        "title": "### 排期总账"
+      },
+      {
+        "line": 456,
+        "title": "### 预先声明的删减顺序,按对三条判据的伤害从小到大"
+      },
+      {
+        "line": 462,
+        "title": "### 三个决断点"
+      },
+      {
+        "line": 466,
+        "title": "### 论文侧并行做的事(不占 GPU)"
+      },
+      {
+        "line": 472,
+        "title": "## 附录 B 需合作者回答与执行的十一项"
+      },
+      {
+        "line": 490,
+        "title": "## 附录 C 逐条去向:19 号规划、大纲 14 问、15 号工作单"
+      },
+      {
+        "line": 492,
+        "title": "### C.1 19 号规划(C0)逐条"
+      },
+      {
+        "line": 519,
+        "title": "### C.2 大纲 14 问的去向"
+      },
+      {
+        "line": 536,
+        "title": "### C.3 15 号工作单 23 项的去向"
+      },
+      {
+        "line": 566,
+        "title": "## 附录 D 先例的使用方式与引用核实状态"
+      },
+      {
+        "line": 600,
+        "title": "## 附录 E 被否决或降级的元素去了哪里"
+      },
+      {
+        "line": 640,
+        "title": "## 附录 F 红蓝对抗过程摘要"
+      },
+      {
+        "line": 644,
+        "title": "### 三份候选的打分"
+      },
+      {
+        "line": 654,
+        "title": "### 裁判是否敢押这篇论文(原文照录)"
+      },
+      {
+        "line": 662,
+        "title": "### 站得住的攻击,举其要"
+      },
+      {
+        "line": 673,
+        "title": "### 被判夸大或部分驳倒的攻击,举其要"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/47-评估主线设计-辅助材料/README.md",
+    "sha256": "316de64d9c0bac7064172b508d3f9b402a9f7df9d2f7d8d1e2186ba59cb464ab",
+    "lines": 21,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# 47 号评估主线设计的辅助材料"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/48-两种模式的定位与SRAM建模.md",
+    "sha256": "fdcd7db781387a6102cadf5142e10a45ed5c50176030d56c7244e5a42d73da5f",
+    "lines": 140,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 5,
+        "title": "# 两种模式的定位与 SRAM 建模"
+      },
+      {
+        "line": 7,
+        "title": "## 一、结论与三条措辞建议"
+      },
+      {
+        "line": 15,
+        "title": "### 建议一:1:55 这个比例不进正文"
+      },
+      {
+        "line": 23,
+        "title": "### 建议二:「HBM 缓存」这个叫法要从正文里去掉"
+      },
+      {
+        "line": 31,
+        "title": "### 建议三:每个比例都写清它替代的是哪一层硬件"
+      },
+      {
+        "line": 37,
+        "title": "## 二、两种模式:我们是不是已经写了、只是没写好"
+      },
+      {
+        "line": 41,
+        "title": "### 现状:正文里已有的三句"
+      },
+      {
+        "line": 45,
+        "title": "### 代码层面的区别(本轮代码核查,全部一手)"
+      },
+      {
+        "line": 54,
+        "title": "### 判断:两种模式都要写,但要换一种说法"
+      },
+      {
+        "line": 62,
+        "title": "### 两种模式各自承担多少贡献,如实写"
+      },
+      {
+        "line": 66,
+        "title": "## 三、基底裸片上的 SRAM 缓冲怎么模拟(零行代码)"
+      },
+      {
+        "line": 70,
+        "title": "### 为什么不用改代码,五条依据(本轮代码核查,全部一手)"
+      },
+      {
+        "line": 80,
+        "title": "### 所以要做的只有一件事:新增一个档文件"
+      },
+      {
+        "line": 84,
+        "title": "### 一处要先量、不要先写进论文的推断"
+      },
+      {
+        "line": 88,
+        "title": "### 现有测试与旧证据会不会受影响"
+      },
+      {
+        "line": 94,
+        "title": "## 四、design 一节与架构图的修改意见"
+      },
+      {
+        "line": 98,
+        "title": "### D6 一节的两处措辞"
+      },
+      {
+        "line": 102,
+        "title": "### 两种模式写在哪里"
+      },
+      {
+        "line": 106,
+        "title": "### 架构图上的四条修改意见"
+      },
+      {
+        "line": 115,
+        "title": "## 五、代码怎么写:交合作者的执行清单"
+      },
+      {
+        "line": 119,
+        "title": "### 第一项:新增 SRAM 缓冲档文件"
+      },
+      {
+        "line": 123,
+        "title": "### 第二项:量一次 CLOCK 在顺序流上的行为"
+      },
+      {
+        "line": 127,
+        "title": "### 第三项:要同时报两列对比时,怎么让两列可比"
+      },
+      {
+        "line": 133,
+        "title": "### 第四项:把时序模式今天的两条硬限制写进论文的限制一节"
+      },
+      {
+        "line": 137,
+        "title": "### 第五项:一项缺料,需要合作者补测"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/重要实现问题以及需补做实验/07-B-cp-async-and-bulk-tensor-copy-unmatched.md",
+    "sha256": "255a97da5437be31cccafd584a4e485b48f42613c68a768e29b9fe3f1ad6d6a9",
+    "lines": 86,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# `cp.async` and the bulk tensor copy instructions match neither pattern"
+      },
+      {
+        "line": 5,
+        "title": "## What we read in the code"
+      },
+      {
+        "line": 44,
+        "title": "## Why it looks questionable to us"
+      },
+      {
+        "line": 62,
+        "title": "## Which direction the effect goes"
+      },
+      {
+        "line": 70,
+        "title": "## Where we may have read it wrong"
+      },
+      {
+        "line": 80,
+        "title": "## What we would like you to confirm"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/重要实现问题以及需补做实验/10-B-delay-injected-at-issue-not-at-use.md",
+    "sha256": "70bbdd446806c97d2ae7cffb15417bdd4b1e6017c141efc0eed2ed3969552afb",
+    "lines": 59,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# The modeled delay is spent where the access is issued, not where the value is used"
+      },
+      {
+        "line": 5,
+        "title": "## What we read in the code"
+      },
+      {
+        "line": 19,
+        "title": "## Why it looks questionable to us"
+      },
+      {
+        "line": 33,
+        "title": "## Which direction the effect goes"
+      },
+      {
+        "line": 39,
+        "title": "## Where we may have read it wrong"
+      },
+      {
+        "line": 49,
+        "title": "## What we would like you to confirm"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/重要实现问题以及需补做实验/15-experiments-we-must-add-before-submission.md",
+    "sha256": "a5d0a1cf9c6e05c3d2dadd72e3977caba65c8ae9370e45b7931dc6fd935466a4",
+    "lines": 1154,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# Experiments needed before submission"
+      },
+      {
+        "line": 121,
+        "title": "# Group 1 — experiments that support the core claim"
+      },
+      {
+        "line": 123,
+        "title": "## 1. Sweep the parallel read-out unit count against the media latency"
+      },
+      {
+        "line": 212,
+        "title": "## 2. Prefetch window: how much of the media latency the schedule hides"
+      },
+      {
+        "line": 301,
+        "title": "## 3. Batch size against the sparsity dividend"
+      },
+      {
+        "line": 343,
+        "title": "# Group 2 — experiments that support claim C3"
+      },
+      {
+        "line": 345,
+        "title": "## 4. Read disturb and retention refresh: the bandwidth and the erase cycles they consume"
+      },
+      {
+        "line": 413,
+        "title": "## 5. Turn temperature into a service rate, and report the throughput difference"
+      },
+      {
+        "line": 465,
+        "title": "## 6. Thermal state and refresh traffic"
+      },
+      {
+        "line": 503,
+        "title": "# Group 3 — experiments that support claim C1"
+      },
+      {
+        "line": 505,
+        "title": "## 7. How much the accesses admitted without timing move the reported time"
+      },
+      {
+        "line": 532,
+        "title": "## 8. MoE expert-routing experiment"
+      },
+      {
+        "line": 590,
+        "title": "## 9. Move the injection point from the issue site to the consume site, and measure the difference"
+      },
+      {
+        "line": 629,
+        "title": "## 10. How large the overestimate from cache hits is"
+      },
+      {
+        "line": 652,
+        "title": "# Group 4 — experiments that support claim C2"
+      },
+      {
+        "line": 654,
+        "title": "## 11. Held-out calibration validation"
+      },
+      {
+        "line": 684,
+        "title": "## 12. Split the 164.70x slowdown into modeled delay and emulator overhead"
+      },
+      {
+        "line": 709,
+        "title": "## 13. What the single-counter serialization costs against the declared channel count"
+      },
+      {
+        "line": 735,
+        "title": "# Group 5 — the shared foundation under every claim"
+      },
+      {
+        "line": 737,
+        "title": "## 14. Extend vLLM coverage"
+      },
+      {
+        "line": 764,
+        "title": "## 15. Re-anchor the timing profiles to the three bandwidth points in the specification"
+      },
+      {
+        "line": 796,
+        "title": "## 16. Machine information to collect"
+      },
+      {
+        "line": 827,
+        "title": "## 17. Accuracy validation against a physical reference platform"
+      },
+      {
+        "line": 845,
+        "title": "# Group 6 — sweeps of the device parameters the bandwidth figure depends on"
+      },
+      {
+        "line": 847,
+        "title": "## 18. NAND cell-type sweep"
+      },
+      {
+        "line": 901,
+        "title": "## 19. Die count and address-interleaving-order sweep"
+      },
+      {
+        "line": 970,
+        "title": "## 20. Access pattern and `HBF` parameter sweep"
+      },
+      {
+        "line": 992,
+        "title": "# Group 7 — forward-looking scenario and cost"
+      },
+      {
+        "line": 994,
+        "title": "## 21. Whether `HBF` suits a vehicle or an edge platform"
+      },
+      {
+        "line": 1043,
+        "title": "## 22. Total cost of ownership model"
+      },
+      {
+        "line": 1116,
+        "title": "# Group 8 — future work, not needed before submission on its own"
+      },
+      {
+        "line": 1118,
+        "title": "## 23. Activation-energy sensitivity sweep"
+      }
+    ]
+  },
+  {
+    "branch": "eval_base",
+    "git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+    "path": "docs/重要实现问题以及需补做实验/18-spec-conformance-findings.md",
+    "sha256": "a1b010d5543a88d17e982634270f90a7a2cc9470748062c9ca4e7cea98788596",
+    "lines": 332,
+    "review_scope": "design and provenance reconciliation; external citations not independently revalidated",
+    "sections": [
+      {
+        "line": 1,
+        "title": "# What the OCP specification actually says, and where our earlier wording was wrong"
+      },
+      {
+        "line": 28,
+        "title": "## 1. In this specification, \"Host\" means the xPU, not the server CPU"
+      },
+      {
+        "line": 49,
+        "title": "## 2. HBF is reached by AXI transactions carrying a command type, and the layer above the descriptor is not defined by the specification"
+      },
+      {
+        "line": 76,
+        "title": "## 3. Read and write granularity are not symmetric"
+      },
+      {
+        "line": 161,
+        "title": "## 4. There is no per-access event anywhere outside the program under test"
+      },
+      {
+        "line": 173,
+        "title": "## 5. The specification contains no read latency figure of any kind"
+      },
+      {
+        "line": 181,
+        "title": "## 6. The headline numbers, and two places where the specification disagrees with itself"
+      },
+      {
+        "line": 199,
+        "title": "## 7. Correction to what we said about the failed-capacity bitmap"
+      },
+      {
+        "line": 221,
+        "title": "## 8. Under severe throttling, new commands are back-pressured, not rejected"
+      },
+      {
+        "line": 229,
+        "title": "## 9. Zone remapping changes the mapping only, and the specification gives no time for it"
+      },
+      {
+        "line": 241,
+        "title": "## 10. Wear leveling has two selectable modes, so \"the host manages wear\" is only half true"
+      },
+      {
+        "line": 250,
+        "title": "## 11. Host-side periodic refresh is in the specification"
+      },
+      {
+        "line": 257,
+        "title": "## 12. The two error tables"
+      },
+      {
+        "line": 280,
+        "title": "## 13. Statements of ours that have to change"
+      },
+      {
+        "line": 292,
+        "title": "## 14. Which findings turned into questions about the code"
+      },
+      {
+        "line": 305,
+        "title": "## 15. One broken pointer we found while checking"
+      },
+      {
+        "line": 314,
+        "title": "## 16. What we would like you to confirm"
+      }
+    ]
+  },
+  {
+    "branch": "exp/hbm-hbf-capacity-qwen3-30b-a3b",
+    "git_sha": "37144843906b3bd71f3fbac1fecc6b5080d82b95",
+    "path": "docs/重要实现问题以及需补做实验/19-hardware-grounded-evaluation-plan.md",
+    "sha256": "d225033dc735c9e8839b01bc723ec185ece6cbc214524ff7cc381b44c03ab711",
+    "lines": 1173,
+    "review_scope": "hardware/arrival/rho/claim gates; superseded EQ framework"
+  }
+]

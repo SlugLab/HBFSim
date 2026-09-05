@@ -1,0 +1,957 @@
+你现在负责重新规划 SlugLab/HBFSim 的论文 Evaluation。
+
+Repository:
+https://github.com/SlugLab/HBFSim
+
+本轮目标不是立即实现所有实验，而是：
+
+1. 深入审计当前代码、已有实验和相关 feature branches；
+2. 判断新的四个 Evaluation Questions 当前分别能做到什么；
+3. 找出实现缺口以及最小增量式修改方案；
+4. 设计完整实验矩阵；
+5. 统一结果数据 schema；
+6. 先使用明确标记为 MOCK / NOT MEASURED 的假数据生成论文图预览；
+7. 之后真实实验完成时，必须只替换 CSV/JSON 数据，
+   不修改 plotting code 即可生成正式论文图。
+
+============================================================
+0. 工作原则
+============================================================
+
+先分析，后规划，最后才决定是否修改 production code。
+
+不要为了满足论文设计而假定当前实现具备某功能。
+
+所有结论必须绑定：
+
+- branch
+- commit SHA
+- file
+- function / line range
+- measured / inferred / projected provenance
+
+禁止把推断写成已经实现。
+
+============================================================
+1. 必须阅读的主文档
+============================================================
+
+docs/47-评估主线设计.md
+docs/47-评估主线设计-辅助材料/*
+docs/48-两种模式的定位与SRAM建模.md
+
+重点问题文档：
+
+docs/重要实现问题以及需补做实验/
+07-B-cp-async-and-bulk-tensor-copy-unmatched.md
+
+docs/重要实现问题以及需补做实验/
+10-B-delay-injected-at-issue-not-at-use.md
+
+docs/重要实现问题以及需补做实验/
+15-experiments-we-must-add-before-submission.md
+
+docs/重要实现问题以及需补做实验/
+18-spec-conformance-findings.md
+
+实验规划：
+
+branch:
+exp/hbm-hbf-capacity-qwen3-30b-a3b
+
+document:
+docs/重要实现问题以及需补做实验/
+19-hardware-grounded-evaluation-plan.md
+
+============================================================
+2. 必须审计的 implementation
+============================================================
+
+重点：
+
+src/ptxpass_hbf/*
+src/cuda_runtime/context.cpp
+src/cuda_runtime/device/hbf_device.cu
+src/cuda_runtime/device/hbf_device.cuh
+src/cuda_runtime/capacity_runtime.cpp
+src/cuda_runtime/hbm_cache.*
+src/host_service/*
+src/mqsim_adapter/mqsim_online.cpp
+adapters/vllm/*
+tests/cpu/*
+tests/gpu/*
+tests/integration/*
+
+必须额外比较：
+
+feature/sm120-exact-stage1
+
+重点：
+
+future_transform.*
+tma_transform.*
+ptx_ir.*
+async instruction parser
+device helper PTX
+future/TMA ABI
+
+特别确认：
+
+__hbfsim_future_issue
+__hbfsim_future_poll
+__hbfsim_future_wait
+
+__hbfsim_tma_issue
+__hbfsim_tma_barrier_poll
+__hbfsim_tma_barrier_wait
+__hbfsim_tma_wait_group
+__hbfsim_tma_commit_group
+
+tensormap.replace
+tensormap.copy
+tensormap.acquire
+
+不要假定这个 feature branch 正确。
+
+需要从：
+
+PTX semantic
+CFG/data dependency
+instrumentation placement
+completion semantics
+coverage
+fail-closed behavior
+
+五个角度重新审阅。
+
+============================================================
+3. 新 Evaluation Questions
+============================================================
+
+删除旧主问题：
+
+“reference / fast / hybrid fidelity-cost trade-off”
+
+不是完全删除数据，
+而是不再作为主要 Evaluation Question。
+
+三种模式的 runtime/cost
+放 reproducibility / appendix table。
+
+新的主线固定为：
+
+EQ1:
+Can HBFSim faithfully reproduce observable GPU-side
+delay effects and flash-storage service behavior on
+available hardware?
+
+EQ2:
+Does HBFSim preserve asynchronous GPU memory semantics,
+particularly issue-completion overlap for TMA and
+deferred global-memory accesses?
+
+EQ3:
+Under what combinations of media parallelism,
+media latency, and fast-tier residency is HBF useful
+for LLM inference?
+
+EQ4:
+How do model sparsity, serving concurrency,
+and prefetching shift that HBF feasibility boundary?
+
+============================================================
+4. 证据 provenance 必须严格分层
+============================================================
+
+所有数据必须属于：
+
+MEASURED
+    真实物理硬件直接测得
+
+VALIDATED_MODEL
+    对真实硬件 calibration/held-out validation 后的
+    simulator/model 输出
+
+PROJECTED
+    使用 hypothetical HBF parameters 的预测
+
+MOCK
+    仅用于 figure preview 的人工数据
+
+结果 schema 必须保存 provenance。
+
+正式 figure renderer 遇到 MOCK 时必须失败。
+
+============================================================
+5. GDDR7 的定位
+============================================================
+
+当前 GPU 的实际显存是 GDDR7。
+
+禁止：
+
+“GDDR7 validates HBM”
+“GDDR7 emulates physical HBF”
+
+正确写法：
+
+GDDR7 provides the physical GPU execution substrate
+for validating address-range dispatch, PTX/SASS
+instrumentation, latency injection, critical-path
+placement, and asynchronous execution semantics.
+
+可以建立：
+
+native logical range
+fast-tier logical range
+HBF logical range
+
+但这是 logical treatment，
+不是物理介质等价。
+
+如果当前 architecture 不支持同 kernel 多 profile，
+允许同 benchmark 分别运行三次，
+唯一改变 range/profile。
+
+优先避免大改架构。
+
+============================================================
+6. EQ1-A: GPU critical-path delay fidelity
+============================================================
+
+创建最小 dependent-memory microbenchmark。
+
+数据真实驻留在 GPU GDDR7。
+
+给 HBFSim 输入人工 known delay：
+
+D =
+0
+0.5
+1
+2
+5
+10
+20 us
+
+构造严格 data-dependent load chain，
+保证被测 latency 在 critical path。
+
+至少扫描：
+
+warps:
+1
+2
+4
+8
+16 或硬件允许的更大值
+
+occupancy:
+low
+high
+
+测：
+
+requested delay
+globaltimer critical-path delta
+CUDA Event kernel delta
+checksum
+rewritten instructions
+unsupported instructions
+bypassed accesses
+covered bytes
+
+核心验证：
+
+x:
+Target Added Delay (us)
+
+y:
+Measured Critical-Path Increment (us)
+
+画 y=x。
+
+不要用 kernel wall-time 单独代替 instruction critical path。
+
+============================================================
+7. EQ1-B: SSD / MQSim fidelity
+============================================================
+
+真实设备优先级：
+
+可用 CXL SSD
+>
+CD8P / PCIe5 SSD
+>
+其他稳定 flash device
+
+不要称任何一个为 HBF ground truth。
+
+Calibration / held-out 必须预先冻结。
+
+request size:
+
+4KiB
+8KiB
+16KiB
+32KiB
+64KiB
+128KiB
+256KiB
+1MiB
+
+QD:
+
+1
+2
+4
+8
+16
+32
+64
+128
+
+至少报告：
+
+P50
+P99
+throughput
+IOPS
+saturation knee
+
+同样 workload / arrival process
+分别送到：
+
+physical device
+MQSim
+
+再增加三臂差分：
+
+T0:
+zero-delay / tmpfs baseline
+
+THW:
+real device backing
+
+TSIM:
+simulated device profile
+
+计算：
+
+ΔT_HW = THW - T0
+ΔT_SIM = TSIM - T0
+
+画：
+
+x = ΔT_HW
+y = ΔT_SIM
+
+y=x parity。
+
+============================================================
+8. EQ2: Async/TMA semantic fidelity
+============================================================
+
+首先审计：
+
+feature/sm120-exact-stage1
+
+是否已经正确实现本实验需要的：
+
+issue now
+complete later
+wait only when necessary
+
+正确 oracle：
+
+issue time = t_issue
+modeled media latency = D
+
+t_complete =
+    t_issue + D
+
+程序在 issue 后执行 independent work W。
+
+到真实 synchronization/consume point 时：
+
+residual =
+    max(0, t_complete - t_wait)
+
+理想情况下：
+
+residual =
+    max(0, D - W)
+
+禁止 async op 在 issue 时直接支付完整 D。
+
+------------------------------------------------------------
+8.1 实验矩阵
+------------------------------------------------------------
+
+D:
+
+1
+2
+5
+10
+20 us
+
+Overlap ratio W/D:
+
+0
+0.25
+0.50
+0.75
+1.00
+1.50
+2.00
+
+至少覆盖：
+
+A.
+TMA global -> shared
+completion = mbarrier
+
+B.
+TMA shared -> global
+completion = bulk async group
+
+C.
+cp.async + wait_group
+如果 implementation 支持
+
+D.
+ordinary ld.global
+issue -> independent ALU -> first register use
+用于 future_transform
+
+------------------------------------------------------------
+8.2 对比对象
+------------------------------------------------------------
+
+Native
+
+Old issue-stall implementation
+
+New future/TMA implementation
+
+Analytical oracle
+
+------------------------------------------------------------
+8.3 核心图
+------------------------------------------------------------
+
+图 1：
+
+x = W/D
+
+y = residual_stall / D
+
+oracle:
+
+y = max(0, 1-W/D)
+
+如果 old issue-stall 是错误的，
+预计其趋势接近 y≈1。
+
+如果 new async semantics 正确，
+应接近 oracle。
+
+注意：
+这是 hypothesis，不允许在真实测量前
+把该预期写成实验结论。
+
+图 2：
+
+x =
+oracle residual stall
+
+y =
+measured residual stall
+
+画 y=x。
+
+不同 marker：
+
+TMA G->S
+TMA S->G
+cp.async
+ordinary future load
+
+------------------------------------------------------------
+8.4 correctness
+------------------------------------------------------------
+
+每个点必须验证：
+
+checksum
+no stale shared-memory read
+no early barrier release
+no missing transaction
+no deadlock
+no timeout
+coverage count
+unsupported count
+
+至少一个 test 动态修改 TensorMap：
+
+replace global_address
+or copy updated descriptor
+then acquire
+
+随后 TMA 必须访问更新后的地址。
+
+不能只验证静态 descriptor。
+
+------------------------------------------------------------
+8.5 PTX -> SASS audit
+------------------------------------------------------------
+
+使用：
+
+cuobjdump
+nvdisasm
+
+形成：
+
+source op
+PTX op
+injected helper
+SASS location
+wait location
+consumer location
+
+的 mapping table。
+
+不要全局 -O0。
+
+优先依赖真实：
+
+data dependency
+control dependency
+barrier semantics
+
+限制 ptxas。
+
+只有证明 compiler 仍改变重要关系时，
+才能考虑最小局部 optimization barrier。
+
+============================================================
+9. EQ3: HBF feasibility boundary
+============================================================
+
+不要把简单 HBM:HBF physical capacity ratio
+作为唯一横轴。
+
+定义：
+
+C_fast_effective =
+    C_device_total
+    - resident_nonoffload_weights
+    - KV_cache
+    - runtime_workspace
+    - safety_reserve
+
+rho =
+    C_fast_effective
+    / W_HBF_eligible
+
+rho sweep：
+
+0.0625
+0.125
+0.25
+0.5
+0.75
+1.0
+
+published 1:8 / 1:16
+可以作为 reference markers，
+但不要作为唯一实验点。
+
+------------------------------------------------------------
+9.1 HBF media parameters
+------------------------------------------------------------
+
+tR:
+
+1
+2
+4
+5
+10
+20 us
+
+N_parallel:
+
+沿用已有文档中的候选值，
+但重新核对：
+
+单位
+per-channel/per-die/per-cube
+conversion assumption
+
+基础关系：
+
+BW_array =
+    N_parallel * page_bytes / tR
+
+注意：
+
+OCP interface bandwidth ceiling
+不是 array sustainable bandwidth。
+
+------------------------------------------------------------
+9.2 输出
+------------------------------------------------------------
+
+normalized decode time
+normalized throughput
+HBF bytes/token
+fast-tier hit rate
+fast-tier miss rate
+queue depth
+P50/P99 modeled request latency
+HBF utilization
+
+主图：
+
+x:
+effective fast-tier residency rho
+
+y:
+sustainable HBF service rate
+
+color:
+normalized decode time
+
+contours:
+
+5% slowdown
+10% slowdown
+20% slowdown
+
+标记 extrapolated/projected regions。
+
+============================================================
+10. EQ4: MoE / Dense / concurrency
+============================================================
+
+主模型：
+
+Qwen3-30B-A3B
+
+不要硬编码 expert 数。
+
+从真实 checkpoint/config 解析：
+
+num_experts
+top_k
+num_layers
+expert weight bytes
+shared expert
+attention weights
+KV characteristics
+
+主要 workload variable：
+
+actual active sequences
+
+而不是只使用：
+
+configured max_batch_size
+
+如果 runner 不能真正做在线 serving，
+实验必须标：
+
+synthetic concurrency
+或
+trace-composed concurrency
+
+不能写 live serving concurrency。
+
+------------------------------------------------------------
+10.1 每 decode step 收集
+------------------------------------------------------------
+
+active sequences
+unique expert union
+unique expert union / E
+expert frequency
+routing entropy
+Gini
+inter-step Jaccard
+expert reuse distance
+expert weight bytes touched
+HBF bytes
+fast-tier hit/miss
+late prefetch
+useful prefetch
+useless prefetch
+decode-step time
+
+------------------------------------------------------------
+10.2 routing null hypothesis
+------------------------------------------------------------
+
+如果：
+
+E = expert count
+k = top-k
+B = active sequences
+
+uniform independent null：
+
+U_null(B)/E =
+1 - (1-k/E)^B
+
+图中：
+
+real routing
+shuffled routing
+uniform null
+
+并列。
+
+不要用 null model 代替真实 trace。
+
+------------------------------------------------------------
+10.3 Dense comparison
+------------------------------------------------------------
+
+优先提供：
+
+capacity-matched dense
+
+以及：
+
+active-compute-matched dense
+
+若只能完成一个，
+必须明确说明 matching rule。
+
+============================================================
+11. Prefetch
+============================================================
+
+暂时不要把：
+
+FIFO
+LRU
+CLOCK
+
+作为新的独立 EQ。
+
+首先回答：
+
+prefetch 是否明显移动
+HBF break-even boundary？
+
+主比较：
+
+no prefetch
+on-demand
+one-layer-ahead / current runtime prefetch
+
+指标：
+
+timely coverage
+residual stall
+late prefetch
+useless bytes
+extra traffic
+prefetch eviction
+
+若 replacement policy
+会显著改变 EQ4 结论，
+再增加：
+
+FIFO
+LRU
+CLOCK
+expert-aware
+
+作为 ablation。
+
+否则放 appendix。
+
+============================================================
+12. Thermal
+============================================================
+
+首先审计：
+
+thermal state
+是否真正进入：
+
+temperature
+-> service rate / refresh / throttling
+-> request timing
+
+闭环。
+
+如果没有：
+
+thermal 不作为主 EQ。
+
+可以保留：
+
+GPU temp
+memory telemetry
+SSD temp
+power
+
+作为 characterization。
+
+禁止：
+
+GDDR7 memory temperature
+= HBF NAND junction temperature
+
+禁止：
+
+没有 timing feedback
+却声称 thermal-aware HBF performance。
+
+============================================================
+13. 不默认采用 dedicated SM 跑 MQSim
+============================================================
+
+先评估：
+
+GPU issue
+-> async queue/future
+-> host MQSim service
+-> completion timestamp
+-> GPU wait pays residual
+
+是否可行。
+
+dedicated SM 会改变：
+
+occupancy
+SM count
+scheduler
+kernel performance
+
+除非严格证明必要，
+否则不要采用。
+
+============================================================
+14. Mock figure infrastructure
+============================================================
+
+建立：
+
+scripts/eval/
+results/mock/
+results/measured/
+figures/mock/
+figures/final/
+
+统一 long-form CSV：
+
+provenance
+eq
+figure
+panel
+run_id
+git_sha
+hardware
+model
+workload
+mode
+backend
+operation
+profile
+delay_us
+independent_work_us
+overlap_ratio
+request_bytes
+qd
+rho
+tR_us
+parallel_units
+active_sequences
+prefetch_policy
+metric
+value
+unit
+replicate
+
+MOCK 行：
+
+provenance=MOCK
+
+Mock 图自动添加：
+
+MOCK DATA — NOT MEASURED
+
+正式 renderer：
+
+--strict-no-mock
+
+任何 MOCK 数据出现就退出非零。
+
+例如：
+
+python scripts/eval/render_figures.py \
+  --input results/mock/eval.csv \
+  --out figures/mock \
+  --watermark
+
+正式：
+
+python scripts/eval/render_figures.py \
+  --input results/measured/eval.csv \
+  --out figures/final \
+  --strict-no-mock
+
+两者必须共用完全相同 plotting function。
+
+============================================================
+15. 第一阶段交付
+============================================================
+
+暂时不要大规模修改 runtime。
+
+输出：
+
+docs/49-new-evaluation-plan.md
+
+docs/49-eval-audit/
+  current-capability-audit.md
+  async-tma-audit.md
+  hardware-groundtruth-contract.md
+  figure-plan.md
+  execution-plan.md
+  claim-gates.md
+  run-matrix.csv
+
+scripts/eval/
+  render_figures.py
+  validate_results.py
+
+results/mock/eval.csv
+
+figures/mock/
+  fig-e1-hardware-fidelity.*
+  fig-e2-async-semantics.*
+  fig-e3-hbf-feasibility.*
+  fig-e4-expert-union.*
+  fig-e5-workload-boundary.*
+  fig-e6-robustness.*
+
+最后报告：
+
+- 哪些实验今天即可运行
+- 哪些缺 production implementation
+- 哪些已有 feature branch 可复用
+- feature/sm120-exact-stage1 是否可合并
+- 各实验预计 GPU-hours / CPU-hours
+- blocking dependency
+- minimal publishable configuration
+- ideal configuration
+- 当前仍绝对不能写进论文的 claim
+
+到这里停止，等待人工审阅。

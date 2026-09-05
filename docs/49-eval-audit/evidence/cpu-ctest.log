@@ -1,0 +1,89 @@
+Test project /root/hbfsim-exp/eval-base-evidence/build-eval-tools
+      Start  1: build_smoke
+ 1/42 Test  #1: build_smoke ......................   Passed    0.00 sec
+      Start  2: profile
+ 2/42 Test  #2: profile ..........................   Passed    0.01 sec
+      Start  3: calibrator
+ 3/42 Test  #3: calibrator .......................   Passed    0.00 sec
+      Start  4: protocol
+ 4/42 Test  #4: protocol .........................   Passed    0.01 sec
+      Start  5: page_directory
+ 5/42 Test  #5: page_directory ...................   Passed    0.00 sec
+      Start  6: range_table
+ 6/42 Test  #6: range_table ......................   Passed    1.94 sec
+      Start  7: timing_binding
+ 7/42 Test  #7: timing_binding ...................   Passed    0.00 sec
+      Start  8: device_helper_abi
+ 8/42 Test  #8: device_helper_abi ................   Passed    0.00 sec
+      Start  9: backing_store
+ 9/42 Test  #9: backing_store ....................   Passed    0.01 sec
+      Start 10: capacity_backing_router
+10/42 Test #10: capacity_backing_router ..........   Passed    0.01 sec
+      Start 11: hbm_cache
+11/42 Test #11: hbm_cache ........................   Passed    0.00 sec
+      Start 12: vmm
+12/42 Test #12: vmm ..............................   Passed    0.00 sec
+      Start 13: capacity_page_service
+13/42 Test #13: capacity_page_service ............   Passed    0.01 sec
+      Start 14: capacity_handoff
+14/42 Test #14: capacity_handoff .................   Passed    0.01 sec
+      Start 15: capacity_dispatch
+15/42 Test #15: capacity_dispatch ................   Passed    0.00 sec
+      Start 16: capacity_worker
+16/42 Test #16: capacity_worker ..................   Passed    0.02 sec
+      Start 17: device_ordering_reference
+17/42 Test #17: device_ordering_reference ........   Passed    0.98 sec
+      Start 18: context_lifecycle
+18/42 Test #18: context_lifecycle ................   Passed   16.59 sec
+      Start 19: daemon_protocol
+19/42 Test #19: daemon_protocol ..................   Passed    1.33 sec
+      Start 20: coverage_gate
+20/42 Test #20: coverage_gate ....................   Passed    0.29 sec
+      Start 21: durable_append
+21/42 Test #21: durable_append ...................   Passed    0.12 sec
+      Start 22: module_identity
+22/42 Test #22: module_identity ..................   Passed    0.01 sec
+      Start 23: ptx_transform
+23/42 Test #23: ptx_transform ....................   Passed    0.01 sec
+      Start 24: ptx_async_copy_coverage
+24/42 Test #24: ptx_async_copy_coverage ..........   Passed    0.01 sec
+      Start 25: llama_cpp_adapter
+25/42 Test #25: llama_cpp_adapter ................   Passed    0.05 sec
+      Start 26: thermal_logp
+26/42 Test #26: thermal_logp .....................   Passed    0.07 sec
+      Start 27: vmem_tuning
+27/42 Test #27: vmem_tuning ......................   Passed    0.17 sec
+      Start 28: bpftime_patch
+28/42 Test #28: bpftime_patch ....................   Passed    0.06 sec
+      Start 29: build_patched_bpftime
+29/42 Test #29: build_patched_bpftime ............   Passed    1.82 sec
+      Start 30: coverage_manifest_flow
+30/42 Test #30: coverage_manifest_flow ...........   Passed    0.05 sec
+      Start 31: run_with_bpftime
+31/42 Test #31: run_with_bpftime .................   Passed    1.11 sec
+      Start 32: launch_gate_symbols
+32/42 Test #32: launch_gate_symbols ..............   Passed    0.14 sec
+      Start 33: cuda_lookup_interposition
+33/42 Test #33: cuda_lookup_interposition ........   Passed    0.11 sec
+      Start 34: timing_gate_binding
+34/42 Test #34: timing_gate_binding ..............   Passed    0.42 sec
+      Start 35: mqsim_online
+35/42 Test #35: mqsim_online .....................   Passed    0.28 sec
+      Start 36: mqsim_queue_depth
+36/42 Test #36: mqsim_queue_depth ................   Passed    0.09 sec
+      Start 37: mqsim_benchmark
+37/42 Test #37: mqsim_benchmark ..................   Passed    0.54 sec
+      Start 38: prefetch_model
+38/42 Test #38: prefetch_model ...................   Passed    0.07 sec
+      Start 39: prefetch_report
+39/42 Test #39: prefetch_report ..................   Passed    0.16 sec
+      Start 40: capacity_trace_policy
+40/42 Test #40: capacity_trace_policy ............   Passed    0.09 sec
+      Start 41: trace_timing
+41/42 Test #41: trace_timing .....................   Passed    1.27 sec
+      Start 42: trace_replay_timing
+42/42 Test #42: trace_replay_timing ..............   Passed    1.48 sec
+
+100% tests passed, 0 tests failed out of 42
+
+Total Test time (real) =  29.40 sec

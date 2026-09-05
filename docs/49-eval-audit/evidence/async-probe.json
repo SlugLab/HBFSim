@@ -1,0 +1,24 @@
+{
+  "branch": "feature/sm120-exact-stage1",
+  "git_sha": "f4dc28b2671c01939d98e4a968e6fb37b2e364d9",
+  "evidence_kind": "STATIC_REPRODUCED",
+  "gpu_executed": false,
+  "case": "predicate false at first consumer, unguarded second consumer has no wait",
+  "compile_command": [
+    "c++",
+    "-std=c++20",
+    "-O2",
+    "-I.",
+    "-Isrc/ptxpass_hbf",
+    "probe.cpp",
+    "src/ptxpass_hbf/future_transform.cpp",
+    "src/ptxpass_hbf/ptx_ir.cpp",
+    "src/ptxpass_hbf/ptx_analysis.cpp",
+    "src/ptxpass_hbf/ptx_async_op.cpp",
+    "-o",
+    "probe"
+  ],
+  "probe_sha256": "a3208d281d63edd18282ead231fa12a96c07823d65ef67cdb73483b60277b7ee",
+  "output_sha256": "dff10eaf693d738bea18e86157600273b81782eaa2454aba146d9174d32f2960",
+  "production_modified": false
+}

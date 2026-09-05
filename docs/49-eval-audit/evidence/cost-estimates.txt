@@ -1,0 +1,11 @@
+gpu_delay 210 cells 2100 runs 1.17 GPU-h 1.17 CPU-core-h
+flash_fidelity 512 cells 5120 runs 0.0 GPU-h 85.33 CPU-core-h
+three_arm 96 cells 960 runs 1.33 GPU-h 1.33 CPU-core-h
+async_overlap 420 cells 4200 runs 3.5 GPU-h 3.5 CPU-core-h
+async_correctness 11 cells 110 runs 0.06 GPU-h 0.06 CPU-core-h
+feasibility 216 cells 1080 runs 0.0 GPU-h 18.0 CPU-core-h
+routing_capture 24 cells 120 runs 12.0 GPU-h 12.0 CPU-core-h
+workload_boundary 1296 cells 6480 runs 0.0 GPU-h 108.0 CPU-core-h
+live_confirmation 36 cells 180 runs 9.0 GPU-h 9.0 CPU-core-h
+robustness 18 cells 90 runs 0.0 GPU-h 1.5 CPU-core-h
+mode_cost 9 cells 45 runs 0.75 GPU-h 0.75 CPU-core-h

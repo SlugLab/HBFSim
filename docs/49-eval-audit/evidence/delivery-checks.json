@@ -1,0 +1,19 @@
+{
+  "branch": "eval_base",
+  "base_git_sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+  "production_diff_empty": true,
+  "matrix_conditions": 2848,
+  "matrix_runs": 20485,
+  "local_doc_links_valid": true,
+  "mock_figures": 6,
+  "mock_rows": 2198,
+  "pipeline_tests_passed": 20,
+  "existing_cpu_ctest_passed": 42,
+  "strict_mock_rejection": {
+    "exit_code": 2,
+    "stderr": "RENDER FAILED: row 2: MOCK forbidden by --strict-no-mock",
+    "outputs_created": false
+  },
+  "real_gpu_experiments": "NOT RUN; driver unavailable",
+  "measurements_created": false
+}

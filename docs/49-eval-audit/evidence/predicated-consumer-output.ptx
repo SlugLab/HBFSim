@@ -1,0 +1,119 @@
+modified=1 reject=
+.version 8.8
+.target sm_120
+.address_size 64
+.visible .entry probe(.param .u64 ptr)
+{
+    // HBFSim async kernel probe
+    // HBFSim future registers 2
+    .reg .b64 %hbfsim_f2_ticket;
+    .reg .b64 %hbfsim_f2_original;
+    .reg .b64 %hbfsim_f2_resolved;
+    .reg .b64 %hbfsim_f2_ready;
+    .reg .b32 %hbfsim_f2_bytes;
+    .reg .b32 %hbfsim_f2_instruction;
+    .reg .b32 %hbfsim_f2_channel;
+    .reg .b32 %hbfsim_f2_flags;
+    .reg .b32 %hbfsim_f2_state;
+    .reg .b32 %hbfsim_f2_status;
+    .reg .b32 %hbfsim_f2_temporary;
+    .reg .pred %hbfsim_f2_capacity;
+    .reg .pred %hbfsim_f2_terminal;
+    .reg .pred %hbfsim_f2_skip;
+    .reg .pred %hbfsim_f2_native;
+    .reg .pred %hbfsim_f2_consumed;
+    .reg .pred %hbfsim_f2_deferred;
+    .reg .pred %hbfsim_f2_fault;
+.reg .b64 %rd1;
+.reg .b32 %r<5>;
+.reg .pred %p;
+    // HBFSim initialize unissued futures
+    mov.u32 %hbfsim_f2_state, 5;
+ld.param.u64 %rd1, [ptr];
+    // HBFSim future issue 2
+    mov.u32 %hbfsim_f2_state, 5;
+    {
+    .param .b64 %hbfsim_issue_2_address;
+    .param .b32 %hbfsim_issue_2_bytes;
+    .param .b32 %hbfsim_issue_2_operation;
+    .param .b32 %hbfsim_issue_2_instruction;
+    .param .align 16 .b8 %hbfsim_issue_2_return[64];
+    cvta.to.global.u64 %hbfsim_f2_original, %rd1;
+    st.param.b64 [%hbfsim_issue_2_address], %hbfsim_f2_original;
+    st.param.b32 [%hbfsim_issue_2_bytes], 4;
+    st.param.b32 [%hbfsim_issue_2_operation], 0;
+    st.param.b32 [%hbfsim_issue_2_instruction], 2;
+    call (%hbfsim_issue_2_return), __hbfsim_future_issue, (%hbfsim_issue_2_address, %hbfsim_issue_2_bytes, %hbfsim_issue_2_operation, %hbfsim_issue_2_instruction);
+    ld.param.b64 %hbfsim_f2_ticket, [%hbfsim_issue_2_return+0];
+    ld.param.b64 %hbfsim_f2_original, [%hbfsim_issue_2_return+8];
+    ld.param.b64 %hbfsim_f2_resolved, [%hbfsim_issue_2_return+16];
+    ld.param.b64 %hbfsim_f2_ready, [%hbfsim_issue_2_return+24];
+    ld.param.b32 %hbfsim_f2_bytes, [%hbfsim_issue_2_return+32];
+    ld.param.b32 %hbfsim_f2_instruction, [%hbfsim_issue_2_return+36];
+    ld.param.b32 %hbfsim_f2_channel, [%hbfsim_issue_2_return+40];
+    ld.param.b32 %hbfsim_f2_flags, [%hbfsim_issue_2_return+44];
+    ld.param.b32 %hbfsim_f2_state, [%hbfsim_issue_2_return+48];
+    ld.param.b32 %hbfsim_f2_status, [%hbfsim_issue_2_return+52];
+    }
+    and.b32 %hbfsim_f2_temporary, %hbfsim_f2_flags, 4;
+    setp.ne.u32 %hbfsim_f2_capacity, %hbfsim_f2_temporary, 0;
+    setp.eq.u32 %hbfsim_f2_terminal, %hbfsim_f2_state, 4;
+    or.pred %hbfsim_f2_skip, %hbfsim_f2_capacity, %hbfsim_f2_terminal;
+    @%hbfsim_f2_skip bra $L__hbfsim_f2_skip_native;
+    ld.global.u32 %r1, [%hbfsim_f2_resolved];
+    and.b32 %hbfsim_f2_temporary, %hbfsim_f2_flags, 1;
+    setp.ne.u32 %hbfsim_f2_native, %hbfsim_f2_temporary, 0;
+    @%hbfsim_f2_native mov.u32 %hbfsim_f2_state, 5;
+$L__hbfsim_f2_skip_native:
+mov.u32 %r2, 1;
+setp.eq.u32 %p, %r2, 0;
+    // HBFSim future wait 2
+    @!%p bra $L__hbfsim_f2_wait_guard_false_1;
+    setp.eq.u32 %hbfsim_f2_consumed, %hbfsim_f2_state, 5;
+    @%hbfsim_f2_consumed bra $L__hbfsim_f2_wait_done_1;
+    {
+    .param .align 16 .b8 %hbfsim_wait_2_1_future[64];
+    .param .b32 %hbfsim_wait_2_1_kind;
+    .param .align 16 .b8 %hbfsim_wait_2_1_return[64];
+    st.param.b64 [%hbfsim_wait_2_1_future+0], %hbfsim_f2_ticket;
+    st.param.b64 [%hbfsim_wait_2_1_future+8], %hbfsim_f2_original;
+    st.param.b64 [%hbfsim_wait_2_1_future+16], %hbfsim_f2_resolved;
+    st.param.b64 [%hbfsim_wait_2_1_future+24], %hbfsim_f2_ready;
+    st.param.b32 [%hbfsim_wait_2_1_future+32], %hbfsim_f2_bytes;
+    st.param.b32 [%hbfsim_wait_2_1_future+36], %hbfsim_f2_instruction;
+    st.param.b32 [%hbfsim_wait_2_1_future+40], %hbfsim_f2_channel;
+    st.param.b32 [%hbfsim_wait_2_1_future+44], %hbfsim_f2_flags;
+    st.param.b32 [%hbfsim_wait_2_1_future+48], %hbfsim_f2_state;
+    st.param.b32 [%hbfsim_wait_2_1_future+52], %hbfsim_f2_status;
+    st.param.b32 [%hbfsim_wait_2_1_kind], 0;
+    call (%hbfsim_wait_2_1_return), __hbfsim_future_wait, (%hbfsim_wait_2_1_future, %hbfsim_wait_2_1_kind);
+    ld.param.b64 %hbfsim_f2_ticket, [%hbfsim_wait_2_1_return+0];
+    ld.param.b64 %hbfsim_f2_original, [%hbfsim_wait_2_1_return+8];
+    ld.param.b64 %hbfsim_f2_resolved, [%hbfsim_wait_2_1_return+16];
+    ld.param.b64 %hbfsim_f2_ready, [%hbfsim_wait_2_1_return+24];
+    ld.param.b32 %hbfsim_f2_bytes, [%hbfsim_wait_2_1_return+32];
+    ld.param.b32 %hbfsim_f2_instruction, [%hbfsim_wait_2_1_return+36];
+    ld.param.b32 %hbfsim_f2_channel, [%hbfsim_wait_2_1_return+40];
+    ld.param.b32 %hbfsim_f2_flags, [%hbfsim_wait_2_1_return+44];
+    ld.param.b32 %hbfsim_f2_state, [%hbfsim_wait_2_1_return+48];
+    ld.param.b32 %hbfsim_f2_status, [%hbfsim_wait_2_1_return+52];
+    }
+    setp.ne.u32 %hbfsim_f2_fault, %hbfsim_f2_status, 1;
+    {
+    .param .b32 %hbfsim_wait_2_1_fault_status;
+    .param .b32 %hbfsim_wait_2_1_fault_instruction;
+    st.param.b32 [%hbfsim_wait_2_1_fault_status], %hbfsim_f2_status;
+    st.param.b32 [%hbfsim_wait_2_1_fault_instruction], 2;
+    @%hbfsim_f2_fault call __hbfsim_future_fault, (%hbfsim_wait_2_1_fault_status, %hbfsim_wait_2_1_fault_instruction);
+    }
+    setp.eq.u32 %hbfsim_f2_deferred, %hbfsim_f2_state, 3;
+    @!%hbfsim_f2_deferred bra $L__hbfsim_f2_wait_materialized_1;
+    ld.global.u32 %r1, [%hbfsim_f2_resolved];
+$L__hbfsim_f2_wait_materialized_1:
+    mov.u32 %hbfsim_f2_state, 5;
+$L__hbfsim_f2_wait_done_1:
+$L__hbfsim_f2_wait_guard_false_1:
+@%p add.u32 %r3, %r1, 1;
+add.u32 %r4, %r1, 2;
+ret;
+}

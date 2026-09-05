@@ -137,16 +137,17 @@ def snapshot(path, *, header, budget, limit, expected=None, confined_to=None):
                      read_ranges=[[0,8],[8,len(raw)-8]] if header else [[0,len(raw)]])
 
 
-def interpreter_identity():
+def interpreter_identity(*, executable=None):
     # Executable provenance is separate from the checkpoint metadata budget.
-    before=path_state(sys.executable);size=before['file_identity']['size']
+    executable=sys.executable if executable is None else os.fspath(executable)
+    before=path_state(executable);size=before['file_identity']['size']
     if size>512<<20:raise ValueError('interpreter exceeds executable provenance limit')
     fd=os.open(before['realpath'],os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
     sha=hashlib.sha256();budget={'remaining':size}
     try:
         if file_identity(os.fstat(fd))!=before['file_identity']:raise ValueError('interpreter replaced')
         for offset in range(0,size,1<<20):sha.update(read_exact(fd,min(1<<20,size-offset),offset,budget))
-        if file_identity(os.fstat(fd))!=before['file_identity'] or path_state(sys.executable)!=before:
+        if file_identity(os.fstat(fd))!=before['file_identity'] or path_state(executable)!=before:
             raise ValueError('interpreter changed')
     finally:os.close(fd)
     return dict(path=before['realpath'],sha256=sha.hexdigest(),file_identity=before['file_identity'])

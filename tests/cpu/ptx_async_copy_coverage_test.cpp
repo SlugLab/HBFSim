@@ -80,6 +80,20 @@ bool counted_unsupported(const std::string& instruction)
 
 int main()
 {
+    // .loc is a newline-terminated directive, not an unfinished instruction.
+    // Debug line information must not hide the following HBF access.
+    CHECK(counted_unsupported(
+        ".loc 1 10 0\n    atom.global.add.u32 %r1, [%rd1], 1;"));
+    CHECK(counted_unsupported(
+        ".loc 1 10 0\n    cp.async.ca.shared.global [%r1], [%rd1], 4;"));
+#if defined(HBFSIM_TEST_DEVICE_HELPER_PTX)
+    {
+        const auto result = run(
+            ".loc 1 10 0\n    ld.global.u32 %r1, [%rd1];");
+        CHECK(result.coverage.rewritten_instructions == 1);
+    }
+#endif
+
     // Reads global memory into shared memory. Must be visible.
     CHECK(counted_unsupported(
         "cp.async.ca.shared.global [%r1], [%rd1], 4;"));

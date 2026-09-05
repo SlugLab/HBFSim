@@ -135,6 +135,14 @@ bool statement_is_open(const std::string& text)
     if (last == std::string::npos) {
         return false;
     }
+    // Debug location directives end at the newline, without a semicolon.
+    // Joining one to the next instruction would hide that memory access.
+    const auto first = text.find_first_not_of(" \t\r");
+    if (text.compare(first, 4, ".loc") == 0 &&
+        (first + 4 == text.size() || text[first + 4] == ' ' ||
+         text[first + 4] == '\t')) {
+        return false;
+    }
     const auto character = text[last];
     return character != ';' && character != '{' && character != '}' &&
            character != ':';

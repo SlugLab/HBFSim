@@ -103,6 +103,14 @@ retaining the identity acknowledgement, resource checks and owned cleanup.
 Three CPU subprocess controls and46 scheduler regressions pass. This helper
 does not prepare the target's import paths or authenticate a real HF arm.
 
+The [frozen-array decoder](../../scripts/eval/hf_route_array.py) checks at most
+1MiB of NPY bytes with a4096-byte header before decoding the exact protocol
+shape/dtype. It rejects malformed/duplicate fields, invalid element counts,
+trailing bytes and invalid/duplicate top-k IDs, without a NumPy reader. Six
+controls and both reviews pass, with29 related CPU tests in3.536s. The later
+validator must still reconcile token identities, every trace event and all three
+owned process records; a valid array is not proof of its source.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

@@ -571,6 +571,18 @@ parent's existing lifecycle callback and fail the owned arm on overflow. The
 metadata bundle retains the metadata verifier's own limits. Reject unexpected
 NumPy element counts before allocating/decoding an advertised large shape.
 
+Implement the frozen-array decoder as a separate stdlib-only unit before the
+triplet validator. It accepts at most1MiB of NPY bytes, a bounded header of at
+most4096 bytes, exact v1/v2 headers with unique `descr/fortran_order/shape`
+fields, C-order signed/unsigned8/16/32/64 integers, and the protocol-derived
+three-dimensional shape. Reject object/structured/bool/float dtypes, unexpected
+shape or dtype spelling, duplicate header keys, truncation/trailing bytes,
+out-of-range or duplicate top-k IDs before returning detached immutable values.
+No NumPy import, advertised-shape allocation, filesystem access or origin/science
+claim belongs to this decoder. CPU controls use real NumPy-generated fixture
+bytes and malicious headers; the later validator still recomputes token/trace
+joins and propagates all evidence labels independently.
+
 After all workers have exited, a separate public `validate_capture(out)` must:
 
 1. Verify confined regular-file artifacts, complete exact inventories, hashes,

@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `3f62bf1` (optional owned bootstrap startup control; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `0a7619b` (bounded frozen route decoding; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -287,6 +287,15 @@ scheduler suite passes in38.819s. Evidence:
 `results/gold/hf-routing-runner/bootstrap-attempt-001/` and
 `bootstrap-phase-attempt-001/`. No real HF worker is exposed by this option;
 the final controlled import/target process remains a separate pending unit.
+
+The frozen-route decoder (`0a7619b`) accepts the bounded NPY v1/v2 integer
+subset without importing NumPy or allocating from an advertised shape. It
+validates exact protocol geometry/dtype, payload length, expert bounds and
+top-k uniqueness, returning detached tuples. Six targeted tests and both reviews
+pass;29 decoder/owned-body/protocol controls pass in3.536s. Evidence:
+`results/gold/hf-routing-runner/route-array-phase-attempt-001/`.
+This is a primitive for later token/trace/triplet reconciliation; it provides no
+capture-origin, model execution or scientific receipt.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

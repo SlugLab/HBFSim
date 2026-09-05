@@ -101,3 +101,8 @@ regressions (38.819s). Commit `3f62bf1`; evidence:
 Default argv is unchanged; true skips intermediate Python site hooks while
 preserving identity acknowledgement and owned cleanup. No real HF arm or formal
 matrix cell ran.
+
+Standalone CPU update,2026-09-05T19:53:41Z: bounded frozen route decoding is
+committed at `0a7619b`, with both reviews and29/29 related CPU controls in3.536s.
+Evidence: `results/gold/hf-routing-runner/route-array-phase-attempt-001/`.
+No model arm, live routing, GPU probe or formal matrix cell was run.

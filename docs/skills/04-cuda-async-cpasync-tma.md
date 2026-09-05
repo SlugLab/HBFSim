@@ -74,3 +74,11 @@ The complete dependency unit: IR/analysis, transforms, 64-byte future, control A
 ## Related docs
 
 [Async audit](../49-eval-audit/async-tma-audit.md), [execution plan C](../49-eval-audit/execution-plan.md), [claim gate G5](../49-eval-audit/claim-gates.md), [ABI](05-device-helper-and-control-abi.md), [issue-stall finding](../重要实现问题以及需补做实验/10-B-delay-injected-at-issue-not-at-use.md), and [old async coverage finding](../重要实现问题以及需补做实验/07-B-cp-async-and-bulk-tensor-copy-unmatched.md).
+
+Phase-two C3 adds an optional [CPU future state oracle](../../include/hbfsim/shadow_future.hpp).
+Donor counterexamples in `results/gold/future-state/red.log` establish that a
+received completion must not permit consumption before its modeled arrival,
+and a time jump must not skip an earlier timeout. The repaired oracle keeps
+scheduled completion separate from terminal readiness, requires finite
+deadlines and tests residual wait against `max(0,D-W)`. It is not a GPU helper
+or ABI port and does not satisfy the live GOLD-2 gate.

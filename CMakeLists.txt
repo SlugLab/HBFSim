@@ -874,6 +874,16 @@ endif()
 # Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
 if(HBFSIM_ENABLE_EVAL_TOOLS)
+    add_library(hbfsim_eval_future STATIC src/cuda_runtime/shadow_future.cpp)
+    target_include_directories(hbfsim_eval_future PUBLIC include)
+    target_compile_features(hbfsim_eval_future PUBLIC cxx_std_20)
+    if(BUILD_TESTING)
+        foreach(future_test IN ITEMS shadow_future shadow_future_gold)
+            add_executable(${future_test}_test tests/cpu/${future_test}_test.cpp)
+            target_link_libraries(${future_test}_test PRIVATE hbfsim_eval_future)
+            add_test(NAME eval_${future_test} COMMAND ${future_test}_test)
+        endforeach()
+    endif()
     # Offline parser/analysis only. This does not link a partial future/TMA
     # ABI into the production transformer or runtime.
     add_library(hbfsim_eval_ptx STATIC

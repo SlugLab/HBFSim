@@ -214,5 +214,15 @@ class LoadedArmTests(unittest.TestCase):
             for fd in opened:
                 with self.assertRaises(OSError):worker.os.fstat(fd)
 
+    def test_metadata_fixture_stays_mock_when_runtime_source_flag_is_false(self):
+        self.deps=self.dependencies();self.out=self.base/'metadata-mock'
+        # Exercise the source-false branch without importing a real runtime or
+        # labelling any fake generated output as genuine runtime evidence.
+        with mock.patch.object(worker.hf_runtime_sources,'validate_runtime_sources',return_value={'test_only':False}), \
+             mock.patch.object(worker,'_loaded_dependencies',return_value=self.deps):
+            result=worker.run_loaded_arm(self.plan,'capture',self.out)
+        self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
+        self.assertEqual(result['provenance'],'MOCK');self.assertTrue(result['test_only'])
+
 
 if __name__=='__main__':unittest.main()

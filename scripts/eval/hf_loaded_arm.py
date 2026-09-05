@@ -70,7 +70,7 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     source=hf_runtime_sources.validate_runtime_sources(plan['runtime_snapshot'])
     config=strict_object(artifacts['metadata/config.json'])
     control=protocol_api.make_protocol(receipt,config,plan['prompt_token_ids'])
-    test_only=_test_dependencies is not None or source['test_only'] or receipt['test_only']
+    test_only=_test_dependencies is not None or source['test_only'] or receipt['evidence']=='TEST_ONLY'
     if test_only:control.update(source_kind='TEST_ONLY',provenance='MOCK')
     work=Path(plan['work_dir']).absolute();out=Path(out).absolute()
     protocol_api.make_environment(work,plan['gpu_uuid'],{})

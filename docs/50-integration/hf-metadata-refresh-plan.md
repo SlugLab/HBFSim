@@ -361,7 +361,8 @@ executable provenance uses a separate 512-MiB bound and 1-MiB streaming reads.
 
 The initial missing-module RED and subsequent adversarial RED/GREEN records are
 under `results/gold/routing-capture/hf-*`. The latest parent CPU run passes
-25 tests in 4.132 seconds. Independent specification and code quality reviews
+26 tests in 2.429 seconds. Frozen-artifact confinement is checked before opening
+receipt, marker, and payload metadata; the approved source symlink path stays supported. Independent specification and code quality reviews
 pass. Real HF metadata acquisition then passed in 1.822 seconds, reading exactly
 19,912,432 metadata bytes and no weight payload. The fixed bundle and a second
 current-input check also pass. Evidence is in

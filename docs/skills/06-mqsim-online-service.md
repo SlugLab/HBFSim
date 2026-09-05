@@ -63,3 +63,13 @@ Admission accounting, non-reentrant re-admission, exact request-ID maps, operati
 ## Related docs
 
 [Architecture](01-hbfsim-architecture.md), [capacity](07-capacity-address-translation.md), [evaluation protocol](09-evaluation-protocol.md), [hardware/storage contract](../49-eval-audit/hardware-groundtruth-contract.md), and [source ledger B10–B13](../49-eval-audit/source-ledger.md).
+
+Phase-two observation support is explicitly enabled with
+`MqsimOnlineEngine::enable_observations` before submission. The default emits
+no diagnostic events. `take_observations` drains arrival, device-admission and
+media-completion events without modifying `HbfCompletion` or scheduling.
+Admission means handoff to the MQSim HBF interface, not NAND command start.
+Completion observations keep the raw callback time and bandwidth-bounded
+reported completion separate. QD counts held admission slots, including slots
+reserved for non-reentrant re-admission. Callers drain diagnostics after each
+returned completion; this is CPU evidence, not physical SSD acquisition.

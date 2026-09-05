@@ -284,6 +284,8 @@ namespace hbfsim
                 dispatch_to_device(submission);
                 return;
             }
+            observe(MqsimEventKind::Arrival, submission->descriptor,
+                    static_cast<std::uint64_t>(Simulator->Time()));
             if (in_device >= queue_depth)
             {
                 admission_queue.push_back(submission);
@@ -296,6 +298,8 @@ namespace hbfsim
         // The caller has already taken the slot in in_device.
         void dispatch_to_device(Submission *submission)
         {
+            observe(MqsimEventKind::Admission, submission->descriptor,
+                    static_cast<std::uint64_t>(Simulator->Time()));
             host->Submit_hbf_request(
                 submission->mqsim_request,
                 [this, descriptor = submission->descriptor](
@@ -325,6 +329,9 @@ namespace hbfsim
                         .reserved = 0,
                     });
                     --in_device;
+                    observe(MqsimEventKind::Completion, descriptor,
+                            static_cast<std::uint64_t>(completion_ns),
+                            bounded_completion);
                     release_admission_slots();
                 });
             delete submission;
@@ -348,6 +355,25 @@ namespace hbfsim
             }
         }
 
+        void observe(MqsimEventKind kind, const HbfRequest &request,
+                     std::uint64_t time_ns,
+                     std::uint64_t modeled_completion_ns = 0)
+        {
+            if (!observations_enabled)
+            {
+                return;
+            }
+            observations.push_back(MqsimObservation{
+                .kind = kind,
+                .request_id = request.request_id,
+                .arrival_ns = request.arrival_ns,
+                .time_ns = time_ns,
+                .modeled_completion_ns = modeled_completion_ns,
+                .bytes = request.bytes,
+                .device_outstanding = in_device,
+            });
+        }
+
         Profile profile;
         Device_Parameter_Set parameters;
         IO_Flow_Parameter_Set flow;
@@ -367,6 +393,9 @@ namespace hbfsim
         std::size_t queue_depth{1};
         std::size_t in_device{0};
         std::deque<Submission *> admission_queue;
+        bool has_submitted{false};
+        bool observations_enabled{false};
+        std::vector<MqsimObservation> observations;
     };
 
     void ArrivalInjector::Execute_simulator_event(MQSimEngine::Sim_Event *event)
@@ -422,6 +451,7 @@ namespace hbfsim
             .mqsim_request = mqsim_request.release(),
         };
         impl_->staged.push_back(submission);
+        impl_->has_submitted = true;
         ++impl_->pending_requests;
     }
 
@@ -452,6 +482,22 @@ namespace hbfsim
         return Simulator->Has_started()
                    ? static_cast<std::uint64_t>(Simulator->Time())
                    : 0;
+    }
+
+    void MqsimOnlineEngine::enable_observations()
+    {
+        if (impl_->has_submitted)
+        {
+            throw std::logic_error("enable MQSim observations before submission");
+        }
+        impl_->observations_enabled = true;
+    }
+
+    std::vector<MqsimObservation> MqsimOnlineEngine::take_observations()
+    {
+        std::vector<MqsimObservation> result;
+        result.swap(impl_->observations);
+        return result;
     }
 
     std::vector<HbfCompletion> run_mqsim_trace(

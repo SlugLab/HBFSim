@@ -874,6 +874,13 @@ endif()
 # Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
 if(HBFSIM_ENABLE_EVAL_TOOLS)
+    if(BUILD_TESTING AND HBFSIM_ENABLE_MQSIM)
+        add_executable(mqsim_observation_test tests/integration/mqsim_observation_test.cpp)
+        target_link_libraries(mqsim_observation_test PRIVATE hbfsim_core)
+        add_test(NAME mqsim_observation COMMAND mqsim_observation_test)
+        set_tests_properties(mqsim_observation PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
     add_library(hbfsim_eval_future STATIC src/cuda_runtime/shadow_future.cpp)
     target_include_directories(hbfsim_eval_future PUBLIC include)
     target_compile_features(hbfsim_eval_future PUBLIC cxx_std_20)

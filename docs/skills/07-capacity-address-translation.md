@@ -65,3 +65,17 @@ Ownership/destruction order, parent CUDA domain, one-pool budget, media-plan-bef
 ## Related docs
 
 [Address-flow diagram](01-hbfsim-architecture.md#call-path--data-path), [MQSim](06-mqsim-online-service.md), [ABI](05-device-helper-and-control-abi.md), [historical capacity design](../superpowers/specs/2026-08-10-public-capacity-runtime-design.md), and [doc48 with base-status correction](../48-两种模式的定位与SRAM建模.md).
+
+Phase-two inventory tooling is separate from the runtime backing manifest.
+[inventory_checkpoint.py](../../scripts/eval/inventory_checkpoint.py) reads
+actual GGUF metadata and validates complete per-layer expert projections,
+source extents, tensor/expert bytes and packed logical page counts. Its initial
+supported layout is `qwen3moe` F16/F32 experts; other layouts are rejected.
+It never creates a backing store or hashes weight payloads.
+[budget_fast_tier.py](../../scripts/eval/budget_fast_tier.py) deducts resident
+non-offloaded tensors, explicit KV dimensions/dtype, workspace and safety
+reserve before computing capacity rho. `legacy_ratio` is recorded separately.
+Whole-expert page-rounded achieved capacity and unused bytes are separate from
+raw requested rho. A budget unable to fit one whole expert is explicitly
+infeasible. This accounting is not observed residency or a cache hit rate;
+cache conservation remains a separate live/replay gate.

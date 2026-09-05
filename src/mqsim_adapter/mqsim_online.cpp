@@ -164,8 +164,8 @@ namespace hbfsim
     public:
         using Handler = std::function<void(MQSimEngine::Sim_Event *)>;
 
-        explicit ArrivalInjector(Handler handler)
-            : Sim_Object("HBFSim.ArrivalInjector"), handler_(std::move(handler))
+        explicit ArrivalInjector(Handler handler, const char* name = "HBFSim.ArrivalInjector")
+            : Sim_Object(name), handler_(std::move(handler))
         {
         }
 
@@ -243,6 +243,7 @@ namespace hbfsim
             admission_queue.clear();
             Simulator->Reset();
             injector.reset();
+            clock_injector.reset();
             device.reset();
         }
 
@@ -381,6 +382,9 @@ namespace hbfsim
         std::unique_ptr<SSD_Device> device;
         SSD_Components::Host_Interface_HBF *host{nullptr};
         std::unique_ptr<ArrivalInjector> injector;
+        std::unique_ptr<ArrivalInjector> clock_injector;
+        bool horizon_reached{false};
+        bool ready_marker_reached{false};
         std::vector<Submission *> staged;
         std::deque<HbfCompletion> completions;
         std::size_t pending_requests{0};
@@ -457,6 +461,11 @@ namespace hbfsim
 
     std::optional<HbfCompletion> MqsimOnlineEngine::run_next_completion()
     {
+        // Ignored clock markers stay in MQSim's event tree. Once a caller has
+        // opted into external-clock control, an empty legacy poll must not
+        // advance through those cancelled horizons. Legacy-only use is intact.
+        if (impl_->clock_injector && impl_->pending_requests == 0)
+            return std::nullopt;
         impl_->flush_staged();
         while (impl_->completions.empty() && Simulator->Run_next_event())
         {
@@ -470,6 +479,69 @@ namespace hbfsim
         impl_->completions.pop_front();
         --impl_->pending_requests;
         return completion;
+    }
+
+    std::optional<HbfCompletion> MqsimOnlineEngine::run_next_completion_until(
+        std::uint64_t deadline_ns)
+    {
+        if (deadline_ns < current_time_ns())
+            throw std::invalid_argument("MQSim horizon precedes current simulation time");
+        impl_->flush_staged();
+        if (!impl_->clock_injector)
+        {
+            impl_->clock_injector = std::make_unique<ArrivalInjector>(
+                [state = impl_.get()](MQSimEngine::Sim_Event* event)
+                {
+                    if (event->Type == 1) state->horizon_reached = true;
+                    else state->ready_marker_reached = true;
+                }, "HBFSim.ExternalClock");
+            Simulator->AddObject(impl_->clock_injector.get());
+        }
+        impl_->horizon_reached = false;
+        impl_->ready_marker_reached = false;
+        auto* horizon = Simulator->Register_sim_event(
+            deadline_ns, impl_->clock_injector.get(), nullptr, 1);
+        MQSimEngine::Sim_Event* ready_marker = nullptr;
+        const auto cancel_markers = [&]
+        {
+            if (!impl_->horizon_reached) Simulator->Ignore_sim_event(horizon);
+            if (ready_marker != nullptr && !impl_->ready_marker_reached)
+                Simulator->Ignore_sim_event(ready_marker);
+        };
+        try
+        {
+            while (true)
+            {
+                if (!impl_->completions.empty() &&
+                    impl_->completions.front().modeled_completion_ns <= current_time_ns())
+                {
+                    auto completion = impl_->completions.front();
+                    impl_->completions.pop_front();
+                    --impl_->pending_requests;
+                    cancel_markers();
+                    return completion;
+                }
+                if (impl_->horizon_reached)
+                {
+                    cancel_markers();
+                    return std::nullopt;
+                }
+                if (ready_marker == nullptr && !impl_->completions.empty() &&
+                    impl_->completions.front().modeled_completion_ns < deadline_ns)
+                {
+                    ready_marker = Simulator->Register_sim_event(
+                        impl_->completions.front().modeled_completion_ns,
+                        impl_->clock_injector.get(), nullptr, 2);
+                }
+                if (!Simulator->Run_next_event())
+                    throw std::runtime_error("MQSim stopped before external clock horizon");
+            }
+        }
+        catch (...)
+        {
+            cancel_markers();
+            throw;
+        }
     }
 
     std::size_t MqsimOnlineEngine::pending() const noexcept

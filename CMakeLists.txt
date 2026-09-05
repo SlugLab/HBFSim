@@ -880,6 +880,11 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
         add_test(NAME mqsim_observation COMMAND mqsim_observation_test)
         set_tests_properties(mqsim_observation PROPERTIES
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(mqsim_horizon_test tests/integration/mqsim_horizon_test.cpp)
+        target_link_libraries(mqsim_horizon_test PRIVATE hbfsim_core)
+        add_test(NAME mqsim_horizon COMMAND mqsim_horizon_test)
+        set_tests_properties(mqsim_horizon PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
     add_library(hbfsim_eval_future STATIC src/cuda_runtime/shadow_future.cpp)
     target_include_directories(hbfsim_eval_future PUBLIC include)

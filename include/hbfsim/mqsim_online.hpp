@@ -39,6 +39,11 @@ public:
 
     void submit(const HbfRequest& request);
     std::optional<HbfCompletion> run_next_completion();
+    // Opt-in coordination with external compute/replay events. Return one
+    // completion when its reported deadline is reached, or advance exactly to
+    // deadline_ns and return nullopt. Never advance beyond the horizon.
+    // Unlike run_next_completion(), nullopt here does not mean lost work.
+    std::optional<HbfCompletion> run_next_completion_until(std::uint64_t deadline_ns);
     [[nodiscard]] std::size_t pending() const noexcept;
     [[nodiscard]] std::uint64_t current_time_ns() const noexcept;
 

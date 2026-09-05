@@ -84,3 +84,13 @@ selection stays in the shared profile/address mapper. Unmapped N requires a
 separate `PROJECTED_ANALYTICAL` model; this tool does not fabricate that point.
 These media replay results remain PROJECTED and are not a causal decode DAG,
 physical SSD measurement, calibrated model claim or live-serving trace.
+
+`run_next_completion_until(deadline_ns)` is a separate clock-coordination API:
+it returns a completion only when the reported deadline has arrived, or stops
+exactly at the caller's horizon with no completion. A null result can retain
+pending work. Optional no-op MQSim markers let external compute events issue
+new requests before the next media completion; they do not create I/O. After
+using this API, an empty legacy poll is a no-op so cancelled marker timestamps
+cannot move the idle clock. Legacy-only callers retain the original behavior.
+The [horizon tests](../../tests/integration/mqsim_horizon_test.cpp) cover bounded
+advance, mixed API use, bandwidth readiness and existing service parity.

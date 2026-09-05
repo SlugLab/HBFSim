@@ -287,6 +287,19 @@ CPU/compile facts; neither SASS semantic gold nor hardware execution is proved.
 
 **Files:** existing disassembly collector; new scoped mapping validator and tests; new GPU gold source and benchmark CMake target.
 
+Initial read-only research is retained at
+`results/gold/timing-future-unit/c6-mapping/source-audit-attempt-001/`.
+One archived optimized u32 control shows native `LDG` intoR28, the wait's ready
+return intoR4, caller transfer intoR5 and the final store usingR5. Collection
+remains `NOT_PROVEN`: the fixture has no surviving useful independent work and
+all lanes target the same output. Its wait clocks precede the explicit native
+value use; scoreboard/control-word and call/reconvergence behavior must be
+resolved before a clock/native-completion ordering claim. This observation alone
+does not establish a hardware defect. The receipt binds archived bytes after
+the build and is not contemporaneous build provenance. A new gold source needs
+checksum-retained independent arithmetic and unique per-lane outputs. No GPU
+execution or semantic receipt resulted from this audit.
+
 - [ ] Add RED mapping fixtures: a helper present without a wait dependency; a consumed value taken from the pre-wait register; load or consumer moved across the declared boundary; reused source mapping for a different cubin; incomplete mapping; and incorrect helper/version. All refuse a successful semantic receipt. Fixture disassembly is `TEST_ONLY`/`MOCK`.
 - [ ] Keep `audit_sass_mapping.py` as the immutable collection step with `mapping_validation=NOT_PROVEN`. The new validator consumes its frozen PTX/cubin/disassembly plus an exact kernel/instruction/dependency map; hashes and binding must match. It checks each admitted producer's native load, model issue, independent-work region, executed wait/drain and consumer dependency. Save semantic review evidence where the optimized form cannot be established mechanically; uncertainty rejects approval.
 - [ ] Compile the gold source with normal optimization. Use retained loaded-value input and returned-value output across the wait helper, with a no-inline/opaque boundary where needed; inspect the emitted artifact to establish that the compiler retained it. Do not rely on a source annotation or global `-O0`. Include optimized timer-reload proof inherited from the parent's known-delay correction.

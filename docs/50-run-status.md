@@ -93,3 +93,11 @@ loader49 controls are retained. Evidence:
 `results/gold/timing-future-unit/c6-unit/closure-attempt-001/`.
 Only explicit complete ON builds admit the bounded ordinary TIMING subset;
 optimized SASS dependency and GPU gold remain open. No matrix count changed.
+
+Standalone CPU update,2026-09-05T19:42:10Z: optional owned bootstrap startup
+control passes both reviews, three new subprocess tests and46/46 scheduler
+regressions (38.819s). Commit `3f62bf1`; evidence:
+`results/gold/hf-routing-runner/bootstrap-phase-attempt-001/`.
+Default argv is unchanged; true skips intermediate Python site hooks while
+preserving identity acknowledgement and owned cleanup. No real HF arm or formal
+matrix cell ran.

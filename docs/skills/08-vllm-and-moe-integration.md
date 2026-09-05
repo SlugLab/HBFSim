@@ -96,6 +96,13 @@ before opening. Eight CPU controls pass. The real declared-device candidate has
 no matching packaged JSON; this is input evidence, not an observed loaded kernel
 configuration. Check actual device/weights and override/batch state separately.
 
+The existing [owned subprocess helper](../../scripts/eval/run_matrix.py) accepts
+`bootstrap_no_site=True` for the future HF caller. Its default is unchanged;
+explicit true skips intermediate interpreter site hooks and bytecode writes,
+retaining the identity acknowledgement, resource checks and owned cleanup.
+Three CPU subprocess controls and46 scheduler regressions pass. This helper
+does not prepare the target's import paths or authenticate a real HF arm.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

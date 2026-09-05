@@ -167,6 +167,19 @@ checking exit, and limits termination to owned processes. Use a finite 900-secon
 deadline per arm and one-second resource checks. Do not overlap arms, and do not
 start the next arm if a prior child or descendant remains.
 
+Add a private keyword-only `bootstrap_no_site=False` to `run_child`. The HF
+caller will explicitly select true, making the existing acknowledgement wrapper
+start with `-S -B`; the default argv and scheduler CLI/registry stay unchanged.
+Require a real boolean before any launch side effect. This suppresses automatic
+site processing and bytecode writes in that intermediate interpreter, while
+preserving its trusted project imports and exact ownership handshake. The final
+HF worker will separately use `-I -S -B` with controlled import paths. These
+flags are not a filesystem/network sandbox, and the bootstrap option alone does
+not sanitize `PYTHONPATH`; HF's prepared environment already excludes it.
+CPU subprocess fixtures must prove default compatibility, skipped startup hook,
+unchanged child identity acknowledgement and no target execution after a failed
+guard/status callback. No real inference package is imported by those controls.
+
 Construct an allowlisted environment in the parent before either the worker or
 any of its imports run. Do not repurpose HOME or CODEX_HOME. Use fresh arm-private
 working directories below

@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `49ee96b` (complete opt-in scalar TIMING future admission, with reviewed CPU/compile closure).
+- Ending committed implementation SHA at this checkpoint: `3f62bf1` (optional owned bootstrap startup control; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -140,6 +140,13 @@ passes18/18 in18.30s, with its helper byte-identical to C5. Evidence:
 `handoff/attempt-003/`, `phase-attempt-001/`, `source-guard-attempt-001/` and
 `off-phase-attempt-001/` under that same C6 unit root. Optimized native dependency
 mapping and GPU gold remain open; no scientific receipt or formal cell was added.
+
+The first ordinary-future SASS research bundle is now retained at
+`results/gold/timing-future-unit/c6-mapping/source-audit-attempt-001/`. It records
+one archived u32 native/wait-return/consumer register chain. Missing useful
+independent work, shared output addresses and unresolved clock/native-completion
+ordering prevent semantic approval. Its post-hoc archived-byte receipt is not a
+new contemporaneous build record; mapping remains `NOT_PROVEN` and no GPU ran.
 
 Initial GPU-unavailable evidence came from the sandbox. Host execution was
 verified on 2026-09-05, without a driver repair. The GPU_EXCLUSIVE guard retained
@@ -271,6 +278,15 @@ No current GPU query or loaded configuration observation occurred. The later
 worker must reconcile its actual device, weights and override/batch state before
 claiming the installed-default configuration path. The parent/import/exit and
 independent triplet-validation gates remain unfinished.
+
+The owned subprocess helper now has a default-false `bootstrap_no_site` keyword
+(`3f62bf1`). Explicit true runs the existing identity-acknowledgement wrapper
+with `-S -B`, preserving default argv, resource checks and exact owned cleanup.
+Three real CPU subprocess controls and both reviews pass; the existing46-test
+scheduler suite passes in38.819s. Evidence:
+`results/gold/hf-routing-runner/bootstrap-attempt-001/` and
+`bootstrap-phase-attempt-001/`. No real HF worker is exposed by this option;
+the final controlled import/target process remains a separate pending unit.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

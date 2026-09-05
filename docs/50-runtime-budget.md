@@ -46,6 +46,7 @@ runtime estimates or predict a validated completion date.
 | Real selected tuning input | 2.373 s | Exact packaged-file absence plus frozen metadata/source validation; no current GPU query |
 | C6.2 CPU phase | 25.93 +0.08 s | 63/64 initial; reviewed source-test selector fix and sole focused recheck close64/64; no runtime change for that failure |
 | C6.2 default-OFF regression | 18.30 s | 18/18 CPU/compile checks; fresh CUDA13 build40.82s, no GPU execution |
+| Owned no-site bootstrap | 0.297 +38.819 s | Three new CPU subprocess controls plus46/46 existing scheduler tests; no inference import |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 

@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `61de9f4 (disabled C5 timing-future infrastructure)` (ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `f150d18` (HF runtime observation and owned-memory helpers; ongoing code checkpoint).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -172,6 +172,21 @@ with 384/3072/6144 whole experts. Evidence:
 `results/gold/hf-inventory-adapter/`; normalized file:
 `results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json`.
 HF route/projection joins remain pending; this adds no capture or live cache gold.
+
+The HF worker protocol helpers pass 10 CPU controls, and the private runtime
+observer passes 10 additional controls and both reviews. It binds actual
+execution config aliases, raw model identity, per-layer backends/callbacks and
+usable KV allocation, with detached report values. Evidence:
+`results/gold/hf-routing-runner/runtime-contract-attempt-001/`.
+No worker entry point, actual generation or capture-origin proof is enabled.
+
+The owned route-memory scope also passes 11 CPU controls and both reviews.
+It prevents collision fallback into preexisting buffers, retains partially
+initialized owned handles, and verifies teardown/restoration without broad
+namespace deletion. The combined adapter directory passes 57/57 CPU tests in
+0.236 s; evidence is `results/gold/hf-routing-runner/helpers-phase-attempt-001/`.
+No POSIX segment or inference runtime was used by this helper phase. Real worker
+construction/generation, source/cache checks and parent triplet remain pending.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

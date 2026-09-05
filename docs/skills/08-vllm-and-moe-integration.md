@@ -40,6 +40,24 @@ Selective physically backed timing registration, storage deduplication and regis
 
 The phase-two `trace_collector.py` and `routed_capture_compat.py` port only route materialization and explicit reversible callback binding. They preserve request/tensor identity but do not launch vLLM or authenticate capture origin. The validation CLI now keeps missing native/repeat controls INCOMPLETE and CPU fixtures TEST_ONLY; tensor consistency alone cannot produce real-routing gold. `routing_metrics.py` and `run_prefetch.py` consume separate frozen routing and compute inputs as TRACE_COMPOSED projections, never live serving.
 
+The private [HF runtime observer](../../adapters/vllm_capacity/hf_runtime_contract.py)
+checks constructed execution objects, config aliases and actual backend classes.
+`GPUModelRunner.get_model()` unwraps graph wrappers, so eager verification also
+requires `runner.model` to be that raw model. The installed allocator reserves
+one null KV block; deduct it when checking usable token capacity. A configured
+capture callback or native sampler binding is not proof it executed: greedy
+sampling can return from argmax before top-k/top-p sampling. The worker entry
+point and independent capture-origin validator remain unfinished.
+
+The private [owned route-memory scope](../../adapters/vllm_capacity/hf_owned_routes.py)
+prevents the installed creator's collision fallback from attaching or replacing
+an existing segment. Its module-local proxy retains original-class handles,
+including partial initialization, and binds cleanup to observed descriptors.
+The real reader uses default `create=False,size=0`. Engine shutdown alone does
+not close these buffers, and native cleanup swallows errors: verify saved handles
+and the exact owned name, then require process exit separately. Name-based unlink
+and resource-tracker cleanup are not atomic against hostile namespace replacement.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.
@@ -71,6 +89,16 @@ The [HF adapter controls](../../scripts/eval/test_evaluation_inventory.py) cover
 frozen-only acquisition, receipt/buffer substitution, byte/KV accounting,
 exclusive output, and canonical-versus-file identity. See the
 [HF integration contract](../50-integration/hf-inventory-adapter-plan.md).
+
+The [runtime observation controls](../../adapters/vllm_capacity/tests/test_hf_runtime_contract.py)
+reject hidden execution wrappers, wrong backends/config aliases, missing layer
+callbacks, mutable report references and insufficient usable KV capacity. These
+tests use CPU object fixtures; they do not import the inference runtime.
+
+The [owned memory controls](../../adapters/vllm_capacity/tests/test_hf_owned_routes.py)
+cover collisions, foreign-name refusal, partial initialization, exact cleanup,
+missing cleanup APIs, interrupts and module-binding restoration using fake
+descriptors/namespaces. The adapter-directory phase passes 57/57 CPU tests.
 
 ## What not to change casually
 

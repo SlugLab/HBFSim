@@ -41,3 +41,8 @@ Standalone CPU update, 2026-09-05T15:58Z: real HF frozen inventory adaptation
 and three hypothetical capacity-accounting controls passed under
 `results/gold/hf-inventory-adapter/`. These are separate from matrix DONE counts;
 HF route/projection integration and real capture remain pending.
+
+Standalone CPU update, 2026-09-05T16:58Z: HF configuration/ownership helpers and
+existing adapter regressions pass 57/57 tests. Evidence:
+`results/gold/hf-routing-runner/helpers-phase-attempt-001/`. No GPU probe, model
+arm, storage payload or formal matrix cell was run by this phase.

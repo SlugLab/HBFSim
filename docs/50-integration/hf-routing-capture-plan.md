@@ -317,6 +317,34 @@ exit. TMPDIR places its lock files in the private work directory; POSIX shared
 memory itself is an explicit runtime-managed exception to project-local files.
 Never remove shared-memory objects by a broad prefix or touch foreign objects.
 
+Before construction, an additional process-local ownership scope must replace
+only the capturer module's `shared_memory` binding with a forwarding proxy.
+The installed helper catches `FileExistsError` and can unlink a differently sized
+preexisting object; post-construction name checks would be too late. The proxy
+allows one exclusive creator, converts a collision to a distinct `RuntimeError`,
+and allows one reader attachment only to that successful creator's exact name.
+Keep the original class and return its concrete handles. Reader construction
+uses the installed default `create=False,size=0`; the creator requires a positive
+bounded size. Validate the numeric instance/rank-zero name and reconcile it with
+the constructed configuration. Check the imported temporary/lock prefix against
+the fresh private arm directory before installing the scope, because the native
+lock-file open precedes the shared-memory constructor call.
+
+Keep each pending original-class object before calling its initializer, so an
+exception after allocation but before return does not lose the handle. Record
+successful exclusive creation from its live descriptor identity, never from an
+attempted name alone. Retain handles independently of singleton assignment and
+reconcile creator/reader descriptor identities and the exact namespace entry.
+Attempt reader, capturer and engine cleanup independently; verify saved handles
+closed and the exact owned name absent. Handle partial initialization using only
+recorded owned handles. Restore the module binding in `finally` only while it
+still points to this scope. No installed file or global multiprocessing module
+is patched. CPU controls must preserve preexisting same/different-size segments,
+reject wrong-name/early/duplicate calls, and cover partial construction and
+cleanup failures. This process-local ownership scope detects ordinary namespace
+replacement; it does not claim atomic identity-checked unlink or protection
+against hostile concurrent name replacement, including resource-tracker cleanup.
+
 ## Worker return and capture contract
 
 `native` uses `enable_return_routed_experts=False` with no compatibility binding.
@@ -633,4 +661,29 @@ copy later saved, not a mutable returned owner. Evidence is under
 `results/gold/hf-routing-runner/worker-protocol-attempt-001/`.
 Runtime imports/cache observations, backend inspection, model construction,
 generation, exact owned shared-memory cleanup and parent orchestration remain
-unimplemented. There is no executable worker entry point yet.
+unimplemented at that protocol checkpoint. The additive helper checkpoints below
+do not enable an executable worker entry point.
+
+Commit `059fafc` adds the private `hf_runtime_contract.observe_runtime` helper.
+It inspects the constructed in-process engine/executor/worker/runner aliases,
+raw execution model, resolved configuration, each attention/MoE backend and
+capture-callback configuration, native sampler binding, and actual KV allocation.
+KV usable capacity excludes the installed BlockPool's reserved null block.
+Mutable settings are copied into the report. Ten CPU tests and separate spec/
+quality reviews pass; counterexamples are retained under
+`results/gold/hf-routing-runner/runtime-contract-attempt-001/`.
+This closes the observation helper only. The worker does not yet import or call
+it, and it supplies configuration evidence rather than execution/capture proof.
+
+Commit `f150d18` adds private `hf_owned_routes.OwnedRouteMemory`, the module-local
+ownership scope described above, with 11 CPU namespace/descriptor controls and
+separate spec/quality PASS. No actual POSIX shared memory was allocated by these
+tests. Missing native cleanup methods, descriptor-identity failure, and cleanup
+interrupts preserve failed status while independent owned cleanup is attempted.
+An unexpected incomplete teardown cannot report closed. Evidence:
+`results/gold/hf-routing-runner/owned-memory-attempt-001/`.
+The combined adapter-directory CPU phase passes 57/57 tests in 0.236 s
+(0.416 s process wall time), recorded in
+`results/gold/hf-routing-runner/helpers-phase-attempt-001/`.
+Runtime source/cache preflight, controlled imports, model construction/generation,
+collector publication and parent triplet validation remain pending.

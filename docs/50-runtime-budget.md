@@ -31,6 +31,9 @@ runtime estimates or predict a validated completion date.
 | C5 focused closure | 3.17 s | 18/18 CPU/fake-driver/optimized compile checks; no GPU |
 | C5 default-off compatibility | 1.64 s | 7/7 checks; no future implementation in OFF helper |
 | C5 CPU phase | 25.49 s + 0.35 s | 59/60 then sole concurrent worker-import failure rechecked PASS |
+| HF runtime configuration observer | 0.059 s | 10/10 CPU object controls; no runtime import or GPU |
+| HF owned shared-memory scope | 0.005 s | 11/11 fake namespace/descriptor controls; no POSIX allocation |
+| HF helper adapter phase | 0.236 s suite / 0.416 s process | 57/57 CPU tests; no model construction or generation |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 

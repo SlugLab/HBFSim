@@ -45,8 +45,11 @@ The phase-two `trace_collector.py` and `routed_capture_compat.py` port only rout
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.
 
 The current project has distinct GGUF F16 and HF BF16 checkpoint views. A
-metadata refresh may verify headers, config/index and file identity without
-rehashing weights; historical payload hashes remain historical evidence. Never
+[metadata verifier](../../scripts/eval/verify_hf_metadata.py) verifies bounded
+headers, config/index, complete tensors and file identity without rehashing
+weights. `validate_refresh` requires a final completion marker;
+`check_current_inputs` rechecks the accepted observation. Historical payload
+hashes remain historical evidence. Never
 substitute their fingerprints because expert dimensions happen to agree.
 
 ## Common failure modes

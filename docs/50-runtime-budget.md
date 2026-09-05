@@ -23,6 +23,8 @@ runtime estimates or predict a validated completion date.
 | Three storage pairing controls | 0.488 / 0.448 / 0.511 s | MOCK ledgers, native replay; 3 requests each, no SSD payload |
 | Three media controls | 0.192 / 0.174 / 0.215 s | Fixed QD1 / fixed QD4 / closed-loop QD4; 12 synthetic reads each |
 | Existing evaluation pipeline | 4.848 s | 20/20 tests |
+| HF metadata verifier | 4.132 s | 25/25 CPU controls; no real weights or GPU |
+| Real HF metadata refresh | 1.822 s | 19,912,432 metadata bytes, no tensor payload |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 
 Evidence: `results/gold/base/frozen-config/execution.json`,

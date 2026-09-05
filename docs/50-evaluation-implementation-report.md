@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `13a416a (clock-interval correction)` (ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `16d5261 (bounded HF metadata verifier)` (ongoing code checkpoint).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -144,10 +144,14 @@ reconcile at 9,437,184 bytes each: 57,982,058,496 eligible bytes and
 weight payloads are not reread or rehashed. The initial inventory contract
 supports the verified qwen3moe F16/F32 packed layout and rejects other layouts.
 
-The project HF safetensors view is also readable through host execution. Its
-historical legacy inventory records BF16 weights and a separate fingerprint.
-A bounded current metadata refresh is pending. No model load, new payload hash
-or real routing capture is claimed; the HF and GGUF identities are not interchangeable.
+The project HF safetensors view now passes a current bounded metadata refresh.
+The tool passes 25 CPU controls and both reviews; the real run takes 1.822 s and
+reads exactly 19,912,432 metadata bytes. Its 16 shards contain 18,867 BF16 tensors,
+6,144 experts and 3,082,186,752 resident non-offloaded bytes. The complete frozen
+bundle and a subsequent current-input check pass. Receipt:
+`results/manifests/hf-qwen3-30b-a3b-metadata-20260905/`. Historical payload hashes
+retain their original provenance. No model load, new payload hash or real routing
+capture is claimed; the HF and GGUF identities are not interchangeable.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,
@@ -204,6 +208,8 @@ python -m unittest discover -s scripts/eval -p test_mqsim_service_client.py
 python -m unittest discover -s scripts/eval -p test_run_prefetch.py
 python -m unittest discover -s scripts/eval -p test_storage_arrivals.py
 python -m unittest discover -s scripts/eval -p test_replay_storage_pair.py
+python -m unittest discover -s scripts/eval -p test_verify_hf_metadata.py
+python scripts/eval/verify_hf_metadata.py validate --out results/manifests/hf-qwen3-30b-a3b-metadata-20260905
 HBFSIM_DELAY_COMPILE_BUILD=build-eval-known-delay-gcc13 python -m unittest discover -s scripts/eval -p test_run_gpu_delay.py
 python -m unittest discover -s scripts/eval -p test_audit_sass_mapping.py
 python scripts/eval/run_matrix.py --status

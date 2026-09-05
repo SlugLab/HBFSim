@@ -361,6 +361,10 @@ executable provenance uses a separate 512-MiB bound and 1-MiB streaming reads.
 
 The initial missing-module RED and subsequent adversarial RED/GREEN records are
 under `results/gold/routing-capture/hf-*`. The latest parent CPU run passes
-23 tests in 1.700 seconds. Independent specification review passes, including
-six targeted regressions. Code quality review and real metadata acquisition
-remain pending at this checkpoint. This is no GPU/capture/performance proof.
+25 tests in 4.132 seconds. Independent specification and code quality reviews
+pass. Real HF metadata acquisition then passed in 1.822 seconds, reading exactly
+19,912,432 metadata bytes and no weight payload. The fixed bundle and a second
+current-input check also pass. Evidence is in
+`results/gold/routing-capture/hf-live-refresh/`; the receipt is in
+`results/manifests/hf-qwen3-30b-a3b-metadata-20260905/`. This is no
+GPU/capture/performance proof.

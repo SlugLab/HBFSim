@@ -939,6 +939,9 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
                 -p "test_*.py")
         set_tests_properties(capacity_trace_policy PROPERTIES
             ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/adapters/vllm_capacity")
+        add_test(NAME prefetch_causal_core
+            COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scripts/eval/test_prefetch_replay.py")
     endif()
     if(HBFSIM_ENABLE_MQSIM)
         add_executable(hbf_mqsim_service benchmarks/replay/hbf_mqsim_service.cpp)
@@ -950,6 +953,11 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
                 COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
                     "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_mqsim_service.py"
                     "$<TARGET_FILE:hbf_mqsim_service>")
+            add_test(NAME mqsim_service_client
+                COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/eval/test_mqsim_service_client.py")
+            set_tests_properties(mqsim_service_client PROPERTIES
+                ENVIRONMENT "HBFSIM_MQSIM_SERVICE_BINARY=$<TARGET_FILE:hbf_mqsim_service>")
         endif()
         add_executable(hbf_concurrent_trace_timing benchmarks/replay/hbf_concurrent_trace_timing.cpp)
         target_link_libraries(hbf_concurrent_trace_timing PRIVATE hbfsim_core)

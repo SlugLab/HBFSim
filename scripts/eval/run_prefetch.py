@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""Run three matched CPU causal prefetch projections using native MQSim.
+
+Inputs are validated GGUF inventory and budget, real/shuffled routing_metrics
+output plus its manifest, and a compute-only duration index. The index binds the
+inventory and routing manifest hashes, series, prompt_tokens, source_kind, and
+one {step,layer,compute_ns} per composed layer batch. No default compute timing
+or model dimensions are supplied. All outputs remain PROJECTED (MOCK when any
+source is synthetic); no hardware gold receipt or scheduler DONE is produced.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import defaultdict, deque
+import hashlib
+import json
+import os
+from pathlib import Path
+import time
+
+from budget_fast_tier import budget_fast_tier
+from freeze_storage_split import regular_bytes
+from inventory_checkpoint import validate_inventory
+from mqsim_service import MqsimService
+from prefetch_replay import POLICIES, nonnegative, replay, validate_nodes
+from replay_arrivals import identity, regular_file
+from run_manifest import atomic_json, environment_snapshot, git_snapshot, sha256
+
+ROOT=Path(__file__).resolve().parents[2]
+INPUTS=('inventory','budget','routes','routing_manifest','compute','profile')
+
+
+def prepare(snapshots, initial_residency):
+    data={name:json.loads(payload) for name,payload in snapshots.items() if name!='profile'}
+    inv,budget,routes,manifest,compute=(data[k] for k in INPUTS[:-1])
+    validate_inventory(inv)
+    inventory_hash=hashlib.sha256(snapshots['inventory']).hexdigest()
+    routing_hash=hashlib.sha256(snapshots['routing_manifest']).hexdigest()
+    if (manifest['schema_version']!=1 or manifest['concurrency_kind']!='TRACE_COMPOSED'
+            or manifest['inventory_sha256']!=inventory_hash
+            or (manifest['E'],manifest['k'],manifest['layers'])!=(inv['E'],inv['k'],inv['layers'])):
+        raise ValueError('routing inventory identity/dimensions mismatch')
+    series=routes['series']
+    source=manifest['input_source_kind']
+    if (source not in ('CAPTURED_ROUTE','SYNTHETIC_CONTROL','EXTERNAL_UNVERIFIED')
+            or manifest['provenance']!=('MOCK' if source=='SYNTHETIC_CONTROL' else 'PROJECTED')):
+        raise ValueError('routing source/provenance attribution mismatch')
+    if (series not in ('real','shuffled') or routes['provenance']!=manifest['provenance']
+            or manifest['outputs'][series]['sha256']!=hashlib.sha256(snapshots['routes']).hexdigest()
+            or manifest['provenance'] not in ('PROJECTED','MOCK')):
+        raise ValueError('routing series identity/provenance mismatch')
+    if (compute['schema_version']!=1 or compute['inventory_sha256']!=inventory_hash
+            or compute['routing_manifest_sha256']!=routing_hash or compute['routing_series']!=series
+            or compute['timing_semantics']!='COMPUTE_ONLY_NO_MEDIA_STALL'
+            or compute['source_kind'] not in ('TIMING_TRACE','SYNTHETIC_CONTROL','EXTERNAL_UNVERIFIED')):
+        raise ValueError('compute input identity/semantics mismatch')
+    recomputed=budget_fast_tier(inv,**{k:budget[k] for k in
+        ('fast_bytes','active_sequences','context_tokens','kv_element_bytes','workspace_bytes','safety_bytes','legacy_ratio')})
+    if recomputed!=budget:
+        raise ValueError('capacity budget differs from inventory-derived accounting')
+    grouped=defaultdict(dict)
+    for row in routes['routes']:
+        step,layer,member=row['token_step'],row['layer_id'],row['member']
+        ids=row['topk_expert_ids']
+        if (type(step) is not int or step<0 or type(layer) is not int or not 0<=layer<inv['layers']
+                or not isinstance(member,str) or not member or member in grouped[step,layer]
+                or not isinstance(ids,list) or len(ids)!=inv['k'] or len(set(ids))!=len(ids)
+                or any(type(e) is not int or not 0<=e<inv['E'] for e in ids)):
+            raise ValueError('invalid/duplicate composed route identity')
+        grouped[step,layer][member]=ids
+    durations={}
+    for node in compute['nodes']:
+        key=(node['step'],node['layer'])
+        if any(type(k) is not int or k<0 for k in key) or key in durations:
+            raise ValueError('invalid/duplicate compute node')
+        durations[key]=nonnegative(node['compute_ns'],'compute interval')
+    if set(durations)!=set(grouped):
+        raise ValueError('compute and routing node coverage differ')
+    nodes=[dict(step=s,layer=l,members=members,compute_ns=durations[s,l])
+           for (s,l),members in sorted(grouped.items())]
+    if (not nodes or max(len(n['members']) for n in nodes)>budget['active_sequences']
+            or nonnegative(compute['prompt_tokens'],'prompt tokens')+nodes[-1]['step']+1>budget['context_tokens']):
+        raise ValueError('KV budget does not cover active sequences and trace context')
+    page=inv['page_bytes']
+    if page%512:
+        raise ValueError('MQSim expert packing requires sector-aligned pages')
+    objects={}
+    address=0
+    for row in sorted(inv['experts'],key=lambda e:(e['layer'],e['expert'])):
+        size=row['packed_logical_pages']*page
+        objects[row['layer'],row['expert']]=dict(bytes=row['bytes'],transfer_bytes=size,logical_address=address)
+        address+=size
+    resident=tuple(tuple(k) for k in budget['selected_experts']) if initial_residency=='budget' else ()
+    validate_nodes(nodes,objects,budget['page_aligned_effective_bytes'],resident)
+    provenance='MOCK' if (manifest['provenance']=='MOCK' or compute['source_kind']=='SYNTHETIC_CONTROL') else 'PROJECTED'
+    return data,nodes,objects,resident,provenance
+
+
+def run(args):
+    output=args.out.resolve()
+    if not output.is_relative_to(ROOT):
+        raise ValueError('output must stay inside experiment checkout')
+    snapshots={name:regular_bytes(getattr(args,name).absolute()) for name in INPUTS}
+    data,nodes,objects,resident,provenance=prepare(snapshots,args.initial_residency)
+    if provenance=='MOCK' and output.is_relative_to((ROOT/'results/runs').resolve()):
+        raise ValueError('synthetic controls cannot write formal run directories')
+    binary=regular_file(args.binary).resolve(strict=True)
+    if not binary.is_relative_to(ROOT):
+        raise ValueError('native binary must remain inside experiment checkout')
+    binary_identity=identity(binary)
+    binary_hash=sha256(binary)
+    output.mkdir(parents=True,exist_ok=False)
+    manifest=dict(schema_version=1,provenance=provenance,resource_class='CPU_ONLY',
+                  concurrency_kind='TRACE_COMPOSED',service_source='MQSIM_SIMULATED',
+                  scope='LAYER_SYNCHRONOUS_CAUSAL_PROJECTION_NOT_LIVE_SERVING',
+                  hardware_validated=False,scientific_validation_passed=False,
+                  input_validation='IDENTITIES_AND_ACCOUNTING_ONLY_NOT_CAPTURE_OR_COMPUTE_GOLD',
+                  initial_residency=args.initial_residency,budget=data['budget'],
+                  address_map='DENSE_SORTED_LAYER_EXPERT_PAGE_PACKING_EXPERIMENT_ONLY',
+                  binary=dict(path=str(binary),sha256=binary_hash,identity=binary_identity),
+                  inputs={},policies={},git=git_snapshot(ROOT),tools={})
+    for name in ('run_prefetch.py','prefetch_replay.py','mqsim_service.py','budget_fast_tier.py','inventory_checkpoint.py'):
+        manifest['tools'][name]=sha256(Path(__file__).with_name(name))
+    try:
+        frozen=output/'inputs'
+        frozen.mkdir()
+        for name,payload in snapshots.items():
+            path=frozen/(name+'.json')
+            with path.open('xb') as stream:
+                stream.write(payload);stream.flush();os.fsync(stream.fileno())
+            manifest['inputs'][name]=dict(path=str(path.relative_to(output)),original=str(getattr(args,name).absolute()),
+                                          sha256=hashlib.sha256(payload).hexdigest())
+        atomic_json(output/'environment.json',environment_snapshot())
+        results={}
+        for policy in POLICIES:
+            directory=output/policy
+            started=time.monotonic()
+            with MqsimService(binary,frozen/'profile.json',directory,timeout=args.timeout,
+                              parallel_units=args.parallel_units) as service:
+                result=replay(nodes,objects,capacity_bytes=data['budget']['page_aligned_effective_bytes'],
+                              initial_resident=resident,policy=policy,service=service)
+                receipt=service.finish()
+                result.update(provenance=provenance,service_receipt=receipt,
+                              service_observations=service.observations,topology=service.header)
+                if receipt['issued']!=len(result['requests']) or receipt['issued_bytes']!=result['traffic_bytes']:
+                    raise ValueError('controller/native service conservation mismatch')
+                results[policy]=result
+                manifest['policies'][policy]=dict(command=service.argv,wall_seconds=time.monotonic()-started)
+        baseline=results['on_demand']['traffic_bytes']
+        for policy,result in results.items():
+            unmatched=defaultdict(deque)
+            for request in results['on_demand']['requests']:
+                unmatched[tuple(request['expert'])].append(request)
+            for request in result['requests']:
+                prior=unmatched[tuple(request['expert'])]
+                match=prior.popleft() if prior else None
+                request['baseline_request_id']=match['request_id'] if match else None
+                request['extra_bytes']=0 if match else request['bytes']
+            result['extra_bytes_matching_rule']='PER_EXPERT_REQUEST_ORDINAL_VS_MATCHED_ON_DEMAND_NOT_CAUSAL_ATTRIBUTION'
+            result['gross_extra_bytes']=sum(r['extra_bytes'] for r in result['requests'])
+            result['saved_bytes']=sum(r['bytes'] for queue in unmatched.values() for r in queue)
+            result['traffic_delta_vs_on_demand_bytes']=result['traffic_bytes']-baseline
+            if result['gross_extra_bytes']-result['saved_bytes']!=result['traffic_delta_vs_on_demand_bytes']:
+                raise ValueError('matched traffic accounting mismatch')
+            result['extra_bytes_vs_on_demand']=max(0,result['traffic_bytes']-baseline)
+            result['unused_prefetch_bytes']=sum(r['bytes'] for r in result['requests'] if r['classification']=='useless')
+            path=output/policy/'raw.json'
+            atomic_json(path,result)
+            manifest['policies'][policy].update(raw_sha256=sha256(path),
+                transcript_sha256=sha256(path.with_name('service-transcript.jsonl')),
+                stderr_sha256=sha256(path.with_name('service-stderr.log')))
+        if identity(binary)!=binary_identity:
+            raise ValueError('native binary changed during replay')
+        for item in manifest['inputs'].values():
+            if sha256(output/item['path'])!=item['sha256']:
+                raise ValueError('frozen input changed during replay')
+        manifest['validation']='VALIDATED_RAW_PROJECTED_CONTROL'
+        atomic_json(output/'manifest.json',manifest)
+    except BaseException as error:
+        manifest.update(validation='FAILED',error=str(error))
+        atomic_json(output/'manifest.json',manifest)
+        raise
+    return manifest
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for name in INPUTS:
+        parser.add_argument('--'+name.replace('_','-'),type=Path,required=True)
+    parser.add_argument('--binary',type=Path,required=True)
+    parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--initial-residency',choices=('budget','cold'),default='budget')
+    parser.add_argument('--parallel-units',type=int)
+    parser.add_argument('--timeout',type=float,default=30)
+    args=parser.parse_args()
+    try:
+        result=run(args)
+    except (OSError,ValueError,KeyError,TypeError,TimeoutError) as error:
+        parser.exit(2,f'run_prefetch: {error}\n')
+    print(json.dumps(dict(output=str(args.out),provenance=result['provenance'],validation=result['validation'])))
+
+
+if __name__=='__main__':
+    main()

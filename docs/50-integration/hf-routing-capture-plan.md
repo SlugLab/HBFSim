@@ -623,3 +623,14 @@ identity merely because expert dimensions or nominal precision sizes match.
 No projection, profile calibration, storage pairing, production TMA issue/wait
 proof, formal GOLD/VALIDATED_MODEL gate, or registry row follows automatically
 from this runner. Those remain separately reviewed consumers and evidence gates.
+
+## Worker protocol checkpoint
+
+Commit `2ba779a` adds only strict protocol/config/environment and returned-object
+serialization helpers, with 10 CPU controls and independent spec/quality PASS.
+The array owner mutation regression proves that validation uses the exact private
+copy later saved, not a mutable returned owner. Evidence is under
+`results/gold/hf-routing-runner/worker-protocol-attempt-001/`.
+Runtime imports/cache observations, backend inspection, model construction,
+generation, exact owned shared-memory cleanup and parent orchestration remain
+unimplemented. There is no executable worker entry point yet.

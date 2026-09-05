@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `1ee994f (HF frozen inventory and budget adapter)` (ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `61de9f4 (disabled C5 timing-future infrastructure)` (ongoing code checkpoint).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -103,6 +103,17 @@ DONE, and never treats project locks as control over foreign processes. No
 scientific task registry has been registered or formal matrix launched yet.
 
 ## Current hardware controls and correction
+
+C5 infrastructure now passes independent spec and quality reviews. The exact
+64-byte token, separate 32-byte metadata, host v4 capability/lifecycle binding,
+disabled loader and compiled issue/poll/wait helpers preserve shared ABI4 and
+the synchronous path. Five admission/accounting counterexamples are closed.
+Focused CPU/compile checks pass 18/18; default-off checks pass 7/7. The final CPU
+phase passed 59/60 during an unrelated worker import RED, then that sole failed
+target passed its focused recheck. Frozen source and evidence:
+`results/gold/timing-future-unit/handoff/attempt-001/`.
+Future admission remains `timing_future_unit_incomplete`; C6 emission, optimized
+native dependency mapping and GPU gold remain open.
 
 Initial GPU-unavailable evidence came from the sandbox. Host execution was
 verified on 2026-09-05, without a driver repair. The GPU_EXCLUSIVE guard retained

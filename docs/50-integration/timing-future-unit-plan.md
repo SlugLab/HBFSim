@@ -14,7 +14,7 @@
 
 This is a plan, not implemented support or a gate receipt. It was prepared against integration commit `dd853762b6ef94c522918a1efcf147293c3175a2`, frozen B `fc829992ecdc3ca68881656722b67a31067c5d33` and frozen S `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`. The 64-byte design/build-command revision was checked at `13a416accf775339556459a514c9a37fc0c33b76`. Re-record the integration SHA and dirty patch when implementation starts.
 
-The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **The parent released `hbf_device.cu` / `hbf_device.cuh` after committing the known-delay clock-poll correction at `13a416a`; C5 implementation awaits its task dispatch, not a new user approval.** Preserve that committed correction and its evidence; do not overwrite the helper from the earlier snapshot. This plan revision makes no device/code changes and does not authorize bypassing a busy-GPU guard.
+The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. C6.1 emission is the next implementation task.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
 
 Read [execution-plan C](../49-eval-audit/execution-plan.md), [G5](../49-eval-audit/claim-gates.md), [async semantics](../skills/04-cuda-async-cpasync-tma.md), [device/control ABI](../skills/05-device-helper-and-control-abi.md) and [server safety](../skills/10-server-experiment-safety.md). The literal S ABI9 dependency rule still applies to an actual S helper port. This plan instead defines a new complete device-local ABI and leaves the shared host/device layout at version4.
 
@@ -337,6 +337,15 @@ The `timing_future_default_off` test must reject future requests and retain sync
 Store evidence in new immutable directories under `results/gold/timing-future-unit/`: `c5-abi`, `c5-capability`, `c5-loader`, `c5-device`, `c6-emitter`, `c6-compile`, `c6-sass`, and `c6-ordinary-gpu`. Each implementation attempt gets its own directory with exact argv, UTC, source/dirty patch, inputs, tool and artifact hashes, stdout/stderr, exit code and CPU/compile/GPU scope. Preserve RED and GREEN separately. Re-runs use a new destination; no log overwrite. If a command fails, preserve that failure and diagnose it before changing direction.
 
 ## Completion checklist
+
+C5.1–C5.4 checkpoint: spec and quality review pass. Five discovered admission/
+accounting failures have executable RED/GREEN evidence. Focused compile/fake-driver
+18/18 and default-off 7/7 checks pass. The final CPU phase is 59/60 plus a passing
+recheck of the sole concurrent worker-import failure. Exact 25-file source,
+commands, binaries and boundaries are frozen under
+`results/gold/timing-future-unit/handoff/attempt-001/`. C5 supplies compiled
+infrastructure only; it keeps `kUnitComplete=false`, no enabling write and no
+future transform admission. The whole-unit checklist below remains open for C6.
 
 - [ ] Future token exactly 64 bytes; separate versioned metadata has complete issue-to-terminal lifetime/accounting. Shared ABI4 sizes/offsets and public legacy behavior unchanged; no S ABI9 records imported.
 - [ ] Default-off and C5-incomplete requests reject; complete C6 opt-in uses one exact versioned unit.

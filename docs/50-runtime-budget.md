@@ -28,6 +28,10 @@ runtime estimates or predict a validated completion date.
 | HF inventory adapter | 2.455 s | 13/13 CPU controls; published frozen metadata only |
 | Real HF frozen adaptation | 2.371 s | 9,625,635-byte normalized inventory; no checkpoint reads |
 | Three HF capacity controls | 5.434 s | Hypothetical rho 1/16, 1/2, 1, including frozen validation/publication; no GPU |
+| C5 focused closure | 3.17 s | 18/18 CPU/fake-driver/optimized compile checks; no GPU |
+| C5 default-off compatibility | 1.64 s | 7/7 checks; no future implementation in OFF helper |
+| C5 CPU phase | 25.49 s + 0.35 s | 59/60 then sole concurrent worker-import failure rechecked PASS |
+| HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 
 Evidence: `results/gold/base/frozen-config/execution.json`,

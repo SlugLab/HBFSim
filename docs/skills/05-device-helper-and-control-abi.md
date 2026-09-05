@@ -8,6 +8,10 @@ Identify the shared layouts, publication protocol and load-generation binding th
 
 B uses control ABI **4**. The launch-gate API versions **2/3** are a separate host interface; neither is the shared control ABI. S's control ABI 9 and `DeviceFuture` are not installed here. Snapshot and evidence convention: [reading order](00-reading-order.md).
 
+Phase-two C5 adds optional host gate v4 and a separate module-local future ABI;
+shared control ABI4 remains unchanged. Executable future admission stays closed
+pending C6 completion and its subsequent gold gates.
+
 ## Key concepts
 
 The parent creates a sealed memfd, maps it on CPU and registers a GPU alias. The daemon maps the same bytes. Loaded helper modules receive an alias plus generation, scoped to CUDA context/device ownership. Rings use sequence numbers and exact completion identity; a capacity handoff reuses a page-entry layout with explicitly encoded media-plan fields.
@@ -59,6 +63,27 @@ structure, not hardware timing accuracy.
 Registered capacity/writes are rejected in that experiment. This synchronous
 benchmark is not a future issue/poll/wait ABI or an async semantic proof.
 
+The optional C5 infrastructure uses a 64-byte kernel-local `DeviceTimingFutureV1`
+and separately versioned 32-byte `TimingFutureLaneMetadataV1`. The build option
+`HBFSIM_ENABLE_TIMING_FUTURES` defaults OFF. Even when compiled ON, transform and
+launch requests return `timing_future_unit_incomplete`; C5 publishes no enable
+write or trace allocation.
+
+The additive issue/poll/wait helpers retain range/generation checks, active-mask
+range and full 64-bit-page grouping, one group reservation, finite GPU-clock
+polling, and issue-leader completion accounting. Token and metadata live together
+until consume/drain/error. Waits use no collectives after divergence. Invalid
+metadata cannot release shared pending work; a failed trace commits one terminal
+error from the original state without counting a successful consume or drain.
+
+Host gate v4 preserves the v3 prefix. The actual context derives capability only
+for positive FAST scalar timing, no empirical curve, and time_scale=1. Explicit
+future requirements are recognized before trust checks. Failed initialization
+retains classification and ownership; an exposed alias that cannot be cleared
+keeps its mapping quarantined. Opaque launches stay refused for the process after
+any explicit future observation, including after unload, because C5 cannot
+inspect graph-held module references. Never-future processes retain defaults.
+
 ## Explicitly unsupported behavior
 
 Mixing separately built helper/control versions, treating the reserved marker symbol alone as trusted module identity, or binding by kernel name when multiple PTX variants exist. No future or TensorMap control records are present in B. `ControlHeader` in the generic protocol header is not interchangeable with the larger runtime `SharedControlHeader`.
@@ -70,6 +95,14 @@ Editing only the CPU header; forgetting regenerated embedded PTX; copying a new 
 ## Tests proving the behavior
 
 Existing [device helper ABI](../../tests/cpu/device_helper_abi_test.cpp), [protocol layout](../../tests/cpu/protocol_layout_test.cpp), [capacity handoff](../../tests/cpu/capacity_handoff_test.cpp), [module identity](../../tests/cpu/module_identity_test.cpp), [timing binding](../../tests/cpu/timing_binding_test.cpp), [daemon protocol](../../tests/integration/daemon_protocol_test.cpp), [module association](../../tests/integration/test_cuda_module_association.py), [lookup interposition](../../tests/integration/test_cuda_lookup_interposition.py), and [helper PTX](../../tests/integration/test_device_helper_ptx.py) tests cover separate boundaries. This document records source/layout checks, not new test execution or GPU success.
+
+C5 evidence is frozen in `results/gold/timing-future-unit/handoff/attempt-001/`:
+18 focused CPU/compile checks and 7 default-off checks pass. The final CPU phase
+passed 59/60 while a new unrelated worker test was intentionally RED; that sole
+failed target then passed its focused recheck. Actual optimized PTX/cubin assembly
+proves ABI/code presence. Native-load-to-consumer SASS dependencies and GPU gold
+remain unproven; capacity/reference/hybrid/empirical futures and cp.async/TMA are
+outside this unit.
 
 ## What not to change casually
 

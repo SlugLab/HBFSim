@@ -67,12 +67,12 @@ Same-name Triton specializations being swapped; treating zero rejection count as
 
 Existing [loader](../../adapters/vllm/tests/test_hbfsim_loader.py), [runner](../../adapters/vllm/tests/test_run.py), [Triton binding](../../adapters/vllm/tests/test_triton_binding.py), [native extension](../../tests/integration/vllm_extension_test.cpp), [placement policy](../../adapters/vllm_capacity/tests/test_placement_policy.py), [replay](../../adapters/vllm_capacity/tests/test_trace_replay.py), and [replay/timing integration](../../tests/integration/test_trace_replay_timing.py) tests cover local contracts. No vLLM model was loaded for this document. Historical [vLLM timing proof](../proofs/2026-08-11-vllm-timing-adapter.md) and [exact live-delay proof](../proofs/2026-08-11-vllm-exact-live-delay.md) retain their original snapshot and selected-range scope.
 
-## What not to change casually
-
 The [HF adapter controls](../../scripts/eval/test_evaluation_inventory.py) cover
 frozen-only acquisition, receipt/buffer substitution, byte/KV accounting,
 exclusive output, and canonical-versus-file identity. See the
 [HF integration contract](../50-integration/hf-inventory-adapter-plan.md).
+
+## What not to change casually
 
 Storage ownership/lifetime, deduplication, exact PTX identity and teardown, strict capacity policy, tensor byte hashes, object granularity and trace schema. Do not edit installed vLLM/Triton or another user's model/cache. Add capture/budget/concurrent replay in the experiment layer with explicit provenance before changing the production runtime.
 

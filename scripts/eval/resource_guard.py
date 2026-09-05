@@ -70,7 +70,7 @@ def gpu_snapshot(gpu_uuid):
             if not fields:continue
             if len(fields)!=4:raise ValueError('unparseable nvidia-smi compute list')
             if fields[0]==gpu_uuid:
-                pid=int(fields[1]);snapshot['processes'].append(dict(pid=pid,name=fields[2],used_memory_mib=fields[3],identity=process_identity(pid)))
+                pid=int(fields[1]);snapshot['processes'].append(dict(pid=pid,name=fields[2],used_memory_mib=fields[3],identity=process_identity(pid,include_zombies=True)))
         snapshot['available']=True
     except (OSError,ValueError,subprocess.TimeoutExpired) as error:snapshot['error']=str(error)
     return snapshot
@@ -165,7 +165,10 @@ class ResourceGuard:
         self.known_owned.update(owned_processes(self.child))
         foreign=[]
         for proc in snapshot.get('processes',[]):
-            observed=proc.get('identity') or process_identity(int(proc['pid']))
+            # NVML may still report an owned context while its leader is an
+            # unreaped zombie. WNOWAIT retains its exact identity and prevents
+            # PID reuse; an absent or different identity is still rejected.
+            observed=proc.get('identity') or process_identity(int(proc['pid']),include_zombies=True)
             known=self.known_owned.get(int(proc['pid']))
             matches=bool(observed and known and all(observed.get(k)==known.get(k) for k in ('pid','boot_id','start_time')))
             # The observed /proc identity remains valid if a short-lived owned

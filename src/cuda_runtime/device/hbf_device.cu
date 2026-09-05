@@ -5,6 +5,10 @@
 
 extern "C" __device__ unsigned long long __hbfsim_control = 0;
 extern "C" __device__ unsigned long long __hbfsim_control_generation = 0;
+extern "C" __device__ hbfsim::device::EvalDelayConfig
+    __hbfsim_eval_delay_config = {};
+extern "C" __device__ hbfsim::device::EvalDelayCounters
+    __hbfsim_eval_delay_counters = {};
 extern "C" __device__ __constant__ unsigned int
     __hbfsim_device_helper_marker = 0x48424632U;
 
@@ -492,11 +496,22 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto* range = find_range(ranges, count, address);
     if (range == nullptr || address < range->base ||
         address - range->base >= range->length) {
+        if (__hbfsim_eval_delay_config.magic != 0) {
+            (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_accesses, 1);
+            (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_bytes, bytes);
+        }
         return fail(address, RequestStatus::Ready);
     }
     const auto media = hbfsim::device::media_descriptor(
         *range, address, bytes, operation);
     if (!media.valid) {
+        return fail(address, RequestStatus::Unsupported);
+    }
+
+    const auto experiment = hbfsim::device::eval_delay_action(
+        __hbfsim_eval_delay_config, *range, operation, header->time_scale);
+    if (experiment == hbfsim::device::EvalDelayAction::Reject) {
+        (void)system_fetch_add(&__hbfsim_eval_delay_counters.rejected_accesses, 1);
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -512,11 +527,51 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     CompletionResult resolution{.status = RequestStatus::Ready};
     if (static_cast<int>(lane_id()) == leader) {
         auto* mutable_header = const_cast<SharedControlHeader*>(header);
-        resolution = range->mode == 1 && header->timing_model != 0
+        if (experiment == hbfsim::device::EvalDelayAction::Apply) {
+            // This synchronous experiment isolates only fixed added latency;
+            // no scalar transfer/serialization/empirical service is also paid.
+            // D=0 retains validation/grouping/translation but executes no wait.
+            const auto config = __hbfsim_eval_delay_config;
+            const auto index = system_fetch_add(
+                &__hbfsim_eval_delay_counters.covered_accesses, 1);
+            (void)system_fetch_add(&__hbfsim_eval_delay_counters.covered_bytes, bytes);
+            if (index >= config.trace_capacity) {
+                (void)system_fetch_add(&__hbfsim_eval_delay_counters.trace_overflow, 1);
+                resolution.status = RequestStatus::Unsupported;
+            } else {
+                const auto begin = gpu_time_ns();
+                auto finish = begin;
+                if (system_acquire(&header->shutdown) != 0 ||
+                    system_acquire(&header->fault) != 0 ||
+                    system_acquire(&header->heartbeat_ns) == 0 ||
+                    header->request_timeout_ns == 0) {
+                    resolution.status = RequestStatus::DaemonLost;
+                }
+                while (resolution.status == RequestStatus::Ready && config.delay_ns != 0 && hbfsim::device::eval_delay_remaining(
+                           finish, begin, config.delay_ns) != 0) {
+                    if (system_acquire(&header->shutdown) != 0 ||
+                        system_acquire(&header->fault) != 0 ||
+                        system_acquire(&header->control_generation) != expected_generation) {
+                        resolution.status = RequestStatus::DaemonLost;
+                        break;
+                    }
+                    if (finish - begin >= header->request_timeout_ns) {
+                        resolution.status = RequestStatus::Timeout;
+                        break;
+                    }
+                    finish = gpu_time_ns();
+                }
+                auto* traces = reinterpret_cast<hbfsim::device::EvalDelayTrace*>(config.trace_address);
+                traces[index] = {std::uint64_t{blockIdx.x} * blockDim.x + threadIdx.x,
+                                 address, begin, finish, config.delay_ns};
+            }
+        } else {
+            resolution = range->mode == 1 && header->timing_model != 0
                          ? resolve_fast_or_hybrid(mutable_header, *range,
                                                   media, operation)
                          : resolve_leader(mutable_header, *range, media,
                                           operation);
+        }
     }
     auto status = __shfl_sync(
         group, static_cast<std::uint32_t>(resolution.status), leader);

@@ -89,6 +89,51 @@ struct alignas(64) SharedRangeRecord {
     std::uint64_t reserved1;
 };
 
+// Explicit known-delay experiment, module-local only. These records are NOT
+// part of the shared control ABI. A zero magic retains production behavior.
+inline constexpr std::uint64_t kEvalDelayMagic = 0x4556414c444c5931ULL;
+struct EvalDelayConfig {
+    std::uint64_t magic;
+    std::uint64_t delay_ns;
+    std::uint64_t trace_address;
+    std::uint64_t trace_capacity;
+};
+struct EvalDelayCounters {
+    std::uint64_t covered_accesses;
+    std::uint64_t covered_bytes;
+    std::uint64_t bypass_accesses;
+    std::uint64_t bypass_bytes;
+    std::uint64_t rejected_accesses;
+    std::uint64_t trace_overflow;
+};
+struct EvalDelayTrace {
+    std::uint64_t thread_id;
+    std::uint64_t address;
+    std::uint64_t wait_enter_ns;
+    std::uint64_t wait_exit_ns;
+    std::uint64_t delay_ns;
+};
+enum class EvalDelayAction { Off, Apply, Reject };
+HBFSIM_HOST_DEVICE constexpr EvalDelayAction eval_delay_action(
+    const EvalDelayConfig& config, const SharedRangeRecord& range,
+    std::uint32_t operation, std::uint32_t time_scale)
+{
+    if (config.magic == 0) return EvalDelayAction::Off;
+    if (config.magic != kEvalDelayMagic || config.delay_ns > 20'000 ||
+        config.trace_address == 0 || config.trace_capacity == 0 ||
+        range.mode != 1 || operation != 0 || time_scale != 1)
+        return EvalDelayAction::Reject;
+    return EvalDelayAction::Apply;
+}
+HBFSIM_HOST_DEVICE constexpr std::uint64_t eval_delay_remaining(
+    std::uint64_t now, std::uint64_t begin, std::uint64_t delay)
+{
+    return now - begin >= delay ? 0 : delay - (now - begin);
+}
+static_assert(sizeof(EvalDelayConfig) == 32);
+static_assert(sizeof(EvalDelayCounters) == 48);
+static_assert(sizeof(EvalDelayTrace) == 40);
+
 struct alignas(64) HbfRequest {
     std::uint64_t request_id;
     std::uint64_t sequence;

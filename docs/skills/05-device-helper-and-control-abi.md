@@ -48,6 +48,13 @@ Both headers must agree on every size/offset, status and field meaning. B's ring
 
 Bounded request/completion admission, liveness/deadline checking, range publication, timing-backed versus capacity-unbacked gate policies, transactional module identity, quarantine on unsafe retirement failure, scalar and six-point empirical fast timing metadata. Unsupported ABI/layout/generation is a failure, not a compatibility downgrade.
 
+The opt-in [known-delay experiment](../50-integration/known-delay-harness.md)
+adds module-local `EvalDelayConfig`, counters and traces outside the shared ABI.
+Magic zero retains production resolution. Enabled registered TIMING reads keep
+the existing checks/grouping/translation; D=0 performs no synthetic wait.
+Registered capacity/writes are rejected in that experiment. This synchronous
+benchmark is not a future issue/poll/wait ABI or an async semantic proof.
+
 ## Explicitly unsupported behavior
 
 Mixing separately built helper/control versions, treating the reserved marker symbol alone as trusted module identity, or binding by kernel name when multiple PTX variants exist. No future or TensorMap control records are present in B. `ControlHeader` in the generic protocol header is not interchangeable with the larger runtime `SharedControlHeader`.

@@ -69,3 +69,27 @@ target_compile_definitions(
     hbf_vmem_tuning_bench PRIVATE
     "HBFSIM_VMEM_TUNING_PTX_PATH=\"${HBFSIM_VMEM_TUNING_PTX}\""
 )
+
+# Experiment only: no new executable in a default production build.
+option(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK "Build explicit EQ1-A delay experiment" OFF)
+if(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK)
+    add_executable(hbf_dependent_delay hbf_dependent_delay.cu)
+    target_link_libraries(hbf_dependent_delay PRIVATE hbfsim_core CUDA::cudart CUDA::cuda_driver ${CMAKE_DL_LIBS})
+    target_include_directories(hbf_dependent_delay PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party")
+    set_target_properties(hbf_dependent_delay PROPERTIES
+        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
+        CUDA_RUNTIME_LIBRARY Shared ENABLE_EXPORTS ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda")
+    set(HBFSIM_DELAY_PTX "${CMAKE_CURRENT_BINARY_DIR}/hbf_dependent_delay.ptx")
+    add_custom_command(OUTPUT "${HBFSIM_DELAY_PTX}"
+        COMMAND "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20 -O3 -lineinfo
+            "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+            "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+            -DHBFSIM_DELAY_KERNEL_ONLY=1
+            "${CMAKE_CURRENT_SOURCE_DIR}/hbf_dependent_delay.cu" -o "${HBFSIM_DELAY_PTX}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hbf_dependent_delay.cu" VERBATIM)
+    add_custom_target(hbf_dependent_delay_ptx DEPENDS "${HBFSIM_DELAY_PTX}")
+    add_dependencies(hbf_dependent_delay hbf_dependent_delay_ptx hbfsim_device_ptx ptxpass_hbf_plugin hbfsim_launch_gate)
+endif()

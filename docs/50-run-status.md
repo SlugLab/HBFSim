@@ -36,3 +36,8 @@ controls are under `results/gold/known-delay/gpu-controls/`; their DONE/failed/
 contaminated acquisition states are not formal scheduler counts. The corrected
 implementation has a separate blocked preflight in
 `results/gold/known-delay/clock-controls/d0-k64-r1/`; no new GPU timing was acquired.
+
+Standalone CPU update, 2026-09-05T15:58Z: real HF frozen inventory adaptation
+and three hypothetical capacity-accounting controls passed under
+`results/gold/hf-inventory-adapter/`. These are separate from matrix DONE counts;
+HF route/projection integration and real capture remain pending.

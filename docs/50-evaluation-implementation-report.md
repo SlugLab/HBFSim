@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `1d583ee (bounded HF metadata verifier and pre-open confinement)` (ongoing code checkpoint).
+- Ending committed implementation SHA at this checkpoint: `1ee994f (HF frozen inventory and budget adapter)` (ongoing code checkpoint).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -152,6 +152,15 @@ bundle and a subsequent current-input check pass. Receipt:
 `results/manifests/hf-qwen3-30b-a3b-metadata-20260905/`. Historical payload hashes
 retain their original provenance. No model load, new payload hash or real routing
 capture is claimed; the HF and GGUF identities are not interchangeable.
+
+The HF inventory/budget adapter now passes 13 controls and both reviews, with
+metadata 26/26, GGUF 10/10, routing 6/6 and prefetch 4/4 regressions. Real frozen
+adaptation took 2.371 s and produced a 9,625,635-byte inventory without opening
+checkpoint payloads. HF-specific hypothetical rho 1/16, 1/2 and 1 controls pass
+with 384/3072/6144 whole experts. Evidence:
+`results/gold/hf-inventory-adapter/`; normalized file:
+`results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json`.
+HF route/projection joins remain pending; this adds no capture or live cache gold.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

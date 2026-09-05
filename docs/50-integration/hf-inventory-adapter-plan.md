@@ -175,3 +175,29 @@ fields, sliding-window/rope-scaled accounting, and inferred tensor slicing.
 No model loader, legacy donor regeneration, GGUF conversion, capture-schema
 rewrite, payload authentication, runtime cache placement, scheduler DONE,
 scientific gate, physical storage mapping, or live-serving timing is added.
+
+## Part A implementation checkpoint
+
+Commit `1ee994f` implements the frozen snapshot, HF normalization, exact format
+dispatcher, exclusive inventory publication and HF capacity budget. Both snapshot
+and disk validation reuse `validate_receipt_contract` and
+`validate_frozen_payloads`; consumer buffers cannot omit the full receipt/input
+reconciliation. Recorded historical source boundaries are never traversed by
+the adapter, and budget input uses the existing bounded no-follow reader.
+
+The 13 adapter controls, 26 metadata controls and 10 GGUF controls pass;
+independent spec and quality reviews pass. Existing routing 6/6 and prefetch 4/4
+regressions also pass. RED/GREEN evidence is in
+`results/gold/hf-inventory-adapter/attempt-001/`.
+
+Real frozen-only adaptation passed in 2.371 seconds. The 9,625,635-byte output is
+`results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json`, SHA
+`c1822bf88f432d3cfd44ef0994730803ab60a963e1d495c8b181054ac75422d6`.
+The resulting BF16 KV accounting uses explicit head_dim 128. Three hypothetical
+rho controls (1/16, 1/2, 1) cover 384/3072/6144 whole experts with zero padding;
+their summary is `results/gold/hf-inventory-adapter/real-frozen-accounting/summary.json`.
+These are CPU accounting controls, not GPU allocation/cache measurements.
+
+HF routing/capture joins, projection consumers, snapshot propagation through
+those outputs, and the HF-native three-policy control remain the next slice.
+Part A does not authorize an HF trace to pass the still-GGUF projection path.

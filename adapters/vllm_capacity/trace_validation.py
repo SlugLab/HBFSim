@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Validate real routed-expert traces and deterministic token equivalence."""
+"""Check route/tensor consistency and optional deterministic token controls.
+
+These checks cannot independently authenticate capture origin or hardware gold.
+Missing native/repeat controls remain INCOMPLETE; CPU fixtures remain TEST_ONLY.
+"""
 
 from __future__ import annotations
 
@@ -192,11 +196,14 @@ def main() -> int:
         {
             "schema_version": 1,
             "status": (
-                "PASS"
-                if all(value is not False for value in checks.values())
-                else "FAIL"
+                "FAIL" if any(value is False for value in checks.values()) else
+                "PASS" if all(value is True for value in checks.values()) else "INCOMPLETE"
             ),
-            "evidence_class": "REAL_QWEN_TRACE",
+            "evidence_class": (
+                "TEST_ONLY" if summary.get("trace", {}).get("evidence_class") == "TEST_ONLY"
+                else "ROUTE_CONSISTENCY_NOT_CAPTURE_AUTHENTICATION"
+            ),
+            "scientific_validation_passed": False,
             "model_fingerprint": inventory.model_fingerprint,
             "trace_identity": route_identity(args.trace),
         }
@@ -205,10 +212,9 @@ def main() -> int:
     args.output.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    if result["status"] != "PASS":
-        raise AssertionError(checks)
-    print(json.dumps({"status": "PASS", "checks": checks}, sort_keys=True))
-    return 0
+    print(json.dumps({"status": result["status"], "evidence_class": result["evidence_class"],
+                      "checks": checks}, sort_keys=True))
+    return 0 if result["status"] == "PASS" else 2
 
 
 if __name__ == "__main__":

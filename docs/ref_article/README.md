@@ -754,6 +754,50 @@ That claim, wherever else it shows up, is not supported from here.
 
 ---
 
+## `kim2025-hbm-roadmap-teralab-slides.pdf`
+
+The 2025 edition of the same speaker's roadmap deck, and the primary source for
+the pair of figures `HBM 100 GB` / `HBF 1 TB` that later circulated as "100 GB of
+HBM acting as a cache in front of 1 TB of HBF". The deck itself never uses the
+word cache for that pairing; see below.
+
+> Joungho Kim (김정호), Professor, School of Electrical Engineering, Korea
+> Advanced Institute of Science and Technology (KAIST).
+> *HBM Roadmap ver 1.98 by KAIST Teralab: Overview of Next Generation HBM
+> Architectures.* Slides, cover date 2025.9.11.
+
+- Obtained by pulling the real download link out of the HTML of
+  <https://tera.kaist.ac.kr/home>, where the entry is titled
+  `2025 Teralab Next-Gen. HBM Roadmap` and carries a companion talk video at
+  <https://www.youtube.com/watch?v=Lm6Xd5YqhgQ>.
+- SHA-256: `1b858d5158035edfc183a33940c86accd6c4989b81376f49646dee68c9cec2a3`.
+- 136 pages, 7,057,165 bytes. PDF creation time 2025-09-14; cover date
+  2025.9.11. The deck calls itself `ver 1.98` while an inner page says
+  `ver 1.3`, so earlier revisions of this roadmap exist and were not obtained.
+
+What this project uses, and the boundary on each item:
+
+- Page 47 and page 106 carry the same figure, `HBM-HBF-Storage Network
+  Architecture`, on which `HBM 100 GB` and `HBF 1 TB` are printed side by side.
+  This is the first-hand origin of that pair of numbers. The figure is a
+  connection topology; the word cache does not appear on it.
+- Page 49, `Comparison of HBM, HBF, and HBM-HBF Architecture`, scores four
+  architectures. The HBM-HBF column is rated high on capacity and tokens per
+  second, high on cost because the interposer grows, and medium on reliability.
+  No column is marked as the recommended one, so this deck cannot be cited for
+  a claim that any one architecture is the most promising.
+- Page 105, `Cases of HBM-HBF Architecture Data Read/Write Path`, lists seven
+  paths, of which Case 3 is `GPU <-> HBF (Read/Write)`. The deck therefore keeps
+  a direct accelerator-to-HBF path rather than routing every access through HBM.
+- Searching all 136 pages for `cache` returns only `L2 Cache`, `KV Cache`, the
+  author's own `Extended Scale Cache`, and one page describing data moving from
+  HBM into the cache inside the GPU. **No page in this deck calls HBM a cache for
+  HBF.** The word entered circulation through third parties: a Korean news
+  report of the 2025-09-03 KPCA Show keynote, and the interviewer's question in
+  SanDisk's 2025-12-30 blog interview with the same speaker.
+
+---
+
 ## `kim2026-future-of-hbm-hbf-hbs-slides.pdf`
 
 The second slide deck from the same speaker, held for completeness. The talk

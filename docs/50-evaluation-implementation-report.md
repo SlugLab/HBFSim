@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `cf37966` (optional MoE tuning source extension; C6.2 review fixes ongoing).
+- Ending committed implementation SHA at this checkpoint: `351cd8a` (selected MoE tuning input and HF provenance correction; C6.2 quality review ongoing).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -236,6 +236,23 @@ all131 older buffers match. Evidence:
 `results/gold/hf-routing-runner/runtime-sources-tuning-real-attempt-001/`.
 Selected tuning JSON/absence and actual loaded tuning state remain separate
 unfinished gates; no inference import or GPU execution occurred.
+
+The selected MoE input freezer is committed at `351cd8a`; the related HF
+receipt-provenance correction is `4a7b1ee`. The receipt's validated evidence
+fields now determine MOCK attribution even when runtime-source evidence is real.
+Both reviews pass. Related phase regression passes107/107 CPU tests (50 tuning,
+worker, source/import controls in7.513s;57 adapter controls in0.272s). Evidence:
+`results/gold/hf-routing-runner/tuning-phase-attempt-001/`.
+
+Real selected-input acquisition at2026-09-05T19:05:18Z passed in2.373s and found
+no packaged tuning JSON for the derived E=128,N=768 and the GPU name declared
+from the dated14:13 probe. It freezes that exact absence, with no tuning-file
+bytes read, and rechecks the133-artifact runtime-source snapshot unchanged.
+Evidence: `results/gold/hf-routing-runner/tuning-inputs-real-attempt-001/`.
+No current GPU query or loaded configuration observation occurred. The later
+worker must reconcile its actual device, weights and override/batch state before
+claiming the installed-default configuration path. The parent/import/exit and
+independent triplet-validation gates remain unfinished.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

@@ -84,9 +84,17 @@ collector callbacks and preserve the primary error through independent cleanup.
 Native has no scheduler reader attribute in the installed implementation;
 capture/repeat must bind the actual owned reader. Missing singleton fields must
 not skip saved-handle cleanup or client shutdown. Final status persistence
-failure returns FAILED. Twelve CPU composition tests plus related source/import
-and adapter tests pass95/95 after both reviews. This body has no executable
+failure returns FAILED. Thirteen CPU composition tests preserve metadata-evidence attribution even
+when runtime sources are real; related tuning/source/import and adapter
+regression passes107/107 after both reviews. This body has no executable
 entrypoint, resource ownership gate, current-input recheck or completion marker.
+
+The [selected tuning input freezer](../../scripts/eval/hf_moe_tuning.py) derives
+E/N from verified weight geometry and binds one packaged JSON or its absence.
+It joins directory identities to the source snapshot and binds the endpoint
+before opening. Eight CPU controls pass. The real declared-device candidate has
+no matching packaged JSON; this is input evidence, not an observed loaded kernel
+configuration. Check actual device/weights and override/batch state separately.
 
 ## Explicitly unsupported behavior
 

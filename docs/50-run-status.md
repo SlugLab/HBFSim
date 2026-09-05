@@ -76,3 +76,11 @@ passes18 tests/both reviews; the real133-artifact source snapshot and current
 recheck pass with all131 base buffers unchanged. Evidence:
 `results/gold/hf-routing-runner/runtime-sources-tuning-real-attempt-001/`.
 No selected tuning JSON, loaded kernel state, model arm or matrix cell was acquired.
+
+Standalone CPU update,2026-09-05T19:05:18Z: selected tuning inputs and HF
+provenance correction pass both reviews and107 related tests. Real input
+acquisition freezes the selected packaged JSON's absence and rechecks the133
+runtime-source artifacts. Device name is bound to the older14:13 probe; no new
+GPU probe, model arm, effective kernel observation or matrix cell occurred.
+Evidence: `results/gold/hf-routing-runner/tuning-inputs-real-attempt-001/` and
+`tuning-phase-attempt-001/` in the same parent directory.

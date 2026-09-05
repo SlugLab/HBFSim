@@ -44,6 +44,8 @@ runtime estimates or predict a validated completion date.
 | HF tuning source extension | 1.045 s unit /0.328 s real acquisition | 18/18 CPU controls;133 source-metadata artifacts, no inference import |
 | HF tuning/worker related phase | 7.513 +0.272 s suites | 50/50 tuning/worker/source/import plus57/57 adapters; CPU fixtures |
 | Real selected tuning input | 2.373 s | Exact packaged-file absence plus frozen metadata/source validation; no current GPU query |
+| C6.2 CPU phase | 25.93 +0.08 s | 63/64 initial; reviewed source-test selector fix and sole focused recheck close64/64; no runtime change for that failure |
+| C6.2 default-OFF regression | 18.30 s | 18/18 CPU/compile checks; fresh CUDA13 build40.82s, no GPU execution |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 

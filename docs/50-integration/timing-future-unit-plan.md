@@ -14,7 +14,7 @@
 
 This is a plan, not implemented support or a gate receipt. It was prepared against integration commit `dd853762b6ef94c522918a1efcf147293c3175a2`, frozen B `fc829992ecdc3ca68881656722b67a31067c5d33` and frozen S `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`. The 64-byte design/build-command revision was checked at `13a416accf775339556459a514c9a37fc0c33b76`. Re-record the integration SHA and dirty patch when implementation starts.
 
-The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. The private C6.1 emitter is committed at `1f0f45b`, with independent reviews and64/64 final CPU regression PASS. C6.2 complete plugin/build/loader admission is next.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
+The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. C6.1 is committed at `1f0f45b`. C6.2 plugin/build/loader admission is committed at `49ee96b`, with both reviews, all64 CPU checks closed and18/18 default-OFF checks. C6.3 optimized dependency mapping and C6.4 GPU gold remain open.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
 
 Read [execution-plan C](../49-eval-audit/execution-plan.md), [G5](../49-eval-audit/claim-gates.md), [async semantics](../skills/04-cuda-async-cpasync-tma.md), [device/control ABI](../skills/05-device-helper-and-control-abi.md) and [server safety](../skills/10-server-experiment-safety.md). The literal S ABI9 dependency rule still applies to an actual S helper port. This plan instead defines a new complete device-local ABI and leaves the shared host/device layout at version4.
 
@@ -250,11 +250,38 @@ native + TIMING lanes/pages            -> correct bytes and separate accounting
 
 **Files:** CMake, transform/plugin, new integration unit test and existing plugin/helper/coverage regressions.
 
-- [ ] Add a test that requests the new mode with the build option OFF and requires explicit rejection without emitted future calls. Add an ON-build test with complete closure and a strictly compatible fixture; it must traverse the actual plugin, produce a complete manifest and assemble with the actual embedded helper.
-- [ ] Wire all C5/C6 sources together under `HBFSIM_ENABLE_TIMING_FUTURES`, explicitly passing the define and ABI-header include/dependency to the NVCC custom command. Preserve the single numeric target policy and exact embedded bytes; missing helper PTX, incompatible target and forged preexisting symbols reject.
-- [ ] Remove `timing_future_unit_incomplete` only after every required emitter/helper/loader/manifest component is compiled into that build. Keep the public transform mode opt-in and keep formal evaluation receipts absent until gold. No C5-only helper import or CPU-only analysis result enables dispatch.
-- [ ] Run optimized CUDA compile-only tests for all admitted scalar widths and predicate fixtures. Assert device return offsets, no unresolved helper symbols, matching helper/version identity and unchanged ABI4 layout. Capture original/transformed PTX and cubin hashes plus exact compiler/linker commands.
-- [ ] Run default-off synchronous, range/coverage, parser/comment/.loc, module lifecycle and MQSim admission regressions once after source stabilization. Never reconfigure the parent's existing frozen builds.
+- [x] Add a test that requests the new mode with the build option OFF and requires explicit rejection without emitted future calls. Add an ON-build test with complete closure and a strictly compatible fixture; it must traverse the actual plugin, produce a complete manifest and assemble with the actual embedded helper.
+- [x] Wire all C5/C6 sources together under `HBFSIM_ENABLE_TIMING_FUTURES`, explicitly passing the define and ABI-header include/dependency to the NVCC custom command. Preserve the single numeric target policy and exact embedded bytes; missing helper PTX, incompatible target and forged preexisting symbols reject.
+- [x] Remove `timing_future_unit_incomplete` only after every required emitter/helper/loader/manifest component is compiled into that build. Keep the public transform mode opt-in and keep formal evaluation receipts absent until gold. No C5-only helper import or CPU-only analysis result enables dispatch.
+- [x] Run optimized CUDA compile-only tests for all admitted scalar widths and predicate fixtures. Assert device return offsets, no unresolved helper symbols, matching helper/version identity and unchanged ABI4 layout. Capture original/transformed PTX and cubin hashes plus exact compiler/linker commands.
+- [x] Run default-off synchronous, range/coverage, parser/comment/.loc, module lifecycle and MQSim admission regressions once after source stabilization. Never reconfigure the parent's existing frozen builds.
+
+Closure at `49ee96b`: complete admission requires explicit ON, CUDA13 and
+numeric sm120. Original PTX, mode, helper bytes, ABI64/32/shared4 and fixed16
+producer/1024 block-thread limits form one identity. Actual positive grid/block,
+PTX req/max axes and cumulative trace capacity validate at every launch. The
+module owns a4MiB trace array; the host reserves at most three records per static
+producer per actual launched lane and does not refund unproved enqueue failures.
+Enable is published last; retirement synchronizes the owning domain and clears
+enable before alias/config. An unproved clear quarantines the owner.
+
+Only ordinary geometry-bearing driver and mapped runtime launches are admitted.
+Cooperative, opaque, graph and extras paths remain closed for futures. Same-mode
+multi-kernel images preserve original identity but validate each actual image's
+present immutable kernel-manifest subset and the exact selected kernel at launch.
+Reviews closed selected-entry comment/prefix metadata, old-image reactivation,
+and both cooperative runtime alias counterexamples.
+
+Evidence: `results/gold/timing-future-unit/c6-unit/handoff/attempt-003/`
+(23 source files,8 build files,39 artifact hashes), plus
+`results/gold/timing-future-unit/c6-unit/closure-attempt-001/`. Seventeen typed actual-plugin
+controls assemble with normal optimization;49 fake-driver loader scenarios pass.
+The new CPU phase initially passes63/64 in25.93s. Its sole failure was a source
+guard selecting a forward declaration; the reviewed test-only correction passes
+the focused CTest in0.08s and still rejects an unsafe-identity mutation. All64
+checks are therefore closed, with the initial failure retained. A fresh default
+OFF build passes18/18 in18.30s and matches C5 helper bytes exactly. These are
+CPU/compile facts; neither SASS semantic gold nor hardware execution is proved.
 
 ## C6.3 — Prove optimized native/issue/wait/consumer ordering
 
@@ -380,5 +407,6 @@ helper-linked PTX fixtures pass. OFF helper bytes match the frozen C5 OFF image.
 No kernel was launched. Exact14-file sources, reviewed/build/public-gate hashes,
 all meaningful REDs and final status are frozen in
 `results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
-C6.2 admission, C6.3 optimized SASS dependency gold and C6.4 guarded hardware
+C6.2 admission was still open at that C6.1 checkpoint and is now closed by the
+separate C6.2 evidence above. C6.3 optimized SASS dependency gold and C6.4 guarded hardware
 controls remain open; the independent TMA/capacity/empirical families stay closed.

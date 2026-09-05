@@ -9,8 +9,9 @@ Identify the shared layouts, publication protocol and load-generation binding th
 B uses control ABI **4**. The launch-gate API versions **2/3** are a separate host interface; neither is the shared control ABI. S's control ABI 9 and `DeviceFuture` are not installed here. Snapshot and evidence convention: [reading order](00-reading-order.md).
 
 Phase-two C5 adds optional host gate v4 and a separate module-local future ABI;
-shared control ABI4 remains unchanged. Executable future admission stays closed
-pending C6 completion and its subsequent gold gates.
+shared control ABI4 remains unchanged. C6.2 completes explicit ordinary TIMING
+future admission with CUDA13/sm120 and the option ON. Default behavior remains
+synchronous; optimized SASS and GPU gold are still open.
 
 ## Key concepts
 
@@ -65,9 +66,9 @@ benchmark is not a future issue/poll/wait ABI or an async semantic proof.
 
 The optional C5 infrastructure uses a 64-byte kernel-local `DeviceTimingFutureV1`
 and separately versioned 32-byte `TimingFutureLaneMetadataV1`. The build option
-`HBFSIM_ENABLE_TIMING_FUTURES` defaults OFF. Even when compiled ON, transform and
-launch requests return `timing_future_unit_incomplete`; C5 publishes no enable
-write or trace allocation.
+`HBFSIM_ENABLE_TIMING_FUTURES` defaults OFF. Historical C5-only builds return
+`timing_future_unit_incomplete` even when ON. Complete C6.2 builds bind the
+original PTX, exact helper, mode, ABI and resource contract before enablement.
 
 The additive issue/poll/wait helpers retain range/generation checks, active-mask
 range and full 64-bit-page grouping, one group reservation, finite GPU-clock
@@ -88,7 +89,19 @@ C6.1 adds the optional `__hbfsim_timing_future_native_store_guard_v1`. It checks
 the complete positive finite native-store span against all registered HBF
 intervals, including outside-start overlap and arithmetic overflow. It performs
 no media reservation. The private emitter uses it before native output stores;
-public admission still remains closed pending C6.2.
+the complete C6.2 dispatcher retains this check before admitting a future module.
+
+C6.2 owns one module-local65,536x64-byte trace array. CUDA owns its allocation
+and unload; the host verifies exact symbol size/alignment and reserves a finite
+cumulative budget before enqueue. Each producer/lane reserves at most three
+records; repeated polls add no records and unproved enqueue failure earns no
+refund. Actual positive grid/block, declared req/max axes and16-producer/1024
+block-thread limits are enforced. Configuration starts disabled and publishes
+enable last. Retirement holds launch exclusion, verifies the CUDA domain,
+synchronizes it and clears enable before alias/config; unsafe clears quarantine.
+Ordinary driver and mapped runtime launches have geometry; cooperative, graph,
+extras and opaque future paths reject. Kernel-manifest constants are checked
+against each actual image and again for the selected launch.
 
 ## Explicitly unsupported behavior
 
@@ -116,6 +129,14 @@ public gate and default-OFF helper byte identity. Frozen evidence is under
 `results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`; this later
 phase supersedes the earlier interrupted59/60 CPU checkpoint as current CPU
 regression evidence, without claiming GPU/optimized-SASS gold.
+
+C6.2 (`49ee96b`) passes both reviews,17 typed actual-plugin assembly controls
+and49 fake-driver loader scenarios. Its CPU phase initially passes63/64 in
+25.93s; a reviewed source-test selector correction passes the sole focused
+recheck in0.08s and retains unsafe-identity rejection. The fresh default-OFF
+build passes18/18 in18.30s and has exactly the C5 helper bytes. Evidence:
+`results/gold/timing-future-unit/c6-unit/closure-attempt-001/`.
+All64 CPU checks are closed; no GPU/SASS semantic receipt is implied.
 
 ## What not to change casually
 

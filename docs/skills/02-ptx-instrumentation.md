@@ -44,6 +44,16 @@ The parser supports its scalar/vector global load/store forms, optional volatile
 
 Phase-two C2 adds `parse_module` with `Module`/`Function`/`Instruction` records and `parse_async_instruction` in the optional `hbfsim_eval_ptx` library. They parse/analyze CPU artifacts and are not linked into `hbfsim_core`. `code_without_comments` is extracted verbatim to `ptx_source.hpp` for both paths. The new IR skips `.loc` and rejects packed declaration/instruction shapes and unterminated comments. Parser recognition of a TMA opcode is not runtime support; validation status belongs in the phase-specific logs.
 
+The later C6.2 unit (`49ee96b`) connects the bounded ordinary scalar emitter to
+explicit `timing_load_future_v1` dispatch only in complete ON/CUDA13/sm120 builds.
+It recomposes same-mode selected kernels from original bytes, binds exact helper
+and per-kernel manifests, and rejects mixed modes or reserved-symbol forgery.
+Future parameter metadata comes from the masked selected entry's validated
+spans; comments and prefix-named entries cannot redirect its parameter layout.
+Actual launch geometry and cumulative trace capacity are checked by the loader
+and coverage gate. Synchronous parsing/defaults are preserved. These changes
+have CPU/compile proof; optimized SASS dependency and GPU gold remain separate.
+
 ## Explicitly unsupported behavior
 
 B does not model global atomics/reductions, ordinary global `cp.async`, tensor/bulk async global transfers, texture/surface accesses, general pointer expressions, cubin-only rewriting or deferred first-consumer waits. Pure `cp.async.commit_group`/`wait_group` synchronization forms do not themselves touch memory and are intentionally not counted as unsupported *memory* operations; that does not make their copy family supported. Capacity/legacy strict consumers of unsupported paths must be rejected; permitted timing-backed opaque paths remain unmodeled.

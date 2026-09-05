@@ -56,8 +56,10 @@ It uses [byte-spanned parsing](../../src/ptxpass_hbf/ptx_ir.cpp), actual setup
 def/use, per-producer valid state and wait-return data dependencies. Executed
 overwrites/store/fence/exit drains conserve pending loads; general source CFG
 remains rejected. Generated forward guards serve helper-call marshalling only.
-The static CTA bound assumes a declared block limit; actual launch enforcement
-belongs to C6.2. This emitter is evaluation-only and public admission is closed.
+The static CTA bound assumes a declared block limit. C6.2 now enforces that
+bound against actual launch geometry and finite cumulative trace capacity, with
+the complete plugin/helper/loader unit enabled only by explicit ON/CUDA13/sm120.
+Default behavior stays synchronous; optimized SASS and GPU gold remain open.
 
 ## Explicitly unsupported behavior
 
@@ -81,6 +83,15 @@ CPU interpretation checking values/predicates/conservation. Header/comment and
 quoted-token counterexamples are retained. Evidence:
 `results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
 These checks establish private emission, not optimized SASS or GPU semantics.
+
+C6.2 (`49ee96b`) passes separate specification/quality review,17 actual-plugin
+typed assembly controls and49 fake-driver loader scenarios. All64 CPU checks
+are closed after a reviewed test-selector correction;18 default-OFF checks pass
+with byte-identical C5 helper output. Selected-entry comments/prefixes,
+coexisting immutable kernel images and both cooperative runtime aliases have
+retained RED/GREEN evidence. See
+`results/gold/timing-future-unit/c6-unit/closure-attempt-001/`.
+No TMA, ordinary cp.async or GPU timing conclusion follows from these checks.
 
 ## What not to change casually
 

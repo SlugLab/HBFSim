@@ -84,3 +84,12 @@ runtime-source artifacts. Device name is bound to the older14:13 probe; no new
 GPU probe, model arm, effective kernel observation or matrix cell occurred.
 Evidence: `results/gold/hf-routing-runner/tuning-inputs-real-attempt-001/` and
 `tuning-phase-attempt-001/` in the same parent directory.
+
+Standalone CPU/compile update,2026-09-05T19:28:00Z: C6.2 is committed at
+`49ee96b` after both reviews. All64 CPU checks close:63 initial passes plus a
+reviewed test-selector correction and one focused recheck. A new default-OFF
+build passes18/18, with unchanged C5 helper bytes. Actual-plugin typed17 and
+loader49 controls are retained. Evidence:
+`results/gold/timing-future-unit/c6-unit/closure-attempt-001/`.
+Only explicit complete ON builds admit the bounded ordinary TIMING subset;
+optimized SASS dependency and GPU gold remain open. No matrix count changed.

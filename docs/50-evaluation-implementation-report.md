@@ -2,7 +2,8 @@
 
 P0/P1/P6 and bounded CPU portions of P2/P3/P7 are verified. This is an interim
 checkpoint, not completion of P0–P8 or permission to launch a formal matrix.
-Production future/TMA support remains uninstalled. Known-delay, read-only
+Default-OFF ordinary TIMING future admission is implemented; its optimized SASS
+and GPU gold remain open, and TMA support remains uninstalled. Known-delay, read-only
 acquisition, exact-arrival conversion, routing capture closure and native causal
 prefetch tools now pass their bounded CPU/compile controls and independent
 reviews. Physical acquisition remains blocked. The storage pairing adapter now passes
@@ -14,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `351cd8a` (selected MoE tuning input and HF provenance correction; C6.2 quality review ongoing).
+- Ending committed implementation SHA at this checkpoint: `49ee96b` (complete opt-in scalar TIMING future admission, with reviewed CPU/compile closure).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -43,7 +44,7 @@ were not duplicated. See [donor map](50-integration/sm120-donor-map.md).
 | Gate | Current evidence | Limit |
 |---|---|---|
 | GOLD-0 | Exact frozen base 42/42 CPU; original pipeline 20/20 | CPU configuration only |
-| GOLD-1 | Private C6.1 emitter/interpreter and29 PTX assembly controls; latest CPU phase64/64 | No new production future/TMA transformer |
+| GOLD-1 | C6.2 complete opt-in plugin/loader;17 typed actual-plugin assembly controls,49 loader scenarios; all64 CPU checks and18 default-OFF checks closed | Ordinary scalar TIMING subset; no GPU or TMA proof |
 | GOLD-2 | CPU future oracle and counterexamples pass | GPU semantic gold NOT RUN |
 | GOLD-3 | Representative synchronous SM120 image assembled/disassembled; immutable cache 9/9 controls | Resolver/load/next-address mapping recorded; future/TMA mapping NOT PROVEN |
 | GOLD-4 | Runner CPU/compile 20/20; old real D0 K1 and ten K64 controls complete | Old D500 K64 failed fixed G2; corrected clock interval awaits hardware recheck because GPU is busy |
@@ -118,10 +119,27 @@ state and drains, finite producer allocation and full-span native-store refusal.
 Independent reviews pass; final CPU phase64/64 in25.54s and29 direct/helper-linked
 PTX programs assemble. The default-OFF helper matches C5 byte-for-byte. Evidence:
 `results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/`.
-Future admission remains `timing_future_unit_incomplete`; C6.2 public
-plugin/build/loader closure, optimized native dependency mapping and GPU gold
-remain open. Static CTA quantities assume a declared maximum block size; they
-are not an actual-launch geometry proof.
+C6.2 is now committed at `49ee96b`. Explicit ON plus CUDA13/sm120 connects the
+complete emitter/helper/manifest/loader unit. It checks actual grid/block and
+PTX req/max bounds, fixed producer limits and finite cumulative trace capacity.
+The module owns65,536x64-byte trace records; launch reservations conservatively
+budget three records per static producer per actual lane, with no refund after
+unproved enqueue failure. Checked activation publishes enable last; retirement
+synchronizes the owning domain, clears enable before alias/config, and quarantines
+unproved clears. Ordinary driver and mapped runtime launches are supported;
+cooperative, opaque, graph, extras, capacity and unproved model families reject.
+
+Both independent reviews pass. They closed comment/prefix parameter metadata,
+coexisting immutable kernel-image subsets and cooperative runtime alias defects.
+The actual-plugin tests cover17 typed controls and49 loader scenarios. A fresh
+CPU phase passes63/64 in25.93s; a reviewed test-selector correction closes the
+sole failure in0.08s, preserving a negative unsafe-identity mutation. No runtime
+change was needed for that phase failure. A separate fresh default-OFF build
+passes18/18 in18.30s, with its helper byte-identical to C5. Evidence:
+`results/gold/timing-future-unit/c6-unit/closure-attempt-001/`,
+`handoff/attempt-003/`, `phase-attempt-001/`, `source-guard-attempt-001/` and
+`off-phase-attempt-001/` under that same C6 unit root. Optimized native dependency
+mapping and GPU gold remain open; no scientific receipt or formal cell was added.
 
 Initial GPU-unavailable evidence came from the sandbox. Host execution was
 verified on 2026-09-05, without a driver repair. The GPU_EXCLUSIVE guard retained
@@ -278,7 +296,7 @@ requires both. Offline calculations remain CPU-only. Current status is in
 | EQ | Status | Remaining |
 |---|---|---|
 | EQ1 | BLOCKED | Known-delay and collector tools pass bounded CPU/compile controls; G2 timing defect, exclusive SSD and paired scientific validation remain |
-| EQ2 | PARTIAL | CPU counterexamples/analysis available; complete helper/transform/TMA lifecycle and GPU/SASS gold absent |
+| EQ2 | PARTIAL | Complete opt-in ordinary TIMING unit has CPU/compile closure; optimized SASS/GPU gold and TMA lifecycle remain open |
 | EQ3 | PARTIAL | Real inventory/budgets and native media replay available; bounded layer-synchronous controller verified; real compute input and actual capacity/cache gates remain |
 | EQ4 | PARTIAL | Routing statistics, capture closure and causal prefetch CPU controls verified; real routing/compute inputs and scientific projection validation remain |
 
@@ -322,6 +340,19 @@ are in [known-delay design](50-integration/known-delay-harness.md) and
 
 ```sh
 python3 scripts/eval/audit_sass_mapping.py --cubin results/gold/known-delay/sass-control/kernel.cubin --ptx results/gold/known-delay/sass-control/transformed.ptx --build-manifest results/gold/known-delay/sass-control/build-manifest.json --cuda-bin /usr/local/cuda-13.0/bin --out results/gold/sass-audit/representative-known-delay
+```
+
+C6.2 exact configure/build/test argv and compiler caches are retained in
+`results/gold/timing-future-unit/c6-unit/phase-attempt-001/commands.json` and
+`off-phase-attempt-001/commands.json`. Those runs used new
+`build-eval-c6-unit-cpu` and `build-eval-c6-unit-off`; preserve the frozen older
+builds. The ON actual-plugin and corrected phase checks were:
+
+```sh
+ctest --test-dir build-eval-c6-unit-cuda --output-on-failure -R '^(timing_future_unit_plugin|timing_future_unit_loader|timing_future_plugin|timing_future_loader)$'
+ctest --test-dir build-eval-c6-unit-cpu --output-on-failure
+ctest --test-dir build-eval-c6-unit-cpu --output-on-failure -R '^launch_gate_symbols$'
+ctest --test-dir build-eval-c6-unit-off --output-on-failure -R '^(range_table|timing_binding|context_lifecycle|coverage_gate|module_identity|ptx_transform|ptx_async_copy_coverage|coverage_manifest_flow|device_range_validation|cuda_module_association|timing_gate_binding|timing_future_unit_plugin|ptxpass_plugin|unsupported_kernel_ptx|device_helper_ptx|mqsim_online|mqsim_queue_depth|mqsim_benchmark)$'
 ```
 
 Each three-cell replay manifest records the exact C++ command. Repeat a cell

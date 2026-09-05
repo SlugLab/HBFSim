@@ -345,7 +345,7 @@ cleanup failures. This process-local ownership scope detects ordinary namespace
 replacement; it does not claim atomic identity-checked unlink or protection
 against hostile concurrent name replacement, including resource-tracker cleanup.
 
-### Selected MoE tuning input closure (implementation pending)
+### Selected MoE tuning inputs and passive runtime observation
 
 The frozen `fused_moe.py:1018–1084,1292–1323` selects the filename from
 `E, _, N = w2_shape`, device name with spaces replaced by underscores, and the
@@ -366,7 +366,10 @@ Runtime-source snapshots need an explicit finite extension for
 the existing 131-artifact snapshot as a historical input version. Supplemental
 source bytes are already recorded in `tuning-source-audit-attempt-001/` and
 `tuning-source-audit-attempt-002/` under the HF runner gold directory; neither
-audit executed an inference import. They are not yet a validated tuning bundle.
+audit executed an inference import. The explicit 133-source extension and exact
+selected-file/absence freezer are now committed (`cf37966`, `351cd8a`); the real
+input attempt records absence, with the device name declared from the dated
+probe. Actual loaded-state observation remains the next separate unit.
 
 The additional sources expose mutable bypass state: `fused_moe._config` must
 remain `None`, and `batch_invariant.VLLM_BATCH_INVARIANT` must be exactly `False`.
@@ -375,6 +378,38 @@ aliases used by `fused_moe.py`, and the absent user-config environment override.
 Record the selected-file/default-config boundary separately from effective
 kernel configuration. These checks do not authenticate native binaries or
 claim to inspect the private contents of a Python LRU cache.
+
+Implement that unit privately in `scripts/eval/hf_moe_tuning_runtime.py`, with
+CPU fixtures and no CLI or inference imports. Retain the fixed already-loaded
+module objects and their frozen origins before construction; require package
+`_config is None`, batch-invariant state exactly false, and the actual Python
+function aliases/global dictionaries used by `try_get_optimal_moe_config` and
+`get_moe_configs`. Never call either configuration selector or its cache APIs.
+Retain the installed LRU wrapper and underlying function. Construction normally
+wraps and prepopulates `vllm.envs.__getattr__`; allow that expected transition
+without reading, clearing or claiming authentication of private cache contents.
+
+After the existing runtime contract observer succeeds, traverse its same exact
+model/worker/MoE chain. Check only metadata of each actual BF16 Parameter:
+`w13=[E,2I,H]`, `w2=[E,H,I]`, selected CUDA device index, and receipt-derived
+dimensions. Inspect `method.moe_quant_config` directly and require identity
+with the retained unquantized constant and `kernel.fused_experts.quant_config`.
+Do not read the layer's `moe_quant_config` property: it may initialize state.
+Require the raw six fields of each `_a1/_a2/_w1/_w2` descriptor to be `None`,
+and reconcile the stored no-bias, gated activation and TP1 MoE configuration.
+Recheck retained modules, aliases, overrides and observed weight/config bindings
+before returning detached primitives. No tensor payload access, platform/GPU
+query, tuner, compilation, download or cache creation is part of this observer.
+
+The selected device name is still a declared input here; the later guarded
+worker authenticates the actual device. Keep effective kernel configuration,
+private cache contents, native binary authentication and scientific validation
+explicitly unproved. Injected objects always produce MOCK. Cover hostile or
+mutating fixture properties, wrong shapes/dtypes/devices, changed override and
+alias state, quantized descriptors, and module/config rebinding with semantic
+RED/GREEN tests. Integrate this observer into the private arm only after both
+independent reviews; original-input rechecks and guarded parent publication stay
+separate.
 
 ## Worker return and capture contract
 

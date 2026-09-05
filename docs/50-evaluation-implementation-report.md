@@ -14,7 +14,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `c12d3b0` (HF effective import/cache observer; C6.2 integration ongoing).
+- Ending committed implementation SHA at this checkpoint: `6444b71` (owned HF request composition; C6.2 review ongoing).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -212,6 +212,20 @@ substitution, active log redirection and live Triton manager overrides are
 rejected. Source/import controls pass26/26 and existing adapters57/57; evidence
 is `results/gold/hf-routing-runner/imports-phase-attempt-001/`. Actual controlled
 imports, worker execution/cleanup and parent triplet validation remain pending.
+
+The private owned-request body is committed at `6444b71`. It composes the
+reviewed helpers around one generated return, freezes raw JSON/route copies
+before trace materialization, and independently records cleanup and restoration.
+Native accepts the installed scheduler's absent reader field; capture/repeat
+require the actual owned reader. Removed singleton fields, output ancestry
+changes and final status-write failure retain failed diagnostics and cannot
+return provisional success. Both reviews pass; related phase controls pass
+38/38 plus57/57 CPU tests (5.180 +0.260s suites). Evidence:
+`results/gold/hf-routing-runner/loaded-arm-phase-attempt-001/`. All generated
+objects are CPU fixtures; no real inference import, model load, generation or
+POSIX segment occurred. Controlled import entrypoint, selected tuning inputs,
+parent resource/exit/current-input checks and independent triplet validation
+remain unfinished. The body has no CLI and writes no completion marker.
 
 Budgets deduct actual inventory resident bytes plus explicitly supplied KV,
 workspace and reserve inputs. Requested raw rho, whole-expert achieved rho,

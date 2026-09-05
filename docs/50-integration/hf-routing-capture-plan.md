@@ -345,6 +345,37 @@ cleanup failures. This process-local ownership scope detects ordinary namespace
 replacement; it does not claim atomic identity-checked unlink or protection
 against hostile concurrent name replacement, including resource-tracker cleanup.
 
+### Selected MoE tuning input closure (implementation pending)
+
+The frozen `fused_moe.py:1018–1084,1292–1323` selects the filename from
+`E, _, N = w2_shape`, device name with spaces replaced by underscores, and the
+quantization selector. The frozen unquantized weight constructor and Qwen model
+derive `w13=[E,2*moe_intermediate_size,hidden_size]` and
+`w2=[E,hidden_size,moe_intermediate_size]` for this TP=1 CUDA control. BF16 with
+the unquantized config yields no dtype suffix (`config.py:40–73,373–386`).
+Derive these dimensions from the verified config and reconcile actual loaded
+weight shapes/dtypes before generation. Bind the worker's observed device name;
+a filename derived from a parent-declared name alone is not device evidence.
+
+Freeze only the exact selected packaged JSON or its absence, including its
+canonical directory identity. Do not enumerate tuning files or invoke tuning,
+kernel compilation, `get_moe_configs`, or its cache-clear method to gather this
+observation. Bound reads, preserve exact bytes, and recheck before/after arms.
+Runtime-source snapshots need an explicit finite extension for
+`fused_moe/__init__.py` and `layers/batch_invariant.py`; preserve validation of
+the existing 131-artifact snapshot as a historical input version. Supplemental
+source bytes are already recorded in `tuning-source-audit-attempt-001/` and
+`tuning-source-audit-attempt-002/` under the HF runner gold directory; neither
+audit executed an inference import. They are not yet a validated tuning bundle.
+
+The additional sources expose mutable bypass state: `fused_moe._config` must
+remain `None`, and `batch_invariant.VLLM_BATCH_INVARIANT` must be exactly `False`.
+Check their already-loaded module origins and direct fields, the bound function
+aliases used by `fused_moe.py`, and the absent user-config environment override.
+Record the selected-file/default-config boundary separately from effective
+kernel configuration. These checks do not authenticate native binaries or
+claim to inspect the private contents of a Python LRU cache.
+
 ## Worker return and capture contract
 
 `native` uses `enable_return_routed_experts=False` with no compatibility binding.

@@ -64,3 +64,9 @@ observer passes11 tests and independent reviews. The related source/import
 controls pass26/26 and adapter regression57/57. Evidence:
 `results/gold/hf-routing-runner/imports-phase-attempt-001/`. No real vLLM/Torch
 import, model arm or formal matrix cell was launched.
+
+Standalone CPU update,2026-09-05T18:42:36.162441+00:00: owned HF request
+composition passes both reviews and95 related tests (38 worker/source/import,
+57 adapters). Evidence: `results/gold/hf-routing-runner/loaded-arm-phase-attempt-001/`.
+This uses CPU runtime fixtures, creates no real model arm or POSIX segment, and
+changes no formal matrix count. Complete guarded triplet remains unfinished.

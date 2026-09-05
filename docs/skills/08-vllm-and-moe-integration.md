@@ -72,6 +72,16 @@ capable manager descriptors, runtime discovery, CUDA or cache-creation methods.
 Eleven CPU tests and both reviews pass; the related source/import plus adapter
 phase passes83 tests. This does not yet create a guarded executable worker.
 
+The private [owned request body](../../scripts/eval/hf_loaded_arm.py) composes
+these helpers around one generated return. Save the copied raw result before
+collector callbacks and preserve the primary error through independent cleanup.
+Native has no scheduler reader attribute in the installed implementation;
+capture/repeat must bind the actual owned reader. Missing singleton fields must
+not skip saved-handle cleanup or client shutdown. Final status persistence
+failure returns FAILED. Twelve CPU composition tests plus related source/import
+and adapter tests pass95/95 after both reviews. This body has no executable
+entrypoint, resource ownership gate, current-input recheck or completion marker.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

@@ -40,6 +40,7 @@ runtime estimates or predict a validated completion date.
 | Real selected runtime source snapshot | 0.289 s | 131 artifacts /7,961,389 bytes plus separate interpreter identity; original-input recheck, no runtime imports |
 | HF passive import/cache observer | 0.847 s | 11/11 fake-module controls; no inference imports |
 | HF source/import plus adapter phase | 1.528 + 0.455 s suites /2.334 s processes | 26/26 plus57/57 CPU tests; no GPU or model execution |
+| HF owned-request related phase | 5.180 +0.260 s suites | 38/38 worker/source/import plus57/57 adapters; MOCK runtime objects only |
 | HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 

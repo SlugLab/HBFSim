@@ -1,0 +1,59 @@
+# vLLM and MoE integration
+
+## Purpose
+
+Separate live timing registration and exact Triton binding from offline expert-object replay, and identify the missing inputs for serving-concurrency and whole-model claims.
+
+## Scope
+
+B's vLLM timing adapter and optional capacity replay tools. Real routing capture/staging from X (`37144843906b3bd71f3fbac1fecc6b5080d82b95`) is a donor candidate, not an installed base feature. Snapshot convention: [reading order](00-reading-order.md).
+
+## Key concepts
+
+Finalized tensor storage, original/recompiled PTX variant, registered byte extent, complete expert object, actual active sequence and selected expert weight bytes are different identities/metrics. A batch size configured on `LLM.generate` is not a per-step measurement of active serving concurrency. Selected tensor bytes are not automatically GPU-transferred bytes.
+
+## Important files
+
+[Model loader](../../adapters/vllm/hbfsim_loader.py), [native bridge](../../adapters/vllm/hbfsim_extension.cpp), [Triton binding](../../adapters/vllm/triton_binding.py), [PTX staging](../../adapters/vllm/prepare_triton_ptx.py), [runner](../../adapters/vllm/run.py), [inventory](../../adapters/vllm_capacity/model_inventory.py), [placement](../../adapters/vllm_capacity/placement_policy.py), [replay](../../adapters/vllm_capacity/trace_replay.py), [trace validation](../../adapters/vllm_capacity/trace_validation.py), and [serial timing backend](../../benchmarks/replay/hbf_trace_timing.cpp).
+
+## Important structs/classes/functions
+
+`TimingConfig.from_mapping` validates adapter options. `HbfSimModelLoader.load_model` delegates normal loading before registration. `_discover_storages` and `register_model_storages` select and deduplicate finalized CUDA storage ranges; `NativeTimingSession.register_storage` calls the native bridge. `TritonVariantBinder.on_kernel_load` uses the exact original function, PTX bytes and kernel name; `install_triton_binding` installs that hook. `ModelInventory` reads an existing manifest, validates model/expert/tensor records and supplies `compact_tensor_accesses`. `capacity_geometry` implements legacy ratio placement; `replay_cell` reports cache/access/reuse and modeled demand timing.
+
+## Call path / data path
+
+Live timing: runner configures local environment/report paths → vLLM loads finalized model → loader registers selected storage → Triton hook recovers original PTX and exact variant mapping → launch gate → rewritten supported accesses → timing delay → deterministic generation and reports.
+
+Offline: supplied inventory plus validated route-derived trace → complete expert objects → placement/cache policy → demand pages → optional fast/hybrid/MQSim timing tool → per-cell report. In B's C++ `run_reference`, each page is submitted and completed before the next page; this is serial modeled demand time, not a live compute/memory overlap timeline.
+
+## CPU-side vs GPU-side execution context
+
+Loader, hook, inventory and replay orchestration are Python on CPU; the native bridge controls the host HBFSim context. Live vLLM kernels run on GPU. Offline replay and its MQSim backend can run without vLLM/GPU execution. A GPU-origin trace does not make a later CPU replay a measured serving run.
+
+## Invariants
+
+Original Triton functions must bind to rewritten functions from the same PTX digest and name; ambiguous name-only selection is unsafe. Capacity pointers remain strict even though timing-backed opaque paths can run unmodeled. Preserve all baseline/timing token IDs and nonzero modeled-access evidence for the selected subset. Derive E/k/layers/bytes from actual config/inventory, never from a model-name default. Whole-expert policy objects include both w13 and w2 under the inventory's equal-size contract.
+
+## Supported behavior
+
+Selective physically backed timing registration, storage deduplication and registration manifests, exact Triton variant binding, deterministic generation comparison, validated supplied expert inventories, complete-object CLOCK/LRU/Belady offline placement and serial timing replay. Belady's future knowledge is an offline oracle, not an implementable runtime predictor. B's separate prefetch model is also offline and behind optional evaluation tooling.
+
+## Explicitly unsupported behavior
+
+B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.
+
+## Common failure modes
+
+Same-name Triton specializations being swapped; treating zero rejection count as complete coverage; comparing changed prompts/tokens/dtypes; interpreting legacy fast:HBF ratios as effective rho after KV/workspace/resident weights; substituting synthetic MoE streams for Qwen routing; using a uniform union null as actual routing; or calling composed independent traces live serving concurrency.
+
+## Tests proving the behavior
+
+Existing [loader](../../adapters/vllm/tests/test_hbfsim_loader.py), [runner](../../adapters/vllm/tests/test_run.py), [Triton binding](../../adapters/vllm/tests/test_triton_binding.py), [native extension](../../tests/integration/vllm_extension_test.cpp), [placement policy](../../adapters/vllm_capacity/tests/test_placement_policy.py), [replay](../../adapters/vllm_capacity/tests/test_trace_replay.py), and [replay/timing integration](../../tests/integration/test_trace_replay_timing.py) tests cover local contracts. No vLLM model was loaded for this document. Historical [vLLM timing proof](../proofs/2026-08-11-vllm-timing-adapter.md) and [exact live-delay proof](../proofs/2026-08-11-vllm-exact-live-delay.md) retain their original snapshot and selected-range scope.
+
+## What not to change casually
+
+Storage ownership/lifetime, deduplication, exact PTX identity and teardown, strict capacity policy, tensor byte hashes, object granularity and trace schema. Do not edit installed vLLM/Triton or another user's model/cache. Add capture/budget/concurrent replay in the experiment layer with explicit provenance before changing the production runtime.
+
+## Related docs
+
+[Evaluation protocol](09-evaluation-protocol.md), [coverage policy](03-cuda-memory-semantics.md), [capacity](07-capacity-address-translation.md), [capability audit](../49-eval-audit/current-capability-audit.md), [historical adapter design](../superpowers/specs/2026-08-10-vllm-hbf-timing-adapter-design.md), and [variant-binding design](../superpowers/specs/2026-08-11-vllm-triton-variant-binding-design.md).

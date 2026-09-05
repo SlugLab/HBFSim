@@ -58,6 +58,8 @@ struct hbfsim_context {
     bool cuda_registered{false};
     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
+    const hbfsim::LaunchGateApiV4* launch_gate_api_v4{nullptr};
+    hbfsim::LaunchGateApiV3 launch_gate_v4_prefix{};
     std::uint64_t control_generation{0};
     std::uintptr_t cuda_context{0};
     int device_ordinal{-1};
@@ -93,6 +95,15 @@ int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
                          std::uintptr_t cuda_context, int device_ordinal,
                          std::uint64_t* generation) noexcept
 {
+    if (context->launch_gate_api_v4 != nullptr) {
+        ControlView control(context->control_mapping,context->control_bytes);
+        const auto* h=control.header();
+        const auto caps=hbfsim::timing_future::derive_capabilities(h->timing_model,
+            h->empirical_flags,h->time_scale,h->read_latency_ns,h->program_latency_ns,
+            h->aggregate_bandwidth_bytes_per_s,h->request_timeout_ns);
+        return context->launch_gate_api_v4->activate_with_capabilities(
+            owner,control_alias,cuda_context,device_ordinal,&caps,generation);
+    }
     return context->launch_gate_api_v3 != nullptr
                ? context->launch_gate_api_v3->activate(
                      owner, control_alias, cuda_context, device_ordinal,
@@ -904,6 +915,25 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
         if (get_api != nullptr) {
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+            const auto* v4=static_cast<const hbfsim::LaunchGateApiV4*>(
+                get_api(hbfsim::kLaunchGateAbiVersionV4));
+            if (v4!=nullptr) {
+                if (v4->abi_version!=hbfsim::kLaunchGateAbiVersionV4 ||
+                    v4->struct_bytes<sizeof(*v4) || !v4->activate_with_capabilities) {
+                    release_context(context.release(),false);
+                    return HBFSIM_CUDA_ERROR;
+                }
+                context->launch_gate_api_v4=v4;
+                // Copy the v3 prefix rather than aliasing distinct C++ types.
+                context->launch_gate_v4_prefix={hbfsim::kLaunchGateAbiVersion,
+                    sizeof(hbfsim::LaunchGateApiV3),v4->activate,v4->register_range,
+                    v4->unregister_range,v4->begin_retire,v4->invalidate_retire,
+                    v4->finish_retire,v4->quarantine_retire,v4->register_range_with_policy};
+                context->launch_gate_api_v3=&context->launch_gate_v4_prefix;
+            }
+#endif
+            if (!context->launch_gate_api_v3)
             context->launch_gate_api_v3 =
                 static_cast<const hbfsim::LaunchGateApiV3*>(
                     get_api(hbfsim::kLaunchGateAbiVersion));
@@ -952,13 +982,18 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
                                   nullptr &&
                               context->launch_gate_api_v2->quarantine_retire !=
                                   nullptr;
-        if ((!valid_v3 && !valid_v2) ||
-            launch_gate_activate(
+        context->cuda_context=reinterpret_cast<std::uintptr_t>(cuda_context);
+        context->device_ordinal=static_cast<int>(device);
+        const auto activation=(!valid_v3 && !valid_v2) ? -1 : launch_gate_activate(
                 context.get(), reinterpret_cast<std::uintptr_t>(context.get()),
                 reinterpret_cast<std::uintptr_t>(context->device_control),
                 reinterpret_cast<std::uintptr_t>(cuda_context),
-                static_cast<int>(device), &context->control_generation) != 0 ||
-            context->control_generation == 0) {
+                static_cast<int>(device), &context->control_generation);
+        // A v4 initializer may fail to clear an exposed alias. A nonzero
+        // generation means the gate retained ownership; retirement must then
+        // quarantine this mapping instead of taking the unbound unmap path.
+        context->timing_owner_active=context->control_generation!=0;
+        if (activation!=0 || context->control_generation==0) {
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }

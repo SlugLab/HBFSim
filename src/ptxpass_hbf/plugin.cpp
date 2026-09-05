@@ -1,5 +1,6 @@
 #include "hbfsim/durable_append.hpp"
 #include "transform.hpp"
+#include <hbfsim/timing_future_abi.hpp>
 
 #include <json.hpp>
 #include <openssl/sha.h>
@@ -193,24 +194,36 @@ class TrustedModuleRegistry {
     struct Identity {
         std::string value;
         bool previously_emitted;
+        std::string mode{"synchronous"};
     };
 
-    Identity identity_for(const std::string& ptx)
+    Identity identity_for(const std::string& ptx,const std::string& mode)
     {
         const auto state = hex_identity(sha256(ptx));
         std::lock_guard lock(mutex_);
         if (ptx.find(module_identity_symbol) == std::string::npos) {
-            return {.value = state, .previously_emitted = false};
+            if (mode=="synchronous") return {.value=state,.previously_emitted=false,.mode=mode};
+            const auto helper=hex_identity(sha256(std::string(hbfsim::ptx::embedded_device_helper())));
+            const auto contract=nlohmann::json{{"subset","straight_line_scalar_read"},
+                {"time_scale",1},{"maximum_thread_futures",hbfsim::timing_future::kMaximumThreadFutures},
+                {"maximum_block_threads",hbfsim::timing_future::kMaximumBlockThreads}}.dump();
+            const auto record=nlohmann::json{{"identity_domain","hbfsim.timing-load-future.v1"},
+                {"original_ptx_sha256",state},{"transform_mode",mode},{"device_future_abi",1},
+                {"device_future_bytes",64},{"lane_metadata_abi",1},{"lane_metadata_bytes",32},
+                {"shared_control_abi",4},{"helper_sha256",helper},
+                {"admission_contract_sha256",hex_identity(sha256(contract))}}.dump();
+            return {.value=hex_identity(sha256(record)),.previously_emitted=false,.mode=mode};
         }
         const auto found = emitted_states_.find(state);
         if (found == emitted_states_.end()) {
             throw std::invalid_argument(
                 "untrusted preexisting HBFSim module identity");
         }
-        return {.value = found->second, .previously_emitted = true};
+        if (found->second.mode!=mode) throw std::invalid_argument("transform_mode_mismatch");
+        return {.value=found->second.value,.previously_emitted=true,.mode=mode};
     }
 
-    void record(const std::string& emitted_ptx, const std::string& identity)
+    void record(const std::string& emitted_ptx, const Identity& identity)
     {
         std::lock_guard lock(mutex_);
         emitted_states_.insert_or_assign(hex_identity(sha256(emitted_ptx)),
@@ -219,7 +232,7 @@ class TrustedModuleRegistry {
 
   private:
     std::mutex mutex_;
-    std::unordered_map<std::string, std::string> emitted_states_;
+    std::unordered_map<std::string, Identity> emitted_states_;
 };
 
 TrustedModuleRegistry& trusted_modules()
@@ -306,6 +319,11 @@ extern "C" int process_input(const char* input, int length, char* output)
         }
         const auto root = nlohmann::json::parse(input);
         const auto& request_json = root.at("input");
+        const auto mode=request_json.value("transform_mode","synchronous");
+        if (mode!="synchronous" && mode!=hbfsim::timing_future::kMode) {
+            (void)copy_output(nlohmann::json{{"error","unsupported_transform_mode"}}.dump(),length,output);
+            return 65;
+        }
         hbfsim::ptx::TransformRequest request{
             .full_ptx = request_json.at("full_ptx").get<std::string>(),
             .to_patch_kernel = request_json.value("to_patch_kernel", ""),
@@ -313,9 +331,15 @@ extern "C" int process_input(const char* input, int length, char* output)
                 request_json.value("global_ebpf_map_info_symbol", "map_info"),
             .ebpf_communication_data_symbol = request_json.value(
                 "ebpf_communication_data_symbol", "constData"),
+            .transform_mode=mode,
         };
         const auto trusted_identity =
-            trusted_modules().identity_for(request.full_ptx);
+            trusted_modules().identity_for(request.full_ptx,mode);
+        if (mode==hbfsim::timing_future::kMode) {
+            (void)copy_output(nlohmann::json{{"error","timing_future_unit_incomplete"},
+                {"transform_identity",trusted_identity.value}}.dump(),length,output);
+            return 65;
+        }
         request.trusted_existing_helper =
             trusted_identity.previously_emitted;
         auto transformed = hbfsim::ptx::transform_ptx(request);
@@ -370,6 +394,7 @@ extern "C" int process_input(const char* input, int length, char* output)
             nlohmann::json{
                 {"output_ptx", transformed.output_ptx},
                 {"modified", transformed.modified},
+                {"transform_identity",identity},
                 {"coverage",
                  {{"rewritten_instructions",
                    transformed.coverage.rewritten_instructions},
@@ -383,7 +408,7 @@ extern "C" int process_input(const char* input, int length, char* output)
                 .dump();
         const auto status = copy_output(response, length, output);
         if (status == 0) {
-            trusted_modules().record(transformed.output_ptx, identity);
+            trusted_modules().record(transformed.output_ptx, trusted_identity);
         }
         return status;
     } catch (const nlohmann::json::exception& error) {
@@ -391,6 +416,7 @@ extern "C" int process_input(const char* input, int length, char* output)
                      error.what());
         return 64;
     } catch (const std::exception& error) {
+        (void)copy_output(nlohmann::json{{"error",error.what()}}.dump(),length,output);
         std::fprintf(stderr, "ptxpass_hbf error: %s\n", error.what());
         return 70;
     }

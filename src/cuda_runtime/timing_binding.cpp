@@ -31,6 +31,36 @@ bool TimingBindingRegistry::add_module(ModuleHandle module,
     return initialized;
 }
 
+bool TimingBindingRegistry::add_future_module(ModuleHandle module,
+    std::uintptr_t cuda_context, int device_ordinal,
+    const timing_future::ModuleRequirements& requirements,
+    FutureControlInitializer initialize, void* state) noexcept
+{
+    if (!module || !cuda_context || device_ordinal<0 || !initialize ||
+        !timing_future::valid_requirements(requirements)) return false;
+    std::scoped_lock lock(mutex_);
+    future_observed_=true;
+    if (quarantined_ || retiring_ || modules_.contains(module)) {
+        // A successful driver load still needs a fail-closed classification
+        // when its control transaction cannot start. Never downgrade it to
+        // the unregistered/native launch fallback.
+        modules_.insert_or_assign(module,ModuleState{.cuda_context=cuda_context,
+            .device_ordinal=device_ordinal,.future=true,.requirements=requirements,
+            .future_initializer=initialize,.future_state=state});
+        return false;
+    }
+    const bool matches=owner_ && cuda_context_==cuda_context && device_ordinal_==device_ordinal;
+    const auto result=initialize(module,matches ? control_alias_ : 0,
+        matches ? generation_ : 0,matches ? capabilities_ : timing_future::Capabilities{},requirements,state);
+    const bool ready=result==FutureInitialization::Ready && matches &&
+        timing_future::supports(capabilities_,requirements);
+    modules_.emplace(module,ModuleState{.cuda_context=cuda_context,.device_ordinal=device_ordinal,
+        .generation=ready ? generation_ : 0,.future=true,.requirements=requirements,
+        .future_initializer=initialize,.future_state=state});
+    if (result==FutureInitialization::Quarantine) quarantined_=true;
+    return result!=FutureInitialization::Quarantine;
+}
+
 void TimingBindingRegistry::erase(ModuleHandle module) noexcept
 {
     std::scoped_lock lock(mutex_);
@@ -95,9 +125,21 @@ bool TimingBindingRegistry::activate(
     ModuleControlInitializer initialize, void* state,
     std::uint64_t& generation_out) noexcept
 {
+    return activate_with_capabilities(owner,control_alias,cuda_context,device_ordinal,
+        {},initialize,state,generation_out);
+}
+
+bool TimingBindingRegistry::activate_with_capabilities(
+    std::uintptr_t owner, std::uintptr_t control_alias,
+    std::uintptr_t cuda_context, int device_ordinal,
+    const timing_future::Capabilities& capabilities,
+    ModuleControlInitializer initialize, void* state,
+    std::uint64_t& generation_out) noexcept
+{
     generation_out = 0;
     if (owner == 0 || control_alias == 0 || cuda_context == 0 ||
-        device_ordinal < 0 || initialize == nullptr) {
+        device_ordinal < 0 || initialize == nullptr ||
+        !timing_future::valid_capabilities(capabilities)) {
         return false;
     }
     std::scoped_lock lock(mutex_);
@@ -109,9 +151,22 @@ bool TimingBindingRegistry::activate(
     }
     const auto candidate = next_generation_;
     next_generation_ = candidate == UINT64_MAX ? 0 : candidate + 1;
+    // Publish retained ownership before a callback can expose the alias.
+    owner_ = owner; control_alias_ = control_alias; cuda_context_ = cuda_context;
+    device_ordinal_ = device_ordinal; generation_ = candidate;
+    capabilities_ = capabilities; generation_out = candidate;
     for (auto& [module, module_state] : modules_) {
         if (module_state.cuda_context != cuda_context ||
             module_state.device_ordinal != device_ordinal) {
+            continue;
+        }
+        if (module_state.future) {
+            if (!module_state.future_initializer) continue; // Rejected before alias publication.
+            const auto result=module_state.future_initializer(module,control_alias,candidate,
+                capabilities,module_state.requirements,module_state.future_state);
+            module_state.generation=result==FutureInitialization::Ready &&
+                timing_future::supports(capabilities,module_state.requirements) ? candidate : 0;
+            if (result==FutureInitialization::Quarantine) quarantined_=true;
             continue;
         }
         if (!initialize(module, control_alias, candidate, state)) {
@@ -126,7 +181,7 @@ bool TimingBindingRegistry::activate(
     device_ordinal_ = device_ordinal;
     generation_ = candidate;
     generation_out = candidate;
-    return true;
+    return !quarantined_;
 }
 
 bool TimingBindingRegistry::can_activate() const noexcept
@@ -165,7 +220,17 @@ bool TimingBindingRegistry::invalidate(std::uintptr_t owner,
     for (auto& [module, module_state] : modules_) {
         if (module_state.cuda_context != cuda_context_ ||
             module_state.device_ordinal != device_ordinal_ ||
-            module_state.generation != generation_) {
+            (!module_state.future && module_state.generation != generation_)) {
+            continue;
+        }
+        // An unavailable/failed future initializer may have generation zero.
+        // Its owned device configuration still needs explicit invalidation.
+        if (module_state.future) {
+            if (!module_state.future_initializer) continue; // No owned alias was published.
+            const auto result=module_state.future_initializer(module,0,0,{},
+                module_state.requirements,module_state.future_state);
+            if (result==FutureInitialization::Quarantine) cleared=false;
+            else module_state.generation=0;
             continue;
         }
         if (!initialize(module, 0, 0, state)) {
@@ -194,6 +259,7 @@ bool TimingBindingRegistry::finish_retire(std::uintptr_t owner,
     cuda_context_ = 0;
     device_ordinal_ = -1;
     generation_ = 0;
+    capabilities_ = {};
     retiring_ = false;
     return true;
 }
@@ -213,7 +279,8 @@ bool TimingBindingRegistry::ready(ModuleHandle module,
     return found != modules_.end() &&
            found->second.cuda_context == cuda_context &&
            found->second.device_ordinal == device_ordinal &&
-           found->second.generation == generation;
+           found->second.generation == generation &&
+           (!found->second.future || timing_future::supports(capabilities_,found->second.requirements));
 }
 
 bool TimingBindingRegistry::ready_for_active(
@@ -230,7 +297,8 @@ bool TimingBindingRegistry::ready_for_active(
     return found != modules_.end() &&
            found->second.cuda_context == cuda_context &&
            found->second.device_ordinal == device_ordinal &&
-           found->second.generation == generation_;
+           found->second.generation == generation_ &&
+           (!found->second.future || timing_future::supports(capabilities_,found->second.requirements));
 }
 
 bool TimingBindingRegistry::owns(std::uintptr_t owner,
@@ -267,6 +335,37 @@ void TimingBindingRegistry::set_next_generation_for_test(
 {
     std::scoped_lock lock(mutex_);
     next_generation_ = generation;
+}
+
+bool TimingBindingRegistry::has_future_modules() const noexcept
+{
+    std::scoped_lock lock(mutex_);
+    for (const auto& [module,state] : modules_) if (state.future) return true;
+    return false;
+}
+
+bool TimingBindingRegistry::future_unit_observed() const noexcept
+{
+    std::scoped_lock lock(mutex_);
+    return future_observed_;
+}
+
+void TimingBindingRegistry::reject_future_module(ModuleHandle module,
+    std::uintptr_t cuda_context,int device_ordinal) noexcept
+{
+    std::scoped_lock lock(mutex_);
+    future_observed_=true;
+    if (!module) return;
+    auto [entry,inserted]=modules_.try_emplace(module,ModuleState{
+        .cuda_context=cuda_context,.device_ordinal=device_ordinal,.future=true});
+    entry->second.future=true;
+}
+
+bool TimingBindingRegistry::future_module(ModuleHandle module) const noexcept
+{
+    std::scoped_lock lock(mutex_);
+    const auto found=modules_.find(module);
+    return found!=modules_.end() && found->second.future;
 }
 
 }  // namespace hbfsim

@@ -168,6 +168,27 @@ ModuleManifest module_manifest_from_json(const std::string& text)
             .kind = parameter_kind(parameter.at("kind").get<std::string>()),
         });
     }
+    manifest.transform_mode=json.value("transform_mode","synchronous");
+    if (json.contains("future_requirements")) {
+        const auto& r=json.at("future_requirements");
+        if (!r.is_object() || r.size()!=10) throw std::invalid_argument("invalid future requirements schema");
+        const auto integer=[&](const char* field,std::uint64_t maximum) {
+            const auto& value=r.at(field);
+            if (!value.is_number_integer() ||
+                (!value.is_number_unsigned() && value.get<std::int64_t>()<0) ||
+                value.get<std::uint64_t>()>maximum)
+                throw std::invalid_argument("invalid future requirement integer");
+            return value.get<std::uint64_t>();
+        };
+        const auto u32=[&](const char* field) { return static_cast<std::uint32_t>(integer(field,UINT32_MAX)); };
+        manifest.future_requirements=timing_future::ModuleRequirements{
+            .abi_version=u32("abi_version"),.struct_bytes=u32("struct_bytes"),
+            .token_bytes=u32("token_bytes"),.metadata_version=u32("metadata_version"),
+            .metadata_bytes=u32("metadata_bytes"),.shared_control_abi=u32("shared_control_abi"),
+            .maximum_thread_futures=u32("maximum_thread_futures"),
+            .maximum_block_threads=u32("maximum_block_threads"),
+            .required_capabilities=integer("required_capabilities",UINT64_MAX),.reserved=integer("reserved",UINT64_MAX)};
+    }
     for (const auto& parameter :
          json.value("unsupported_parameters", nlohmann::json::array())) {
         manifest.unsupported_parameters.push_back({
@@ -183,6 +204,11 @@ ModuleManifest module_manifest_from_json(const std::string& text)
 
 void CoverageGate::add_module(ModuleManifest manifest)
 {
+    const bool future=manifest.transform_mode==timing_future::kMode;
+    if ((!future && manifest.transform_mode!="synchronous") ||
+        future!=manifest.future_requirements.has_value() ||
+        (future && !timing_future::valid_requirements(*manifest.future_requirements)))
+        throw std::invalid_argument("invalid future module contract");
     if (manifest.module_id.empty() || manifest.kernel.empty()) {
         throw std::invalid_argument(
             "coverage module and kernel identity are required");
@@ -198,6 +224,26 @@ void CoverageGate::add_module(ModuleManifest manifest)
     }
     std::unique_lock lock(mutex_);
     const auto key = module_key(manifest.module_id, manifest.kernel);
+    if (const auto old=modules_.find(key); old!=modules_.end() &&
+        (future || old->second.future_requirements)) {
+        const auto& previous=old->second;
+        const bool same_parameters=previous.parameters.size()==manifest.parameters.size() &&
+            std::ranges::equal(previous.parameters,manifest.parameters,[](const auto& a,const auto& b) {
+                return a.index==b.index && a.offset==b.offset && a.width==b.width && a.kind==b.kind;
+            });
+        const bool same_unsupported=previous.unsupported_parameters.size()==manifest.unsupported_parameters.size() &&
+            std::ranges::equal(previous.unsupported_parameters,manifest.unsupported_parameters,[](const auto& a,const auto& b) {
+                return a.index==b.index && a.operation==b.operation;
+            });
+        if (previous.transform_mode!=manifest.transform_mode ||
+            previous.instrumented!=manifest.instrumented || previous.cubin_only!=manifest.cubin_only ||
+            previous.ptx_target!=manifest.ptx_target || !same_parameters || !same_unsupported ||
+            !previous.future_requirements || !manifest.future_requirements ||
+            previous.future_requirements->maximum_thread_futures!=manifest.future_requirements->maximum_thread_futures ||
+            previous.future_requirements->maximum_block_threads!=manifest.future_requirements->maximum_block_threads)
+            throw std::invalid_argument("conflicting immutable future module manifest");
+        return;
+    }
     modules_.insert_or_assign(key, std::move(manifest));
 }
 
@@ -272,6 +318,12 @@ RangePolicy CoverageGate::policy_for(std::uintptr_t address) const
 GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
 {
     std::shared_lock lock(mutex_);
+    // Future contracts must not reach either the native early return or the
+    // synchronous TIMING unmodeled fallback while the unit is incomplete.
+    const auto future=modules_.find(module_key(launch.module_id,launch.kernel));
+    if (future!=modules_.end() && future->second.future_requirements)
+        return {.allowed=false,.module_id=launch.module_id,.kernel=launch.kernel,
+                .reason="timing_future_unit_incomplete"};
     const bool opaque_aggregate = std::ranges::any_of(
         launch.parameters, [](const LaunchParameter& parameter) {
             return parameter.opaque_aggregate;

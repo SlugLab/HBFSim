@@ -153,6 +153,9 @@ def main() -> int:
                 f"{symbol} globally clears ambiguous primary-context state")
     activation = function_body(source, "activate_timing_owner(")
     activation_lock = function_body(source, "activation_transition_lock(")
+    require("activate_timing_owner_with_capabilities" in activation,
+            "legacy activation bypasses the capability/lifecycle boundary")
+    activation = function_body(source, "activate_timing_owner_with_capabilities")
     require("activation_transition_lock" in activation and
             "lifecycle_transition_mutex" in activation_lock,
             "owner activation is not serialized with lifecycle transitions")

@@ -368,6 +368,77 @@ void erase_module_identity(hbfsim::ModuleHandle module, void*) noexcept
     module_identities().erase(module);
 }
 
+bool read_future_requirements(CUmodule module,
+    std::optional<hbfsim::timing_future::ModuleRequirements>& result) noexcept
+{
+    using get_type=CUresult (*)(CUdeviceptr*,std::size_t*,CUmodule,const char*);
+    using copy_type=CUresult (*)(void*,CUdeviceptr,std::size_t);
+    static auto get=reinterpret_cast<get_type>(driver_symbol("cuModuleGetGlobal_v2"));
+    static auto copy=reinterpret_cast<copy_type>(driver_symbol("cuMemcpyDtoH_v2"));
+    if (!get || !copy) return false;
+    CUdeviceptr address=0;std::size_t bytes=0;
+    const auto lookup=get(&address,&bytes,module,"__hbfsim_timing_future_requirements_v1");
+    if (lookup==CUDA_ERROR_NOT_FOUND) return true;
+    if (lookup!=CUDA_SUCCESS) return false; // Inaccessible is not an absent contract.
+    hbfsim::timing_future::ModuleRequirements requirements{};
+    if (bytes!=sizeof(requirements) || copy(&requirements,address,bytes)!=CUDA_SUCCESS ||
+        !hbfsim::timing_future::valid_requirements(requirements)) return false;
+    result=requirements;
+    return true;
+}
+
+hbfsim::FutureInitialization initialize_future_control(hbfsim::ModuleHandle raw_module,
+    std::uintptr_t alias,std::uint64_t generation,
+    const hbfsim::timing_future::Capabilities& capabilities,
+    const hbfsim::timing_future::ModuleRequirements& requirements,void*) noexcept
+{
+    using namespace hbfsim::timing_future;
+    using get_type=CUresult (*)(CUdeviceptr*,std::size_t*,CUmodule,const char*);
+    using put_type=CUresult (*)(CUdeviceptr,const void*,std::size_t);
+    using read_type=CUresult (*)(void*,CUdeviceptr,std::size_t);
+    static auto get=reinterpret_cast<get_type>(driver_symbol("cuModuleGetGlobal_v2"));
+    static auto put=reinterpret_cast<put_type>(driver_symbol("cuMemcpyHtoD_v2"));
+    static auto read=reinterpret_cast<read_type>(driver_symbol("cuMemcpyDtoH_v2"));
+    if (!get || !put || !read) return hbfsim::FutureInitialization::Quarantine;
+    const auto module=reinterpret_cast<CUmodule>(raw_module);
+    CUdeviceptr config_address=0,helper_address=0;std::size_t config_bytes=0,helper_bytes=0;
+    const auto config_found=get(&config_address,&config_bytes,module,"__hbfsim_timing_future_config_v1")==CUDA_SUCCESS;
+    const auto rollback=[&]() {
+        const std::uint32_t disabled=0;
+        bool clear=config_found && config_bytes>=offsetof(ModuleConfig,enabled)+sizeof(disabled) &&
+            put(config_address+offsetof(ModuleConfig,enabled),&disabled,sizeof(disabled))==CUDA_SUCCESS;
+        // Attempt every clear even when the earlier write failed.
+        const bool alias_clear=initialize_module_control(raw_module,0,0,nullptr);
+        ModuleConfig zero{};
+        const bool config_clear=config_found && config_bytes==sizeof(zero) &&
+            put(config_address,&zero,sizeof(zero))==CUDA_SUCCESS;
+        return clear && alias_clear && config_clear;
+    };
+    if (!alias) return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    ModuleRequirements helper{};ModuleConfig previous{};
+    const bool valid=config_found && config_bytes==sizeof(previous) &&
+        read(&previous,config_address,config_bytes)==CUDA_SUCCESS &&
+        previous.abi_version==kAbiVersion && previous.struct_bytes==sizeof(previous) &&
+        previous.enabled==0 && previous.reserved==0 && previous.reserved2==0 &&
+        get(&helper_address,&helper_bytes,module,"__hbfsim_timing_future_helper_abi_v1")==CUDA_SUCCESS &&
+        helper_bytes==sizeof(helper) && read(&helper,helper_address,helper_bytes)==CUDA_SUCCESS &&
+        valid_requirements(helper) && valid_requirements(requirements) &&
+        requirements.maximum_thread_futures<=helper.maximum_thread_futures &&
+        requirements.maximum_block_threads<=helper.maximum_block_threads;
+    if (!valid) return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    ModuleConfig disabled{};
+    disabled.control_alias=alias;disabled.control_generation=generation;
+    disabled.maximum_thread_futures=requirements.maximum_thread_futures;
+    disabled.maximum_block_threads=requirements.maximum_block_threads;
+    if (put(config_address,&disabled,sizeof(disabled))!=CUDA_SUCCESS ||
+        !initialize_module_control(raw_module,alias,generation,nullptr))
+        return rollback() ? hbfsim::FutureInitialization::Unavailable : hbfsim::FutureInitialization::Quarantine;
+    // C5 deliberately has no enabling write. C6 must bind validated trace
+    // storage and complete emission before enablement can be published last.
+    (void)capabilities;
+    return hbfsim::FutureInitialization::Unavailable;
+}
+
 void erase_context_state(std::uintptr_t cuda_context) noexcept
 {
     timing_bindings().erase_context(cuda_context, erase_module_identity,
@@ -397,6 +468,16 @@ bool timing_binding_ready(CUfunction function) noexcept
 hbfsim::GateDecision require_timing_binding(hbfsim::GateDecision decision,
                                             CUfunction function)
 {
+    using get_module_type=CUresult (*)(CUmodule*,CUfunction);
+    static auto get_module=reinterpret_cast<get_module_type>(driver_symbol("cuFuncGetModule"));
+    CUmodule module=nullptr;
+    const bool known=function && get_module && get_module(&module,function)==CUDA_SUCCESS && module;
+    if ((known && timing_bindings().future_module(module_handle(module))) ||
+        (!known && timing_bindings().future_unit_observed())) {
+        decision.allowed=false;
+        decision.reason="timing_future_unit_incomplete";
+        return decision;
+    }
     if (decision.allowed && decision.modeled && decision.address != 0 &&
         !timing_binding_ready(function)) {
         decision.allowed = false;
@@ -412,15 +493,18 @@ struct RetireToken {
     bool invalidated{false};
 };
 
-int activate_timing_owner(std::uintptr_t owner,
+int activate_timing_owner_with_capabilities(std::uintptr_t owner,
                           std::uintptr_t control_alias,
                           std::uintptr_t cuda_context, int device_ordinal,
+                          const hbfsim::timing_future::Capabilities* capabilities,
                           std::uint64_t* generation_out) noexcept
 {
     auto transition = activation_transition_lock();
     if (generation_out == nullptr) {
         return -1;
     }
+    *generation_out=0;
+    if (!capabilities || !hbfsim::timing_future::valid_capabilities(*capabilities)) return -1;
     const auto live_domain = current_cuda_domain();
     if (!live_domain.has_value() || live_domain->context != cuda_context ||
         live_domain->device != device_ordinal) {
@@ -433,16 +517,24 @@ int activate_timing_owner(std::uintptr_t owner,
     }
     auto range_transition = runtime_gate().activation_guard();
     std::uint64_t generation = 0;
-    if (!timing_bindings().activate(owner, control_alias, cuda_context,
-                                    device_ordinal,
+    if (!timing_bindings().activate_with_capabilities(owner, control_alias, cuda_context,
+                                    device_ordinal,*capabilities,
                                     initialize_module_control, nullptr,
                                     generation)) {
-        *generation_out = 0;
+        *generation_out = generation;
         return -1;
     }
     runtime_gate().finish_activation();
     *generation_out = generation;
     return 0;
+}
+
+int activate_timing_owner(std::uintptr_t owner,std::uintptr_t control_alias,
+    std::uintptr_t cuda_context,int device_ordinal,std::uint64_t* generation_out) noexcept
+{
+    const hbfsim::timing_future::Capabilities legacy{};
+    return activate_timing_owner_with_capabilities(owner,control_alias,cuda_context,
+        device_ordinal,&legacy,generation_out);
 }
 
 int register_range(std::uintptr_t owner, std::uint64_t generation,
@@ -589,6 +681,14 @@ const hbfsim::LaunchGateApiV3 launch_gate_api_v3{
     .register_range_with_policy = register_range_with_policy,
 };
 
+const hbfsim::LaunchGateApiV4 launch_gate_api_v4{
+    .abi_version=hbfsim::kLaunchGateAbiVersionV4,.struct_bytes=sizeof(hbfsim::LaunchGateApiV4),
+    .activate=activate_timing_owner,.register_range=register_range,
+    .unregister_range=unregister_range,.begin_retire=begin_retire,
+    .invalidate_retire=invalidate_retire,.finish_retire=finish_retire,
+    .quarantine_retire=quarantine_retire,.register_range_with_policy=register_range_with_policy,
+    .activate_with_capabilities=activate_timing_owner_with_capabilities};
+
 std::string handle_id(CUfunction function)
 {
     function = canonical_function(function);
@@ -717,11 +817,11 @@ hbfsim::GateDecision inspect_function_launch(CUfunction function,
     const auto module_id = handle_id(function);
     const auto kernel = function_name(function);
     if (extra != nullptr) {
-        return runtime_gate().gate().has_ranges()
+        return require_timing_binding(runtime_gate().gate().has_ranges()
                    ? unavailable(module_id, kernel)
                    : hbfsim::GateDecision{.allowed = true,
                                           .module_id = module_id,
-                                          .kernel = kernel};
+                                          .kernel = kernel}, function);
     }
     using get_info_type =
         CUresult (*)(CUfunction, std::size_t, std::size_t*, std::size_t*);
@@ -769,12 +869,12 @@ hbfsim::GateDecision inspect_symbol_launch(const void* symbol, void** arguments)
     if (get_function == nullptr ||
         get_function(&runtime_function, symbol) != cudaSuccess ||
         runtime_function == nullptr) {
-        return runtime_gate().gate().has_ranges()
+        return require_timing_binding(runtime_gate().gate().has_ranges()
                    ? unavailable("cuda-module:unknown",
                                  "unknown_runtime_kernel")
                    : hbfsim::GateDecision{.allowed = true,
                                           .module_id = "cuda-module:unknown",
-                                          .kernel = "unknown_runtime_kernel"};
+                                          .kernel = "unknown_runtime_kernel"}, nullptr);
     }
     return inspect_function_launch(
         reinterpret_cast<CUfunction>(runtime_function), arguments, nullptr);
@@ -894,6 +994,7 @@ extern "C" int hbfsim_test_wait_activation_attempt() noexcept
 extern "C" const void*
 hbfsim_launch_gate_get_api(std::uint32_t requested_version) noexcept
 {
+    if (requested_version==hbfsim::kLaunchGateAbiVersionV4) return &launch_gate_api_v4;
     if (requested_version == hbfsim::kLaunchGateAbiVersion) {
         return &launch_gate_api_v3;
     }
@@ -1016,8 +1117,8 @@ HBFSIM_RUNTIME_EX(cudaLaunchKernelExC_ptsz)
 hbfsim::GateDecision opaque_launch(const char* kind)
 {
     auto& gate = runtime_gate().gate();
-    return hbfsim::uninspectable_launch_decision(
-        gate.has_ranges(), gate.has_strict_ranges(), kind);
+    return require_timing_binding(hbfsim::uninspectable_launch_decision(
+        gate.has_ranges(), gate.has_strict_ranges(), kind), nullptr);
 }
 
 extern "C" CUresult cuLaunch(CUfunction function)
@@ -1211,17 +1312,37 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
     if (result != CUDA_SUCCESS) {
         return result;
     }
-    if (trusted_identity.has_value() && module != nullptr &&
-        *module != nullptr) {
-        if (const auto identity = live_module_identity(*module)) {
-            const auto domain = current_cuda_domain();
-            if (*identity == *trusted_identity && domain.has_value()) {
-                (void)timing_bindings().add_module(
-                    module_handle(*module), domain->context, domain->device,
-                    initialize_module_control, nullptr);
-                (void)module_identities().associate(module_handle(*module),
-                                                    *identity);
+    if (module != nullptr && *module != nullptr) {
+        std::optional<hbfsim::timing_future::ModuleRequirements> future;
+        const bool valid_contract=read_future_requirements(*module,future);
+        const auto domain=current_cuda_domain();
+        const auto identity=trusted_identity ? live_module_identity(*module) : std::nullopt;
+        const bool trusted=trusted_identity && identity && *identity==*trusted_identity && domain;
+        if (!valid_contract || (future && !trusted)) {
+            // Explicit future modules never inherit a native fallback when
+            // their transaction, identity, layout or live domain is missing.
+            timing_bindings().reject_future_module(module_handle(*module),
+                domain ? domain->context : 0,domain ? domain->device : -1);
+            using unload_type=CUresult (*)(CUmodule);
+            auto unload=reinterpret_cast<unload_type>(dlsym(RTLD_NEXT,"cuModuleUnload"));
+            if (unload && unload(*module)==CUDA_SUCCESS) {
+                timing_bindings().erase(module_handle(*module));
+                *module=nullptr;
             }
+            return CUDA_ERROR_NOT_SUPPORTED;
+        }
+        if (trusted) {
+            if (future) {
+                if (!timing_bindings().add_future_module(module_handle(*module),
+                    domain->context,domain->device,*future,initialize_future_control,nullptr)) {
+                    // Retain the owned handle/classification after failed clear.
+                    return CUDA_ERROR_NOT_SUPPORTED;
+                }
+            } else {
+                (void)timing_bindings().add_module(module_handle(*module),
+                    domain->context,domain->device,initialize_module_control,nullptr);
+            }
+            (void)module_identities().associate(module_handle(*module),*identity);
         }
     }
     return result;

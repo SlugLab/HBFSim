@@ -191,6 +191,10 @@ void append_device_helper(std::string& ptx, bool trusted_existing_helper)
 
 TransformResult transform_ptx(const TransformRequest& request)
 {
+    if (request.transform_mode=="timing_load_future_v1")
+        throw std::invalid_argument("timing_future_unit_incomplete");
+    if (request.transform_mode!="synchronous")
+        throw std::invalid_argument("unsupported_transform_mode");
     TransformResult result{.output_ptx = {}, .coverage = {}, .modified = false};
     std::istringstream input(request.full_ptx);
     std::ostringstream output;
@@ -325,6 +329,15 @@ TransformResult transform_ptx(const TransformRequest& request)
                              request.trusted_existing_helper);
     }
     return result;
+}
+
+std::string_view embedded_device_helper()
+{
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+    return kEmbeddedDevicePtx;
+#else
+    return {};
+#endif
 }
 
 }  // namespace hbfsim::ptx

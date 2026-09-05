@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "../../include/hbfsim/timing_future_abi.hpp"
 
 extern "C" {
 
@@ -36,6 +37,10 @@ std::mutex domain_mutex;
 std::unordered_map<std::uintptr_t, int> live_domains{{0xCA00, 3}};
 std::uint64_t control_alias = 0;
 std::uint64_t control_generation = 0;
+int future_contract_mode=0;
+hbfsim::timing_future::ModuleRequirements future_requirements{};
+hbfsim::timing_future::ModuleRequirements future_helper_abi{};
+hbfsim::timing_future::ModuleConfig future_config{};
 std::uintptr_t pointer_context = 0xCA00;
 int pointer_device = 3;
 unsigned int pointer_memory_type = 2;
@@ -552,6 +557,18 @@ int cuModuleGetGlobal_v2(std::uintptr_t* address, std::size_t* size, void*,
         *size = module_identity.size();
         return 0;
     }
+    if (std::strcmp(name,"__hbfsim_timing_future_requirements_v1")==0) {
+        if (!future_contract_mode) return 500; // CUDA_ERROR_NOT_FOUND
+        if (future_contract_mode==6) return 999; // Inaccessible is not absent.
+        *address=reinterpret_cast<std::uintptr_t>(&future_requirements);*size=sizeof(future_requirements);return 0;
+    }
+    if (future_contract_mode && std::strcmp(name,"__hbfsim_timing_future_helper_abi_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(&future_helper_abi);*size=sizeof(future_helper_abi);return 0;
+    }
+    if (future_contract_mode && future_contract_mode!=3 && std::strcmp(name,"__hbfsim_timing_future_config_v1")==0) {
+        *address=reinterpret_cast<std::uintptr_t>(&future_config);
+        *size=future_contract_mode==4 ? 12 : sizeof(future_config);return 0;
+    }
     if (!control_symbols_available) {
         return 1;
     }
@@ -770,7 +787,9 @@ int fakeCudaImplMemcpyHtoD(std::uintptr_t destination, const void* source,
         (control_copy_fail_position != 0 &&
          control_copy_calls == control_copy_fail_position) ||
         destination == 0 || source == nullptr ||
-        size != sizeof(std::uint64_t)) {
+        (size != sizeof(std::uint64_t) &&
+         !(future_contract_mode && destination>=reinterpret_cast<std::uintptr_t>(&future_config) &&
+           destination+size<=reinterpret_cast<std::uintptr_t>(&future_config)+sizeof(future_config)))) {
         return 1;
     }
     std::memcpy(reinterpret_cast<void*>(destination), source, size);
@@ -795,7 +814,10 @@ int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
         }
     }
     if (destination == nullptr || source == 0 ||
-        size != module_identity.size()) {
+        (size != module_identity.size() &&
+         !(future_contract_mode && ((source==reinterpret_cast<std::uintptr_t>(&future_requirements) && size==sizeof(future_requirements)) ||
+           (source==reinterpret_cast<std::uintptr_t>(&future_helper_abi) && size==sizeof(future_helper_abi)) ||
+           (source==reinterpret_cast<std::uintptr_t>(&future_config) && size==sizeof(future_config)))))) {
         return 1;
     }
     std::memcpy(destination, reinterpret_cast<const void*>(source), size);
@@ -821,6 +843,12 @@ int cuLaunchKernelEx_ptsz(const void* config, void* function,
 {
     return cuLaunchKernelEx(config, function, parameters, extra);
 }
+
+int cuLaunch(void*) { ++launch_count; return 0; }
+int cuLaunchGrid(void*,int,int) { ++launch_count; return 0; }
+int cuLaunchGridAsync(void*,int,int,void*) { ++launch_count; return 0; }
+int cuGraphLaunch(void*,void*) { ++launch_count; return 0; }
+int cudaGraphLaunch(void*,void*) { ++launch_count; return 0; }
 
 void fakeCudaSetUnloadFailure(int fail)
 {
@@ -917,6 +945,14 @@ void fakeCudaSetControlCopyFailure(int fail)
     control_copy_fails = fail != 0;
     control_copy_calls = 0;
 }
+
+void fakeCudaSetFutureContract(int mode)
+{
+    future_contract_mode=mode;future_requirements={};future_helper_abi={};future_config={};
+    if(mode==2)future_requirements.token_bytes=80;
+    if(mode==5)future_helper_abi.metadata_version=2;
+}
+std::uint32_t fakeCudaFutureEnabled() { return future_config.enabled; }
 
 void fakeCudaSetControlCopyFailurePosition(int position)
 {

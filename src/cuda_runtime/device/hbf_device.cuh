@@ -2,6 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+#include <hbfsim/timing_future_abi.hpp>
+#endif
 
 namespace hbfsim::device {
 
@@ -557,3 +560,17 @@ empirical_request_service(const SharedControlHeader& header,
 #undef HBFSIM_HOST_DEVICE
 
 }  // namespace hbfsim::device
+
+#if defined(__CUDACC__) && defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+extern "C" __device__ hbfsim::timing_future::DeviceTimingFutureV1
+__hbfsim_timing_future_issue_v1(std::uint64_t, std::uint32_t, std::uint32_t,
+    std::uint32_t, hbfsim::timing_future::TimingFutureLaneMetadataV1*);
+// Poll returns modeled readiness/status only, not native-load completion.
+extern "C" __device__ std::uint32_t __hbfsim_timing_future_poll_v1(
+    hbfsim::timing_future::DeviceTimingFutureV1*,
+    const hbfsim::timing_future::TimingFutureLaneMetadataV1*,std::uint32_t,std::uint32_t);
+extern "C" __device__ hbfsim::timing_future::ConsumeResult __hbfsim_timing_future_wait_v1(
+    hbfsim::timing_future::DeviceTimingFutureV1*,
+    const hbfsim::timing_future::TimingFutureLaneMetadataV1*,std::uint64_t,
+    std::uint32_t,std::uint32_t,std::uint32_t);
+#endif

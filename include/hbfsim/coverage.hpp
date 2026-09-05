@@ -11,6 +11,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <optional>
+#include <hbfsim/timing_future_abi.hpp>
 
 namespace hbfsim {
 
@@ -84,6 +86,8 @@ struct ModuleManifest {
     bool cubin_only{false};
     std::vector<ParameterMetadata> parameters;
     std::vector<UnsupportedParameter> unsupported_parameters;
+    std::string transform_mode{"synchronous"};
+    std::optional<timing_future::ModuleRequirements> future_requirements;
 };
 
 struct ArgumentSlot {

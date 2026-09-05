@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace hbfsim::ptx {
@@ -19,6 +20,7 @@ struct TransformRequest {
     std::string global_ebpf_map_info_symbol{"map_info"};
     std::string ebpf_communication_data_symbol{"constData"};
     bool trusted_existing_helper{false};
+    std::string transform_mode{"synchronous"};
 };
 
 struct TransformResult {
@@ -28,5 +30,6 @@ struct TransformResult {
 };
 
 TransformResult transform_ptx(const TransformRequest& request);
+std::string_view embedded_device_helper();
 
 }  // namespace hbfsim::ptx

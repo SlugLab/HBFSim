@@ -5,6 +5,7 @@ project(HBFSim VERSION 0.1.0 LANGUAGES CXX)
 option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON)
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
 option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF)
+option(HBFSIM_ENABLE_TIMING_FUTURES "Build C5 timing-future infrastructure (admission remains closed)" OFF)
 
 if(HBFSIM_ENABLE_CUDA)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -81,6 +82,9 @@ target_include_directories(
     hbfsimd PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/host_service"
 )
 target_compile_features(hbfsim_core PUBLIC cxx_std_20)
+if(HBFSIM_ENABLE_TIMING_FUTURES)
+    target_compile_definitions(hbfsim_core PUBLIC HBFSIM_ENABLE_TIMING_FUTURES=1)
+endif()
 target_link_libraries(hbfsim_core PUBLIC ${CMAKE_DL_LIBS})
 set_target_properties(hbfsim_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(
@@ -519,6 +523,8 @@ if(CUDAToolkit_FOUND)
                 --relocatable-device-code=true --keep-device-functions
                 "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
                 "-I${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device"
+                "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
+                "-DHBFSIM_ENABLE_TIMING_FUTURES=$<BOOL:${HBFSIM_ENABLE_TIMING_FUTURES}>"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
                 -o "${HBFSIM_DEVICE_PTX}"
             COMMAND
@@ -528,6 +534,7 @@ if(CUDAToolkit_FOUND)
             DEPENDS
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cuh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/include/hbfsim/timing_future_abi.hpp"
                 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedDevicePtx.cmake"
             VERBATIM
         )
@@ -873,6 +880,39 @@ endif()
 
 # Optional offline evaluation tools never link into hbfsim_core or libhbfsim.
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
+if(BUILD_TESTING AND HBFSIM_ENABLE_TIMING_FUTURES)
+    foreach(future_test IN ITEMS abi state binding admission accounting)
+        add_executable(timing_future_${future_test}_test tests/cpu/timing_future_${future_test}_test.cpp)
+        target_link_libraries(timing_future_${future_test}_test PRIVATE hbfsim_core)
+        add_test(NAME timing_future_${future_test} COMMAND timing_future_${future_test}_test)
+    endforeach()
+endif()
+if(BUILD_TESTING AND HBFSIM_ENABLE_CUDA)
+    add_test(NAME timing_future_plugin COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_plugin.py"
+        "$<TARGET_FILE:ptxpass_hbf_plugin>")
+    set_tests_properties(timing_future_plugin PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(HBFSIM_ENABLE_TIMING_FUTURES)
+        add_executable(timing_future_context_test tests/integration/timing_future_context_test.cpp)
+        target_link_libraries(timing_future_context_test PRIVATE hbfsim_core fake_cuda_lookup)
+        target_link_options(timing_future_context_test PRIVATE -Wl,--export-dynamic)
+        foreach(future_context IN ITEMS fast reference hybrid scaled)
+            add_test(NAME timing_future_context_${future_context}
+                COMMAND timing_future_context_test "${future_context}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/nominal.json")
+            set_tests_properties(timing_future_context_${future_context} PROPERTIES
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" TIMEOUT 10)
+        endforeach()
+        add_test(NAME timing_future_loader COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_loader.py"
+            "$<TARGET_FILE:hbfsim_launch_gate>" "$<TARGET_FILE:fake_cuda_lookup>")
+        add_test(NAME timing_future_device_ptx COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_timing_future_device_ptx.py"
+            "${CMAKE_BINARY_DIR}/generated/hbf_device.ptx" "${CUDAToolkit_NVCC_EXECUTABLE}")
+        set_tests_properties(timing_future_loader timing_future_device_ptx PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" TIMEOUT 60)
+    endif()
+endif()
 if(HBFSIM_ENABLE_EVAL_TOOLS)
     if(BUILD_TESTING AND HBFSIM_ENABLE_MQSIM)
         add_executable(mqsim_observation_test tests/integration/mqsim_observation_test.cpp)

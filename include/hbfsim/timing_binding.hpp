@@ -1,6 +1,7 @@
 #pragma once
 
 #include <hbfsim/module_identity.hpp>
+#include <hbfsim/timing_future_abi.hpp>
 
 #include <cstdint>
 #include <map>
@@ -14,6 +15,10 @@ using ModuleControlInitializer = bool (*)(ModuleHandle module,
                                           void* state) noexcept;
 using ModuleEraseCallback = void (*)(ModuleHandle module,
                                      void* state) noexcept;
+enum class FutureInitialization { Ready, Unavailable, Quarantine };
+using FutureControlInitializer = FutureInitialization (*)(ModuleHandle,
+    std::uintptr_t, std::uint64_t, const timing_future::Capabilities&,
+    const timing_future::ModuleRequirements&, void*) noexcept;
 
 class TimingBindingRegistry {
   public:
@@ -22,6 +27,10 @@ class TimingBindingRegistry {
                                   int device_ordinal,
                                   ModuleControlInitializer initialize,
                                   void* state) noexcept;
+    [[nodiscard]] bool add_future_module(ModuleHandle module,
+        std::uintptr_t cuda_context, int device_ordinal,
+        const timing_future::ModuleRequirements& requirements,
+        FutureControlInitializer initialize, void* state) noexcept;
     void erase(ModuleHandle module) noexcept;
     void erase_context(std::uintptr_t cuda_context,
                        ModuleEraseCallback erased, void* state) noexcept;
@@ -37,6 +46,13 @@ class TimingBindingRegistry {
                                 ModuleControlInitializer initialize,
                                 void* state,
                                 std::uint64_t& generation_out) noexcept;
+    // A failed activation can return a nonzero generation: ownership was
+    // published and must be retained/quarantined, never unmapped by the caller.
+    [[nodiscard]] bool activate_with_capabilities(std::uintptr_t owner,
+        std::uintptr_t control_alias, std::uintptr_t cuda_context, int device_ordinal,
+        const timing_future::Capabilities& capabilities,
+        ModuleControlInitializer initialize, void* state,
+        std::uint64_t& generation_out) noexcept;
     [[nodiscard]] bool can_activate() const noexcept;
     [[nodiscard]] bool quiesce(std::uintptr_t owner,
                                std::uint64_t generation) noexcept;
@@ -59,6 +75,11 @@ class TimingBindingRegistry {
                                      int device_ordinal) const noexcept;
     [[nodiscard]] bool active_context(std::uintptr_t cuda_context) const noexcept;
     [[nodiscard]] bool active_device(int device_ordinal) const noexcept;
+    [[nodiscard]] bool future_module(ModuleHandle module) const noexcept;
+    [[nodiscard]] bool has_future_modules() const noexcept;
+    [[nodiscard]] bool future_unit_observed() const noexcept;
+    void reject_future_module(ModuleHandle module, std::uintptr_t cuda_context,
+                              int device_ordinal) noexcept;
     void set_next_generation_for_test(std::uint64_t generation) noexcept;
 
   private:
@@ -66,6 +87,10 @@ class TimingBindingRegistry {
         std::uintptr_t cuda_context{0};
         int device_ordinal{-1};
         std::uint64_t generation{0};
+        bool future{false};
+        timing_future::ModuleRequirements requirements{};
+        FutureControlInitializer future_initializer{nullptr};
+        void* future_state{nullptr};
     };
 
     mutable std::mutex mutex_;
@@ -76,8 +101,12 @@ class TimingBindingRegistry {
     int device_ordinal_{-1};
     std::uint64_t generation_{0};
     std::uint64_t next_generation_{1};
+    timing_future::Capabilities capabilities_{};
     bool retiring_{false};
     bool quarantined_{false};
+    // C5 cannot inspect graph-held module references after unload. Opaque
+    // launches remain disabled for this process once a future is observed.
+    bool future_observed_{false};
 };
 
 }  // namespace hbfsim

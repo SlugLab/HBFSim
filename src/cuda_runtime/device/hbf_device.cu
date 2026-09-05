@@ -608,3 +608,250 @@ extern "C" __device__ void __hbfsim_fault(std::uint32_t)
 {
     asm volatile("trap;");
 }
+
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+extern "C" __device__ __constant__ hbfsim::timing_future::ModuleRequirements
+    __hbfsim_timing_future_helper_abi_v1 = {};
+extern "C" __device__ hbfsim::timing_future::ModuleConfig
+    __hbfsim_timing_future_config_v1 = {};
+extern "C" __device__ hbfsim::timing_future::Counters
+    __hbfsim_timing_future_counters_v1 = {};
+
+namespace {
+namespace future = hbfsim::timing_future;
+
+__device__ SharedControlHeader* future_header()
+{
+    const auto& config=__hbfsim_timing_future_config_v1;
+    if (!future::valid_trace_span(config) ||
+        blockDim.x>config.maximum_block_threads || blockDim.y>config.maximum_block_threads ||
+        blockDim.z>config.maximum_block_threads ||
+        std::uint64_t{blockDim.x}*blockDim.y*blockDim.z>config.maximum_block_threads) return nullptr;
+    const auto alias=system_acquire(&__hbfsim_control);
+    const auto generation=system_acquire(&__hbfsim_control_generation);
+    if (alias!=config.control_alias || generation!=config.control_generation) return nullptr;
+    auto* h=reinterpret_cast<SharedControlHeader*>(alias);
+    if (h->magic!=hbfsim::device::kControlMagic || h->abi_version!=4 ||
+        h->header_bytes!=sizeof(*h) || h->range_capacity!=hbfsim::device::kRangeCapacity ||
+        !hbfsim::device::valid_ring_capacity(h->ring_capacity) || h->page_capacity!=h->ring_capacity ||
+        h->range_offset!=sizeof(*h) ||
+        h->request_offset!=sizeof(*h)+sizeof(SharedRangeRecord)*hbfsim::device::kRangeCapacity ||
+        h->completion_offset!=h->request_offset+sizeof(SharedRequestSlot)*h->ring_capacity ||
+        h->page_offset!=h->completion_offset+sizeof(SharedCompletionSlot)*h->ring_capacity ||
+        h->region_bytes!=h->page_offset+sizeof(hbfsim::device::PageEntry)*h->ring_capacity ||
+        system_acquire(&h->control_generation)!=generation ||
+        system_acquire(&h->range_count)>hbfsim::device::kRangeCapacity ||
+        !future::derive_capabilities(h->timing_model,h->empirical_flags,h->time_scale,
+            h->read_latency_ns,h->program_latency_ns,h->aggregate_bandwidth_bytes_per_s,
+            h->request_timeout_ns).bits) return nullptr;
+    return h;
+}
+
+__device__ std::uint32_t future_liveness(const SharedControlHeader* h,
+    std::uint64_t generation, std::uint64_t now, WaitState* observation=nullptr)
+{
+    if (!h || system_acquire(&h->control_generation)!=generation) return future::kUnsupported;
+    if (system_acquire(&h->shutdown) || system_acquire(&h->fault)) return future::kDaemonLost;
+    const auto heartbeat=system_acquire(&h->heartbeat_ns);
+    if (!heartbeat || !h->heartbeat_timeout_ns) return future::kDaemonLost;
+    if (observation) {
+        if (heartbeat!=observation->heartbeat_value) {
+            observation->heartbeat_value=heartbeat;observation->heartbeat_observed_ns=now;
+        } else if (now-observation->heartbeat_observed_ns>=h->heartbeat_timeout_ns)
+            return future::kDaemonLost;
+    }
+    return 0;
+}
+
+__device__ bool future_trace(const future::DeviceTimingFutureV1& f,
+    const future::TimingFutureLaneMetadataV1& m,std::uint32_t event,std::uint64_t now)
+{
+    const auto config=__hbfsim_timing_future_config_v1;
+    auto& counters=__hbfsim_timing_future_counters_v1;
+    if (!future::valid_trace_span(config) || config.control_alias!=f.control_alias ||
+        config.control_generation!=f.control_generation) return false;
+    auto index=system_acquire(&counters.trace_count);
+    for (;;) {
+        if (index>=config.trace_capacity) {
+            (void)system_fetch_add(&counters.trace_overflow,1);return false;
+        }
+        auto expected=index;
+        if (system_compare_exchange(&counters.trace_count,expected,index+1)) break;
+        index=expected;
+        if (EvalDelayClock{}()>=f.deadline_ns) {
+            (void)system_fetch_add(&counters.trace_overflow,1);return false;
+        }
+    }
+    auto* traces=reinterpret_cast<future::Trace*>(config.trace_address);
+    traces[index]={f.reservation_id,f.original_address,f.issue_ns,f.ready_ns,now,
+        m.instruction_id,m.bytes,lane_id(),m.group_mask,event,f.status};
+    return true;
+}
+
+__device__ void future_account(SharedControlHeader* h,const future::DeviceTimingFutureV1& f,
+    const future::TimingFutureLaneMetadataV1& m,const future::Transition& t)
+{
+    auto& c=__hbfsim_timing_future_counters_v1;
+    const auto delta=future::accounting_delta(t.events,lane_id(),m.group_leader);
+    if (delta.model_ready) {
+        (void)system_fetch_add(&c.model_ready,1);
+        if (delta.groups_completed) {
+            (void)system_fetch_add(&c.groups_completed,1);
+            // The issue-time leader accounts once; there is no wait-time
+            // collective with a mask whose lanes may have diverged.
+            if (h) {
+                const auto* ranges=reinterpret_cast<const SharedRangeRecord*>(
+                    reinterpret_cast<const std::byte*>(h)+h->range_offset);
+                const auto* range=find_range(ranges,system_acquire(&h->range_count),f.original_address);
+                if (range) {
+                    (void)system_fetch_add(&h->fast_requests,1);
+                    (void)system_fetch_add(&h->fast_modeled_ns,hbfsim::device::fast_service_ns(
+                        h->read_latency_ns,static_cast<std::uint32_t>(range->page_bytes),h->aggregate_bandwidth_bytes_per_s));
+                }
+            }
+        }
+    }
+    if (delta.consumed) (void)system_fetch_add(&c.consumed,1);
+    if (delta.drained) (void)system_fetch_add(&c.drained,1);
+    if (delta.terminal_error) (void)system_fetch_add(&c.terminal_error,1);
+    if (delta.terminal)
+        system_fetch_sub_release(&c.pending,1);
+}
+
+__device__ std::uint32_t future_transition(future::DeviceTimingFutureV1& f,
+    const future::TimingFutureLaneMetadataV1& m,std::uint32_t instruction,std::uint32_t bytes,
+    SharedControlHeader* h,std::uint64_t now,std::uint32_t liveness,
+    bool consume=false,future::WaitKind kind=future::WaitKind::Dependency)
+{
+    const auto alias=h ? reinterpret_cast<std::uint64_t>(h) : 0;
+    const auto generation=h ? system_acquire(&h->control_generation) : 0;
+    auto candidate=f;
+    const auto tentative=consume ? future::consume_state(candidate,m,lane_id(),instruction,bytes,alias,generation,now,liveness,kind)
+        : future::poll_state(candidate,m,lane_id(),instruction,bytes,alias,generation,now,liveness);
+    const bool traced=!tentative.events || future_trace(candidate,m,tentative.events,now);
+    const auto t=future::commit_transition(f,candidate,tentative,traced);
+    future_account(h,f,m,t);
+    return t.status;
+}
+
+template<class T> __device__ bool future_local(const T* pointer)
+{
+    return pointer && reinterpret_cast<std::uintptr_t>(pointer)%alignof(T)==0 && __isLocal(pointer);
+}
+} // namespace
+
+extern "C" __device__ __noinline__ hbfsim::timing_future::DeviceTimingFutureV1
+__hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
+    std::uint32_t instruction,std::uint32_t old_state,
+    hbfsim::timing_future::TimingFutureLaneMetadataV1* metadata)
+{
+    namespace tf=hbfsim::timing_future;
+    auto& counters=__hbfsim_timing_future_counters_v1;
+    tf::DeviceTimingFutureV1 f{};f.original_address=address;
+    const auto reject=[&](std::uint32_t status) {
+        (void)system_fetch_add(&counters.rejected,1);f.state=tf::State::TerminalError;f.status=status;return f;
+    };
+    if (!future_local(metadata) || !tf::can_issue(static_cast<tf::State>(old_state)) ||
+        !tf::valid_bytes(bytes) || instruction==UINT32_MAX || !address || address>UINT64_MAX-bytes)
+        return reject(tf::kUnsupported);
+    *metadata={1,32,instruction,bytes,0,32,0};
+    auto* h=future_header();if(!h)return reject(tf::kUnsupported);
+    f.control_alias=reinterpret_cast<std::uint64_t>(h);f.control_generation=system_acquire(&h->control_generation);
+    const auto* ranges=reinterpret_cast<const SharedRangeRecord*>(reinterpret_cast<const std::byte*>(h)+h->range_offset);
+    const auto* range=find_range(ranges,system_acquire(&h->range_count),address);
+    const auto arrival=EvalDelayClock{}();f.issue_ns=arrival;f.ready_ns=arrival;
+    if (arrival>UINT64_MAX-h->request_timeout_ns) return reject(tf::kUnsupported);
+    f.deadline_ns=arrival+h->request_timeout_ns;
+    if (const auto live=future_liveness(h,f.control_generation,arrival)) return reject(live);
+    if (!range || address<range->base || address-range->base>=range->length) {
+        f.state=tf::State::Native;f.status=tf::kReady;
+        (void)system_fetch_add(&counters.native_loads,1);
+        (void)system_fetch_add(&counters.native_bytes,bytes);return f;
+    }
+    const auto media=hbfsim::device::media_descriptor(*range,address,bytes,0);
+    if (range->mode!=1 || !media.valid) return reject(tf::kUnsupported);
+    const auto page=media.logical_address/media.bytes;
+    const auto active=__activemask();
+    const auto same_range=__match_any_sync(active,range->range_id);
+    const auto low=__match_any_sync(active,static_cast<std::uint32_t>(page));
+    const auto high=__match_any_sync(active,static_cast<std::uint32_t>(page>>32));
+    const auto group=same_range & low & high;
+    const auto leader=__ffs(static_cast<int>(group))-1;
+    std::uint64_t ready=0,deadline=0,reservation=0,group_arrival=0;
+    std::uint32_t status=tf::kPending;
+    if (static_cast<int>(lane_id())==leader) {
+        group_arrival=arrival;deadline=f.deadline_ns;
+        WaitState watch{deadline,system_acquire(&h->heartbeat_ns),arrival};
+        auto id=system_acquire(&counters.next_reservation);
+        for (;;) {
+            if (!id || id==UINT64_MAX) { status=tf::kUnsupported;break; }
+            const auto now=EvalDelayClock{}();
+            if ((status=future_liveness(h,f.control_generation,now,&watch))!=0) break;
+            if(now>=deadline) {status=tf::kTimeout;break;}
+            auto expected=id;
+            if(system_compare_exchange(&counters.next_reservation,expected,id+1)) {reservation=id;break;}
+            id=expected;
+        }
+        auto tail=system_acquire(&h->fast_channel_tail_ns);
+        const auto transfer=hbfsim::device::fast_transfer_ns(media.bytes,h->aggregate_bandwidth_bytes_per_s);
+        while (status==tf::kPending) {
+            const auto now=EvalDelayClock{}();
+            if ((status=future_liveness(h,f.control_generation,now,&watch))!=0) break;
+            if (now>=deadline) {status=tf::kTimeout;break;}
+            const auto r=tf::scalar_reservation(arrival,tail,h->read_latency_ns,transfer,h->request_timeout_ns);
+            if(!r.valid) {status=tf::kUnsupported;break;}
+            auto expected=tail;
+            if(system_compare_exchange(&h->fast_channel_tail_ns,expected,r.transfer_end_ns)) {
+                ready=r.ready_ns;
+                (void)system_fetch_add(&h->fast_request_sequence,1);
+                (void)system_fetch_add(&counters.groups_issued,1);break;
+            }
+            tail=expected;
+        }
+    }
+    status=__shfl_sync(group,status,leader);
+    if(status!=tf::kPending)return reject(status);
+    f.issue_ns=__shfl_sync(group,group_arrival,leader);
+    f.ready_ns=__shfl_sync(group,ready,leader);f.deadline_ns=__shfl_sync(group,deadline,leader);
+    f.reservation_id=__shfl_sync(group,reservation,leader);f.state=tf::State::Issued;f.status=tf::kPending;
+    *metadata={1,32,instruction,bytes,group,static_cast<std::uint32_t>(leader),f.reservation_id};
+    (void)system_fetch_add(&counters.issued,1);(void)system_fetch_add(&counters.pending,1);
+    if(!future_trace(f,*metadata,0,EvalDelayClock{}())) {
+        const auto error=tf::fail_state(f,tf::kUnsupported);future_account(h,f,*metadata,error);
+    }
+    return f;
+}
+
+extern "C" __device__ __noinline__ std::uint32_t __hbfsim_timing_future_poll_v1(
+    hbfsim::timing_future::DeviceTimingFutureV1* f,
+    const hbfsim::timing_future::TimingFutureLaneMetadataV1* metadata,
+    std::uint32_t instruction,std::uint32_t bytes)
+{
+    if (!future_local(f) || !future_local(metadata)) return hbfsim::timing_future::kUnsupported;
+    auto* h=future_header();const auto now=EvalDelayClock{}();
+    return future_transition(*f,*metadata,instruction,bytes,h,now,future_liveness(h,f->control_generation,now));
+}
+
+extern "C" __device__ __noinline__ hbfsim::timing_future::ConsumeResult
+__hbfsim_timing_future_wait_v1(hbfsim::timing_future::DeviceTimingFutureV1* f,
+    const hbfsim::timing_future::TimingFutureLaneMetadataV1* metadata,std::uint64_t native_bits,
+    std::uint32_t instruction,std::uint32_t bytes,std::uint32_t wait_kind)
+{
+    namespace tf=hbfsim::timing_future;
+    if (!future_local(f) || !future_local(metadata)) return {};
+    const auto enter=EvalDelayClock{}();
+    auto* h=future_header();
+    WaitState watch{f->deadline_ns,h ? system_acquire(&h->heartbeat_ns) : 0,enter};
+    for (;;) {
+        h=future_header();const auto now=EvalDelayClock{}();
+        const auto status=future_transition(*f,*metadata,instruction,bytes,h,now,
+            future_liveness(h,f->control_generation,now,&watch),true,static_cast<tf::WaitKind>(wait_kind));
+        if (status==tf::kPending) continue;
+        if (status!=tf::kReady) return {0,status,f->state};
+        // The value is an actual call input and output. C6 must verify the
+        // optimized native-load -> wait-result -> consumer SASS dependency.
+        asm volatile("mov.b64 %0, %0;" : "+l"(native_bits) : : "memory");
+        return {native_bits,status,f->state};
+    }
+}
+#endif

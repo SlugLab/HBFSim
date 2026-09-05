@@ -11,8 +11,19 @@ rows=[]
 
 def add(eq,group,gate,repeats,gpu_s,cpu_s,**d):
     cell=f'{group}-{len(rows)+1:05d}'
+    resource_class = {
+        'gpu_delay':'GPU_EXCLUSIVE', 'async_overlap':'GPU_EXCLUSIVE',
+        'async_correctness':'GPU_EXCLUSIVE', 'live_confirmation':'GPU_EXCLUSIVE',
+        'mode_cost':'GPU_EXCLUSIVE', 'three_arm':'GPU_STORAGE_EXCLUSIVE',
+        'routing_capture':'GPU_SHARED_SAFE', 'feasibility':'CPU_ONLY',
+        'workload_boundary':'CPU_ONLY', 'robustness':'CPU_ONLY',
+    }.get(group)
+    if group == 'flash_fidelity':
+        resource_class = 'STORAGE_EXCLUSIVE' if d['backend'] == 'physical' else 'CPU_ONLY'
+    if resource_class is None:
+        raise ValueError('Resource class must be explicitly assigned: ' + group)
     rows.append(dict(cell_id=cell,eq=eq,group=group,branch='eval_base',git_sha=SHA,
-        implementation_status='PLANNED',blocking_gate=gate,repeats=repeats,
+        implementation_status='PLANNED',blocking_gate=gate,repeats=repeats,resource_class=resource_class,
         gpu_seconds_per_repeat_estimate=gpu_s,cpu_core_seconds_per_repeat_estimate=cpu_s,
         estimated_gpu_hours=repeats*gpu_s/3600,estimated_cpu_core_hours=repeats*cpu_s/3600,
         cost_provenance='PROJECTED_PLANNING_ESTIMATE',**dict({'minimum_configuration':'no'},**d)))

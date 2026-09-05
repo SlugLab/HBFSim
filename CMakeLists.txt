@@ -888,11 +888,12 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
     # ABI into the production transformer or runtime.
     add_library(hbfsim_eval_ptx STATIC
         src/ptxpass_hbf/ptx_ir.cpp
-        src/ptxpass_hbf/ptx_async_op.cpp)
+        src/ptxpass_hbf/ptx_async_op.cpp
+        src/ptxpass_hbf/ptx_analysis.cpp)
     target_include_directories(hbfsim_eval_ptx PUBLIC src/ptxpass_hbf)
     target_compile_features(hbfsim_eval_ptx PUBLIC cxx_std_20)
     if(BUILD_TESTING)
-        foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold)
+        foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold ptx_future_gold)
             add_executable(${eval_ptx_test}_test
                 tests/cpu/${eval_ptx_test}_test.cpp)
             target_link_libraries(${eval_ptx_test}_test PRIVATE hbfsim_eval_ptx)

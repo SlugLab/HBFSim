@@ -14,6 +14,7 @@ struct Case {
     const char* body;
     std::set<std::string> required_consumers;
     bool must_reject{false};
+    std::set<std::string> required_drains;
 };
 
 const std::vector<Case> kCases{
@@ -48,6 +49,26 @@ const std::vector<Case> kCases{
     {"predicated_exit_is_outside_gold_subset",
      "ld.global.u32 %r1, [%rd1];\n@%p1 ret;\n"
      "add.u32 %r2, %r1, 1;\nret;\n", {}, true},
+    {"call_is_outside_gold_subset",
+     "ld.global.u32 %r1, [%rd1];\ncall foo;\nret;\n", {}, true},
+    {"unknown_def_use_is_rejected",
+     "ld.global.u32 %r1, [%rd1];\nfma.rn.f32 %r2, %r1, %r3, %r4;\nret;\n", {}, true},
+    {"atomic_is_not_an_ordinary_future",
+     "atom.global.add.u32 %r1, [%rd1], 1;\nret;\n", {}, true},
+    {"async_is_not_an_ordinary_future",
+     "cp.async.ca.shared.global [%r1], [%rd1], 4;\nret;\n", {}, true},
+    {"unconditional_overwrite_drains_before_clobber",
+     "ld.global.u32 %r1, [%rd1];\nmov.u32 %r1, 7;\n"
+     "add.u32 %r2, %r1, 1;\nret;\n", {}, false, {"mov.u32"}},
+    {"conditional_overwrite_retains_may_pending",
+     "ld.global.u32 %r1, [%rd1];\n@%p1 mov.u32 %r1, 7;\n"
+     "add.u32 %r2, %r1, 1;\nret;\n", {"add.u32"}, false, {"mov.u32"}},
+    {"possibly_aliasing_store_drains_load",
+     "ld.global.u32 %r1, [%rd1];\nst.global.u32 [%rd1], 7;\n"
+     "add.u32 %r2, %r1, 1;\nret;\n", {}, false, {"st.global.u32"}},
+    {"predicated_store_preserves_pending_lanes",
+     "ld.global.u32 %r1, [%rd1];\n@%p1 st.global.u32 [%rd2], 7;\n"
+     "add.u32 %r2, %r1, 1;\nret;\n", {"add.u32"}, false, {"st.global.u32"}},
 };
 
 void check(const Case& test)
@@ -88,6 +109,16 @@ void check(const Case& test)
     if (actual != test.required_consumers) {
         throw std::runtime_error(
             "may-consume erased a future before all necessary waits");
+    }
+    for (const auto& opcode : test.required_drains) {
+        bool found = false;
+        for (const auto& instruction : function.instructions) {
+            const auto drains = plan.drain_points.find(producer);
+            found = found || (instruction.opcode == opcode &&
+                drains != plan.drain_points.end() &&
+                drains->second.contains(instruction.instruction_id));
+        }
+        if (!found) throw std::runtime_error("overwrite missing pre-clobber drain");
     }
 }
 

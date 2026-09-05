@@ -63,3 +63,12 @@ Comment-safe/multiline classifier regressions, predicate guarding, return layout
 ## Related docs
 
 [Memory semantics](03-cuda-memory-semantics.md), [async/TMA](04-cuda-async-cpasync-tma.md), [ABI](05-device-helper-and-control-abi.md), [source ledger B01–B02](../49-eval-audit/source-ledger.md), and [historical exact-load lifecycle](../superpowers/plans/2026-08-10-task6-exact-load-lifecycle.md).
+
+Phase-two C4 adds optional [ordinary-load future analysis](../../src/ptxpass_hbf/ptx_analysis.cpp).
+`analyze_futures` admits a declared straight-line scalar subset and rejects
+branches, calls, predicated exits, unknown def/use families, atomics and async
+copies. Conditional consumption/drains retain may-pending state; unconditional
+consumption clears it. Register overwrite adds a pre-clobber drain. The future
+emitter must still track an issue-valid token, because predicates may change
+before consumption; analysis alone does not authorize any runtime launch.
+Only thread/warp bounds are computed; CTA/cluster geometry is not guessed.

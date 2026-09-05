@@ -230,7 +230,8 @@ def owned_launcher(fd,argv):
     os.execvpe(argv[0],argv,os.environ)
 
 
-def run_child(argv,env,attempt,phase,guard,status_callback,signals,timeout,poll_seconds):
+def run_child(argv,env,attempt,phase,guard,status_callback,signals,timeout,poll_seconds,*,bootstrap_no_site=False):
+    if type(bootstrap_no_site) is not bool:raise ValueError('bootstrap_no_site must be a boolean')
     if signals['signal']:raise InterruptedRun('signal received before launch')
     guard.check('before-'+phase)
     process=None;identity=None;reader=None;writer=None
@@ -238,7 +239,10 @@ def run_child(argv,env,attempt,phase,guard,status_callback,signals,timeout,poll_
     with (attempt/(prefix+'stdout.log')).open('w') as stdout,(attempt/(prefix+'stderr.log')).open('w') as stderr:
         try:
             reader,writer=os.pipe()
-            launch=[sys.executable,str(pathlib.Path(__file__).resolve()),'--_owned-launch',str(reader),json.dumps(argv)]
+            # The HF caller separately prepares its environment and target
+            # interpreter; this option only suppresses bootstrap site hooks.
+            launch=[sys.executable,*(['-S','-B'] if bootstrap_no_site else []),
+                str(pathlib.Path(__file__).resolve()),'--_owned-launch',str(reader),json.dumps(argv)]
             process=subprocess.Popen(launch,cwd=attempt,env=env,stdout=stdout,stderr=stderr,start_new_session=True,pass_fds=(reader,))
             os.close(reader);reader=None
             # Keep the unreaped leader as an exact identity anchor, even if it

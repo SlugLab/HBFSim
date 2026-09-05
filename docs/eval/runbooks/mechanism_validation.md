@@ -5,7 +5,7 @@ Build as in [environment setup](environment_setup.md), then run:
 ```bash
 ctest --test-dir ../eval-artifacts/build-tools   -R 'ptx|coverage|capacity|mqsim|prefetch|trace' --output-on-failure
 PYTHONPATH=adapters/vllm_capacity python3 -m unittest discover   -s adapters/vllm_capacity/tests -p 'test_*.py'
-python3 -m unittest discover -s adapters/vllm/tests -p 'test_*.py'
+python3 -m pytest -q adapters/vllm/tests
 python3 scripts/run_prefetch_accuracy_sweep.py   --build-dir ../eval-artifacts/build-tools --seed 7   --output ../eval-artifacts/prefetch.json --csv ../eval-artifacts/prefetch.csv
 ```
 

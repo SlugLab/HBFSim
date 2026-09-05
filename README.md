@@ -1,5 +1,7 @@
 # HBFSim
 
+On `eval_base`, start with the [Evaluation integration and reproduction index](docs/eval/README.md). The proof results below remain tied to their original source snapshots; current validation and deferred features are recorded in the integration manifest.
+
 HBFSim is a live workload emulator for studying a simple systems question:
 
 > What would GPU applications look like if they could directly access a large,
@@ -310,7 +312,7 @@ helper PTX into each instrumented module. Compiling and assembling another
 target is not proof that the live host/GPU control protocol is portable to that
 platform: CUDA does not guarantee that GPU atomics to mapped page-locked host
 memory are atomic from the host's point of view. See
-[`docs/cuda-architecture-compatibility.md`](docs/cuda-architecture-compatibility.md)
+[`docs/cuda-architecture-compatibility.md`](docs/重要实现问题以及需补做实验/cuda-problems-from-new-collaborator/cuda-architecture-compatibility.md)
 for the feature audit, support levels, and validation requirements.
 
 CUDA Toolkit can be kept in a user directory without installing a Linux driver

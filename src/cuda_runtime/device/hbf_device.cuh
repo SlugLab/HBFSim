@@ -557,11 +557,32 @@ empirical_request_service(const SharedControlHeader& header,
             .valid = true};
 }
 
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+#define HBFSIM_FUTURE_STORE_SPAN_GUARD 1
+// C6.1 output stores stay native only if their complete finite span is
+// disjoint from every frozen HBF interval. Never classify by base alone.
+HBFSIM_HOST_DEVICE inline bool timing_future_native_store_span(
+    const SharedRangeRecord* ranges, std::uint32_t count,
+    std::uint64_t address, std::uint32_t bytes)
+{
+    if (!timing_future::valid_bytes(bytes) || !address || address>UINT64_MAX-bytes ||
+        count>kRangeCapacity || (count && !ranges)) return false;
+    for (std::uint32_t i=0;i<count;++i) {
+        const auto& r=ranges[i];
+        if (!r.base || !r.length || r.base>UINT64_MAX-r.length ||
+            (address<r.base+r.length && r.base<address+bytes)) return false;
+    }
+    return true;
+}
+#endif
+
 #undef HBFSIM_HOST_DEVICE
 
 }  // namespace hbfsim::device
 
 #if defined(__CUDACC__) && defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+extern "C" __device__ std::uint32_t
+__hbfsim_timing_future_native_store_guard_v1(std::uint64_t, std::uint32_t);
 extern "C" __device__ hbfsim::timing_future::DeviceTimingFutureV1
 __hbfsim_timing_future_issue_v1(std::uint64_t, std::uint32_t, std::uint32_t,
     std::uint32_t, hbfsim::timing_future::TimingFutureLaneMetadataV1*);

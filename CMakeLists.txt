@@ -945,7 +945,7 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
     target_include_directories(hbfsim_eval_ptx PUBLIC src/ptxpass_hbf)
     target_compile_features(hbfsim_eval_ptx PUBLIC cxx_std_20)
     if(BUILD_TESTING)
-        foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold ptx_future_gold)
+        foreach(eval_ptx_test IN ITEMS ptx_ir ptx_async_op ptx_ir_gold ptx_future_gold ptx_span ptx_setup)
             add_executable(${eval_ptx_test}_test
                 tests/cpu/${eval_ptx_test}_test.cpp)
             target_link_libraries(${eval_ptx_test}_test PRIVATE hbfsim_eval_ptx)
@@ -953,6 +953,29 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
             set_tests_properties(eval_${eval_ptx_test} PROPERTIES
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
         endforeach()
+        if(HBFSIM_ENABLE_TIMING_FUTURES)
+            # Private C6.1 emitter proof only. No link to the public transform.
+            add_library(hbfsim_future_emitter STATIC src/ptxpass_hbf/future_transform.cpp)
+            target_link_libraries(hbfsim_future_emitter PUBLIC hbfsim_eval_ptx)
+            add_executable(ptx_future_emit_driver tests/cpu/ptx_future_emit_driver.cpp)
+            target_link_libraries(ptx_future_emit_driver PRIVATE hbfsim_future_emitter)
+            add_test(NAME timing_future_emitter_cpu COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_future_emitter.py"
+                "$<TARGET_FILE:ptx_future_emit_driver>")
+            add_executable(timing_future_store_guard_test tests/cpu/timing_future_store_guard_test.cpp)
+            target_include_directories(timing_future_store_guard_test PRIVATE include src/cuda_runtime/device)
+            target_compile_definitions(timing_future_store_guard_test PRIVATE HBFSIM_ENABLE_TIMING_FUTURES=1)
+            target_compile_features(timing_future_store_guard_test PRIVATE cxx_std_20)
+            add_test(NAME timing_future_store_guard COMMAND timing_future_store_guard_test)
+            if(HBFSIM_ENABLE_CUDA)
+                add_test(NAME timing_future_emitter_ptx COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_future_emitter_ptx.py"
+                    "$<TARGET_FILE:ptx_future_emit_driver>"
+                    "${CMAKE_BINARY_DIR}/generated/hbf_device.ptx" "${CUDAToolkit_NVCC_EXECUTABLE}")
+                set_tests_properties(timing_future_emitter_ptx PROPERTIES TIMEOUT 60)
+            endif()
+            set_tests_properties(timing_future_emitter_cpu timing_future_store_guard PROPERTIES TIMEOUT 30)
+        endif()
     endif()
     add_library(hbfsim_prefetch_model STATIC src/prefetch/prefetch_model.cpp)
     target_include_directories(hbfsim_prefetch_model PUBLIC include)

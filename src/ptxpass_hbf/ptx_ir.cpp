@@ -60,7 +60,7 @@ std::vector<std::string> split_top_level(std::string_view input)
 
 std::vector<std::string> registers(std::string_view input)
 {
-    static const std::regex expression(R"(%[A-Za-z][A-Za-z0-9_$]*)");
+    static const std::regex expression(R"(%[A-Za-z][A-Za-z0-9_$]*(?:\.[A-Za-z][A-Za-z0-9_$]*)?)");
     const std::string text(input);
     std::vector<std::string> result;
     std::set<std::string> found;
@@ -306,6 +306,11 @@ Instruction parse_instruction(std::string text, SourceLocation location,
     } else if (!result.operands.empty() &&
                (result.opcode.starts_with("mov.") ||
                 result.opcode.starts_with("cvt.") ||
+                result.opcode.starts_with("cvta.") ||
+                result.opcode.starts_with("ld.param.") ||
+                result.opcode.starts_with("mad.") ||
+                result.opcode.starts_with("shl.") ||
+                result.opcode.starts_with("shr.") ||
                 result.opcode.starts_with("setp.") ||
                 result.opcode.starts_with("add.") ||
                 result.opcode.starts_with("sub.") ||
@@ -521,6 +526,191 @@ Module parse_module(std::string_view ptx)
         throw ParseError("unterminated PTX function or instruction");
     }
     return module;
+}
+
+namespace {
+// Preserve one byte for every input byte. Offsets refer to the original PTX,
+// including comments and newlines, rather than a normalized reconstruction.
+std::string span_mask(std::string_view source, std::vector<SourceSpan>& strings)
+{
+    std::string code(source);
+    enum class Lex { Code, Line, Block, String } state = Lex::Code;
+    bool escaped = false;
+    for (std::size_t i=0;i<source.size();++i) {
+        const char c=source[i], next=i+1<source.size()?source[i+1]:'\0';
+        if (state==Lex::Line) {
+            if (c=='\n') state=Lex::Code; else code[i]=' ';
+        } else if (state==Lex::Block) {
+            if(c=='*' && next=='/') {code[i]=code[i+1]=' ';++i;state=Lex::Code;}
+            else if(c!='\n') code[i]=' ';
+        } else if(state==Lex::String) {
+            if(c!='\n') code[i]=' ';
+            if(c=='"' && !escaped) {strings.back().end=i+1;state=Lex::Code;}
+            escaped=c=='\\' && !escaped;
+        } else if(c=='/' && (next=='/' || next=='*')) {
+            state=next=='/'?Lex::Line:Lex::Block;code[i]=code[i+1]=' ';++i;
+        } else if(c=='"') {
+            strings.push_back({i,0});state=Lex::String;escaped=false;code[i]=' ';
+        }
+    }
+    if(state==Lex::Block || state==Lex::String) throw ParseError("unterminated PTX comment/string");
+    return code;
+}
+
+void add_registers(Function& function, const std::string& declaration)
+{
+    static const std::regex decl(R"(^\.reg\s+\.(pred|[busf](?:16|32|64))\s+(.+);$)");
+    static const std::regex reg(R"(^(%[A-Za-z][A-Za-z0-9_$]*)(?:<([0-9]+)>)?$)");
+    std::smatch type;
+    if(!std::regex_match(declaration,type,decl)) throw ParseError("unsupported register declaration");
+    for(const auto& item:split_top_level(type[2].str())) {
+        std::smatch name;
+        if(!std::regex_match(item,name,reg)) throw ParseError("unsupported register name");
+        const auto count=name[2].matched?std::stoull(name[2].str()):1;
+        if(count==0 || count>65536) throw ParseError("register declaration bound");
+        for(std::size_t i=0;i<count;++i) {
+            const auto key=name[1].str()+(name[2].matched?std::to_string(i):"");
+            if(!function.register_types.emplace(key,type[1].str()).second)
+                throw ParseError("duplicate register declaration");
+        }
+    }
+}
+} // namespace
+
+Module parse_module_spanned(std::string_view source, std::string_view selected_entry)
+{
+    std::vector<SourceSpan> strings;
+    const auto code=span_mask(source,strings);
+    Module result;
+    // Header positions come from comment/string-masked code, with the same
+    // byte offsets as the original. A comment mentioning a directive cannot
+    // choose the insertion point, and only the supported 64-bit form binds it.
+    static const std::regex address_directive(R"(^[ \t]*\.address_size\b[^\n]*(?:\n|$))",
+        std::regex::ECMAScript | std::regex::multiline);
+    static const std::regex address_form(R"(^\s*\.address_size[ \t]+(64)[ \t\r]*\n?$)");
+    for(std::sregex_iterator it(code.begin(),code.end(),address_directive),end;it!=end;++it) {
+        const auto line=it->str();
+        std::smatch header;
+        if(result.address_size_directive.end || !std::regex_match(line,header,address_form))
+            throw ParseError("missing or conflicting 64-bit PTX address-size header");
+        // End at the validated numeric token, not its physical newline: a
+        // trailing multiline block comment may contain that newline. The
+        // emitter inserts newline-prefixed declarations at this code boundary
+        // and retains all original trailing whitespace/comments after them.
+        result.address_size_directive={static_cast<std::size_t>(it->position()),
+            static_cast<std::size_t>(it->position()+header.position(1)+header.length(1))};
+    }
+    if(!result.address_size_directive.end)throw ParseError("missing 64-bit PTX address-size header");
+    static const std::regex directive(R"(\.(entry|func)\b)");
+    static const std::regex name_expression(R"(^\s*([A-Za-z_$][A-Za-z0-9_$.]*)\s*\()");
+    static const std::regex parameter(R"(^\.param\s+\.([busf](?:8|16|32|64))\s+(?:\.ptr\s+(?:\.(?:global|const|local|shared)\s+)?(?:\.align\s+[0-9]+\s+)?)?([A-Za-z_$][A-Za-z0-9_$.]*)$)");
+    std::size_t cursor=0;
+    std::uint32_t next_id=1;
+    while(cursor<code.size()) {
+        std::smatch match;
+        const auto tail=code.substr(cursor);
+        if(!std::regex_search(tail,match,directive)) break;
+        if(result.address_size_directive.end>cursor+match.position())
+            throw ParseError("PTX address-size header must precede functions");
+        const bool entry=match[1].str()=="entry";
+        std::size_t pos=cursor+match.position()+match.length();
+        while(pos<code.size() && std::isspace(static_cast<unsigned char>(code[pos]))) ++pos;
+        // Unrelated return-valued functions and prototypes are preserved.
+        if(pos<code.size() && code[pos]=='(') {
+            int depth=1;++pos;
+            while(pos<code.size() && depth) {if(code[pos]=='(')++depth;if(code[pos]==')')--depth;++pos;}
+            if(depth || entry) throw ParseError("invalid PTX return parameter header");
+        }
+        const auto header=code.substr(pos);
+        if(!std::regex_search(header,match,name_expression)) throw ParseError("unsupported PTX function header");
+        const auto name=match[1].str();
+        pos+=match.length();
+        const auto params_begin=pos;
+        int depth=1;
+        while(pos<code.size() && depth) {if(code[pos]=='(')++depth;if(code[pos]==')')--depth;if(depth)++pos;}
+        if(depth) throw ParseError("unterminated PTX parameters");
+        const auto params=code.substr(params_begin,pos-params_begin);
+        ++pos;
+        const auto boundary=code.find_first_of("{;",pos);
+        if(boundary==std::string::npos) throw ParseError("missing PTX function body");
+        if(code[boundary]==';') {cursor=boundary+1;continue;}
+        // Only explicit launch-bound directives may sit between header/body.
+        const auto attributes=trim(code.substr(pos,boundary-pos));
+        static const std::regex launch_attributes(R"(^(?:(?:\.maxntid|\.reqntid)\s+[0-9]+(?:\s*,\s*[0-9]+){0,2}\s*)*$)");
+        if(!std::regex_match(attributes,launch_attributes)) throw ParseError("unsupported function attributes");
+        pos=boundary+1;depth=1;
+        while(pos<code.size() && depth) {if(code[pos]=='{')++depth;if(code[pos]=='}')--depth;if(depth)++pos;}
+        if(depth) throw ParseError("unterminated PTX body");
+        Function function{.name=name,.body_begin=boundary,.body_end=pos,.entry=entry};
+        if(std::any_of(result.functions.begin(),result.functions.end(),[&](const auto& f){return f.name==name;})) throw ParseError("duplicate PTX function");
+        // Non-entry function internals are deliberately opaque: no rewriting,
+        // admission, or future coverage claim is made for them.
+        if(!entry || (!selected_entry.empty() && name!=selected_entry)) {result.functions.push_back(std::move(function));cursor=pos+1;continue;}
+        // Strings in module metadata are opaque, but executable scalar
+        // statements admit no strings. Preserve their lexical identity so
+        // masking cannot turn an invalid load into an accepted/repaired one.
+        // Quotes inside comments never enter the lexer String state.
+        if(std::any_of(strings.begin(),strings.end(),[&](const SourceSpan& s) {
+            return s.begin>function.body_begin && s.begin<function.body_end;
+        })) throw ParseError("quoted token inside selected executable region");
+        static const std::regex launch_attribute(R"(\.(maxntid|reqntid)\s+([0-9]+(?:\s*,\s*[0-9]+){0,2}))");
+        for(std::sregex_iterator it(attributes.begin(),attributes.end(),launch_attribute),end;it!=end;++it) {
+            // PTX forbids reqntid and maxntid together. Reject duplicates too;
+            // no last-directive-wins interpretation is part of this subset.
+            if(function.required_thread_dimensions || function.maximum_thread_dimensions)
+                throw ParseError("conflicting PTX launch dimensions");
+            std::array<std::uint32_t,3> dimensions{1,1,1};
+            const auto values=split_top_level((*it)[2].str());
+            std::uint64_t product=1;
+            for(std::size_t axis=0;axis<values.size();++axis) {
+                const auto dimension=parse_integer(values[axis]);
+                if(!dimension || *dimension<=0 || std::uint64_t(*dimension)>UINT32_MAX ||
+                    product>UINT64_MAX/std::uint64_t(*dimension))
+                    throw ParseError("invalid or overflowing PTX launch dimensions");
+                dimensions[axis]=static_cast<std::uint32_t>(*dimension);
+                product*=std::uint64_t(*dimension);
+            }
+            if((*it)[1].str()=="reqntid")function.required_thread_dimensions=dimensions;
+            else function.maximum_thread_dimensions=dimensions;
+        }
+        for(const auto& item:split_top_level(params)) {
+            if(item.empty()) continue;
+            std::smatch p;
+            if(!std::regex_match(item,p,parameter) ||
+               !function.parameter_types.emplace(p[2].str(),p[1].str()).second)
+                throw ParseError("unsupported or duplicate kernel parameter");
+        }
+        function.blocks.push_back({.label=name+"$entry"});
+        std::size_t statement=boundary+1;
+        while(statement<pos) {
+            while(statement<pos && std::isspace(static_cast<unsigned char>(code[statement]))) ++statement;
+            if(statement==pos) break;
+            if(code.compare(statement,4,".loc")==0) {
+                const auto newline=code.find('\n',statement);
+                const auto location=trim(code.substr(statement,std::min(newline,pos)-statement));
+                static const std::regex loc(R"(^\.loc\s+[0-9]+\s+[0-9]+\s+[0-9]+$)");
+                if(!std::regex_match(location,loc)) throw ParseError("unsupported PTX location directive");
+                statement=std::min(newline,pos);continue;
+            }
+            const auto semi=code.find(';',statement);
+            if(semi==std::string::npos || semi>=pos) throw ParseError("unterminated PTX statement");
+            const auto text=trim(code.substr(statement,semi+1-statement));
+            if(text.starts_with(".reg")) add_registers(function,text);
+            else {
+                if(text.find_first_of("{}:")!=std::string::npos || text.front()=='.')
+                    throw ParseError("outside single straight-line statement region");
+                const auto line=1+std::count(code.begin(),code.begin()+statement,'\n');
+                const auto previous=code.rfind('\n',statement);
+                auto instruction=parse_instruction(text,{static_cast<std::uint32_t>(line),static_cast<std::uint32_t>(statement-(previous==std::string::npos?0:previous+1)+1)},next_id++);
+                instruction.span={statement,semi+1};
+                function.blocks.front().instructions.push_back(function.instructions.size());
+                function.instructions.push_back(std::move(instruction));
+            }
+            statement=semi+1;
+        }
+        result.functions.push_back(std::move(function));cursor=pos+1;
+    }
+    return result;
 }
 
 }  // namespace hbfsim::ptx

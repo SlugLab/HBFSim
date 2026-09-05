@@ -3,13 +3,18 @@
 #include "ptx_async_op.hpp"
 
 #include <cstdint>
+#include <array>
 #include <optional>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace hbfsim::ptx {
+
+#define HBFSIM_PTX_SOURCE_SPANS 1
+struct SourceSpan { std::size_t begin{0}; std::size_t end{0}; };
 
 enum class MemoryKind : std::uint32_t { None = 0, Load = 1, Store = 2,
                                         AtomicRmw = 3 };
@@ -41,6 +46,7 @@ struct Instruction {
     std::vector<std::string> branch_targets;
     std::optional<MemoryInstruction> memory;
     std::optional<AsyncInstruction> async;
+    SourceSpan span;
 };
 
 struct BasicBlock {
@@ -52,10 +58,18 @@ struct Function {
     std::string name;
     std::vector<Instruction> instructions;
     std::vector<BasicBlock> blocks;
+    std::size_t body_begin{0};
+    std::size_t body_end{0};
+    bool entry{false};
+    std::map<std::string, std::string> register_types;
+    std::map<std::string, std::string> parameter_types;
+    std::optional<std::array<std::uint32_t,3>> required_thread_dimensions;
+    std::optional<std::array<std::uint32_t,3>> maximum_thread_dimensions;
 };
 
 struct Module {
     std::vector<Function> functions;
+    SourceSpan address_size_directive;
     [[nodiscard]] const Function& function(std::string_view name) const;
 };
 
@@ -65,5 +79,7 @@ class ParseError : public std::runtime_error {
 };
 
 [[nodiscard]] Module parse_module(std::string_view ptx);
+// Explicit offline API. The synchronous transform keeps its existing parser.
+[[nodiscard]] Module parse_module_spanned(std::string_view ptx, std::string_view selected_entry={});
 
 }  // namespace hbfsim::ptx

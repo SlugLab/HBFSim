@@ -44,18 +44,23 @@ bool is_future(const Instruction& instruction)
 // New forms need def/use and wait-emission proofs before joining this subset.
 bool supported_instruction(const Instruction& instruction)
 {
-    static const std::regex ordinary_memory(R"((ld|st)\.global\.(u|s|b|f)(8|16|32|64))");
-    static const std::regex scalar(R"((mov|cvt|setp|add|sub|mul|and|or|xor)\.[A-Za-z0-9_.]+)");
+    static const std::regex ordinary_memory(R"((ld|st)\.global\.(?:[usb](?:8|16|32|64)|f(?:32|64)))");
+    static const std::regex unary(R"((?:mov\.(?:[bus](?:16|32|64)|f(?:32|64)|pred)|cvta(?:\.to)?\.global\.u64|ld\.param\.(?:[bus](?:8|16|32|64)|f(?:32|64))|cvt\.(?:[su](?:16|32|64))\.(?:[su](?:16|32|64))))");
+    static const std::regex binary(R"((?:(?:add|sub)\.(?:[su](?:16|32|64))|mul\.(?:lo|wide)\.[su](?:16|32)|mul\.lo\.[su]64|(?:and|or|xor)\.(?:b(?:16|32|64)|pred)|shl\.b(?:16|32|64)|shr\.[su](?:16|32|64)|setp\.(?:eq|ne|lt|le|gt|ge)\.[su](?:16|32|64)))");
+    static const std::regex ternary(R"(mad\.(?:lo|wide)\.[su](?:16|32))");
     static const std::regex ordering(R"((membar\.(cta|gl|sys)|fence\.(acq_rel|sc)\.(cta|gpu|sys)))");
     if (std::regex_match(instruction.opcode, ordinary_memory)) {
         return instruction.memory.has_value() && instruction.operands.size() == 2 &&
                (instruction.memory->kind == MemoryKind::Store || instruction.defs.size() == 1);
     }
-    if (std::regex_match(instruction.opcode, scalar)) {
-        return !instruction.defs.empty();
+    const auto scalar_operands = std::regex_match(instruction.opcode, unary) ? 2 :
+        std::regex_match(instruction.opcode, binary) ? 3 :
+        std::regex_match(instruction.opcode, ternary) ? 4 : 0;
+    if (scalar_operands) {
+        return instruction.defs.size()==1 && instruction.operands.size()==static_cast<std::size_t>(scalar_operands);
     }
-    return std::regex_match(instruction.opcode, ordering) ||
-           (is_return(instruction) && instruction.predicate.empty());
+    return (std::regex_match(instruction.opcode, ordering) && instruction.operands.empty()) ||
+           ((instruction.opcode=="ret" || instruction.opcode=="exit") && instruction.predicate.empty() && instruction.operands.empty());
 }
 
 bool is_ordering_drain(const Instruction& instruction)
@@ -285,11 +290,12 @@ DataflowState transfer_block(
             if (pending.empty()) {
                 continue;
             }
-            if (observations != nullptr && pending.size() != 1) {
-                observations->rejection_reasons.emplace(
-                    instruction.instruction_id,
-                    "ambiguous_future_definition");
-            }
+            // Within the admitted straight-line subset, an executed write
+            // drains its previous producer before overwriting. Predicated
+            // writes leave multiple may-reaching producers statically, but
+            // at most one remains valid per lane/destination. Emit a wait for
+            // each may-definition, gated by its stored valid flag. General
+            // control-flow joins remain excluded by supported_instruction().
             consumed.insert(pending.begin(), pending.end());
         }
         if (observations != nullptr) {
@@ -361,6 +367,10 @@ FuturePlan analyze_futures(const Function& function)
             result.rejection_reasons.emplace(instruction.instruction_id,
                 "outside_straight_line_ordinary_subset");
         }
+    }
+    for(std::size_t i=0;i+1<function.instructions.size();++i) {
+        if(is_return(function.instructions[i])) result.rejection_reasons.emplace(
+            function.instructions[i].instruction_id,"early_terminal_instruction");
     }
     if (function.instructions.empty() ||
         !is_return(function.instructions.back())) {

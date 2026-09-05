@@ -740,6 +740,25 @@ template<class T> __device__ bool future_local(const T* pointer)
 }
 } // namespace
 
+extern "C" __device__ __noinline__ std::uint32_t
+__hbfsim_timing_future_native_store_guard_v1(std::uint64_t address,std::uint32_t bytes)
+{
+    namespace tf=hbfsim::timing_future;
+    auto* h=future_header();
+    if(!h)return tf::kUnsupported;
+    const auto generation=system_acquire(&h->control_generation);
+    if(const auto status=future_liveness(h,generation,EvalDelayClock{}()))return status;
+    const auto count=system_acquire(&h->range_count);
+    const auto* ranges=reinterpret_cast<const SharedRangeRecord*>(
+        reinterpret_cast<const std::byte*>(h)+h->range_offset);
+    if(!hbfsim::device::timing_future_native_store_span(ranges,count,address,bytes))
+        return tf::kUnsupported;
+    // Range retirement synchronizes kernel completion; recheck generation and
+    // liveness after the bounded scan before the caller performs its store.
+    if(const auto status=future_liveness(h,generation,EvalDelayClock{}()))return status;
+    return tf::kReady;
+}
+
 extern "C" __device__ __noinline__ hbfsim::timing_future::DeviceTimingFutureV1
 __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
     std::uint32_t instruction,std::uint32_t old_state,

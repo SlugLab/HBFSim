@@ -338,3 +338,44 @@ both measurements can say what differed between them.
 body, how should the unused measurement be presented, and what were the conditions
 of each run — temperature range, other work on the same card, sampling window, and
 which run each number came from?
+
+## 9. Four questions raised by the evaluation-mainline design (docs/47)
+
+The merged evaluation mainline in `docs/47-评估主线设计.md` (appendix B carries the
+full eleven-item run list) needs four answers that only you hold. Each one blocks a
+specific gate in that plan.
+
+**9a. The `time_scale` setting behind the published 20.8x and 44.469 s numbers.**
+The spec (2026-08-09 hybrid design, reference-validation section) defaults
+`time_scale` to 100 for reference validation and 1 for workload runs. Neither
+`docs/proofs/2026-08-11-hybrid-complete.md` nor
+`docs/proofs/2026-08-11-vllm-exact-live-delay.md` records which value the 44.469 s
+reference run and the 2.014352 s fast run used. Until the manifests (or your
+recollection plus a re-run) settle this, the F7 gate in docs/47 blocks every E2
+figure: a re-test at `time_scale=1` is scheduled as day-0 work either way, but
+knowing the original setting decides whether the published numbers can be cited
+alongside the re-test.
+
+**9b. Re-run size for the 2026-08-16 die-geometry and NAND-type sweeps.** All of
+those numbers predate the PR #3 `queue_depth` fix (before the fix the field was
+never read on the `HBF` host interface, so every run behaved as unlimited
+outstanding requests). The sweeps move to the paper's appendix only after a re-run
+on a snapshot containing commit `12ef138`. How many grid points do you plan to
+re-run, and by when? If the re-run cannot land before the deadline, the current
+`When Does Die Geometry Matter?` section in `paper/eval.tex` has to come out.
+
+**9c. Gate 1 capability inventory on the shared machine, and its identity.** The
+plan's E1.3 second-device arm and the "6787p physical media" requirement both hang
+on what the CXL SSD on the shared machine actually presents as (CXL.mem/DAX/NUMA
+node, or plain block device). The command list is in
+`docs/重要实现问题以及需补做实验/19-hardware-grounded-evaluation-plan.md` §5.1.
+Also confirm two identity facts we currently hold only by inference: that the
+shared machine is the Xeon 6787P server described as Server B in the CXLMemSim
+paper, and whether the RTX PRO 6000 GPU is in the same box (if not, the
+hardware-backed arm needs a different route).
+
+**9d. Dense control model for E4.** The routing flip test needs one dense model
+trace to pair with Qwen3-30B-A3B. We suggest a same-family dense checkpoint,
+active-compute-matched rather than capacity-matched (the reasoning is in docs/47,
+E4 section). Which model do you pick, and does it already run under the frozen
+vLLM trace harness?

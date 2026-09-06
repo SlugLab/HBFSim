@@ -89,3 +89,5 @@ Owned tuning integration,2026-09-06:17 focused controls took7.23s process wall (
 Startup environment correction,2026-09-06:12 observer and11 protocol controls took1.58/0.36s process wall. Related83/32-test suites took33.468/0.717s. Source-only independent reviews did not repeat tests. Evidence: `results/gold/hf-routing-runner/startup-environment-phase-attempt-001/`. No formal runtime estimate or GPU execution is derived from these CPU costs.
 
 Startup source binding, 2026-09-06: final focused 15 tests took 2.84s wall and are recorded in `startup-sources-attempt-004/`; the pre-fix six-failure RED took 2.92s. Related 41 tests took 7.941s. Read-only selected-source acquisition/rechecks took 0.318s. Earlier test corrections and labeled sensitivity checks remain in attempts 001–003. These are CPU/source costs, not formal or GPU runtime estimates.
+
+Identity observation refresh, 2026-09-06: new133-input runtime acquisition/recheck took0.328s; seven-source acquisition/recheck0.318s; bounded metadata refresh/current checks 10.225s; tuning rebind/recheck 2.125s. These are source/metadata CPU costs only. No model payload hash or GPU execution is included.

@@ -116,3 +116,37 @@ Standalone CPU update,2026-09-06: `ffd928e` integrates tuning gates into the pri
 Standalone CPU update,2026-09-06: `5561e4e` closes the declared startup environment/optional-addon observation correction.12 observer+11 protocol tests, both independent reviews and83+32 related phase tests pass. Seven-source supplemental binding and controlled execution remain unimplemented; no real HF arm or formal cell ran.
 
 Standalone CPU/source update, 2026-09-06: `3833dac6` closes the fixed seven-source startup snapshot after 15 focused tests, independent SPEC/QUALITY and 41 related tests. Real selected-source acquisition matches the audited bytes and current primary/supplemental checks. Controlled worker/parent and independent capture validation remain open; real HF arms and formal DONE remain 0.
+
+
+Current input identity refresh, 2026-09-06: the resumed filesystem reports
+device66311 instead of66312. The old frozen metadata bundle still validates as
+historical evidence, but its current-input check correctly rejects the changed
+identity. The independent refresh at
+`results/manifests/hf-qwen3-30b-a3b-metadata-20260906-resume001/` passes both frozen
+and current checks. All metadata artifact hashes and every input field except
+391 device fields are unchanged. Metadata identity remains
+`6bd086d9258aeec88aa3294df6133c289c0a8d5b557f7ce03b5c7dc6644d7494`;
+the new receipt is `bfde7f1cc25631404328ded67b52dccb2c5d630bf3aa52acfa02d76b8e47c104` and
+COMPLETE is `e1d2bf670f5ea939a50784ee1f92947cf1f015c55f780be1efbfc458f2ab9781`. This COMPLETE is the existing
+metadata-only marker, not routing capture or scientific completion.
+
+The current runtime primary is
+`results/gold/hf-routing-runner/runtime-sources-tuning-real-attempt-002/`, bound by
+`ed7a35bd19eb8938a97269a80e88ff817d7d8ca8fde8a7d5fb1ac58c27baabd4`.
+Its133 source/metadata hashes and interpreter hash match the old observation;
+1042 device fields changed and all other fields remained equal. Startup seven
+sources are in `startup-sources-real-attempt-002/`, manifest
+`416819ba83141fadc881b88a1b6cd54fa2771f24e2084903d02a4a8a4addef50`.
+Selected tuning is independently rebound in `tuning-inputs-real-attempt-002/`,
+manifest `73854fbec45375ccc1390dc6f60fc2ae298754d322bb892be1cc7ed9a7bf0e5d`. It still records
+INSTALLED_DEFAULTS for the absent E=128,N=768 packaged configuration, with the
+same declared NVIDIA RTX PRO 6000 Blackwell Server Edition name and geometry.
+Actual CUDA/vLLM device authentication remains an owned-worker gate.
+
+These are new observations with explicit links to their predecessors. No old
+artifact was replaced, no device identity was normalized away, and within-run
+input drift still fails. The refresh read bounded metadata and file headers;
+weight payload hashes remain historical. No inference import, GPU execution,
+real HF arm, scientific receipt or formal row was produced. Evidence:
+`results/gold/hf-routing-runner/metadata-identity-refresh-attempt-001/` and
+`runtime-source-drift-diagnostic-attempt-001/`.

@@ -324,6 +324,35 @@ class TuningRuntimeTests(unittest.TestCase):
         self.env['UNOBSERVED_IMPORT_ENV']='1'
         with self.assertRaisesRegex(ValueError,'environment differs from prepared allowlist'):self.retain()
 
+    def test_retention_accepts_only_legacy_or_exact_routed_event_source_sets(self):
+        legacy=sources.validate_runtime_sources(self.runtime)
+        self.assertEqual(len(legacy['artifacts']),133)
+        self.assertNotIn('cuda_event_extension',legacy)
+        self.assertIs(self.retain().runtime,self.runtime)
+        for name in sources.CUDA_EVENT_SOURCE_FILES:
+            path=self.inputs.site/name;path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_bytes(b'# TEST_ONLY CUDA event API source; never execute\n')
+        self.runtime=sources.collect_runtime_sources(
+            source_root=self.inputs.site,stdlib_root=self.inputs.fixture.stdlib,
+            interpreter=self.inputs.fixture.interpreter,include_tuning=True,
+            include_cuda_events=True)
+        self.inputs.runtime=self.runtime;self.tuning=self.inputs.collect()
+        routed=sources.validate_runtime_sources(self.runtime)
+        self.assertEqual(len(routed['artifacts']),135)
+        self.assertEqual(routed['cuda_event_extension'],'ROUTE_EVENTS_V1')
+        self.assertEqual(
+            {key for key in routed['artifacts'] if key in observer.ROUTE_EVENT_SOURCE_ARTIFACTS},
+            set(observer.ROUTE_EVENT_SOURCE_ARTIFACTS))
+        self.assertIs(self.retain().runtime,self.runtime)
+        missing=copy.deepcopy(routed)
+        del missing['artifacts'][observer.ROUTE_EVENT_SOURCE_ARTIFACTS[1]]
+        wrong=copy.deepcopy(routed);wrong['cuda_event_extension']='ROUTE_EVENTS_V2'
+        for label,report in (('missing-api-source',missing),('wrong-extension',wrong)):
+            with self.subTest(label=label),mock.patch.object(
+                sources,'validate_runtime_sources',return_value=report),self.assertRaisesRegex(
+                    ValueError,'routed-event tuning source contract'):
+                self.retain()
+
     def test_registered_submodules_are_read_without_getters_and_rebinding_is_detected(self):
         runner=self.fixture.runner;model=runner.model
         del runner.model;runner._modules={'model':model}

@@ -44,6 +44,10 @@ IMPORT_ENVIRONMENT={
     'KMP_INIT_AT_FORK':'FALSE',
     'LD_LIBRARY_PATH':'/opt/miniconda3/lib/python3.13/site-packages/cv2/../../lib64:',
 }
+ROUTE_EVENT_SOURCE_ARTIFACTS=(
+    'site-packages/torch/cuda/__init__.py',
+    'site-packages/torch/cuda/streams.py',
+)
 
 
 def _require(condition,message):
@@ -77,6 +81,21 @@ def _primitive(value):
             for v in item:walk(v,depth+1)
     walk(value,0);raw=canonical(value);_require(len(raw)<=4<<20,'oversized prior observation')
     return raw
+
+
+def _runtime_source_contract(source):
+    """Keep the legacy tuning set exact while admitting its one routed-event extension."""
+    artifacts=source['artifacts'];extension=source.get('cuda_event_extension')
+    _require(source.get('source_extension')=='MOE_TUNING_V1','tuning source extension')
+    if extension is None:
+        _require(len(artifacts)==133 and not any(
+            key in artifacts for key in ROUTE_EVENT_SOURCE_ARTIFACTS),
+            'exact 133-file tuning source contract')
+    else:
+        _require(extension=='ROUTE_EVENTS_V1' and len(artifacts)==135 and all(
+            key in artifacts for key in ROUTE_EVENT_SOURCE_ARTIFACTS),
+            'exact 135-file routed-event tuning source contract')
+    return source
 
 
 def _origins(modules,report):
@@ -201,8 +220,7 @@ def retain_tuning_runtime(metadata_snapshot,runtime_snapshot,tuning_snapshot,dev
     """Call before construction; this neither imports nor initializes runtime."""
     try:
         report=tuning.validate_tuning_inputs(tuning_snapshot,metadata_snapshot,runtime_snapshot,device_name)
-        source=sources.validate_runtime_sources(runtime_snapshot)
-        _require(len(source['artifacts'])==133 and source.get('source_extension')=='MOE_TUNING_V1','exact 133-file tuning source contract')
+        source=_runtime_source_contract(sources.validate_runtime_sources(runtime_snapshot))
         test_only=report['test_only'] or modules is not None or environment is not None
         modules=sys.modules if modules is None else modules;environment=os.environ if environment is None else environment
         _require(len(modules)<=32768,'module table exceeds finite bounds')
@@ -224,7 +242,8 @@ def _recheck(retained,*,preconstruction=False):
     _require(all(r.modules.get(name) is module for name,module in r.module_bindings.items()),'loaded module replaced')
     report=tuning.validate_tuning_inputs(r.tuning,r.metadata,r.runtime,r.device)
     _require(canonical(report)==canonical(r.input_report),'frozen input binding changed')
-    _require(_origins(r.modules,sources.validate_runtime_sources(r.runtime))==r.origins,'module origins changed')
+    current_source=_runtime_source_contract(sources.validate_runtime_sources(r.runtime))
+    _require(_origins(r.modules,current_source)==r.origins,'module origins changed')
     env,generated,ray_client=_environment(r.environment,r.work,r.gpu,postconstruction=not preconstruction)
     _require(env==r.env,'prepared environment changed')
     if not preconstruction:

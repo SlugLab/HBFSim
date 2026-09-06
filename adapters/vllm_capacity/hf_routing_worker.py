@@ -95,6 +95,7 @@ def make_environment(work, gpu_uuid, inherited):
     env = {key: inherited[key] for key in platform if key in inherited}
     env.update(CUDA_VISIBLE_DEVICES='0', CUDA_DEVICE_ORDER='PCI_BUS_ID',
         PYTORCH_NVML_BASED_CUDA_CHECK='1', TORCHINDUCTOR_COMPILE_THREADS='1',
+        OMP_NUM_THREADS='1', MKL_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1',
         VLLM_PLUGINS='', TVM_FFI_DISABLE_TORCH_C_DLPACK='1',
         VLLM_ENABLE_V1_MULTIPROCESSING='0',
         VLLM_USE_FLASHINFER_MOE_FP16='0', VLLM_USE_FLASHINFER_SAMPLER='0',

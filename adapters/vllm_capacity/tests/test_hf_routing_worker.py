@@ -139,6 +139,7 @@ class HFWorkerProtocolTests(unittest.TestCase):
                          CUDA_VISIBLE_DEVICES='GPU-caller-choice',
                          CUDA_DEVICE_ORDER='FASTEST_FIRST',
                          PYTORCH_NVML_BASED_CUDA_CHECK='0', TORCHINDUCTOR_COMPILE_THREADS='64',
+                         OMP_NUM_THREADS='64', MKL_NUM_THREADS='64', OPENBLAS_NUM_THREADS='64',
                          VLLM_PLUGINS='caller.plugin', TVM_FFI_DISABLE_TORCH_C_DLPACK='0',
                          FLASHINFER_WORKSPACE_BASE='/forbidden', TORCH_EXTENSIONS_DIR='/forbidden',
                          TVM_FFI_CACHE_DIR='/forbidden', TRITON_CACHE_MANAGER='remote.module',
@@ -151,11 +152,15 @@ class HFWorkerProtocolTests(unittest.TestCase):
             self.assertEqual({key: env[key] for key in (
                 'CUDA_VISIBLE_DEVICES', 'CUDA_DEVICE_ORDER',
                 'PYTORCH_NVML_BASED_CUDA_CHECK', 'TORCHINDUCTOR_COMPILE_THREADS',
+                'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS',
                 'VLLM_PLUGINS', 'TVM_FFI_DISABLE_TORCH_C_DLPACK')}, {
                     'CUDA_VISIBLE_DEVICES': '0',
                     'CUDA_DEVICE_ORDER': 'PCI_BUS_ID',
                     'PYTORCH_NVML_BASED_CUDA_CHECK': '1',
                     'TORCHINDUCTOR_COMPILE_THREADS': '1',
+                    'OMP_NUM_THREADS': '1',
+                    'MKL_NUM_THREADS': '1',
+                    'OPENBLAS_NUM_THREADS': '1',
                     'VLLM_PLUGINS': '',
                     'TVM_FFI_DISABLE_TORCH_C_DLPACK': '1'})
             for key in ('FLASHINFER_WORKSPACE_BASE', 'TORCH_EXTENSIONS_DIR', 'TVM_FFI_CACHE_DIR',

@@ -152,10 +152,16 @@ class ImportedCacheTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.observe()
 
     def test_declared_startup_controls_reject_missing_or_unexpected_values(self):
-        for key in ('TVM_FFI_DISABLE_TORCH_C_DLPACK','VLLM_PLUGINS'):
+        controls=('TVM_FFI_DISABLE_TORCH_C_DLPACK','VLLM_PLUGINS',
+                  'OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS')
+        for key in controls:
             expected=self.env.pop(key)
             with self.subTest(key=key,value='missing'),self.assertRaises(ValueError):self.observe()
             self.env[key]=expected
+        for key in ('OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS'):
+            self.env[key]='64'
+            with self.subTest(key=key,value='64'),self.assertRaises(ValueError):self.observe()
+            self.env[key]='1'
         for value in ('0','true',''):
             self.env['TVM_FFI_DISABLE_TORCH_C_DLPACK']=value
             with self.subTest(key='TVM_FFI_DISABLE_TORCH_C_DLPACK',value=value),self.assertRaises(ValueError):

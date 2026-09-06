@@ -126,6 +126,7 @@ Observed standalone hardware/runtime diagnostics, 2026-09-06:
 | HF001 | 31.992569225 s | Native Torch-device failure; model not constructed |
 | HF002 | 63.010975611 s | Native import-observation version failure; model not constructed |
 | HF003 | 447.972067177 s | Runtime versions observed; native tuning-retention environment failure; model not constructed |
+| HF004 | 39.396977992 s | ResourceBusy during launch; bootstrap only, no device report or model |
 | Full-import environment query | 109.471545466 s | Exact environment changes observed; no model constructed |
 | K1 D0 | 9.261963436 s | Diagnostic acquisition DONE; G2 cell pass is null |
 | K1 D500 | 10.071926834 s | INVALID_GOLD_GATE under original limits |

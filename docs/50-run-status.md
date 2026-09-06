@@ -1,7 +1,7 @@
 # Run status — implementation in progress
 
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
-Latest standalone update: three real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
+Latest standalone update: four real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
 The runner's read-only status command reports the entire frozen matrix;
 unit-test fixtures, CPU accounting controls, the three-cell media pilot and
 three-policy MOCK causal pilot are not formal experiment runs.
@@ -218,6 +218,23 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 `results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
 
 ## Standalone real-experiment checkpoint, 2026-09-06
+
+Latest resource follow-up: attempt004 completed in 39.396977992 s on frozen HEAD
+`9b11227f693065c8a668c086767430d4b10c323e`. The launch guard stopped the native
+child with `ResourceBusy` after nvidia-smi reported that it could not map a
+segment from `libm.so.6`. Only the bootstrap record exists; no device/runtime
+report or model return was acquired. Owned process exit was observed, with no
+remaining owned members or uncertain session. Capture and repeat did not start.
+
+The 15:57:18 UTC follow-up observed 707,916 kB of available host RAM and another
+process using 24,263,672 kB RSS, with substantial memory pressure. nvidia-smi then
+ran successfully and showed zero GPU memory use and no compute processes. This
+supports waiting for host resources before retrying; it does not establish the
+exact failed allocation or validate the new environment correction. Evidence:
+`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-004/{execution,resource-diagnostic}.json`.
+Attempt005 is prepared but has not run. The three earlier code-related failures
+below remain historical. Formal DONE is still 0.
+
 
 Three guarded HF diagnostic attempts have actually run with the fixed
 32-input/8-output request and the current resume001 metadata. All stopped in

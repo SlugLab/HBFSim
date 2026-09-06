@@ -85,6 +85,48 @@ class ImportedCacheTests(unittest.TestCase):
         self.assertEqual(self.observe()['effective_paths']['torch.hub'],str(self.work/'cache/torch/hub'))
         json.dumps(result)
 
+    def test_transformers_lazy_module_reads_only_the_exact_stored_version(self):
+        class LazyModule(ModuleType):
+            def __getattr__(self,name):
+                raise AssertionError('observer invoked lazy accessor: '+name)
+
+        import_utils=ModuleType('transformers.utils.import_utils')
+        import_utils._LazyModule=LazyModule
+        self.modules['transformers.utils.import_utils']=import_utils
+        ordinary=self.modules['transformers']
+        lazy=LazyModule('transformers')
+        lazy.__file__=ordinary.__file__;lazy.__spec__=ordinary.__spec__
+        lazy._objects={'__version__':'5.5.4'}
+        self.modules['transformers']=lazy
+        before=dict(vars(lazy))
+        with mock.patch('builtins.open',side_effect=AssertionError('observer opened file')),mock.patch('os.open',side_effect=AssertionError('observer opened file')):
+            result=self.observe()
+        self.assertEqual(result['runtime_versions']['transformers'],'5.5.4')
+        self.assertEqual(vars(lazy),before)
+
+    def test_transformers_lazy_version_rejects_bad_storage_or_identity(self):
+        class LazyModule(ModuleType):
+            def __getattr__(self,name):
+                raise AssertionError('observer invoked lazy accessor: '+name)
+
+        import_utils=ModuleType('transformers.utils.import_utils')
+        import_utils._LazyModule=LazyModule
+        self.modules['transformers.utils.import_utils']=import_utils
+        ordinary=self.modules['transformers']
+        for change in ('missing','wrong-version','str-subclass','dict-subclass','extra-object','impostor'):
+            with self.subTest(change=change):
+                cls=ModuleType if change=='impostor' else LazyModule
+                lazy=cls('transformers')
+                lazy.__file__=ordinary.__file__;lazy.__spec__=ordinary.__spec__
+                if change=='missing':lazy._objects={}
+                elif change=='wrong-version':lazy._objects={'__version__':'5.5.3'}
+                elif change=='str-subclass':lazy._objects={'__version__':type('Version',(str,),{})('5.5.4')}
+                elif change=='dict-subclass':lazy._objects=type('Objects',(dict,),{})({'__version__':'5.5.4'})
+                elif change=='extra-object':lazy._objects={'__version__':'5.5.4','other':object()}
+                else:lazy._objects={'__version__':'5.5.4'}
+                self.modules['transformers']=lazy
+                with self.assertRaises(ValueError):self.observe()
+
     def test_required_module_origin_initialization_and_partial_flashinfer_reject(self):
         for change in ('missing','shadow','initializing','partial'):
             with self.subTest(change=change):

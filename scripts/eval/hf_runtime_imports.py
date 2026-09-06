@@ -101,7 +101,22 @@ def observe_runtime_imports(snapshot, work, gpu_uuid, device_capability, *,
         # vllm.envs intentionally uses a reviewed __getattr__; all other module
         # fields must already exist, avoiding lazy imports during observation.
         try:
-            return getattr(modules[module],field) if module=='vllm.envs' else vars(modules[module])[field]
+            if module=='vllm.envs':
+                return getattr(modules[module],field)
+            fields=vars(modules[module])
+            if field in fields:
+                return fields[field]
+            if module=='transformers' and field=='__version__':
+                # Transformers 5.5.4 replaces its top-level module with its
+                # already-loaded _LazyModule and keeps this value in _objects.
+                # Require that exact class binding and read only the raw dict.
+                import_utils=modules.get('transformers.utils.import_utils')
+                lazy_type=vars(import_utils).get('_LazyModule') if isinstance(import_utils,ModuleType) else None
+                objects=fields.get('_objects')
+                if type(modules[module]) is lazy_type and type(objects) is dict and \
+                   len(objects)==1 and type(objects.get(field)) is str:
+                    return objects[field]
+            raise KeyError(field)
         except (AttributeError,KeyError) as error:
             raise ValueError('required runtime field missing: '+module+'.'+field) from error
     paths={};flags={};versions={}

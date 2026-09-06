@@ -30,6 +30,26 @@ For reference completion, the GPU observes and copies the published slot, releas
 
 The host uses atomic references in shared control memory; device accesses use CUDA system-scope atomics. The CPU ordering reference test runs CPU threads, despite its name. Device `%globaltimer` measures the GPU deadline; host heartbeat values are observed for *change*, with elapsed heartbeat staleness measured in GPU time, not by subtracting host and GPU timestamps.
 
+Current owned-HF device binding, 2026-09-06: the pinned Python 3.13 runtime uses
+Torch `2.9.1+cu128` (`torch.version.cuda == "12.8"`). Its observed
+`get_device_properties(0).uuid` has the exact type `torch._C._CUuuid`; its string
+form is the lowercase UUID body without `GPU-`, while the parent declaration
+and vLLM NVML observation include that prefix. The
+[controlled worker](../../scripts/eval/hf_owned_worker.py) adds `GPU-` only for
+that exact type with a full lowercase 8-4-4-4-12 hexadecimal body, preserves
+exact string representations, and rejects other object representations. It
+then retains the complete UUID/name/capability comparison and exact raw/public
+CUDA counts of 1 and current device 0. This representation correction does not
+select another device or weaken CUDA-domain ownership checks.
+
+The original observation is retained in
+`results/gold/hf-routing-runner/real-device-identity-fix-attempt-001/validator.stdout.log`.
+Pilot002 subsequently records matching Torch and vLLM identities in
+`real-diagnostic-triplet-attempt-002/process/native/device-observations.json`.
+That proves these device gates passed for this run; it does not prove model
+execution or CUDA memory-ordering correctness. Toolkit build versions and the
+CUDA version recorded by the installed Torch package remain separate facts.
+
 ## Invariants
 
 - Registered timing ranges must be physically backed, in the exact current CUDA domain and inside the allocation.

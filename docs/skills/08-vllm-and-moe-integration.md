@@ -84,6 +84,37 @@ capable manager descriptors, runtime discovery, CUDA or cache-creation methods.
 Eleven CPU tests and both reviews pass; the related source/import plus adapter
 phase passes83 tests. This does not yet create a guarded executable worker.
 
+Installed-environment compatibility note, 2026-09-06: before changing startup
+observers, consult the retained runtime snapshot and the relevant installed
+source text. The fixed interpreter is `/opt/miniconda3/bin/python3.13`; package
+metadata records vLLM `0.15.1`, Transformers `5.5.4`, Triton `3.5.1` and Torch
+`2.9.1`, while Torch's installed version module records `2.9.1+cu128` and CUDA
+`12.8`. These are snapshot-bound inputs, not permission to upgrade the runtime
+or proof that a model has executed.
+
+The real Transformers module is the exact already-loaded
+`transformers.utils.import_utils._LazyModule`. In the observed state its raw
+module dictionary has no `__version__` key; its raw `_objects` is an exact dict
+containing the stored string `__version__ == "5.5.4"`. The installed initializer
+passes that value through `extra_objects`, explaining why a raw top-level-only
+version check rejects this valid installed representation. A passive version
+observer must support this narrowly bound stored-state case while retaining
+ordinary stored-version handling and the existing exact version/source checks.
+Read already-loaded raw dictionaries; do not invoke lazy attribute getters,
+perform discovery/imports, materialize a cache entry, or add a generic fallback
+for arbitrary objects or packages. For this installed class the version getter
+returns `_objects` directly, but other lazy attribute paths can import or cache
+values; observing stored state avoids relying on those paths.
+
+Evidence is in
+`results/gold/hf-routing-runner/real-transformers-storage-observation-attempt-001/`:
+the CPU-only observation found exact loaded-class identity and unchanged module
+keys, with GPU visibility disabled and no model constructed. The corrective
+observer implementation and its later real pilot must retain their own outcome;
+this observation alone is not successful model execution. Reading
+`import_utils.py` for implementation guidance does not add that file to the
+existing frozen source contract or authenticate all installed dependency code.
+
 The private [owned request body](../../scripts/eval/hf_loaded_arm.py) composes
 these helpers around one generated return. Save the copied raw result before
 collector callbacks and preserve the primary error through independent cleanup.

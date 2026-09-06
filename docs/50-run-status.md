@@ -106,3 +106,7 @@ Standalone CPU update,2026-09-05T19:53:41Z: bounded frozen route decoding is
 committed at `0a7619b`, with both reviews and29/29 related CPU controls in3.536s.
 Evidence: `results/gold/hf-routing-runner/route-array-phase-attempt-001/`.
 No model arm, live routing, GPU probe or formal matrix cell was run.
+
+Standalone hardware update,2026-09-06: ten D0 controls complete; first D500 control is INVALID_GOLD_GATE under unchanged G2. Local waits measure512ns for500ns, while D0 run-mean SD is121.024us/access and D500 chain mean absolute error is280.364us/access. D5000/D20000 did not run; all owned children exited. Evidence: `results/gold/known-delay/resume-clock-controls-attempt-001/`. These are standalone gold controls; formal DONE remains0.
+
+Standalone CPU update,2026-09-06: private loaded-MoE tuning observer committed at `5a518a2`;22 targeted tests pass, independent SPEC25 checks pass, independent QUALITY approves the exact files. Evidence: `results/gold/hf-routing-runner/resume-tuning-attempt-001/`. This is passive fixture validation; no real HF arm or formal cell ran.

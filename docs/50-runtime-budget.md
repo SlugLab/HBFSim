@@ -81,3 +81,5 @@ its 0.315-s refusal is not a benchmark runtime.
 Next validated update requires completed implementation gates, an exclusive
 read-only SSD path, and passing applicable small pilots.
 Do not extrapolate from this CPU-test table to formal GPU/SSD runtime.
+
+Resumed2026-09-06: a fresh current-source known-delay build took58.282s, with20/20 CPU/compile tests taking14.379s process wall. Ten D0 plus one D500 standalone triplets took approximately10.6–11.6s each. D500 failed G2, so these do not supply validated formal-cell runtime estimates. Evidence: `results/gold/known-delay/resume-build-attempt-001/` and `resume-clock-controls-attempt-001/`.

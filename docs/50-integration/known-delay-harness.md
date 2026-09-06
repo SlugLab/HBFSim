@@ -50,3 +50,30 @@ dependent address in that exact synchronous image. This does not validate the
 absent production future/TMA mappings. The reusable `audit_sass_mapping.py`
 collects/cache-checks these artifacts while keeping mapping NOT_PROVEN until
 an applicable independent semantic review establishes the requested scope.
+
+## Resumed hardware check, 2026-09-06
+
+The current native sources at `14bef0c` were rebuilt in the new
+`build-eval-resume-known-delay-001` directory with futures OFF and the explicit
+known-delay benchmark ON; the old builds remain intact. Build receipt and20/20
+CPU/compile controls are in `results/gold/known-delay/resume-build-attempt-001/`.
+The build took58.282s; targeted checks took14.379s process wall.
+
+The existing guarded pilot resumed with ten independent D0 controls, then
+stopped on the first D500 failure. D0 run-mean SD is121.024us/access. D500 mean
+absolute chain error is280.364us/access and P95 is286.042us/access, exceeding
+the unchanged0.100/0.200us G2 limits. All recorded checksums match, with zero
+rejected accesses, unknown bytes and trace overflow. The requested500ns helper
+wait now measures512ns at every recorded wait; the local clock correction works
+for this sample, but full-chain fidelity does not. Matched-zero/target chain
+means are1648.664/1368.800us per access. These observations separate a correctly
+bounded local wait from substantial instrumented-path overhead/variation; they
+do not establish its complete root cause.
+
+Evidence: `results/gold/known-delay/resume-clock-controls-attempt-001/` preserves
+the frozen plan, each control's resource/process/raw records, noise summary and
+diagnostic summary. D500 is `INVALID_GOLD_GATE`; D5000 and D20000 did not run.
+Every recorded owned child/session was rechecked absent. No threshold changed,
+formal matrix cell was promoted, or full G2/known-delay fidelity claim closed.
+Further work must diagnose the critical-chain overhead before another sweep;
+unrelated CPU implementation continues.

@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `0a7619b` (bounded frozen route decoding; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `5a518a2` (passive loaded MoE tuning observer; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -47,7 +47,7 @@ were not duplicated. See [donor map](50-integration/sm120-donor-map.md).
 | GOLD-1 | C6.2 complete opt-in plugin/loader;17 typed actual-plugin assembly controls,49 loader scenarios; all64 CPU checks and18 default-OFF checks closed | Ordinary scalar TIMING subset; no GPU or TMA proof |
 | GOLD-2 | CPU future oracle and counterexamples pass | GPU semantic gold NOT RUN |
 | GOLD-3 | Representative synchronous SM120 image assembled/disassembled; immutable cache 9/9 controls | Resolver/load/next-address mapping recorded; future/TMA mapping NOT PROVEN |
-| GOLD-4 | Runner CPU/compile 20/20; old real D0 K1 and ten K64 controls complete | Old D500 K64 failed fixed G2; corrected clock interval awaits hardware recheck because GPU is busy |
+| GOLD-4 | Current-source rebuild and20/20 CPU/compile checks; ten new guarded D0 K64 controls and one D500 acquired | Corrected local wait measures512ns; full-chain D500 still fails fixed G2. D0 run-mean SD121.024us/access; no full gate closure |
 | GOLD-5 | Optional MQSim observer, 12 concurrent replay controls, 10 provenance controls and three-cell CPU pilot pass | CPU media conservation; collector fixtures pass, physical acquisition and hardware causal gold absent |
 | GOLD-6 | Real GGUF metadata inventory; 10 negative/accounting tests; three accounting controls | Actual GPU allocator/cache conservation NOT RUN |
 
@@ -320,7 +320,7 @@ requires both. Offline calculations remain CPU-only. Current status is in
 
 | EQ | Status | Remaining |
 |---|---|---|
-| EQ1 | BLOCKED | Known-delay and collector tools pass bounded CPU/compile controls; G2 timing defect, exclusive SSD and paired scientific validation remain |
+| EQ1 | BLOCKED | Known-delay and collector tools pass bounded CPU/compile controls; full-chain G2 failure/noise, exclusive SSD and paired scientific validation remain |
 | EQ2 | PARTIAL | Complete opt-in ordinary TIMING unit has CPU/compile closure; optimized SASS/GPU gold and TMA lifecycle remain open |
 | EQ3 | PARTIAL | Real inventory/budgets and native media replay available; bounded layer-synchronous controller verified; real compute input and actual capacity/cache gates remain |
 | EQ4 | PARTIAL | Routing statistics, capture closure and causal prefetch CPU controls verified; real routing/compute inputs and scientific projection validation remain |
@@ -389,3 +389,24 @@ Execution logs preserve exact output paths, temporary-directory overrides,
 compiler/CMake options, failures and durations. Continue the outstanding CPU
 implementation, then update this checkpoint. Formal pilots and the minimum
 matrix remain behind their applicable gates; the ideal matrix requires review.
+
+Resumed hardware result,2026-09-06: see [current known-delay diagnosis](50-integration/known-delay-harness.md#resumed-hardware-check-2026-09-06). The old clock-loop defect is not reproduced in the new local wait stamps, but critical-chain error remains far above G2. No formal runs were added.
+
+
+The passive loaded-MoE tuning observer is committed at `5a518a2`. It retains
+the source-bound preconstruction aliases, validates actual registered BF16
+Parameter geometry and raw unquantized descriptors after the existing runtime
+observer, and closes with a stored-state-only pass after tensor metadata reads.
+The final report records the last observed environment getter state. Both the
+batch configuration flag and installed mode must be exactly false, with the
+source-defined initialization/override bookkeeping still at its None baseline.
+This rejects an activated or partially initialized mode even when its flag is
+false. The old stale-environment-report quality failure and new batch-state
+failure are preserved before their fixes. All22 targeted tests pass; independent
+SPEC passes25 including3 additional report-boundary controls, and independent
+QUALITY approves the same frozen sources. Evidence:
+`results/gold/hf-routing-runner/resume-tuning-attempt-001/` and
+`resume-tuning-spec-attempt-001/`. No inference library/model/GPU/SHM was used by
+these tests. Integration into the owned request is the next unit; the helper
+does not establish effective kernel configuration, native-binary/cache/device
+authentication or scientific validation.

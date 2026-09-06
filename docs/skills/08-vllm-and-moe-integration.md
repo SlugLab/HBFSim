@@ -111,6 +111,25 @@ controls and both reviews pass, with29 related CPU tests in3.536s. The later
 validator must still reconcile token identities, every trace event and all three
 owned process records; a valid array is not proof of its source.
 
+
+The passive loaded-MoE tuning observer is committed at `5a518a2`. It retains
+the source-bound preconstruction aliases, validates actual registered BF16
+Parameter geometry and raw unquantized descriptors after the existing runtime
+observer, and closes with a stored-state-only pass after tensor metadata reads.
+The final report records the last observed environment getter state. Both the
+batch configuration flag and installed mode must be exactly false, with the
+source-defined initialization/override bookkeeping still at its None baseline.
+This rejects an activated or partially initialized mode even when its flag is
+false. The old stale-environment-report quality failure and new batch-state
+failure are preserved before their fixes. All22 targeted tests pass; independent
+SPEC passes25 including3 additional report-boundary controls, and independent
+QUALITY approves the same frozen sources. Evidence:
+`results/gold/hf-routing-runner/resume-tuning-attempt-001/` and
+`resume-tuning-spec-attempt-001/`. No inference library/model/GPU/SHM was used by
+these tests. Integration into the owned request is the next unit; the helper
+does not establish effective kernel configuration, native-binary/cache/device
+authentication or scientific validation.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

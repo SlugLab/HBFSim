@@ -962,11 +962,25 @@ def _torch_device_gate(torch, torch_cuda, gpu_uuid, device_name, capability):
             "actual CUDA device count/current device differs from single-GPU control"
         )
     properties = torch_cuda.get_device_properties(0)
+    raw_uuid = properties.uuid
+    torch_uuid_type = getattr(torch._C, "_CUuuid", None)
+    if type(raw_uuid) is str:
+        observed_uuid = raw_uuid
+    elif torch_uuid_type is not None and type(raw_uuid) is torch_uuid_type:
+        uuid_body = str(raw_uuid)
+        if re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            uuid_body,
+        ) is None:
+            raise ValueError("Torch device UUID representation is invalid")
+        observed_uuid = "GPU-" + uuid_body
+    else:
+        raise ValueError("Torch device UUID representation is invalid")
     observed = dict(
         raw_count=raw,
         public_count=public,
         current_device=current,
-        uuid=str(properties.uuid),
+        uuid=observed_uuid,
         name=str(properties.name),
         capability=[properties.major, properties.minor],
     )

@@ -421,6 +421,67 @@ class OwnedWorkerTests(unittest.TestCase):
         bad = SimpleNamespace(_C=SimpleNamespace(_cuda_getDeviceCount=lambda: 2))
         with self.assertRaises(ValueError):
             worker._torch_device_gate(bad, torch_cuda, "GPU-X", "Device", (12, 0))
+        for field, value in (("name", "Other Device"), ("major", 11)):
+            original = getattr(props, field)
+            setattr(props, field, value)
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ValueError, "identity differs"
+            ):
+                worker._torch_device_gate(
+                    torch, torch_cuda, "GPU-X", "Device", (12, 0)
+                )
+            setattr(props, field, original)
+
+    def test_torch_cuuid_body_is_strictly_bound_to_prefixed_declared_uuid(self):
+        class TorchCUuid:
+            def __init__(self, value):
+                self.value = value
+
+            def __str__(self):
+                return self.value
+
+        expected_body = "f07ea2df-1b6f-9a02-b534-5090abf3c174"
+        properties = SimpleNamespace(
+            uuid=TorchCUuid(expected_body), name="Device", major=12, minor=0
+        )
+        torch = SimpleNamespace(
+            _C=SimpleNamespace(_cuda_getDeviceCount=lambda: 1, _CUuuid=TorchCUuid)
+        )
+        torch_cuda = SimpleNamespace(
+            device_count=lambda: 1,
+            current_device=lambda: 0,
+            get_device_properties=lambda _: properties,
+        )
+        self.assertEqual(
+            worker._torch_device_gate(
+                torch,
+                torch_cuda,
+                "GPU-" + expected_body,
+                "Device",
+                (12, 0),
+            )["uuid"],
+            "GPU-" + expected_body,
+        )
+        for observed_uuid, declared_uuid, error in (
+            (None, "GPU-" + expected_body, "representation is invalid"),
+            (TorchCUuid("not-a-uuid"), "GPU-not-a-uuid", "representation is invalid"),
+            (
+                TorchCUuid("11111111-2222-3333-4444-555555555555"),
+                "GPU-" + expected_body,
+                "identity differs",
+            ),
+        ):
+            properties.uuid = observed_uuid
+            with self.subTest(observed_uuid=observed_uuid), self.assertRaisesRegex(
+                ValueError, error
+            ):
+                worker._torch_device_gate(
+                    torch,
+                    torch_cuda,
+                    declared_uuid,
+                    "Device",
+                    (12, 0),
+                )
 
     def test_prefix_property_replacement_prepopulation_and_preload_sentinels_reject(
         self,

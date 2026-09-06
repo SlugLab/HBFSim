@@ -14,8 +14,8 @@ do not close the current gold gates.
 | FUTURE-SASS | NOT_PROVEN | One archived optimized u32 control exposes the native/wait-return/consumer register chain, but contains no useful independent work or unique multi-lane outputs. Clock/native-completion ordering still needs scoreboard/control/call evidence. Audit: `results/gold/timing-future-unit/c6-mapping/source-audit-attempt-001/`. | Build a bounded gold control with retained work/unique outputs and validate exact dependencies. No hardware defect or semantic PASS is inferred from instruction order alone. |
 | STORAGE-TARGET | BLOCKED_STORAGE_BUSY | User authorizes selecting a safe project path. Selected candidate is `results/storage-inputs/read-only-benchmark.bin`, not created. Project filesystem shares root disk `/dev/nvme4n1p2` (Lexar ARES 4TB); no exclusive SSD I/O-path evidence. Identity and mount evidence: `results/manifests/storage-device.json`. | Keep physical acquisition closed; continue CPU replay/tooling. No payload I/O, benchmark-file initialization, writes, trim or format performed. |
 | CHECKPOINT | METADATA VERIFIED | Found project-local `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf`, a 61,095,802,848-byte allocated file. Embedded metadata: 48 layers, E=128, k=8. Inventory reconciles 579 tensors, 6,144 experts and 57,982,058,496 eligible bytes. | Use `results/manifests/qwen3-30b-a3b-inventory.json`; payload hash/GPU load not performed. Actual GPU fast-tier capacity and live cache gold remain unverified. |
-| HF-CHECKPOINT | METADATA VERIFIED | The project HF view `phase3/models/Qwen3-30B-A3B` passes the new verifier: 16 shards, 18,867 BF16 tensors, 6,144 experts, exact index/header/accounting. Read19,912,432 metadata bytes; frozen and second current checks pass. Receipt: `results/manifests/hf-qwen3-30b-a3b-metadata-20260905/`. | Bind this observation plus unchanged historical donor to native/capture/repeat; do not substitute GGUF F16 identity or describe historical payload hashes as freshly verified. GPU capture remains unrun. |
-| HF-STARTUP | CONTROLLED ENTRYPOINT OPEN | `ffd928e` closes request tuning gates; `5561e4e` closes fixed startup environment; `3833dac6` closes the seven-source supplemental binding with focused/phase tests, independent reviews and real source-only acquisition. | Implement the guarded worker and native/capture/repeat parent, then independent frozen raw/trace validation. Fresh single-device/no-MIG inventory and dual CUDA/vLLM identity checks remain mandatory; no real HF arm ran. |
+| HF-CHECKPOINT | METADATA VERIFIED; CURRENT OBSERVATION REFRESHED | The September6 independent observation at `results/manifests/hf-qwen3-30b-a3b-metadata-20260906-resume001/` retains the same metadata content identity and passes current checks; the prior September5 bundle remains historical. HF view:16 shards,18867 BF16 tensors,6144 experts. | Use the current receipt and retained runtime/startup/tuning snapshots for the future controlled triplet; do not substitute GGUF identity or claim fresh payload hashes. No real HF arm has run. |
+| HF-STARTUP | OWNED ENTRYPOINT CORRECTIONS AWAIT RE-REVIEW | Startup source binding `3833dac6` remains accepted. Initial worker/parent review found8 correction groups; uncommitted corrections now retain23 artifacts/five successful runs in `results/gold/hf-routing-runner/owned-entrypoint-attempt-002/`. Initial findings remain in `owned-entrypoint-spec-attempt-001/`. | Complete SPEC re-review, QUALITY and phase regression before committing this unit. Independent frozen route verification and actual guarded native/capture/repeat remain pending. |
 | ROUTING-INPUT | OPEN | Bounded routing capture/materialization, trace composition and native causal projection tools now pass CPU controls. No authenticated real route trace or matched compute-only timing trace was found in the project search. | Keep synthetic controls MOCK. Obtain current real capture/native/repeat evidence and matching compute input before scientific projection validation. |
 | CAPACITY-LIFETIME | OPEN FOR CAPACITY/TMA | Consumer-held frame leases and dynamic TMA lifecycle remain unproven. A complete kernel-local FAST-scalar TIMING future can retain ABI4; capacity lifetime is not its blocker. | Implement the complete timing capability/identity/loader/helper/transform unit separately; keep capacity/reference/hybrid/empirical/TMA future admission closed. |
 | FORMAL-HANDLERS | OPEN | Scheduler infrastructure passes its gates, but scientific producer/validator registrations and required real gold receipts are not yet frozen for matrix cells. | Complete bounded tools and paired input adapters, then register only supported gate-bound tasks. All formal replicates remain planned. |
@@ -66,3 +66,25 @@ real HF arm, scientific receipt or formal row was produced. Evidence:
 `runtime-source-drift-diagnostic-attempt-001/`.
 
 HF bytecode-cache closure is a required pending entrypoint gate: -B prevents writes but still reads valid .pyc. The planned parent and worker use fresh private sys.pycache_prefix before project imports; the existing intermediate launcher receives a narrowly bound PYTHONPYCACHEPREFIX transport value, while the final isolated worker uses explicit -X and removes that transport environment field before normal runtime checks. Namespace initializer absence must cover source, sourceless bytecode and native loader suffixes. This startup flow is not yet implemented or tested.
+
+
+Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
+must independently derive events from retained route arrays and tensor metadata,
+compare native/capture/repeat tokens and capture/repeat routes, and retain only
+a ROUTE_CONSISTENCY_ONLY boundary. Runtime/tuning hashes absent from its inputs
+are shared declarations, not recomputed observations. Owned process provenance,
+actual device/runtime/cleanup evidence and publication remain a later wrapper.
+
+The existing metadata helper is not by itself an exact donor-type guard.
+`results/gold/hf-routing-runner/frozen-semantics-design-attempt-001/report.json`
+records a passing frozen baseline followed by four in-memory donor mutations:
+equal-valued configuration/tensor-size/tensor-shape floats and one omitted
+configuration key all retain the helper's summary. This is helper-level MOCK
+diagnostic evidence, not a resealed altered bundle or full `_unpack` acceptance.
+Original metadata and source bytes stayed unchanged; no inference, GPU or weight
+payload read occurred. The new trace verifier needs a narrow exact-type and
+required-field guard before the unchanged ModelInventory/legacy consistency
+helpers. It must decode evidence as UTF-8 explicitly, propagate effective MOCK
+from arm declarations with metadata imposing a mandatory floor, and compare
+trace paths to an explicit expected attempt path without filesystem reads.
+The pure verifier and subsequent owned publication wrapper are not yet implemented.

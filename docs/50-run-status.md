@@ -150,3 +150,48 @@ weight payload hashes remain historical. No inference import, GPU execution,
 real HF arm, scientific receipt or formal row was produced. Evidence:
 `results/gold/hf-routing-runner/metadata-identity-refresh-attempt-001/` and
 `runtime-source-drift-diagnostic-attempt-001/`.
+
+
+Owned-entrypoint review checkpoint, 2026-09-06: the uncommitted worker and
+provisional native/capture/repeat parent have an initial 16-test CPU record, but
+independent SPEC review requires corrections before acceptance. The review
+confirmed a missing fixed site import path, device checks occurring after vLLM
+imports, mutable/deleted acknowledgements accepted by later callbacks,
+incomplete prefix/preload checks, signal/failure finalization gaps, missing
+after-arm wire/source checks and precise failure stages, discarded device
+observations, and unbounded topology-command output. Evidence is
+`results/gold/hf-routing-runner/owned-entrypoint-spec-attempt-001/review.json`
+and its bounded CPU `diagnostics.json`.
+
+Corrections have been returned uncommitted in a fresh
+`owned-entrypoint-attempt-002/`. Its initial 24-test RED records 6 failures and
+4 errors; previous attempt-001 is preserved. The final manifest binds23 artifacts
+and five successful runs, including focused tests, actual owned child controls,
+valid MOCK isolated preflight, isolated import probing and static checks. The
+valid preflight reaches its private callback with existing metadata/runtime/
+startup/tuning/current-input checks intact. This is not final unit acceptance:
+independent SPEC re-review, QUALITY and applicable phase regression remain.
+No real HF model arm, routing-origin receipt, scientific receipt or formal
+matrix row has been produced. Formal DONE remains 0.
+
+
+Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
+must independently derive events from retained route arrays and tensor metadata,
+compare native/capture/repeat tokens and capture/repeat routes, and retain only
+a ROUTE_CONSISTENCY_ONLY boundary. Runtime/tuning hashes absent from its inputs
+are shared declarations, not recomputed observations. Owned process provenance,
+actual device/runtime/cleanup evidence and publication remain a later wrapper.
+
+The existing metadata helper is not by itself an exact donor-type guard.
+`results/gold/hf-routing-runner/frozen-semantics-design-attempt-001/report.json`
+records a passing frozen baseline followed by four in-memory donor mutations:
+equal-valued configuration/tensor-size/tensor-shape floats and one omitted
+configuration key all retain the helper's summary. This is helper-level MOCK
+diagnostic evidence, not a resealed altered bundle or full `_unpack` acceptance.
+Original metadata and source bytes stayed unchanged; no inference, GPU or weight
+payload read occurred. The new trace verifier needs a narrow exact-type and
+required-field guard before the unchanged ModelInventory/legacy consistency
+helpers. It must decode evidence as UTF-8 explicitly, propagate effective MOCK
+from arm declarations with metadata imposing a mandatory floor, and compare
+trace paths to an explicit expected attempt path without filesystem reads.
+The pure verifier and subsequent owned publication wrapper are not yet implemented.

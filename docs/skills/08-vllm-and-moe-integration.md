@@ -233,6 +233,28 @@ real HF arm, scientific receipt or formal row was produced. Evidence:
 `results/gold/hf-routing-runner/metadata-identity-refresh-attempt-001/` and
 `runtime-source-drift-diagnostic-attempt-001/`.
 
+
+Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
+must independently derive events from retained route arrays and tensor metadata,
+compare native/capture/repeat tokens and capture/repeat routes, and retain only
+a ROUTE_CONSISTENCY_ONLY boundary. Runtime/tuning hashes absent from its inputs
+are shared declarations, not recomputed observations. Owned process provenance,
+actual device/runtime/cleanup evidence and publication remain a later wrapper.
+
+The existing metadata helper is not by itself an exact donor-type guard.
+`results/gold/hf-routing-runner/frozen-semantics-design-attempt-001/report.json`
+records a passing frozen baseline followed by four in-memory donor mutations:
+equal-valued configuration/tensor-size/tensor-shape floats and one omitted
+configuration key all retain the helper's summary. This is helper-level MOCK
+diagnostic evidence, not a resealed altered bundle or full `_unpack` acceptance.
+Original metadata and source bytes stayed unchanged; no inference, GPU or weight
+payload read occurred. The new trace verifier needs a narrow exact-type and
+required-field guard before the unchanged ModelInventory/legacy consistency
+helpers. It must decode evidence as UTF-8 explicitly, propagate effective MOCK
+from arm declarations with metadata imposing a mandatory floor, and compare
+trace paths to an explicit expected attempt path without filesystem reads.
+The pure verifier and subsequent owned publication wrapper are not yet implemented.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

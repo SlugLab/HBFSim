@@ -1,10 +1,86 @@
 # Run status — implementation in progress
 
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
-Latest standalone update: eight real HF attempts, two K1 hardware controls and one
-bounded C6 GPU correctness diagnostic have run; see the
-[current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06).
+Latest standalone update: HF010 returned three real arms; single-member decode
+metrics, native four-case C6 and native conditional-consumer GPU diagnostics ran.
+The new per-chain D0/D500 pair still failed G2; see the
+[current checkpoint](#actual-checkpoint-hf010-and-native-conditional-consumers-2026-09-06).
 Earlier resource and CPU entries below remain historical.
+
+## Actual checkpoint: HF010 and native conditional consumers, 2026-09-06
+
+Implementation checkpoint HEAD is `24d007371fc4ff1f1d2fde2a80d6e4b4d7d20ebc`.
+All observations below are standalone diagnostics; formal DONE remains 0.
+Older progress entries retain their historical scope.
+
+- HF010 completed real native/capture/repeat generation in 400.154178222 s.
+  All three token outputs matched; capture/repeat route arrays matched exactly.
+  Supplied-buffer consistency passed for 1,872 route events. Independent review
+  is retained in `results/gold/hf-routing-runner/real-diagnostic-triplet-data-review-attempt-010/`.
+  This is `UNVALIDATED` capture and `ROUTE_CONSISTENCY_ONLY`, not authenticated
+  origin or formal B/A/C publication. Owned children exited; NCCL's teardown
+  warning remains separate from observed process cleanup.
+- Actual CPU metrics processed only the capture member's 336 decode routes in
+  1.214856791 s. All routes matched the source. There were 2,688 expert accesses,
+  828 cold and 1,860 previously seen. Mean non-cold reuse distance was 8.658602
+  in actual order versus 8.331720 in the seed-0 shuffle. One member's union is
+  always 8/128. Evidence and independent recomputation are under
+  `results/gold/hf-routing-runner/offline-routing-hf010-data-review-attempt-001/`.
+  This `PROJECTED` result supplies no compute timing, concurrent serving, cache
+  residency or prefetch speedup. The subsequent route-only join is described below;
+  timed HF-to-P7 integration remains open.
+- The next CPU experiment generated an exact schema-2 HF inventory, a declared
+  rho=1/16 mathematical budget, and a causal route-only ledger. The three stages
+  took 3.328824665, 3.229581602 and 4.333797805 s. Both series contain 336 demand
+  nodes, 289 predictions, 288 later-demand comparisons and one terminal candidate.
+  Real/shuffled overlap counts were 1,191/1,362 (means 4.1354/4.7292 of 8 experts),
+  so this short sample does not show an original-order advantage. Each whole expert
+  occupies 9,437,184 bytes; current demand plus next-layer candidates require
+  75,497,472 or 150,994,944 bytes, within the declared 3,623,878,656-byte capacity.
+  This is a capacity comparison, not residency, cache hits or actual prefetch.
+  Inputs use one sequence, 64 context tokens, BF16 KV, zero workspace/safety
+  reserves; fast bytes are derived mathematically, not measured device capacity.
+  Evidence is `results/gold/hf-routing-runner/route-only-opportunity-attempt-001/`;
+  ledger SHA is `1aede34f8641c122ef4218dcffea497f47a15babb8d745ac1b41c28adca929f7`.
+  Attribution remains `PROJECTED_ROUTE_ONLY_CAUSAL_CONTROL`; the terminal
+  candidate is not classified useful. Independent actual reconstruction passed;
+  review and analysis are in `route-only-opportunity-data-review-attempt-001/`
+  under the same HF routing root.
+  Device-time acquisition is a separate next experiment, with no current timing,
+  speedup, live serving or G10 claim.
+- C6's separately compiled native four-case image ran successfully in
+  7.207384349 s: 128 outputs, 72 issued/ready/consumed, 38 groups, 144 traces.
+  Its independent review is `c6-correctness/native-image-data-review-attempt-001/`
+  under `results/gold/timing-future-unit/`. The earlier driver-JIT acquisition is
+  distinct and cannot inherit this native-image binding.
+- A new optimized conditional-consumer image was then compiled and inspected.
+  The new host target passed seven CPU controls and a bounded serial build.
+  Its false/true/mixed GPU acquisition returned `CAPTURED_UNVALIDATED` in
+  10.239901762 s, reporting all 96 outputs correct, 96 issued/ready/consumed,
+  three groups and 192 traces. Exact cubin SHA is `0804821c83079e92f1a25610cb345c4e98ff2618bbb64d578b084537338e134f`;
+  raw SHA is `dfb972af8755926f62f9ba2ef87090760215e83bc437a9b0ffce562e2f3223eb`.
+  Evidence is `results/gold/timing-future-unit/c6-correctness/conditional-consumer-attempt-001/`.
+  Independent review recomputed all 96 outputs and 192 traces; see
+  `conditional-consumer-data-review-attempt-001/` in the same evidence root.
+  C6.3, full C6.4,
+  D/W, G5, true overlap, native completion, capacity leases and TMA remain open.
+- The new 136-byte per-chain known-delay path produced coherent actual rows,
+  but G2 still failed. D0 mean absolute noise was 167,310.128 ns; D500 mean/P95
+  absolute error was 106,758.213/117,620 ns against unchanged 100/200 ns limits.
+  Every D500 local wait was 512 ns. Most paired difference occurred before the
+  wait, without identifying a resolver, clock, JIT or scheduling cause.
+  Evidence/reviews are under `results/gold/known-delay/per-chain-k1-data-review-attempt-001/`.
+  The same-process ABBA follow-up subsequently ran in 4.361914580 s at
+  `9b4d8437c65017d2193e7c70898cc683b46a1c6a`, with one context/module and
+  fixed allocations across D0/D500/D500/D0. Every wait increment was 512 ns.
+  For adjacent pairs (0,1)/(3,2), signed chain means were 1,792/-11,771.915 ns;
+  mean absolute errors against 500 ns were 5,083.489/13,193.532 ns, with
+  nearest-rank P95 errors 14,796/26,100 ns. CUDA-event deltas were
+  -206,048.012/-202,144.146 ns. These are distinct timing endpoints and two
+  diagnostic pairs, not a formal G2 replication set. Evidence:
+  `results/gold/known-delay/per-chain-abba-attempt-001/`; its actual-data
+  independent review is retained in `per-chain-abba-data-review-attempt-001/`
+  under the same known-delay root. G2 and causal attribution remain open.
 The runner's read-only status command reports the entire frozen matrix;
 unit-test fixtures, CPU accounting controls, the three-cell media pilot and
 three-policy MOCK causal pilot are not formal experiment runs.
@@ -39,6 +115,11 @@ controls are under `results/gold/known-delay/gpu-controls/`; their DONE/failed/
 contaminated acquisition states are not formal scheduler counts. The corrected
 implementation has a separate blocked preflight in
 `results/gold/known-delay/clock-controls/d0-k64-r1/`; no new GPU timing was acquired.
+
+## Historical standalone checkpoints
+
+The entries below describe their original acquisition or development phase.
+Their pending items are historical; the current checkpoint above supersedes them.
 
 Standalone CPU update, 2026-09-05T15:58Z: real HF frozen inventory adaptation
 and three hypothetical capacity-accounting controls passed under
@@ -222,7 +303,7 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 ## Standalone real-experiment checkpoint, 2026-09-06
 
-Latest actual HF run: HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
+Historical HF008 run: HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
 128.635422801 s, exit1. It passed device/import/preconstruction checks and
 actually loaded the BF16 model: stdout records56.88 GiB and39.138985 s for
 model loading, then5.18 s for engine initialization. The subsequent

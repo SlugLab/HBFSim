@@ -2,9 +2,10 @@
 
 P0/P1/P6 and bounded CPU portions of P2/P3/P7 are verified. This is an interim
 checkpoint, not completion of P0–P8 or permission to launch a formal matrix.
-Default-OFF ordinary TIMING future admission is implemented; one bounded GPU
-correctness diagnostic is captured but unvalidated, while optimized SASS and
-full GPU gold remain open and TMA support remains uninstalled. Known-delay, read-only
+Default-OFF ordinary TIMING future admission is implemented. Guarded native-image
+four-case and conditional-consumer correctness observations are captured but
+unvalidated. Optimized control-word proof and full GPU gold remain open; TMA
+support remains uninstalled. Known-delay, read-only
 acquisition, exact-arrival conversion, routing capture closure and native causal
 prefetch tools now pass their bounded CPU/compile controls and independent
 reviews. Physical storage acquisition remains blocked. The storage pairing adapter now passes
@@ -16,10 +17,11 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Latest actual checkpoint HEAD: `c7ee00758c195798e4554268429f9a63868bcf7a`.
-  The C6 diagnostic captured the bounded result below. The owned-worker
-  fixed-environment wire repair has CPU/MOCK closure and HF008 has now
-  loaded the real model. A later pre-generation environment mismatch remains open.
+- Latest actual checkpoint HEAD: `24d007371fc4ff1f1d2fde2a80d6e4b4d7d20ebc`.
+  HF010 returned matching tokens and routes after the scoped Ray compatibility
+  repair. C6 native-image and conditional-consumer GPU diagnostics returned.
+  Formal origins, timing/performance gold and physical storage remain open.
+  See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf010-and-native-conditional-consumers-2026-09-06).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -107,7 +109,10 @@ complete artifacts through the same strict exporter before atomically writing
 DONE, and never treats project locks as control over foreign processes. No
 scientific task registry has been registered or formal matrix launched yet.
 
-## Current hardware controls and correction
+## Hardware control development history
+
+These records preserve the scope of each earlier unit. For later actual native
+C6 and ABBA results, use the current checkpoint linked above.
 
 C5 infrastructure now passes independent spec and quality reviews. The exact
 64-byte token, separate 32-byte metadata, host v4 capability/lifecycle binding,
@@ -198,7 +203,11 @@ Evidence: `results/gold/known-delay/gpu-controls/`, especially
 `d500-k64-r1/diagnostic-spans.json`; CPU repair evidence is under
 `results/gold/scheduler/gpu-zombie-*`.
 
-## Model, storage and resources
+## Model, storage and resource development history
+
+The dated units below retain their original conclusions. HF010 generation and
+the subsequent route-only experiment now supplement them; timed HF-to-P7 and
+physical storage validation remain open.
 
 The existing `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf`
 contains 579 tensors, 48 layers, E=128 and k=8. All 6,144 expert identities
@@ -340,17 +349,20 @@ requires both. Offline calculations remain CPU-only. Current status is in
 | EQ | Status | Remaining |
 |---|---|---|
 | EQ1 | BLOCKED | Known-delay and collector tools pass bounded CPU/compile controls; full-chain G2 failure/noise, exclusive SSD and paired scientific validation remain |
-| EQ2 | PARTIAL | Complete opt-in ordinary TIMING unit has CPU/compile closure; optimized SASS/GPU gold and TMA lifecycle remain open |
+| EQ2 | PARTIAL | Opt-in ordinary TIMING CPU/compile controls and bounded native-image GPU correctness observations exist; control-word proof, D/W timing, full GPU gold and TMA lifecycle remain open |
 | EQ3 | PARTIAL | Real inventory/budgets and native media replay available; bounded layer-synchronous controller verified; real compute input and actual capacity/cache gates remain |
-| EQ4 | PARTIAL | Routing statistics, capture closure and causal prefetch CPU controls verified; real routing/compute inputs and scientific projection validation remain |
+| EQ4 | PARTIAL | HF010 real diagnostic routes, single-member metrics and causal route-only inventory/budget experiment completed; authentic origins, real device intervals and timed projection validation remain open |
 
-No EQ is ready for formal measured performance claims. Do not claim GPU
-async correctness, TMA overlap, full cp.async coverage, SASS-preserved ordering,
+No EQ is ready for formal measured performance claims. Do not claim full GPU
+async semantics, TMA overlap, full cp.async coverage, SASS-preserved ordering,
 SSD ground truth fidelity, live-serving speedup, observed rho/cache behavior,
 or completed minimum experiments. Thermal remains outside the main EQ work;
 no thermal runtime stack was added.
 
-## Exact verification commands
+## Recorded verification commands
+
+These are historical command records, not a request to repeat the suites.
+The latest bounded executions and observed costs are in the current checkpoint.
 
 Run from `/root/hbfsim-exp/eval-base-integration`:
 

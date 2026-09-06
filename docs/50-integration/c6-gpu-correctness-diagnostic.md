@@ -1,9 +1,36 @@
 # C6 one-warp GPU correctness diagnostic
 
 This opt-in diagnostic is **UNVALIDATED**. It does not close C6.3, overlap, G5,
-or a native-load completion-time claim. The live CUDA driver JIT image is not
-bound to the earlier `ptxas -O3 sm_120` cubin/disassembly, whose semantic mapping
-status remains `NOT_PROVEN`.
+or a native-load completion-time claim. Later acquisitions now load explicitly
+bound native images; their semantic mapping status remains `NOT_PROVEN`.
+The initial driver-JIT acquisition below is distinct historical evidence.
+
+## Later exact-native-image acquisitions
+
+The four-case native-image run at76bae126 completed in7.207384349s, with all128
+outputs and72 issued/ready/consumed independently checked. It loaded the retained
+82664-byte cubin4b17ddb0... through the same validated buffer. Evidence and review:
+`results/gold/timing-future-unit/c6-correctness/native-image-attempt-001/` and
+`native-image-data-review-attempt-001/`.
+
+The separate conditional-consumer target was committed at5b1aaf9 after seven CPU
+controls and a serial build. The new79760-byte cubin0804821c... preserves ordinary
+u32 load and independent work before a predicated first consumer and an
+unconditional second consumer. In the mixed case, lanes0/8/16/24 use the first
+consumer; the remaining lanes wait at the second. The actual three-case run
+completed in10.239901762s, reporting96 correct outputs,96issued/ready/consumed,
+three groups and192traces with no pending/error/overflow. The runtime recorded
+the exact new native image and unchanged source/build/profile postchecks.
+Evidence: `conditional-consumer-attempt-001/` under the same C6 correctness root.
+Independent review recomputed all 96 outputs, sentinels and 192 traces, with
+consistent counters and native-image binding; review and analysis are retained
+in `conditional-consumer-data-review-attempt-001/` under that evidence root.
+
+These remain CAPTURED_UNVALIDATED observations. A prescribed first-consumer bit
+is not a dynamic wait-call-site observation. Trace timestamps do not measure
+physical native load completion, and current positive scalar reservation is not
+a trueD0 known-delay future control. D/W, G5, overlap, full lifecycle and TMA remain
+open. Existing observable cleanup succeeded; contextdestroy is still a void API.
 
 ## First actual acquisition
 

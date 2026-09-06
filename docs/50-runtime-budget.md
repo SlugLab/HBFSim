@@ -1,10 +1,29 @@
 # Runtime budget — bounded controls only
 
 The matrix estimates remain planning values. Known-delay and bounded C6 GPU
-controls plus HF runtime diagnostic attempts have run. G2 failed; HF008
-completed real model loading but failed before generation. No physical-storage pilot has run. This checkpoint cannot replace
+controls plus HF runtime diagnostics have run. G2 remains failed; HF010
+completed all three real generation arms in 400.154178222 s. No physical-storage pilot has run. This checkpoint cannot replace
 the planning values with validated per-cell
 runtime estimates or predict a validated completion date.
+
+| Latest standalone observation | Process wall time | Boundary |
+| --- | ---: | --- |
+| HF010 native/capture/repeat | 400.154178222 s | Three real cold-load/generation arms plus preparation/guard/cleanup; not generation latency |
+| HF010 consistency, second bounded attempt | 5.520027339 s | 1 GiB limit; 487032 KiB RSS; supplied-buffer consistency only |
+| HF010 single-member decode metrics | 1.214856791 s | 140860 KiB RSS; 336 decode routes; PROJECTED only |
+| HF route-only three CPU controls | 1.370668335 s | 32420 KiB RSS; concrete causal/capacity oracle and negative joins |
+| HF schema-2 inventory / mathematical budget / route ledger | 3.328824665 / 3.229581602 / 4.333797805 s | RSS186508/237428/199972 KiB; three 1 GiB/60 s stages; no model/GPU/MQSim |
+| C6 native four-case GPU | 7.207384349 s | Exact native image; correctness capture only |
+| C6 conditional transform / ptxas / collection | 0.165298894 / 0.316192252 / 1.721340215 s | Actual CPU commands; mapping remains NOT_PROVEN |
+| C6 conditional CPU / configure / host build | 0.517359670 / 0.518229592 / 76.464894412 s | Seven controls; single target; build RSS702416 KiB |
+| C6 conditional three-case GPU | 10.239901762 s | Guarded acquisition wall time; no kernel/overlap timing claim |
+| New per-chain K1 D0 / D500 | 9.703757213 / 9.730148093 s | D0 noise diagnostic; D500 still INVALID_GOLD_GATE |
+| ABBA CPU / serial target build | 0.467977310 / 68.672600271 s | Two real shared-oracle controls; RSS25976/670592 KiB |
+| Same-process ABBA GPU | 4.361914580 s | Four measured launches after one warmup; two diagnostic pairs; no G2 closure |
+
+The earlier 256 MiB HF010 consistency attempt failed with MemoryError and is
+retained. It did not rerun the model. The same verifier passed at 1 GiB.
+These observed times do not validate the planning runtime of any formal cell.
 
 | Observed CPU verification | Wall time | Boundary |
 |---|---:|---|

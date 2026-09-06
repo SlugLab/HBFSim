@@ -9,6 +9,11 @@ extern "C" __device__ hbfsim::device::EvalDelayConfig
     __hbfsim_eval_delay_config = {};
 extern "C" __device__ hbfsim::device::EvalDelayCounters
     __hbfsim_eval_delay_counters = {};
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+extern "C" __device__ hbfsim::device::EvalChainDiagnosticConfig
+    __hbfsim_eval_chain_diagnostic_config = {};
+#endif
 extern "C" __device__ __constant__ unsigned int
     __hbfsim_device_helper_marker = 0x48424632U;
 
@@ -93,6 +98,65 @@ __device__ bool eval_delay_control_ready(
            system_acquire(&header->heartbeat_ns) != 0 &&
            system_acquire(&header->control_generation) == expected_generation;
 }
+
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+__device__ bool eval_chain_record(
+    const hbfsim::device::EvalChainDiagnosticConfig& config,
+    const hbfsim::device::EvalChainProducer& producer,
+    hbfsim::device::EvalChainEventClass event_class, std::uint64_t address,
+    std::uint32_t bytes, std::uint32_t operation, std::uint64_t begin_ns,
+    std::uint64_t end_ns, RequestStatus status)
+{
+    const auto storage = hbfsim::device::eval_chain_storage(config,
+                                                            producer.row);
+    if (producer.valid == 0 || storage.valid == 0) return false;
+    auto* row = reinterpret_cast<hbfsim::device::EvalChainRow*>(
+        static_cast<std::uintptr_t>(storage.row_address));
+    // One validated producer owns each row and the host reads only after the
+    // launch completes, so these row-local updates need no shared atomics.
+    const auto writer_observed = row->writer_observed;
+    if (writer_observed == 0) {
+        row->launch_epoch = config.launch_epoch;
+        row->writer_thread_id = producer.thread_id;
+        row->writer_observed = 1;
+    } else if (writer_observed != 1 ||
+               row->launch_epoch != config.launch_epoch ||
+               row->writer_thread_id != producer.thread_id) {
+        return false;
+    }
+
+    const auto index = row->event_count++;
+    switch (event_class) {
+        case hbfsim::device::EvalChainEventClass::CoveredLoad:
+            ++row->counters.covered_accesses;
+            row->counters.covered_bytes += bytes;
+            break;
+        case hbfsim::device::EvalChainEventClass::ChainOutputStore:
+        case hbfsim::device::EvalChainEventClass::BlockOutputStore:
+            ++row->counters.bypass_accesses;
+            row->counters.bypass_bytes += bytes;
+            break;
+        case hbfsim::device::EvalChainEventClass::Rejected:
+            ++row->counters.rejected_accesses;
+            break;
+        default:
+            return false;
+    }
+    const auto slot = hbfsim::device::eval_chain_slot(config, producer.row,
+                                                       index);
+    if (slot.valid == 0) {
+        ++row->counters.trace_overflow;
+        return false;
+    }
+    auto* event = reinterpret_cast<hbfsim::device::EvalChainEvent*>(
+        static_cast<std::uintptr_t>(slot.address));
+    *event = {producer.thread_id, address, index, begin_ns, end_ns, bytes,
+              operation, static_cast<std::uint32_t>(event_class),
+              static_cast<std::uint32_t>(status)};
+    return true;
+}
+#endif
 
 __device__ void bounded_sleep(std::uint32_t& delay_ns)
 {
@@ -518,11 +582,56 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     if (count > hbfsim::device::kRangeCapacity) {
         return fail(address, RequestStatus::Unsupported);
     }
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+    const auto chain_config = __hbfsim_eval_chain_diagnostic_config;
+    const auto chain_experiment = hbfsim::device::eval_chain_diagnostic_action(
+        chain_config, __hbfsim_eval_delay_config.magic);
+    if (chain_experiment ==
+            hbfsim::device::EvalChainDiagnosticAction::Reject ||
+        (chain_experiment ==
+             hbfsim::device::EvalChainDiagnosticAction::Apply &&
+         !hbfsim::device::eval_chain_launch_matches(
+             chain_config, gridDim.x, gridDim.y, gridDim.z, blockDim.x,
+             blockDim.y, blockDim.z))) {
+        return fail(address, RequestStatus::Unsupported);
+    }
+    const auto chain_producer =
+        chain_experiment == hbfsim::device::EvalChainDiagnosticAction::Apply
+            ? hbfsim::device::eval_chain_producer(
+                  chain_config, blockIdx.x, blockIdx.y, blockIdx.z,
+                  threadIdx.x, threadIdx.y, threadIdx.z)
+            : hbfsim::device::EvalChainProducer{};
+    if (chain_experiment ==
+            hbfsim::device::EvalChainDiagnosticAction::Apply &&
+        chain_producer.valid == 0) {
+        return fail(address, RequestStatus::Unsupported);
+    }
+#endif
     const auto* ranges = reinterpret_cast<const SharedRangeRecord*>(
         reinterpret_cast<const std::byte*>(header) + header->range_offset);
     const auto* range = find_range(ranges, count, address);
     if (range == nullptr || address < range->base ||
         address - range->base >= range->length) {
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+        if (chain_experiment ==
+            hbfsim::device::EvalChainDiagnosticAction::Apply) {
+            const auto event_class = hbfsim::device::eval_chain_event_class(
+                chain_config, false, address, bytes, operation);
+            const auto status =
+                event_class == hbfsim::device::EvalChainEventClass::Rejected
+                    ? RequestStatus::Unsupported
+                    : RequestStatus::Ready;
+            const auto observed_ns = gpu_time_ns();
+            if (!eval_chain_record(chain_config, chain_producer, event_class,
+                                   address, bytes, operation, observed_ns,
+                                   observed_ns, status) ||
+                status != RequestStatus::Ready) {
+                return fail(address, RequestStatus::Unsupported);
+            }
+        }
+#endif
         if (__hbfsim_eval_delay_config.magic != 0) {
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_accesses, 1);
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_bytes, bytes);
@@ -532,8 +641,38 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto media = hbfsim::device::media_descriptor(
         *range, address, bytes, operation);
     if (!media.valid) {
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+        if (chain_experiment ==
+            hbfsim::device::EvalChainDiagnosticAction::Apply) {
+            const auto observed_ns = gpu_time_ns();
+            (void)eval_chain_record(
+                chain_config, chain_producer,
+                hbfsim::device::EvalChainEventClass::Rejected, address, bytes,
+                operation, observed_ns, observed_ns,
+                RequestStatus::Unsupported);
+        }
+#endif
         return fail(address, RequestStatus::Unsupported);
     }
+
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+    if (chain_experiment ==
+        hbfsim::device::EvalChainDiagnosticAction::Apply) {
+        const auto event_class = hbfsim::device::eval_chain_event_class(
+            chain_config, true, address, bytes, operation);
+        if (event_class != hbfsim::device::EvalChainEventClass::CoveredLoad ||
+            range->mode != 1 || header->time_scale != 1) {
+            const auto observed_ns = gpu_time_ns();
+            (void)eval_chain_record(chain_config, chain_producer,
+                                    hbfsim::device::EvalChainEventClass::Rejected,
+                                    address, bytes, operation, observed_ns,
+                                    observed_ns, RequestStatus::Unsupported);
+            return fail(address, RequestStatus::Unsupported);
+        }
+    }
+#endif
 
     const auto experiment = hbfsim::device::eval_delay_action(
         __hbfsim_eval_delay_config, *range, operation, header->time_scale);
@@ -582,7 +721,35 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 traces[index] = {std::uint64_t{blockIdx.x} * blockDim.x + threadIdx.x,
                                  address, interval.begin_ns, interval.finish_ns, config.delay_ns};
             }
-        } else {
+        }
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+        else if (chain_experiment ==
+                 hbfsim::device::EvalChainDiagnosticAction::Apply) {
+            // Preserve the legacy experiment's clock-only interval and both
+            // liveness checks; only the storage destination is per-chain.
+            const auto timeout_ns =
+                system_acquire(&header->request_timeout_ns);
+            const bool live =
+                eval_delay_control_ready(header, expected_generation) &&
+                timeout_ns != 0;
+            const auto interval = eval_delay_clock_wait(
+                live ? chain_config.delay_ns : 0, timeout_ns);
+            resolution.status =
+                live ? interval.status : RequestStatus::DaemonLost;
+            if (!eval_delay_control_ready(header, expected_generation)) {
+                resolution.status = RequestStatus::DaemonLost;
+            }
+            if (!eval_chain_record(
+                    chain_config, chain_producer,
+                    hbfsim::device::EvalChainEventClass::CoveredLoad, address,
+                    bytes, operation, interval.begin_ns, interval.finish_ns,
+                    resolution.status)) {
+                resolution.status = RequestStatus::Unsupported;
+            }
+        }
+#endif
+        else {
             resolution = range->mode == 1 && header->timing_model != 0
                          ? resolve_fast_or_hybrid(mutable_header, *range,
                                                   media, operation)

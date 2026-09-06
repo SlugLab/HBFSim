@@ -44,6 +44,10 @@ constexpr EvalChainDiagnosticConfig config(std::uint32_t grid,
         std::uint64_t{grid} * warps * stride,
         stride,
         capacity,
+        0x10000000,
+        std::uint64_t{grid} * warps * kEvalChainOutputBytes,
+        0x20000000,
+        std::uint64_t{grid} * kEvalBlockOutputBytes,
     };
 }
 
@@ -52,7 +56,7 @@ int main()
     static_assert(sizeof(EvalDelayConfig) == 32);
     static_assert(sizeof(EvalDelayCounters) == 48);
     static_assert(sizeof(EvalDelayTrace) == 40);
-    static_assert(sizeof(EvalChainDiagnosticConfig) == 104);
+    static_assert(sizeof(EvalChainDiagnosticConfig) == 136);
     static_assert(sizeof(EvalChainEvent) == 56);
     static_assert(sizeof(EvalChainRow) == 128);
 
@@ -87,6 +91,13 @@ int main()
     CHECK(first.row != alias.row);
 
     const auto valid = config(3, 4, 16);
+    CHECK(eval_chain_launch_matches(valid, 3, 1, 1, 128, 1, 1));
+    CHECK(!eval_chain_launch_matches(valid, 2, 1, 1, 128, 1, 1));
+    CHECK(!eval_chain_launch_matches(valid, 3, 2, 1, 128, 1, 1));
+    CHECK(!eval_chain_launch_matches(valid, 3, 1, 2, 128, 1, 1));
+    CHECK(!eval_chain_launch_matches(valid, 3, 1, 1, 64, 1, 1));
+    CHECK(!eval_chain_launch_matches(valid, 3, 1, 1, 128, 2, 1));
+    CHECK(!eval_chain_launch_matches(valid, 3, 1, 1, 128, 1, 2));
     CHECK(eval_chain_producer(valid, 0, 0, 0, 1, 0, 0).valid == 0);
     CHECK(eval_chain_producer(valid, 0, 1, 0, 0, 0, 0).valid == 0);
     CHECK(eval_chain_producer(valid, 0, 0, 0, 0, 1, 0).valid == 0);
@@ -104,8 +115,36 @@ int main()
     CHECK(last.address + sizeof(EvalChainEvent) <= row1.row_address);
     CHECK(eval_chain_slot(valid, 0, valid.trace_capacity).valid == 0);
 
+    CHECK(eval_chain_event_class(valid, true, 0x30000000, 4, 0) ==
+          EvalChainEventClass::CoveredLoad);
+    CHECK(eval_chain_event_class(valid, true, 0x30000000, 4, 1) ==
+          EvalChainEventClass::Rejected);
+    CHECK(eval_chain_event_class(valid, false, valid.chain_output_address,
+                                 8, 1) ==
+          EvalChainEventClass::ChainOutputStore);
+    CHECK(eval_chain_event_class(
+              valid, false,
+              valid.chain_output_address + valid.chain_output_bytes - 8,
+              8, 1) == EvalChainEventClass::ChainOutputStore);
+    CHECK(eval_chain_event_class(
+              valid, false,
+              valid.chain_output_address + valid.chain_output_bytes - 4,
+              8, 1) == EvalChainEventClass::Rejected);
+    CHECK(eval_chain_event_class(valid, false, valid.block_output_address,
+                                 8, 1) ==
+          EvalChainEventClass::BlockOutputStore);
+    CHECK(eval_chain_event_class(valid, false, 0x30000000, 8, 1) ==
+          EvalChainEventClass::Rejected);
+    CHECK(eval_chain_event_class(valid, false, valid.chain_output_address,
+                                 8, 0) == EvalChainEventClass::Rejected);
+    CHECK(eval_chain_event_class(valid, false, valid.chain_output_address,
+                                 0, 1) == EvalChainEventClass::Rejected);
+
     auto malformed = config(1, 1, 1);
-    malformed.version = 2;
+    malformed.version = 1;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.config_bytes = 104;
     CHECK(!eval_chain_config_valid(malformed));
     malformed = config(1, 1, 1);
     malformed.launch_epoch = 0;
@@ -132,6 +171,25 @@ int main()
     malformed = config(1, 1, 1);
     malformed.storage_address += 1;
     CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.chain_output_bytes -= 1;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.block_output_bytes -= 1;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.chain_output_address = malformed.storage_address;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.block_output_address = malformed.chain_output_address;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.chain_output_address += 1;
+    CHECK(!eval_chain_config_valid(malformed));
+    malformed = config(1, 1, 1);
+    malformed.block_output_address =
+        std::numeric_limits<std::uint64_t>::max() - 7;
+    CHECK(!eval_chain_config_valid(malformed));
 
     auto too_many_rows = config(1, 16, 1);
     too_many_rows.grid_x = std::numeric_limits<std::uint32_t>::max();
@@ -139,6 +197,14 @@ int main()
         std::uint64_t{too_many_rows.grid_x} * too_many_rows.warps_per_block;
     too_many_rows.storage_bytes =
         too_many_rows.row_count * too_many_rows.row_stride;
+    too_many_rows.chain_output_address =
+        too_many_rows.storage_address + too_many_rows.storage_bytes;
+    too_many_rows.chain_output_bytes =
+        too_many_rows.row_count * kEvalChainOutputBytes;
+    too_many_rows.block_output_address =
+        too_many_rows.chain_output_address + too_many_rows.chain_output_bytes;
+    too_many_rows.block_output_bytes =
+        std::uint64_t{too_many_rows.grid_x} * kEvalBlockOutputBytes;
     CHECK(!eval_chain_config_valid(too_many_rows));
 
     auto overflow = config(1, 1, 1);

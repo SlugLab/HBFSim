@@ -168,8 +168,10 @@ static_assert(sizeof(EvalDelayTrace) == 40);
 // It is module-local and does not change EvalDelayConfig or the shared ABI.
 inline constexpr std::uint64_t kEvalChainDiagnosticMagic =
     0x4556434841494e31ULL;
-inline constexpr std::uint32_t kEvalChainDiagnosticVersion = 1;
+inline constexpr std::uint32_t kEvalChainDiagnosticVersion = 2;
 inline constexpr std::uint64_t kEvalChainNoWriter = ~std::uint64_t{0};
+inline constexpr std::uint64_t kEvalChainOutputBytes = 32;
+inline constexpr std::uint64_t kEvalBlockOutputBytes = 24;
 
 struct EvalChainDiagnosticConfig {
     std::uint64_t magic;
@@ -190,6 +192,10 @@ struct EvalChainDiagnosticConfig {
     std::uint64_t storage_bytes;
     std::uint64_t row_stride;
     std::uint64_t trace_capacity;
+    std::uint64_t chain_output_address;
+    std::uint64_t chain_output_bytes;
+    std::uint64_t block_output_address;
+    std::uint64_t block_output_bytes;
 };
 
 enum class EvalChainEventClass : std::uint32_t {
@@ -266,6 +272,40 @@ HBFSIM_HOST_DEVICE constexpr bool eval_chain_warp_count_supported(
            warps == 16;
 }
 
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_span_valid(
+    std::uint64_t address, std::uint64_t bytes)
+{
+    std::uint64_t end = 0;
+    return address != 0 && bytes != 0 &&
+           eval_chain_checked_add(address, bytes, &end) && end > address;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_spans_disjoint(
+    std::uint64_t left_address, std::uint64_t left_bytes,
+    std::uint64_t right_address, std::uint64_t right_bytes)
+{
+    std::uint64_t left_end = 0;
+    std::uint64_t right_end = 0;
+    return eval_chain_span_valid(left_address, left_bytes) &&
+           eval_chain_span_valid(right_address, right_bytes) &&
+           eval_chain_checked_add(left_address, left_bytes, &left_end) &&
+           eval_chain_checked_add(right_address, right_bytes, &right_end) &&
+           (left_end <= right_address || right_end <= left_address);
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_span_contains(
+    std::uint64_t span_address, std::uint64_t span_bytes,
+    std::uint64_t address, std::uint32_t bytes)
+{
+    std::uint64_t span_end = 0;
+    std::uint64_t access_end = 0;
+    return bytes != 0 && address >= span_address &&
+           eval_chain_span_valid(span_address, span_bytes) &&
+           eval_chain_checked_add(span_address, span_bytes, &span_end) &&
+           eval_chain_checked_add(address, bytes, &access_end) &&
+           access_end <= span_end;
+}
+
 HBFSIM_HOST_DEVICE constexpr bool eval_chain_config_valid(
     const EvalChainDiagnosticConfig& config,
     std::uint64_t legacy_eval_magic = 0)
@@ -282,7 +322,9 @@ HBFSIM_HOST_DEVICE constexpr bool eval_chain_config_valid(
         config.trace_capacity != std::uint64_t{config.hops} + 7 ||
         config.storage_address == 0 ||
         config.storage_address % alignof(EvalChainRow) != 0 ||
-        config.row_stride % alignof(EvalChainRow) != 0) {
+        config.row_stride % alignof(EvalChainRow) != 0 ||
+        config.chain_output_address % alignof(std::uint64_t) != 0 ||
+        config.block_output_address % alignof(std::uint64_t) != 0) {
         return false;
     }
     std::uint64_t rows = 0;
@@ -295,6 +337,8 @@ HBFSIM_HOST_DEVICE constexpr bool eval_chain_config_valid(
     std::uint64_t row_bytes = 0;
     std::uint64_t storage_bytes = 0;
     std::uint64_t storage_end = 0;
+    std::uint64_t chain_output_bytes = 0;
+    std::uint64_t block_output_bytes = 0;
     return eval_chain_checked_multiply(config.trace_capacity,
                                        sizeof(EvalChainEvent), &trace_bytes) &&
            eval_chain_checked_add(sizeof(EvalChainRow), trace_bytes,
@@ -305,7 +349,27 @@ HBFSIM_HOST_DEVICE constexpr bool eval_chain_config_valid(
            storage_bytes == config.storage_bytes &&
            eval_chain_checked_add(config.storage_address,
                                   config.storage_bytes, &storage_end) &&
-           storage_end > config.storage_address;
+           storage_end > config.storage_address &&
+           eval_chain_checked_multiply(config.row_count,
+                                       kEvalChainOutputBytes,
+                                       &chain_output_bytes) &&
+           chain_output_bytes == config.chain_output_bytes &&
+           eval_chain_checked_multiply(config.grid_x,
+                                       kEvalBlockOutputBytes,
+                                       &block_output_bytes) &&
+           block_output_bytes == config.block_output_bytes &&
+           eval_chain_spans_disjoint(config.storage_address,
+                                     config.storage_bytes,
+                                     config.chain_output_address,
+                                     config.chain_output_bytes) &&
+           eval_chain_spans_disjoint(config.storage_address,
+                                     config.storage_bytes,
+                                     config.block_output_address,
+                                     config.block_output_bytes) &&
+           eval_chain_spans_disjoint(config.chain_output_address,
+                                     config.chain_output_bytes,
+                                     config.block_output_address,
+                                     config.block_output_bytes);
 }
 
 HBFSIM_HOST_DEVICE constexpr EvalChainDiagnosticAction
@@ -316,6 +380,36 @@ eval_chain_diagnostic_action(const EvalChainDiagnosticConfig& config,
     return eval_chain_config_valid(config, legacy_eval_magic)
                ? EvalChainDiagnosticAction::Apply
                : EvalChainDiagnosticAction::Reject;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_launch_matches(
+    const EvalChainDiagnosticConfig& config, std::uint32_t grid_x,
+    std::uint32_t grid_y, std::uint32_t grid_z, std::uint32_t block_x,
+    std::uint32_t block_y, std::uint32_t block_z)
+{
+    return eval_chain_config_valid(config) && grid_x == config.grid_x &&
+           grid_y == config.grid_y && grid_z == config.grid_z &&
+           block_x == config.block_x && block_y == config.block_y &&
+           block_z == config.block_z;
+}
+
+HBFSIM_HOST_DEVICE constexpr EvalChainEventClass eval_chain_event_class(
+    const EvalChainDiagnosticConfig& config, bool covered,
+    std::uint64_t address, std::uint32_t bytes, std::uint32_t operation)
+{
+    if (!eval_chain_config_valid(config) || bytes == 0 || operation > 1)
+        return EvalChainEventClass::Rejected;
+    if (covered)
+        return operation == 0 ? EvalChainEventClass::CoveredLoad
+                              : EvalChainEventClass::Rejected;
+    if (operation != 1) return EvalChainEventClass::Rejected;
+    if (eval_chain_span_contains(config.chain_output_address,
+                                 config.chain_output_bytes, address, bytes))
+        return EvalChainEventClass::ChainOutputStore;
+    if (eval_chain_span_contains(config.block_output_address,
+                                 config.block_output_bytes, address, bytes))
+        return EvalChainEventClass::BlockOutputStore;
+    return EvalChainEventClass::Rejected;
 }
 
 // This maps supplied coordinates against an already validated declaration.
@@ -381,7 +475,7 @@ HBFSIM_HOST_DEVICE constexpr EvalChainSlot eval_chain_slot(
     return {address, 1, 0};
 }
 
-static_assert(sizeof(EvalChainDiagnosticConfig) == 104);
+static_assert(sizeof(EvalChainDiagnosticConfig) == 136);
 static_assert(sizeof(EvalChainEvent) == 56);
 static_assert(sizeof(EvalChainRow) == 128);
 static_assert(sizeof(EvalChainProducer) == 24);

@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `e724af0a396164cd59d6a7578aec966f69e52346` (controlled HF worker and provisional parent; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `1ca33140245df77fc7f555eb2a9cc097318c26c5` (pure frozen HF trace verifier; controlled worker/parent at `e724af0a`; C6.2 at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -561,12 +561,33 @@ historical evidence; their smaller passing subsets were not final acceptance.
 This unit returns only `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED` with
 `scientific_validation_passed=false`. Validation used CPU/MOCK controls; no real
 HF model arm, authenticated routing-origin receipt, scientific receipt or formal
-matrix row was produced. The pure frozen trace verifier and subsequent owned-origin
-publication wrapper remain unimplemented. The current resource guard ends before
-outer finalization; complete guarded validation/publication is a later integration.
+matrix row was produced at that checkpoint. The pure frozen trace verifier is
+now accepted below; the owned-origin publication wrapper remains unfinished.
+The current resource guard covers triplet execution and ends before outer
+finalization. Complete guarded validation/publication is a later integration.
 Formal DONE remains 0.
 
-Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
+Pure frozen-trace CPU acceptance, 2026-09-06: committed at `1ca33140245df77fc7f555eb2a9cc097318c26c5`.
+`FrozenTraceArm` and `validate_frozen_trace` check immutable supplied buffers,
+strict UTF-8/types/bounds, original protocol hashes, tokens, decoded routes,
+independently derived tensor events/pages and summaries. The result remains
+`ROUTE_CONSISTENCY_ONLY`, `scientific_validation_passed=false`; it does not
+authenticate original processes, current paths or absent runtime/tuning buffers.
+Production passed SPEC003 and independent QUALITY003. Parent review closed two
+nonblocking tests-only004 notes; final related tests passed83/83 in12.398s
+(13.138769422s process). The original phase controller flagged expected root
+directory timestamp changes from temporary fixtures; its failed control record
+and the separate diagnosis are both retained, without a test rerun. Acceptance:
+`results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
+
+The next execution is one guarded real32-input/8-output native/capture/repeat
+diagnostic pilot using the existing runner. Later artifact/source/publication
+work gates formal acceptance and COMPLETE; it does not prevent this explicitly
+UNVALIDATED trial. Preserve actual failures and raw returns, and choose the next
+minimal repair from that evidence. No formal matrix or real scientific PASS is
+claimed by the CPU acceptance. Formal DONE remains0.
+
+Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,
 compare native/capture/repeat tokens and capture/repeat routes, and retain only
 a ROUTE_CONSISTENCY_ONLY boundary. Runtime/tuning hashes absent from its inputs
@@ -585,4 +606,6 @@ required-field guard before the unchanged ModelInventory/legacy consistency
 helpers. It must decode evidence as UTF-8 explicitly, propagate effective MOCK
 from arm declarations with metadata imposing a mandatory floor, and compare
 trace paths to an explicit expected attempt path without filesystem reads.
-The pure verifier and subsequent owned publication wrapper are not yet implemented.
+The pure verifier is now implemented as described above. Owned-origin validation
+and final publication remain later work; diagnostic execution may proceed under
+the existing guard without promoting its results to validated routing gold.

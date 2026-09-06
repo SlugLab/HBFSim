@@ -7,6 +7,7 @@ runtime estimates or predict a validated completion date.
 
 | Observed CPU verification | Wall time | Boundary |
 |---|---:|---|
+| Pure frozen HF trace final related tests | 12.398 s suite /13.138769422 s process | 83/83 tests; original controller root-timestamp failure diagnosed separately; no test rerun, no GPU |
 | Frozen base build | 21.38 s | CPU configuration, 4 build jobs |
 | Frozen base CTest | 30.16 s | 42/42 tests, serial CTest |
 | C2–C4 phase regression | 28.70 s | 48/48 tests, serial CTest |
@@ -102,3 +103,14 @@ HF tests,1.032736s for32 adapter HF tests, and6.953387s for41 metadata tests
 records byte-only CRLF normalization and AST equivalence; final-byte phase costs
 in `owned-entrypoint-phase-attempt-002/` are: eval-hf 137 tests/54.427418s, adapter-hf 32 tests/1.085703s, metadata-fixtures 41 tests/7.456933s.
 All are CPU/MOCK validation costs; they do not revise real model or formal GPU/SSD runtime estimates.
+
+Pure-verifier attempts001-004 are retained under `results/gold/hf-routing-runner/`.
+Attempt001's79-test pass preceded three later SPEC defects; its first RED was only
+an absent-module loader error. Final production passed both independent reviews;
+attempt004 improved two nonblocking test cases only (2/2,0.416s suite /0.873706055s
+process). The final83 tests all returned success. Their controller incorrectly
+required root mtime/ctime to remain stable while fixtures create/remove root
+children; `frozen-trace-verifier-parent-attempt-004/phase-control-diagnostic.json`
+preserves that diagnosis alongside the original CPU_PHASE_FAIL record. Counts
+from overlapping suites must not be added. These CPU timings do not estimate
+real HF cold-load time or formal-matrix completion.

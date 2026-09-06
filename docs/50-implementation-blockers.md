@@ -15,7 +15,7 @@ do not close the current gold gates.
 | STORAGE-TARGET | BLOCKED_STORAGE_BUSY | User authorizes selecting a safe project path. Selected candidate is `results/storage-inputs/read-only-benchmark.bin`, not created. Project filesystem shares root disk `/dev/nvme4n1p2` (Lexar ARES 4TB); no exclusive SSD I/O-path evidence. Identity and mount evidence: `results/manifests/storage-device.json`. | Keep physical acquisition closed; continue CPU replay/tooling. No payload I/O, benchmark-file initialization, writes, trim or format performed. |
 | CHECKPOINT | METADATA VERIFIED | Found project-local `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf`, a 61,095,802,848-byte allocated file. Embedded metadata: 48 layers, E=128, k=8. Inventory reconciles 579 tensors, 6,144 experts and 57,982,058,496 eligible bytes. | Use `results/manifests/qwen3-30b-a3b-inventory.json`; payload hash/GPU load not performed. Actual GPU fast-tier capacity and live cache gold remain unverified. |
 | HF-CHECKPOINT | METADATA VERIFIED; CURRENT OBSERVATION REFRESHED | The September6 independent observation at `results/manifests/hf-qwen3-30b-a3b-metadata-20260906-resume001/` retains the same metadata content identity and passes current checks; the prior September5 bundle remains historical. HF view:16 shards,18867 BF16 tensors,6144 experts. | Use the current receipt and retained runtime/startup/tuning snapshots for the future controlled triplet; do not substitute GGUF identity or claim fresh payload hashes. No real HF arm has run. |
-| HF-STARTUP | OWNED ENTRYPOINT CPU CLOSED; REAL VALIDATION OPEN | Controlled worker and provisional parent accepted at `e724af0a396164cd59d6a7578aec966f69e52346`; attempt-006 SPEC/QUALITY and40 focused controls,210 related phase controls passed. Attempt-007 retains CRLF-only normalization/AST equivalence; final source bytes passed reviews and phase002 (210 tests). | Implement the pure frozen trace verifier and owned-origin publication wrapper before the guarded real native/capture/repeat triplet. CPU/MOCK acceptance supplies no actual CUDA/vLLM observation or scientific receipt. |
+| HF-STARTUP | OWNED ENTRYPOINT CPU CLOSED; REAL VALIDATION OPEN | Controlled worker and provisional parent accepted at `e724af0a396164cd59d6a7578aec966f69e52346`; attempt-006 SPEC/QUALITY and40 focused controls,210 related phase controls passed. Attempt-007 retains CRLF-only normalization/AST equivalence; final source bytes passed reviews and phase002 (210 tests). | Pure frozen trace verification is accepted at `1ca3314`. Run one guarded real native/capture/repeat diagnostic pilot next; preserve UNVALIDATED status. Complete owned-origin validation/publication before formal acceptance or COMPLETE. CPU/MOCK acceptance supplies no actual CUDA/vLLM observation or scientific receipt. |
 | ROUTING-INPUT | OPEN | Bounded routing capture/materialization, trace composition and native causal projection tools now pass CPU controls. No authenticated real route trace or matched compute-only timing trace was found in the project search. | Keep synthetic controls MOCK. Obtain current real capture/native/repeat evidence and matching compute input before scientific projection validation. |
 | CAPACITY-LIFETIME | OPEN FOR CAPACITY/TMA | Consumer-held frame leases and dynamic TMA lifecycle remain unproven. A complete kernel-local FAST-scalar TIMING future can retain ABI4; capacity lifetime is not its blocker. | Implement the complete timing capability/identity/loader/helper/transform unit separately; keep capacity/reference/hybrid/empirical/TMA future admission closed. |
 | FORMAL-HANDLERS | OPEN | Scheduler infrastructure passes its gates, but scientific producer/validator registrations and required real gold receipts are not yet frozen for matrix cells. | Complete bounded tools and paired input adapters, then register only supported gate-bound tasks. All formal replicates remain planned. |
@@ -68,7 +68,27 @@ real HF arm, scientific receipt or formal row was produced. Evidence:
 HF bytecode-cache startup is implemented and covered by bounded CPU controls: -B prevents writes but does not prevent reading valid .pyc. Parent and worker establish fresh private sys.pycache_prefix before project imports; the intermediate launcher receives the narrowly bound PYTHONPYCACHEPREFIX transport, while the final isolated worker uses explicit -X and removes the transport field before runtime checks. Namespace-initializer absence covers source, sourceless bytecode and native loader suffixes. This closes the implemented startup contract's CPU gate; actual runtime/device and scientific capture gates remain open.
 
 
-Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
+Pure frozen-trace CPU acceptance, 2026-09-06: committed at `1ca33140245df77fc7f555eb2a9cc097318c26c5`.
+`FrozenTraceArm` and `validate_frozen_trace` check immutable supplied buffers,
+strict UTF-8/types/bounds, original protocol hashes, tokens, decoded routes,
+independently derived tensor events/pages and summaries. The result remains
+`ROUTE_CONSISTENCY_ONLY`, `scientific_validation_passed=false`; it does not
+authenticate original processes, current paths or absent runtime/tuning buffers.
+Production passed SPEC003 and independent QUALITY003. Parent review closed two
+nonblocking tests-only004 notes; final related tests passed83/83 in12.398s
+(13.138769422s process). The original phase controller flagged expected root
+directory timestamp changes from temporary fixtures; its failed control record
+and the separate diagnosis are both retained, without a test rerun. Acceptance:
+`results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
+
+The next execution is one guarded real32-input/8-output native/capture/repeat
+diagnostic pilot using the existing runner. Later artifact/source/publication
+work gates formal acceptance and COMPLETE; it does not prevent this explicitly
+UNVALIDATED trial. Preserve actual failures and raw returns, and choose the next
+minimal repair from that evidence. No formal matrix or real scientific PASS is
+claimed by the CPU acceptance. Formal DONE remains0.
+
+Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,
 compare native/capture/repeat tokens and capture/repeat routes, and retain only
 a ROUTE_CONSISTENCY_ONLY boundary. Runtime/tuning hashes absent from its inputs
@@ -87,4 +107,6 @@ required-field guard before the unchanged ModelInventory/legacy consistency
 helpers. It must decode evidence as UTF-8 explicitly, propagate effective MOCK
 from arm declarations with metadata imposing a mandatory floor, and compare
 trace paths to an explicit expected attempt path without filesystem reads.
-The pure verifier and subsequent owned publication wrapper are not yet implemented.
+The pure verifier is now implemented as described above. Owned-origin validation
+and final publication remain later work; diagnostic execution may proceed under
+the existing guard without promoting its results to validated routing gold.

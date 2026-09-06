@@ -188,7 +188,12 @@ evidence bundle and their ownership/path is recorded. All arms start with empty,
 separate runtime caches. Set:
 
 ```text
-CUDA_VISIBLE_DEVICES=<selected physical GPU UUID>
+CUDA_VISIBLE_DEVICES=0
+CUDA_DEVICE_ORDER=PCI_BUS_ID
+PYTORCH_NVML_BASED_CUDA_CHECK=1
+TORCHINDUCTOR_COMPILE_THREADS=1
+VLLM_PLUGINS=
+TVM_FFI_DISABLE_TORCH_C_DLPACK=1
 VLLM_ENABLE_V1_MULTIPROCESSING=0
 VLLM_USE_FLASHINFER_MOE_FP16=0
 VLLM_USE_FLASHINFER_SAMPLER=0
@@ -950,3 +955,22 @@ the guarded three-process parent and independent frozen capture validation
 remain incomplete.
 
 Interpreter observations distinguish `/usr/bin/python3.14` from the required frozen `/opt/miniconda3/bin/python3.13`; use the explicit frozen executable for the real parent and worker. The latter passed the stdlib-only `-I -S -B` startup check with only its zip/stdlib/lib-dynload default paths. No inference import was performed. Evidence: `results/gold/hf-routing-runner/isolated-interpreter-observation-attempt-002/`. The earlier attempt records the different system interpreter and is not a pinned-runtime preflight.
+
+## Declared startup environment checkpoint, 2026-09-06
+
+The declared startup environment/passive observation correction is committed at
+`5561e4e`. Preparation now sets numeric visibility0 for the explicitly narrowed
+single-physical-GPU unit, PCI bus ordering, the two installed vLLM import-time
+constants, empty plugin selection and the supported TVM DLPack opt-out. The
+observer requires `_LIB` to be absent, rejecting even None or a private-looking
+library object, and reports `DISABLED_BY_DECLARED_CONFIGURATION`. The remaining
+environment, origin, cache and forbidden-import checks are preserved. All12
+observer and11 protocol controls pass; independent SPEC and QUALITY pass, then
+83 eval-HF plus32 adapter-HF phase tests pass. Evidence:
+`results/gold/hf-routing-runner/startup-environment-attempt-001/` and
+`startup-environment-phase-attempt-001/`. The helper does not authenticate GPU
+topology: fresh parent single-device/no-MIG inventory, physical-UUID guard and
+dual CUDA/vLLM identity checks remain mandatory in the later owned entrypoint.
+No real runtime import, model load or capture ran during these CPU controls.
+The supplemental seven-source binding and controlled worker/parent/validator
+remain the next implementation units.

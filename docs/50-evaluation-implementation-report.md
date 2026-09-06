@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `ffd928e` (owned HF request tuning gates; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `5561e4e` (declared compatible HF startup controls; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -426,3 +426,21 @@ HF and31 adapter HF tests. Evidence:
 scientific validation is implied by these fixture controls. Controlled startup,
 the guarded three-process parent and independent frozen capture validation
 remain incomplete.
+
+
+The declared startup environment/passive observation correction is committed at
+`5561e4e`. Preparation now sets numeric visibility0 for the explicitly narrowed
+single-physical-GPU unit, PCI bus ordering, the two installed vLLM import-time
+constants, empty plugin selection and the supported TVM DLPack opt-out. The
+observer requires `_LIB` to be absent, rejecting even None or a private-looking
+library object, and reports `DISABLED_BY_DECLARED_CONFIGURATION`. The remaining
+environment, origin, cache and forbidden-import checks are preserved. All12
+observer and11 protocol controls pass; independent SPEC and QUALITY pass, then
+83 eval-HF plus32 adapter-HF phase tests pass. Evidence:
+`results/gold/hf-routing-runner/startup-environment-attempt-001/` and
+`startup-environment-phase-attempt-001/`. The helper does not authenticate GPU
+topology: fresh parent single-device/no-MIG inventory, physical-UUID guard and
+dual CUDA/vLLM identity checks remain mandatory in the later owned entrypoint.
+No real runtime import, model load or capture ran during these CPU controls.
+The supplemental seven-source binding and controlled worker/parent/validator
+remain the next implementation units.

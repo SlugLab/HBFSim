@@ -146,6 +146,24 @@ scientific validation is implied by these fixture controls. Controlled startup,
 the guarded three-process parent and independent frozen capture validation
 remain incomplete.
 
+
+The declared startup environment/passive observation correction is committed at
+`5561e4e`. Preparation now sets numeric visibility0 for the explicitly narrowed
+single-physical-GPU unit, PCI bus ordering, the two installed vLLM import-time
+constants, empty plugin selection and the supported TVM DLPack opt-out. The
+observer requires `_LIB` to be absent, rejecting even None or a private-looking
+library object, and reports `DISABLED_BY_DECLARED_CONFIGURATION`. The remaining
+environment, origin, cache and forbidden-import checks are preserved. All12
+observer and11 protocol controls pass; independent SPEC and QUALITY pass, then
+83 eval-HF plus32 adapter-HF phase tests pass. Evidence:
+`results/gold/hf-routing-runner/startup-environment-attempt-001/` and
+`startup-environment-phase-attempt-001/`. The helper does not authenticate GPU
+topology: fresh parent single-device/no-MIG inventory, physical-UUID guard and
+dual CUDA/vLLM identity checks remain mandatory in the later owned entrypoint.
+No real runtime import, model load or capture ran during these CPU controls.
+The supplemental seven-source binding and controlled worker/parent/validator
+remain the next implementation units.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

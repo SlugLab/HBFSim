@@ -2,7 +2,8 @@
 """Owned parent for a native/capture/repeat provisional HF routing triplet.
 
 The public CLI fixes every control except the verified metadata bundle, a fresh
-private result directory, and the selected physical GPU UUID.  It never marks
+private result directory, selected physical GPU UUID, and optional route-event
+collection (default OFF). It never marks
 the triplet scientifically valid; a separate outer validator is required.
 """
 
@@ -38,6 +39,7 @@ PROJECT_FILES = tuple(
 scripts/eval/hf_owned_worker.py
 scripts/eval/hf_routing_runner.py
 scripts/eval/hf_loaded_arm.py
+adapters/vllm_capacity/hf_route_cuda_events.py
 scripts/eval/hf_runtime_sources.py
 scripts/eval/hf_startup_sources.py
 scripts/eval/hf_moe_tuning.py
@@ -750,7 +752,7 @@ def _import_paths():
             sys.path.insert(0, path)
 
 
-def _freeze_real(metadata_bundle, device_name):
+def _freeze_real(metadata_bundle, device_name, capture_cuda_route_events=False):
     inventory = __import__("evaluation_inventory")
     runtime = __import__("hf_runtime_sources")
     startup = __import__("hf_startup_sources")
@@ -761,7 +763,7 @@ def _freeze_real(metadata_bundle, device_name):
     verify.check_current_inputs(metadata_bundle)
     if inventory.load_hf_snapshot(metadata_bundle) != metadata:
         raise ValueError("metadata changed around initial current-input check")
-    runtime_snapshot = runtime.collect_runtime_sources(include_tuning=True)
+    runtime_snapshot = runtime.collect_runtime_sources(include_tuning=True, include_cuda_events=capture_cuda_route_events)
     startup_snapshot = startup.collect_startup_sources(runtime_snapshot)
     tuning_snapshot = tuning.collect_tuning_inputs(
         metadata, runtime_snapshot, device_name
@@ -792,10 +794,13 @@ def _parser():
     parser.add_argument("--metadata-bundle", type=Path, required=True)
     parser.add_argument("--fresh-out", type=Path, required=True)
     parser.add_argument("--selected-uuid", required=True)
+    parser.add_argument("--capture-cuda-route-events", action="store_true", default=False)
     return parser
 
 
-def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, _test_dependencies=None):
+def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route_events=False, _test_dependencies=None):
+    if type(capture_cuda_route_events) is not bool:
+        raise ValueError("CUDA route-event switch must be an explicit boolean")
     if (
         type(selected_uuid) is not str
         or not selected_uuid.startswith("GPU-")
@@ -953,9 +958,8 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, _test_dependencies
                 ),
                 selected_uuid,
             )
-            snapshots = (
-                _test_dependencies["freeze_inputs"] if test_only else _freeze_real
-            )(metadata_bundle, DEVICE_NAME)
+            snapshots = (_test_dependencies["freeze_inputs"](metadata_bundle, DEVICE_NAME)
+                         if test_only else _freeze_real(metadata_bundle, DEVICE_NAME, capture_cuda_route_events))
             if type(snapshots) is not tuple or len(snapshots) != 4:
                 raise ValueError("frozen input set is invalid")
             result["topology"] = topology
@@ -1066,6 +1070,8 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, _test_dependencies
                     prompt_token_ids=PROMPTS,
                     project_sources=project,
                 )
+                if capture_cuda_route_events and arm != "native":
+                    request["capture_cuda_route_events"] = True
                 envelope, blobs = worker._encode_wire(*snapshots, request)
                 envelope_sha = worker._write_wire(wire_dir, envelope, blobs)
                 _, _, wire_binding = worker._read_wire_retained(
@@ -1305,6 +1311,26 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, _test_dependencies
                                 arm
                                 + " worker cross-binding differs from owned inputs/status"
                             )
+                    if code == 0 and request.get("capture_cuda_route_events", False):
+                        active_arm_stage = "route-event-artifact"
+                        event_path = arms_root / arm / "route-device-events.json"
+                        event = worker._read_json_file(event_path, 1 << 20)
+                        event_sha = _digest(event_path.read_bytes())
+                        counts = dict(batch_events=384, save_batches=8, reader_calls=1,
+                                      saved_slots=39, decode_nodes=336, observed_intervals=335, missing_terminal=1)
+                        summary = dict(enabled=True,status="UNVALIDATED_ROUTE_INTERVAL_CAPTURE",
+                                       artifact="route-device-events.json",sha256=event_sha,counts=counts)
+                        bindings = dict(arm=arm,run_id=run_id,
+                            input_binding_sha256=_digest((arms_root / arm / "input-binding.json").read_bytes()),
+                            protocol_sha256=_digest((arms_root / arm / "protocol.json").read_bytes()),
+                            raw_return_sha256=_digest((arms_root / arm / "raw-return.json").read_bytes()),
+                            raw_routes_sha256=_digest((arms_root / arm / "raw-routes.npy").read_bytes()))
+                        if (status.get("route_cuda_events") != summary or event.get("counts") != counts
+                                or event.get("status") != summary["status"] or event.get("bindings") != bindings
+                                or event.get("gpu_uuid") != selected_uuid or event.get("worker_identity") != callback.fixed_record()["child"]
+                                or event.get("scientific_validation_passed") is not False
+                                or event.get("timing_semantics") != "ROUTE_TO_ROUTE_DEVICE_ELAPSED_INCLUDING_CAPTURE_AND_SCHEDULING"):
+                            raise TripletFailure(arm + " route-event artifact differs from owned request/status")
                     arm_result = active_arm_record
                     arm_result.update(
                         status=status.get("status"),
@@ -1548,7 +1574,8 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, _test_dependencies
 def main(argv=None):
     args = _parser().parse_args(argv)
     try:
-        run_triplet(args.metadata_bundle, args.fresh_out, args.selected_uuid)
+        run_triplet(args.metadata_bundle, args.fresh_out, args.selected_uuid,
+                    capture_cuda_route_events=args.capture_cuda_route_events)
     except BaseException as error:
         print(type(error).__name__ + ": " + str(error), file=sys.stderr)
         return 1

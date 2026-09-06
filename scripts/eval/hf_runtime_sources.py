@@ -31,6 +31,7 @@ DIST_FILES = ('METADATA', 'WHEEL', 'INSTALLER', 'RECORD')
 REQUIRED_DIRECTORIES = ('flashinfer/data/csrc', 'flashinfer_cubin/cubins')
 ABSENT_PATTERNS = ('flashinfer/data/aot', 'flashinfer_jit_cache*', 'torch_c_dlpack_ext*')
 STDLIB_FILES = ('multiprocessing/shared_memory.py', 'multiprocessing/resource_tracker.py', 'tempfile.py')
+CUDA_EVENT_SOURCE_FILES = ('torch/cuda/__init__.py', 'torch/cuda/streams.py')
 TUNING_SOURCE_FILES = ('vllm/model_executor/layers/fused_moe/__init__.py',
                        'vllm/model_executor/layers/batch_invariant.py')
 # The initial 80-file source audit is extended with the selected loader/iterator,
@@ -137,9 +138,10 @@ def _dist_directory(name, version):
     return name.replace('-', '_') + '-' + version + '.dist-info'
 
 
-def _paths(site, stdlib, include_tuning=False):
+def _paths(site, stdlib, include_tuning=False, include_cuda_events=False):
     paths = {'site-packages/'+name: site/name
-             for name in SOURCE_FILES + (TUNING_SOURCE_FILES if include_tuning else ())}
+             for name in SOURCE_FILES + (TUNING_SOURCE_FILES if include_tuning else ())
+             + (CUDA_EVENT_SOURCE_FILES if include_cuda_events else ())}
     paths.update({'stdlib/'+name: stdlib/name for name in STDLIB_FILES})
     for name, version in DISTRIBUTIONS.items():
         directory = _dist_directory(name, version)
@@ -246,13 +248,13 @@ def validate_selected_buffers(paths, artifacts, states, *, per_file_bytes,
     return total, ancestors
 
 
-def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only, include_tuning=False):
-    if type(include_tuning) is not bool:
+def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only, include_tuning=False, include_cuda_events=False):
+    if type(include_tuning) is not bool or type(include_cuda_events) is not bool or (include_cuda_events and not include_tuning):
         raise ValueError('runtime source extension must be an explicit boolean')
     if any(not path.is_absolute() or str(path) != os.path.normpath(str(path))
            for path in (site, stdlib)):
         raise ValueError('runtime roots must be canonical absolute paths')
-    paths = _paths(site, stdlib, include_tuning)
+    paths = _paths(site, stdlib, include_tuning, include_cuda_events)
     total, _ = validate_selected_buffers(paths, artifacts, states,
         per_file_bytes=MAX_FILE_BYTES, total_bytes=MAX_TOTAL_BYTES)
     if set(presence) != set(REQUIRED_DIRECTORIES) or any(
@@ -274,31 +276,33 @@ def _assemble(site, stdlib, artifacts, states, presence, interpreter, test_only,
         provenance='MOCK' if test_only else 'RUNTIME_SOURCE_METADATA', test_only=test_only,
         source_root=str(site), stdlib_root=str(stdlib), artifacts={k: metadata.digest(v) for k,v in artifacts.items()},
         source_states=states, directory_observations=presence, absent_patterns=list(ABSENT_PATTERNS),
-        distributions=_distribution_metadata(artifacts), source_file_count=len(SOURCE_FILES)+(len(TUNING_SOURCE_FILES) if include_tuning else 0),
+        distributions=_distribution_metadata(artifacts), source_file_count=len(SOURCE_FILES)+(len(TUNING_SOURCE_FILES) if include_tuning else 0)
+            +(len(CUDA_EVENT_SOURCE_FILES) if include_cuda_events else 0),
         stdlib_file_count=len(STDLIB_FILES), total_source_metadata_bytes=total, interpreter=interpreter,
         weight_payload_rehashed=False, all_runtime_binaries_authenticated=False,
         scientific_validation_passed=False,
         boundary='Selected Python sources and distribution metadata only; RECORD targets, native package binaries and directory contents are not authenticated.')
     if include_tuning:document['source_extension']='MOE_TUNING_V1'
+    if include_cuda_events:document['cuda_event_extension']='ROUTE_EVENTS_V1'
     return document
 
 
-def collect_runtime_sources(*, source_root=None, stdlib_root=None, interpreter=None, include_tuning=False):
+def collect_runtime_sources(*, source_root=None, stdlib_root=None, interpreter=None, include_tuning=False, include_cuda_events=False):
     """Read the finite installed set; explicit path overrides always yield MOCK."""
-    if type(include_tuning) is not bool:
+    if type(include_tuning) is not bool or type(include_cuda_events) is not bool or (include_cuda_events and not include_tuning):
         raise ValueError('runtime source extension must be an explicit boolean')
     test_only = any(value is not None for value in (source_root, stdlib_root, interpreter))
     site = Path(source_root or DEFAULT_SOURCE_ROOT).absolute()
     stdlib = Path(stdlib_root or DEFAULT_STDLIB_ROOT).absolute()
-    return _collect(site, stdlib, interpreter, test_only, include_tuning)
+    return _collect(site, stdlib, interpreter, test_only, include_tuning, include_cuda_events)
 
 
-def _collect(site, stdlib, interpreter, test_only, include_tuning=False):
+def _collect(site, stdlib, interpreter, test_only, include_tuning=False, include_cuda_events=False):
     if site.resolve() != site or stdlib.resolve() != stdlib:
         raise ValueError('runtime roots must be canonical directories')
     presence = _presence(site)
     budget = dict(remaining=MAX_TOTAL_BYTES); artifacts = {}; states = {}
-    for name, path in sorted(_paths(site, stdlib, include_tuning).items()):
+    for name, path in sorted(_paths(site, stdlib, include_tuning, include_cuda_events).items()):
         boundary = site if name.startswith('site-packages/') else stdlib
         raw, state = metadata.snapshot(path, header=False, budget=budget, limit=MAX_FILE_BYTES, confined_to=boundary)
         artifacts[name], states[name] = raw, state
@@ -306,7 +310,7 @@ def _collect(site, stdlib, interpreter, test_only, include_tuning=False):
     metadata.assert_current(states)
     if _presence(site) != presence:
         raise ValueError('runtime directory/package presence changed while reading')
-    document = _assemble(site, stdlib, artifacts, states, presence, identity, test_only, include_tuning)
+    document = _assemble(site, stdlib, artifacts, states, presence, identity, test_only, include_tuning, include_cuda_events)
     return RuntimeSourcesSnapshot(metadata.canonical(document), tuple(sorted(artifacts.items())))
 
 
@@ -319,11 +323,14 @@ def validate_runtime_sources(snapshot):
     include_tuning='source_extension' in document
     if include_tuning and document['source_extension']!='MOE_TUNING_V1':
         raise ValueError('unsupported runtime source extension')
+    include_cuda_events='cuda_event_extension' in document
+    if include_cuda_events and document['cuda_event_extension']!='ROUTE_EVENTS_V1':
+        raise ValueError('unsupported CUDA event source extension')
     artifacts = dict(snapshot.artifacts)
     if len(artifacts) != len(snapshot.artifacts):
         raise ValueError('duplicate runtime source artifact')
     expected = _assemble(Path(document['source_root']), Path(document['stdlib_root']), artifacts,
-        document['source_states'], document['directory_observations'], document['interpreter'], document['test_only'], include_tuning)
+        document['source_states'], document['directory_observations'], document['interpreter'], document['test_only'], include_tuning, include_cuda_events)
     if metadata.canonical(document) != metadata.canonical(expected):
         raise ValueError('runtime source manifest differs from frozen derivation')
     return expected
@@ -333,7 +340,7 @@ def recheck_runtime_sources(snapshot):
     """Rehash only the same finite runtime inputs; never follow RECORD entries."""
     document = validate_runtime_sources(snapshot)
     current = _collect(Path(document['source_root']), Path(document['stdlib_root']),
-        document['interpreter']['path'], document['test_only'], 'source_extension' in document)
+        document['interpreter']['path'], document['test_only'], 'source_extension' in document, 'cuda_event_extension' in document)
     if current.manifest_bytes != metadata.canonical(document):
         raise ValueError('installed runtime sources changed after freezing')
     return dict(status='RUNTIME_SOURCES_UNCHANGED',

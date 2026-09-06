@@ -30,7 +30,7 @@ _PLAN_KEYS={'metadata_snapshot','runtime_snapshot','tuning_snapshot','device_nam
     'device_capability','prompt_token_ids','run_id','git_commit','environment_fingerprint'}
 
 
-def _loaded_dependencies(runtime_snapshot):
+def _loaded_dependencies(runtime_snapshot, capture_cuda_route_events=False):
     """Resolve fixed already-imported classes, not a configured runtime factory."""
     from hf_owned_routes import OwnedRouteMemory
     from hf_moe_tuning_runtime import observe_loaded_tuning,retain_tuning_runtime
@@ -52,13 +52,19 @@ def _loaded_dependencies(runtime_snapshot):
             raise ValueError('loaded worker API origin mismatch: '+name)
         return module
     llm=loaded('vllm.entrypoints.llm');sampling=loaded('vllm.sampling_params')
+    extra={}
+    if capture_cuda_route_events:
+        cuda=loaded('torch.cuda');streams=loaded('torch.cuda.streams')
+        if not inspect.isclass(vars(cuda).get('Event')) or vars(cuda).get('Event') is not vars(streams).get('Event'):
+            raise ValueError('CUDA Event API origin differs from frozen streams source')
+        extra['cuda']=cuda
     return dict(LLM=vars(llm)['LLM'],SamplingParams=vars(sampling)['SamplingParams'],
         RequestOutputKind=vars(sampling)['RequestOutputKind'],
         capture_module=loaded('vllm.model_executor.layers.fused_moe.routed_experts_capturer'),
         numpy=loaded('numpy'),OwnedRouteMemory=OwnedRouteMemory,
         observe_imports=observe_runtime_imports,observe_runtime=observe_runtime,
         retain_tuning_runtime=retain_tuning_runtime,observe_loaded_tuning=observe_loaded_tuning,
-        Collector=JsonlTraceCollector)
+        Collector=JsonlTraceCollector,**extra)
 
 
 def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
@@ -69,10 +75,15 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     snapshots are frozen validation inputs; original-source and GPU ownership
     checks belong to the later parent and controlled-import entrypoint.
     """
-    if type(plan) is not dict or set(plan)!=_PLAN_KEYS or arm not in ('native','capture','repeat'):
+    if type(plan) is not dict or set(plan) not in (_PLAN_KEYS,_PLAN_KEYS|{'capture_cuda_route_events'}) or arm not in ('native','capture','repeat'):
         raise ValueError('invalid loaded-arm plan or arm')
+    timing=plan.get('capture_cuda_route_events',False)
+    if type(timing) is not bool or (timing and arm=='native'):
+        raise ValueError('invalid CUDA route-event plan flag')
     receipt,artifacts,donor,_=_unpack(plan['metadata_snapshot'])
     source=hf_runtime_sources.validate_runtime_sources(plan['runtime_snapshot'])
+    if timing and _test_dependencies is None and source.get('cuda_event_extension')!='ROUTE_EVENTS_V1':
+        raise ValueError('CUDA route events require their frozen runtime source extension')
     tuning_input=tuning_api.validate_tuning_inputs(plan['tuning_snapshot'],plan['metadata_snapshot'],
         plan['runtime_snapshot'],plan['device_name_declared'])
     config=strict_object(artifacts['metadata/config.json'])
@@ -92,7 +103,7 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
             raise ValueError('invalid arm binding: '+key)
     if type(plan['run_id']) is not str or not 0<len(plan['run_id'])<=128:
         raise ValueError('invalid run identity')
-    if _test_dependencies is not None and (type(_test_dependencies) is not dict or set(_test_dependencies)!=_DEPENDENCIES):
+    if _test_dependencies is not None and (type(_test_dependencies) is not dict or set(_test_dependencies)!=(_DEPENDENCIES|({'cuda'} if timing else set()))):
         raise ValueError('invalid test dependency set')
     out.mkdir()
     directory=os.open(out,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
@@ -100,9 +111,11 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     # Collector's unchanged path API can address this retained owned directory
     # through procfs. A parent-name replacement cannot redirect our file writes.
     owned=Path('/proc/self/fd')/str(directory)
+    saved_hashes={}
     def write(name,raw):
         fd=os.open(name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=directory)
         with os.fdopen(fd,'wb') as stream:stream.write(raw);stream.flush();os.fsync(stream.fileno())
+        saved_hashes[name]=digest(raw)
     def document(name,value):write(name,canonical(value))
     result=dict(schema_version=1,arm=arm,status='FAILED',provenance='MOCK' if test_only else 'UNVALIDATED_ROUTING_CAPTURE',
         test_only=bool(test_only),scientific_validation_passed=False,process_exit_required=True,
@@ -111,6 +124,7 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     binding=ownership=llm=collector=None;deps=None;construction_started=False;raw_saved=False
     cap_module=cls=None;baseline_empty=False;original_descriptor=None
     client=capturer=reader=None;route_owners_observed=False
+    route_events=None
     capture_enabled=arm!='native'
     def error(label,exception):return dict(stage=label,type=type(exception).__name__,message=str(exception))
     stage='input-binding'
@@ -129,7 +143,7 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
             run_id=plan['run_id'],git_commit=plan['git_commit'],environment_fingerprint=plan['environment_fingerprint'],
             provenance=result['provenance'],test_only=bool(test_only),scientific_validation_passed=False))
         document('protocol.json',control);write('frozen-donor.json',artifacts['donor.json'])
-        deps=_loaded_dependencies(plan['runtime_snapshot']) if _test_dependencies is None else dict(_test_dependencies)
+        deps=_loaded_dependencies(plan['runtime_snapshot'],timing) if _test_dependencies is None else dict(_test_dependencies)
         stage='import-observation'
         imported=deps['observe_imports'](plan['runtime_snapshot'],work,plan['gpu_uuid'],plan['device_capability'])
         document('runtime-imports.json',imported)
@@ -167,6 +181,12 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
             ownership.reconcile(cfg.instance_id,cfg.parallel_config.data_parallel_rank)
         elif capturer is not None or reader is not None or scheduler_reader is not None or ownership.records:
             raise ValueError('native arm unexpectedly owns route buffers')
+        if timing:
+            stage='route-event-install'
+            from hf_route_cuda_events import RouteCudaEvents
+            route_events=RouteCudaEvents(capturer,reader,cuda=deps['cuda'],numpy=deps['numpy'],
+                control=control,gpu_uuid=plan['gpu_uuid'],worker_identity=result['worker_identity'],test_only=bool(test_only))
+            route_events.start()
         sampling=deps['SamplingParams'](**protocol_api.sampling_arguments(deps['RequestOutputKind'].FINAL_ONLY))
         stage='generation'
         returned=llm.generate([dict(prompt_token_ids=list(control['prompt_token_ids']))],sampling,use_tqdm=False)
@@ -179,6 +199,10 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
             with os.fdopen(fd,'wb') as stream:
                 deps['numpy'].save(stream,array,allow_pickle=False);stream.flush();os.fsync(stream.fileno())
         raw_saved=True
+        if timing:
+            saved_hashes['raw-routes.npy']=digest((owned/'raw-routes.npy').read_bytes())
+            stage='route-event-finalize'
+            route_events.finish(array)
         if capture_enabled:
             stage='trace-materialization'
             from model_inventory import ModelInventory
@@ -197,6 +221,30 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     except BaseException as exception:
         result['primary_error']=error(stage,exception)
     finally:
+        if timing:
+            # Restore the three instance methods before any owner/engine cleanup.
+            if route_events is not None:
+                try:route_events.close()
+                except BaseException as exception:result['cleanup_errors'].append(error('route-event-restore',exception))
+                try:
+                    from hf_route_cuda_events import MAX_ARTIFACT_BYTES
+                    event_document=route_events.snapshot(bindings=dict(
+                        arm=arm,run_id=plan['run_id'],
+                        input_binding_sha256=saved_hashes.get('input-binding.json'),
+                        protocol_sha256=saved_hashes.get('protocol.json'),
+                        raw_return_sha256=saved_hashes.get('raw-return.json'),
+                        raw_routes_sha256=saved_hashes.get('raw-routes.npy')),
+                        primary_error=result['primary_error'])
+                    event_raw=canonical(event_document)
+                    if len(event_raw)>MAX_ARTIFACT_BYTES:raise ValueError('route event artifact exceeds fixed byte bound')
+                    write('route-device-events.json',event_raw)
+                    result['route_cuda_events']=dict(enabled=True,status=event_document['status'],
+                        artifact='route-device-events.json',sha256=digest(event_raw),counts=event_document['counts'])
+                    if event_document['status']!='UNVALIDATED_ROUTE_INTERVAL_CAPTURE':
+                        result['cleanup_errors'].append(dict(stage='route-event-result',type='IncompleteRouteEvents',message='route event acquisition/restore was not complete'))
+                except BaseException as exception:result['cleanup_errors'].append(error('route-event-persistence',exception))
+            else:
+                result['route_cuda_events']=dict(enabled=True,status='NOT_INSTALLED')
         if collector is not None:
             try:collector.close()
             except BaseException as exception:result['cleanup_errors'].append(error('collector-close',exception))

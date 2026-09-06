@@ -87,6 +87,7 @@ PROJECT_FILES = tuple(
 scripts/eval/hf_owned_worker.py
 scripts/eval/hf_routing_runner.py
 scripts/eval/hf_loaded_arm.py
+adapters/vllm_capacity/hf_route_cuda_events.py
 scripts/eval/hf_runtime_sources.py
 scripts/eval/hf_startup_sources.py
 scripts/eval/hf_moe_tuning.py
@@ -1056,13 +1057,16 @@ def _request(document, arm):
     }
     if (
         type(document) is not dict
-        or set(document) != fields
+        or set(document) not in (fields, fields | {"capture_cuda_route_events"})
         or type(document["schema_version"]) is not int
         or document["schema_version"] != 1
         or type(document["arm"]) is not str
         or document["arm"] != arm
     ):
         raise ValueError("worker request differs from fixed contract")
+    if (type(document.get("capture_cuda_route_events", False)) is not bool
+            or (arm == "native" and document.get("capture_cuda_route_events", False))):
+        raise ValueError("worker CUDA route-event flag differs from fixed arm contract")
     if (
         arm not in ARMS
         or type(document["prompt_token_ids"]) is not list
@@ -1150,6 +1154,23 @@ def _request(document, arm):
     ):
         raise ValueError("worker metadata, evidence, and cache paths overlap")
     return document
+
+
+def _loaded_plan(request, metadata_snapshot, runtime_snapshot, tuning_snapshot):
+    return dict(
+        capture_cuda_route_events=request.get("capture_cuda_route_events", False),
+        metadata_snapshot=metadata_snapshot,
+        runtime_snapshot=runtime_snapshot,
+        tuning_snapshot=tuning_snapshot,
+        device_name_declared=request["device_name"],
+        work_dir=request["work_dir"],
+        gpu_uuid=request["gpu_uuid"],
+        device_capability=tuple(request["device_capability"]),
+        prompt_token_ids=request["prompt_token_ids"],
+        run_id=request["run_id"],
+        git_commit=request["git_commit"],
+        environment_fingerprint=request["environment_fingerprint"],
+    )
 
 
 def _install_project_paths():
@@ -1503,19 +1524,7 @@ def execute_owned(
                 )
                 device_path = Path(request["process_dir"]) / "device-observations.json"
                 _write_exclusive_json(device_path, observations)
-                plan = dict(
-                    metadata_snapshot=metadata_snapshot,
-                    runtime_snapshot=runtime_snapshot,
-                    tuning_snapshot=tuning_snapshot,
-                    device_name_declared=request["device_name"],
-                    work_dir=request["work_dir"],
-                    gpu_uuid=request["gpu_uuid"],
-                    device_capability=tuple(request["device_capability"]),
-                    prompt_token_ids=request["prompt_token_ids"],
-                    run_id=request["run_id"],
-                    git_commit=request["git_commit"],
-                    environment_fingerprint=request["environment_fingerprint"],
-                )
+                plan = _loaded_plan(request, metadata_snapshot, runtime_snapshot, tuning_snapshot)
                 stage = "loaded-arm"
                 loaded = importlib.import_module("hf_loaded_arm")
                 result = loaded.run_loaded_arm(plan, arm, request["output_dir"])

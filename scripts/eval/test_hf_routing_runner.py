@@ -41,6 +41,8 @@ class RoutingRunnerTests(unittest.TestCase):
         self.addCleanup(self._cleanup_private_work)
         self.events = []
         self.identities = []
+        self.cuda_requests = []
+        self.bad_cuda_binding = False
         self.fail_arm = None
         self.raise_arm = None
         self.signal_objects = []
@@ -146,6 +148,30 @@ class RoutingRunnerTests(unittest.TestCase):
                 sort_keys=True,
                 separators=(",", ":"),
             ).encode()
+
+            test.cuda_requests.append(dict(envelope["request"]))
+            if envelope["request"].get("capture_cuda_route_events", False):
+                for name in ("protocol.json","raw-return.json","raw-routes.npy"):
+                    (output/name).write_bytes(b"MOCK event binding bytes")
+                counts=dict(batch_events=384,save_batches=8,reader_calls=1,saved_slots=39,
+                            decode_nodes=336,observed_intervals=335,missing_terminal=1)
+                event=dict(status="UNVALIDATED_ROUTE_INTERVAL_CAPTURE",counts=counts,
+                    scientific_validation_passed=False,gpu_uuid=envelope["request"]["gpu_uuid"],
+                    worker_identity=identity,
+                    timing_semantics="ROUTE_TO_ROUTE_DEVICE_ELAPSED_INCLUDING_CAPTURE_AND_SCHEDULING",
+                    bindings=dict(arm=arm,run_id=envelope["request"]["run_id"],
+                        input_binding_sha256=runner._digest(input_raw),
+                        protocol_sha256=runner._digest((output/"protocol.json").read_bytes()),
+                        raw_return_sha256=runner._digest((output/"raw-return.json").read_bytes()),
+                        raw_routes_sha256=runner._digest((output/"raw-routes.npy").read_bytes())))
+                if test.bad_cuda_binding:event["bindings"]["raw_routes_sha256"]="0"*64
+                event_raw=runner._canonical(event)
+                (output/"route-device-events.json").write_bytes(event_raw)
+                status_document=json.loads(status_raw)
+                status_document["route_cuda_events"]=dict(enabled=True,status=event["status"],counts=counts,
+                    artifact="route-device-events.json",sha256=runner._digest(event_raw))
+                status_raw=runner._canonical(status_document)
+
             (output / "input-binding.json").write_bytes(input_raw)
             if arm == test.corrupt_status_arm:
                 (output / "worker-status.json").write_bytes(b"{corrupt")
@@ -838,8 +864,27 @@ class RoutingRunnerTests(unittest.TestCase):
     def test_public_parser_has_only_bundle_output_uuid_and_no_injection(self):
         names = {a.dest for a in runner._parser()._actions}
         self.assertEqual(
-            names, {"help", "metadata_bundle", "fresh_out", "selected_uuid"}
+            names, {"help", "metadata_bundle", "fresh_out", "selected_uuid", "capture_cuda_route_events"}
         )
+
+
+    def test_cuda_route_flag_wire_sidecar_gate_and_false_success_rejection(self):
+        for bad in (False,True):
+            self.bad_cuda_binding=bad;self.cuda_requests=[]
+            out=self.base/('cuda-bad' if bad else 'cuda-good')
+            if bad:
+                with self.assertRaisesRegex(runner.TripletFailure,'route-event artifact'):
+                    runner.run_triplet(self.base/'metadata',out,'GPU-X',capture_cuda_route_events=True,
+                        _test_dependencies=self.dependencies())
+                self.assertEqual([r['arm'] for r in self.cuda_requests],['native','capture'])
+            else:
+                result=runner.run_triplet(self.base/'metadata',out,'GPU-X',capture_cuda_route_events=True,
+                    _test_dependencies=self.dependencies())
+                self.assertEqual(result['status'],'PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED')
+                self.assertEqual([r.get('capture_cuda_route_events',False) for r in self.cuda_requests],[False,True,True])
+                self.assertNotIn('capture_cuda_route_events',self.cuda_requests[0])
+        with self.assertRaisesRegex(ValueError,'explicit boolean'):
+            runner.run_triplet(self.base/'metadata',self.base/'never-created','GPU-X',capture_cuda_route_events=1)
 
 
 if __name__ == "__main__":

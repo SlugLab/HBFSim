@@ -1171,5 +1171,46 @@ else:
             )
 
 
+    def test_cuda_route_flag_strict_wire_and_actual_isolated_child_plan(self):
+        owned=tempfile.TemporaryDirectory(prefix='.owned-cuda-wire-',dir=worker.ROOT/'results/gold')
+        self.addCleanup(owned.cleanup)
+        attempt=Path(owned.name)
+        work=worker.ROOT/'results/tmp/hf-routing'/attempt.name/'capture'
+        document=dict(self.request,arm='capture',device_name='NVIDIA RTX PRO 6000 Blackwell Server Edition',
+            work_dir=str(work),output_dir=str(attempt/'arms/capture'),process_dir=str(attempt/'process/capture'),
+            attempt_dir=str(attempt),metadata_bundle=str(worker.ROOT/'.mock-cuda-wire-metadata'),
+            transport_env={'PYTHONPYCACHEPREFIX':str(work/'cache/python')},capture_cuda_route_events=True)
+        self.assertEqual(worker._request(document,'capture'),document)
+        for extra in ({'capture_cuda_route_events':1},{'capture_cuda_route_events':'true'},
+                      {'unknown_timing_factory':'anything'}):
+            with self.subTest(extra=extra),self.assertRaises(ValueError):
+                worker._request(dict(document,**extra),'capture')
+        with self.assertRaises(ValueError):
+            worker._request(dict(document,arm='native'),'native')
+        old=dict(document);del old['capture_cuda_route_events']
+        self.assertFalse(worker._loaded_plan(worker._request(old,'capture'),None,None,None)['capture_cuda_route_events'])
+        self.request=document
+        directory,_,_=self._wire()
+        prefix=attempt/'private-pycache';prefix.mkdir()
+        child_code = """
+import hashlib,json,pathlib,runpy,sys
+ns=runpy.run_path(sys.argv[1]);path=pathlib.Path(sys.argv[2])
+envelope,_=ns['_read_wire'](path,sys.argv[3])
+request=ns['_request'](envelope['request'],'capture')
+plan=ns['_loaded_plan'](request,'MOCK-metadata','MOCK-runtime','MOCK-tuning')
+assert plan['capture_cuda_route_events'] is True
+assert plan['metadata_snapshot']=='MOCK-metadata'
+assert not any(k=='torch' or k.startswith(('torch.','vllm.')) for k in sys.modules)
+print(json.dumps({'flag':plan['capture_cuda_route_events'],'arm':request['arm'],'provenance':'MOCK'}))
+"""
+        path=directory/'envelope.json'
+        child=subprocess.run([worker.PINNED_PYTHON,'-I','-S','-B','-X','pycache_prefix='+str(prefix),
+            '-c',child_code,str(worker.ROOT/'scripts/eval/hf_owned_worker.py'),str(path),
+            hashlib.sha256(path.read_bytes()).hexdigest()],capture_output=True,text=True,timeout=30)
+        self.assertEqual(child.returncode,0,child.stderr)
+        self.assertEqual(json.loads(child.stdout),{'flag':True,'arm':'capture','provenance':'MOCK'})
+        self.assertEqual(list(prefix.iterdir()),[])
+
+
 if __name__ == "__main__":
     unittest.main()

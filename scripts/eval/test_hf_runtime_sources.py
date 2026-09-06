@@ -224,4 +224,41 @@ class RuntimeSourceTests(unittest.TestCase):
             sources.validate_runtime_sources(replace(snapshot, manifest_bytes=json.dumps(report).encode()))
 
 
+    def test_cuda_event_extension_preserves_legacy_snapshots_and_rejects_tampering(self):
+        self.prepare_tuning()
+        previous=self.collect_tuning()
+        before=sources.validate_runtime_sources(previous)
+        with self.assertRaises(FileNotFoundError):
+            sources.collect_runtime_sources(source_root=self.site,stdlib_root=self.stdlib,
+                interpreter=self.interpreter,include_tuning=True,include_cuda_events=True)
+        for name in sources.CUDA_EVENT_SOURCE_FILES:
+            path=self.site/name;path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_bytes(b'# MOCK CUDA interface source; never execute')
+        current=sources.collect_runtime_sources(source_root=self.site,stdlib_root=self.stdlib,
+            interpreter=self.interpreter,include_tuning=True,include_cuda_events=True)
+        report=sources.validate_runtime_sources(current)
+        self.assertEqual(report['source_extension'],'MOE_TUNING_V1')
+        self.assertEqual(report['cuda_event_extension'],'ROUTE_EVENTS_V1')
+        self.assertEqual(set(dict(current.artifacts))-set(dict(previous.artifacts)),
+            {'site-packages/torch/cuda/__init__.py','site-packages/torch/cuda/streams.py'})
+        self.assertEqual(report['source_file_count'],before['source_file_count']+2)
+        self.assertEqual(sources.validate_runtime_sources(self.collect_tuning()),before)
+        self.assertEqual(sources.validate_runtime_sources(previous),before)
+        self.assertNotEqual(current.manifest_bytes,previous.manifest_bytes)
+        with mock.patch.object(os,'open',side_effect=AssertionError('frozen validation opens source')):
+            sources.validate_runtime_sources(current)
+        sources.recheck_runtime_sources(current)
+        for value in (None,True,'ROUTE_EVENTS_V2'):
+            document=json.loads(current.manifest_bytes)
+            if value is None:del document['cuda_event_extension']
+            else:document['cuda_event_extension']=value
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                sources.validate_runtime_sources(replace(current,manifest_bytes=sources.metadata.canonical(document)))
+        (self.site/'torch/cuda/streams.py').write_bytes(b'# modified MOCK source')
+        with self.assertRaises(ValueError):sources.recheck_runtime_sources(current)
+        with self.assertRaises(ValueError):
+            sources.collect_runtime_sources(source_root=self.site,stdlib_root=self.stdlib,
+                interpreter=self.interpreter,include_tuning=True,include_cuda_events=1)
+
+
 if __name__ == '__main__': unittest.main()

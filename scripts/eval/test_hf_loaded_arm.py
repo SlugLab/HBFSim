@@ -328,4 +328,76 @@ class LoadedArmTests(unittest.TestCase):
         self.assertEqual(result['provenance'],'MOCK');self.assertTrue(result['test_only'])
 
 
+    def test_cuda_route_default_off_and_native_flag_never_import_adapter(self):
+        with mock.patch.dict(sys.modules,{'hf_route_cuda_events':None}):
+            for arm in ('native','capture'):
+                result=self.run_arm(arm,'off-'+arm)
+                self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
+                self.assertNotIn('route_cuda_events',result)
+                self.assertFalse((self.out/'route-device-events.json').exists())
+        self.plan['capture_cuda_route_events']=True
+        with self.assertRaisesRegex(ValueError,'plan flag'):
+            self.run_arm('native','bad-native')
+
+    def test_cuda_route_sidecar_join_and_failure_restore_precede_owned_cleanup(self):
+        from adapters.vllm_capacity.tests.test_hf_route_cuda_events import (
+            FakeCuda,FakeCapturer,FakeReader,emit_batches)
+        self.plan['capture_cuda_route_events']=True
+        for failure in (None,'sync','restore'):
+            self.events=[];self.owner=np.arange(78,dtype=np.int32).reshape(39,2,1)%2
+            deps=self.dependencies();module=deps['capture_module'];cuda=FakeCuda()
+            cap_cls=module.RoutedExpertsCapturer;read_cls=module.RoutedExpertsReader
+            def init_cap(cap):FakeCapturer.__init__(cap,cuda,layers=2,top_k=1)
+            def init_reader(reader):FakeReader.__init__(reader,module._global_experts_capturer)
+            cap_cls.__init__=init_cap;read_cls.__init__=init_reader
+            cap_cls.capture=FakeCapturer.capture;cap_cls.save_captured_experts=FakeCapturer.save_captured_experts
+            read_cls.get_routed_experts=FakeReader.get_routed_experts
+            original_generate=deps['LLM'].generate
+            original_cleanup=cap_cls.cleanup
+            original_collector=deps['Collector']
+            foreign=lambda *args:None
+            def generate(llm,*args,**kwargs):
+                emit_batches(module._global_experts_capturer,module._global_experts_reader,cuda,
+                    self.owner,np.arange(39,dtype=np.int32)*7+5)
+                returned=original_generate(llm,*args,**kwargs)
+                if failure=='sync':cuda.fail_sync=True
+                return returned
+            class Collector(original_collector):
+                def __init__(self,*args,**kwargs):
+                    super().__init__(*args,**kwargs)
+                    # Finalize/join has succeeded before trace materialization;
+                    # this case now exercises restoration-only failure.
+                    if failure=='restore':module._global_experts_capturer.capture=foreign
+            def cleanup(cap):
+                self.assertNotIn('save_captured_experts',vars(cap))
+                if failure=='restore':self.assertIs(cap.capture,foreign)
+                else:self.assertNotIn('capture',vars(cap))
+                self.events.append('event-restoration-observed-before-owner-cleanup')
+                original_cleanup(cap)
+            deps['LLM'].generate=generate;cap_cls.cleanup=cleanup;deps['cuda']=cuda;deps['Collector']=Collector
+            self.out=self.base/('timed-'+str(failure))
+            result=worker.run_loaded_arm(self.plan,'capture',self.out,_test_dependencies=deps)
+            event_raw=(self.out/'route-device-events.json').read_bytes();event=json.loads(event_raw)
+            self.assertEqual(result['route_cuda_events']['sha256'],worker.digest(event_raw))
+            self.assertEqual(event['bindings']['raw_routes_sha256'],worker.digest((self.out/'raw-routes.npy').read_bytes()))
+            self.assertEqual(event['bindings']['input_binding_sha256'],worker.digest((self.out/'input-binding.json').read_bytes()))
+            self.assertNotIn('capture_cuda_route_events',json.loads((self.out/'input-binding.json').read_bytes()))
+            self.assertEqual(event['provenance'],'MOCK')
+            self.assertFalse(event['scientific_validation_passed'])
+            self.assertIn('event-restoration-observed-before-owner-cleanup',self.events)
+            if failure is None:
+                self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
+                self.assertEqual(event['status'],'UNVALIDATED_ROUTE_INTERVAL_CAPTURE')
+                self.assertEqual(event['counts'],dict(batch_events=16,save_batches=8,reader_calls=1,
+                    saved_slots=39,decode_nodes=14,observed_intervals=13,missing_terminal=1))
+                self.assertIsNone(event['decode_intervals'][-1]['elapsed_ns'])
+            else:
+                self.assertEqual(result['status'],'FAILED');self.assertEqual(event['status'],'FAILED')
+                if failure=='sync':self.assertIsNotNone(result['primary_error'])
+                else:
+                    self.assertIsNone(result['primary_error'])
+                    stages={row['stage'] for row in result['cleanup_errors']}
+                    self.assertTrue({'route-event-restore','route-event-result'}<=stages)
+
+
 if __name__=='__main__':unittest.main()

@@ -92,4 +92,13 @@ if(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK)
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hbf_dependent_delay.cu" VERBATIM)
     add_custom_target(hbf_dependent_delay_ptx DEPENDS "${HBFSIM_DELAY_PTX}")
     add_dependencies(hbf_dependent_delay hbf_dependent_delay_ptx hbfsim_device_ptx ptxpass_hbf_plugin hbfsim_launch_gate)
+    if(BUILD_TESTING)
+        add_executable(hbfsim_eval_chain_layout_test
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/cpu/eval_chain_layout_test.cpp")
+        target_compile_definitions(hbfsim_eval_chain_layout_test PRIVATE
+            HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=1)
+        target_compile_features(hbfsim_eval_chain_layout_test PRIVATE cxx_std_20)
+        add_test(NAME eval_chain_layout COMMAND hbfsim_eval_chain_layout_test)
+        set_tests_properties(eval_chain_layout PROPERTIES TIMEOUT 30)
+    endif()
 endif()

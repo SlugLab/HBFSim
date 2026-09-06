@@ -162,6 +162,233 @@ static_assert(sizeof(EvalDelayConfig) == 32);
 static_assert(sizeof(EvalDelayCounters) == 48);
 static_assert(sizeof(EvalDelayTrace) == 40);
 
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+// Separate, default-off storage contract for the dependent-chain diagnostic.
+// It is module-local and does not change EvalDelayConfig or the shared ABI.
+inline constexpr std::uint64_t kEvalChainDiagnosticMagic =
+    0x4556434841494e31ULL;
+inline constexpr std::uint32_t kEvalChainDiagnosticVersion = 1;
+inline constexpr std::uint64_t kEvalChainNoWriter = ~std::uint64_t{0};
+
+struct EvalChainDiagnosticConfig {
+    std::uint64_t magic;
+    std::uint32_t version;
+    std::uint32_t config_bytes;
+    std::uint64_t delay_ns;
+    std::uint64_t launch_epoch;
+    std::uint32_t grid_x;
+    std::uint32_t grid_y;
+    std::uint32_t grid_z;
+    std::uint32_t block_x;
+    std::uint32_t block_y;
+    std::uint32_t block_z;
+    std::uint32_t warps_per_block;
+    std::uint32_t hops;
+    std::uint64_t row_count;
+    std::uint64_t storage_address;
+    std::uint64_t storage_bytes;
+    std::uint64_t row_stride;
+    std::uint64_t trace_capacity;
+};
+
+enum class EvalChainEventClass : std::uint32_t {
+    CoveredLoad = 1,
+    ChainOutputStore = 2,
+    BlockOutputStore = 3,
+    Rejected = 4,
+};
+
+struct EvalChainEvent {
+    std::uint64_t thread_id;
+    std::uint64_t address;
+    std::uint64_t order;
+    std::uint64_t begin_ns;
+    std::uint64_t end_ns;
+    std::uint32_t bytes;
+    std::uint32_t operation;
+    std::uint32_t event_class;
+    std::uint32_t status;
+};
+
+struct alignas(64) EvalChainRow {
+    EvalDelayCounters counters;
+    std::uint64_t event_count;
+    std::uint64_t launch_epoch;
+    std::uint64_t writer_thread_id;
+    std::uint32_t writer_observed;
+    std::uint32_t reserved;
+};
+
+struct EvalChainProducer {
+    std::uint64_t row;
+    std::uint64_t thread_id;
+    std::uint32_t warp;
+    std::uint32_t valid;
+};
+
+struct EvalChainStorage {
+    std::uint64_t row_address;
+    std::uint64_t trace_address;
+    std::uint32_t valid;
+    std::uint32_t reserved;
+};
+
+struct EvalChainSlot {
+    std::uint64_t address;
+    std::uint32_t valid;
+    std::uint32_t reserved;
+};
+
+enum class EvalChainDiagnosticAction { Off, Apply, Reject };
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_checked_add(
+    std::uint64_t left, std::uint64_t right, std::uint64_t* result)
+{
+    if (result == nullptr || left > ~std::uint64_t{0} - right) return false;
+    *result = left + right;
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_checked_multiply(
+    std::uint64_t left, std::uint64_t right, std::uint64_t* result)
+{
+    if (result == nullptr ||
+        (right != 0 && left > ~std::uint64_t{0} / right)) return false;
+    *result = left * right;
+    return true;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_warp_count_supported(
+    std::uint32_t warps)
+{
+    return warps == 1 || warps == 2 || warps == 4 || warps == 8 ||
+           warps == 16;
+}
+
+HBFSIM_HOST_DEVICE constexpr bool eval_chain_config_valid(
+    const EvalChainDiagnosticConfig& config,
+    std::uint64_t legacy_eval_magic = 0)
+{
+    if (legacy_eval_magic != 0 || config.magic != kEvalChainDiagnosticMagic ||
+        config.version != kEvalChainDiagnosticVersion ||
+        config.config_bytes != sizeof(EvalChainDiagnosticConfig) ||
+        config.delay_ns > 20'000 || config.launch_epoch == 0 ||
+        config.grid_x == 0 || config.grid_y != 1 || config.grid_z != 1 ||
+        config.block_y != 1 || config.block_z != 1 ||
+        !eval_chain_warp_count_supported(config.warps_per_block) ||
+        config.block_x != config.warps_per_block * 32 ||
+        (config.hops != 1 && config.hops != 16 && config.hops != 64) ||
+        config.trace_capacity != std::uint64_t{config.hops} + 7 ||
+        config.storage_address == 0 ||
+        config.storage_address % alignof(EvalChainRow) != 0 ||
+        config.row_stride % alignof(EvalChainRow) != 0) {
+        return false;
+    }
+    std::uint64_t rows = 0;
+    if (!eval_chain_checked_multiply(config.grid_x, config.warps_per_block,
+                                     &rows) ||
+        rows != config.row_count || rows > 0xffff'ffffULL) {
+        return false;
+    }
+    std::uint64_t trace_bytes = 0;
+    std::uint64_t row_bytes = 0;
+    std::uint64_t storage_bytes = 0;
+    std::uint64_t storage_end = 0;
+    return eval_chain_checked_multiply(config.trace_capacity,
+                                       sizeof(EvalChainEvent), &trace_bytes) &&
+           eval_chain_checked_add(sizeof(EvalChainRow), trace_bytes,
+                                  &row_bytes) &&
+           config.row_stride >= row_bytes &&
+           eval_chain_checked_multiply(config.row_count, config.row_stride,
+                                       &storage_bytes) &&
+           storage_bytes == config.storage_bytes &&
+           eval_chain_checked_add(config.storage_address,
+                                  config.storage_bytes, &storage_end) &&
+           storage_end > config.storage_address;
+}
+
+HBFSIM_HOST_DEVICE constexpr EvalChainDiagnosticAction
+eval_chain_diagnostic_action(const EvalChainDiagnosticConfig& config,
+                             std::uint64_t legacy_eval_magic)
+{
+    if (config.magic == 0) return EvalChainDiagnosticAction::Off;
+    return eval_chain_config_valid(config, legacy_eval_magic)
+               ? EvalChainDiagnosticAction::Apply
+               : EvalChainDiagnosticAction::Reject;
+}
+
+// This maps supplied coordinates against an already validated declaration.
+// A device caller must first compare all six actual gridDim/blockDim values
+// with config and observe Apply from the actual legacy/new-mode state.
+// This helper cannot establish that the declared geometry is the live launch.
+HBFSIM_HOST_DEVICE constexpr EvalChainProducer eval_chain_producer(
+    const EvalChainDiagnosticConfig& config, std::uint32_t block_index_x,
+    std::uint32_t block_index_y, std::uint32_t block_index_z,
+    std::uint32_t thread_index_x, std::uint32_t thread_index_y,
+    std::uint32_t thread_index_z)
+{
+    if (!eval_chain_config_valid(config) || block_index_x >= config.grid_x ||
+        block_index_y != 0 || block_index_z != 0 ||
+        thread_index_x >= config.block_x || thread_index_y != 0 ||
+        thread_index_z != 0 || (thread_index_x & 31U) != 0) {
+        return {};
+    }
+    const auto warp = thread_index_x / 32;
+    std::uint64_t row = 0;
+    std::uint64_t thread_id = 0;
+    if (!eval_chain_checked_multiply(block_index_x, config.warps_per_block,
+                                     &row) ||
+        !eval_chain_checked_add(row, warp, &row) || row >= config.row_count ||
+        !eval_chain_checked_multiply(block_index_x, config.block_x,
+                                     &thread_id) ||
+        !eval_chain_checked_add(thread_id, thread_index_x, &thread_id)) {
+        return {};
+    }
+    return {row, thread_id, warp, 1};
+}
+
+HBFSIM_HOST_DEVICE constexpr EvalChainStorage eval_chain_storage(
+    const EvalChainDiagnosticConfig& config, std::uint64_t row)
+{
+    if (!eval_chain_config_valid(config) || row >= config.row_count) return {};
+    std::uint64_t offset = 0;
+    std::uint64_t row_address = 0;
+    std::uint64_t trace_address = 0;
+    if (!eval_chain_checked_multiply(row, config.row_stride, &offset) ||
+        !eval_chain_checked_add(config.storage_address, offset, &row_address) ||
+        !eval_chain_checked_add(row_address, sizeof(EvalChainRow),
+                                &trace_address)) {
+        return {};
+    }
+    return {row_address, trace_address, 1, 0};
+}
+
+HBFSIM_HOST_DEVICE constexpr EvalChainSlot eval_chain_slot(
+    const EvalChainDiagnosticConfig& config, std::uint64_t row,
+    std::uint64_t actual_event_index)
+{
+    const auto storage = eval_chain_storage(config, row);
+    if (storage.valid == 0 || actual_event_index >= config.trace_capacity)
+        return {};
+    std::uint64_t offset = 0;
+    std::uint64_t address = 0;
+    if (!eval_chain_checked_multiply(actual_event_index,
+                                     sizeof(EvalChainEvent), &offset) ||
+        !eval_chain_checked_add(storage.trace_address, offset, &address)) {
+        return {};
+    }
+    return {address, 1, 0};
+}
+
+static_assert(sizeof(EvalChainDiagnosticConfig) == 104);
+static_assert(sizeof(EvalChainEvent) == 56);
+static_assert(sizeof(EvalChainRow) == 128);
+static_assert(sizeof(EvalChainProducer) == 24);
+static_assert(sizeof(EvalChainStorage) == 24);
+static_assert(sizeof(EvalChainSlot) == 16);
+#endif
+
 struct alignas(64) HbfRequest {
     std::uint64_t request_id;
     std::uint64_t sequence;

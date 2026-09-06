@@ -18,12 +18,14 @@ def encoded(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
 
 
-def fixture(base, *, missing=False, overlap=False, wrong_dtype=False):
+def fixture(base, *, missing=False, overlap=False, wrong_dtype=False,
+            vocab_size=16, top_k=1):
     checkpoint = base / 'checkpoint'; checkpoint.mkdir()
     config = dict(architectures=['Qwen3MoeForCausalLM'], torch_dtype='bfloat16',
-                  num_hidden_layers=2, num_experts=2, num_experts_per_tok=1,
+                  num_hidden_layers=2, num_experts=2, num_experts_per_tok=top_k,
                   hidden_size=128, moe_intermediate_size=64, model_type='qwen3_moe',
-                  num_attention_heads=4, num_key_value_heads=2, head_dim=32, vocab_size=16,
+                  num_attention_heads=4, num_key_value_heads=2, head_dim=32,
+                  vocab_size=vocab_size,
                   attention_bias=False, mlp_only_layers=[], decoder_sparse_step=1,
                   tie_word_embeddings=False)
     metadata = {'config.json': encoded(config), 'generation_config.json': b'{}',
@@ -48,7 +50,9 @@ def fixture(base, *, missing=False, overlap=False, wrong_dtype=False):
                   prefix+'self_attn.k_proj.weight':[64,128],prefix+'self_attn.v_proj.weight':[64,128],
                   prefix+'self_attn.o_proj.weight':[128,128],prefix+'self_attn.q_norm.weight':[32],
                   prefix+'self_attn.k_norm.weight':[32]}
-        if layer==0:resident.update({'model.embed_tokens.weight':[16,128], 'lm_head.weight':[16,128], 'model.norm.weight':[128]})
+        if layer==0:resident.update({'model.embed_tokens.weight':[vocab_size,128],
+                                     'lm_head.weight':[vocab_size,128],
+                                     'model.norm.weight':[128]})
         for name,shape in resident.items():
             size=math.prod(shape)*2;header[name]=dict(dtype='BF16',shape=shape,data_offsets=[cursor,cursor+size])
             weight_map[name]=shard;cursor+=size;nonexpert+=size
@@ -109,6 +113,16 @@ class MetadataRefreshTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='.test-hf-metadata-', dir=ROOT)
         self.addCleanup(self.tmp.cleanup); self.base=Path(self.tmp.name)
+
+    def test_fixture_vocab_and_top_k_parameterization_is_coherent(self):
+        checkpoint, donor, _ = fixture(self.base, vocab_size=1032, top_k=2)
+        config = json.loads((checkpoint / 'config.json').read_bytes())
+        self.assertEqual((config['vocab_size'], config['num_experts_per_tok']),
+                         (1032, 2))
+        document = json.loads(donor.read_bytes())
+        self.assertEqual(document['configuration']['vocab_size'], 1032)
+        self.assertEqual(document['configuration']['num_experts_per_tok'], 2)
+        verifier.verify(checkpoint, donor, self.base/'parameterized', test_only=True)
 
     def run_fixture(self, **options):
         checkpoint, donor, headers = fixture(self.base, **options)

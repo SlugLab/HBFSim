@@ -16,7 +16,12 @@ from budget_fast_tier import budget_fast_tier
 
 
 def hf_fixture(base, **config_changes):
-    checkpoint, donor_path, _ = fixture(base)
+    fixture_options = {
+        name: config_changes.pop(name)
+        for name in ("vocab_size", "top_k")
+        if name in config_changes
+    }
+    checkpoint, donor_path, _ = fixture(base, **fixture_options)
     config_path = checkpoint / 'config.json'
     config = json.loads(config_path.read_bytes())
     config.update(max_position_embeddings=64, use_sliding_window=False,

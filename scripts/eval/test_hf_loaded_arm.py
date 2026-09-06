@@ -1,4 +1,5 @@
 """Owned-arm composition using fake runtime objects and tiny frozen metadata."""
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
@@ -12,6 +13,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(ROOT/'adapters/vllm_capacity'),str(ROOT)]
 import hf_routing_worker as protocol
 import hf_loaded_arm as worker
+import hf_moe_tuning as tuning
 from trace_collector import JsonlTraceCollector
 from evaluation_inventory import load_hf_snapshot
 from test_evaluation_inventory import hf_fixture
@@ -25,8 +27,17 @@ class LoadedArmTests(unittest.TestCase):
         self.base=Path(temp.name);meta=self.base/'metadata';meta.mkdir()
         checkpoint,bundle=hf_fixture(meta)
         fixture=source_tests.RuntimeSourceTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        fixture.prepare_tuning();runtime=fixture.collect_tuning()
+        source_report=worker.hf_runtime_sources.validate_runtime_sources(runtime)
+        self.assertEqual(len(source_report['artifacts']),133)
+        self.assertEqual(source_report['source_extension'],'MOE_TUNING_V1')
+        self.device='TEST ONLY GPU'
+        (fixture.site/'vllm/model_executor/layers/fused_moe/configs').mkdir()
+        metadata=load_hf_snapshot(bundle)
+        tuning_snapshot=tuning.collect_tuning_inputs(metadata,runtime,self.device)
         work=self.base/'private-work';(work/'tmp').mkdir(parents=True)
-        self.plan=dict(metadata_snapshot=load_hf_snapshot(bundle),runtime_snapshot=fixture.collect(),
+        self.plan=dict(metadata_snapshot=metadata,runtime_snapshot=runtime,
+            tuning_snapshot=tuning_snapshot,device_name_declared=self.device,
             work_dir=work,gpu_uuid='GPU-TEST_ONLY',device_capability=(12,0),
             prompt_token_ids=[i%16 for i in range(32)],run_id='TEST_ONLY-arm',
             git_commit='a'*40,environment_fingerprint='b'*64)
@@ -66,6 +77,7 @@ class LoadedArmTests(unittest.TestCase):
                 if test.failure=='client-shutdown':raise RuntimeError('shutdown failed')
         class LLM:
             def __init__(self,**kwargs):
+                test.constructed_llm=self
                 test.events.append(('construct',kwargs));self.kwargs=kwargs
                 if test.failure=='before-engine':raise RuntimeError('construction before engine')
                 client=Client();cfg=SimpleNamespace(instance_id='1234',parallel_config=SimpleNamespace(data_parallel_rank=0))
@@ -98,7 +110,21 @@ class LoadedArmTests(unittest.TestCase):
         def runtime(*args):
             test.events.append('runtime-observation')
             if test.failure=='runtime-observation':raise RuntimeError('wrong backend')
-            return dict(provenance='MOCK',scientific_validation_passed=False)
+            report=dict(schema_version=1,evidence='RUNTIME_CONFIGURATION_OBSERVATION',
+                scientific_validation_passed=False,classes={},settings={},instance_id='1234',
+                layers=[],kv_layout={},sampler={})
+            test.runtime_report=report;return report
+        def retain(metadata,runtime_snapshot,tuning_snapshot,device,work,gpu):
+            test.events.append(('tuning-retention',metadata,runtime_snapshot,tuning_snapshot,device,work,gpu))
+            if test.failure=='tuning-retention':raise RuntimeError('tuning retention failed')
+            retained=object();test.retained=retained;return retained
+        def observe_tuning(retained,llm,*,prior_runtime_observation):
+            test.events.append(('tuning-observation',retained,llm,prior_runtime_observation))
+            if test.failure=='tuning-observation':raise RuntimeError('tuning observation failed')
+            report=dict(schema_version=1,provenance='MOCK',test_only=True,
+                device_name_declared=test.device,selection='INSTALLED_DEFAULTS',
+                selected_path='TEST_ONLY/selected.json',scientific_validation_passed=False)
+            test.tuning_report=report;return report
         class Collector(JsonlTraceCollector):
             def __init__(self,*args,**kwargs):
                 test.events.append('collector-open')
@@ -106,7 +132,8 @@ class LoadedArmTests(unittest.TestCase):
                 test.owner[:]=1 # Original returned owner mutates after serialization.
                 super().__init__(*args,**kwargs)
         deps=dict(LLM=LLM,SamplingParams=Sampling,RequestOutputKind=Kind,capture_module=module,
-            numpy=np,OwnedRouteMemory=Scope,observe_imports=imports,observe_runtime=runtime,Collector=Collector)
+            numpy=np,OwnedRouteMemory=Scope,observe_imports=imports,observe_runtime=runtime,
+            retain_tuning_runtime=retain,observe_loaded_tuning=observe_tuning,Collector=Collector)
         return deps
 
     def run_arm(self,arm='capture',name='out'):
@@ -123,12 +150,37 @@ class LoadedArmTests(unittest.TestCase):
             self.assertEqual(calls[0][2],protocol.sampling_arguments(self.deps['RequestOutputKind'].FINAL_ONLY))
             kwargs=next(e[1] for e in self.events if isinstance(e,tuple) and e[0]=='construct')
             self.assertEqual(kwargs,protocol.llm_arguments(str(self.checkpoint),arm!='native'))
-            self.assertLess(self.events.index('import-observation'),self.events.index('ownership-enter'))
+            names=[e[0] if isinstance(e,tuple) else e for e in self.events]
+            self.assertLess(names.index('import-observation'),names.index('tuning-retention'))
+            self.assertLess(names.index('tuning-retention'),names.index('ownership-enter'))
+            self.assertLess(names.index('ownership-enter'),names.index('construct'))
+            self.assertLess(names.index('construct'),names.index('runtime-observation'))
+            self.assertLess(names.index('runtime-observation'),names.index('tuning-observation'))
+            self.assertLess(names.index('tuning-observation'),names.index('generate'))
+            for name in ('construct','runtime-observation','tuning-observation','generate'):
+                self.assertEqual(names.count(name),1)
+            retention=next(e for e in self.events if isinstance(e,tuple) and e[0]=='tuning-retention')
+            self.assertIs(retention[1],self.plan['metadata_snapshot']);self.assertIs(retention[2],self.plan['runtime_snapshot'])
+            self.assertIs(retention[3],self.plan['tuning_snapshot']);self.assertEqual(retention[4],self.device)
+            observation=next(e for e in self.events if isinstance(e,tuple) and e[0]=='tuning-observation')
+            self.assertIs(observation[1],self.retained);self.assertIs(observation[2],self.constructed_llm)
+            self.assertIs(observation[3],self.runtime_report)
             self.assertTrue(result['compatibility_restored']);self.assertEqual(self.events[-1],'ownership-restored')
+            self.assertEqual(json.loads((self.out/'runtime-tuning.json').read_bytes()),self.tuning_report)
+            binding=json.loads((self.out/'input-binding.json').read_bytes())
+            protocol_document=json.loads((self.out/'protocol.json').read_bytes())
+            report=tuning.validate_tuning_inputs(self.plan['tuning_snapshot'],self.plan['metadata_snapshot'],
+                self.plan['runtime_snapshot'],self.device)
+            self.assertEqual(binding['selected_tuning_manifest_sha256'],worker.digest(self.plan['tuning_snapshot'].manifest_bytes))
+            self.assertEqual(binding['device_name_declared'],self.device)
+            self.assertEqual(binding['selected_tuning_input_report_sha256'],worker.digest(worker.canonical(report)))
+            self.assertEqual((protocol_document['source_kind'],protocol_document['provenance']),('TEST_ONLY','MOCK'))
+            self.assertEqual((binding['test_only'],binding['provenance']),(True,'MOCK'))
             raw=json.loads((self.out/'raw-return.json').read_bytes());self.assertEqual(raw['request_id'],'owned-real-api-id')
             if arm!='native':
                 trace=json.loads((self.out/'trace-summary.json').read_bytes())
                 self.assertEqual((trace['event_count'],trace['expert_access_count'],trace['tensor_access_count']),(78,78,234))
+                self.assertEqual(trace['evidence_class'],'TEST_ONLY')
             self.assertFalse((self.out/'COMPLETE.json').exists());self.assertFalse((self.out/'DONE').exists())
 
     def test_raw_route_copy_survives_owner_mutation_and_collector_failure(self):
@@ -154,6 +206,33 @@ class LoadedArmTests(unittest.TestCase):
             self.failure=failure;self.events=[];result=self.run_arm(name=failure)
             self.assertEqual(result['status'],'FAILED');self.assertIn('client-shutdown',self.events)
             self.assertFalse((self.out/'raw-return.json').exists())
+
+    def test_tuning_retention_failure_prevents_construction_and_generation(self):
+        self.failure='tuning-retention';result=self.run_arm()
+        self.assertEqual(result['status'],'FAILED');self.assertEqual(result['primary_error']['stage'],'tuning-retention')
+        names=[e[0] if isinstance(e,tuple) else e for e in self.events]
+        self.assertNotIn('construct',names);self.assertNotIn('generate',names)
+        self.assertFalse(result['engine_cleanup_available']);self.assertFalse((self.out/'runtime-tuning.json').exists())
+
+    def test_tuning_observation_failure_prevents_generation_and_cleans_constructed_state(self):
+        self.failure='tuning-observation';result=self.run_arm()
+        self.assertEqual(result['status'],'FAILED');self.assertEqual(result['primary_error']['stage'],'tuning-observation')
+        names=[e[0] if isinstance(e,tuple) else e for e in self.events]
+        self.assertEqual(names.count('construct'),1);self.assertNotIn('generate',names)
+        for event in ('reader-cleanup','capturer-cleanup','client-shutdown','ownership-restored'):self.assertIn(event,self.events)
+        self.assertFalse((self.out/'runtime-tuning.json').exists())
+
+    def test_wrong_device_and_resealed_tuning_snapshot_reject_before_output_or_callbacks(self):
+        for change in ('device','resealed'):
+            plan=dict(self.plan);out=self.base/('invalid-'+change)
+            if change=='device':plan['device_name_declared']='OTHER TEST GPU'
+            else:
+                raw=json.loads(plan['tuning_snapshot'].manifest_bytes);raw['device_name_declared']='OTHER TEST GPU'
+                plan['tuning_snapshot']=replace(plan['tuning_snapshot'],manifest_bytes=worker.canonical(raw))
+            self.events=[];deps=self.dependencies()
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                worker.run_loaded_arm(plan,'capture',out,_test_dependencies=deps)
+            self.assertEqual(self.events,[]);self.assertFalse(out.exists())
 
     def test_cleanup_failures_attempt_other_owners_and_preserve_raw(self):
         for failure in ('reader-cleanup','capturer-cleanup','client-shutdown'):
@@ -216,9 +295,33 @@ class LoadedArmTests(unittest.TestCase):
 
     def test_metadata_fixture_stays_mock_when_runtime_source_flag_is_false(self):
         self.deps=self.dependencies();self.out=self.base/'metadata-mock'
+        source=worker.hf_runtime_sources.validate_runtime_sources(self.plan['runtime_snapshot'])
+        source=dict(source);source['test_only']=False
+        report=tuning.validate_tuning_inputs(self.plan['tuning_snapshot'],self.plan['metadata_snapshot'],
+            self.plan['runtime_snapshot'],self.device);report=dict(report);report['test_only']=False
         # Exercise the source-false branch without importing a real runtime or
         # labelling any fake generated output as genuine runtime evidence.
-        with mock.patch.object(worker.hf_runtime_sources,'validate_runtime_sources',return_value={'test_only':False}), \
+        with mock.patch.object(worker.hf_runtime_sources,'validate_runtime_sources',return_value=source), \
+             mock.patch.object(worker.tuning_api,'validate_tuning_inputs',return_value=report), \
+             mock.patch.object(worker,'_loaded_dependencies',return_value=self.deps):
+            result=worker.run_loaded_arm(self.plan,'capture',self.out)
+        self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
+        self.assertEqual(result['provenance'],'MOCK');self.assertTrue(result['test_only'])
+
+    def test_tuning_test_only_report_forces_mock_when_other_source_flags_are_false(self):
+        self.deps=self.dependencies();self.out=self.base/'tuning-mock'
+        original_unpack=worker._unpack
+        def non_test_metadata(snapshot):
+            receipt,artifacts,donor,rest=original_unpack(snapshot);receipt=dict(receipt)
+            receipt.update(evidence='CHECKPOINT_METADATA',provenance='CHECKPOINT_METADATA')
+            return receipt,artifacts,donor,rest
+        report=tuning.validate_tuning_inputs(self.plan['tuning_snapshot'],self.plan['metadata_snapshot'],
+            self.plan['runtime_snapshot'],self.device);report=dict(report);report['test_only']=True
+        source=worker.hf_runtime_sources.validate_runtime_sources(self.plan['runtime_snapshot'])
+        source=dict(source);source['test_only']=False
+        with mock.patch.object(worker,'_unpack',side_effect=non_test_metadata), \
+             mock.patch.object(worker.hf_runtime_sources,'validate_runtime_sources',return_value=source), \
+             mock.patch.object(worker.tuning_api,'validate_tuning_inputs',return_value=report), \
              mock.patch.object(worker,'_loaded_dependencies',return_value=self.deps):
             result=worker.run_loaded_arm(self.plan,'capture',self.out)
         self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')

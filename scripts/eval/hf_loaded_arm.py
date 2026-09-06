@@ -16,6 +16,7 @@ ROOT=Path(__file__).resolve().parents[2]
 for directory in (ROOT,ROOT/'adapters/vllm_capacity'):
     if str(directory) not in sys.path:sys.path.insert(0,str(directory))
 import hf_routing_worker as protocol_api
+import hf_moe_tuning as tuning_api
 import hf_runtime_sources
 from evaluation_inventory import _unpack
 from run_manifest import process_identity
@@ -23,14 +24,16 @@ from verify_hf_metadata import canonical,digest,strict_object
 
 
 _DEPENDENCIES={'LLM','SamplingParams','RequestOutputKind','capture_module','numpy',
-    'OwnedRouteMemory','observe_imports','observe_runtime','Collector'}
-_PLAN_KEYS={'metadata_snapshot','runtime_snapshot','work_dir','gpu_uuid',
+    'OwnedRouteMemory','observe_imports','observe_runtime','retain_tuning_runtime',
+    'observe_loaded_tuning','Collector'}
+_PLAN_KEYS={'metadata_snapshot','runtime_snapshot','tuning_snapshot','device_name_declared','work_dir','gpu_uuid',
     'device_capability','prompt_token_ids','run_id','git_commit','environment_fingerprint'}
 
 
 def _loaded_dependencies(runtime_snapshot):
     """Resolve fixed already-imported classes, not a configured runtime factory."""
     from hf_owned_routes import OwnedRouteMemory
+    from hf_moe_tuning_runtime import observe_loaded_tuning,retain_tuning_runtime
     from hf_runtime_contract import observe_runtime
     from hf_runtime_imports import observe_runtime_imports
     from trace_collector import JsonlTraceCollector
@@ -53,7 +56,9 @@ def _loaded_dependencies(runtime_snapshot):
         RequestOutputKind=vars(sampling)['RequestOutputKind'],
         capture_module=loaded('vllm.model_executor.layers.fused_moe.routed_experts_capturer'),
         numpy=loaded('numpy'),OwnedRouteMemory=OwnedRouteMemory,
-        observe_imports=observe_runtime_imports,observe_runtime=observe_runtime,Collector=JsonlTraceCollector)
+        observe_imports=observe_runtime_imports,observe_runtime=observe_runtime,
+        retain_tuning_runtime=retain_tuning_runtime,observe_loaded_tuning=observe_loaded_tuning,
+        Collector=JsonlTraceCollector)
 
 
 def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
@@ -68,9 +73,11 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
         raise ValueError('invalid loaded-arm plan or arm')
     receipt,artifacts,donor,_=_unpack(plan['metadata_snapshot'])
     source=hf_runtime_sources.validate_runtime_sources(plan['runtime_snapshot'])
+    tuning_input=tuning_api.validate_tuning_inputs(plan['tuning_snapshot'],plan['metadata_snapshot'],
+        plan['runtime_snapshot'],plan['device_name_declared'])
     config=strict_object(artifacts['metadata/config.json'])
     control=protocol_api.make_protocol(receipt,config,plan['prompt_token_ids'])
-    test_only=_test_dependencies is not None or source['test_only'] or receipt['evidence']=='TEST_ONLY'
+    test_only=_test_dependencies is not None or source['test_only'] or receipt['evidence']=='TEST_ONLY' or tuning_input['test_only']
     if test_only:control.update(source_kind='TEST_ONLY',provenance='MOCK')
     work=Path(plan['work_dir']).absolute();out=Path(out).absolute()
     protocol_api.make_environment(work,plan['gpu_uuid'],{})
@@ -115,6 +122,9 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
             observation_identity_sha256=receipt['observation_identity_sha256'],
             donor_sha256=digest(artifacts['donor.json']),model_fingerprint=donor['ModelFingerprint'],
             runtime_source_manifest_sha256=digest(plan['runtime_snapshot'].manifest_bytes),
+            selected_tuning_manifest_sha256=digest(plan['tuning_snapshot'].manifest_bytes),
+            selected_tuning_input_report_sha256=digest(canonical(tuning_input)),
+            device_name_declared=plan['device_name_declared'],
             protocol_sha256=digest(canonical(control)),gpu_uuid=plan['gpu_uuid'],work_dir=str(work),
             run_id=plan['run_id'],git_commit=plan['git_commit'],environment_fingerprint=plan['environment_fingerprint'],
             provenance=result['provenance'],test_only=bool(test_only),scientific_validation_passed=False))
@@ -123,6 +133,9 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
         stage='import-observation'
         imported=deps['observe_imports'](plan['runtime_snapshot'],work,plan['gpu_uuid'],plan['device_capability'])
         document('runtime-imports.json',imported)
+        stage='tuning-retention'
+        retained=deps['retain_tuning_runtime'](plan['metadata_snapshot'],plan['runtime_snapshot'],
+            plan['tuning_snapshot'],plan['device_name_declared'],work,plan['gpu_uuid'])
         cap_module=deps['capture_module'];cls=cap_module.RoutedExpertsCapturer
         original_descriptor=inspect.getattr_static(cls,'get_instance')
         if cap_module._global_experts_capturer is not None or cap_module._global_experts_reader is not None:
@@ -139,6 +152,9 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
         stage='runtime-observation'
         observed=deps['observe_runtime'](llm,receipt['checkpoint'],capture_enabled,control,config)
         document('runtime-configuration.json',observed)
+        stage='tuning-observation'
+        tuning_observed=deps['observe_loaded_tuning'](retained,llm,prior_runtime_observation=observed)
+        document('runtime-tuning.json',tuning_observed)
         client=llm.llm_engine.engine_core;cfg=llm.llm_engine.vllm_config
         capturer=cap_module._global_experts_capturer;reader=cap_module._global_experts_reader
         route_owners_observed=True

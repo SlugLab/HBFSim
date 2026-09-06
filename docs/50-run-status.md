@@ -1,7 +1,10 @@
 # Run status — implementation in progress
 
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
-Latest standalone update: five real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
+Latest standalone update: eight real HF attempts, two K1 hardware controls and one
+bounded C6 GPU correctness diagnostic have run; see the
+[current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06).
+Earlier resource and CPU entries below remain historical.
 The runner's read-only status command reports the entire frozen matrix;
 unit-test fixtures, CPU accounting controls, the three-cell media pilot and
 three-policy MOCK causal pilot are not formal experiment runs.
@@ -219,19 +222,48 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 ## Standalone real-experiment checkpoint, 2026-09-06
 
-Latest actual run: HF005 started at 2026-09-06T16:40:39.384749Z on HEAD
-`389e5d84b164c6e07b49667e6562ef70aee96b74` and failed after303.869927600 s.
-The native worker reported MemoryError at vllm-device, before device/import
-reports or model construction; capture/repeat did not start. metadata-current
-also failed with MemoryError during postchecks; the other eight checks passed.
-Owned exit was observed, remaining members empty, uncertain=false. The source
-and HEAD remained unchanged. Launch MemAvailable was2,028,416 kB, CommitLimit
-70,960,824 kB, Committed_AS66,623,392 kB. This does not locate the allocation
-that failed. The accepted import-environment fix has not reached its real-model
-gate in HF004/005. Do not relaunch repeatedly under unchanged memory pressure.
-Evidence: `results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-005/execution.json`
-(SHA2569d7b069cb1d7475c24e8329ab8ae0f03028cb5182796ec9903726776faf16a65)
-and the matching native owned-worker-failure.json. Formal DONE remains0.
+Latest actual HF run: HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
+128.635422801 s, exit1. It passed device/import/preconstruction checks and
+actually loaded the BF16 model: stdout records56.88 GiB and39.138985 s for
+model loading, then5.18 s for engine initialization. The subsequent
+pre-generation tuning-observation rejected an environment mismatch. No raw
+tokens/routes returned; capture/repeat did not start. All nine postchecks
+passed; owned exit was observed, remaining=[], uncertain=false. The failure
+is a post-construction gate failure, not a failed model load. NCCL stderr
+warned that destroy_process_group was not called; observed process exit does
+not prove graceful group destruction. Source/HEAD remained unchanged.
+Execution: `results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-008/execution.json`,
+SHA256 `4d4bab1302e0116f2857f4f06c8be72ece25a36baaa4b7a097a749b60730a867`.
+Launch MemAvailable22,157,448 kB, CommitLimit70,960,824 kB and
+Committed_AS27,573,236 kB. Preserve prior failures; investigate the actual
+construction-time environment delta before a fresh guarded run.
+
+Historical HF007 started at 2026-09-06T17:55:45.041093Z on HEAD
+`c7ee00758c195798e4554268429f9a63868bcf7a` and stopped after0.566955839 s.
+The launch guard returned `ResourceBusy` for foreign GPU PID1291679. `arms=[]`;
+no owned child, import, runtime report, model, generated token or route started.
+Launch memory was MemAvailable15,724,408 kB, CommitLimit70,960,824 kB and
+Committed_AS44,315,632 kB. Evidence:
+`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-007/execution.json`
+(SHA256 `419d65deebd44700d73c00af35404bd3f371eb651de96c48e1889537c3bbcc55`).
+
+HF006 previously failed at the input-stage fixed-environment wire copy before
+bootstrap/runtime/model. Commit `c7ee00758c195798e4554268429f9a63868bcf7a`
+adds the three CPU thread-limit values to the owned worker's `FIXED_ENV`. The
+repair passed both reviews, an initial two-failure RED and three focused GREEN
+tests; its real bootstrap MOCK subprocess passed in8.932 s suite/9.52 s process.
+Those tests establish CPU/MOCK validation. HF008 subsequently exercised
+the repaired wire path, real imports and model construction; its later
+pre-generation environment mismatch remains open.
+
+HF005 previously failed after303.869927600 s with MemoryError at vllm-device,
+before device/import reports or model construction; capture/repeat did not
+start. Its metadata-current postcheck also failed with MemoryError while eight
+other checks passed. Owned exit was observed, remaining members empty and
+uncertain=false. Launch MemAvailable was2,028,416 kB. Evidence:
+`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-005/execution.json`
+(SHA256 `9d7b069cb1d7475c24e8329ab8ae0f03028cb5182796ec9903726776faf16a65`).
+None of HF005-HF008 changes formal DONE, which remains0.
 
 The default-OFF per-chain layout unit is committed at389e5d8 after independent
 SPEC/QUALITY and an existing ABI control in macroOFF/ON configurations. Its
@@ -242,12 +274,24 @@ gold directory in `per-chain-layout-attempt-001`,
 `per-chain-layout-phase-attempt-001`, `per-chain-layout-spec-attempt-001`, and
 `per-chain-layout-quality-attempt-001`.
 
-C6 has one actual optimized candidate transform/compile/disassembly acquisition.
-Seed arithmetic survives before wait except for the last multiply, which was
-fused into the postwait consumer. The mapping remains NOT_PROVEN; no decoded
-scoreboard or native-completion/overlap claim is made. A separate bounded GPU
-correctness candidate is being corrected following independent review. This
-diagnostic may proceed without claiming full C6.3 or G5 closure.
+C6 now also has one actual bounded GPU correctness acquisition on HEAD
+`e96be28ae4b0be5dacc4f5944c64a554572bef9c`. The one-block,32-lane diagnostic
+completed all same/distinct-page and dense/sparse cases:128/128 outputs matched,
+issued/model-ready/consumed were72/72/72, groups issued/completed were38/38,
+trace count was144, and pending/terminal-error/trace-overflow were0. Observable
+unload, unregister and allocation releases succeeded; the void context-destroy
+API records only that it was called. The controller exited0 after8.308445783 s
+with `CAPTURED_UNVALIDATED`. Evidence is the controller execution record
+(SHA256 `cc2fb688d8d0c85278a17a7b68980a10fa715313949cc7ca84dd35f37d727efc`)
+and `attempt-001/diagnostic/raw.json` (SHA256
+`346dbac1219b6191052668518e97c3eb886f62b27a77cc47824470f1040775fa`).
+
+The earlier optimized candidate transform/compile/disassembly retains seed
+arithmetic before wait except for the last multiply fused into the postwait
+consumer. That mapping remains `NOT_PROVEN`; live driver JIT is not bound to
+the earlier cubin, and no decoded-scoreboard, native-completion, overlap, G5,
+full C6.3 or full C6.4 claim follows from the correctness acquisition. TMA and
+the complete C6.4 lifecycle remain open.
 
 
 Earlier resource follow-up: attempt004 completed in 39.396977992 s on frozen HEAD

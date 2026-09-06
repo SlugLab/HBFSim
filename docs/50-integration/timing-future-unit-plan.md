@@ -14,7 +14,7 @@
 
 This is a plan, not implemented support or a gate receipt. It was prepared against integration commit `dd853762b6ef94c522918a1efcf147293c3175a2`, frozen B `fc829992ecdc3ca68881656722b67a31067c5d33` and frozen S `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`. The 64-byte design/build-command revision was checked at `13a416accf775339556459a514c9a37fc0c33b76`. Re-record the integration SHA and dirty patch when implementation starts.
 
-The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. C6.1 is committed at `1f0f45b`. C6.2 plugin/build/loader admission is committed at `49ee96b`, with both reviews, all64 CPU checks closed and18/18 default-OFF checks. C6.3 optimized dependency mapping and C6.4 GPU gold remain open.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
+The authorized phase-two contract and [selective donor map](sm120-donor-map.md) permit this complete additive unit. No renewed user permission is required. **C5 infrastructure is committed at `61de9f4`; its synchronous/known-delay prefix preserves the correction at `13a416a`. C6.1 is committed at `1f0f45b`. C6.2 plugin/build/loader admission is committed at `49ee96b`, with both reviews, all64 CPU checks closed and18/18 default-OFF checks. One bounded one-warp C6.4 correctness acquisition is captured but unvalidated; C6.3 optimized dependency mapping and complete C6.4 GPU gold remain open.** Preserve those reviewed sources and their evidence; do not overwrite the helper from an earlier snapshot or bypass a busy-GPU guard.
 
 Read [execution-plan C](../49-eval-audit/execution-plan.md), [G5](../49-eval-audit/claim-gates.md), [async semantics](../skills/04-cuda-async-cpasync-tma.md), [device/control ABI](../skills/05-device-helper-and-control-abi.md) and [server safety](../skills/10-server-experiment-safety.md). The literal S ABI9 dependency rule still applies to an actual S helper port. This plan instead defines a new complete device-local ABI and leaves the shared host/device layout at version4.
 
@@ -309,6 +309,19 @@ execution or semantic receipt resulted from this audit.
 
 **Files:** new GPU correctness source and overlap runner/tests; existing ResourceGuard and immutable artifact utilities reused without changing their authorization rules.
 
+Checkpoint, 2026-09-06: the parent-authorized one-block/32-lane ordinary-u32
+correctness smoke ran all four fixed same/distinct-page and dense/sparse cases.
+All128 outputs matched and the recorded72 issued/model-ready/consumed lanes,
+38 issued/completed groups and144 trace records conserve with zero pending,
+terminal-error or overflow. Observable retirement steps succeeded; context
+destroy remains a called-but-unobservable void API. The controller state is
+`CAPTURED_UNVALIDATED`, and live driver JIT remains unbound to the prior optimized
+cubin. This is the narrow correctness smoke contemplated below. It does not
+satisfy C6.3, the D/W matched-control experiment, G5, overlap/native-completion
+timing, the complete C6.4 lifecycle or any TMA requirement.
+
+- [x] Acquire the fixed one-warp same/distinct-page and dense/sparse ordinary-u32 output/conservation smoke, retaining raw counters, traces and cleanup state as `CAPTURED_UNVALIDATED`.
+
 - [ ] Add CPU runner RED cases with deterministic subprocess fixtures: wrong D/W/operation/treatment, wrong kernel/build/profile/receipt, failed checksum, leaked pending count, contaminated guard, timeout/interruption, forged SASS receipt and test-only output under formal runs. Reuse durable stdout/stderr/raw/environment/provenance conventions; no mock fixture can become a measured row.
 - [ ] Implement `run_async_overlap.py` with plan as default, matrix-sourced `ordinary_future_load` selection and one explicitly bounded condition per execution. Use `GPU_EXCLUSIVE`, pinned GPU UUID/device, start/periodic/end guard and immutable attempt paths. Preserve blocked/failed/interrupted evidence. Parent owns actual GPU launches in this phase; do not reset/settings-change or signal unrelated processes.
 - [ ] Add a separate explicitly scoped known-D module configuration outside shared ABI4 for this future gold. Match native, synchronous old issue-stall, matched-zero and new future treatments; use the same data, kernel, input, coverage and launch geometry. The new future configuration creates a ready deadline at issue and waits at consumption; it must not call the synchronous known-delay wait at issue. D=0 truly disables synthetic delay while retaining validation/grouping/dependency handling. Keep a positive scalar profile, do not set profile read latency to zero, and do not double-charge scalar service plus synthetic D.
@@ -423,3 +436,15 @@ all meaningful REDs and final status are frozen in
 C6.2 admission was still open at that C6.1 checkpoint and is now closed by the
 separate C6.2 evidence above. C6.3 optimized SASS dependency gold and C6.4 guarded hardware
 controls remain open; the independent TMA/capacity/empirical families stay closed.
+
+## C6.4 bounded correctness acquisition checkpoint
+
+The first guarded ordinary-u32 correctness diagnostic ran on
+`e96be28ae4b0be5dacc4f5944c64a554572bef9c` and retained its execution record
+under `results/gold/timing-future-unit/c6-correctness/controller-attempt-001/`
+and raw acquisition under `c6-correctness/attempt-001/diagnostic/`. It passed
+the four fixed output/conservation cases and observable cleanup boundaries, with
+the void context destroy explicitly unobservable. Its state remains
+`CAPTURED_UNVALIDATED`. The unchecked C6.3 and C6.4 items above remain required;
+this checkpoint neither creates an `ORDINARY_TIMING_FUTURE_V1` receipt nor
+closes overlap, G5, native-completion timing, TMA or full lifecycle validation.

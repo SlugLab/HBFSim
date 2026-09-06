@@ -2,11 +2,12 @@
 
 P0/P1/P6 and bounded CPU portions of P2/P3/P7 are verified. This is an interim
 checkpoint, not completion of P0–P8 or permission to launch a formal matrix.
-Default-OFF ordinary TIMING future admission is implemented; its optimized SASS
-and GPU gold remain open, and TMA support remains uninstalled. Known-delay, read-only
+Default-OFF ordinary TIMING future admission is implemented; one bounded GPU
+correctness diagnostic is captured but unvalidated, while optimized SASS and
+full GPU gold remain open and TMA support remains uninstalled. Known-delay, read-only
 acquisition, exact-arrival conversion, routing capture closure and native causal
 prefetch tools now pass their bounded CPU/compile controls and independent
-reviews. Physical acquisition remains blocked. The storage pairing adapter now passes
+reviews. Physical storage acquisition remains blocked. The storage pairing adapter now passes
 19 tests and review. Host GPU access is available outside the sandbox; initial
 known-delay controls ran and exposed a timing defect. No formal handler is active.
 
@@ -15,7 +16,10 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Latest committed implementation at this checkpoint: `b136c68b8c1e3c619babc8f445f8d295079e86bd` (exact observed import-time environment compatibility); the preceding Transformers fix is `3a7cb61`, and actual pilot003 used HEAD `ae156dd3fb740c4acd0aec92883714a42a35ef76`. The next fresh real attempt remains to be run.
+- Latest actual checkpoint HEAD: `c7ee00758c195798e4554268429f9a63868bcf7a`.
+  The C6 diagnostic captured the bounded result below. The owned-worker
+  fixed-environment wire repair has CPU/MOCK closure and HF008 has now
+  loaded the real model. A later pre-generation environment mismatch remains open.
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -45,7 +49,7 @@ were not duplicated. See [donor map](50-integration/sm120-donor-map.md).
 |---|---|---|
 | GOLD-0 | Exact frozen base 42/42 CPU; original pipeline 20/20 | CPU configuration only |
 | GOLD-1 | C6.2 complete opt-in plugin/loader;17 typed actual-plugin assembly controls,49 loader scenarios; all64 CPU checks and18 default-OFF checks closed | Ordinary scalar TIMING subset; no GPU or TMA proof |
-| GOLD-2 | CPU future oracle and counterexamples pass | GPU semantic gold NOT RUN |
+| GOLD-2 | CPU future oracle/counterexamples pass; one one-warp four-case GPU correctness diagnostic captured | `CAPTURED_UNVALIDATED`; live-JIT mapping, overlap and full GPU semantic gold remain open |
 | GOLD-3 | Representative synchronous SM120 image assembled/disassembled; immutable cache 9/9 controls | Resolver/load/next-address mapping recorded; future/TMA mapping NOT PROVEN |
 | GOLD-4 | Current-source rebuild and20/20 CPU/compile checks; ten new guarded D0 K64 controls and one D500 acquired | Corrected local wait measures512ns; full-chain D500 still fails fixed G2. D0 run-mean SD121.024us/access; no full gate closure |
 | GOLD-5 | Optional MQSim observer, 12 concurrent replay controls, 10 provenance controls and three-cell CPU pilot pass | CPU media conservation; collector fixtures pass, physical acquisition and hardware causal gold absent |
@@ -147,6 +151,21 @@ one archived u32 native/wait-return/consumer register chain. Missing useful
 independent work, shared output addresses and unresolved clock/native-completion
 ordering prevent semantic approval. Its post-hoc archived-byte receipt is not a
 new contemporaneous build record; mapping remains `NOT_PROVEN` and no GPU ran.
+
+A later ordinary-u32 diagnostic did run on HEAD
+`e96be28ae4b0be5dacc4f5944c64a554572bef9c`. One block of32 lanes passed all
+four fixed same/distinct-page and dense/sparse output checks (128 outputs total).
+Its final counters record72 issued,72 model-ready,72 consumed,38 groups issued
+and completed,144 trace records, and zero pending, terminal-error and overflow.
+Observable module unload, range unregister and frees succeeded; the void context
+destroy records called with completion unobservable. The controller duration was
+8.308445783 s and its terminal state is `CAPTURED_UNVALIDATED`. The execution
+record SHA256 is `cc2fb688d8d0c85278a17a7b68980a10fa715313949cc7ca84dd35f37d727efc`;
+the raw diagnostic SHA256 is
+`346dbac1219b6191052668518e97c3eb886f62b27a77cc47824470f1040775fa`.
+Live driver JIT remains unbound to the prior optimized cubin. This closes only
+the narrow output/conservation acquisition, not C6.3, G5, overlap,
+native-completion timing, the complete C6.4 lifecycle or TMA.
 
 Initial GPU-unavailable evidence came from the sandbox. Host execution was
 verified on 2026-09-05, without a driver repair. The GPU_EXCLUSIVE guard retained
@@ -582,11 +601,22 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 Actual guarded diagnostic runs and their failures are now recorded in the
 [latest standalone checkpoint](50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06).
-All three HF attempts stopped before model construction; 003 passed passive
-runtime observation and failed at tuning-retention environment validation.
-The correction for the three observed import-time settings is committed at
-`b136c68b8c1e3c619babc8f445f8d295079e86bd`; the next action is guarded diagnostic attempt004. K1 hardware controls still fail G2. Formal acceptance and COMPLETE remain
-open; diagnostic execution continues under the existing resource guard.
+HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
+128.635422801 s, exit1. It passed device/import/preconstruction checks and
+actually loaded the BF16 model: stdout records56.88 GiB and39.138985 s for
+model loading, then5.18 s for engine initialization. The subsequent
+pre-generation tuning-observation rejected an environment mismatch. No raw
+tokens/routes returned; capture/repeat did not start. All nine postchecks
+passed; owned exit was observed, remaining=[], uncertain=false. The failure
+is a post-construction gate failure, not a failed model load. NCCL stderr
+warned that destroy_process_group was not called; observed process exit does
+not prove graceful group destruction. Source/HEAD remained unchanged.
+Execution: `results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-008/execution.json`,
+SHA256 `4d4bab1302e0116f2857f4f06c8be72ece25a36baaa4b7a097a749b60730a867`.
+Launch MemAvailable22,157,448 kB, CommitLimit70,960,824 kB and
+Committed_AS27,573,236 kB. Preserve prior failures; investigate the actual
+construction-time environment delta before a fresh guarded run.
+K1 hardware controls fail G2. Formal acceptance and COMPLETE remain open.
 
 Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,

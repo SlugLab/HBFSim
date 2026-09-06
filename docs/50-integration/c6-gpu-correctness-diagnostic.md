@@ -5,6 +5,36 @@ or a native-load completion-time claim. The live CUDA driver JIT image is not
 bound to the earlier `ptxas -O3 sm_120` cubin/disassembly, whose semantic mapping
 status remains `NOT_PROVEN`.
 
+## First actual acquisition
+
+The guarded diagnostic ran once on HEAD
+`e96be28ae4b0be5dacc4f5944c64a554572bef9c`, starting
+2026-09-06T17:29:55.997109Z. The controller exited0 after8.308445783 s with
+state `CAPTURED_UNVALIDATED`. Its record is
+`results/gold/timing-future-unit/c6-correctness/controller-attempt-001/execution.json`
+(SHA256 `cc2fb688d8d0c85278a17a7b68980a10fa715313949cc7ca84dd35f37d727efc`).
+The original diagnostic is
+`results/gold/timing-future-unit/c6-correctness/attempt-001/diagnostic/raw.json`
+(SHA256 `346dbac1219b6191052668518e97c3eb886f62b27a77cc47824470f1040775fa`).
+
+All four cases reported `PASS`; all128 lane outputs matched their expected
+values. Final counters were72 issued,72 model-ready,72 consumed,38 groups issued,
+38 groups completed and144 trace records, with pending, terminal-error and
+trace-overflow all zero. Module unload, range unregister, both allocation frees
+and plugin close reported success. `hbfsim_context_destroy` is a void API, so
+the record says only `called=true` and `completion=UNOBSERVABLE_VOID_API`.
+
+Independent recomputation also matched128/128 outputs and all four checksums
+without using the raw expected fields, and checked all144 trace records and
+reservations1–38. The report and one-time recomputation are retained in
+`results/gold/timing-future-unit/c6-correctness/data-review-attempt-001/`;
+review SHA256 `01f92b33eb103f84e541e0362a2f9ce8a28075d49f0f89b48bf89967e05cc0bd`.
+
+This acquisition establishes a narrow single-warp output/conservation result.
+It does not bind the live driver-JIT image to the earlier optimized cubin and
+does not close C6.3, G5, overlap, native-completion timing, the full C6.4
+lifecycle or TMA.
+
 The executable runs one block of 32 lanes across four fixed cases:
 
 | case | input stride | active mask | expected page groups |
@@ -57,7 +87,7 @@ controls.
 
 After the controller has frozen that input at
 `results/gold/timing-future-unit/c6-correctness/inputs-attempt-001/nominal-4096-timescale1.json`,
-run exactly one guarded child:
+the following command records the already completed first acquisition. Do not rerun its used attempt directory; any justified new run needs a fresh output path:
 
 ```text
 /opt/miniconda3/bin/python3.13 -I -S -B \

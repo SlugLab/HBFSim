@@ -1,14 +1,15 @@
 # Runtime budget — bounded controls only
 
-The matrix estimates remain planning values. Known-delay GPU controls and HF
-runtime diagnostic attempts have run, but G2 failed, HF model construction has
-not completed in the three sealed attempts, and no physical-storage pilot has run. This checkpoint cannot replace
+The matrix estimates remain planning values. Known-delay and bounded C6 GPU
+controls plus HF runtime diagnostic attempts have run. G2 failed; HF008
+completed real model loading but failed before generation. No physical-storage pilot has run. This checkpoint cannot replace
 the planning values with validated per-cell
 runtime estimates or predict a validated completion date.
 
 | Observed CPU verification | Wall time | Boundary |
 |---|---:|---|
 | Import-time environment compatibility phase | 30.223 s suite /31.211586910 s process | 54/54 tuning-runtime + loaded-arm + runtime-import tests; no GPU |
+| Owned fixed-environment wire repair | 8.932 s suite /9.52 s process | Initial two-failure RED, final3 focused tests and real bootstrap MOCK subprocess; no real import/model |
 | Transformers stored-version compatibility phase | 9.664 s suite /10.606893868 s process | 31/31 observer + loaded-arm tests; isolated pinned Python3.13, no GPU |
 | Pure frozen HF trace final related tests | 12.398 s suite /13.138769422 s process | 83/83 tests; original controller root-timestamp failure diagnosed separately; no test rerun, no GPU |
 | Frozen base build | 21.38 s | CPU configuration, 4 build jobs |
@@ -50,6 +51,7 @@ runtime estimates or predict a validated completion date.
 | Real selected tuning input | 2.373 s | Exact packaged-file absence plus frozen metadata/source validation; no current GPU query |
 | C6.2 CPU phase | 25.93 +0.08 s | 63/64 initial; reviewed source-test selector fix and sole focused recheck close64/64; no runtime change for that failure |
 | C6.2 default-OFF regression | 18.30 s | 18/18 CPU/compile checks; fresh CUDA13 build40.82s, no GPU execution |
+| C6 one-warp correctness diagnostic | 8.308445783 s | Actual guarded four-case GPU process; `CAPTURED_UNVALIDATED`, not a formal cell or overlap timing |
 | Owned no-site bootstrap | 0.297 +38.819 s | Three new CPU subprocess controls plus46/46 existing scheduler tests; no inference import |
 | Frozen route decoder phase | 3.536 s | 29/29 decoder/body/protocol CPU controls; six decoder controls and both reviews pass |
 | HF worker protocol | 0.033 s | 10/10 historical CPU controls; runtime worker was then unimplemented |
@@ -128,6 +130,10 @@ Observed standalone hardware/runtime diagnostics, 2026-09-06:
 | HF003 | 447.972067177 s | Runtime versions observed; native tuning-retention environment failure; model not constructed |
 | HF004 | 39.396977992 s | ResourceBusy during launch; bootstrap only, no device report or model |
 | HF005 | 303.869927600 s | MemoryError at vllm-device and metadata-current postcheck; eight other postchecks passed; no model |
+| HF006 | 20.626008441 s | Input-stage fixed-environment rejection before bootstrap/runtime/model; owned cleanup complete |
+| HF007 | 0.566955839 s | ResourceBusy on foreign GPU PID1291679; `arms=[]`, no child/import/model |
+| HF008 | 128.635422801 s | Real model loaded56.88 GiB/39.138985 s; engine init5.18 s; failed pre-generation environment observation; nine postchecks passed, owned exit observed |
+| C6 one-warp four-case correctness | 8.308445783 s | 128 output checks and bounded conservation acquired; `CAPTURED_UNVALIDATED` |
 | Full-import environment query | 109.471545466 s | Exact environment changes observed; no model constructed |
 | K1 D0 | 9.261963436 s | Diagnostic acquisition DONE; G2 cell pass is null |
 | K1 D500 | 10.071926834 s | INVALID_GOLD_GATE under original limits |
@@ -136,9 +142,15 @@ HF wall times include preparation, imports, guard and cleanup; they do not
 measure model cold-load or generation latency. K1 times include each complete
 native/matched-zero/target triplet. These failed or diagnostic observations do
 not revise the formal-matrix planning estimate. Exact execution records are in
-`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-00{1,2,3}/execution.json`
+`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-00{1,2,3,4,5,6,7}/execution.json`
 and `results/gold/known-delay/chain-length-diagnostic-attempt-001/summary.json`.
 The 31-test CPU timing is from `real-transformers-version-phase-attempt-001/`;
 it must not be added to overlapping historical test counts. See the
 [current standalone checkpoint](50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06)
 for outcome boundaries and the next actual repair.
+
+The C6 diagnostic used a 120-second child budget for its first transform, driver
+JIT, daemon startup and four cases. Its single observed8.308445783-second process
+does not justify shrinking that guard and is not a throughput or formal-cell
+estimate. The live JIT image is not bound to the retained optimized cubin, so
+the observation supplies no C6.3, overlap, G5 or native-completion timing result.

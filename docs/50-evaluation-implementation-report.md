@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `3833dac6` (fixed supplemental HF startup source binding; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `e724af0a396164cd59d6a7578aec966f69e52346` (controlled HF worker and provisional parent; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -515,9 +515,9 @@ real HF arm, scientific receipt or formal row was produced. Evidence:
 `runtime-source-drift-diagnostic-attempt-001/`.
 
 
-Owned-entrypoint review checkpoint, 2026-09-06: the uncommitted worker and
-provisional native/capture/repeat parent have an initial 16-test CPU record, but
-independent SPEC review requires corrections before acceptance. The review
+Historical owned-entrypoint review checkpoint, 2026-09-06: the uncommitted worker and
+provisional native/capture/repeat parent had an initial 16-test CPU record, but
+independent SPEC review required corrections before acceptance. The review
 confirmed a missing fixed site import path, device checks occurring after vLLM
 imports, mutable/deleted acknowledgements accepted by later callbacks,
 incomplete prefix/preload checks, signal/failure finalization gaps, missing
@@ -526,17 +526,45 @@ observations, and unbounded topology-command output. Evidence is
 `results/gold/hf-routing-runner/owned-entrypoint-spec-attempt-001/review.json`
 and its bounded CPU `diagnostics.json`.
 
-Corrections have been returned uncommitted in a fresh
+Corrections were returned uncommitted in a fresh
 `owned-entrypoint-attempt-002/`. Its initial 24-test RED records 6 failures and
 4 errors; previous attempt-001 is preserved. The final manifest binds23 artifacts
 and five successful runs, including focused tests, actual owned child controls,
 valid MOCK isolated preflight, isolated import probing and static checks. The
 valid preflight reaches its private callback with existing metadata/runtime/
-startup/tuning/current-input checks intact. This is not final unit acceptance:
-independent SPEC re-review, QUALITY and applicable phase regression remain.
+startup/tuning/current-input checks intact. That record was not final unit acceptance:
+independent SPEC re-review, QUALITY and applicable phase regression were still pending.
 No real HF model arm, routing-origin receipt, scientific receipt or formal
 matrix row has been produced. Formal DONE remains 0.
 
+
+Owned-entrypoint CPU acceptance, 2026-09-06: committed at `e724af0a396164cd59d6a7578aec966f69e52346`.
+`hf_owned_worker.execute_owned` implements isolated child startup, finite source
+and retained-input binding, immutable ownership acknowledgement checks and staged
+device/runtime gates before the existing loaded arm. `hf_routing_runner.run_triplet`
+owns three fresh sequential processes under one resource guard, validates the
+bootstrap record, preserves attempted-arm and independent postcheck diagnostics,
+and accounts for signals through its explicit durable-status acceptance cutoff.
+
+Frozen attempt-006 passed SPEC and independent QUALITY review and 40 focused
+CPU controls (14.528s unittest /15.099798s process). Its related phase passed
+137 evaluation HF, 32 adapter HF and 41 metadata controls, 210 total. Attempt-007
+then normalized CRLF to LF only, retaining exact before/after transformation and
+AST-equivalence evidence; the normalization passed SPEC/QUALITY review and a new
+210-test phase binding the final source bytes. These suites overlap and their
+counts must not be added as independent coverage. Evidence is in
+`results/gold/hf-routing-runner/owned-entrypoint-attempt-006/`,
+`owned-entrypoint-attempt-007/`, `owned-entrypoint-phase-attempt-001/` and
+`owned-entrypoint-phase-attempt-002/`. Earlier attempts and findings remain
+historical evidence; their smaller passing subsets were not final acceptance.
+
+This unit returns only `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED` with
+`scientific_validation_passed=false`. Validation used CPU/MOCK controls; no real
+HF model arm, authenticated routing-origin receipt, scientific receipt or formal
+matrix row was produced. The pure frozen trace verifier and subsequent owned-origin
+publication wrapper remain unimplemented. The current resource guard ends before
+outer finalization; complete guarded validation/publication is a later integration.
+Formal DONE remains 0.
 
 Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
 must independently derive events from retained route arrays and tensor metadata,

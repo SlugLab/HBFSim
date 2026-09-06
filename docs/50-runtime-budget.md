@@ -48,7 +48,7 @@ runtime estimates or predict a validated completion date.
 | C6.2 default-OFF regression | 18.30 s | 18/18 CPU/compile checks; fresh CUDA13 build40.82s, no GPU execution |
 | Owned no-site bootstrap | 0.297 +38.819 s | Three new CPU subprocess controls plus46/46 existing scheduler tests; no inference import |
 | Frozen route decoder phase | 3.536 s | 29/29 decoder/body/protocol CPU controls; six decoder controls and both reviews pass |
-| HF worker protocol | 0.033 s | 10/10 CPU controls; runtime worker not yet implemented |
+| HF worker protocol | 0.033 s | 10/10 historical CPU controls; runtime worker was then unimplemented |
 | Real checkpoint metadata inventory | See execution JSON | Header/tensor metadata only, no payload transfer |
 
 Evidence: `results/gold/base/frozen-config/execution.json`,
@@ -92,4 +92,13 @@ Startup source binding, 2026-09-06: final focused 15 tests took 2.84s wall and a
 
 Identity observation refresh, 2026-09-06: new133-input runtime acquisition/recheck took0.328s; seven-source acquisition/recheck0.318s; bounded metadata refresh/current checks 10.225s; tuning rebind/recheck 2.125s. These are source/metadata CPU costs only. No model payload hash or GPU execution is included.
 
-Owned-entrypoint review checkpoint, 2026-09-06: initial16 CPU tests were insufficient for unit acceptance; eight SPEC correction groups have been returned for re-review in fresh attempt-002, whose final manifest binds23 artifacts/five successful runs. Its24-test initial RED took1.285s (6 failures/4 errors). Frozen semantics helper design probe took3.801s with frozen metadata only; no payload/inference/GPU work. Final focused timings are retained in attempt-002/green/summary.json; independent reviews and phase regression remain, and this checkpoint does not estimate real model runtime.
+Historical owned-entrypoint review checkpoint, 2026-09-06: initial16 CPU tests were insufficient for unit acceptance; eight SPEC correction groups were returned for re-review in fresh attempt-002, whose final manifest binds23 artifacts/five successful runs. Its24-test initial RED took1.285s (6 failures/4 errors). Frozen semantics helper design probe took3.801s with frozen metadata only; no payload/inference/GPU work. Final focused timings are retained in attempt-002/green/summary.json; independent reviews and phase regression were then pending, and this checkpoint does not estimate real model runtime.
+
+Owned-entrypoint attempt-006 focused CPU controls took14.528s unittest
+/15.099798s process for40 tests; static checks took0.046491s and the isolated
+startup probe0.249536s. Related phase controls took50.806521s for137 evaluation
+HF tests,1.032736s for32 adapter HF tests, and6.953387s for41 metadata tests
+(process wall time). These records bind the attempt-006 bytes. Attempt-007
+records byte-only CRLF normalization and AST equivalence; final-byte phase costs
+in `owned-entrypoint-phase-attempt-002/` are: eval-hf 137 tests/54.427418s, adapter-hf 32 tests/1.085703s, metadata-fixtures 41 tests/7.456933s.
+All are CPU/MOCK validation costs; they do not revise real model or formal GPU/SSD runtime estimates.

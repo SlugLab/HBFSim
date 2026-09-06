@@ -16,15 +16,21 @@ Finalized tensor storage, original/recompiled PTX variant, registered byte exten
 
 [Model loader](../../adapters/vllm/hbfsim_loader.py), [native bridge](../../adapters/vllm/hbfsim_extension.cpp), [Triton binding](../../adapters/vllm/triton_binding.py), [PTX staging](../../adapters/vllm/prepare_triton_ptx.py), [runner](../../adapters/vllm/run.py), [inventory](../../adapters/vllm_capacity/model_inventory.py), [placement](../../adapters/vllm_capacity/placement_policy.py), [replay](../../adapters/vllm_capacity/trace_replay.py), [trace validation](../../adapters/vllm_capacity/trace_validation.py), and [serial timing backend](../../benchmarks/replay/hbf_trace_timing.cpp).
 
+[Controlled worker](../../scripts/eval/hf_owned_worker.py) and [provisional triplet parent](../../scripts/eval/hf_routing_runner.py) implement the owned HF entrypoints.
+
 ## Important structs/classes/functions
 
 `TimingConfig.from_mapping` validates adapter options. `HbfSimModelLoader.load_model` delegates normal loading before registration. `_discover_storages` and `register_model_storages` select and deduplicate finalized CUDA storage ranges; `NativeTimingSession.register_storage` calls the native bridge. `TritonVariantBinder.on_kernel_load` uses the exact original function, PTX bytes and kernel name; `install_triton_binding` installs that hook. `ModelInventory` reads an existing manifest, validates model/expert/tensor records and supplies `compact_tensor_accesses`. `capacity_geometry` implements legacy ratio placement; `replay_cell` reports cache/access/reuse and modeled demand timing.
+
+`capture_project_sources`/`recheck_project_sources` bind finite project inputs. `execute_owned` checks isolated startup, wire/request/ownership and staged runtime gates before `run_loaded_arm`. `run_triplet` owns guarded sequential processes, checks acknowledgement/bootstrap evidence and records provisional or failed finalization.
 
 ## Call path / data path
 
 Live timing: runner configures local environment/report paths → vLLM loads finalized model → loader registers selected storage → Triton hook recovers original PTX and exact variant mapping → launch gate → rewritten supported accesses → timing delay → deterministic generation and reports.
 
 Offline: supplied inventory plus validated route-derived trace → complete expert objects → placement/cache policy → demand pages → optional fast/hybrid/MQSim timing tool → per-cell report. In B's C++ `run_reference`, each page is submitted and completed before the next page; this is serial modeled demand time, not a live compute/memory overlap timeline.
+
+Owned HF: isolated parent → fixed source/input freeze → one resource guard → native/capture/repeat owned launch → worker bootstrap and staged gates → existing loaded arm → independent postchecks/cleanup → durable provisional status. Frozen semantics and owned publication remain pending.
 
 ## CPU-side vs GPU-side execution context
 
@@ -234,6 +240,34 @@ real HF arm, scientific receipt or formal row was produced. Evidence:
 `runtime-source-drift-diagnostic-attempt-001/`.
 
 
+Owned-entrypoint CPU acceptance, 2026-09-06: committed at `e724af0a396164cd59d6a7578aec966f69e52346`.
+`hf_owned_worker.execute_owned` implements isolated child startup, finite source
+and retained-input binding, immutable ownership acknowledgement checks and staged
+device/runtime gates before the existing loaded arm. `hf_routing_runner.run_triplet`
+owns three fresh sequential processes under one resource guard, validates the
+bootstrap record, preserves attempted-arm and independent postcheck diagnostics,
+and accounts for signals through its explicit durable-status acceptance cutoff.
+
+Frozen attempt-006 passed SPEC and independent QUALITY review and 40 focused
+CPU controls (14.528s unittest /15.099798s process). Its related phase passed
+137 evaluation HF, 32 adapter HF and 41 metadata controls, 210 total. Attempt-007
+then normalized CRLF to LF only, retaining exact before/after transformation and
+AST-equivalence evidence; the normalization passed SPEC/QUALITY review and a new
+210-test phase binding the final source bytes. These suites overlap and their
+counts must not be added as independent coverage. Evidence is in
+`results/gold/hf-routing-runner/owned-entrypoint-attempt-006/`,
+`owned-entrypoint-attempt-007/`, `owned-entrypoint-phase-attempt-001/` and
+`owned-entrypoint-phase-attempt-002/`. Earlier attempts and findings remain
+historical evidence; their smaller passing subsets were not final acceptance.
+
+This unit returns only `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED` with
+`scientific_validation_passed=false`. Validation used CPU/MOCK controls; no real
+HF model arm, authenticated routing-origin receipt, scientific receipt or formal
+matrix row was produced. The pure frozen trace verifier and subsequent owned-origin
+publication wrapper remain unimplemented. The current resource guard ends before
+outer finalization; complete guarded validation/publication is a later integration.
+Formal DONE remains 0.
+
 Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
 must independently derive events from retained route arrays and tensor metadata,
 compare native/capture/repeat tokens and capture/repeat routes, and retain only
@@ -296,6 +330,8 @@ The [owned memory controls](../../adapters/vllm_capacity/tests/test_hf_owned_rou
 cover collisions, foreign-name refusal, partial initialization, exact cleanup,
 missing cleanup APIs, interrupts and module-binding restoration using fake
 descriptors/namespaces. The adapter-directory phase passes 57/57 CPU tests.
+
+The [controlled-worker tests](../../scripts/eval/test_hf_owned_worker.py) and [triplet-parent tests](../../scripts/eval/test_hf_routing_runner.py) cover the bounded owned-entrypoint contract with CPU/MOCK controls. Attempt006 passed40 focused tests and210 related phase tests; attempt007 normalized line endings only and phase002 binds210 passing tests to the final bytes. These counts overlap and do not prove a real GPU run.
 
 ## What not to change casually
 

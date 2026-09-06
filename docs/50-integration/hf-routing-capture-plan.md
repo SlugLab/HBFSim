@@ -633,12 +633,24 @@ receipts. Environmental blockers remain blockers, not successful controls.
 
 ## Bounded implementation file map
 
+Original file allocation; implemented responsibilities are split below. The original combined prepare/run/validate CLI is not a completed deliverable.
+
 | File | Change and responsibility |
 | --- | --- |
 | `scripts/eval/run_hf_routing.py` (new) | `make_plan(metadata_refresh, out, gpu_uuid)` validates/fixes the request and settings; `execute(plan, *, child_runner=None, gpu_probe=None)` freezes artifacts and owns three arm processes; `validate_capture(out)` independently checks the finished frozen bundle. Injections always force MOCK. CLI has prepare/run/validate operations; prepare imports no GPU runtime and launches nothing. |
 | `adapters/vllm_capacity/hf_routing_worker.py` (new) | Private worker CLI and `run_arm(plan, arm, out)`; verify frozen bindings/environment first, lazy runtime imports, native/compat contexts, one generate call, strict returned-object capture, existing collector, cleanup and durable raw results. No real CLI option supplies a route array or replaces the runtime factory. |
 | `scripts/eval/test_run_hf_routing.py` (new) | Metadata fixtures, owned CPU child fixtures, output isolation, artifact publication/race, raw reconciliation, provenance and triplet lifecycle regressions. |
 | `adapters/vllm_capacity/tests/test_hf_routing_worker.py` (new) | Fake imported runtime modules exercise kwargs/import order/context restoration and strict returned-object validation. Fake modules never import CUDA or open checkpoint shards. |
+
+Implemented split: `scripts/eval/hf_owned_worker.py` owns isolated startup,
+finite wire/source/request/ownership validation, staged device gates and existing
+`run_loaded_arm` composition with independent postchecks. `hf_routing_runner.py`
+owns the fixed-source/input freeze, three sequential child launches under one
+guard, immutable acknowledgement/bootstrap validation and durable provisional
+or failed status. Corresponding owned-worker/runner tests are new; the existing
+metadata fixture helpers only gained coherent vocabulary/top-k parameters.
+The pure frozen trace verifier and complete owned-origin publication remain
+later units; no overall prepare/run/validate CLI completion is claimed.
 
 Reuse the existing helpers listed above without changing their schema or public
 semantics. No CMake, scheduler registry, exporter, renderer, profile-loader,
@@ -1070,9 +1082,9 @@ These are implementation requirements, not completed execution evidence.
 
 ## Owned-entrypoint review and next verifier boundary
 
-Owned-entrypoint review checkpoint, 2026-09-06: the uncommitted worker and
-provisional native/capture/repeat parent have an initial 16-test CPU record, but
-independent SPEC review requires corrections before acceptance. The review
+Historical owned-entrypoint review checkpoint, 2026-09-06: the uncommitted worker and
+provisional native/capture/repeat parent had an initial 16-test CPU record, but
+independent SPEC review required corrections before acceptance. The review
 confirmed a missing fixed site import path, device checks occurring after vLLM
 imports, mutable/deleted acknowledgements accepted by later callbacks,
 incomplete prefix/preload checks, signal/failure finalization gaps, missing
@@ -1081,17 +1093,45 @@ observations, and unbounded topology-command output. Evidence is
 `results/gold/hf-routing-runner/owned-entrypoint-spec-attempt-001/review.json`
 and its bounded CPU `diagnostics.json`.
 
-Corrections have been returned uncommitted in a fresh
+Corrections were returned uncommitted in a fresh
 `owned-entrypoint-attempt-002/`. Its initial 24-test RED records 6 failures and
 4 errors; previous attempt-001 is preserved. The final manifest binds23 artifacts
 and five successful runs, including focused tests, actual owned child controls,
 valid MOCK isolated preflight, isolated import probing and static checks. The
 valid preflight reaches its private callback with existing metadata/runtime/
-startup/tuning/current-input checks intact. This is not final unit acceptance:
-independent SPEC re-review, QUALITY and applicable phase regression remain.
+startup/tuning/current-input checks intact. That record was not final unit acceptance:
+independent SPEC re-review, QUALITY and applicable phase regression were still pending.
 No real HF model arm, routing-origin receipt, scientific receipt or formal
 matrix row has been produced. Formal DONE remains 0.
 
+
+Owned-entrypoint CPU acceptance, 2026-09-06: committed at `e724af0a396164cd59d6a7578aec966f69e52346`.
+`hf_owned_worker.execute_owned` implements isolated child startup, finite source
+and retained-input binding, immutable ownership acknowledgement checks and staged
+device/runtime gates before the existing loaded arm. `hf_routing_runner.run_triplet`
+owns three fresh sequential processes under one resource guard, validates the
+bootstrap record, preserves attempted-arm and independent postcheck diagnostics,
+and accounts for signals through its explicit durable-status acceptance cutoff.
+
+Frozen attempt-006 passed SPEC and independent QUALITY review and 40 focused
+CPU controls (14.528s unittest /15.099798s process). Its related phase passed
+137 evaluation HF, 32 adapter HF and 41 metadata controls, 210 total. Attempt-007
+then normalized CRLF to LF only, retaining exact before/after transformation and
+AST-equivalence evidence; the normalization passed SPEC/QUALITY review and a new
+210-test phase binding the final source bytes. These suites overlap and their
+counts must not be added as independent coverage. Evidence is in
+`results/gold/hf-routing-runner/owned-entrypoint-attempt-006/`,
+`owned-entrypoint-attempt-007/`, `owned-entrypoint-phase-attempt-001/` and
+`owned-entrypoint-phase-attempt-002/`. Earlier attempts and findings remain
+historical evidence; their smaller passing subsets were not final acceptance.
+
+This unit returns only `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED` with
+`scientific_validation_passed=false`. Validation used CPU/MOCK controls; no real
+HF model arm, authenticated routing-origin receipt, scientific receipt or formal
+matrix row was produced. The pure frozen trace verifier and subsequent owned-origin
+publication wrapper remain unimplemented. The current resource guard ends before
+outer finalization; complete guarded validation/publication is a later integration.
+Formal DONE remains 0.
 
 Frozen trace-verifier design checkpoint, 2026-09-06: the future pure verifier
 must independently derive events from retained route arrays and tensor metadata,

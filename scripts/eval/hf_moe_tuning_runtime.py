@@ -101,7 +101,7 @@ def _function(function,module):
 
 def _environment(environment,work,gpu,*,postconstruction=False):
     _require(len(environment)<=512,'environment exceeds finite bounds');env=dict(environment)
-    _require(all(type(k) is str and type(v) is str and len(v)<=16384 for k,v in env.items()),'environment fields')
+    _require(all(type(k) is str and len(k)<=256 and type(v) is str and len(v)<=16384 for k,v in env.items()),'environment fields')
     _require(not any(k in env for k in ('VLLM_TUNED_CONFIG_FOLDER','VLLM_BATCH_INVARIANT')),'tuning/batch override')
     generated=env.pop(GENERATED_ENV,None)
     # Frozen envs.py get_env_or_set_default is evaluated by EngineCore's
@@ -111,7 +111,11 @@ def _environment(environment,work,gpu,*,postconstruction=False):
              'unexpected generated environment state')
     expected=make_environment(work,gpu,env)
     expected.update(IMPORT_ENVIRONMENT)
-    _require(env==expected,'environment differs from prepared allowlist')
+    if env != expected:
+        added=sorted(set(env)-set(expected));missing=sorted(set(expected)-set(env))
+        changed=sorted(key for key in set(env)&set(expected) if env[key]!=expected[key])
+        _require(False,'environment differs from prepared allowlist; '
+                 f'added_keys={added!r}; missing_keys={missing!r}; changed_keys={changed!r}')
     return env,generated
 
 

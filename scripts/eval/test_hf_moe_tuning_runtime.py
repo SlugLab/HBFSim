@@ -265,6 +265,20 @@ class TuningRuntimeTests(unittest.TestCase):
         retained=self.retain();self.env['CUDA_MODULE_LOADING']='LAZY'
         with self.assertRaises(ValueError):self.observe(retained)
 
+    def test_environment_mismatch_reports_only_sorted_key_names(self):
+        retained=self.retain()
+        del self.env['OMP_NUM_THREADS']
+        self.env['KMP_DUPLICATE_LIB_OK']='sensitive-changed-value'
+        self.env['CUDA_MODULE_LOADING']='sensitive-added-value'
+        with self.assertRaises(ValueError) as caught:
+            self.observe(retained)
+        self.assertEqual(str(caught.exception),
+            "HF tuning runtime: environment differs from prepared allowlist; "
+            "added_keys=['CUDA_MODULE_LOADING']; missing_keys=['OMP_NUM_THREADS']; "
+            "changed_keys=['KMP_DUPLICATE_LIB_OK']")
+        self.assertNotIn('sensitive-changed-value',str(caught.exception))
+        self.assertNotIn('sensitive-added-value',str(caught.exception))
+
     def test_fixed_runtime_import_environment_is_required_exact_and_retained(self):
         retained=self.retain()
         self.assertEqual(retained.env,self.env)

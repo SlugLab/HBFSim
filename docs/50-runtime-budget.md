@@ -1,12 +1,15 @@
 # Runtime budget — bounded controls only
 
-The matrix estimates remain planning values. Known-delay GPU controls now run, but
-G2 failed and no physical-storage pilot has run. This checkpoint cannot replace
+The matrix estimates remain planning values. Known-delay GPU controls and HF
+runtime diagnostic attempts have run, but G2 failed, HF model construction has
+not completed in the three sealed attempts, and no physical-storage pilot has run. This checkpoint cannot replace
 the planning values with validated per-cell
 runtime estimates or predict a validated completion date.
 
 | Observed CPU verification | Wall time | Boundary |
 |---|---:|---|
+| Import-time environment compatibility phase | 30.223 s suite /31.211586910 s process | 54/54 tuning-runtime + loaded-arm + runtime-import tests; no GPU |
+| Transformers stored-version compatibility phase | 9.664 s suite /10.606893868 s process | 31/31 observer + loaded-arm tests; isolated pinned Python3.13, no GPU |
 | Pure frozen HF trace final related tests | 12.398 s suite /13.138769422 s process | 83/83 tests; original controller root-timestamp failure diagnosed separately; no test rerun, no GPU |
 | Frozen base build | 21.38 s | CPU configuration, 4 build jobs |
 | Frozen base CTest | 30.16 s | 42/42 tests, serial CTest |
@@ -114,3 +117,26 @@ children; `frozen-trace-verifier-parent-attempt-004/phase-control-diagnostic.jso
 preserves that diagnosis alongside the original CPU_PHASE_FAIL record. Counts
 from overlapping suites must not be added. These CPU timings do not estimate
 real HF cold-load time or formal-matrix completion.
+
+
+Observed standalone hardware/runtime diagnostics, 2026-09-06:
+
+| Diagnostic attempt | Process wall time | Actual result |
+| --- | ---: | --- |
+| HF001 | 31.992569225 s | Native Torch-device failure; model not constructed |
+| HF002 | 63.010975611 s | Native import-observation version failure; model not constructed |
+| HF003 | 447.972067177 s | Runtime versions observed; native tuning-retention environment failure; model not constructed |
+| Full-import environment query | 109.471545466 s | Exact environment changes observed; no model constructed |
+| K1 D0 | 9.261963436 s | Diagnostic acquisition DONE; G2 cell pass is null |
+| K1 D500 | 10.071926834 s | INVALID_GOLD_GATE under original limits |
+
+HF wall times include preparation, imports, guard and cleanup; they do not
+measure model cold-load or generation latency. K1 times include each complete
+native/matched-zero/target triplet. These failed or diagnostic observations do
+not revise the formal-matrix planning estimate. Exact execution records are in
+`results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-00{1,2,3}/execution.json`
+and `results/gold/known-delay/chain-length-diagnostic-attempt-001/summary.json`.
+The 31-test CPU timing is from `real-transformers-version-phase-attempt-001/`;
+it must not be added to overlapping historical test counts. See the
+[current standalone checkpoint](50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06)
+for outcome boundaries and the next actual repair.

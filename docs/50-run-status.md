@@ -1,7 +1,7 @@
 # Run status — implementation in progress
 
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
-Standalone resource update: 2026-09-05T14:13:02Z; new clock controls blocked before payload by foreign GPU use.
+Latest standalone update: three real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
 The runner's read-only status command reports the entire frozen matrix;
 unit-test fixtures, CPU accounting controls, the three-cell media pilot and
 three-policy MOCK causal pilot are not formal experiment runs.
@@ -217,12 +217,70 @@ directory timestamp changes from temporary fixtures; its failed control record
 and the separate diagnosis are both retained, without a test rerun. Acceptance:
 `results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
 
-The next execution is one guarded real32-input/8-output native/capture/repeat
-diagnostic pilot using the existing runner. Later artifact/source/publication
-work gates formal acceptance and COMPLETE; it does not prevent this explicitly
-UNVALIDATED trial. Preserve actual failures and raw returns, and choose the next
-minimal repair from that evidence. No formal matrix or real scientific PASS is
-claimed by the CPU acceptance. Formal DONE remains0.
+## Standalone real-experiment checkpoint, 2026-09-06
+
+Three guarded HF diagnostic attempts have actually run with the fixed
+32-input/8-output request and the current resume001 metadata. All stopped in
+native before model construction; capture and repeat did not start. These are
+real runtime attempts, with no generated tokens, route return or formal receipt.
+
+| HF attempt | Native result | Process wall time |
+| --- | --- | ---: |
+| 001 | FAILED at `torch-device`: Torch UUID representation differed from the parent declaration | 31.992569225 s |
+| 002 | Both Torch and vLLM device gates passed; FAILED at `import-observation` on missing `transformers.__version__` | 63.010975611 s |
+| 003 | Passive runtime observation passed, including Transformers 5.5.4; FAILED at `tuning-retention`: `HF tuning runtime: environment differs from prepared allowlist` | 447.972067177 s |
+
+The Torch UUID compatibility fix is committed at `f5d7592` and was exercised by
+002. The passive Transformers stored-version fix is committed at `3a7cb61`;
+independent SPEC/QUALITY and the 31/31 related CPU tests passed, then 003 saved
+the actual `RUNTIME_CONFIGURATION` report with all pinned runtime versions.
+Attempt003 used frozen HEAD `ae156dd3fb740c4acd0aec92883714a42a35ef76`.
+A subsequent guarded preconstruction-only query completed in 109.471545466 s.
+The complete runtime import union added exactly `KMP_DUPLICATE_LIB_OK=True`,
+`KMP_INIT_AT_FORK=FALSE` and
+`LD_LIBRARY_PATH=/opt/miniconda3/lib/python3.13/site-packages/cv2/../../lib64:`;
+it modified or removed no existing setting. The installed sklearn/threadpoolctl/
+joblib and OpenCV source explains these import-time assignments. The earlier
+`CUDA_MODULE_LOADING` hypothesis was not observed. Evidence:
+`results/gold/hf-routing-runner/real-runtime-environment-fix-attempt-001/observation.json`.
+
+The minimal correction is committed at `b136c68b8c1e3c619babc8f445f8d295079e86bd` after independent reviews
+and 54/54 related CPU tests. It preserves the initial launch environment,
+requires the three exact values after import, retains them in the stable tuning
+state, and rejects missing/wrong/changed values and unknown extra variables.
+The next action is a fresh guarded diagnostic attempt004; the corrected tuning
+gate has not yet passed a real model run. No model was constructed by the query.
+
+All three failed attempts retain nine passing postchecks and observed owned
+process exit, no remaining owned members, and no uncertain session. Attempts002
+and003 explicitly record `engine_cleanup_boundary=NOT_CONSTRUCTED` and
+`raw_return_saved=false`; 001 failed before that worker-status record existed.
+Preserve each failure in `results/gold/hf-routing-runner/real-diagnostic-triplet-attempt-00{1,2,3}/`
+and its matching `real-diagnostic-triplet-controller-attempt-00{1,2,3}/execution.json`.
+The 31-test record is `results/gold/hf-routing-runner/real-transformers-version-phase-attempt-001/`.
+
+Two K=1/W=1/low-occupancy hardware triplets also completed, with 188 observed
+chains per arm and all 13 input hashes unchanged from the earlier K64 failure.
+These are diagnostic acquisitions; D0's DONE state has `g2_cell_pass=null`.
+
+| K1 point | Acquisition state | Mean absolute error | P95 absolute error |
+| --- | --- | ---: | ---: |
+| D0 | DONE, zero-wait diagnostic | 48,504.170 ns | 69,504 ns |
+| D500 | INVALID_GOLD_GATE | 141,964.170 ns | 154,644 ns |
+
+The D500 target's 188 local waits are all 512 ns, versus zero in matched-zero.
+The 12 ns excess over the requested 500 ns cannot explain the complete-chain
+error. This measurement does not identify counter contention or another exact
+cause, and lowering K does not constitute a fix. The original mean/P95 limits
+remain 100/200 ns; G2 stays open. Evidence:
+`results/gold/known-delay/chain-length-diagnostic-attempt-001/summary.json` and
+the two points' original raw/analysis records. No resampling or threshold change
+was used to select these results.
+
+Formal DONE remains 0. Artifact/source/publication integration still gates
+formal acceptance and COMPLETE; it does not prevent these explicitly
+UNVALIDATED diagnostic trials. Choose subsequent work from the actual failures
+and retain the existing resource guards and per-arm 900-second limit.
 
 Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,

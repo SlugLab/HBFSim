@@ -1147,12 +1147,13 @@ directory timestamp changes from temporary fixtures; its failed control record
 and the separate diagnosis are both retained, without a test rerun. Acceptance:
 `results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
 
-The next execution is one guarded real32-input/8-output native/capture/repeat
-diagnostic pilot using the existing runner. Later artifact/source/publication
-work gates formal acceptance and COMPLETE; it does not prevent this explicitly
-UNVALIDATED trial. Preserve actual failures and raw returns, and choose the next
-minimal repair from that evidence. No formal matrix or real scientific PASS is
-claimed by the CPU acceptance. Formal DONE remains0.
+Actual guarded diagnostic runs and their failures are now recorded in the
+[latest standalone checkpoint](../50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06).
+All three HF attempts stopped before model construction; 003 passed passive
+runtime observation and failed at tuning-retention environment validation.
+The correction for the three observed import-time settings is committed at
+`b136c68b8c1e3c619babc8f445f8d295079e86bd`; the next action is guarded diagnostic attempt004. Formal acceptance and COMPLETE remain
+open; diagnostic execution continues under the existing resource guard.
 
 Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,

@@ -115,6 +115,28 @@ this observation alone is not successful model execution. Reading
 `import_utils.py` for implementation guidance does not add that file to the
 existing frozen source contract or authenticate all installed dependency code.
 
+The same-day full controlled import query also observed exactly three new
+environment values: `KMP_DUPLICATE_LIB_OK=True`, `KMP_INIT_AT_FORK=FALSE`, and
+`LD_LIBRARY_PATH=/opt/miniconda3/lib/python3.13/site-packages/cv2/../../lib64:`.
+The KMP values appeared while importing `vllm.attention.layer`; the library path
+appeared while importing `vllm.entrypoints.llm`. Installed sklearn/threadpoolctl/
+joblib defaults and the OpenCV loader explain the assignments. No other value
+was added, changed or removed in this query; `CUDA_MODULE_LOADING` did not appear.
+Retain the exact raw library-path string, including its trailing colon.
+
+Do not move these post-import settings into the initial launch environment:
+that can change earlier OpenMP initialization or dynamic-library lookup. The
+[tuning observer](../../scripts/eval/hf_moe_tuning_runtime.py), corrected at
+`b136c68b8c1e3c619babc8f445f8d295079e86bd`, instead validates the exact prepared environment plus these three
+required values after the complete runtime union, retains all of them, and
+rechecks them before accepting tuning state. Missing/wrong values, later changes
+and unknown extra settings remain errors. The pre-existing generated SHM-name
+rule is unchanged. Evidence is
+`results/gold/hf-routing-runner/real-runtime-environment-fix-attempt-001/`;
+its query constructed no model, and a subsequent real request is still needed.
+The source reading explains compatibility with this installed environment; it
+does not authenticate all sklearn, OpenCV or other dependency code.
+
 The private [owned request body](../../scripts/eval/hf_loaded_arm.py) composes
 these helpers around one generated return. Save the copied raw result before
 collector callbacks and preserve the primary error through independent cleanup.

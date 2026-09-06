@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `1ca33140245df77fc7f555eb2a9cc097318c26c5` (pure frozen HF trace verifier; controlled worker/parent at `e724af0a`; C6.2 at `49ee96b`).
+- Latest committed implementation at this checkpoint: `b136c68b8c1e3c619babc8f445f8d295079e86bd` (exact observed import-time environment compatibility); the preceding Transformers fix is `3a7cb61`, and actual pilot003 used HEAD `ae156dd3fb740c4acd0aec92883714a42a35ef76`. The next fresh real attempt remains to be run.
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -580,12 +580,13 @@ directory timestamp changes from temporary fixtures; its failed control record
 and the separate diagnosis are both retained, without a test rerun. Acceptance:
 `results/gold/hf-routing-runner/frozen-trace-verifier-parent-attempt-004/acceptance.json`.
 
-The next execution is one guarded real32-input/8-output native/capture/repeat
-diagnostic pilot using the existing runner. Later artifact/source/publication
-work gates formal acceptance and COMPLETE; it does not prevent this explicitly
-UNVALIDATED trial. Preserve actual failures and raw returns, and choose the next
-minimal repair from that evidence. No formal matrix or real scientific PASS is
-claimed by the CPU acceptance. Formal DONE remains0.
+Actual guarded diagnostic runs and their failures are now recorded in the
+[latest standalone checkpoint](50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06).
+All three HF attempts stopped before model construction; 003 passed passive
+runtime observation and failed at tuning-retention environment validation.
+The correction for the three observed import-time settings is committed at
+`b136c68b8c1e3c619babc8f445f8d295079e86bd`; the next action is guarded diagnostic attempt004. K1 hardware controls still fail G2. Formal acceptance and COMPLETE remain
+open; diagnostic execution continues under the existing resource guard.
 
 Historical frozen trace-verifier design checkpoint, 2026-09-06 (implemented above): the pure verifier
 must independently derive events from retained route arrays and tensor metadata,

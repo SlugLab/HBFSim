@@ -39,6 +39,10 @@ class TuningRuntimeTests(unittest.TestCase):
         self.inputs=inputs;self.metadata=inputs.metadata;self.runtime=inputs.runtime
         self.tuning=inputs.collect();self.device=inputs.device;self.work=inputs.base/'worker'
         self.gpu='GPU-TEST_ONLY';self.env=make_environment(self.work,self.gpu,{'HOME':'/unused','PATH':'/unused'})
+        self.import_environment={'KMP_DUPLICATE_LIB_OK':'True','KMP_INIT_AT_FORK':'FALSE',
+                                 'LD_LIBRARY_PATH':'/opt/miniconda3/lib/python3.13/site-packages/cv2/../../lib64:'}
+        # Match the fixed runtime union's observed post-import environment.
+        self.env.update(self.import_environment)
         fixture=contract_fixtures.RuntimeContractTests();fixture.setUp();self.fixture=fixture;self.llm=fixture.llm
         _,artifacts,_,_=_unpack(self.metadata);hf=json.loads(artifacts['metadata/config.json'])
         fixture.hf={key:hf[key] for key in fixture.hf}
@@ -260,6 +264,25 @@ class TuningRuntimeTests(unittest.TestCase):
             del self.env[key]
         retained=self.retain();self.env['CUDA_MODULE_LOADING']='LAZY'
         with self.assertRaises(ValueError):self.observe(retained)
+
+    def test_fixed_runtime_import_environment_is_required_exact_and_retained(self):
+        retained=self.retain()
+        self.assertEqual(retained.env,self.env)
+        for key,value in self.import_environment.items():
+            with self.subTest(key=key,case='missing'):
+                del self.env[key]
+                with self.assertRaisesRegex(ValueError,'environment differs from prepared allowlist'):self.retain()
+                self.env[key]=value
+            with self.subTest(key=key,case='wrong'):
+                self.env[key]=value+'-wrong'
+                with self.assertRaisesRegex(ValueError,'environment differs from prepared allowlist'):self.retain()
+                self.env[key]=value
+            with self.subTest(key=key,case='changed-after-retention'):
+                retained=self.retain();self.env[key]=value+'-changed'
+                with self.assertRaises(ValueError):self.observe(retained)
+                self.env[key]=value
+        self.env['UNOBSERVED_IMPORT_ENV']='1'
+        with self.assertRaisesRegex(ValueError,'environment differs from prepared allowlist'):self.retain()
 
     def test_registered_submodules_are_read_without_getters_and_rebinding_is_detected(self):
         runner=self.fixture.runner;model=runner.model

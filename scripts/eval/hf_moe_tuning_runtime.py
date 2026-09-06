@@ -36,6 +36,13 @@ CLASS_MODULES={
 MODULES=tuple(sorted(set(CLASS_MODULES.values())|{BASE,'torch','vllm.envs','vllm.model_executor.layers.batch_invariant'}))
 DESC_FIELDS=('dtype','shape','scale','alpha_or_gscale','zp','bias')
 GENERATED_ENV='VLLM_OBJECT_STORAGE_SHM_BUFFER_NAME'
+# The fixed runtime union adds these exact values while importing sklearn and
+# cv2. Keep them post-import: pre-setting LD_LIBRARY_PATH changes loader startup.
+IMPORT_ENVIRONMENT={
+    'KMP_DUPLICATE_LIB_OK':'True',
+    'KMP_INIT_AT_FORK':'FALSE',
+    'LD_LIBRARY_PATH':'/opt/miniconda3/lib/python3.13/site-packages/cv2/../../lib64:',
+}
 
 
 def _require(condition,message):
@@ -102,7 +109,9 @@ def _environment(environment,work,gpu,*,postconstruction=False):
     _require(generated is None or (postconstruction and
              re.fullmatch(r'VLLM_OBJECT_STORAGE_SHM_BUFFER_[0-9a-f]{32}',generated) is not None),
              'unexpected generated environment state')
-    _require(env==make_environment(work,gpu,env),'environment differs from prepared allowlist')
+    expected=make_environment(work,gpu,env)
+    expected.update(IMPORT_ENVIRONMENT)
+    _require(env==expected,'environment differs from prepared allowlist')
     return env,generated
 
 

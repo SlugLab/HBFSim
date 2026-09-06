@@ -36,6 +36,7 @@ CLASS_MODULES={
 MODULES=tuple(sorted(set(CLASS_MODULES.values())|{BASE,'torch','vllm.envs','vllm.model_executor.layers.batch_invariant'}))
 DESC_FIELDS=('dtype','shape','scale','alpha_or_gscale','zp','bias')
 GENERATED_ENV='VLLM_OBJECT_STORAGE_SHM_BUFFER_NAME'
+RAY_CLIENT_ENV='RAY_CLIENT_MODE'
 # The fixed runtime union adds these exact values while importing sklearn and
 # cv2. Keep them post-import: pre-setting LD_LIBRARY_PATH changes loader startup.
 IMPORT_ENVIRONMENT={
@@ -104,11 +105,16 @@ def _environment(environment,work,gpu,*,postconstruction=False):
     _require(all(type(k) is str and len(k)<=256 and type(v) is str and len(v)<=16384 for k,v in env.items()),'environment fields')
     _require(not any(k in env for k in ('VLLM_TUNED_CONFIG_FOLDER','VLLM_BATCH_INVARIANT')),'tuning/batch override')
     generated=env.pop(GENERATED_ENV,None)
+    ray_client=env.pop(RAY_CLIENT_ENV,None)
     # Frozen envs.py get_env_or_set_default is evaluated by EngineCore's
     # enable_envs_cache. Observe its string only; never allocate/open that SHM.
     _require(generated is None or (postconstruction and
              re.fullmatch(r'VLLM_OBJECT_STORAGE_SHM_BUFFER_[0-9a-f]{32}',generated) is not None),
              'unexpected generated environment state')
+    # EngineArgs checks whether Ray is initialized while constructing the
+    # config. Importing Ray resets its client-mode hook to this fixed value.
+    _require(ray_client == ('0' if postconstruction else None),
+             'unexpected Ray client environment state')
     expected=make_environment(work,gpu,env)
     expected.update(IMPORT_ENVIRONMENT)
     if env != expected:
@@ -116,7 +122,7 @@ def _environment(environment,work,gpu,*,postconstruction=False):
         changed=sorted(key for key in set(env)&set(expected) if env[key]!=expected[key])
         _require(False,'environment differs from prepared allowlist; '
                  f'added_keys={added!r}; missing_keys={missing!r}; changed_keys={changed!r}')
-    return env,generated
+    return env,generated,ray_client
 
 
 def _bindings(modules):
@@ -200,7 +206,7 @@ def retain_tuning_runtime(metadata_snapshot,runtime_snapshot,tuning_snapshot,dev
         test_only=report['test_only'] or modules is not None or environment is not None
         modules=sys.modules if modules is None else modules;environment=os.environ if environment is None else environment
         _require(len(modules)<=32768,'module table exceeds finite bounds')
-        origins=_origins(modules,source);env,_=_environment(environment,work,gpu_uuid);bindings=_bindings(modules)
+        origins=_origins(modules,source);env,_,_=_environment(environment,work,gpu_uuid);bindings=_bindings(modules)
         env_function=_function(_raw(modules['vllm.envs'],'__getattr__'),modules['vllm.envs'])
         _,artifacts,_,_=_unpack(metadata_snapshot);hf=strict_object(artifacts['metadata/config.json'])
         _require(type(hf['num_hidden_layers']) is int and 1<=hf['num_hidden_layers']<=1024,'layer bound')
@@ -219,10 +225,12 @@ def _recheck(retained,*,preconstruction=False):
     report=tuning.validate_tuning_inputs(r.tuning,r.metadata,r.runtime,r.device)
     _require(canonical(report)==canonical(r.input_report),'frozen input binding changed')
     _require(_origins(r.modules,sources.validate_runtime_sources(r.runtime))==r.origins,'module origins changed')
-    env,generated=_environment(r.environment,r.work,r.gpu,postconstruction=not preconstruction)
+    env,generated,ray_client=_environment(r.environment,r.work,r.gpu,postconstruction=not preconstruction)
     _require(env==r.env,'prepared environment changed')
     if not preconstruction:
         _require(r.post_environment.setdefault(GENERATED_ENV,generated)==generated,'generated environment changed during/after observation')
+        _require(r.post_environment.setdefault(RAY_CLIENT_ENV,ray_client)==ray_client,
+                 'Ray client environment changed during/after observation')
     _same_bindings(r.bindings,_bindings(r.modules))
     current=_raw(r.modules['vllm.envs'],'__getattr__');original,code=r.env_function
     _require(original.__code__ is code and original.__globals__ is vars(r.modules['vllm.envs']),'environment getter changed')
@@ -351,6 +359,7 @@ def observe_loaded_tuning(retained,llm,*,prior_runtime_observation):
             selection=r.input_report['selection'],selected_path=r.input_report['selected_path'],
             selected_config_sha256=r.input_report['config_sha256'],layers=rows,env_getattr_state=env_state,
             object_storage_shm_name=dict(value=r.post_environment[GENERATED_ENV],authenticated=False,allocated_by_observer=False),
+            ray_client_mode=r.post_environment[RAY_CLIENT_ENV],
             package_override=None,batch_invariant=False,batch_invariant_runtime_mode=False,private_cache_contents_authenticated=False,
             prior_runtime_observation_authenticated=False,device_identity_authenticated=False,
             all_runtime_binaries_authenticated=False,torch_parameter_registration_source_authenticated=False,

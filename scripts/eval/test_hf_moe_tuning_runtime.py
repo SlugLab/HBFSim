@@ -118,7 +118,15 @@ class TuningRuntimeTests(unittest.TestCase):
             self.work,self.gpu,modules=self.modules,environment=self.env)
 
     def observe(self,retained=None):
-        return observer.observe_loaded_tuning(retained or self.retain(),self.llm,prior_runtime_observation=self.prior)
+        retained=retained or self.retain()
+        # Simulate the constructor only for this observation window. Restore
+        # the fixture's pre-construction state for independent retain cycles.
+        key='RAY_CLIENT_MODE';injected=key not in self.env
+        if injected:self.env[key]='0'
+        try:
+            return observer.observe_loaded_tuning(retained,self.llm,prior_runtime_observation=self.prior)
+        finally:
+            if injected:self.env.pop(key,None)
 
     def test_passive_complete_observation_retains_exact_bindings_and_detaches(self):
         with mock.patch('builtins.open',side_effect=AssertionError('file read')),mock.patch('os.open',side_effect=AssertionError('file read')):
@@ -255,6 +263,24 @@ class TuningRuntimeTests(unittest.TestCase):
         self.env[key]=value[:-1]+'b'
         with self.assertRaises(ValueError):self.observe(retained)
         with self.assertRaises(ValueError):self.retain()
+
+    def test_ray_client_mode_is_exact_postconstruction_state_and_latched(self):
+        key='RAY_CLIENT_MODE'
+        self.env[key]='0'
+        with self.assertRaises(ValueError):self.retain()
+        del self.env[key];retained=self.retain()
+        with self.assertRaisesRegex(ValueError,'unexpected Ray client environment state'):
+            observer.observe_loaded_tuning(retained,self.llm,prior_runtime_observation=self.prior)
+        self.env[key]='1'
+        with self.assertRaisesRegex(ValueError,'unexpected Ray client environment state'):self.observe(retained)
+        self.env[key]='0';result=self.observe(retained)
+        self.assertEqual(result['ray_client_mode'],'0')
+        self.assertEqual(retained.post_environment[key],'0')
+        del self.env[key]
+        with self.assertRaisesRegex(ValueError,'unexpected Ray client environment state'):
+            observer.observe_loaded_tuning(retained,self.llm,prior_runtime_observation=self.prior)
+        self.env[key]='1'
+        with self.assertRaisesRegex(ValueError,'unexpected Ray client environment state'):self.observe(retained)
 
     def test_unproved_or_malformed_environment_additions_still_reject(self):
         key='VLLM_OBJECT_STORAGE_SHM_BUFFER_NAME'

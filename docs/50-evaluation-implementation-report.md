@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `5a518a2` (passive loaded MoE tuning observer; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `ffd928e` (owned HF request tuning gates; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -410,3 +410,19 @@ QUALITY approves the same frozen sources. Evidence:
 these tests. Integration into the owned request is the next unit; the helper
 does not establish effective kernel configuration, native-binary/cache/device
 authentication or scientific validation.
+
+
+Owned HF request composition is committed at `ffd928e`. Frozen tuning inputs
+are validated before output creation/runtime callbacks. Source-bound retention
+precedes construction; loaded tuning observation follows the runtime contract
+observer and precedes sampling/generation. The input binding records selected
+tuning identities and the declared device, and `runtime-tuning.json` preserves
+the observed report. Both new failure stages retain existing cleanup and primary
+plus cleanup diagnostics. All17 focused controls pass; independent SPEC and
+QUALITY reviews pass the same frozen files. The related CPU phase passes82 eval
+HF and31 adapter HF tests. Evidence:
+`results/gold/hf-routing-runner/loaded-tuning-integration-attempt-001/` and
+`loaded-tuning-phase-attempt-001/`. No real HF arm, model load, GPU acquisition or
+scientific validation is implied by these fixture controls. Controlled startup,
+the guarded three-process parent and independent frozen capture validation
+remain incomplete.

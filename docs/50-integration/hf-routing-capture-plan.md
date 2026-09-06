@@ -863,3 +863,90 @@ QUALITY approves the same frozen sources. Evidence:
 these tests. Integration into the owned request is the next unit; the helper
 does not establish effective kernel configuration, native-binary/cache/device
 authentication or scientific validation.
+
+
+## Controlled startup correction, 2026-09-06
+
+This source-grounded revision supersedes the earlier UUID-valued visibility,
+implicit plugin discovery and optional DLPack-addon assumptions for the new
+standalone worker only. No real HF arm has run. Independent read-only architecture
+review and the parent confirmed these incompatibilities in the installed sources;
+frozen audit bytes are in
+`results/gold/hf-routing-runner/controlled-startup-source-audit-attempt-001/`.
+
+1. Scope the first executable unit to exactly one physical GPU. A fresh all-device
+   inventory must show index0, the selected physical UUID, and no MIG. Reject
+   multiple devices, a nonzero index, unavailable inventory or a mismatch. Use
+   `CUDA_VISIBLE_DEVICES=0` and `CUDA_DEVICE_ORDER=PCI_BUS_ID`, retaining the same
+   physical-UUID ResourceGuard across all three arms. Before construction require
+   the CUDA runtime device count and public count to be1, logical device0, and
+   exact UUID/name/capability agreement between torch, vLLM NVML and the parent.
+   No ordering equivalence between CUDA and NVML is assumed for multiple GPUs.
+   Installed `platforms/interface.py:202-214` converts visibility tokens to int;
+   the NVML implementation uses that result for device name/capability/UUID.
+   The normal platform selection remains unchanged; no installed patch or
+   alternate backend fallback is allowed.
+2. Declare `PYTORCH_NVML_BASED_CUDA_CHECK=1` and
+   `TORCHINDUCTOR_COMPILE_THREADS=1` before import. Installed
+   `vllm/env_override.py:19-24` sets these constants unconditionally. Declare
+   `VLLM_PLUGINS=` as the empty string to disable unrequested named entrypoints,
+   using `envs.py:868-870` and `plugins/__init__.py:54-61`. Preserve the exact
+   environment comparison; never strip unexpected additions after import.
+3. Declare `TVM_FFI_DISABLE_TORCH_C_DLPACK=1` before imports. The selected Triton
+   BF16/no-EP/native-sampler unit does not need this optional conversion
+   acceleration. Installed `_optional_torch_c_dlpack.py:199-201` then skips both
+   addon loading and stream patching, leaving `_LIB` absent. The revised passive
+   observer must require that exact environment value and raw field absence,
+   including rejection of `_LIB=None`, and report
+   `optional_dlpack_none_reason=DISABLED_BY_DECLARED_CONFIGURATION` with a null
+   library. Preserve the banned extension import checks. This supported opt-out
+   avoids the optional builder's unsuppressed-site Python subprocess; it does
+   not mutate Torch capsules or installed code. No new general environment
+   exception is introduced. Do not require an unverified builtin Torch capsule.
+4. Preserve historical131 and tuning133 snapshot formats. Add a separate fixed
+   startup-source binding for `torch/cuda/__init__.py`, `torch/_C/__init__.pyi`,
+   `vllm/env_override.py`, `vllm/platforms/__init__.py`,
+   `vllm/platforms/interface.py`, `vllm/plugins/__init__.py`, and
+   `vllm/utils/torch_utils.py`. Use the same bounded read/ancestor identities and
+   original-source rechecks; bind its manifest to the tuning133 manifest. The TVM
+   opt-out source is already in that133 set. This supplements selected Python
+   source identity, never complete native-binary authentication.
+5. In the final `-I -S -B` process, verify exact stdlib/lib-dynload/site/project
+   import paths and input/environment/ownership bindings first. Import torch and
+   torch.cuda, then verify the selected actual device before importing vLLM.
+   Resolve vLLM's normal platform and cross-check its identity. Complete normal
+   package initialization before explicit LLM/sampling/worker/Qwen imports, then
+   import remaining required observer module names and inspect optional modules
+   only if present. Recheck device, origins and exact environment before calling
+   the private request body. Guard ownership already applies to import-time
+   private cache/log creation and capability queries. No downloader, tuning,
+   artifact-status or model call is part of passive preparation.
+
+Implement and independently review the revised environment/observer boundary,
+then the supplemental source binding and controlled worker/parent composition.
+CPU controls must reject wrong/missing opt-out values, any raw `_LIB` field,
+unexpected plugin/extension imports, source/origin drift, multiple physical GPUs,
+MIG, nonzero index, wrong runtime count/device/UUID/name/capability, and failures
+before construction. Injected controls stay MOCK. Real import success is still
+unverified; later genuine incompatibilities retain failed attempts and require
+diagnosis, not relaxed checks. This correction does not launch the formal matrix
+or change scientific claim gates.
+
+## Owned tuning integration checkpoint, 2026-09-06
+
+Owned HF request composition is committed at `ffd928e`. Frozen tuning inputs
+are validated before output creation/runtime callbacks. Source-bound retention
+precedes construction; loaded tuning observation follows the runtime contract
+observer and precedes sampling/generation. The input binding records selected
+tuning identities and the declared device, and `runtime-tuning.json` preserves
+the observed report. Both new failure stages retain existing cleanup and primary
+plus cleanup diagnostics. All17 focused controls pass; independent SPEC and
+QUALITY reviews pass the same frozen files. The related CPU phase passes82 eval
+HF and31 adapter HF tests. Evidence:
+`results/gold/hf-routing-runner/loaded-tuning-integration-attempt-001/` and
+`loaded-tuning-phase-attempt-001/`. No real HF arm, model load, GPU acquisition or
+scientific validation is implied by these fixture controls. Controlled startup,
+the guarded three-process parent and independent frozen capture validation
+remain incomplete.
+
+Interpreter observations distinguish `/usr/bin/python3.14` from the required frozen `/opt/miniconda3/bin/python3.13`; use the explicit frozen executable for the real parent and worker. The latter passed the stdlib-only `-I -S -B` startup check with only its zip/stdlib/lib-dynload default paths. No inference import was performed. Evidence: `results/gold/hf-routing-runner/isolated-interpreter-observation-attempt-002/`. The earlier attempt records the different system interpreter and is not a pinned-runtime preflight.

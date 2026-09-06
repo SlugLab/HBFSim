@@ -83,3 +83,5 @@ read-only SSD path, and passing applicable small pilots.
 Do not extrapolate from this CPU-test table to formal GPU/SSD runtime.
 
 Resumed2026-09-06: a fresh current-source known-delay build took58.282s, with20/20 CPU/compile tests taking14.379s process wall. Ten D0 plus one D500 standalone triplets took approximately10.6–11.6s each. D500 failed G2, so these do not supply validated formal-cell runtime estimates. Evidence: `results/gold/known-delay/resume-build-attempt-001/` and `resume-clock-controls-attempt-001/`.
+
+Owned tuning integration,2026-09-06:17 focused controls took7.23s process wall (6.918s unittest); related82/31-test suites took33.080/0.567s process wall. Both independent reviews read the source/evidence without another test run. Evidence: `results/gold/hf-routing-runner/loaded-tuning-phase-attempt-001/`. These CPU validation costs do not revise formal runtime estimates.

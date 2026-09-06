@@ -130,6 +130,22 @@ these tests. Integration into the owned request is the next unit; the helper
 does not establish effective kernel configuration, native-binary/cache/device
 authentication or scientific validation.
 
+
+Owned HF request composition is committed at `ffd928e`. Frozen tuning inputs
+are validated before output creation/runtime callbacks. Source-bound retention
+precedes construction; loaded tuning observation follows the runtime contract
+observer and precedes sampling/generation. The input binding records selected
+tuning identities and the declared device, and `runtime-tuning.json` preserves
+the observed report. Both new failure stages retain existing cleanup and primary
+plus cleanup diagnostics. All17 focused controls pass; independent SPEC and
+QUALITY reviews pass the same frozen files. The related CPU phase passes82 eval
+HF and31 adapter HF tests. Evidence:
+`results/gold/hf-routing-runner/loaded-tuning-integration-attempt-001/` and
+`loaded-tuning-phase-attempt-001/`. No real HF arm, model load, GPU acquisition or
+scientific validation is implied by these fixture controls. Controlled startup,
+the guarded three-process parent and independent frozen capture validation
+remain incomplete.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

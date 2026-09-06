@@ -5,6 +5,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 TEST_DIR = Path(__file__).resolve().parent
 if str(TEST_DIR) not in sys.path:
@@ -82,6 +83,56 @@ class FinalizeSignalTests(unittest.TestCase):
         final, persisted, _writes = self.seal(rejected=True)
         self.assertEqual(final, "INVALID_DIAGNOSTIC")
         self.assertEqual(persisted["state"], "INVALID_DIAGNOSTIC")
+
+
+class ExactArtifactTests(unittest.TestCase):
+    def exact(self, path, *, expected_bytes, expected_sha256):
+        with mock.patch.object(
+                target, "regular_bytes", lambda item: Path(item).read_bytes()):
+            return target.exact_regular_bytes(
+                path, expected_bytes=expected_bytes,
+                expected_sha256=expected_sha256, label="reviewed cubin",
+            )
+
+    def test_missing_artifact_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(FileNotFoundError):
+                self.exact(
+                    Path(directory) / "missing.cubin",
+                    expected_bytes=target.REVIEWED_CUBIN_BYTES,
+                    expected_sha256=target.REVIEWED_CUBIN_SHA256,
+                )
+
+    def test_wrong_length_is_rejected_before_hash_acceptance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidate.cubin"
+            path.write_bytes(b"x")
+            with self.assertRaisesRegex(ValueError, "length mismatch"):
+                self.exact(
+                    path, expected_bytes=target.REVIEWED_CUBIN_BYTES,
+                    expected_sha256=target.REVIEWED_CUBIN_SHA256,
+                )
+
+    def test_same_length_wrong_hash_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidate.cubin"
+            path.write_bytes(b"\x00" * target.REVIEWED_CUBIN_BYTES)
+            with self.assertRaisesRegex(ValueError, "SHA256 mismatch"):
+                self.exact(
+                    path, expected_bytes=target.REVIEWED_CUBIN_BYTES,
+                    expected_sha256=target.REVIEWED_CUBIN_SHA256,
+                )
+
+    def test_exact_regular_bytes_returns_the_validated_buffer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidate.cubin"
+            expected = b"x\x00y"
+            path.write_bytes(expected)
+            observed = self.exact(
+                path, expected_bytes=len(expected),
+                expected_sha256=target.sha256(expected),
+            )
+            self.assertEqual(observed, expected)
 
 
 if __name__ == "__main__":

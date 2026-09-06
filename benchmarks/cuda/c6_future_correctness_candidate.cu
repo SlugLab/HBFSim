@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <json.hpp>
+#include <openssl/sha.h>
 
 #include <algorithm>
 #include <array>
@@ -29,6 +30,20 @@ namespace future = hbfsim::timing_future;
 constexpr char kKernel[] = "c6_u32_future_gold_candidate";
 constexpr char kOriginalPtxSha256[] =
     "5c717d8a4f56778c975de8108a030868d1fb9370da5ea5160743c0fd8d4b0e19";
+constexpr std::size_t kReviewedTransformedPtxBytes = 148533;
+constexpr char kReviewedTransformedPtxSha256[] =
+    "c0f898820ba9f740080e80a12b9128826cf06a5064d0534ac19168c49f7938cd";
+constexpr std::size_t kReviewedCubinBytes = 82664;
+constexpr char kReviewedCubinSha256[] =
+    "4b17ddb0d7f3f52cc48104de1f9c06c6aa0685740f9185ea5530d53e7153e839";
+constexpr char kReviewedBuildManifestSha256[] =
+    "e307b20456e1f97ff4a1f236a9f5a1237d5c69ba5a3f35417b72e0c61d9f6988";
+constexpr char kReviewedDisassemblyManifestSha256[] =
+    "f76bc52948d4abe87469b33e66d2553db022dd79081ae7b9372f6961430bafb3";
+constexpr char kReviewedNvdisasmSha256[] =
+    "3fa63daa01fe556f343c350c1c6eece55bbc39d0894f743b5b80aec3a4c906ce";
+constexpr char kReviewedCuobjdumpSha256[] =
+    "ebd013382e60a47ddc7dd879a91fc1ec7165d125475fd26239f291e248b60a55";
 constexpr std::uint32_t kSeed = 0x9e3779b9U;
 constexpr std::uint32_t kPageBytes = 4096;
 constexpr std::size_t kInputBytes = 32 * kPageBytes;
@@ -38,6 +53,7 @@ struct Options {
     std::string profile;
     std::string plugin;
     std::string ptx;
+    std::string cubin;
     std::string output;
     std::string report_dir;
 };
@@ -79,6 +95,38 @@ std::string read_file(const std::string& path) {
     return {std::istreambuf_iterator<char>(stream), {}};
 }
 
+std::string read_exact_binary(const std::string& path,
+                              std::size_t expected_bytes) {
+    std::ifstream stream(path, std::ios::binary | std::ios::ate);
+    require(bool(stream), "cannot read " + path);
+    const auto end = stream.tellg();
+    require(end != std::streampos(-1) &&
+                static_cast<std::uint64_t>(static_cast<std::streamoff>(end)) ==
+                    expected_bytes,
+            "reviewed native image length mismatch");
+    std::string contents(expected_bytes, '\0');
+    stream.seekg(0);
+    stream.read(contents.data(), static_cast<std::streamsize>(contents.size()));
+    require(stream.gcount() == static_cast<std::streamsize>(contents.size()) &&
+                stream.peek() == std::char_traits<char>::eof(),
+            "cannot read exact reviewed native image");
+    return contents;
+}
+
+std::string sha256_hex(const std::string& contents) {
+    std::array<unsigned char, SHA256_DIGEST_LENGTH> digest{};
+    require(SHA256(reinterpret_cast<const unsigned char*>(contents.data()),
+                   contents.size(), digest.data()) != nullptr,
+            "SHA256 failed");
+    constexpr char digits[] = "0123456789abcdef";
+    std::string result(SHA256_DIGEST_LENGTH * 2, '0');
+    for (std::size_t index = 0; index < digest.size(); ++index) {
+        result[index * 2] = digits[digest[index] >> 4];
+        result[index * 2 + 1] = digits[digest[index] & 0x0f];
+    }
+    return result;
+}
+
 void write_file(const std::string& path, const std::string& contents) {
     std::ofstream stream(path, std::ios::binary);
     require(bool(stream), "cannot open " + path);
@@ -96,12 +144,14 @@ Options parse_options(int argc, char** argv) {
         if (key == "--profile") options.profile = value;
         else if (key == "--plugin") options.plugin = value;
         else if (key == "--ptx") options.ptx = value;
+        else if (key == "--cubin") options.cubin = value;
         else if (key == "--output") options.output = value;
         else if (key == "--report-dir") options.report_dir = value;
         else throw std::runtime_error("unknown option " + key);
     }
     require(!options.profile.empty() && !options.plugin.empty() &&
-                !options.ptx.empty() && !options.output.empty() &&
+                !options.ptx.empty() && !options.cubin.empty() &&
+                !options.output.empty() &&
                 !options.report_dir.empty(),
             "all artifact paths are required");
     const auto profile = json::parse(read_file(options.profile));
@@ -781,6 +831,9 @@ int main(int argc, char** argv) {
         require(transformed.at("modified").get<bool>(),
                 "future transform did not modify selected kernel");
         ptx = transformed.at("output_ptx").get<std::string>();
+        require(ptx.size() == kReviewedTransformedPtxBytes &&
+                    sha256_hex(ptx) == kReviewedTransformedPtxSha256,
+                "transformed PTX differs from reviewed native-image source");
         stage = "persist_transformed_ptx";
         journal->stage(stage);
         write_file(options.output + ".transformed.ptx", ptx);
@@ -805,6 +858,39 @@ int main(int argc, char** argv) {
                         kOriginalPtxSha256 &&
                     pass.at("future_contract").at("time_scale") == 1,
                 "actual plugin manifest does not bind one future producer");
+
+        stage = "read_reviewed_native_image";
+        journal->stage(stage);
+        const auto cubin = read_exact_binary(options.cubin, kReviewedCubinBytes);
+        const auto cubin_sha256 = sha256_hex(cubin);
+        require(cubin_sha256 == kReviewedCubinSha256,
+                "reviewed native image hash mismatch");
+        json native_image_binding{
+            {"image_kind", "CUBIN"},
+            {"image_path", options.cubin},
+            {"image_bytes", cubin.size()},
+            {"image_sha256", cubin_sha256},
+            {"source_ptx_bytes", ptx.size()},
+            {"source_ptx_sha256", sha256_hex(ptx)},
+            {"original_ptx_sha256", kOriginalPtxSha256},
+            {"selected_kernel", kKernel},
+            {"compiler", {
+                {"tool", "ptxas"},
+                {"architecture", "sm_120"},
+                {"optimization", "-O3"},
+                {"build_manifest_sha256", kReviewedBuildManifestSha256},
+            }},
+            {"sass", {
+                {"mapping_validation", "NOT_PROVEN"},
+                {"disassembly_manifest_sha256",
+                    kReviewedDisassemblyManifestSha256},
+                {"nvdisasm_sha256", kReviewedNvdisasmSha256},
+                {"cuobjdump_sha256", kReviewedCuobjdumpSha256},
+            }},
+            {"load_state", "VERIFIED_NOT_LOADED"},
+            {"same_retained_buffer_passed_to_driver", false},
+        };
+        journal->field("native_image_binding", native_image_binding);
 
         stage = "initialize_cuda_runtime";
         journal->stage(stage);
@@ -878,9 +964,15 @@ int main(int argc, char** argv) {
         require(token != 0, "launch gate rejected transformed PTX transaction");
         stage = "load_associated_future_module";
         journal->stage(stage);
-        const auto load_result = cuModuleLoadDataEx(&module, ptx.c_str(), 0,
+        const auto load_result = cuModuleLoadDataEx(&module, cubin.data(), 0,
                                                      nullptr, nullptr);
         end_load(token);
+        native_image_binding["same_retained_buffer_passed_to_driver"] = true;
+        native_image_binding["driver_result"] =
+            static_cast<std::int32_t>(load_result);
+        native_image_binding["load_state"] =
+            load_result == CUDA_SUCCESS ? "LOADED" : "LOAD_FAILED";
+        journal->field("native_image_binding", native_image_binding);
         driver(load_result, "load associated future module");
 
         stage = "lookup_future_kernel_and_globals";
@@ -948,6 +1040,7 @@ int main(int argc, char** argv) {
             {"profile_page_bytes", kPageBytes},
             {"seed", kSeed},
             {"instruction_id", instruction_id},
+            {"native_image_binding", native_image_binding},
             {"cases", cases},
             {"final_counters", counters_json(final_counters)},
             {"cleanup", cleanup.report},

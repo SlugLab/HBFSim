@@ -26,6 +26,16 @@ from run_matrix import FailedRun, InterruptedRun, run_child
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CHILD_TIMEOUT_SECONDS = 120
+REVIEWED_CUBIN_BYTES = 82664
+REVIEWED_CUBIN_SHA256 = "4b17ddb0d7f3f52cc48104de1f9c06c6aa0685740f9185ea5530d53e7153e839"
+ORIGINAL_PTX_SHA256 = "5c717d8a4f56778c975de8108a030868d1fb9370da5ea5160743c0fd8d4b0e19"
+REVIEWED_TRANSFORMED_PTX_BYTES = 148533
+REVIEWED_TRANSFORMED_PTX_SHA256 = "c0f898820ba9f740080e80a12b9128826cf06a5064d0534ac19168c49f7938cd"
+REVIEWED_BUILD_MANIFEST_SHA256 = "e307b20456e1f97ff4a1f236a9f5a1237d5c69ba5a3f35417b72e0c61d9f6988"
+REVIEWED_DISASSEMBLY_MANIFEST_SHA256 = "f76bc52948d4abe87469b33e66d2553db022dd79081ae7b9372f6961430bafb3"
+REVIEWED_NVDISASM_SHA256 = "3fa63daa01fe556f343c350c1c6eece55bbc39d0894f743b5b80aec3a4c906ce"
+REVIEWED_CUOBJDUMP_SHA256 = "ebd013382e60a47ddc7dd879a91fc1ec7165d125475fd26239f291e248b60a55"
+SELECTED_KERNEL = "c6_u32_future_gold_candidate"
 
 
 def regular_bytes(path: pathlib.Path) -> bytes:
@@ -39,6 +49,23 @@ def regular_bytes(path: pathlib.Path) -> bytes:
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def validate_exact_bytes(data: bytes, *, expected_bytes: int,
+                         expected_sha256: str, label: str) -> bytes:
+    if len(data) != expected_bytes:
+        raise ValueError(f"{label} length mismatch")
+    if sha256(data) != expected_sha256:
+        raise ValueError(f"{label} SHA256 mismatch")
+    return data
+
+
+def exact_regular_bytes(path: pathlib.Path, *, expected_bytes: int,
+                        expected_sha256: str, label: str) -> bytes:
+    return validate_exact_bytes(
+        regular_bytes(path), expected_bytes=expected_bytes,
+        expected_sha256=expected_sha256, label=label,
+    )
 
 
 def interrupted_state(final: str, signals: dict) -> str:
@@ -88,11 +115,12 @@ def finalize_attempt(out: pathlib.Path, manifest: dict, status: dict,
 
 
 def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
-            ptx: pathlib.Path, gpu_uuid: str) -> dict:
+            ptx: pathlib.Path, cubin: pathlib.Path, gpu_uuid: str) -> dict:
     out = out.resolve()
     build = build.resolve()
     profile = profile.resolve()
     ptx = ptx.resolve()
+    cubin = cubin.resolve()
     gold_root = (ROOT / "results/gold/timing-future-unit").resolve()
     if not out.is_relative_to(gold_root):
         raise ValueError("diagnostic output must be under timing-future-unit gold root")
@@ -101,6 +129,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
     paths = {
         "binary": build / "benchmarks/cuda/c6_future_correctness",
         "ptx": ptx,
+        "cubin": cubin,
         "plugin": build / "libptxpass_hbf.so",
         "gate": build / "libhbfsim_launch_gate.so",
         "daemon": build / "hbfsimd",
@@ -112,7 +141,14 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
         "device_helper": ROOT / "src/cuda_runtime/device/hbf_device.cu",
         "launch_gate": ROOT / "src/cuda_runtime/launch_gate.cpp",
     }
-    frozen = {name: regular_bytes(path) for name, path in paths.items()}
+    frozen = {
+        name: regular_bytes(path) for name, path in paths.items()
+        if name != "cubin"
+    }
+    frozen["cubin"] = exact_regular_bytes(
+        paths["cubin"], expected_bytes=REVIEWED_CUBIN_BYTES,
+        expected_sha256=REVIEWED_CUBIN_SHA256, label="reviewed cubin",
+    )
     manifest = {
         "schema_version": 1,
         "created_at": now(),
@@ -126,6 +162,28 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
             for name, data in frozen.items()
         },
         "commands": {},
+        "native_image_binding": {
+            "image_kind": "CUBIN",
+            "image_bytes": REVIEWED_CUBIN_BYTES,
+            "image_sha256": REVIEWED_CUBIN_SHA256,
+            "source_ptx_bytes": REVIEWED_TRANSFORMED_PTX_BYTES,
+            "source_ptx_sha256": REVIEWED_TRANSFORMED_PTX_SHA256,
+            "original_ptx_sha256": ORIGINAL_PTX_SHA256,
+            "selected_kernel": SELECTED_KERNEL,
+            "compiler": {
+                "tool": "ptxas",
+                "architecture": "sm_120",
+                "optimization": "-O3",
+                "build_manifest_sha256": REVIEWED_BUILD_MANIFEST_SHA256,
+            },
+            "sass": {
+                "mapping_validation": "NOT_PROVEN",
+                "disassembly_manifest_sha256":
+                    REVIEWED_DISASSEMBLY_MANIFEST_SHA256,
+                "nvdisasm_sha256": REVIEWED_NVDISASM_SHA256,
+                "cuobjdump_sha256": REVIEWED_CUOBJDUMP_SHA256,
+            },
+        },
         "claims": {
             "c6_3_closed": False,
             "overlap_closed": False,
@@ -164,6 +222,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
                 "--profile", str(paths["profile"]),
                 "--plugin", str(paths["plugin"]),
                 "--ptx", str(paths["ptx"]),
+                "--cubin", str(paths["cubin"]),
                 "--output", str(directory / "raw.json"),
                 "--report-dir", str(directory / "reports"),
             ]
@@ -206,6 +265,21 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
                 raise ValueError("diagnostic emitted a prohibited scientific/gate claim")
             if len(raw.get("cases", [])) != 4:
                 raise ValueError("diagnostic did not retain all four cases")
+            binding = raw.get("native_image_binding")
+            expected = manifest["native_image_binding"]
+            if not isinstance(binding, dict):
+                raise ValueError("diagnostic omitted native image binding")
+            for field in ("image_kind", "image_bytes", "image_sha256",
+                          "source_ptx_bytes", "source_ptx_sha256",
+                          "original_ptx_sha256", "selected_kernel"):
+                if binding.get(field) != expected[field]:
+                    raise ValueError("diagnostic native image binding mismatch: " + field)
+            if (binding.get("compiler") != expected["compiler"] or
+                    binding.get("sass") != expected["sass"]):
+                raise ValueError("diagnostic build/SASS binding mismatch")
+            if (binding.get("load_state") != "LOADED" or
+                    binding.get("same_retained_buffer_passed_to_driver") is not True):
+                raise ValueError("diagnostic did not load the retained reviewed cubin")
             guard.check("after-diagnostic")
             for name, path in paths.items():
                 if sha256(regular_bytes(path)) != manifest["inputs"][name]["sha256"]:
@@ -243,6 +317,7 @@ def main() -> int:
     parser.add_argument("--build-dir", type=pathlib.Path)
     parser.add_argument("--profile", type=pathlib.Path)
     parser.add_argument("--ptx", type=pathlib.Path)
+    parser.add_argument("--cubin", type=pathlib.Path)
     parser.add_argument("--gpu-uuid")
     args = parser.parse_args()
     plan = {
@@ -251,13 +326,24 @@ def main() -> int:
         "launch": {"grid": [1, 1, 1], "block": [32, 1, 1]},
         "child_timeout_seconds": CHILD_TIMEOUT_SECONDS,
         "validation_status": "UNVALIDATED",
+        "native_image": {
+            "kind": "CUBIN",
+            "bytes": REVIEWED_CUBIN_BYTES,
+            "sha256": REVIEWED_CUBIN_SHA256,
+            "mapping_validation": "NOT_PROVEN",
+        },
     }
     if not args.execute:
         print(json.dumps(plan, indent=2))
         return 0
-    if not all((args.out, args.build_dir, args.profile, args.ptx, args.gpu_uuid)):
-        parser.error("execution requires --out --build-dir --profile --ptx --gpu-uuid")
-    result = execute(args.out, args.build_dir, args.profile, args.ptx, args.gpu_uuid)
+    if not all((args.out, args.build_dir, args.profile, args.ptx,
+                args.cubin, args.gpu_uuid)):
+        parser.error(
+            "execution requires --out --build-dir --profile --ptx --cubin --gpu-uuid"
+        )
+    result = execute(
+        args.out, args.build_dir, args.profile, args.ptx, args.cubin, args.gpu_uuid
+    )
     print(json.dumps(result, indent=2))
     return 0 if result["state"] == "CAPTURED_UNVALIDATED" else 2
 

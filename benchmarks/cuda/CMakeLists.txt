@@ -102,3 +102,23 @@ if(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK)
         set_tests_properties(eval_chain_layout PROPERTIES TIMEOUT 30)
     endif()
 endif()
+
+# Opt-in diagnostic only; do not add to a default production build.
+option(HBFSIM_BUILD_C6_GPU_DIAGNOSTIC
+       "Build the bounded C6 future correctness diagnostic" OFF)
+if(HBFSIM_BUILD_C6_GPU_DIAGNOSTIC)
+    add_executable(c6_future_correctness
+        c6_future_correctness_candidate.cu)
+    target_link_libraries(c6_future_correctness PRIVATE
+        hbfsim_core CUDA::cudart CUDA::cuda_driver ${CMAKE_DL_LIBS})
+    target_include_directories(c6_future_correctness PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party")
+    set_target_properties(c6_future_correctness PROPERTIES
+        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
+        CUDA_RUNTIME_LIBRARY Shared
+        ENABLE_EXPORTS ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda")
+    add_dependencies(c6_future_correctness
+        hbfsim_device_ptx ptxpass_hbf_plugin hbfsim_launch_gate)
+endif()

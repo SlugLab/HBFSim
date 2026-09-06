@@ -1,0 +1,51 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+// One warp only. input_stride_bytes=4 selects one 4 KiB page when input is
+// 4 KiB-aligned; input_stride_bytes=4096 selects one distinct page per lane.
+// active_mask bit tid selects the ordinary u32 producer. Every lane stores to
+// its own output[tid], including lanes without a producer.
+.visible .entry c6_u32_future_gold_candidate(
+    .param .u64 .ptr .global .align 4 input,
+    .param .u64 .ptr .global .align 4 output,
+    .param .u32 seed,
+    .param .u32 input_stride_bytes,
+    .param .u32 active_mask
+)
+.reqntid 32, 1, 1
+{
+    .reg .pred %p<1>;
+    .reg .b32 %r<14>;
+    .reg .b64 %rd<6>;
+
+    ld.param.u64 %rd0, [input];
+    ld.param.u64 %rd1, [output];
+    ld.param.u32 %r1, [seed];
+    ld.param.u32 %r2, [input_stride_bytes];
+    ld.param.u32 %r3, [active_mask];
+    mov.u32 %r0, %tid.x;
+
+    mul.wide.u32 %rd2, %r0, %r2;
+    add.u64 %rd3, %rd0, %rd2;
+    mul.wide.u32 %rd4, %r0, 4;
+    add.u64 %rd5, %rd1, %rd4;
+    shl.b32 %r4, 1, %r0;
+    and.b32 %r5, %r4, %r3;
+    setp.ne.u32 %p0, %r5, 0;
+
+    // Zero is the defined nonproducer-lane value. The first later use of %r6
+    // is the checksum add after seed-dependent work independent of the load.
+    mov.u32 %r6, 0;
+    @%p0 ld.global.u32 %r6, [%rd3];
+    xor.b32 %r7, %r1, %r0;
+    mad.lo.u32 %r8, %r7, 0x0019660d, 0x3c6ef35f;
+    shl.b32 %r9, %r8, 7;
+    shr.u32 %r10, %r8, 25;
+    or.b32 %r11, %r9, %r10;
+    xor.b32 %r12, %r11, 0x85ebca6b;
+    mul.lo.u32 %r12, %r12, 0x85ebca77;
+    add.u32 %r13, %r6, %r12;
+    st.global.u32 [%rd5], %r13;
+    ret;
+}

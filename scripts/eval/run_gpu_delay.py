@@ -96,8 +96,10 @@ def _disjoint_spans(spans):
                 raise ValueError('overlapping chain diagnostic spans')
 
 
-def validate_chain_diagnostic(case):
+def validate_chain_diagnostic(case, *, expected_epoch=2):
     """Validate actual row/event readback for one per-chain benchmark arm."""
+    if type(expected_epoch) is not int or not 1 <= expected_epoch < 2**64:
+        raise ValueError('invalid expected chain diagnostic epoch')
     diagnostic=case.get('chain_diagnostic')
     if case['treatment']=='native':
         if diagnostic!={'enabled':False,'reason':'native_uninstrumented','rows':[]}:
@@ -115,7 +117,8 @@ def validate_chain_diagnostic(case):
     count=case['blocks']*case['warps'];capacity=case['hops']+7
     row_bytes=128+capacity*56;row_stride=(row_bytes+63)&~63
     scalar_expected={'magic':0x4556434841494e31,'symbol_bytes':136,'version':2,
-                     'config_bytes':136,'delay_ns':case['applied_delay_ns'],'launch_epoch':2,
+                     'config_bytes':136,'delay_ns':case['applied_delay_ns'],
+                     'launch_epoch':expected_epoch,
                      'grid_x':case['blocks'],'grid_y':1,'grid_z':1,
                      'block_x':case['warps']*32,'block_y':1,'block_z':1,
                      'warps_per_block':case['warps'],'hops':case['hops'],'row_count':count,
@@ -148,7 +151,8 @@ def validate_chain_diagnostic(case):
         row_expected={'covered_accesses':case['hops'],'covered_bytes':case['hops']*4,
                       'bypass_accesses':bypass,'bypass_bytes':bypass*8,
                       'rejected_accesses':0,'trace_overflow':0,
-                      'event_count':case['hops']+bypass,'launch_epoch':2,
+                      'event_count':case['hops']+bypass,
+                      'launch_epoch':expected_epoch,
                       'writer_thread_id':index*32,'writer_observed':1,'reserved':0}
         if any(type(row.get(key)) is not int or row[key]!=value for key,value in row_expected.items()) or row['unused_slots_zero'] is not True:
             raise ValueError('chain diagnostic row owner/counter/reset mismatch')

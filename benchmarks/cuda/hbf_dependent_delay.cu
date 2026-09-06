@@ -127,7 +127,9 @@ Options options(int argc, char** argv)
     }
     require(o.treatment == "native" || o.treatment == "fast_logical" || o.treatment == "hbf_logical", "explicit treatment required");
     require(o.occupancy == "low" || o.occupancy == "high", "explicit occupancy required");
-    require(o.trace_mode == "legacy" || o.trace_mode == "per_chain", "invalid trace mode");
+    require(o.trace_mode == "legacy" || o.trace_mode == "per_chain" ||
+                o.trace_mode == "per_chain_abba",
+            "invalid trace mode");
     require(o.hops == 1 || o.hops == 16 || o.hops == 64, "K must be 1/16/64");
     require(o.warps && o.warps <= 16 && (o.warps & (o.warps - 1)) == 0, "invalid warp count");
     require(!o.profile.empty() && !o.plugin.empty() && !o.ptx.empty() && !o.output.empty() && !o.report_dir.empty(), "missing explicit artifact paths");
@@ -438,8 +440,13 @@ int main(int argc, char** argv)
     try {
         const auto o = options(argc, argv);
         const bool modeled = o.treatment != "native";
-        const bool per_chain = o.trace_mode == "per_chain";
+        const bool abba = o.trace_mode == "per_chain_abba";
+        const bool per_chain = o.trace_mode == "per_chain" || abba;
         const bool chain_trace = modeled && per_chain;
+        require(!abba || (o.treatment == "hbf_logical" && o.delay_ns == 500 &&
+                          o.hops == 1 && o.warps == 1 &&
+                          o.occupancy == "low"),
+                "ABBA diagnostic requires hbf_logical/D500/K1/W1/low");
         auto ptx = read(o.ptx);
         json coverage = {{"rewritten_instructions", 0}, {"unsupported_instructions", 0}};
         std::uint64_t (*begin_load)(const char*, std::size_t) = nullptr;
@@ -588,6 +595,228 @@ int main(int argc, char** argv)
         void* arguments[]{&input, &hops, &shared, &chains_device, &blocks_device};
         auto launch = [&] { driver(cuLaunchKernel(kernel, block_count, 1, 1, o.warps * 32, 1, 1, shared, nullptr, arguments, nullptr), "launch dependent reads"); };
         launch(); runtime(cudaDeviceSynchronize(), "warmup completion");
+        if (abba) {
+#if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+            constexpr std::uint64_t delays[]{0, 500, 500, 0};
+            const json runtime_identity = {
+                {"module_handle", reinterpret_cast<std::uintptr_t>(module)},
+                {"context_handle", reinterpret_cast<std::uintptr_t>(context)},
+                {"input_address", reinterpret_cast<std::uintptr_t>(input)},
+                {"chain_output_address",
+                 reinterpret_cast<std::uintptr_t>(chains_device)},
+                {"block_output_address",
+                 reinterpret_cast<std::uintptr_t>(blocks_device)},
+                {"storage_address",
+                 reinterpret_cast<std::uintptr_t>(chain_storage_device)},
+                {"config_symbol_address", chain_config_address},
+            };
+            json result = {
+                {"schema_version", 1},
+                {"evidence", "GPU_ACQUISITION"},
+                {"validation_status", "UNVALIDATED"},
+                {"scientific_claim", false},
+                {"g2_gate_closed", false},
+                {"trace_mode", "per_chain_abba"},
+                {"treatment", o.treatment},
+                {"warmup_delay_ns", 500},
+                {"sequence_delay_ns", json::array({0, 500, 500, 0})},
+                {"module_load_count", 1},
+                {"context_create_count", 1},
+                {"shared_runtime_identity", runtime_identity},
+                {"launches", json::array()},
+            };
+            runtime(cudaEventCreate(&begin_event), "create ABBA begin Event");
+            runtime(cudaEventCreate(&end_event), "create ABBA end Event");
+            for (std::size_t launch_index = 0; launch_index < 4;
+                 ++launch_index) {
+                runtime(cudaDeviceSynchronize(),
+                        "synchronize before ABBA reset");
+                runtime(cudaMemset(chain_storage_device, 0,
+                                   static_cast<std::size_t>(chain_storage_bytes)),
+                        "reset every ABBA chain row and event");
+                runtime(cudaMemset(chains_device, 0,
+                                   chain_count * sizeof(DelayChain)),
+                        "reset every ABBA chain output");
+                runtime(cudaMemset(blocks_device, 0,
+                                   block_count * sizeof(DelayBlock)),
+                        "reset every ABBA block output");
+                chain_config.delay_ns = delays[launch_index];
+                chain_config.launch_epoch = 2 + launch_index;
+                driver(cuMemcpyHtoD(chain_config_address, &chain_config,
+                                    sizeof(chain_config)),
+                       "publish ABBA delay and epoch");
+                EvalChainDiagnosticConfig before_config{};
+                driver(cuMemcpyDtoH(&before_config, chain_config_address,
+                                    sizeof(before_config)),
+                       "read back ABBA config before launch");
+                require(std::memcmp(&before_config, &chain_config,
+                                    sizeof(chain_config)) == 0,
+                        "ABBA config publication readback mismatch");
+
+                runtime(cudaEventRecord(begin_event), "begin ABBA Event");
+                launch();
+                runtime(cudaEventRecord(end_event), "end ABBA Event");
+                runtime(cudaEventSynchronize(end_event),
+                        "ABBA kernel completion");
+                float elapsed_ms = 0;
+                runtime(cudaEventElapsedTime(&elapsed_ms, begin_event,
+                                             end_event),
+                        "ABBA Event elapsed time");
+
+                EvalChainDiagnosticConfig after_config{};
+                driver(cuMemcpyDtoH(&after_config, chain_config_address,
+                                    sizeof(after_config)),
+                       "read back ABBA config after launch");
+                require(std::memcmp(&after_config, &chain_config,
+                                    sizeof(chain_config)) == 0,
+                        "ABBA config changed during launch");
+                std::vector<DelayChain> chains(chain_count);
+                std::vector<DelayBlock> blocks(block_count);
+                runtime(cudaMemcpy(chains.data(), chains_device,
+                                   chains.size() * sizeof(DelayChain),
+                                   cudaMemcpyDeviceToHost),
+                        "copy ABBA chains");
+                runtime(cudaMemcpy(blocks.data(), blocks_device,
+                                   blocks.size() * sizeof(DelayBlock),
+                                   cudaMemcpyDeviceToHost),
+                        "copy ABBA block stamps");
+                std::vector<std::byte> storage(
+                    static_cast<std::size_t>(chain_storage_bytes));
+                runtime(cudaMemcpy(storage.data(), chain_storage_device,
+                                   storage.size(), cudaMemcpyDeviceToHost),
+                        "copy exact ABBA chain diagnostic storage");
+                auto rows = decode_chain_storage(
+                    storage, after_config.row_count, after_config.row_stride,
+                    after_config.trace_capacity);
+                EvalDelayCounters counters{};
+                for (const auto& row : rows) {
+                    add_counters(&counters, row.row.counters);
+                }
+
+                json observed = {
+                    {"launch_index", launch_index},
+                    {"label", delays[launch_index] == 0 ? "A_D0" : "B_D500"},
+                    {"config_readback_before_launch_exact", true},
+                    {"config_readback_after_launch_exact", true},
+                    {"shared_runtime_identity", runtime_identity},
+                    {"schema_version", 1},
+                    {"evidence", "GPU_ACQUISITION"},
+                    {"treatment", o.treatment},
+                    {"trace_mode", "per_chain"},
+                    {"requested_delay_ns", delays[launch_index]},
+                    {"applied_delay_ns", after_config.delay_ns},
+                    {"hops", o.hops},
+                    {"warps", o.warps},
+                    {"occupancy", o.occupancy},
+                    {"blocks", block_count},
+                    {"sm_count", props.multiProcessorCount},
+                    {"registers", registers},
+                    {"theoretical_blocks_per_sm", maximum},
+                    {"dynamic_shared_bytes", shared},
+                    {"event_ns", double(elapsed_ms) * 1e6},
+                    {"covered_accesses", counters.covered_accesses},
+                    {"covered_bytes", counters.covered_bytes},
+                    {"bypass_accesses", counters.bypass_accesses},
+                    {"bypass_bytes", counters.bypass_bytes},
+                    {"rejected_accesses", counters.rejected_accesses},
+                    {"trace_overflow", counters.trace_overflow},
+                    {"rewritten_instructions",
+                     coverage.at("rewritten_instructions")},
+                    {"unsupported_instructions",
+                     coverage.at("unsupported_instructions")},
+                    {"unknown_bytes", 0},
+                    {"eligible_bytes", trace_count * 4},
+                    {"seed", 0},
+                    {"permutation_rule",
+                     "next=(17*i+1)%4096; stride=4096 bytes; version=1"},
+                    {"input_base", reinterpret_cast<std::uintptr_t>(input)},
+                    {"input_bytes", words * sizeof(*input)},
+                    {"chains", json::array()},
+                    {"block_intervals", json::array()},
+                    {"waits", json::array()},
+                    {"validation", "NOT_RUN"},
+                };
+                bool checksums = true;
+                for (unsigned index = 0; index < chain_count; ++index) {
+                    const auto& chain = chains[index];
+                    const auto expected = expected_checksum(index, o.hops);
+                    checksums &= chain.checksum == expected;
+                    observed["chains"].push_back(
+                        {{"block", index / o.warps},
+                         {"warp", index % o.warps},
+                         {"sm", chain.sm},
+                         {"begin_ns", chain.begin_ns},
+                         {"end_ns", chain.end_ns},
+                         {"checksum", chain.checksum},
+                         {"expected_checksum", expected}});
+                }
+                for (unsigned index = 0; index < block_count; ++index) {
+                    observed["block_intervals"].push_back(
+                        {{"block", index}, {"sm", blocks[index].sm},
+                         {"begin_ns", blocks[index].begin_ns},
+                         {"end_ns", blocks[index].end_ns}});
+                }
+                observed["chain_diagnostic"] =
+                    chain_diagnostic_json(after_config, rows);
+                for (const auto& row : rows) {
+                    for (const auto& event : row.events) {
+                        if (event.event_class == static_cast<std::uint32_t>(
+                                                     EvalChainEventClass::CoveredLoad)) {
+                            observed["waits"].push_back(
+                                {{"thread_id", event.thread_id},
+                                 {"address", event.address},
+                                 {"wait_enter_ns", event.begin_ns},
+                                 {"wait_exit_ns", event.end_ns},
+                                 {"delay_ns", after_config.delay_ns}});
+                        }
+                    }
+                }
+
+                result["launches"].push_back(observed);
+                write(o.output + ".partial.json", result.dump(2));
+                require(checksums,
+                        "ABBA checksum differs from deterministic CPU reference");
+                validate_chain_observations(
+                    rows, chains, blocks, o.warps, o.hops,
+                    after_config.launch_epoch, after_config.delay_ns,
+                    reinterpret_cast<std::uintptr_t>(input),
+                    reinterpret_cast<std::uintptr_t>(chains_device),
+                    reinterpret_cast<std::uintptr_t>(blocks_device));
+                result["launches"].back()["validation"] = "PASS";
+                write(o.output + ".partial.json", result.dump(2));
+            }
+            EvalChainDiagnosticConfig disabled{};
+            driver(cuMemcpyHtoD(chain_config_address, &disabled,
+                                sizeof(disabled)),
+                   "disable ABBA experiment before release");
+            chain_enabled = false;
+            write(o.output, result.dump(2));
+            driver(cuModuleUnload(module), "unload ABBA module");
+            module = nullptr;
+            require(hbfsim_unregister(context, input) == HBFSIM_OK,
+                    "unregister ABBA input failed");
+            registered = false;
+            hbfsim_context_destroy(context);
+            context = nullptr;
+            runtime(cudaEventDestroy(begin_event), "destroy ABBA begin Event");
+            begin_event = nullptr;
+            runtime(cudaEventDestroy(end_event), "destroy ABBA end Event");
+            end_event = nullptr;
+            runtime(cudaFree(chain_storage_device),
+                    "free ABBA chain diagnostic storage");
+            chain_storage_device = nullptr;
+            runtime(cudaFree(blocks_device), "free ABBA block outputs");
+            blocks_device = nullptr;
+            runtime(cudaFree(chains_device), "free ABBA chain outputs");
+            chains_device = nullptr;
+            runtime(cudaFree(input), "free ABBA input");
+            input = nullptr;
+            return 0;
+#else
+            throw std::runtime_error("ABBA diagnostic was not built");
+#endif
+        }
         if (chain_trace) {
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC

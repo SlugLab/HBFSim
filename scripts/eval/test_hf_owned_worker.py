@@ -305,6 +305,14 @@ class OwnedWorkerTests(unittest.TestCase):
 
     def test_runtime_environment_rejects_preload_paths_and_unknown_fields(self):
         work = self.base / "work-env"
+        thread_caps = {
+            "OMP_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+        }
+        self.assertEqual(
+            {key: worker.FIXED_ENV[key] for key in thread_caps}, thread_caps
+        )
         runtime = {
             "PATH": "/bin",
             **worker.FIXED_ENV,
@@ -315,6 +323,17 @@ class OwnedWorkerTests(unittest.TestCase):
             changed = dict(runtime, **{key: "foreign"})
             with self.subTest(key=key), self.assertRaises(ValueError):
                 worker._validate_runtime_environment(changed, work)
+        for key in thread_caps:
+            for replacement in (None, "64"):
+                changed = dict(runtime)
+                if replacement is None:
+                    del changed[key]
+                else:
+                    changed[key] = replacement
+                with self.subTest(key=key, replacement=replacement), self.assertRaises(
+                    ValueError
+                ):
+                    worker._validate_runtime_environment(changed, work)
 
     def test_ownership_boot_start_parent_session_envelope_and_paths_are_bound(self):
         parent = dict(
@@ -768,6 +787,14 @@ print("PRELOAD_GATES_OK")
             key: os.environ[key] for key in worker.PLATFORM_ENV if key in os.environ
         }
         runtime_env = protocol["make_environment"](work, "GPU-X", platform_env)
+        thread_caps = {
+            "OMP_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+        }
+        self.assertEqual(
+            {key: runtime_env[key] for key in thread_caps}, thread_caps
+        )
         prefix = hf_routing_runner._prepare_work(work, runtime_env)
         project = worker.capture_project_sources()
         request = dict(

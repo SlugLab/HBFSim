@@ -136,6 +136,10 @@ class HFWorkerProtocolTests(unittest.TestCase):
 
     def test_cache_and_platform_environment_are_allowlisted_before_import(self):
         inherited = dict(PATH='/usr/bin:/bin', HOME='/retained-original-home',
+                         CUDA_VISIBLE_DEVICES='GPU-caller-choice',
+                         CUDA_DEVICE_ORDER='FASTEST_FIRST',
+                         PYTORCH_NVML_BASED_CUDA_CHECK='0', TORCHINDUCTOR_COMPILE_THREADS='64',
+                         VLLM_PLUGINS='caller.plugin', TVM_FFI_DISABLE_TORCH_C_DLPACK='0',
                          FLASHINFER_WORKSPACE_BASE='/forbidden', TORCH_EXTENSIONS_DIR='/forbidden',
                          TVM_FFI_CACHE_DIR='/forbidden', TRITON_CACHE_MANAGER='remote.module',
                          FLASHINFER_CUBIN_CHECKSUM_DISABLED='1', FLASHINFER_DISABLE_VERSION_CHECK='1',
@@ -144,7 +148,16 @@ class HFWorkerProtocolTests(unittest.TestCase):
             work = Path(directory)
             env = worker.make_environment(work, 'GPU-test-fixture', inherited)
             self.assertEqual(env['HOME'], inherited['HOME'])
-            self.assertEqual(env['CUDA_VISIBLE_DEVICES'], 'GPU-test-fixture')
+            self.assertEqual({key: env[key] for key in (
+                'CUDA_VISIBLE_DEVICES', 'CUDA_DEVICE_ORDER',
+                'PYTORCH_NVML_BASED_CUDA_CHECK', 'TORCHINDUCTOR_COMPILE_THREADS',
+                'VLLM_PLUGINS', 'TVM_FFI_DISABLE_TORCH_C_DLPACK')}, {
+                    'CUDA_VISIBLE_DEVICES': '0',
+                    'CUDA_DEVICE_ORDER': 'PCI_BUS_ID',
+                    'PYTORCH_NVML_BASED_CUDA_CHECK': '1',
+                    'TORCHINDUCTOR_COMPILE_THREADS': '1',
+                    'VLLM_PLUGINS': '',
+                    'TVM_FFI_DISABLE_TORCH_C_DLPACK': '1'})
             for key in ('FLASHINFER_WORKSPACE_BASE', 'TORCH_EXTENSIONS_DIR', 'TVM_FFI_CACHE_DIR',
                         'TRITON_HOME', 'TRITON_CACHE_DIR', 'HF_HOME', 'CUDA_CACHE_PATH', 'TMPDIR'):
                 self.assertTrue(Path(env[key]).is_relative_to(work))
@@ -155,6 +168,12 @@ class HFWorkerProtocolTests(unittest.TestCase):
             self.assertEqual(env['VLLM_USE_FLASHINFER_MOE_FP16'], '0')
             self.assertEqual(env['VLLM_USE_FLASHINFER_SAMPLER'], '0')
             self.assertEqual(list(work.iterdir()), [])
+
+    def test_environment_still_requires_an_externally_bound_physical_gpu_uuid(self):
+        with tempfile.TemporaryDirectory(prefix='.worker-env-', dir=ROOT) as directory:
+            for value in (None, 0, '0', 'MIG-test-fixture', 'GPU-a,GPU-b'):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    worker.make_environment(directory, value, {})
 
     def test_module_import_does_not_load_runtime_or_numpy(self):
         code = 'import sys;sys.path.insert(0,sys.argv[1]);import hf_routing_worker;assert not any(n in sys.modules for n in ("torch","vllm","flashinfer","numpy"))'

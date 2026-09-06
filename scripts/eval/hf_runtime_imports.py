@@ -7,7 +7,6 @@ are neither a sandbox nor capture-origin or complete binary authentication.
 """
 from __future__ import annotations
 
-import ctypes
 import io
 import logging
 import os
@@ -46,7 +45,7 @@ TRITON_KERNEL_OVERRIDE TRITON_KERNEL_DUMP TRITON_OVERRIDE_ARCH TRITON_PTXAS_PATH
 TRITON_CUOBJDUMP_PATH TRITON_CUDACRT_PATH TRITON_CUDART_PATH TRITON_LIBCUDA_PATH
 VLLM_TUNED_CONFIG_FOLDER FLASHINFER_CUBIN_DIR FLASHINFER_CUBINS_REPOSITORY
 FLASHINFER_CUDA_ARCH_LIST FLASHINFER_DISABLE_VERSION_CHECK
-FLASHINFER_CUBIN_CHECKSUM_DISABLED TVM_FFI_DISABLE_TORCH_C_DLPACK
+FLASHINFER_CUBIN_CHECKSUM_DISABLED
 HUGGINGFACE_CO_STAGING HF_TOKEN_PATH HUGGINGFACE_HUB_CACHE HUGGINGFACE_ASSETS_CACHE
 TORCH_HUB LD_PRELOAD LD_AUDIT PYTHONPATH'''.split())
 
@@ -183,11 +182,8 @@ def observe_runtime_imports(snapshot, work, gpu_uuid, device_capability, *,
     for field,value in {'_API_LOG_LEVEL':0,'_API_LOG_DEST':'stderr','_DUMP_SAFETENSORS':False,'_dump_count':0,'_dump_total_size_bytes':0,'_dump_call_counter':{}}.items():scalar('flashinfer.api_logging',field,value)
     dump=read('flashinfer.api_logging','_DUMP_DIR')
     if type(dump) is not str or len(dump)>4096:raise ValueError('invalid inactive dump path')
-    library=read('tvm_ffi._optional_torch_c_dlpack','_LIB');library_path=None
-    if library is not None:
-        library_path=str(work/'cache/tvm-ffi/libtorch_c_dlpack_addon_torch29-cuda.so')
-        if type(library) is not ctypes.CDLL or vars(library).get('_name') != library_path:
-            raise ValueError('optional DLPack addon origin differs from private CUDA path')
+    if '_LIB' in vars(modules['tvm_ffi._optional_torch_c_dlpack']):
+        raise ValueError('optional DLPack addon must remain disabled and unloaded')
     # Only primitives created by this function escape; even an empty mutable
     # source field must be detached from its runtime owner.
     flags['flashinfer.api_logging._dump_call_counter']={}
@@ -201,5 +197,6 @@ def observe_runtime_imports(snapshot, work, gpu_uuid, device_capability, *,
         flashinfer=dict(package_cubin_dir=str(site/'flashinfer_cubin/cubins'),aot_dir=str(site/'flashinfer/data/aot'),
             aot_presence_checked_here=False,architecture_from_caller=[major,minor],jit_log_files=files,
             inactive_dump_dir=dump,dumping_active=False),
-        optional_dlpack_library=library_path,optional_dlpack_none_reason='UNDETERMINED' if library is None else None,
+        optional_dlpack_library=None,
+        optional_dlpack_none_reason='DISABLED_BY_DECLARED_CONFIGURATION',
         inference_imports_performed=False,all_runtime_binaries_authenticated=False,scientific_validation_passed=False)

@@ -80,7 +80,12 @@ def sampling_arguments(final_output_kind):
 
 
 def make_environment(work, gpu_uuid, inherited):
-    """Return an allowlist; no directory, cache, environment or driver is changed."""
+    """Return the allowlist after a parent verifies one physical GPU at NVML index 0.
+
+    gpu_uuid remains the externally bound identity input; topology and device
+    identity authentication belong to the parent and later worker gates. No
+    directory, cache, environment or driver is changed here.
+    """
     work = Path(os.path.abspath(work))
     if work.resolve() != work or not work.is_relative_to(ROOT) or work == ROOT:
         raise ValueError('worker caches must stay in a private project directory')
@@ -88,7 +93,10 @@ def make_environment(work, gpu_uuid, inherited):
         raise ValueError('one physical GPU UUID is required')
     platform = ('PATH', 'HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ')
     env = {key: inherited[key] for key in platform if key in inherited}
-    env.update(CUDA_VISIBLE_DEVICES=gpu_uuid, VLLM_ENABLE_V1_MULTIPROCESSING='0',
+    env.update(CUDA_VISIBLE_DEVICES='0', CUDA_DEVICE_ORDER='PCI_BUS_ID',
+        PYTORCH_NVML_BASED_CUDA_CHECK='1', TORCHINDUCTOR_COMPILE_THREADS='1',
+        VLLM_PLUGINS='', TVM_FFI_DISABLE_TORCH_C_DLPACK='1',
+        VLLM_ENABLE_V1_MULTIPROCESSING='0',
         VLLM_USE_FLASHINFER_MOE_FP16='0', VLLM_USE_FLASHINFER_SAMPLER='0',
         VLLM_NO_USAGE_STATS='1', VLLM_DO_NOT_TRACK='1', DO_NOT_TRACK='1',
         HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1',

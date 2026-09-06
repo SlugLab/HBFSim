@@ -136,6 +136,9 @@ int main() {
         self.assertIn('%globaltimer',ptx)
         self.assertIn('.b8 __hbfsim_eval_delay_config[32];',helper)
         self.assertIn('.b8 __hbfsim_eval_delay_counters[48];',helper)
+        self.assertIn('.b8 __hbfsim_eval_chain_diagnostic_config[136];',helper)
+        self.assertEqual(len(re.findall(r'(?m)^\s*ld\.volatile\.global\.u32\b',ptx)),1)
+        self.assertEqual(len(re.findall(r'(?m)^\s*st\.global\.u64\b',ptx)),7)
         library=ctypes.CDLL(str(build/'libptxpass_hbf.so'))
         library.process_input.argtypes=[ctypes.c_char_p,ctypes.c_int,ctypes.c_char_p]
         library.process_input.restype=ctypes.c_int
@@ -182,7 +185,7 @@ class DelayRunnerTests(unittest.TestCase):
         def case(kind, applied):
             addresses=[];next_index=0
             for _ in range(64):addresses.append(4096+next_index*4096);next_index=(17*next_index+1)%4096
-            return dict(schema_version=1,evidence='TEST_ONLY',treatment=kind,requested_delay_ns=delay_ns,applied_delay_ns=applied,
+            return dict(schema_version=1,evidence='TEST_ONLY',treatment=kind,trace_mode='legacy',requested_delay_ns=delay_ns,applied_delay_ns=applied,
                 hops=64,warps=1,occupancy='low',blocks=1,sm_count=1,theoretical_blocks_per_sm=1,registers=20,
                 dynamic_shared_bytes=49152,event_ns=6400+applied*64,
                 chains=[dict(block=0,warp=0,sm=0,begin_ns=100,end_ns=6500+applied*64,checksum=77,expected_checksum=77)],
@@ -193,6 +196,38 @@ class DelayRunnerTests(unittest.TestCase):
                 rewritten_instructions=0 if kind=='native' else 5,unsupported_instructions=0,unknown_bytes=0,
                 waits=[] if kind=='native' else [dict(thread_id=0,address=address,wait_enter_ns=100+i*(100+applied),wait_exit_ns=100+i*(100+applied)+applied,delay_ns=applied) for i,address in enumerate(addresses)])
         return dict(native=case('native',0),matched_zero=case('fast_logical',0),target=case(treatment,delay_ns if treatment=='hbf_logical' else 0))
+
+    def per_chain_fixture(self,delay_ns=500,treatment='hbf_logical'):
+        data=self.fixture(delay_ns,treatment)
+        for case in data.values():
+            case['trace_mode']='per_chain'
+            if case['treatment']=='native':
+                case['chain_diagnostic']={'enabled':False,'reason':'native_uninstrumented','rows':[]}
+                continue
+            chain_address=20_000_000;block_address=21_000_000
+            def event(address,bytes_,operation,event_class,time):
+                return dict(thread_id=0,address=address,order=0,begin_ns=time,end_ns=time,
+                            bytes=bytes_,operation=operation,event_class=event_class,status=1)
+            events=[event(block_address,8,1,3,91),event(block_address+16,8,1,3,92)]
+            for wait in case['waits']:
+                events.append(dict(thread_id=0,address=wait['address'],order=0,
+                    begin_ns=wait['wait_enter_ns'],end_ns=wait['wait_exit_ns'],bytes=4,
+                    operation=0,event_class=1,status=1))
+            chain_end=case['chains'][0]['end_ns']
+            events.extend(event(chain_address+offset,8,1,2,chain_end+1+slot)
+                          for slot,offset in enumerate((0,8,16,24)))
+            events.append(event(block_address+8,8,1,3,case['block_intervals'][0]['end_ns']+1))
+            for order,item in enumerate(events):item['order']=order
+            row=dict(row=0,covered_accesses=64,covered_bytes=256,bypass_accesses=7,bypass_bytes=56,
+                     rejected_accesses=0,trace_overflow=0,event_count=71,launch_epoch=2,
+                     writer_thread_id=0,writer_observed=1,reserved=0,unused_slots_zero=True,events=events)
+            case['chain_diagnostic']=dict(enabled=True,magic=0x4556434841494e31,
+                symbol_bytes=136,version=2,config_bytes=136,delay_ns=case['applied_delay_ns'],launch_epoch=2,
+                grid_x=1,grid_y=1,grid_z=1,block_x=32,block_y=1,block_z=1,warps_per_block=1,hops=64,
+                row_count=1,row_stride=4160,trace_capacity=71,storage_address=22_000_000,
+                storage_bytes=4160,chain_output_address=chain_address,chain_output_bytes=32,
+                block_output_address=block_address,block_output_bytes=24,rows=[row])
+        return data
 
     def test_fixed_g2_gates_and_zero_noise(self):
         data=self.fixture()
@@ -214,6 +249,31 @@ class DelayRunnerTests(unittest.TestCase):
             if key=='checksum':data['target']['chains'][0][key]=value
             else:data['target'][key]=value
             with self.subTest(key=key), self.assertRaises(ValueError):self.r.analyze(data)
+
+    def test_per_chain_rows_bind_actual_event_identity_and_reset_state(self):
+        baseline=self.per_chain_fixture()
+        self.assertTrue(self.r.analyze(baseline)['g2_cell_pass'])
+        mutations={
+            'owner':lambda c:c['chain_diagnostic']['rows'][0].__setitem__('writer_thread_id',32),
+            'epoch':lambda c:c['chain_diagnostic']['rows'][0].__setitem__('launch_epoch',1),
+            'row-type':lambda c:c['chain_diagnostic']['rows'][0].__setitem__('row',False),
+            'config-size':lambda c:c['chain_diagnostic'].__setitem__('config_bytes',104),
+            'span-overlap':lambda c:c['chain_diagnostic'].__setitem__('storage_address',c['chain_diagnostic']['chain_output_address']),
+            'address':lambda c:c['chain_diagnostic']['rows'][0]['events'][3].__setitem__('address',c['input_base']),
+            'bytes':lambda c:c['chain_diagnostic']['rows'][0]['events'][2].__setitem__('bytes',8),
+            'operation':lambda c:c['chain_diagnostic']['rows'][0]['events'][2].__setitem__('operation',1),
+            'class':lambda c:c['chain_diagnostic']['rows'][0]['events'][2].__setitem__('event_class',2),
+            'status':lambda c:c['chain_diagnostic']['rows'][0]['events'][2].__setitem__('status',5),
+            'order':lambda c:c['chain_diagnostic']['rows'][0]['events'][2].__setitem__('order',3),
+            'overflow':lambda c:c['chain_diagnostic']['rows'][0].__setitem__('trace_overflow',1),
+            'stale-slot':lambda c:c['chain_diagnostic']['rows'][0].__setitem__('unused_slots_zero',False),
+            'missing-event':lambda c:c['chain_diagnostic']['rows'][0]['events'].pop(),
+            'synthetic-wait':lambda c:c['waits'][1].__setitem__('address',c['input_base']),
+        }
+        for name,mutate in mutations.items():
+            data=json.loads(json.dumps(baseline));mutate(data['target'])
+            with self.subTest(name=name),self.assertRaisesRegex(ValueError,'chain diagnostic'):
+                self.r.analyze(data)
 
     def test_achieved_residency_uses_intervals_not_configuration_label(self):
         data=self.fixture()
@@ -300,6 +360,24 @@ print('TEST_ONLY deterministic CPU fixture; no GPU measurements')
         self.assertIn('target/stdout.log',manifest['artifact_hashes'])
         self.assertIn('TEST_ONLY',(self.base/'out/target/stdout.log').read_text())
         self.assertEqual(len(manifest['commands']),3)
+
+    def test_per_chain_selector_requires_symbol_and_reaches_cpu_fixture(self):
+        plan,build,profile,child,probe=self.execution_fixture();calls=[]
+        def counted(*args):calls.append(args);return child(*args)
+        missing=self.r.execute(plan,self.base/'missing',build,profile,'GPU-test',
+                               trace_mode='per_chain',child_runner=counted,gpu_probe=probe)
+        self.assertEqual(missing['state'],'INVALID_GOLD_GATE');self.assertEqual(calls,[])
+        helper=build/'generated/hbf_device.ptx'
+        helper.write_text(helper.read_text()+' __hbfsim_eval_chain_diagnostic_config')
+        for name,case in self.per_chain_fixture(0).items():
+            (self.base/(name+'.json')).write_text(json.dumps(case))
+        result=self.r.execute(plan,self.base/'valid',build,profile,'GPU-test',
+                              trace_mode='per_chain',child_runner=child,gpu_probe=probe)
+        self.assertEqual(result['state'],'TEST_ONLY_DONE',result)
+        manifest=json.loads((self.base/'valid/manifest.json').read_text())
+        self.assertEqual(manifest['trace_mode'],'per_chain')
+        self.assertTrue(all(command[-2:]==['--trace-mode','per_chain']
+                            for command in manifest['commands'].values()))
 
     def test_consistent_wrong_triplet_dimensions_are_rejected_against_selected_plan(self):
         plan,build,profile,child,probe=self.execution_fixture()

@@ -13,6 +13,8 @@ are validated separately. G2's fixed limits are reported; a single triplet
 does not close the matrix-wide/repeated G2 gate. No long-form MEASURED rows or
 formal sweep are exported here. Scheduler integration must avoid nested GPU
 locks; this standalone tool deliberately provides no inherited-guard bypass.
+The optional ``--trace-mode per_chain`` selects the default-off per-chain raw
+diagnostic; ``legacy`` remains the default for existing acquisitions.
 Library dependency injection is CPU TEST_ONLY and cannot write results/runs.
 """
 from __future__ import annotations
@@ -81,10 +83,131 @@ def observed_residency(intervals):
     return peaks
 
 
+def _u64(value):
+    return type(value) is int and 0 <= value < 2**64
+
+
+def _disjoint_spans(spans):
+    for index,(address,bytes_) in enumerate(spans):
+        if not _u64(address) or not _u64(bytes_) or not address or not bytes_ or address+bytes_>=2**64:
+            raise ValueError('invalid chain diagnostic span')
+        for other_address,other_bytes in spans[index+1:]:
+            if not (address+bytes_<=other_address or other_address+other_bytes<=address):
+                raise ValueError('overlapping chain diagnostic spans')
+
+
+def validate_chain_diagnostic(case):
+    """Validate actual row/event readback for one per-chain benchmark arm."""
+    diagnostic=case.get('chain_diagnostic')
+    if case['treatment']=='native':
+        if diagnostic!={'enabled':False,'reason':'native_uninstrumented','rows':[]}:
+            raise ValueError('native per-chain diagnostic declaration invalid')
+        if case['waits'] or any(case[k] for k in ('covered_accesses','covered_bytes','bypass_accesses','bypass_bytes','rejected_accesses','trace_overflow')):
+            raise ValueError('native per-chain path contains instrumented observations')
+        return
+    required={'enabled','magic','symbol_bytes','version','config_bytes','delay_ns','launch_epoch',
+              'grid_x','grid_y','grid_z','block_x','block_y','block_z','warps_per_block','hops',
+              'row_count','row_stride','trace_capacity',
+              'storage_address','storage_bytes','chain_output_address','chain_output_bytes',
+              'block_output_address','block_output_bytes','rows'}
+    if type(diagnostic) is not dict or set(diagnostic)!=required or diagnostic['enabled'] is not True:
+        raise ValueError('chain diagnostic schema invalid')
+    count=case['blocks']*case['warps'];capacity=case['hops']+7
+    row_bytes=128+capacity*56;row_stride=(row_bytes+63)&~63
+    scalar_expected={'magic':0x4556434841494e31,'symbol_bytes':136,'version':2,
+                     'config_bytes':136,'delay_ns':case['applied_delay_ns'],'launch_epoch':2,
+                     'grid_x':case['blocks'],'grid_y':1,'grid_z':1,
+                     'block_x':case['warps']*32,'block_y':1,'block_z':1,
+                     'warps_per_block':case['warps'],'hops':case['hops'],'row_count':count,
+                     'row_stride':row_stride,'trace_capacity':capacity,
+                     'storage_bytes':count*row_stride,'chain_output_bytes':count*32,
+                     'block_output_bytes':case['blocks']*24}
+    if any(type(diagnostic.get(key)) is not int or diagnostic[key]!=value for key,value in scalar_expected.items()):
+        raise ValueError('chain diagnostic declaration mismatch')
+    spans=[(case['input_base'],case['input_bytes']),
+           (diagnostic['chain_output_address'],diagnostic['chain_output_bytes']),
+           (diagnostic['block_output_address'],diagnostic['block_output_bytes']),
+           (diagnostic['storage_address'],diagnostic['storage_bytes'])]
+    _disjoint_spans(spans)
+    if type(diagnostic['rows']) is not list or len(diagnostic['rows'])!=count:
+        raise ValueError('chain diagnostic rows incomplete')
+    chains={(row['block'],row['warp']):row for row in case['chains']}
+    block_rows={row['block']:row for row in case['block_intervals']}
+    if len(block_rows)!=case['blocks'] or set(block_rows)!=set(range(case['blocks'])):
+        raise ValueError('chain diagnostic block observations incomplete')
+    totals={key:0 for key in ('covered_accesses','covered_bytes','bypass_accesses','bypass_bytes','rejected_accesses','trace_overflow')}
+    actual_waits=[]
+    for index,row in enumerate(diagnostic['rows']):
+        expected_keys={'row','covered_accesses','covered_bytes','bypass_accesses','bypass_bytes',
+                       'rejected_accesses','trace_overflow','event_count','launch_epoch','writer_thread_id',
+                       'writer_observed','reserved','unused_slots_zero','events'}
+        if type(row) is not dict or set(row)!=expected_keys or type(row['row']) is not int or row['row']!=index:
+            raise ValueError('chain diagnostic row schema/identity mismatch')
+        block=index//case['warps'];warp=index%case['warps'];chain=chains[(block,warp)]
+        bypass=7 if warp==0 else 4
+        row_expected={'covered_accesses':case['hops'],'covered_bytes':case['hops']*4,
+                      'bypass_accesses':bypass,'bypass_bytes':bypass*8,
+                      'rejected_accesses':0,'trace_overflow':0,
+                      'event_count':case['hops']+bypass,'launch_epoch':2,
+                      'writer_thread_id':index*32,'writer_observed':1,'reserved':0}
+        if any(type(row.get(key)) is not int or row[key]!=value for key,value in row_expected.items()) or row['unused_slots_zero'] is not True:
+            raise ValueError('chain diagnostic row owner/counter/reset mismatch')
+        for key in totals:totals[key]+=row[key]
+        expected=[]
+        if warp==0:
+            base=diagnostic['block_output_address']+block*24
+            expected.extend(((base,8,1,3),(base+16,8,1,3)))
+        next_index=index&4095
+        for _ in range(case['hops']):
+            expected.append((case['input_base']+next_index*4096,4,0,1))
+            next_index=(next_index*17+1)&4095
+        base=diagnostic['chain_output_address']+index*32
+        expected.extend((base+offset,8,1,2) for offset in (0,8,16,24))
+        if warp==0:expected.append((diagnostic['block_output_address']+block*24+8,8,1,3))
+        events=row['events']
+        if type(events) is not list or len(events)!=len(expected):
+            raise ValueError('chain diagnostic event count mismatch')
+        previous=0
+        for order,(event,wanted) in enumerate(zip(events,expected)):
+            keys={'thread_id','address','order','begin_ns','end_ns','bytes','operation','event_class','status'}
+            if type(event) is not dict or set(event)!=keys or any(not _u64(event[key]) for key in keys):
+                raise ValueError('chain diagnostic event schema/type invalid')
+            identity=(event['address'],event['bytes'],event['operation'],event['event_class'])
+            if event['thread_id']!=index*32 or event['order']!=order or event['status']!=1 or identity!=wanted:
+                raise ValueError('chain diagnostic event identity mismatch')
+            if event['begin_ns']<previous:
+                raise ValueError('chain diagnostic event time order mismatch')
+            if event['event_class']==1:
+                delay=case['applied_delay_ns']
+                if event['begin_ns']<chain['begin_ns'] or event['end_ns']<event['begin_ns'] or event['end_ns']-event['begin_ns']<delay or (not delay and event['end_ns']!=event['begin_ns']) or event['end_ns']>chain['end_ns']:
+                    raise ValueError('chain diagnostic load timing mismatch')
+                actual_waits.append(dict(thread_id=event['thread_id'],address=event['address'],wait_enter_ns=event['begin_ns'],wait_exit_ns=event['end_ns'],delay_ns=delay))
+            elif event['begin_ns']!=event['end_ns']:
+                raise ValueError('chain diagnostic store timestamp mismatch')
+            elif event['event_class']==2 and event['begin_ns']<chain['end_ns']:
+                raise ValueError('chain diagnostic store precedes chain completion')
+            elif event['event_class']==3:
+                block_row=block_rows[block]
+                recorded=block_row['end_ns'] if event['address']==diagnostic['block_output_address']+block*24+8 else block_row['begin_ns']
+                if event['begin_ns']<recorded:
+                    raise ValueError('chain diagnostic block store precedes timestamp')
+            previous=event['end_ns']
+    if any(case[key]!=value for key,value in totals.items()):
+        raise ValueError('chain diagnostic aggregate counters mismatch')
+    if case['waits']!=actual_waits:
+        raise ValueError('chain diagnostic waits differ from actual events')
+
+
 def analyze(cases):
     """Validate per-chain pairs, never sum parallel chains into one latency."""
     if set(cases)!={'native','matched_zero','target'}:raise ValueError('missing control triplet')
     baseline=cases['matched_zero'];target=cases['target'];native=cases['native']
+    if any(type(case.get('trace_mode','legacy')) is not str for case in cases.values()):
+        raise ValueError('invalid trace mode type')
+    trace_modes={case.get('trace_mode','legacy') for case in cases.values()}
+    if len(trace_modes)!=1 or next(iter(trace_modes)) not in ('legacy','per_chain'):
+        raise ValueError('unmatched trace modes')
+    per_chain=next(iter(trace_modes))=='per_chain'
     dimensions=('hops','warps','occupancy','blocks','sm_count','requested_delay_ns')
     if any(any(case[k]!=baseline[k] for k in dimensions) for case in cases.values()):raise ValueError('unmatched triplet dimensions')
     if native['treatment']!='native' or baseline['treatment']!='fast_logical':raise ValueError('wrong baseline treatment')
@@ -101,6 +224,7 @@ def analyze(cases):
         if not math.isfinite(case['event_ns']) or case['event_ns']<=0:raise ValueError('invalid CUDA Event time')
         if any(case[k]!=0 for k in ('rejected_accesses','trace_overflow','unsupported_instructions','unknown_bytes')):raise ValueError('incomplete coverage')
         instrumented=case['treatment']!='native'
+        if per_chain:validate_chain_diagnostic(case)
         expected_delay=case['requested_delay_ns'] if case['treatment']=='hbf_logical' else 0
         if case['applied_delay_ns']!=expected_delay:raise ValueError('delay/treatment mismatch')
         if case['covered_bytes']!=(eligible if instrumented else 0) or case['covered_accesses']!=(count*hops if instrumented else 0):raise ValueError('dynamic coverage mismatch')
@@ -156,14 +280,16 @@ def analyze(cases):
         observed_peak_blocks_per_sm=residency,zero_delay_absolute_noise_ns=deltas if not applied else None)
 
 
-def execute(plan,out,build,profile,gpu_uuid,*,gpu_probe=None,child_runner=None):
+def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None,child_runner=None):
     out=pathlib.Path(out).resolve();build=pathlib.Path(build).resolve();profile=pathlib.Path(profile).resolve()
     test_only=gpu_probe is not None or child_runner is not None
+    if trace_mode not in ('legacy','per_chain'):raise ValueError('invalid trace mode')
     if not out.is_relative_to(ROOT) or out.is_relative_to(ROOT/'results/runs'):
         raise ValueError('standalone outputs must stay in checkout, outside scheduler results/runs')
     out.mkdir(parents=True,exist_ok=False)
     manifest=dict(schema_version=1,created_at=now(),plan=plan,resource_class='GPU_EXCLUSIVE',gpu_uuid=gpu_uuid,
-                  evidence='TEST_ONLY' if test_only else 'GPU_ACQUISITION',git=git_snapshot(ROOT),inputs={},commands={})
+                  evidence='TEST_ONLY' if test_only else 'GPU_ACQUISITION',trace_mode=trace_mode,
+                  git=git_snapshot(ROOT),inputs={},commands={})
     atomic_json(out/'manifest.json',manifest);atomic_json(out/'environment.json',environment_snapshot())
     status=dict(state='PLANNED',updated_at=now());atomic_json(out/'status.json',status)
     signals={'signal':None};old_handlers={};final='FAILED'
@@ -188,6 +314,8 @@ def execute(plan,out,build,profile,gpu_uuid,*,gpu_probe=None,child_runner=None):
                 raise ValueError('positive normal profile and time_scale=1 required')
             for symbol in ('__hbfsim_eval_delay_config','__hbfsim_eval_delay_counters','__hbfsim_resolve'):
                 if symbol.encode() not in frozen['helper']:raise ValueError('build lacks known-delay helper symbol '+symbol)
+            if trace_mode=='per_chain' and b'__hbfsim_eval_chain_diagnostic_config' not in frozen['helper']:
+                raise ValueError('build lacks per-chain diagnostic symbol')
             (out/'inputs').mkdir()
             for key in ('matrix','profile','helper','ptx','build_config'):(out/'inputs'/key).write_bytes(frozen[key])
             row=plan['condition'];cases={}
@@ -198,7 +326,7 @@ def execute(plan,out,build,profile,gpu_uuid,*,gpu_probe=None,child_runner=None):
                 argv=[str(paths['binary']),'--treatment',treatment,'--delay-ns',str(plan['delay_ns']),'--hops',str(plan['hops']),
                       '--warps',row['warps'],'--occupancy',row['occupancy'],'--profile',str(paths['profile']),
                       '--plugin',str(paths['plugin']),'--ptx',str(paths['ptx']),'--output',str(directory/'raw.json'),
-                      '--report-dir',str(directory/'reports')]
+                      '--report-dir',str(directory/'reports'),'--trace-mode',trace_mode]
                 manifest['commands'][name]=argv;atomic_json(out/'manifest.json',manifest)
                 env={k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_AUDIT') and not k.startswith(('HBFSIM_','BPFTIME_','PTX_PASS_'))}
                 env.update(CUDA_VISIBLE_DEVICES=gpu_uuid,HBFSIM_DAEMON_PATH=str(paths['daemon']),
@@ -211,7 +339,7 @@ def execute(plan,out,build,profile,gpu_uuid,*,gpu_probe=None,child_runner=None):
                 if rejected:raise ValueError('unsafe attempt artifacts')
                 cases[name]=json.loads(regular_bytes(directory/'raw.json'))
                 expected=dict(treatment=treatment,hops=plan['hops'],warps=int(row['warps']),
-                              occupancy=row['occupancy'],requested_delay_ns=plan['delay_ns'])
+                              occupancy=row['occupancy'],requested_delay_ns=plan['delay_ns'],trace_mode=trace_mode)
                 for field,value in expected.items():
                     observed=cases[name].get(field)
                     if type(observed) is not type(value) or observed!=value:
@@ -255,10 +383,12 @@ def main():
     parser.add_argument('--execute',action='store_true');parser.add_argument('--dry-run',action='store_true')
     parser.add_argument('--out',type=pathlib.Path);parser.add_argument('--build-dir',type=pathlib.Path)
     parser.add_argument('--profile',type=pathlib.Path);parser.add_argument('--gpu-uuid')
+    parser.add_argument('--trace-mode',choices=('legacy','per_chain'),default='legacy')
     args=parser.parse_args();plan=make_plan(args.matrix,args.cell_id,args.replicate,args.hops)
     if not args.execute or args.dry_run:print(json.dumps(plan,indent=2));return 0
     if not all((args.out,args.build_dir,args.profile,args.gpu_uuid)):parser.error('execution requires --out --build-dir --profile --gpu-uuid')
-    result=execute(plan,args.out,args.build_dir,args.profile,args.gpu_uuid);print(json.dumps(result,indent=2))
+    result=execute(plan,args.out,args.build_dir,args.profile,args.gpu_uuid,
+                   trace_mode=args.trace_mode);print(json.dumps(result,indent=2))
     return 0 if result['state']=='DONE' else 2
 
 

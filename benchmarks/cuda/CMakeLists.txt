@@ -71,9 +71,10 @@ target_compile_definitions(
 )
 
 # Experiment only: no new executable in a default production build.
-option(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK "Build explicit EQ1-A delay experiment" OFF)
 if(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK)
     add_executable(hbf_dependent_delay hbf_dependent_delay.cu)
+    target_compile_definitions(hbf_dependent_delay PRIVATE
+        HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=1)
     target_link_libraries(hbf_dependent_delay PRIVATE hbfsim_core CUDA::cudart CUDA::cuda_driver ${CMAKE_DL_LIBS})
     target_include_directories(hbf_dependent_delay PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"

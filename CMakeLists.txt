@@ -7,6 +7,8 @@ option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
 option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF)
 option(HBFSIM_ENABLE_TIMING_FUTURES "Build explicitly selected scalar TIMING futures" OFF)
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
+option(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK
+       "Build explicit EQ1-A delay experiment" OFF)
 
 if(HBFSIM_ENABLE_CUDA)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -546,6 +548,7 @@ if(CUDAToolkit_FOUND)
                 "-I${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device"
                 "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
                 "-DHBFSIM_ENABLE_TIMING_FUTURES=$<BOOL:${HBFSIM_ENABLE_TIMING_FUTURES}>"
+                "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=$<BOOL:${HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK}>"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
                 -o "${HBFSIM_DEVICE_PTX}"
             COMMAND

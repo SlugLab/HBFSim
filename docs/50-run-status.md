@@ -1,7 +1,7 @@
 # Run status — implementation in progress
 
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
-Latest standalone update: four real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
+Latest standalone update: five real HF attempts and two K1 hardware controls have run; see the [current checkpoint](#standalone-real-experiment-checkpoint-2026-09-06). Earlier resource and CPU entries below remain historical.
 The runner's read-only status command reports the entire frozen matrix;
 unit-test fixtures, CPU accounting controls, the three-cell media pilot and
 three-policy MOCK causal pilot are not formal experiment runs.
@@ -219,7 +219,38 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 ## Standalone real-experiment checkpoint, 2026-09-06
 
-Latest resource follow-up: attempt004 completed in 39.396977992 s on frozen HEAD
+Latest actual run: HF005 started at 2026-09-06T16:40:39.384749Z on HEAD
+`389e5d84b164c6e07b49667e6562ef70aee96b74` and failed after303.869927600 s.
+The native worker reported MemoryError at vllm-device, before device/import
+reports or model construction; capture/repeat did not start. metadata-current
+also failed with MemoryError during postchecks; the other eight checks passed.
+Owned exit was observed, remaining members empty, uncertain=false. The source
+and HEAD remained unchanged. Launch MemAvailable was2,028,416 kB, CommitLimit
+70,960,824 kB, Committed_AS66,623,392 kB. This does not locate the allocation
+that failed. The accepted import-environment fix has not reached its real-model
+gate in HF004/005. Do not relaunch repeatedly under unchanged memory pressure.
+Evidence: `results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-005/execution.json`
+(SHA2569d7b069cb1d7475c24e8329ab8ae0f03028cb5182796ec9903726776faf16a65)
+and the matching native owned-worker-failure.json. Formal DONE remains0.
+
+The default-OFF per-chain layout unit is committed at389e5d8 after independent
+SPEC/QUALITY and an existing ABI control in macroOFF/ON configurations. Its
+initial RED also contained truncated-test EOF; the failed first GREEN and
+corrected full154-line GREEN are retained. Device/benchmark integration is
+still absent, and this does not close G2. Evidence is under the known-delay
+gold directory in `per-chain-layout-attempt-001`,
+`per-chain-layout-phase-attempt-001`, `per-chain-layout-spec-attempt-001`, and
+`per-chain-layout-quality-attempt-001`.
+
+C6 has one actual optimized candidate transform/compile/disassembly acquisition.
+Seed arithmetic survives before wait except for the last multiply, which was
+fused into the postwait consumer. The mapping remains NOT_PROVEN; no decoded
+scoreboard or native-completion/overlap claim is made. A separate bounded GPU
+correctness candidate is being corrected following independent review. This
+diagnostic may proceed without claiming full C6.3 or G5 closure.
+
+
+Earlier resource follow-up: attempt004 completed in 39.396977992 s on frozen HEAD
 `9b11227f693065c8a668c086767430d4b10c323e`. The launch guard stopped the native
 child with `ResourceBusy` after nvidia-smi reported that it could not map a
 segment from `libm.so.6`. Only the bootstrap record exists; no device/runtime
@@ -232,7 +263,7 @@ ran successfully and showed zero GPU memory use and no compute processes. This
 supports waiting for host resources before retrying; it does not establish the
 exact failed allocation or validate the new environment correction. Evidence:
 `results/gold/hf-routing-runner/real-diagnostic-triplet-controller-attempt-004/{execution,resource-diagnostic}.json`.
-Attempt005 is prepared but has not run. The three earlier code-related failures
+Attempt005 subsequently failed as recorded above. The three earlier code-related failures
 below remain historical. Formal DONE is still 0.
 
 
@@ -265,7 +296,7 @@ The minimal correction is committed at `b136c68b8c1e3c619babc8f445f8d295079e86bd
 and 54/54 related CPU tests. It preserves the initial launch environment,
 requires the three exact values after import, retains them in the stable tuning
 state, and rejects missing/wrong/changed values and unknown extra variables.
-The next action is a fresh guarded diagnostic attempt004; the corrected tuning
+At that earlier checkpoint the next action was attempt004; the corrected tuning
 gate has not yet passed a real model run. No model was constructed by the query.
 
 All three failed attempts retain nine passing postchecks and observed owned

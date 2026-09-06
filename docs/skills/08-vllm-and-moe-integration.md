@@ -164,6 +164,41 @@ No real runtime import, model load or capture ran during these CPU controls.
 The supplemental seven-source binding and controlled worker/parent/validator
 remain the next implementation units.
 
+
+The fixed supplemental startup source binding is committed at `3833dac6`.
+`hf_startup_sources.py` freezes exactly seven selected Python/stub files under
+the validated MOE_TUNING_V1 root and joins their ancestor identities to the
+primary snapshot. Primary and supplemental source metadata share the existing
+128 MiB budget. Frozen validation opens no original paths; a descriptor-anchored
+reader separately rereads the same seven files. The 131/133 primary formats remain
+unchanged. Directory descriptors and no-follow opens reject changed roots and
+ancestor redirection at the read boundary; identities and paths are rechecked
+after reading. This narrow reader replaces the shared snapshot helper only in
+this unit because that helper re-resolves its confinement root.
+Independent SPEC and QUALITY reviews pass after correcting negative tests that
+previously failed at unrelated gates. The initial fixture failure is not semantic
+RED evidence; subsequent bounded mutation controls are labeled as such. The later
+root-redirection defect has genuine RED evidence: six pre-fix collect/recheck
+failures, followed by successful directory-race and descriptor-cleanup controls.
+The final 15 focused tests and 41 related source/tuning tests pass.
+Evidence is under `results/gold/hf-routing-runner/startup-sources-attempt-004/`
+and `startup-sources-phase-attempt-001/`.
+
+The read-only real acquisition in `startup-sources-real-attempt-002/` matches
+all seven previously audited source hashes: 551,080 supplemental bytes,
+8,549,893 combined bytes. The new primary snapshot and
+supplemental inputs both pass their current-file checks. The original primary
+correctly failed its check because filesystem device IDs changed from66312 to
+66311. Diagnostic comparison found1042 device fields changed, with all133 artifact
+hashes, interpreter hash and every other manifest field unchanged. An independent
+observation in `runtime-sources-tuning-real-attempt-002/` records the new identity;
+old evidence and the failed startup acquisition remain preserved. No identity
+normalization or automatic within-run refresh was added. This binds selected
+source metadata only; it neither imports inference libraries nor authenticates
+all runtime native binaries or checkpoint payloads. Controlled worker/parent and
+independent raw-token/route/trace validation remain open. No real HF arm or formal
+matrix row ran, and scientific_validation_passed remains false.
+
 ## Explicitly unsupported behavior
 
 B does not supply actual scheduler route capture, general checkpoint scanning, full-model capacity staging, measured active sequences at every decode step, closed whole-device rho budget, concurrent decode projection, or a runtime prefetch producer. External model inventory paths and old Qwen proof runs do not establish a currently available checkpoint. Opaque timing allowances are not full byte coverage.

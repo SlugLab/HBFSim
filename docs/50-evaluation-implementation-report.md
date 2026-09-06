@@ -15,7 +15,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Ending committed implementation SHA at this checkpoint: `5561e4e` (declared compatible HF startup controls; C6.2 remains frozen at `49ee96b`).
+- Ending committed implementation SHA at this checkpoint: `3833dac6` (fixed supplemental HF startup source binding; C6.2 remains frozen at `49ee96b`).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.
@@ -444,3 +444,38 @@ dual CUDA/vLLM identity checks remain mandatory in the later owned entrypoint.
 No real runtime import, model load or capture ran during these CPU controls.
 The supplemental seven-source binding and controlled worker/parent/validator
 remain the next implementation units.
+
+
+The fixed supplemental startup source binding is committed at `3833dac6`.
+`hf_startup_sources.py` freezes exactly seven selected Python/stub files under
+the validated MOE_TUNING_V1 root and joins their ancestor identities to the
+primary snapshot. Primary and supplemental source metadata share the existing
+128 MiB budget. Frozen validation opens no original paths; a descriptor-anchored
+reader separately rereads the same seven files. The 131/133 primary formats remain
+unchanged. Directory descriptors and no-follow opens reject changed roots and
+ancestor redirection at the read boundary; identities and paths are rechecked
+after reading. This narrow reader replaces the shared snapshot helper only in
+this unit because that helper re-resolves its confinement root.
+Independent SPEC and QUALITY reviews pass after correcting negative tests that
+previously failed at unrelated gates. The initial fixture failure is not semantic
+RED evidence; subsequent bounded mutation controls are labeled as such. The later
+root-redirection defect has genuine RED evidence: six pre-fix collect/recheck
+failures, followed by successful directory-race and descriptor-cleanup controls.
+The final 15 focused tests and 41 related source/tuning tests pass.
+Evidence is under `results/gold/hf-routing-runner/startup-sources-attempt-004/`
+and `startup-sources-phase-attempt-001/`.
+
+The read-only real acquisition in `startup-sources-real-attempt-002/` matches
+all seven previously audited source hashes: 551,080 supplemental bytes,
+8,549,893 combined bytes. The new primary snapshot and
+supplemental inputs both pass their current-file checks. The original primary
+correctly failed its check because filesystem device IDs changed from66312 to
+66311. Diagnostic comparison found1042 device fields changed, with all133 artifact
+hashes, interpreter hash and every other manifest field unchanged. An independent
+observation in `runtime-sources-tuning-real-attempt-002/` records the new identity;
+old evidence and the failed startup acquisition remain preserved. No identity
+normalization or automatic within-run refresh was added. This binds selected
+source metadata only; it neither imports inference libraries nor authenticates
+all runtime native binaries or checkpoint payloads. Controlled worker/parent and
+independent raw-token/route/trace validation remain open. No real HF arm or formal
+matrix row ran, and scientific_validation_passed remains false.

@@ -104,6 +104,37 @@ if(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK)
     endif()
 endif()
 
+# A separate, default-OFF diagnostic. It does not change the public future ABI.
+if(HBFSIM_BUILD_C6_FUTURE_DELAY_DIAGNOSTIC)
+    add_executable(c6_future_delay_overlap c6_future_delay_overlap.cu)
+    target_link_libraries(c6_future_delay_overlap PRIVATE
+        hbfsim_core CUDA::cudart CUDA::cuda_driver ${CMAKE_DL_LIBS})
+    target_include_directories(c6_future_delay_overlap PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party")
+    set_target_properties(c6_future_delay_overlap PROPERTIES
+        CUDA_ARCHITECTURES "${HBFSIM_CUDA_ARCHITECTURE}-virtual"
+        CUDA_RUNTIME_LIBRARY Shared ENABLE_EXPORTS ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda")
+
+    set(HBFSIM_C6_FUTURE_DELAY_PTX
+        "${CMAKE_CURRENT_BINARY_DIR}/c6_future_delay_overlap.ptx")
+    add_custom_command(OUTPUT "${HBFSIM_C6_FUTURE_DELAY_PTX}"
+        COMMAND "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20 -O3 -lineinfo
+            "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+            "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+            -DHBFSIM_C6_FUTURE_DELAY_KERNEL_ONLY=1
+            "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
+            -o "${HBFSIM_C6_FUTURE_DELAY_PTX}"
+        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
+        VERBATIM)
+    add_custom_target(c6_future_delay_overlap_ptx
+        DEPENDS "${HBFSIM_C6_FUTURE_DELAY_PTX}")
+    add_dependencies(c6_future_delay_overlap
+        c6_future_delay_overlap_ptx hbfsim_device_ptx
+        ptxpass_hbf_plugin hbfsim_launch_gate hbfsimd)
+endif()
+
 # Opt-in diagnostic only; do not add to a default production build.
 option(HBFSIM_BUILD_C6_GPU_DIAGNOSTIC
        "Build the bounded C6 future correctness diagnostic" OFF)

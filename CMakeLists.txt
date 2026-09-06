@@ -9,6 +9,13 @@ option(HBFSIM_ENABLE_TIMING_FUTURES "Build explicitly selected scalar TIMING fut
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
 option(HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK
        "Build explicit EQ1-A delay experiment" OFF)
+option(HBFSIM_BUILD_C6_FUTURE_DELAY_DIAGNOSTIC
+       "Build the bounded C6 future known-delay diagnostic" OFF)
+if(HBFSIM_BUILD_C6_FUTURE_DELAY_DIAGNOSTIC AND
+   NOT HBFSIM_ENABLE_TIMING_FUTURES)
+    message(FATAL_ERROR
+        "C6 future-delay diagnostic requires HBFSIM_ENABLE_TIMING_FUTURES=ON")
+endif()
 
 if(HBFSIM_ENABLE_CUDA)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
@@ -549,6 +556,7 @@ if(CUDAToolkit_FOUND)
                 "-I${CMAKE_CURRENT_SOURCE_DIR}/include"
                 "-DHBFSIM_ENABLE_TIMING_FUTURES=$<BOOL:${HBFSIM_ENABLE_TIMING_FUTURES}>"
                 "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=$<BOOL:${HBFSIM_BUILD_KNOWN_DELAY_BENCHMARK}>"
+                "-DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=$<BOOL:${HBFSIM_BUILD_C6_FUTURE_DELAY_DIAGNOSTIC}>"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
                 -o "${HBFSIM_DEVICE_PTX}"
             COMMAND

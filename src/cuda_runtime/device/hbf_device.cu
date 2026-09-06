@@ -777,6 +777,68 @@ extern "C" __device__ void __hbfsim_fault(std::uint32_t)
 }
 
 #if defined(HBFSIM_ENABLE_TIMING_FUTURES) && HBFSIM_ENABLE_TIMING_FUTURES
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+namespace hbfsim::device {
+constexpr std::uint64_t kEvalFutureDelayMagic = 0x4836465554444c59ULL;
+constexpr std::uint32_t kEvalFutureDelayAbi = 1;
+constexpr std::uint32_t kEvalFutureDelayRecords = 32;
+constexpr std::uint32_t kEvalFutureDelayRecordStride = 128;
+
+struct alignas(8) EvalFutureDelayConfig {
+    std::uint64_t magic;
+    std::uint32_t abi_version;
+    std::uint32_t struct_bytes;
+    std::uint32_t enabled;
+    std::uint32_t expected_instruction_id;
+    std::uint64_t delay_ns;
+    std::uint64_t launch_epoch;
+    std::uint64_t input_base;
+    std::uint64_t input_bytes;
+    std::uint64_t records_address;
+    std::uint64_t records_bytes;
+    std::uint32_t record_count;
+    std::uint32_t record_stride;
+    std::uint32_t grid_x;
+    std::uint32_t block_x;
+    std::uint32_t work_count;
+    std::uint32_t reserved;
+};
+
+struct alignas(8) EvalFutureDelayRecord {
+    std::uint64_t launch_epoch;
+    std::uint64_t configured_delay_ns;
+    std::uint64_t helper_entry_ns;
+    std::uint64_t arrival_ns;
+    std::uint64_t helper_issue_exit_ns;
+    std::uint64_t native_instruction_after_ns;
+    std::uint64_t work_begin_ns;
+    std::uint64_t work_end_ns;
+    std::uint64_t wait_enter_ns;
+    std::uint64_t wait_exit_ns;
+    std::uint64_t consumer_after_ns;
+    std::uint64_t ready_ns;
+    std::uint64_t reservation_id;
+    std::uint32_t lane;
+    std::uint32_t status;
+    std::uint32_t valid_bits;
+    std::uint32_t work_count;
+    std::uint64_t output_bits;
+};
+static_assert(sizeof(EvalFutureDelayConfig) == 96);
+static_assert(offsetof(EvalFutureDelayConfig, delay_ns) == 24);
+static_assert(offsetof(EvalFutureDelayConfig, records_address) == 56);
+static_assert(offsetof(EvalFutureDelayConfig, work_count) == 88);
+static_assert(sizeof(EvalFutureDelayRecord) == 128);
+static_assert(offsetof(EvalFutureDelayRecord, helper_entry_ns) == 16);
+static_assert(offsetof(EvalFutureDelayRecord, wait_enter_ns) == 64);
+static_assert(offsetof(EvalFutureDelayRecord, reservation_id) == 96);
+static_assert(offsetof(EvalFutureDelayRecord, output_bits) == 120);
+} // namespace hbfsim::device
+
+extern "C" __device__ hbfsim::device::EvalFutureDelayConfig
+    __hbfsim_eval_future_delay_config_v1 = {};
+#endif
 extern "C" __device__ __constant__ hbfsim::timing_future::ModuleRequirements
     __hbfsim_timing_future_helper_abi_v1 = {};
 extern "C" __device__ hbfsim::timing_future::ModuleConfig
@@ -790,6 +852,142 @@ extern "C" __device__ hbfsim::timing_future::Trace
 
 namespace {
 namespace future = hbfsim::timing_future;
+
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+constexpr std::uint32_t kFutureDelayHelperEntry = 1U << 0;
+constexpr std::uint32_t kFutureDelayArrival = 1U << 1;
+constexpr std::uint32_t kFutureDelayIssueExit = 1U << 2;
+constexpr std::uint32_t kFutureDelayWaitEnter = 1U << 6;
+constexpr std::uint32_t kFutureDelayWaitExit = 1U << 7;
+
+struct FutureDelayBinding {
+    hbfsim::device::EvalFutureDelayRecord* record{nullptr};
+    bool requested{false};
+    bool valid{false};
+};
+
+__device__ bool future_delay_record_is_zero(
+    const hbfsim::device::EvalFutureDelayRecord& record)
+{
+    return record.launch_epoch == 0 && record.configured_delay_ns == 0 &&
+        record.helper_entry_ns == 0 && record.arrival_ns == 0 &&
+        record.helper_issue_exit_ns == 0 &&
+        record.native_instruction_after_ns == 0 && record.work_begin_ns == 0 &&
+        record.work_end_ns == 0 && record.wait_enter_ns == 0 &&
+        record.wait_exit_ns == 0 && record.consumer_after_ns == 0 &&
+        record.ready_ns == 0 && record.reservation_id == 0 &&
+        record.lane == 0 && record.status == 0 && record.valid_bits == 0 &&
+        record.work_count == 0 && record.output_bits == 0;
+}
+
+__device__ bool future_delay_config_is_zero(
+    const hbfsim::device::EvalFutureDelayConfig& config)
+{
+    return config.magic == 0 && config.abi_version == 0 &&
+        config.struct_bytes == 0 && config.enabled == 0 &&
+        config.expected_instruction_id == 0 && config.delay_ns == 0 &&
+        config.launch_epoch == 0 && config.input_base == 0 &&
+        config.input_bytes == 0 && config.records_address == 0 &&
+        config.records_bytes == 0 && config.record_count == 0 &&
+        config.record_stride == 0 && config.grid_x == 0 &&
+        config.block_x == 0 && config.work_count == 0 && config.reserved == 0;
+}
+
+__device__ FutureDelayBinding future_delay_bind(
+    std::uint64_t address, std::uint32_t bytes, std::uint32_t instruction,
+    std::uint64_t arrival)
+{
+    using Config = hbfsim::device::EvalFutureDelayConfig;
+    using Record = hbfsim::device::EvalFutureDelayRecord;
+    const auto config = __hbfsim_eval_future_delay_config_v1;
+    if (future_delay_config_is_zero(config)) return {};
+    FutureDelayBinding result{nullptr, true, false};
+    const auto lane = lane_id();
+    if (config.magic != hbfsim::device::kEvalFutureDelayMagic ||
+        config.abi_version != hbfsim::device::kEvalFutureDelayAbi ||
+        config.struct_bytes != sizeof(Config) || config.enabled != 1 ||
+        config.expected_instruction_id != instruction || bytes != 4 ||
+        (config.delay_ns != 0 && config.delay_ns != 20'000) ||
+        !config.launch_epoch || !config.input_base || config.input_bytes != 128 ||
+        config.input_base % alignof(std::uint32_t) ||
+        !config.records_address || config.records_address % alignof(Record) ||
+        config.records_bytes != 32ULL * sizeof(Record) ||
+        config.record_count != hbfsim::device::kEvalFutureDelayRecords ||
+        config.record_stride != sizeof(Record) || config.grid_x != 1 ||
+        config.block_x != 32 ||
+        (config.work_count != 0 && config.work_count != 4096) || config.reserved ||
+        gridDim.x != 1 || gridDim.y != 1 || gridDim.z != 1 ||
+        blockDim.x != 32 || blockDim.y != 1 || blockDim.z != 1 || lane >= 32 ||
+        config.input_base > UINT64_MAX - config.input_bytes ||
+        config.records_address > UINT64_MAX - config.records_bytes ||
+        address > UINT64_MAX - bytes || arrival > UINT64_MAX - config.delay_ns)
+        return result;
+    const auto input_end = config.input_base + config.input_bytes;
+    const auto records_end = config.records_address + config.records_bytes;
+    if (!(input_end <= config.records_address ||
+          records_end <= config.input_base) ||
+        address != config.input_base + std::uint64_t{lane} * sizeof(std::uint32_t) ||
+        address + bytes > input_end)
+        return result;
+    auto* records = reinterpret_cast<Record*>(
+        static_cast<std::uintptr_t>(config.records_address));
+    auto* record = &records[lane];
+    if (!future_delay_record_is_zero(*record)) return result;
+    record->launch_epoch = config.launch_epoch;
+    record->configured_delay_ns = config.delay_ns;
+    record->helper_entry_ns = 0;
+    record->arrival_ns = arrival;
+    record->helper_issue_exit_ns = 0;
+    record->ready_ns = 0;
+    record->reservation_id = 0;
+    record->lane = lane;
+    record->status = future::kPending;
+    record->work_count = config.work_count;
+    record->valid_bits = kFutureDelayArrival;
+    result.record = record;
+    result.valid = true;
+    return result;
+}
+
+__device__ hbfsim::device::EvalFutureDelayRecord* future_delay_existing(
+    std::uint32_t instruction, std::uint32_t bytes)
+{
+    using Config = hbfsim::device::EvalFutureDelayConfig;
+    using Record = hbfsim::device::EvalFutureDelayRecord;
+    const auto config = __hbfsim_eval_future_delay_config_v1;
+    const auto lane = lane_id();
+    if (config.magic != hbfsim::device::kEvalFutureDelayMagic ||
+        config.abi_version != hbfsim::device::kEvalFutureDelayAbi ||
+        config.struct_bytes != sizeof(Config) || config.enabled != 1 ||
+        config.expected_instruction_id != instruction || bytes != 4 ||
+        (config.delay_ns != 0 && config.delay_ns != 20'000) ||
+        !config.launch_epoch || !config.input_base || config.input_bytes != 128 ||
+        config.input_base > UINT64_MAX-config.input_bytes ||
+        lane >= 32 || !config.records_address ||
+        config.records_address % alignof(Record) ||
+        config.records_address > UINT64_MAX-config.records_bytes ||
+        config.records_bytes != 32ULL * sizeof(Record) ||
+        config.record_count != 32 || config.record_stride != sizeof(Record) ||
+        config.grid_x != 1 || config.block_x != 32 ||
+        (config.work_count != 0 && config.work_count != 4096) || config.reserved ||
+        gridDim.x != 1 || gridDim.y != 1 || gridDim.z != 1 ||
+        blockDim.x != 32 || blockDim.y != 1 || blockDim.z != 1)
+        return nullptr;
+    const auto input_end=config.input_base+config.input_bytes;
+    const auto records_end=config.records_address+config.records_bytes;
+    if (!(input_end<=config.records_address || records_end<=config.input_base))
+        return nullptr;
+    auto* record = reinterpret_cast<Record*>(
+        static_cast<std::uintptr_t>(config.records_address)) + lane;
+    if (record->launch_epoch != config.launch_epoch || record->lane != lane ||
+        record->work_count != config.work_count ||
+        record->configured_delay_ns != config.delay_ns ||
+        !(record->valid_bits & kFutureDelayArrival))
+        return nullptr;
+    return record;
+}
+#endif
 
 __device__ SharedControlHeader* future_header()
 {
@@ -938,7 +1136,20 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
     namespace tf=hbfsim::timing_future;
     auto& counters=__hbfsim_timing_future_counters_v1;
     tf::DeviceTimingFutureV1 f{};f.original_address=address;
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+    const auto diagnostic_helper_entry=EvalDelayClock{}();
+    hbfsim::device::EvalFutureDelayRecord* diagnostic_record=nullptr;
+#endif
     const auto reject=[&](std::uint32_t status) {
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+        if (diagnostic_record) {
+            diagnostic_record->helper_issue_exit_ns=EvalDelayClock{}();
+            diagnostic_record->status=status;
+            diagnostic_record->valid_bits|=kFutureDelayIssueExit;
+        }
+#endif
         (void)system_fetch_add(&counters.rejected,1);f.state=tf::State::TerminalError;f.status=status;return f;
     };
     if (!future_local(metadata) || !tf::can_issue(static_cast<tf::State>(old_state)) ||
@@ -952,6 +1163,22 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
     const auto arrival=EvalDelayClock{}();f.issue_ns=arrival;f.ready_ns=arrival;
     if (arrival>UINT64_MAX-h->request_timeout_ns) return reject(tf::kUnsupported);
     f.deadline_ns=arrival+h->request_timeout_ns;
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+    const auto diagnostic=future_delay_bind(address,bytes,instruction,arrival);
+    diagnostic_record=diagnostic.record;
+    if (diagnostic.requested &&
+        (!diagnostic.valid || arrival+diagnostic_record->configured_delay_ns>=f.deadline_ns)) {
+        // The transformed caller's native load follows this helper. A hard
+        // diagnostic rejection keeps malformed configuration from reaching it.
+        asm volatile("trap;");
+        return reject(tf::kUnsupported);
+    }
+    if (diagnostic_record) {
+        diagnostic_record->helper_entry_ns=diagnostic_helper_entry;
+        diagnostic_record->valid_bits|=kFutureDelayHelperEntry;
+    }
+#endif
     if (const auto live=future_liveness(h,f.control_generation,arrival)) return reject(live);
     if (!range || address<range->base || address-range->base>=range->length) {
         f.state=tf::State::Native;f.status=tf::kReady;
@@ -992,7 +1219,14 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
             if(!r.valid) {status=tf::kUnsupported;break;}
             auto expected=tail;
             if(system_compare_exchange(&h->fast_channel_tail_ns,expected,r.transfer_end_ns)) {
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+                ready=diagnostic_record
+                    ? arrival+diagnostic_record->configured_delay_ns
+                    : r.ready_ns;
+#else
                 ready=r.ready_ns;
+#endif
                 (void)system_fetch_add(&h->fast_request_sequence,1);
                 (void)system_fetch_add(&counters.groups_issued,1);break;
             }
@@ -1009,6 +1243,17 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
     if(!future_trace(f,*metadata,0,EvalDelayClock{}())) {
         const auto error=tf::fail_state(f,tf::kUnsupported);future_account(h,f,*metadata,error);
     }
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+    if (diagnostic_record) {
+        diagnostic_record->arrival_ns=f.issue_ns;
+        diagnostic_record->ready_ns=f.ready_ns;
+        diagnostic_record->reservation_id=f.reservation_id;
+        diagnostic_record->status=f.status;
+        diagnostic_record->helper_issue_exit_ns=EvalDelayClock{}();
+        diagnostic_record->valid_bits|=kFutureDelayIssueExit;
+    }
+#endif
     return f;
 }
 
@@ -1030,6 +1275,18 @@ __hbfsim_timing_future_wait_v1(hbfsim::timing_future::DeviceTimingFutureV1* f,
     namespace tf=hbfsim::timing_future;
     if (!future_local(f) || !future_local(metadata)) return {};
     const auto enter=EvalDelayClock{}();
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+    auto* diagnostic_record=future_delay_existing(instruction,bytes);
+    const bool diagnostic_requested=
+        !future_delay_config_is_zero(__hbfsim_eval_future_delay_config_v1);
+    if (diagnostic_requested && !diagnostic_record)
+        return {0,tf::kUnsupported,tf::State::TerminalError};
+    if (diagnostic_record) {
+        diagnostic_record->wait_enter_ns=enter;
+        diagnostic_record->valid_bits|=kFutureDelayWaitEnter;
+    }
+#endif
     auto* h=future_header();
     WaitState watch{f->deadline_ns,h ? system_acquire(&h->heartbeat_ns) : 0,enter};
     for (;;) {
@@ -1037,10 +1294,28 @@ __hbfsim_timing_future_wait_v1(hbfsim::timing_future::DeviceTimingFutureV1* f,
         const auto status=future_transition(*f,*metadata,instruction,bytes,h,now,
             future_liveness(h,f->control_generation,now,&watch),true,static_cast<tf::WaitKind>(wait_kind));
         if (status==tf::kPending) continue;
-        if (status!=tf::kReady) return {0,status,f->state};
+        if (status!=tf::kReady) {
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+            if (diagnostic_record) {
+                diagnostic_record->wait_exit_ns=EvalDelayClock{}();
+                diagnostic_record->status=status;
+                diagnostic_record->valid_bits|=kFutureDelayWaitExit;
+            }
+#endif
+            return {0,status,f->state};
+        }
         // The value is an actual call input and output. C6 must verify the
         // optimized native-load -> wait-result -> consumer SASS dependency.
         asm volatile("mov.b64 %0, %0;" : "+l"(native_bits) : : "memory");
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+        if (diagnostic_record) {
+            diagnostic_record->wait_exit_ns=EvalDelayClock{}();
+            diagnostic_record->status=status;
+            diagnostic_record->valid_bits|=kFutureDelayWaitExit;
+        }
+#endif
         return {native_bits,status,f->state};
     }
 }

@@ -169,6 +169,19 @@ class RouteHorizonInputTests(unittest.TestCase):
             self.assertTrue(all(r['topk_expert_ids']==original[32+r['source_token_step']][r['layer_id']] for r in rows))
             self.assertEqual(data['route_horizon']['series'],series)
 
+    def test_acquire_uses_each_artifact_role_byte_limit(self):
+        snapshots,index,_,_,_,_=self.fixture
+        large=b'{}\n'*(((20<<20)//3)+1)
+        path=self.base/'large-routing.jsonl';path.write_bytes(large)
+        routing=copy.deepcopy(index)
+        routing['artifacts']['routing_trace']=dict(path=str(path),sha256=bridge.sha(large))
+        _,acquired=bridge.acquire(canonical(routing))
+        self.assertEqual(acquired['routing_trace'],large)
+        runtime=copy.deepcopy(index)
+        runtime['artifacts']['runtime_manifest']=dict(path=str(path),sha256=bridge.sha(large))
+        with self.assertRaisesRegex(ValueError,'artifact file type/size'):
+            bridge.acquire(canonical(runtime))
+
     def test_wrong_identity_gap_slot_or_synthetic_claim_rejects_before_service(self):
         snapshots,index,buffers,hf,_,_=self.fixture
         cases=[('missing middle',lambda e:e['decode_intervals'][2].update(elapsed_ms=None,elapsed_ns=None), 'interval successor/encoding'),

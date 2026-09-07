@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 from pathlib import Path
+import stat
 
 from budget_fast_tier import budget_fast_tier
 from evaluation_inventory import load_hf_snapshot, validate_evaluation_inventory
-from freeze_storage_split import regular_bytes
 from hf_route_array import decode_route_array
 from prefetch_replay import MAX_TIME, validate_nodes
 from routing_metrics import compose_routes
@@ -32,6 +33,21 @@ def require(condition,message):
 
 
 def sha(raw):return hashlib.sha256(raw).hexdigest()
+
+
+def regular_bytes(path, limit):
+    """Read one exact regular file under its artifact-specific byte bound."""
+    descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(descriptor,'rb') as stream:
+        before=os.fstat(stream.fileno())
+        require(stat.S_ISREG(before.st_mode) and before.st_size<=limit,
+                'artifact file type/size')
+        raw=stream.read(limit+1)
+        after=os.fstat(stream.fileno())
+    require((before.st_dev,before.st_ino,before.st_size)==
+            (after.st_dev,after.st_ino,after.st_size) and len(raw)==before.st_size,
+            'artifact changed/oversized during read')
+    return raw
 
 
 def milliseconds(value):
@@ -56,7 +72,7 @@ def acquire(index_raw):
         require(path.is_absolute() and path.is_relative_to(ROOT) and
                 path.resolve(strict=True)==path and path not in paths,'artifact path/alias')
         paths.add(path)
-        raw=regular_bytes(path)
+        raw=regular_bytes(path,LIMITS[name])
         require(len(raw)<=LIMITS[name] and sha(raw)==item['sha256'],'artifact bytes/hash '+name)
         buffers[name]=raw
     return index,buffers

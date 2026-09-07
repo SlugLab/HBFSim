@@ -999,6 +999,10 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
             add_test(NAME timing_future_emitter_cpu COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_future_emitter.py"
                 "$<TARGET_FILE:ptx_future_emit_driver>")
+            add_test(NAME timing_future_globaltimer_cpu COMMAND "${HBFSIM_PYTHON3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/test_future_globaltimer.py"
+                "$<TARGET_FILE:ptx_future_emit_driver>")
+            set_tests_properties(timing_future_globaltimer_cpu PROPERTIES TIMEOUT 30)
             add_executable(timing_future_store_guard_test tests/cpu/timing_future_store_guard_test.cpp)
             target_include_directories(timing_future_store_guard_test PRIVATE include src/cuda_runtime/device)
             target_compile_definitions(timing_future_store_guard_test PRIVATE HBFSIM_ENABLE_TIMING_FUTURES=1)

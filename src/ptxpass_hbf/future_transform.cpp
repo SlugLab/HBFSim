@@ -19,6 +19,7 @@ unsigned bits(const std::string& type) {
     return type=="pred" ? 1 : static_cast<unsigned>(std::stoul(type.substr(1)));
 }
 std::string type_of(const Function& function,const std::string& operand) {
+    if(operand=="%globaltimer") return "u64";
     if(auto it=function.register_types.find(operand);it!=function.register_types.end()) return it->second;
     static const std::regex special(R"(^%(?:(?:tid|ntid|ctaid|nctaid)\.[xyz]|laneid|warpid|warpsize)$)");
     if(std::regex_match(operand,special)) return "u32";
@@ -36,7 +37,16 @@ void validate_types(const Function& f,const Instruction& i) {
         if(!std::regex_match(i.predicate,predicate) || type_of(f,i.predicate.substr(i.predicate[1]=='!'?2:1))!="pred")
             throw ParseError("invalid producer/consumer predicate");
     }
-    for(const auto& r:i.defs) if(!f.register_types.contains(r)) throw ParseError("invalid destination register");
+    // The diagnostic clock is a read-only special register. Keep the admitted
+    // form narrow: copy its full 64-bit value before doing ordinary arithmetic.
+    for(const auto& r:i.defs)
+        if(r=="%globaltimer" || !f.register_types.contains(r))
+            throw ParseError("invalid destination register");
+    for(const auto& r:i.uses)
+        if(r=="%globaltimer" &&
+           ((i.opcode!="mov.u64" && i.opcode!="mov.b64") ||
+            i.operands.size()!=2 || i.operands[1]!="%globaltimer"))
+            throw ParseError("globaltimer requires a full-width move source");
     for(const auto& r:i.uses) (void)type_of(f,r);
     const auto p=parts(i.opcode);const auto type=p.back();
     const auto operand_type=[&](const std::string& operand,const std::string& expected,bool wider=false) {
@@ -195,6 +205,8 @@ FutureEmission emit_timing_futures(std::string_view source,std::string_view kern
         throw ParseError("reserved future/helper identifier collision");
     auto module=parse_module_spanned(source,kernel);const auto& f=module.function(kernel);
     if(!f.entry)throw ParseError("future emission requires an entry kernel");
+    if(f.register_types.contains("%globaltimer"))
+        throw ParseError("globaltimer cannot be declared as a general register");
     if(f.required_thread_dimensions) {
         const auto& dimensions=*f.required_thread_dimensions;
         const auto required=std::uint64_t{dimensions[0]}*dimensions[1]*dimensions[2];

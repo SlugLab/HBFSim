@@ -96,7 +96,8 @@ void write(const std::string& path, const std::string& value)
 struct Options {
     std::string treatment, occupancy, profile, plugin, ptx, output, report_dir;
     std::string trace_mode = "legacy";
-    unsigned hops = 0, warps = 0, delay_ns = 0;
+    unsigned hops = 0, warps = 0, delay_ns = 0, diagnostic_blocks = 0;
+    bool diagnostic_blocks_set = false;
 };
 unsigned number(const std::string& text)
 {
@@ -123,7 +124,10 @@ Options options(int argc, char** argv)
         else if (key == "--hops") o.hops = number(value);
         else if (key == "--warps") o.warps = number(value);
         else if (key == "--delay-ns") o.delay_ns = number(value);
-        else throw std::runtime_error("unknown option " + key);
+        else if (key == "--diagnostic-blocks") {
+            o.diagnostic_blocks = number(value);
+            o.diagnostic_blocks_set = true;
+        } else throw std::runtime_error("unknown option " + key);
     }
     require(o.treatment == "native" || o.treatment == "fast_logical" || o.treatment == "hbf_logical", "explicit treatment required");
     require(o.occupancy == "low" || o.occupancy == "high", "explicit occupancy required");
@@ -132,6 +136,10 @@ Options options(int argc, char** argv)
             "invalid trace mode");
     require(o.hops == 1 || o.hops == 16 || o.hops == 64, "K must be 1/16/64");
     require(o.warps && o.warps <= 16 && (o.warps & (o.warps - 1)) == 0, "invalid warp count");
+    require(!o.diagnostic_blocks_set ||
+                (o.trace_mode == "per_chain_abba" &&
+                 o.diagnostic_blocks == 1),
+            "diagnostic block override requires per_chain_abba and one block");
     require(!o.profile.empty() && !o.plugin.empty() && !o.ptx.empty() && !o.output.empty() && !o.report_dir.empty(), "missing explicit artifact paths");
     const auto profile = json::parse(read(o.profile));
     require(profile.at("time_scale").get<unsigned>() == 1 && profile.at("read_latency_ns").get<std::uint64_t>() > 0 &&
@@ -507,9 +515,13 @@ int main(int argc, char** argv)
         int maximum = 0;
         driver(cuOccupancyMaxActiveBlocksPerMultiprocessor(&maximum, kernel, o.warps * 32, shared), "occupancy limit");
         require(maximum > 0 && (o.occupancy == "low" ? maximum == 1 : maximum > 1), "requested occupancy unsupported");
-        // Geometry is fixed across all treatments by SM count and warp count,
-        // not by the treatment's changed register allocation/theoretical limit.
-        const unsigned block_count = props.multiProcessorCount * (o.occupancy == "low" ? 1 : 32 / o.warps);
+        // The established default geometry remains fixed across treatments.
+        // The explicit ABBA-only diagnostic selector instead launches one block.
+        const unsigned default_block_count =
+            props.multiProcessorCount *
+            (o.occupancy == "low" ? 1 : 32 / o.warps);
+        const unsigned block_count =
+            o.diagnostic_blocks_set ? o.diagnostic_blocks : default_block_count;
         const unsigned chain_count = block_count * o.warps;
         const std::size_t trace_count = std::size_t{chain_count} * o.hops;
         runtime(cudaMalloc(&chains_device, chain_count * sizeof(DelayChain)), "allocate chains");
@@ -619,6 +631,10 @@ int main(int argc, char** argv)
                 {"g2_gate_closed", false},
                 {"trace_mode", "per_chain_abba"},
                 {"treatment", o.treatment},
+                {"diagnostic_blocks_requested", o.diagnostic_blocks},
+                {"actual_grid_blocks", block_count},
+                {"actual_chain_rows", chain_count},
+                {"actual_events_per_row", o.hops + 7},
                 {"warmup_delay_ns", 500},
                 {"sequence_delay_ns", json::array({0, 500, 500, 0})},
                 {"module_load_count", 1},

@@ -178,6 +178,10 @@ class KnownDelayPerChainAbbaTests(unittest.TestCase):
             "g2_gate_closed": False,
             "trace_mode": "per_chain_abba",
             "treatment": "hbf_logical",
+            "diagnostic_blocks_requested": 1,
+            "actual_grid_blocks": 1,
+            "actual_chain_rows": 1,
+            "actual_events_per_row": 8,
             "warmup_delay_ns": 500,
             "sequence_delay_ns": [0, 500, 500, 0],
             "module_load_count": 1,
@@ -190,6 +194,10 @@ class KnownDelayPerChainAbbaTests(unittest.TestCase):
         report = abba.analyze_abba(self.fixture())
         self.assertEqual(report["validation_status"], "CAPTURED_UNVALIDATED")
         self.assertFalse(report["g2_gate_closed"])
+        self.assertEqual(report["diagnostic_geometry"], {
+            "diagnostic_blocks_requested": 1, "actual_grid_blocks": 1,
+            "actual_chain_rows": 1, "actual_events_per_row": 8,
+        })
         self.assertEqual(
             [pair["signed_event_delta_ns"] for pair in report["pairs"]],
             [-200, -300],
@@ -219,6 +227,10 @@ class KnownDelayPerChainAbbaTests(unittest.TestCase):
             "producer-pairs": lambda raw: raw.__setitem__("pairs", [{"delta": 0}]),
             "identity": lambda raw: raw["launches"][3]["shared_runtime_identity"]
                 .__setitem__("module_handle", 999),
+            "grid-marker": lambda raw: raw.__setitem__(
+                "actual_grid_blocks", 2),
+            "launch-grid": lambda raw: raw["launches"][2].__setitem__(
+                "blocks", 2),
         }
         for name, mutate in mutations.items():
             raw = self.fixture()

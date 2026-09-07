@@ -27,6 +27,10 @@ GPU_UUID = "GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174"
 SEQUENCE = ((0, "A_D0", 2), (500, "B_D500", 3),
             (500, "B_D500", 4), (0, "A_D0", 5))
 PAIRS = ((0, 1), (3, 2))  # Each tuple is (zero launch, adjacent target launch).
+SINGLE_BLOCK_GEOMETRY = {
+    "diagnostic_blocks_requested": 1, "actual_grid_blocks": 1,
+    "actual_chain_rows": 1, "actual_events_per_row": 8,
+}
 CHILD_TIMEOUT_SECONDS = 30
 
 
@@ -118,6 +122,8 @@ def analyze_abba(raw: dict) -> dict:
             raw.get("g2_gate_closed") is not False or
             raw.get("trace_mode") != "per_chain_abba" or
             raw.get("treatment") != "hbf_logical" or
+            any(not _u64(raw.get(key)) or raw[key] != value
+                for key, value in SINGLE_BLOCK_GEOMETRY.items()) or
             raw.get("warmup_delay_ns") != 500 or
             raw.get("sequence_delay_ns") != [0, 500, 500, 0] or
             raw.get("module_load_count") != 1 or
@@ -147,6 +153,7 @@ def analyze_abba(raw: dict) -> dict:
                 launch.get("trace_mode") != "per_chain" or
                 launch.get("treatment") != "hbf_logical" or
                 launch.get("hops") != 1 or launch.get("warps") != 1 or
+                launch.get("blocks") != 1 or
                 launch.get("occupancy") != "low" or
                 launch.get("validation") != "PASS" or
                 launch.get("config_readback_before_launch_exact") is not True or
@@ -157,6 +164,9 @@ def analyze_abba(raw: dict) -> dict:
         if (type(diagnostic) is not dict or
                 diagnostic.get("delay_ns") != delay or
                 diagnostic.get("launch_epoch") != epoch or
+                diagnostic.get("grid_x") != 1 or
+                diagnostic.get("row_count") != 1 or
+                diagnostic.get("trace_capacity") != 8 or
                 diagnostic.get("storage_address") != identity["storage_address"] or
                 diagnostic.get("chain_output_address") !=
                     identity["chain_output_address"] or
@@ -224,7 +234,8 @@ def analyze_abba(raw: dict) -> dict:
         "validation_status": "CAPTURED_UNVALIDATED",
         "scientific_claim": False,
         "g2_gate_closed": False,
-        "scope": "same-process K1/W1/low ABBA diagnostic; no G2 decision",
+        "scope": "same-process single-block K1/W1/low ABBA diagnostic; no G2 decision",
+        "diagnostic_geometry": dict(SINGLE_BLOCK_GEOMETRY),
         "sequence_delay_ns": [0, 500, 500, 0],
         "pairs": pairs,
     }
@@ -272,6 +283,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
         "expected_head": expected_head,
         "condition": {"hops": 1, "warps": 1, "occupancy": "low",
                       "trace_mode": "per_chain_abba",
+                      "diagnostic_blocks": 1,
                       "sequence_delay_ns": [0, 500, 500, 0]},
         "inputs": {name: {"path": str(paths[name]), "sha256": sha256(data),
                           "bytes": len(data)} for name, data in frozen.items()},
@@ -310,6 +322,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
                 "--plugin", str(paths["plugin"]), "--ptx", str(paths["ptx"]),
                 "--output", str(directory / "raw.json"), "--report-dir",
                 str(directory / "reports"), "--trace-mode", "per_chain_abba",
+                "--diagnostic-blocks", "1",
             ]
             manifest["commands"]["abba"] = argv
             atomic_json(out / "manifest.json", manifest)
@@ -385,7 +398,8 @@ def main() -> int:
     plan = {
         "resource_class": "GPU_EXCLUSIVE", "gpu_uuid": args.gpu_uuid,
         "condition": {"hops": 1, "warps": 1, "occupancy": "low",
-                      "trace_mode": "per_chain_abba"},
+                      "trace_mode": "per_chain_abba",
+                      "diagnostic_blocks": 1},
         "warmup_delay_ns": 500, "sequence_delay_ns": [0, 500, 500, 0],
         "pairs": [{"zero": 0, "target": 1}, {"zero": 3, "target": 2}],
         "child_timeout_seconds": CHILD_TIMEOUT_SECONDS,

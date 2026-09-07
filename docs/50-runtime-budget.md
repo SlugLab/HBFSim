@@ -4,6 +4,12 @@
 
 | Observation | Process wall time | Boundary |
 | --- | ---: | --- |
+| EQ4/G9 routing_capture-01469 pilot | 175.133469447 s | One model load and 16 sequential single-sequence generates; fixed synthetic prompts, no live B=8 or generation-performance claim |
+| routing_capture-01469 GPU guard telemetry | 113 samples | At most one sampled GPU process, observed peak 59,106 MiB and final empty process list; sampled value is not a hard bound and timestamps are not aligned to model work |
+| routing_capture-01469 independent arithmetic | 20.845955406 s | 2 GiB/180 s bounded CPU process, 365,980 KiB peak RSS; 12 consistency checks only |
+| routing_capture-01469 projected wave 0 metrics | 4.239253894 s | 618,516 KiB peak RSS; 336 B8 step-layer rows, 2,688 decode routes and 21,504 expert accesses; trace composed |
+| routing_capture-01469 projected wave 1 metrics | 4.437069891 s | 620,624 KiB peak RSS; same bounded counts; no capture certification or live scheduling |
+| routing_capture-01469 projected statistics | 0.517574897 s | 67,896 KiB peak RSS; nine retained evidence files hash verified; descriptive pooled metrics only, no causal, cache-hit or performance claim |
 | HF012 native/capture/repeat triplet | 451.929812513 s | Three arms returned identical tokens; only capture/repeat routes match; not generation latency or a formal cell |
 | P7 route-horizon attempt001 | 0.318749618 s | Failed at bounded routing-trace input read; no service/cell |
 | P7 route-horizon attempt002 | 5.136081178 s | HF bridge passed; MQSim `std::bad_alloc` before first header under 2 GiB AS; no cell |

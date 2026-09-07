@@ -1,9 +1,37 @@
 # Run status — implementation in progress
 
-## Actual checkpoint: HF012, P7 requested rho controls and C6 fixed work (2026-09-07)
+## Actual checkpoint: HF012, P7, C6 and routing_capture-01469 (2026-09-07)
 
 All records in this section are standalone diagnostics. Formal DONE remains 0.
 
+- One bounded original EQ4/G9 `routing_capture-01469` pilot completed at source
+  commit `5d73bdd9317ce43cc3eacd80cdfbffeebed5cee0`. A single loaded model ran 16
+  sequential single-sequence requests in 175.133469447 s using fixed synthetic
+  32-token slabs and eight generated tokens. IDs 0 through 15, all 16 outputs
+  and all 16 `[39,48,8]` route arrays are distinct. The capture retains 70
+  hash-bound artifacts, 29,952 routing events (24,576 prefill/5,376 decode),
+  239,616 expert accesses and 718,848 tensor accesses; owned cleanup completed.
+  A 2 GiB/180 s independent arithmetic process passed all 12 checks in
+  20.845955406 s with 365,980 KiB maximum RSS; its eight retained evidence
+  files were hash verified. The retained statuses
+  are `PROVISIONAL_ROUTING_CAPTURE_RETURNED_UNVALIDATED` and
+  `ARITHMETIC_CONSISTENCY_ONLY_COMPLETE_UNVALIDATED`.
+- The seed-0 member indexes were analyzed as two offline B=8 waves. The two CPU
+  stages took 4.239253894/4.437069891 s at 618,516/620,624 KiB maximum RSS.
+  Each wave has 336 step-layer rows, 2,688 decode routes and 21,504 expert
+  accesses, or 5,376/43,008 per real or shuffled series across both waves.
+  Status is `PROJECTED_TWO_B8_WAVES_COMPLETE_NOT_CAPTURE_CERTIFIED`. A separate
+  0.517574897 s descriptive pass reports pooled real/shuffled unique-expert
+  union 30.751488/31.568452, previous-step Jaccard 0.550686/0.516446 and
+  entropy 4.601714/4.650080 bits, versus the uniform analytical-null union
+  51.619907. Both series have 5,750 first and 37,258 finite reuse-distance
+  accesses; finite reuse is not a cache hit. These are trace-composed waves
+  from sequential captures, with no live scheduler
+  timestamps. Natural prompts, live B=8 scheduling, five repeats, performance,
+  route-origin certification and full G9 remain open.
+  The combined review is under
+  `sixteen-member-data-review-attempt-001/` (manifest SHA256
+  `75d9fecdbca90aa10b543ff33a339b8d14c2054ba3c8c8bbb6541e8400b9caae`).
 - HF012 completed native/capture/repeat in 451.929812513 s. All arms returned
   identical generated tokens. Native did not capture routing. Capture/repeat each
   retain 384 router-call events (48 layers x eight forwards), eight saves and 39

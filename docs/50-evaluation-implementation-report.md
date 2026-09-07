@@ -1,6 +1,57 @@
 # Phase-two implementation checkpoint — ongoing
 
-## Current actual checkpoint — HF012, P7 and C6 (2026-09-07)
+## Current actual checkpoint — HF012, P7, C6 and routing_capture-01469 (2026-09-07)
+
+The original EQ4/G9 `routing_capture-01469` cell now has one bounded real
+capture pilot at source commit
+`5d73bdd9317ce43cc3eacd80cdfbffeebed5cee0`. One loaded Qwen model served 16
+sequential single-sequence requests in 175.133469447 s. The fixed 32-token
+control slabs cover token IDs 1000 through 1511; each request generated eight
+tokens. The capture retained request IDs 0 through 15, 16 distinct output
+sequences and 70 hash-bound artifacts. It contains 29,952 routing events
+(24,576 prefill and 5,376 decode), 239,616 expert accesses and 718,848 tensor
+accesses. The independent bounded arithmetic review passed 12 checks in
+20.845955406 s at 365,980 KiB maximum RSS: all 16 prompts, request IDs, output
+sequences and `[39,48,8]` route arrays are distinct, and the eight retained
+evidence files in the arithmetic receipt matched their hashes. Its status remains
+`ARITHMETIC_CONSISTENCY_ONLY_COMPLETE_UNVALIDATED`; evidence is
+`results/gold/hf-routing-runner/sixteen-member-arithmetic-review-attempt-001/`
+(manifest SHA256
+`fbd4e2965aa955b9b354efe18d7093798c46b2a0d9e2e4a89082349189eb9826`).
+
+The two fixed seed-0 index groups were processed as two offline B=8
+waves. The CPU stages took 4.239253894/4.437069891 s and reached
+618,516/620,624 KiB maximum RSS. Each wave retained 336 B8 step-layer rows,
+2,688 decode routes and 21,504 expert accesses, giving 5,376 routes and 43,008
+expert accesses per real or shuffled series across both waves. The execution
+status is `PROJECTED_TWO_B8_WAVES_COMPLETE_NOT_CAPTURE_CERTIFIED`; its manifest
+SHA256 is `186f4434ad4786aa91a9f7c340d45d88162d9b30cd95d4ba6248efd6f28f4f19`
+and execution SHA256 is
+`628439232d9459b848d02f2bf6b48c259d7dc0e1060d99944395c09675375dcc`.
+The independent descriptive-statistics pass completed in 0.517574897 s
+at 67,896 KiB maximum RSS; its nine retained evidence files were hash verified.
+
+| Pooled series | Mean unique-expert union | Mean previous-step Jaccard | Mean entropy, bits |
+| --- | ---: | ---: | ---: |
+| Real | 30.751488 | 0.550686 | 4.601714 |
+| Shuffled | 31.568452 | 0.516446 | 4.650080 |
+| Uniform analytical null | 51.619907 | — | — |
+
+Both observed series contain 5,750 first accesses and 37,258 finite
+reuse-distance accesses out of 43,008. Finite reuse is not a cache-hit claim.
+The statistics status is `PROJECTED_TRACE_COMPOSED_DESCRIPTIVE_STATISTICS`;
+its manifest SHA256 is
+`0ae0105b327788edcf86518dee638f55a10fd0ae314084bff31f273a1942bfdb`.
+The combined experiment and source-review bundle is
+`results/gold/hf-routing-runner/sixteen-member-data-review-attempt-001/`
+(manifest SHA256
+`75d9fecdbca90aa10b543ff33a339b8d14c2054ba3c8c8bbb6541e8400b9caae`).
+The 16 model calls were sequential and the two B=8 waves are trace composed,
+without live scheduler timestamps. The prompts are a synthetic token control
+set. This closes one bounded pilot for the named original cell; it does not
+complete G9, its five repeats, natural-prompt coverage, live B=8 concurrency,
+latency/performance validation, capture origin, scientific validation or any
+formal admission. Formal DONE remains 0.
 
 This update joins observations through the exact source and HEAD identities in
 their referenced receipts. HF012 returned all three real
@@ -217,12 +268,13 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Pre-document source checkpoint HEAD: `7ce8c2ca9a2733fe4b0b1462a11191ee3cd4ea29`.
-  HF012, the P7 capacity/latency replays, C6 lifecycle and single-block
-  known-delay acquisition each retain their own source and execution receipts;
+- Pre-document source checkpoint HEAD: `5d73bdd9317ce43cc3eacd80cdfbffeebed5cee0`.
+  HF012, the P7 capacity/latency replays, C6 lifecycle, single-block
+  known-delay acquisition and the routing-capture pilot each retain their own
+  source and execution receipts;
   this checkpoint does not retrospectively change those origins. Formal timing,
   performance, physical storage and matrix gates remain open.
-  See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf012-p7-requested-rho-controls-and-c6-fixed-work-2026-09-07).
+  See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf012-p7-c6-and-routing_capture-01469-2026-09-07).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.

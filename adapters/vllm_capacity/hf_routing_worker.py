@@ -7,10 +7,29 @@ the runtime worker is enabled. Its execution/cleanup entry point is still absent
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import random
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+ROUTING_CAPTURE_CELL = 'routing_capture-01469'
+ROUTING_CAPTURE_MEMBER_COUNT = 16
+ROUTING_CAPTURE_ACTIVE_SEQUENCES = 8
+ROUTING_CAPTURE_SEED = 0
+
+
+def fixed_prompt_members():
+    """Return the exact synthetic token controls for the bounded EQ4 pilot."""
+    return [list(range(1000 + 32 * member, 1032 + 32 * member))
+            for member in range(ROUTING_CAPTURE_MEMBER_COUNT)]
+
+
+def _canonical_hash(value):
+    raw = json.dumps(value, ensure_ascii=False, sort_keys=True,
+                     separators=(',', ':')).encode()
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _positive(value, name):
@@ -49,6 +68,92 @@ def make_protocol(receipt, config, prompt_token_ids):
         expected_counts=dict(event_count=39 * layers, prefill_event_count=32 * layers,
             decode_event_count=7 * layers, expert_access_count=39 * layers * top_k,
             tensor_access_count=39 * layers * top_k * 3))
+
+
+def make_capture_set_protocol(receipt, config, prompt_members, routing_capture):
+    """Validate the one approved 16-member, sequential capture control."""
+    expected_capture = dict(cell_id=ROUTING_CAPTURE_CELL,
+        member_count=ROUTING_CAPTURE_MEMBER_COUNT,
+        active_sequences=ROUTING_CAPTURE_ACTIVE_SEQUENCES,
+        composition_seed=ROUTING_CAPTURE_SEED,
+        composition_rule='two-fixed-waves-seed0-shuffled-slots-v1',
+        concurrency_kind='trace-composed', live_scheduler_trace=False,
+        actual_scheduler_timestamps=False,
+        prompt_source='FIXED_TOKEN_CONTROL_SET')
+    if type(routing_capture) is not dict or routing_capture != expected_capture:
+        raise ValueError('routing capture control differs from the fixed EQ4 pilot')
+    expected_members = fixed_prompt_members()
+    if type(prompt_members) is not list or prompt_members != expected_members:
+        raise ValueError('routing capture prompt members differ from the fixed control set')
+    controls = [make_protocol(receipt, config, prompt) for prompt in prompt_members]
+    if len({_canonical_hash(control['prompt_token_ids']) for control in controls}) != len(controls):
+        raise ValueError('routing capture prompt members are not unique')
+    counts = controls[0]['expected_counts']
+    return dict(schema_version=1, mode='MULTI_PROMPT_ROUTING_CAPTURE',
+        **expected_capture, prompt_members=expected_members,
+        prompt_members_sha256=_canonical_hash(expected_members),
+        input_len=32, output_len=8, vocab_size=controls[0]['vocab_size'],
+        layers=controls[0]['layers'], experts=controls[0]['experts'],
+        top_k=controls[0]['top_k'], route_shape=controls[0]['route_shape'],
+        source_kind=controls[0]['source_kind'], provenance=controls[0]['provenance'],
+        per_member_expected_counts=counts,
+        total_expected_counts={key: value * ROUTING_CAPTURE_MEMBER_COUNT
+                               for key, value in counts.items()})
+
+
+def make_trace_composition(protocol, members, member_indexes):
+    """Bind sixteen frozen member artifacts into two explicit B=8 waves."""
+    expected_capture = dict(cell_id=ROUTING_CAPTURE_CELL,
+        member_count=ROUTING_CAPTURE_MEMBER_COUNT,
+        active_sequences=ROUTING_CAPTURE_ACTIVE_SEQUENCES,
+        composition_seed=ROUTING_CAPTURE_SEED,
+        composition_rule='two-fixed-waves-seed0-shuffled-slots-v1',
+        concurrency_kind='trace-composed',live_scheduler_trace=False,
+        actual_scheduler_timestamps=False,prompt_source='FIXED_TOKEN_CONTROL_SET')
+    keys = {'ordinal','prompt_token_ids','request_id','raw_return_sha256',
+            'raw_routes_sha256','routing_path','routing_sha256','trace_summary_sha256'}
+    if type(protocol) is not dict or protocol.get('mode') != 'MULTI_PROMPT_ROUTING_CAPTURE' or \
+       any(protocol.get(key) != value for key,value in expected_capture.items()) or \
+       protocol.get('prompt_members') != fixed_prompt_members() or type(members) is not list or \
+       len(members) != ROUTING_CAPTURE_MEMBER_COUNT:
+        raise ValueError('invalid trace-composition inputs')
+    normalized=[];requests=set()
+    for ordinal,row in enumerate(members):
+        if type(row) is not dict or set(row) != keys or row['ordinal'] != ordinal or \
+           row['prompt_token_ids'] != protocol['prompt_members'][ordinal] or \
+           type(row['request_id']) is not str or not row['request_id'] or row['request_id'] in requests or \
+           type(row['routing_path']) is not str or not Path(row['routing_path']).is_absolute() or \
+           any(type(row[name]) is not str or len(row[name]) != 64 or
+               any(ch not in '0123456789abcdef' for ch in row[name])
+               for name in keys if name.endswith('_sha256')):
+            raise ValueError('invalid or reordered routing capture member')
+        requests.add(row['request_id']);normalized.append(dict(row))
+    if type(member_indexes) is not list or len(member_indexes) != 2:
+        raise ValueError('routing capture requires two frozen B=8 member indexes')
+    for wave,index in enumerate(member_indexes):
+        if type(index) is not dict or set(index) != {'wave_index','path','sha256'} or \
+           index['wave_index'] != wave or type(index['path']) is not str or \
+           not Path(index['path']).is_absolute() or type(index['sha256']) is not str or \
+           len(index['sha256']) != 64 or any(ch not in '0123456789abcdef' for ch in index['sha256']):
+            raise ValueError('invalid routing capture member index binding')
+    waves=[]
+    for wave in range(2):
+        ordinals=list(range(wave * 8,(wave + 1) * 8))
+        random.Random(ROUTING_CAPTURE_SEED).shuffle(ordinals)
+        selected=[normalized[ordinal] for ordinal in ordinals]
+        waves.append(dict(wave_index=wave, active_sequences=8,
+            member_ordinals=ordinals,
+            request_ids=[row['request_id'] for row in selected],
+            member_artifact_sha256=[_canonical_hash(row) for row in selected],
+            member_index=dict(member_indexes[wave])))
+    return dict(schema_version=1,status='TRACE_COMPOSED_ROUTING_CAPTURE',
+        cell_id=ROUTING_CAPTURE_CELL,member_count=16,active_sequences=8,
+        composition_seed=0,composition_rule='two-fixed-waves-seed0-shuffled-slots-v1',
+        event_order=['wave','route_token_index','layer_id','sequence_slot','topk_order'],
+        concurrency_kind='trace-composed',live_scheduler_trace=False,
+        actual_scheduler_timestamps=False,scientific_validation_passed=False,
+        prompt_source='FIXED_TOKEN_CONTROL_SET',prompt_representativeness='NOT_CLAIMED',
+        members_sha256=_canonical_hash(normalized),waves=waves)
 
 
 def llm_arguments(checkpoint, capture_enabled):

@@ -1055,9 +1055,11 @@ def _request(document, arm):
         "prompt_token_ids",
         "project_sources",
     }
+    multi_fields = fields | {"prompt_members", "routing_capture"}
+    multi = type(document) is dict and set(document) == multi_fields
     if (
         type(document) is not dict
-        or set(document) not in (fields, fields | {"capture_cuda_route_events"})
+        or set(document) not in (fields, fields | {"capture_cuda_route_events"}, multi_fields)
         or type(document["schema_version"]) is not int
         or document["schema_version"] != 1
         or type(document["arm"]) is not str
@@ -1077,6 +1079,18 @@ def _request(document, arm):
         or document["prompt_token_ids"] != list(range(1000, 1032))
     ):
         raise ValueError("worker arm/prompt control differs")
+    if multi:
+        expected_members = [list(range(1000 + 32 * member, 1032 + 32 * member))
+                            for member in range(16)]
+        expected_capture = dict(cell_id="routing_capture-01469", member_count=16,
+            active_sequences=8, composition_seed=0,
+            composition_rule="two-fixed-waves-seed0-shuffled-slots-v1",
+            concurrency_kind="trace-composed", live_scheduler_trace=False,
+            actual_scheduler_timestamps=False,
+            prompt_source="FIXED_TOKEN_CONTROL_SET")
+        if arm != "capture" or document["prompt_members"] != expected_members or \
+           document["routing_capture"] != expected_capture:
+            raise ValueError("worker multi-prompt capture differs from fixed EQ4 control")
     if (
         type(document["run_id"]) is not str
         or not 0 < len(document["run_id"]) <= 128
@@ -1157,7 +1171,7 @@ def _request(document, arm):
 
 
 def _loaded_plan(request, metadata_snapshot, runtime_snapshot, tuning_snapshot):
-    return dict(
+    plan = dict(
         capture_cuda_route_events=request.get("capture_cuda_route_events", False),
         metadata_snapshot=metadata_snapshot,
         runtime_snapshot=runtime_snapshot,
@@ -1171,6 +1185,10 @@ def _loaded_plan(request, metadata_snapshot, runtime_snapshot, tuning_snapshot):
         git_commit=request["git_commit"],
         environment_fingerprint=request["environment_fingerprint"],
     )
+    if "routing_capture" in request:
+        plan.update(prompt_members=request["prompt_members"],
+                    routing_capture=request["routing_capture"])
+    return plan
 
 
 def _install_project_paths():

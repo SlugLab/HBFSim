@@ -25,7 +25,7 @@ class LoadedArmTests(unittest.TestCase):
         base=ROOT/'results/gold/hf-routing-runner';base.mkdir(parents=True,exist_ok=True)
         temp=tempfile.TemporaryDirectory(prefix='.loaded-arm-test-',dir=base);self.addCleanup(temp.cleanup)
         self.base=Path(temp.name);meta=self.base/'metadata';meta.mkdir()
-        checkpoint,bundle=hf_fixture(meta)
+        checkpoint,bundle=hf_fixture(meta,vocab_size=4096)
         fixture=source_tests.RuntimeSourceTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
         fixture.prepare_tuning();runtime=fixture.collect_tuning()
         source_report=worker.hf_runtime_sources.validate_runtime_sources(runtime)
@@ -92,8 +92,11 @@ class LoadedArmTests(unittest.TestCase):
                 if test.failure=='native-reader-absent':del client.engine_core.scheduler.routed_experts_reader
                 if test.failure=='after-engine':raise RuntimeError('construction after engine')
             def generate(self,prompts,sampling,use_tqdm):
+                ordinal=len([event for event in test.events
+                             if isinstance(event,tuple) and event[0]=='generate'])
                 test.events.append(('generate',prompts,vars(sampling),use_tqdm))
-                if test.failure=='generate':raise RuntimeError('generation failed')
+                if test.failure=='generate' or test.failure=='generate-member-'+str(ordinal):
+                    raise RuntimeError('generation failed')
                 if test.failure=='binding-replaced':Capturer.get_instance=staticmethod(lambda:None)
                 if test.failure=='binding-class-removed':del module.RoutedExpertsCapturer
                 if test.failure=='reader-global-removed':del module._global_experts_reader
@@ -102,7 +105,12 @@ class LoadedArmTests(unittest.TestCase):
                     test.out.parent.symlink_to(moved,target_is_directory=True)
                 routes=test.owner if self.kwargs['enable_return_routed_experts'] else None
                 output=list(range(8)) if test.failure!='serialize' else [True]*8
-                return [SimpleNamespace(request_id='owned-real-api-id',prompt_token_ids=list(test.plan['prompt_token_ids']),finished=True,num_cached_tokens=0,outputs=[SimpleNamespace(index=0,token_ids=output,finish_reason='length',stop_reason=None,routed_experts=routes)])]
+                request_id=('owned-real-api-id' if 'prompt_members' not in test.plan else
+                            'owned-real-api-id-'+str(ordinal).zfill(4))
+                return [SimpleNamespace(request_id=request_id,
+                    prompt_token_ids=list(prompts[0]['prompt_token_ids']),finished=True,
+                    num_cached_tokens=0,outputs=[SimpleNamespace(index=0,token_ids=output,
+                    finish_reason='length',stop_reason=None,routed_experts=routes)])]
         class Sampling:
             def __init__(self,**kwargs):vars(self).update(kwargs)
         class Kind:FINAL_ONLY=object()
@@ -183,6 +191,63 @@ class LoadedArmTests(unittest.TestCase):
                 self.assertEqual(trace['evidence_class'],'TEST_ONLY')
             self.assertFalse((self.out/'COMPLETE.json').exists());self.assertFalse((self.out/'DONE').exists())
 
+    def test_multi_prompt_capture_constructs_once_freezes_members_and_stops_on_member_failure(self):
+        prompts=protocol.fixed_prompt_members()
+        capture=dict(cell_id='routing_capture-01469',member_count=16,
+                active_sequences=8,composition_seed=0,
+                composition_rule='two-fixed-waves-seed0-shuffled-slots-v1',
+                concurrency_kind='trace-composed',live_scheduler_trace=False,
+                actual_scheduler_timestamps=False,prompt_source='FIXED_TOKEN_CONTROL_SET')
+        receipt,artifacts,_,_=worker._unpack(self.plan['metadata_snapshot'])
+        config=worker.strict_object(artifacts['metadata/config.json'])
+        control=protocol.make_capture_set_protocol(receipt,config,prompts,capture)
+        self.assertEqual(control['total_expected_counts']['event_count'],16*39*2)
+        for bad_prompts,bad_capture in ((prompts[:-1],capture),
+                ([prompts[0],prompts[0],*prompts[2:]],capture),
+                (prompts,dict(capture,composition_seed=1))):
+            with self.assertRaises(ValueError):
+                protocol.make_capture_set_protocol(receipt,config,bad_prompts,bad_capture)
+        self.plan.update(prompt_token_ids=prompts[0],prompt_members=prompts,
+            routing_capture=capture)
+        result=self.run_arm(name='multi')
+        self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
+        self.assertEqual(result['routing_capture']['member_count'],16)
+        calls=[event for event in self.events if isinstance(event,tuple) and event[0]=='generate']
+        self.assertEqual(len(calls),16)
+        self.assertEqual([call[1][0]['prompt_token_ids'] for call in calls],prompts)
+        self.assertEqual(len([event for event in self.events
+                              if isinstance(event,tuple) and event[0]=='construct']),1)
+        manifest=json.loads((self.out/'member-manifest.json').read_bytes())
+        composition=json.loads((self.out/'trace-composition.json').read_bytes())
+        self.assertEqual([row['ordinal'] for row in manifest['members']],list(range(16)))
+        self.assertEqual(len({row['request_id'] for row in manifest['members']}),16)
+        for row in manifest['members']:
+            prefix='member-'+str(row['ordinal']).zfill(4)+'-'
+            self.assertEqual(row['prompt_token_ids'],prompts[row['ordinal']])
+            for suffix in ('raw-return.json','raw-routes.npy','routing.jsonl','trace-summary.json'):
+                self.assertTrue((self.out/(prefix+suffix)).is_file())
+        self.assertEqual([wave['member_ordinals'] for wave in composition['waves']],
+                         [[4,1,5,2,0,3,7,6],[12,9,13,10,8,11,15,14]])
+        self.assertEqual(composition['event_order'],
+            ['wave','route_token_index','layer_id','sequence_slot','topk_order'])
+        self.assertFalse(composition['live_scheduler_trace'])
+        for wave,index in enumerate(manifest['member_indexes']):
+            payload=json.loads(Path(index['path']).read_bytes())
+            self.assertEqual(payload['source_kind'],'CAPTURED_ROUTE')
+            self.assertEqual([row['member_id'] for row in payload['members']],
+                             ['member-'+str(i).zfill(4) for i in range(wave*8,(wave+1)*8)])
+        self.failure='generate-member-5';self.events=[]
+        failed=self.run_arm(name='multi-failed')
+        self.assertEqual(failed['status'],'FAILED')
+        self.assertEqual(failed['primary_error']['stage'],'generation-member-0005')
+        self.assertEqual(len([event for event in self.events
+                              if isinstance(event,tuple) and event[0]=='generate']),6)
+        for ordinal in range(5):
+            self.assertTrue((self.out/('member-'+str(ordinal).zfill(4)+'-raw-return.json')).is_file())
+        self.assertFalse((self.out/'member-0005-raw-return.json').exists())
+        self.assertFalse((self.out/'member-manifest.json').exists())
+        self.assertIn('client-shutdown',self.events)
+
     def test_raw_route_copy_survives_owner_mutation_and_collector_failure(self):
         expected=self.owner.copy();result=self.run_arm()
         self.assertEqual(result['status'],'ARM_RETURNED_UNVALIDATED')
@@ -191,6 +256,7 @@ class LoadedArmTests(unittest.TestCase):
         self.assertEqual([e['topk_expert_ids'][0] for e in events],expected.reshape(-1).tolist())
         self.failure='collector';result=self.run_arm(name='failed-collector')
         self.assertEqual(result['status'],'FAILED');self.assertTrue((self.out/'raw-return.json').exists())
+        self.assertTrue(result['raw_return_saved'])
         self.assertTrue((self.out/'raw-routes.npy').exists());self.assertIn('client-shutdown',self.events)
 
     def test_partial_construction_records_unreachable_client_and_cleans_reachable_one(self):

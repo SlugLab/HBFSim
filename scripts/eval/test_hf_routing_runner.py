@@ -171,6 +171,46 @@ class RoutingRunnerTests(unittest.TestCase):
                 status_document["route_cuda_events"]=dict(enabled=True,status=event["status"],counts=counts,
                     artifact="route-device-events.json",sha256=runner._digest(event_raw))
                 status_raw=runner._canonical(status_document)
+            if "routing_capture" in envelope["request"]:
+                protocol=__import__('hf_routing_worker');members=[]
+                for ordinal,prompt in enumerate(envelope['request']['prompt_members']):
+                    prefix='member-'+str(ordinal).zfill(4)+'-'
+                    payloads={'raw-return.json':runner._canonical(dict(ordinal=ordinal,prompt=prompt)),
+                              'raw-routes.npy':('routes-'+str(ordinal)).encode(),
+                              'routing.jsonl':runner._canonical(dict(member=ordinal)),
+                              'trace-summary.json':runner._canonical(dict(member=ordinal,status='CAPTURED_UNVALIDATED'))}
+                    for suffix,raw in payloads.items():(output/(prefix+suffix)).write_bytes(raw)
+                    members.append(dict(ordinal=ordinal,prompt_token_ids=prompt,
+                        request_id='request-'+str(ordinal).zfill(4),
+                        raw_return_sha256=runner._digest(payloads['raw-return.json']),
+                        raw_routes_sha256=runner._digest(payloads['raw-routes.npy']),
+                        routing_path=str(output/(prefix+'routing.jsonl')),
+                        routing_sha256=runner._digest(payloads['routing.jsonl']),
+                        trace_summary_sha256=runner._digest(payloads['trace-summary.json'])))
+                indexes=[]
+                for wave in range(2):
+                    name='members-index-wave-'+str(wave)+'.json'
+                    selected=members[wave*8:(wave+1)*8]
+                    index=dict(schema_version=1,source_kind='CAPTURED_ROUTE',inventory_sha256='c'*64,
+                        members=[dict(member_id='member-'+str(row['ordinal']).zfill(4),
+                            path=row['routing_path'],sha256=row['routing_sha256']) for row in selected])
+                    raw=runner._canonical(index);(output/name).write_bytes(raw)
+                    indexes.append(dict(wave_index=wave,path=str(output/name),sha256=runner._digest(raw)))
+                manifest=dict(schema_version=1,status='CAPTURED_16_MEMBERS_UNVALIDATED',
+                    cell_id=runner.ROUTING_CAPTURE_CELL,members=members,member_indexes=indexes,
+                    scientific_validation_passed=False)
+                manifest_raw=runner._canonical(manifest);(output/'member-manifest.json').write_bytes(manifest_raw)
+                composition=protocol.make_trace_composition(
+                    dict(mode='MULTI_PROMPT_ROUTING_CAPTURE',prompt_members=envelope['request']['prompt_members'],
+                         **envelope['request']['routing_capture']),
+                    members,indexes)
+                composition_raw=runner._canonical(composition);(output/'trace-composition.json').write_bytes(composition_raw)
+                status_document=json.loads(status_raw)
+                status_document['routing_capture']=dict(cell_id=runner.ROUTING_CAPTURE_CELL,member_count=16,
+                    member_manifest_sha256=runner._digest(manifest_raw),
+                    trace_composition_sha256=runner._digest(composition_raw),
+                    status='TRACE_COMPOSED_ROUTING_CAPTURE')
+                status_raw=runner._canonical(status_document)
 
             (output / "input-binding.json").write_bytes(input_raw)
             if arm == test.corrupt_status_arm:
@@ -277,6 +317,31 @@ class RoutingRunnerTests(unittest.TestCase):
         self.assertFalse((out / "DONE").exists())
         work = [r["work_dir"] for r in result["arms"]]
         self.assertEqual(len(set(work)), 3)
+
+    def test_opt_in_multi_prompt_capture_uses_one_owned_arm_and_preserves_default_triplet(self):
+        out=self.base/'multi-prompt'
+        result=runner.run_triplet(self.base/'metadata',out,'GPU-X',
+            routing_capture_cell='routing_capture-01469',_test_dependencies=self.dependencies())
+        self.assertEqual(result['status'],'PROVISIONAL_ROUTING_CAPTURE_RETURNED_UNVALIDATED')
+        self.assertEqual([row['arm'] for row in result['arms']],['capture'])
+        self.assertEqual(len(self.identities),1)
+        request=self.cuda_requests[0]
+        self.assertEqual(request['routing_capture'],runner._routing_capture_request())
+        self.assertEqual(request['prompt_members'],runner._routing_capture_prompts())
+        self.assertNotIn('capture_cuda_route_events',request)
+        self.assertEqual(self.events.count('guard-enter'),1);self.assertEqual(self.events.count('guard-exit'),1)
+        manifest=json.loads((out/'arms/capture/member-manifest.json').read_bytes())
+        self.assertEqual(len(manifest['members']),16);self.assertEqual(len(manifest['member_indexes']),2)
+        with self.assertRaises(ValueError):
+            runner.run_triplet(self.base/'metadata',self.base/'bad-combination','GPU-X',
+                routing_capture_cell='routing_capture-01469',capture_cuda_route_events=True,
+                _test_dependencies=self.dependencies())
+        self.identities=[];self.events=[];self.cuda_requests=[];self.guard=None
+        legacy=runner.run_triplet(self.base/'metadata',self.base/'legacy-default','GPU-X',
+            _test_dependencies=self.dependencies())
+        self.assertEqual(legacy['status'],'PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED')
+        self.assertEqual([row['arm'] for row in legacy['arms']],['native','capture','repeat'])
+        self.assertEqual(len(self.identities),3)
 
     def test_arm_failure_stops_later_arms_but_runs_final_current_and_source_checks(
         self,
@@ -864,7 +929,7 @@ class RoutingRunnerTests(unittest.TestCase):
     def test_public_parser_has_only_bundle_output_uuid_and_no_injection(self):
         names = {a.dest for a in runner._parser()._actions}
         self.assertEqual(
-            names, {"help", "metadata_bundle", "fresh_out", "selected_uuid", "capture_cuda_route_events"}
+            names, {"help", "metadata_bundle", "fresh_out", "selected_uuid", "capture_cuda_route_events", "routing_capture_cell"}
         )
 
 

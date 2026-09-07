@@ -182,6 +182,34 @@ class OwnedWorkerTests(unittest.TestCase):
                 "native", Path("/invalid"), "0" * 64, Path("/invalid"), _facts={}
             )
 
+    def test_multi_prompt_request_is_exact_capture_only_and_loaded_plan_preserves_members(self):
+        owned=tempfile.TemporaryDirectory(prefix='.owned-multi-prompt-',dir=worker.ROOT/'results/gold')
+        self.addCleanup(owned.cleanup);attempt=Path(owned.name)
+        work=worker.ROOT/'results/tmp/hf-routing'/attempt.name/'capture'
+        prompts=[list(range(1000+32*member,1032+32*member)) for member in range(16)]
+        capture=dict(cell_id='routing_capture-01469',member_count=16,active_sequences=8,
+            composition_seed=0,composition_rule='two-fixed-waves-seed0-shuffled-slots-v1',
+            concurrency_kind='trace-composed',live_scheduler_trace=False,
+            actual_scheduler_timestamps=False,prompt_source='FIXED_TOKEN_CONTROL_SET')
+        document=dict(schema_version=1,arm='capture',run_id='multi',git_commit='a'*40,
+            environment_fingerprint='b'*64,gpu_uuid='GPU-X',
+            device_name='NVIDIA RTX PRO 6000 Blackwell Server Edition',device_capability=[12,0],
+            work_dir=str(work),output_dir=str(attempt/'arms/capture'),
+            process_dir=str(attempt/'process/capture'),attempt_dir=str(attempt),
+            metadata_bundle=str(worker.ROOT/'.owned-multi-prompt-metadata'),runtime_env={},
+            transport_env={'PYTHONPYCACHEPREFIX':str(work/'cache/python')},
+            prompt_token_ids=prompts[0],prompt_members=prompts,routing_capture=capture,
+            project_sources={})
+        self.assertEqual(worker._request(document,'capture'),document)
+        plan=worker._loaded_plan(document,'metadata','runtime','tuning')
+        self.assertEqual(plan['prompt_members'],prompts);self.assertEqual(plan['routing_capture'],capture)
+        for changed in (dict(document,arm='native'),
+                        dict(document,prompt_members=prompts[:-1]),
+                        dict(document,routing_capture=dict(capture,composition_seed=1)),
+                        dict(document,capture_cuda_route_events=True)):
+            with self.subTest(keys=set(changed)),self.assertRaises(ValueError):
+                worker._request(changed,changed['arm'])
+
     def test_wire_wrong_type_count_name_digest_length_extra_link_fifo_and_ancestor_reject(
         self,
     ):

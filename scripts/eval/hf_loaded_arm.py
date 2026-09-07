@@ -28,6 +28,7 @@ _DEPENDENCIES={'LLM','SamplingParams','RequestOutputKind','capture_module','nump
     'observe_loaded_tuning','Collector'}
 _PLAN_KEYS={'metadata_snapshot','runtime_snapshot','tuning_snapshot','device_name_declared','work_dir','gpu_uuid',
     'device_capability','prompt_token_ids','run_id','git_commit','environment_fingerprint'}
+_MULTI_PLAN_KEYS=_PLAN_KEYS|{'prompt_members','routing_capture'}
 
 
 def _loaded_dependencies(runtime_snapshot, capture_cuda_route_events=False):
@@ -75,10 +76,12 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     snapshots are frozen validation inputs; original-source and GPU ownership
     checks belong to the later parent and controlled-import entrypoint.
     """
-    if type(plan) is not dict or set(plan) not in (_PLAN_KEYS,_PLAN_KEYS|{'capture_cuda_route_events'}) or arm not in ('native','capture','repeat'):
+    if type(plan) is not dict or set(plan) not in (_PLAN_KEYS,_PLAN_KEYS|{'capture_cuda_route_events'},
+            _MULTI_PLAN_KEYS,_MULTI_PLAN_KEYS|{'capture_cuda_route_events'}) or arm not in ('native','capture','repeat'):
         raise ValueError('invalid loaded-arm plan or arm')
+    multi=set(plan) in (_MULTI_PLAN_KEYS,_MULTI_PLAN_KEYS|{'capture_cuda_route_events'})
     timing=plan.get('capture_cuda_route_events',False)
-    if type(timing) is not bool or (timing and arm=='native'):
+    if type(timing) is not bool or (timing and arm=='native') or (multi and (arm!='capture' or timing)):
         raise ValueError('invalid CUDA route-event plan flag')
     receipt,artifacts,donor,_=_unpack(plan['metadata_snapshot'])
     source=hf_runtime_sources.validate_runtime_sources(plan['runtime_snapshot'])
@@ -87,9 +90,20 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
     tuning_input=tuning_api.validate_tuning_inputs(plan['tuning_snapshot'],plan['metadata_snapshot'],
         plan['runtime_snapshot'],plan['device_name_declared'])
     config=strict_object(artifacts['metadata/config.json'])
-    control=protocol_api.make_protocol(receipt,config,plan['prompt_token_ids'])
+    if multi:
+        control=protocol_api.make_capture_set_protocol(
+            receipt,config,plan['prompt_members'],plan['routing_capture'])
+        member_controls=[protocol_api.make_protocol(receipt,config,prompt)
+                         for prompt in control['prompt_members']]
+    else:
+        control=protocol_api.make_protocol(receipt,config,plan['prompt_token_ids'])
+        member_controls=None
     test_only=_test_dependencies is not None or source['test_only'] or receipt['evidence']=='TEST_ONLY' or tuning_input['test_only']
-    if test_only:control.update(source_kind='TEST_ONLY',provenance='MOCK')
+    if test_only:
+        control.update(source_kind='TEST_ONLY',provenance='MOCK')
+        if member_controls is not None:
+            for member_control in member_controls:
+                member_control.update(source_kind='TEST_ONLY',provenance='MOCK')
     work=Path(plan['work_dir']).absolute();out=Path(out).absolute()
     protocol_api.make_environment(work,plan['gpu_uuid'],{})
     if out.resolve()!=out or not out.is_relative_to(ROOT/'results/gold') or \
@@ -188,36 +202,88 @@ def run_loaded_arm(plan,arm,out,*,_test_dependencies=None):
                 control=control,gpu_uuid=plan['gpu_uuid'],worker_identity=result['worker_identity'],test_only=bool(test_only))
             route_events.start()
         sampling=deps['SamplingParams'](**protocol_api.sampling_arguments(deps['RequestOutputKind'].FINAL_ONLY))
-        stage='generation'
-        returned=llm.generate([dict(prompt_token_ids=list(control['prompt_token_ids']))],sampling,use_tqdm=False)
-        stage='serialization'
-        raw,array=protocol_api.serialize_return(returned,control,capture_enabled=capture_enabled)
-        # Freeze the private copy before any collector or teardown callback.
-        document('raw-return.json',raw)
-        if array is not None:
-            fd=os.open('raw-routes.npy',os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=directory)
-            with os.fdopen(fd,'wb') as stream:
-                deps['numpy'].save(stream,array,allow_pickle=False);stream.flush();os.fsync(stream.fileno())
-        raw_saved=True
-        if timing:
-            saved_hashes['raw-routes.npy']=digest((owned/'raw-routes.npy').read_bytes())
-            stage='route-event-finalize'
-            route_events.finish(array)
         if capture_enabled:
-            stage='trace-materialization'
             from model_inventory import ModelInventory
             from trace_collector import TraceRequest
             inventory=ModelInventory(owned/'frozen-donor.json')
-            collector=deps['Collector'](owned/'routing.jsonl',inventory,plan['run_id'],plan['environment_fingerprint'],plan['git_commit'],test_only=bool(test_only))
-            collector.emit_request(TraceRequest(raw['request_id'],0,0,32,8),array)
-            collector.close();summary=collector.summary()
-            counts=control['expected_counts']
-            expected=dict(event_count=counts['event_count'],expert_access_count=counts['expert_access_count'],tensor_access_count=counts['tensor_access_count'])
-            if any(summary.get(k)!=v for k,v in expected.items()) or \
-               summary['per_phase_event_count']!={'prefill':counts['prefill_event_count'],'decode':counts['decode_event_count']} or \
-               summary['status']!='CAPTURED_UNVALIDATED' or summary['scientific_validation_passed'] is not False:
-                raise ValueError('collector result differs from protocol-derived counts')
-            document('trace-summary.json',summary)
+        else:
+            TraceRequest=None;inventory=None
+        def emit_one(member_control,ordinal,prefix):
+            nonlocal collector,stage,raw_saved
+            stage_name='member-'+str(ordinal).zfill(4)
+            returned=llm.generate([dict(prompt_token_ids=list(member_control['prompt_token_ids']))],sampling,use_tqdm=False)
+            stage='serialization-'+stage_name if multi else 'serialization'
+            raw,array=protocol_api.serialize_return(returned,member_control,capture_enabled=capture_enabled)
+            return_name=prefix+'raw-return.json';document(return_name,raw)
+            routes_name=prefix+'raw-routes.npy'
+            if array is not None:
+                fd=os.open(routes_name,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600,dir_fd=directory)
+                with os.fdopen(fd,'wb') as stream:
+                    deps['numpy'].save(stream,array,allow_pickle=False);stream.flush();os.fsync(stream.fileno())
+                saved_hashes[routes_name]=digest((owned/routes_name).read_bytes())
+            raw_saved=True
+            if timing:
+                stage='route-event-finalize'
+                route_events.finish(array)
+            summary=None
+            if capture_enabled:
+                stage='trace-materialization-'+stage_name if multi else 'trace-materialization'
+                routing_name=prefix+'routing.jsonl'
+                collector=deps['Collector'](owned/routing_name,inventory,
+                    plan['run_id']+'-'+stage_name if multi else plan['run_id'],
+                    plan['environment_fingerprint'],plan['git_commit'],test_only=bool(test_only))
+                collector.emit_request(TraceRequest(raw['request_id'],ordinal,ordinal,32,8),array)
+                collector.close();summary=collector.summary();collector=None
+                counts=member_control['expected_counts']
+                expected=dict(event_count=counts['event_count'],expert_access_count=counts['expert_access_count'],tensor_access_count=counts['tensor_access_count'])
+                if any(summary.get(k)!=v for k,v in expected.items()) or \
+                   summary['per_phase_event_count']!={'prefill':counts['prefill_event_count'],'decode':counts['decode_event_count']} or \
+                   summary['status']!='CAPTURED_UNVALIDATED' or summary['scientific_validation_passed'] is not False:
+                    raise ValueError('collector result differs from protocol-derived counts')
+                saved_hashes[routing_name]=digest((owned/routing_name).read_bytes())
+                document(prefix+'trace-summary.json',summary)
+            return raw,array,summary
+        if multi:
+            members=[]
+            for ordinal,member_control in enumerate(member_controls):
+                stage='generation-member-'+str(ordinal).zfill(4)
+                prefix='member-'+str(ordinal).zfill(4)+'-'
+                raw,array,summary=emit_one(member_control,ordinal,prefix)
+                if cap_module._global_experts_capturer is not capturer or \
+                   cap_module._global_experts_reader is not reader or \
+                   vars(client.engine_core.scheduler).get('routed_experts_reader') is not reader:
+                    raise ValueError('route ownership changed between capture members')
+                members.append(dict(ordinal=ordinal,prompt_token_ids=raw['prompt_token_ids'],
+                    request_id=raw['request_id'],raw_return_sha256=saved_hashes[prefix+'raw-return.json'],
+                    raw_routes_sha256=saved_hashes[prefix+'raw-routes.npy'],
+                    routing_path=str(out/(prefix+'routing.jsonl')),
+                    routing_sha256=saved_hashes[prefix+'routing.jsonl'],
+                    trace_summary_sha256=saved_hashes[prefix+'trace-summary.json']))
+            indexes=[]
+            for wave in range(2):
+                name='members-index-wave-'+str(wave)+'.json'
+                selected=members[wave*8:(wave+1)*8]
+                index=dict(schema_version=1,source_kind='CAPTURED_ROUTE',
+                    inventory_sha256=summary['inventory_sha256'],
+                    members=[dict(member_id='member-'+str(row['ordinal']).zfill(4),
+                                  path=row['routing_path'],sha256=row['routing_sha256'])
+                             for row in selected])
+                document(name,index)
+                indexes.append(dict(wave_index=wave,path=str(out/name),sha256=saved_hashes[name]))
+            document('member-manifest.json',dict(schema_version=1,status='CAPTURED_16_MEMBERS_UNVALIDATED',
+                cell_id=control['cell_id'],members=members,member_indexes=indexes,
+                scientific_validation_passed=False))
+            composition=protocol_api.make_trace_composition(control,members,indexes)
+            document('trace-composition.json',composition)
+            result['routing_capture']=dict(cell_id=control['cell_id'],member_count=len(members),
+                member_manifest_sha256=saved_hashes['member-manifest.json'],
+                trace_composition_sha256=saved_hashes['trace-composition.json'],
+                status=composition['status'])
+            raw_saved=len(members)==control['member_count']
+        else:
+            stage='generation'
+            raw,array,summary=emit_one(control,0,'')
+            raw_saved=True
     except BaseException as exception:
         result['primary_error']=error(stage,exception)
     finally:

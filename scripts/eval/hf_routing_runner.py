@@ -34,6 +34,26 @@ DEVICE_NAME = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
 DEVICE_CAPABILITY = [12, 0]
 ARMS = ("native", "capture", "repeat")
 PROMPTS = list(range(1000, 1032))
+ROUTING_CAPTURE_CELL = "routing_capture-01469"
+
+
+def _routing_capture_request():
+    return dict(
+        cell_id=ROUTING_CAPTURE_CELL,
+        member_count=16,
+        active_sequences=8,
+        composition_seed=0,
+        composition_rule="two-fixed-waves-seed0-shuffled-slots-v1",
+        concurrency_kind="trace-composed",
+        live_scheduler_trace=False,
+        actual_scheduler_timestamps=False,
+        prompt_source="FIXED_TOKEN_CONTROL_SET",
+    )
+
+
+def _routing_capture_prompts():
+    return [list(range(1000 + 32 * member, 1032 + 32 * member))
+            for member in range(16)]
 PROJECT_FILES = tuple(
     """
 scripts/eval/hf_owned_worker.py
@@ -795,12 +815,18 @@ def _parser():
     parser.add_argument("--fresh-out", type=Path, required=True)
     parser.add_argument("--selected-uuid", required=True)
     parser.add_argument("--capture-cuda-route-events", action="store_true", default=False)
+    parser.add_argument("--routing-capture-cell", choices=(ROUTING_CAPTURE_CELL,))
     return parser
 
 
-def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route_events=False, _test_dependencies=None):
+def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route_events=False,
+                routing_capture_cell=None, _test_dependencies=None):
     if type(capture_cuda_route_events) is not bool:
         raise ValueError("CUDA route-event switch must be an explicit boolean")
+    if routing_capture_cell not in (None, ROUTING_CAPTURE_CELL) or \
+       (routing_capture_cell is not None and capture_cuda_route_events):
+        raise ValueError("routing capture cell or CUDA route-event combination is invalid")
+    active_arms = ("capture",) if routing_capture_cell is not None else ARMS
     if (
         type(selected_uuid) is not str
         or not selected_uuid.startswith("GPU-")
@@ -898,7 +924,7 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
     prefixes = {}
     prefix_identities = {}
     works = {}
-    for arm in ARMS:
+    for arm in active_arms:
         work = work_root / arm
         works[arm] = work
         env = protocol.make_environment(work, selected_uuid, platform_environment)
@@ -1031,7 +1057,7 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
                         )
                 return errors, first_error
 
-            for arm in ARMS:
+            for arm in active_arms:
                 active_arm_record = None
                 active_arm_stage = "preflight"
                 if not test_only:
@@ -1070,6 +1096,9 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
                     prompt_token_ids=PROMPTS,
                     project_sources=project,
                 )
+                if routing_capture_cell is not None:
+                    request.update(prompt_members=_routing_capture_prompts(),
+                                   routing_capture=_routing_capture_request())
                 if capture_cuda_route_events and arm != "native":
                     request["capture_cuda_route_events"] = True
                 envelope, blobs = worker._encode_wire(*snapshots, request)
@@ -1331,6 +1360,56 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
                                 or event.get("scientific_validation_passed") is not False
                                 or event.get("timing_semantics") != "ROUTE_TO_ROUTE_DEVICE_ELAPSED_INCLUDING_CAPTURE_AND_SCHEDULING"):
                             raise TripletFailure(arm + " route-event artifact differs from owned request/status")
+                    if code == 0 and routing_capture_cell is not None:
+                        active_arm_stage = "routing-capture-artifacts"
+                        member_path = arms_root / arm / "member-manifest.json"
+                        composition_path = arms_root / arm / "trace-composition.json"
+                        member_manifest = worker._read_json_file(member_path, 1 << 20)
+                        composition = worker._read_json_file(composition_path, 1 << 20)
+                        members = member_manifest.get("members")
+                        indexes = member_manifest.get("member_indexes")
+                        expected_composition = protocol.make_trace_composition(
+                            dict(mode="MULTI_PROMPT_ROUTING_CAPTURE",
+                                 prompt_members=_routing_capture_prompts(),
+                                 **_routing_capture_request()), members, indexes)
+                        expected_status = dict(cell_id=ROUTING_CAPTURE_CELL,member_count=16,
+                            member_manifest_sha256=_digest(member_path.read_bytes()),
+                            trace_composition_sha256=_digest(composition_path.read_bytes()),
+                            status="TRACE_COMPOSED_ROUTING_CAPTURE")
+                        if (set(member_manifest) != {"schema_version","status","cell_id","members","member_indexes","scientific_validation_passed"}
+                                or member_manifest.get("schema_version") != 1
+                                or member_manifest.get("status") != "CAPTURED_16_MEMBERS_UNVALIDATED"
+                                or member_manifest.get("cell_id") != ROUTING_CAPTURE_CELL
+                                or member_manifest.get("scientific_validation_passed") is not False
+                                or composition != expected_composition
+                                or status.get("routing_capture") != expected_status):
+                            raise TripletFailure("routing capture artifacts differ from fixed member composition")
+                        for index in indexes:
+                            index_path = Path(index["path"])
+                            if (index_path.parent != arms_root/arm
+                                    or _digest(index_path.read_bytes()) != index["sha256"]):
+                                raise TripletFailure("routing capture B=8 member index differs")
+                            index_document=worker._read_json_file(index_path,1<<20)
+                            selected=members[index["wave_index"]*8:(index["wave_index"]+1)*8]
+                            if (set(index_document)!={"schema_version","source_kind","inventory_sha256","members"}
+                                    or index_document["schema_version"]!=1
+                                    or index_document["source_kind"]!="CAPTURED_ROUTE"
+                                    or re.fullmatch("[0-9a-f]{64}",index_document["inventory_sha256"]) is None
+                                    or index_document["members"]!=[
+                                        dict(member_id="member-"+str(row["ordinal"]).zfill(4),
+                                             path=row["routing_path"],sha256=row["routing_sha256"])
+                                        for row in selected]):
+                                raise TripletFailure("routing capture B=8 index contents differ")
+                        for row in members:
+                            prefix = "member-" + str(row["ordinal"]).zfill(4) + "-"
+                            if row["routing_path"] != str(arms_root/arm/(prefix+"routing.jsonl")):
+                                raise TripletFailure("routing capture member path differs")
+                            for field,suffix in (("raw_return_sha256","raw-return.json"),
+                                                 ("raw_routes_sha256","raw-routes.npy"),
+                                                 ("routing_sha256","routing.jsonl"),
+                                                 ("trace_summary_sha256","trace-summary.json")):
+                                if _digest((arms_root/arm/(prefix+suffix)).read_bytes()) != row[field]:
+                                    raise TripletFailure("routing capture member artifact hash differs")
                     arm_result = active_arm_record
                     arm_result.update(
                         status=status.get("status"),
@@ -1382,13 +1461,15 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
                     raise
             for wire_path, wire_sha, wire_binding in retained_wires:
                 worker._read_wire_retained(wire_path, wire_sha, wire_binding)
-            for arm in ARMS:
+            for arm in active_arms:
                 _arm_prefix_check(worker, prefixes[arm], prefix_identities[arm])
             if not test_only:
                 _parent_prefix_check(parent_prefix, parent_prefix_identity)
             guard.check("triplet-final")
             _raise_for_signal(signals, "triplet-final")
-            result["status"] = "PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED"
+            result["status"] = ("PROVISIONAL_ROUTING_CAPTURE_RETURNED_UNVALIDATED"
+                                if routing_capture_cell is not None else
+                                "PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED")
     except BaseException as exception:
         error = exception
         if active_arm_record is not None and "primary_error" not in active_arm_record:
@@ -1436,7 +1517,7 @@ def run_triplet(metadata_bundle, fresh_out, selected_uuid, *, capture_cuda_route
                         worker, prefixes[arm], prefix_identities[arm]
                     ),
                 )
-                for arm in ARMS
+                for arm in active_arms
             )
             if not test_only:
                 final_checks.append(
@@ -1575,7 +1656,8 @@ def main(argv=None):
     args = _parser().parse_args(argv)
     try:
         run_triplet(args.metadata_bundle, args.fresh_out, args.selected_uuid,
-                    capture_cuda_route_events=args.capture_cuda_route_events)
+                    capture_cuda_route_events=args.capture_cuda_route_events,
+                    routing_capture_cell=args.routing_capture_cell)
     except BaseException as error:
         print(type(error).__name__ + ": " + str(error), file=sys.stderr)
         return 1

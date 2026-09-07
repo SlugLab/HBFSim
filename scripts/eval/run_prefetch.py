@@ -105,6 +105,7 @@ def run(args):
     if not output.is_relative_to(ROOT):
         raise ValueError('output must stay inside experiment checkout')
     route_horizon=getattr(args,'route_horizon',None) is not None
+    cache_sensitivity=getattr(args,'cache_sensitivity',None)
     if route_horizon and (getattr(args,'compute',None) is not None or
                           getattr(args,'hf_metadata_refresh',None) is None):
         raise ValueError('route horizon requires HF metadata and excludes compute input')
@@ -119,11 +120,14 @@ def run(args):
         index,auxiliary=acquire(snapshots['route_horizon'])
         hf_snapshot=load_hf_snapshot(args.hf_metadata_refresh)
         data,nodes,objects,resident,provenance=prepare_route_horizon(
-            snapshots,index,auxiliary,hf_snapshot,args.initial_residency)
+            snapshots,index,auxiliary,hf_snapshot,args.initial_residency,
+            cache_sensitivity=cache_sensitivity)
         profile=json.loads(snapshots['profile'])
         if profile.get('time_scale')!=1:
             raise ValueError('route horizon service requires time_scale=1')
     else:
+        if cache_sensitivity is not None:
+            raise ValueError('cache sensitivity requires route horizon mode')
         data,nodes,objects,resident,provenance=prepare(snapshots,args.initial_residency)
     if provenance=='MOCK' and output.is_relative_to((ROOT/'results/runs').resolve()):
         raise ValueError('synthetic controls cannot write formal run directories')
@@ -151,6 +155,8 @@ def run(args):
                         route_horizon=data['route_horizon'])
         for name in ('hf_route_horizon_inputs.py','hf_route_array.py','evaluation_inventory.py','verify_hf_metadata.py','routing_metrics.py'):
             manifest['tools'][name]=sha256(Path(__file__).with_name(name))
+        if cache_sensitivity is not None:
+            manifest['capacity_sensitivity']=data['route_horizon']['capacity_sensitivity']
     try:
         frozen=output/'inputs'
         frozen.mkdir()
@@ -191,6 +197,8 @@ def run(args):
                 receipt=service.finish()
                 result.update(provenance=provenance,service_receipt=receipt,
                               service_observations=service.observations,topology=service.header)
+                if cache_sensitivity is not None:
+                    result['capacity_sensitivity']=data['route_horizon']['capacity_sensitivity']
                 if receipt['issued']!=len(result['requests']) or receipt['issued_bytes']!=result['traffic_bytes']:
                     raise ValueError('controller/native service conservation mismatch')
                 results[policy]=result
@@ -265,6 +273,7 @@ def main():
     timing.add_argument('--compute',type=Path)
     timing.add_argument('--route-horizon',type=Path)
     parser.add_argument('--hf-metadata-refresh',type=Path)
+    parser.add_argument('--cache-sensitivity',choices=('RHO_1_32_EXTRA_DIAGNOSTIC',))
     parser.add_argument('--binary',type=Path,required=True)
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--initial-residency',choices=('budget','cold'),default='budget')

@@ -20,6 +20,7 @@ from routing_metrics import compose_routes
 from verify_hf_metadata import canonical, strict_object
 
 SEMANTICS='ROUTE_TO_ROUTE_DEVICE_ELAPSED_INCLUDING_CAPTURE_AND_SCHEDULING'
+CACHE_SENSITIVITY_RHO_1_32='RHO_1_32_EXTRA_DIAGNOSTIC'
 ARTIFACTS=('sidecar','binding','protocol','raw_return','raw_routes','routing_trace',
            'worker','wrapper','triplet','runtime_manifest','project_manifest',
            'tuning_manifest','consistency','capture_review')
@@ -233,7 +234,27 @@ def validate_capture(buffers, *, test_only, dimensions):
     return docs,decode,gaps
 
 
-def prepare_route_horizon(snapshots, index, buffers, hf_snapshot, initial_residency):
+def capacity_contract(inv, budget, mock, cache_sensitivity):
+    require(cache_sensitivity is None or type(cache_sensitivity) is str,
+            'cache sensitivity marker type')
+    if mock:
+        require(cache_sensitivity is None, 'cache sensitivity requires captured HF inputs')
+        return None
+    if cache_sensitivity is None:
+        require(budget['C_fast_effective']*16==inv['eligible_expert_bytes'],
+                'fixed capacity budget')
+        return None
+    require(cache_sensitivity==CACHE_SENSITIVITY_RHO_1_32 and
+            budget['C_fast_effective']*32==inv['eligible_expert_bytes'] and
+            budget['rho_requested']==1/32 and budget['rho']==1/32,
+            'unsupported cache sensitivity budget/marker')
+    return dict(kind=CACHE_SENSITIVITY_RHO_1_32,rho_requested=budget['rho_requested'],
+                original_requested_matrix=False,parameter_selected_for_win=False,
+                purpose='EXERCISE_PREFETCH_ISSUE_PATH_NOT_REQUIRE_BENEFIT')
+
+
+def prepare_route_horizon(snapshots, index, buffers, hf_snapshot, initial_residency,
+                          cache_sensitivity=None):
     require(initial_residency=='cold','first horizon experiment requires common cold residency')
     inv,budget,routes,manifest=(strict_object(snapshots[k]) for k in
                               ('inventory','budget','routes','routing_manifest'))
@@ -244,8 +265,9 @@ def prepare_route_horizon(snapshots, index, buffers, hf_snapshot, initial_reside
         **{k:budget[k] for k in ('fast_bytes','active_sequences','context_tokens','kv_element_bytes',
                                 'workspace_bytes','safety_bytes','legacy_ratio')})
     require(expected==budget and budget['active_sequences']==1 and budget['context_tokens']==64 and
-            budget['kv_element_bytes']==2 and budget['workspace_bytes']==budget['safety_bytes']==0 and
-            (mock or budget['C_fast_effective']*16==inv['eligible_expert_bytes']), 'fixed capacity budget')
+            budget['kv_element_bytes']==2 and budget['workspace_bytes']==budget['safety_bytes']==0,
+            'fixed capacity budget')
+    sensitivity=capacity_contract(inv,budget,mock,cache_sensitivity)
     docs,decode,gaps=validate_capture(buffers,test_only=mock,dimensions=(inv['layers'],inv['E'],inv['k']))
     binding=docs['binding'];model=inv['model_binding'];consistency=docs['consistency']
     for b,k in (('metadata_receipt_sha256','receipt_sha256'),('metadata_complete_sha256','complete_sha256'),
@@ -297,4 +319,6 @@ def prepare_route_horizon(snapshots, index, buffers, hf_snapshot, initial_reside
                 observed_nodes=len(gaps)-1,terminal_missing=1,
                 timing_control='SAME_POSITION_BASE_GAPS_WITH_SHUFFLED_ROUTES' if series=='shuffled' else
                                'CAPTURED_ROUTE_BASE_GAPS',scientific_validation_passed=False))
+    if sensitivity is not None:
+        data['route_horizon']['capacity_sensitivity']=sensitivity
     return data,nodes,objects,(),provenance

@@ -169,6 +169,29 @@ class RouteHorizonInputTests(unittest.TestCase):
             self.assertTrue(all(r['topk_expert_ids']==original[32+r['source_token_step']][r['layer_id']] for r in rows))
             self.assertEqual(data['route_horizon']['series'],series)
 
+    def test_rho_one_thirty_two_requires_exact_nonmatrix_opt_in(self):
+        snapshots,_,_,hf,_,_=self.fixture
+        inv=json.loads(snapshots['inventory']);shape=inv['kv_shape']
+        kv=64*shape['layers']*shape['heads_kv']*(shape['key_length']+shape['value_length'])*2
+        def recomputed(divisor):
+            return budget_fast_tier(inv,
+                fast_bytes=inv['resident_non_offloaded_bytes']+kv+inv['eligible_expert_bytes']//divisor,
+                active_sequences=1,context_tokens=64,kv_element_bytes=2,workspace_bytes=0,safety_bytes=0,
+                hf_snapshot=hf,inventory_file_bytes=snapshots['inventory'])
+        sensitivity=recomputed(32)
+        self.assertEqual(sensitivity['C_fast_effective']*32,inv['eligible_expert_bytes'])
+        with self.assertRaisesRegex(ValueError,'fixed capacity budget'):
+            bridge.capacity_contract(inv,sensitivity,False,None)
+        marker=bridge.capacity_contract(inv,sensitivity,False,bridge.CACHE_SENSITIVITY_RHO_1_32)
+        self.assertEqual(marker['kind'],'RHO_1_32_EXTRA_DIAGNOSTIC')
+        self.assertFalse(marker['original_requested_matrix'])
+        with self.assertRaisesRegex(ValueError,'unsupported cache sensitivity'):
+            bridge.capacity_contract(inv,recomputed(16),False,bridge.CACHE_SENSITIVITY_RHO_1_32)
+        with self.assertRaisesRegex(ValueError,'unsupported cache sensitivity'):
+            bridge.capacity_contract(inv,recomputed(2),False,bridge.CACHE_SENSITIVITY_RHO_1_32)
+        with self.assertRaisesRegex(ValueError,'requires captured HF'):
+            bridge.capacity_contract(inv,sensitivity,True,bridge.CACHE_SENSITIVITY_RHO_1_32)
+
     def test_acquire_uses_each_artifact_role_byte_limit(self):
         snapshots,index,_,_,_,_=self.fixture
         large=b'{}\n'*(((20<<20)//3)+1)

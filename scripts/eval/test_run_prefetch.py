@@ -169,6 +169,12 @@ class RouteHorizonCliTests(unittest.TestCase):
             denied=subprocess.run(argv+['--compute',str(base/'profile.json')],
                                   capture_output=True,text=True,timeout=10)
             self.assertNotEqual(denied.returncode,0)
+            sensitivity_argv=list(argv)
+            sensitivity_argv[sensitivity_argv.index('--out')+1]=str(base/'sensitivity-attempt')
+            sensitivity=subprocess.run(sensitivity_argv+['--cache-sensitivity','RHO_1_32_EXTRA_DIAGNOSTIC'],
+                                       capture_output=True,text=True,timeout=10)
+            self.assertNotEqual(sensitivity.returncode,0)
+            self.assertIn('requires captured HF inputs',sensitivity.stderr)
 
 
 if __name__=='__main__':

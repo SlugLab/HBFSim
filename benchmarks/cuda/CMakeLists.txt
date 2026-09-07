@@ -117,19 +117,25 @@ if(HBFSIM_BUILD_C6_FUTURE_DELAY_DIAGNOSTIC)
         CUDA_RUNTIME_LIBRARY Shared ENABLE_EXPORTS ON
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/benchmarks/cuda")
 
-    set(HBFSIM_C6_FUTURE_DELAY_PTX
-        "${CMAKE_CURRENT_BINARY_DIR}/c6_future_delay_overlap.ptx")
-    add_custom_command(OUTPUT "${HBFSIM_C6_FUTURE_DELAY_PTX}"
-        COMMAND "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20 -O3 -lineinfo
-            "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
-            "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
-            -DHBFSIM_C6_FUTURE_DELAY_KERNEL_ONLY=1
-            "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
-            -o "${HBFSIM_C6_FUTURE_DELAY_PTX}"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
-        VERBATIM)
+    set(HBFSIM_C6_SINGLE_LANE_PTX_FILES)
+    foreach(HBFSIM_C6_FIXED_WORK IN ITEMS 0 4096)
+        set(HBFSIM_C6_SINGLE_LANE_PTX
+            "${CMAKE_CURRENT_BINARY_DIR}/c6_single_lane_k${HBFSIM_C6_FIXED_WORK}.ptx")
+        add_custom_command(OUTPUT "${HBFSIM_C6_SINGLE_LANE_PTX}"
+            COMMAND "${CMAKE_CUDA_COMPILER}" --ptx --std=c++20 -O3 -lineinfo
+                "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
+                "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
+                -DHBFSIM_C6_FUTURE_DELAY_KERNEL_ONLY=1
+                -DHBFSIM_C6_SINGLE_ACTIVE_LANE=1
+                "-DHBFSIM_C6_FIXED_WORK_STEPS=${HBFSIM_C6_FIXED_WORK}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
+                -o "${HBFSIM_C6_SINGLE_LANE_PTX}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/c6_future_delay_overlap.cu"
+            VERBATIM)
+        list(APPEND HBFSIM_C6_SINGLE_LANE_PTX_FILES "${HBFSIM_C6_SINGLE_LANE_PTX}")
+    endforeach()
     add_custom_target(c6_future_delay_overlap_ptx
-        DEPENDS "${HBFSIM_C6_FUTURE_DELAY_PTX}")
+        DEPENDS ${HBFSIM_C6_SINGLE_LANE_PTX_FILES})
     add_dependencies(c6_future_delay_overlap
         c6_future_delay_overlap_ptx hbfsim_device_ptx
         ptxpass_hbf_plugin hbfsim_launch_gate hbfsimd)

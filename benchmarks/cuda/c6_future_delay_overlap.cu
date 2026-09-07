@@ -78,8 +78,18 @@ constexpr std::uint32_t kFutureBits = kKernelBits | kHelperEntry | kArrival |
 
 #if defined(HBFSIM_C6_FUTURE_DELAY_KERNEL_ONLY)
 
-#define C6_PREDICATED_WORK_STEP                                             \
-    "@%%c6_work_active mad.lo.u32 %0, %0, 0x0019660d, %1;\n\t"
+#if !defined(HBFSIM_C6_SINGLE_ACTIVE_LANE) || HBFSIM_C6_SINGLE_ACTIVE_LANE != 1
+#error "single-active-lane kernel build flag required"
+#endif
+#if !defined(HBFSIM_C6_FIXED_WORK_STEPS) || \
+    (HBFSIM_C6_FIXED_WORK_STEPS != 0 && HBFSIM_C6_FIXED_WORK_STEPS != 4096)
+#error "fixed work steps must be exactly 0 or 4096"
+#endif
+extern "C" __device__ __constant__ unsigned int __c6_single_lane_fixed_work =
+    HBFSIM_C6_FIXED_WORK_STEPS;
+
+#define C6_WORK_STEP                                             \
+    "mad.lo.u32 %0, %0, 0x0019660d, %1;\n\t"
 #define C6_REPEAT_2(item) item item
 #define C6_REPEAT_4(item) C6_REPEAT_2(item) C6_REPEAT_2(item)
 #define C6_REPEAT_8(item) C6_REPEAT_4(item) C6_REPEAT_4(item)
@@ -93,44 +103,58 @@ constexpr std::uint32_t kFutureBits = kKernelBits | kHelperEntry | kArrival |
 #define C6_REPEAT_2048(item) C6_REPEAT_1024(item) C6_REPEAT_1024(item)
 #define C6_REPEAT_4096(item) C6_REPEAT_2048(item) C6_REPEAT_2048(item)
 
+#if HBFSIM_C6_FIXED_WORK_STEPS == 4096
+#define C6_SELECTED_WORK C6_REPEAT_4096(C6_WORK_STEP)
+#else
+#define C6_SELECTED_WORK ""
+#endif
+
 // Expand directly in each entry to keep CUDA line information in the
 // existing parser's non-inlined form. The PTX predicate lives in the entry
 // register namespace; no nested assembly scope or unprefixed name is needed.
-// K=0 still pays the measured cost of 4096 predicated-off instructions.
+// K=0 has no MAD body; K=4096 is a separately compiled real MAD chain.
 // All original stores follow the first consumer. Host helper-field and
 // counter checks remain independent of the final kernel validity mask.
 #define C6_RUN_LANE(Future) \
     do { \
         const std::uint32_t lane = threadIdx.x; \
         auto* const record = &records[lane]; \
-        std::uint32_t loaded; \
-        asm volatile("ld.global.u32 %0, [%1];" \
-                     : "=r"(loaded) : "l"(&input[lane]) : "memory"); \
+        std::uint32_t loaded = 0; \
+        asm volatile(".reg .pred %%c6_lane_active;\n\t" \
+                     "setp.eq.u32 %%c6_lane_active, %2, 0;\n\t" \
+                     "@%%c6_lane_active ld.global.u32 %0, [%1];" \
+                     : "+r"(loaded) : "l"(&input[lane]), "r"(lane) : "memory"); \
         std::uint64_t native_after, work_begin, work_end, consumer_after; \
         asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(native_after) : : "memory"); \
         asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(work_begin) : : "memory"); \
         std::uint32_t work = seed ^ (lane * 0x9e3779b9U + 0x85ebca6bU); \
         const std::uint32_t addend = 0x3c6ef35fU + lane; \
-        asm volatile( \
-            ".reg .pred %%c6_work_active;\n\t" \
-            "setp.ne.u32 %%c6_work_active, %2, 0;\n\t" \
-            C6_REPEAT_4096(C6_PREDICATED_WORK_STEP) \
-            : "+r"(work) : "r"(addend), "r"(work_count) : "memory"); \
+        asm volatile(C6_SELECTED_WORK \
+            : "+r"(work) : "r"(addend) : "memory"); \
         asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(work_end) : : "memory"); \
-        const auto value = loaded ^ work ^ 0xd1b54a35U; \
-        asm volatile("" : : "r"(value) : "memory"); \
+        std::uint32_t value; \
+        asm volatile("xor.b32 %0, %1, %2;\n\t" \
+                     "xor.b32 %0, %0, 0xd1b54a35;" \
+                     : "=r"(value) : "r"(loaded), "r"(work) : "memory"); \
         asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(consumer_after) : : "memory"); \
         record->launch_epoch = launch_epoch; \
         if constexpr (!(Future)) { \
             record->configured_delay_ns = 0; \
             record->status = 1; \
+        } else { \
+            asm volatile("@!%%c6_lane_active st.global.u32 [%0], 1;" \
+                : : "l"(&record->status) : "memory"); \
         } \
         record->native_instruction_after_ns = native_after; \
         record->work_begin_ns = work_begin; \
         record->work_end_ns = work_end; \
         record->consumer_after_ns = consumer_after; \
         asm volatile("st.global.u32 [%0], %1;" : : "l"(&record->lane), "r"(lane) : "memory"); \
-        const std::uint32_t valid_mask = (Future) ? c6_delay::kFutureBits : c6_delay::kKernelBits; \
+        std::uint32_t valid_mask = c6_delay::kKernelBits; \
+        if constexpr (Future) { \
+            asm volatile("@%%c6_lane_active mov.u32 %0, 1023;" \
+                : "+r"(valid_mask) : : "memory"); \
+        } \
         asm volatile("st.global.u32 [%0], %1;" : : "l"(&record->valid_bits), "r"(valid_mask) : "memory"); \
         record->work_count = work_count; \
         record->output_bits = value; \
@@ -182,6 +206,8 @@ using nlohmann::json;
 namespace future = hbfsim::timing_future;
 constexpr char kFutureKernel[] = "c6_future_delay_future";
 constexpr char kNativeKernel[] = "c6_future_delay_native";
+constexpr char kWorkMarker[] = "__c6_single_lane_fixed_work";
+constexpr char kWorkload[] = "single_active_lane_fixed_work_v1";
 constexpr std::uint32_t kSeed = 0x9e3779b9U;
 constexpr std::size_t kRegisteredBytes = 4096;
 constexpr std::size_t kInputBytes = 32 * sizeof(std::uint32_t);
@@ -199,6 +225,7 @@ struct Options {
     std::string native_binding;
     std::string output;
     std::string report_dir;
+    std::uint32_t fixed_work_count{UINT32_MAX};
 };
 
 struct NativeBinding {
@@ -301,6 +328,10 @@ Options parse_options(int argc, char** argv)
         else if (key == "--cubin") options.cubin = value;
         else if (key == "--binding") options.binding = value;
         else if (key == "--native-binding") options.native_binding = value;
+        else if (key == "--fixed-work-count") {
+            require(value == "0" || value == "4096", "fixed work count must be 0 or 4096");
+            options.fixed_work_count = value == "0" ? 0 : 4096;
+        }
         else if (key == "--output") options.output = value;
         else if (key == "--report-dir") options.report_dir = value;
         else throw std::runtime_error("unknown option " + key);
@@ -312,6 +343,8 @@ Options parse_options(int argc, char** argv)
                 !options.output.empty() &&
                 !options.report_dir.empty(),
             "all artifact paths are required");
+    require(options.fixed_work_count == 0 || options.fixed_work_count == 4096,
+            "--fixed-work-count is required");
     const auto profile = json::parse(read_file(options.profile));
     require(profile.at("page_bytes").get<std::uint32_t>() == 4096 &&
                 profile.at("time_scale").get<std::uint32_t>() == 1 &&
@@ -323,10 +356,13 @@ Options parse_options(int argc, char** argv)
     return options;
 }
 
-NativeBinding parse_binding(const std::string& path)
+NativeBinding parse_binding(const std::string& path, std::uint32_t fixed_work_count)
 {
     const auto value = json::parse(read_file(path));
-    require(value.at("schema_version") == 1 &&
+    require(value.size() == 15 && value.at("schema_version") == 2 &&
+                value.at("workload") == kWorkload &&
+                value.at("active_lane_mask") == 1 &&
+                value.at("fixed_work_count") == fixed_work_count &&
                 value.at("selected_kernel") == kFutureKernel &&
                 value.at("native_kernel") == kNativeKernel &&
                 value.at("compiler").at("tool") == "ptxas" &&
@@ -362,10 +398,14 @@ NativeBinding parse_binding(const std::string& path)
 }
 
 OrdinaryNativeBinding parse_native_binding(const std::string& path,
-                                           const NativeBinding& future_binding)
+                                           const NativeBinding& future_binding,
+                                           std::uint32_t fixed_work_count)
 {
     const auto value = json::parse(read_file(path));
-    require(value.size() == 11 && value.at("schema_version") == 1 &&
+    require(value.size() == 14 && value.at("schema_version") == 2 &&
+                value.at("workload") == kWorkload &&
+                value.at("active_lane_mask") == 1 &&
+                value.at("fixed_work_count") == fixed_work_count &&
                 value.at("selected_kernel") == kNativeKernel &&
                 value.at("transform_mode") == "native_untransformed" &&
                 value.at("mapping_validation") == "NOT_PROVEN" &&
@@ -479,7 +519,7 @@ class Journal {
   public:
     explicit Journal(std::string path) : path_(std::move(path))
     {
-        value_ = {{"schema_version", 1}, {"evidence", "PARTIAL_GPU_DIAGNOSTIC"},
+        value_ = {{"schema_version", 2}, {"evidence", "PARTIAL_GPU_DIAGNOSTIC"},
                   {"validation_status", "UNVALIDATED"},
                   {"stage", "options_validated"}, {"launches", json::array()},
                   {"cleanup", json::object()}};
@@ -556,12 +596,13 @@ std::uint32_t discover_instruction(
     CUfunction future_kernel, std::uint32_t* input, std::uint32_t* output,
     c6_delay::Record* records, CUdeviceptr diagnostic_config,
     CUdeviceptr counters_address, CUdeviceptr trace_address,
-    std::size_t trace_bytes, Journal& journal, std::string& stage)
+    std::size_t trace_bytes, std::uint32_t fixed_work_count,
+    Journal& journal, std::string& stage)
 {
     c6_delay::Config disabled{};
     reset_launch(diagnostic_config, counters_address, trace_address, trace_bytes,
                  records, disabled);
-    const std::uint32_t work = 0;
+    const std::uint32_t work = fixed_work_count;
     const std::uint64_t epoch = 1;
     std::array<c6_delay::Record, 32> discovery_records{};
     for (std::uint32_t lane = 0; lane < 32; ++lane) {
@@ -584,16 +625,24 @@ std::uint32_t discover_instruction(
     future::Counters counters{};
     driver(cuMemcpyDtoH(&counters, counters_address, sizeof(counters)),
            "read instruction discovery counters");
-    require(counters.pending == 0 && counters.rejected == 0 &&
-                counters.trace_overflow == 0 && counters.trace_count == 64,
-            "instruction discovery conservation failed");
-    std::array<future::Trace, 64> traces{};
+    require(counters.next_reservation == 2 && counters.issued == 1 &&
+                counters.model_ready == 1 && counters.consumed == 1 &&
+                counters.groups_issued == 1 && counters.groups_completed == 1 &&
+                counters.pending == 0 && counters.rejected == 0 &&
+                counters.drained == 0 && counters.terminal_error == 0 &&
+                counters.native_loads == 0 && counters.native_bytes == 0 &&
+                counters.trace_overflow == 0 && counters.trace_count == 2,
+            "single-lane instruction discovery conservation failed");
+    std::array<future::Trace, 2> traces{};
     driver(cuMemcpyDtoH(traces.data(), trace_address, sizeof(traces)),
            "read instruction discovery traces");
     std::set<std::uint32_t> instructions;
     json raw = json::array();
     for (const auto& trace : traces) {
         raw.push_back(trace_json(trace));
+        require(trace.lane == 0 && trace.group_mask == 1 && trace.bytes == 4 &&
+                    trace.reservation_id == 1 && trace.address == reinterpret_cast<std::uint64_t>(input),
+                "discovery trace is not the single active lane");
         instructions.insert(trace.instruction_id);
     }
     journal.field("instruction_discovery",
@@ -625,7 +674,8 @@ json acquire_launch(
     std::array<std::uint32_t, 32> expected{};
     std::array<std::uint32_t, 32> sentinel{};
     for (std::uint32_t lane = 0; lane < 32; ++lane) {
-        expected[lane] = input_word(lane) ^ cpu_work(kSeed, lane, cell.work_count) ^
+        expected[lane] = (lane == 0 ? input_word(lane) : 0U) ^
+                         cpu_work(kSeed, lane, cell.work_count) ^
                          0xd1b54a35U;
         sentinel[lane] = expected[lane] ^ 0xffffffffU;
     }
@@ -695,7 +745,7 @@ json acquire_launch(
                     record.work_count == cell.work_count &&
                     record.output_bits == expected[lane],
                 "record identity/output mismatch");
-        if (cell.future_arm) {
+        if (cell.future_arm && lane == 0) {
             require(record.configured_delay_ns == cell.delay_ns &&
                         record.valid_bits == c6_delay::kFutureBits &&
                         record.helper_entry_ns != 0 &&
@@ -727,24 +777,46 @@ json acquire_launch(
                         record.consumer_after_ns != 0 &&
                         record.native_instruction_after_ns <= record.work_begin_ns &&
                         record.work_begin_ns <= record.work_end_ns &&
-                        record.work_end_ns <= record.consumer_after_ns,
-                    "native diagnostic record invalid");
+                        record.work_end_ns <= record.consumer_after_ns &&
+                        record.helper_entry_ns == 0 && record.arrival_ns == 0 &&
+                        record.helper_issue_exit_ns == 0 && record.wait_enter_ns == 0 &&
+                        record.wait_exit_ns == 0 && record.ready_ns == 0 &&
+                        record.reservation_id == 0 && record.status == future::kReady,
+                    "native/inactive diagnostic record invalid");
         }
     }
     if (cell.future_arm) {
-        require(counters.next_reservation == 2 && counters.issued == 32 &&
-                    counters.pending == 0 && counters.model_ready == 32 &&
-                    counters.consumed == 32 && counters.drained == 0 &&
+        require(counters.next_reservation == 2 && counters.issued == 1 &&
+                    counters.pending == 0 && counters.model_ready == 1 &&
+                    counters.consumed == 1 && counters.drained == 0 &&
                     counters.terminal_error == 0 && counters.native_loads == 0 &&
                     counters.native_bytes == 0 && counters.rejected == 0 &&
                     counters.groups_issued == 1 && counters.groups_completed == 1 &&
-                    counters.trace_count == 64 && counters.trace_overflow == 0,
+                    counters.trace_count == 2 && counters.trace_overflow == 0,
                 "future counter conservation failed");
+        require(traces.size() == 2 && traces[0].event == 0 && traces[0].status == 0 &&
+                    traces[1].event == 5 && traces[1].status == 1,
+                "single-lane issue/consume trace pair invalid");
+        const auto& active = observed_records[0];
+        for (const auto& trace : traces) {
+            require(trace.lane == 0 && trace.group_mask == 1 && trace.bytes == 4 &&
+                        trace.instruction_id == instruction && trace.reservation_id == 1 &&
+                        trace.address == reinterpret_cast<std::uint64_t>(input) &&
+                        trace.issue_ns == active.arrival_ns && trace.ready_ns == active.ready_ns,
+                    "single-lane trace identity differs");
+        }
+        require(traces[0].finish_ns >= active.arrival_ns &&
+                    traces[0].finish_ns <= active.helper_issue_exit_ns &&
+                    traces[1].finish_ns >= active.wait_enter_ns &&
+                    traces[1].finish_ns >= active.ready_ns &&
+                    traces[1].finish_ns <= active.wait_exit_ns,
+                "single-lane trace timestamps differ");
     } else {
         require(counters.next_reservation == 1 && counters.issued == 0 &&
                     counters.pending == 0 && counters.model_ready == 0 &&
                     counters.consumed == 0 && counters.drained == 0 &&
                     counters.terminal_error == 0 && counters.rejected == 0 &&
+                    counters.native_loads == 0 && counters.native_bytes == 0 &&
                     counters.groups_issued == 0 && counters.groups_completed == 0 &&
                     counters.trace_count == 0 && counters.trace_overflow == 0,
                 "native arm unexpectedly entered future helper");
@@ -890,9 +962,12 @@ int main(int argc, char** argv)
     bool cleanup_attempted = false;
     try {
         const auto options = parse_options(argc, argv);
-        const auto binding = parse_binding(options.binding);
-        const auto native_binding = parse_native_binding(options.native_binding, binding);
+        const auto binding = parse_binding(options.binding, options.fixed_work_count);
+        const auto native_binding = parse_native_binding(options.native_binding, binding, options.fixed_work_count);
         journal = std::make_unique<Journal>(options.output + ".partial.json");
+        journal->field("workload", kWorkload);
+        journal->field("active_lane_mask", 1);
+        journal->field("fixed_work_count", options.fixed_work_count);
         auto original_ptx = read_file(options.ptx);
         require(original_ptx.size() == binding.original_bytes &&
                     sha256_hex(original_ptx) == binding.original_sha,
@@ -1053,20 +1128,30 @@ int main(int argc, char** argv)
                "lookup ordinary native kernel");
         resources.diagnostic_config = module_object<c6_delay::Config>(
             resources.module, "__hbfsim_eval_future_delay_config_v1");
+        std::uint32_t future_work = UINT32_MAX, native_work = UINT32_MAX;
+        driver(cuMemcpyDtoH(&future_work, module_object<std::uint32_t>(resources.module, kWorkMarker),
+                           sizeof(future_work)), "read future fixed-work marker");
+        driver(cuMemcpyDtoH(&native_work, module_object<std::uint32_t>(resources.native_module, kWorkMarker),
+                           sizeof(native_work)), "read native fixed-work marker");
+        const json work_markers{{"future", future_work}, {"native", native_work}};
+        journal->field("fixed_work_markers", work_markers);
+        require(future_work == options.fixed_work_count && native_work == options.fixed_work_count,
+                "loaded image fixed-work marker differs from selected binding");
         const auto counters_address = module_object<future::Counters>(
             resources.module, "__hbfsim_timing_future_counters_v1");
         const auto [trace_address, trace_bytes] = module_span(
             resources.module, "__hbfsim_timing_future_trace_v1");
-        require(trace_bytes >= 64 * sizeof(future::Trace),
+        require(trace_bytes >= 2 * sizeof(future::Trace),
                 "future trace storage too small");
 
         const auto instruction = discover_instruction(
             future_kernel, resources.input, resources.output, resources.records,
             resources.diagnostic_config, counters_address, trace_address,
-            trace_bytes, *journal, stage);
+            trace_bytes, options.fixed_work_count, *journal, stage);
         json launches = json::array();
         std::uint64_t epoch = 100;
         for (const auto& cell : kCells) {
+            if (cell.work_count != options.fixed_work_count) continue;
             for (std::uint32_t ordinal = 0; ordinal < kWarmups + kSamples;
                  ++ordinal) {
                 const bool warmup = ordinal < kWarmups;
@@ -1084,13 +1169,15 @@ int main(int argc, char** argv)
         require(cleanup_report.value("safe_retirement_confirmed", false) &&
                     cleanup_report.value("all_observable_steps_succeeded", false),
                 "cleanup did not confirm observable retirement/frees");
-        const json result{{"schema_version", 1},
+        const json result{{"schema_version", 2},
             {"evidence", "GPU_ACQUISITION"},
             {"validation_status", "UNVALIDATED"},
             {"scientific_claim", false}, {"c6_3_closed", false},
             {"c6_4_closed", false}, {"g5_closed", false},
             {"overlap_closed", false}, {"native_completion_timing", false},
             {"instruction_id", instruction},
+            {"workload", kWorkload}, {"active_lane_mask", 1},
+            {"fixed_work_count", options.fixed_work_count}, {"fixed_work_markers", work_markers},
             {"launch_contract", {{"grid", {1, 1, 1}}, {"block", {32, 1, 1}},
                                   {"warmups_per_cell", kWarmups},
                                   {"samples_per_cell", kSamples}}},

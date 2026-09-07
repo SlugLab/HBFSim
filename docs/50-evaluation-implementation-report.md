@@ -2,8 +2,8 @@
 
 ## Current actual checkpoint — HF012, P7 and C6 (2026-09-07)
 
-This update is prepared from clean HEAD
-`5fa60e16698b9344ade5e134995ff502f113f872`. HF012 returned all three real
+This update joins observations through the exact source and HEAD identities in
+their referenced receipts. HF012 returned all three real
 native/capture/repeat arms in 451.929812513 s with identical generated tokens.
 Native did not capture routing. Capture and repeat each retain 384 router-call
 events (48 layers x eight forwards), eight saves and 39 token slots: 32 prefill
@@ -33,9 +33,64 @@ residual relative to `none` reflects batched same-layer demand issue versus
 serial miss service, not prefetch benefit. This remains a diagnostic capacity
 configuration, not measured residency, generation speedup or validated model
 capacity. The independent standard-library accounting recheck passed in
-0.516548358 s while preserving all claim boundaries as false. A rho=1/32
-run is only a proposed non-original-matrix sensitivity diagnostic; it has not
-run and supplies no result.
+0.516548358 s while preserving all claim boundaries as false. The explicit rho=1/32 capacity-sensitivity diagnostic subsequently completed
+all six real/shuffled policy cells in 110.927016 s.  Unlike the retained
+rho=1/16 condition, each ahead cell issued 2,304 actual prefetch requests.
+Real-order residual time changed from 453,507,660 ns on-demand to 311,849,604 ns
+ahead while traffic increased from 25,291,653,120 to 35,823,550,464 bytes;
+shuffled residual changed from 442,698,120 to 268,609,120 ns while traffic
+increased to 34,068,234,240 bytes.  The independent semantic reconstruction
+classified real requests as 918 useful, 270 late, 1,041 evicted, 3 terminal and
+72 horizon-censored; shuffled counts were 1,104/270/865/2/63.  These categories
+conserve the actual 2,304 requests in each series.  This is an extra capacity
+sensitivity result, not an original rho-matrix cell, a parameter selected for a
+win, generation speedup, hardware cache residency or a causal real-route
+advantage.  The 8 GiB field is the retained profile's cache budget, not the
+physical 96 GiB GPU capacity; the 56 GiB media profile is the smallest
+4 GiB-aligned diagnostic capacity covering the 54 GiB dense expert extent.
+The six-cell execution is
+`results/gold/hf-routing-runner/route-horizon-hf012-rho1-32-sensitivity-attempt-004/execution.json`
+(SHA256 `96e8936854585b5e9f5d21e957199064fb638daae68be4e2e44dc36180a3a858`).
+The independent semantic review is under
+`route-horizon-hf012-rho1-32-semantic-review-attempt-004/` with manifest SHA256
+`19dd4ef136d1d2747df39bc52ad14b320c87b1c266a7e9ad0d5aa2c080a1d4a9`.
+
+The requested rho=1/2 and rho=1 rows then completed their 12 projected
+real/shuffled policy cells in 79.638914 s. Together with the earlier rho=1/16
+attempt003 receipt, the three requested rho settings now have 18 projected
+cells; these are joined across two executions rather than presented as one
+common-profile run. In both new rows every policy recorded 1,860 cache hits and
+828 misses, while all ahead-prefetch and eviction counts remained zero. Real
+`none`/on-demand/ahead residuals were 151,496,400/139,740,180/139,740,180 ns
+with 7,813,988,352 traffic bytes per policy. Shuffled residuals were
+149,861,820/135,854,820/135,854,820 ns with 7,804,551,168 bytes per policy; one
+terminal cold miss was not issued, so 828 misses must not be equated with 828
+issued requests. Independent accounting passed in 0.667704454/0.768508366 s and
+the two semantic reconstructions passed in 0.3069178/0.2975702 s. They confirm
+`PREFETCH_TRIGGER_NOT_OBSERVED`, not a prefetch implementation failure or a
+benefit. The run is
+`results/gold/hf-routing-runner/route-horizon-hf012-original-rho-matrix-attempt-005/`
+(execution SHA256
+`b30845024e76b2b92c94486740a7874b0816c79cf4f3a2355b52e8086ae87278`);
+accounting evidence is under
+`route-horizon-hf012-original-rho-data-review-attempt-005/` (execution SHA256
+`c924d932ffb850160886f8f6a19e34f188395ed72745ce8634080ae0fec7de57`).
+The combined semantic review is
+`route-horizon-hf012-original-rho-semantic-review-attempt-005/` (manifest
+SHA256
+`185386445c3c116772fa05d9b8643efc55cefaf9e8ac0a26458034edc659c12e`).
+The rho=1/2 and rho=1 profile inputs have SHA256
+`e731c674ceaf654785681152cde422f75c4236ddea762d982aeea56dd71d4b98`
+and `a57b0bdbfca39bac414cda8a3d5461d6f7f80bf288de1d61f8982bfee8704a43`;
+their `hbm_cache_bytes` fields are 28,991,029,248 and 57,982,058,496 bytes,
+while attempt003 retained 8,589,934,592 bytes. The backing
+`capacity_bytes` remains 60,129,542,144 bytes in all three cases. Python replay
+uses each budget's `page_aligned_effective_bytes` (3,623,878,656 bytes at
+rho=1/16), and the standalone service does not allocate GPU cache from the HBM
+field. The later profiles therefore do not retroactively replace attempt003's
+input or turn the joined receipts into one same-profile execution.
+All 18 observations remain projected prefix-media replay rather than measured
+GPU consumption, generation completion, scientific validation or formal cells.
 
 C6 now retains the actual globaltimer-compatible future image at
 `future-delay-attempt-004` and a separate ordinary native image at
@@ -48,7 +103,29 @@ then completed 67 launches in 9.237038743 s. Independent arithmetic matched all
 All futureD lanes were ready before work began: prework medians
 309,376/316,856 ns exceeded D=20,000 ns, while K0/K4096 work medians were both
 7,040 ns. This is `NON_IDENTIFYING` for the selected W, not G5 or overlap
-closure. G2, C6.3, G5, overlap and formal admission remain open; formal DONE is 0.
+closure.
+
+A later single-active-lane fixed-work slice made K an actual optimized-work
+control.  Its seven focused CPU checks and serial target build passed; the
+accepted K=0/K=4096 PTX images were transformed and four distinct cubins were
+assembled and disassembled.  Independent SASS review found the exact four-byte
+work marker in every image (0 or 4096) and retained the 4,096-instruction
+dependent IMAD chain between load and wait/consumer, while leaving mapping
+`NOT_PROVEN`.  The two sequential GPU children completed 68 launches in
+9.129740622 s.  Independent arithmetic checked 2,112 outputs, 46
+issue/ready/consume groups and 92 traces, plus native/inactive-lane controls and
+owned cleanup.  K=4096 lane-zero W medians were 6,976/6,928/7,008 ns for
+native/future0/futureD versus 0 ns medians at K=0, so work separation is now
+observed.  All 20 measured D=20,000 ns samples still expired before work began
+(minimum arrival-to-work 35,776 ns at K=0 and 46,304 ns at K=4096), leaving the
+capture `NON_IDENTIFYING_PREWORK_COVERS_DELAY`.  It does not establish physical
+load completion, scoreboard semantics, overlap, G5 or complete C6.3/C6.4.
+The combined SASS/GPU independent review is retained at
+`results/gold/timing-future-unit/c6-single-lane-data-review-attempt-001/`
+(manifest SHA256
+`e44c84dff7482d01582f77fa6fc978ddc6c0423e6e903fcca3d8fd43a17cc816`).
+
+G2, C6.3, G5, overlap and formal admission remain open; formal DONE is 0.
 
 The dated HF010, route-only, known-delay and earlier C6 sections below are
 historical evidence. They do not supersede this current checkpoint.
@@ -70,7 +147,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Latest actual checkpoint HEAD: `24d007371fc4ff1f1d2fde2a80d6e4b4d7d20ebc`.
+- Latest integrated checkpoint HEAD: `6228d513bbbcb049f7ecc5cdeee49047b21d87e2`.
   HF010 returned identical tokens across its three arms after the scoped Ray
   compatibility repair; capture/repeat route arrays matched, while native did
   not capture routing. C6 native-image and conditional-consumer GPU diagnostics returned.

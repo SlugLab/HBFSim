@@ -24,6 +24,33 @@ K0/K4096 prework medians were 309,376/316,856 ns versus D=20,000 ns, and both
 work medians were 7,040 ns (ordinary native: 7,072 ns). This W choice is
 `NON_IDENTIFYING`, not evidence of overlap or native completion timing.
 
+### Single-active-lane fixed-work continuation
+
+The next bounded slice used two separately compiled K=0/K=4096 PTX images for
+both the transformed future and ordinary native controls. Seven focused CPU
+checks and the serial target build passed. The actual mapping produced four
+distinct cubins. All four retain the exact four-byte
+`__c6_single_lane_fixed_work` marker (0 or4096), and structural SASS review
+finds the optimized dependent 4,096-IMAD chain between the load and the
+wait/consumer. Mapping remains `COLLECTED_NOT_PROVEN`.
+
+Two sequential owned GPU children then completed68 launches in9.129740622 s.
+Independent analysis checked2,112 matrix outputs/sentinels,46 future groups,
+92 traces, two discoveries, all inactive-lane/native negative controls and
+observable cleanup. K=4096 lane-zero W medians were6,976/6,928/7,008 ns for
+native/future0/futureD; K=0 medians were0. All20 measured delayed samples had
+already reached ready before work began: minimum arrival-to-work was35,776 ns
+at K=0 and46,304 ns at K=4096 versus D=20,000 ns. Thus this is
+`NON_IDENTIFYING_PREWORK_COVERS_DELAY`, despite a real W contrast. Context
+destroy remains a void API with completion unobservable.
+
+Evidence is under `c6-single-lane-build-attempt-001/`,
+`c6-mapping/single-lane-fixed-work-attempt-001/`,
+`c6-single-lane-controller-attempt-001/` and `c6-single-lane-attempt-001/`
+within `results/gold/timing-future-unit/`. Independent mapping and arithmetic
+reviews are combined under `c6-single-lane-data-review-attempt-001/` (manifest
+SHA256 `e44c84dff7482d01582f77fa6fc978ddc6c0423e6e903fcca3d8fd43a17cc816`).
+
 These results do not close C6.3, G5, D/W, native completion, overlap, full
 lifecycle, capacity/reference/hybrid/empirical support or TMA. The acquisitions
 below remain historical `CAPTURED_UNVALIDATED` evidence.

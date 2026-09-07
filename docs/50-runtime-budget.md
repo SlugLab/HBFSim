@@ -10,9 +10,17 @@
 | P7 56 GiB zero-request init probe | 0.359337893 s | 164,192 KiB initialization-only RSS; header/finish all zero; not a replay peak |
 | P7 route-horizon six cells, 56 GiB profile | 54.779875 s | Real/shuffled 29.103271656/25.255706970 s; 228,192/228,952 KiB peak RSS; traffic 14,080,278,528/12,324,962,304 bytes per cell; zero prefetch/extra bytes |
 | P7 independent six-cell accounting | 0.516548358 s | Standard-library recomputation; all generation/GPU/science/speedup claims remain false |
+| P7 rho=1/32 extra sensitivity, six cells | 110.927016 s | Real/shuffled six projected cells; ahead issues 2,304 requests per series; not original rho matrix, generation speedup or hardware residency |
+| P7 rho=1/32 independent semantic review | 0.5390376 s | Reconstructed useful/late/evicted/terminal/censored categories from actual raw requests; claim boundaries unchanged |
+| P7 requested rho=1/2 and rho=1, 12 cells | 79.638914 s | Four real/shuffled series took 19.823223293/19.525328124/19.777439287/19.467585387 s; all ahead-prefetch counts zero |
+| P7 requested-rho independent accounting | 0.667704454 / 0.768508366 s | Two row-level standard-library recomputations passed; projected boundaries retained |
+| P7 requested-rho semantic review | 0.3069178 / 0.2975702 s | Both rows classify `PREFETCH_TRIGGER_NOT_OBSERVED`; no GPU/generation/science claim |
 | C6 repaired native-control host build | 18.534684581 s | Focused single target only; no GPU or G5 result |
 | C6 GPU002 | ResourceBusy preflight | Foreign GPU process present; no owned kernel |
 | C6 GPU003 native/future diagnostic | 9.237038743 s | 67 launches; arithmetic/conservation PASS; D expired before work, so `NON_IDENTIFYING` for W/overlap |
+| C6 single-lane fixed-work mapping | 11.456092 s | Two transforms, four optimized cubins and four full disassemblies; structural review only, mapping `NOT_PROVEN` |
+| C6 single-lane fixed-work GPU | 9.129740622 s | Two children/68 launches; 2,112 outputs, 46 groups and 92 traces pass; D still expires before W |
+| C6 single-lane independent analysis | 1.421391600 s | Exact raw/mapping/outer arithmetic and cleanup consistency; no scientific promotion |
 
 The 56 GiB-derived P7 profile passed one zero-request initialization
 header-plus-finish capacity probe and six projected cells. The retained
@@ -23,9 +31,22 @@ on-demand item for item. `none` uses serial miss service while on-demand batches
 same-layer demand, so their residual difference is not a prefetch speedup. The
 2 GiB value was an address-space cap. The recorded RSS is observed host-process
 memory for these bounded runs; it is not GPU/cache residency, a validated replay
-budget or a revised formal runtime estimate. A rho=1/32 smaller-cache run is
-only a proposed, non-original-matrix
-sensitivity diagnostic; it has not run and supplies no runtime or outcome.
+budget or a revised formal runtime estimate. The explicit rho=1/32 smaller-cache sensitivity run subsequently completed in
+110.927016 s and exercised the ahead issue path. It is outside the original rho
+matrix. Its residual and traffic changes remain projected prefix-service
+observations, not generation speedup, measured hardware residency or a
+parameter-selection result. The 8 GiB cache field is a retained profile budget,
+not the physical GPU capacity. The requested rho=1/2 and rho=1 rows later
+completed 12 projected cells in 79.638914 s; both rows recorded zero prefetch and
+eviction counts, and ahead matched on-demand. Joined with the earlier rho=1/16
+attempt003 receipt, this covers 18 requested-rho projected cells across two
+executions and receipt-specific profile inputs. The `hbm_cache_bytes` field is
+8 GiB in attempt003 and 28,991,029,248/57,982,058,496 bytes in the two
+attempt005 rows. Backing `capacity_bytes` remains 60,129,542,144 bytes; Python
+replay instead uses each budget's aligned effective bytes. These are
+capacity-only service diagnostics, not the physical 96 GiB GPU or measured
+cache residency. Independent accounting and semantic reconstruction passed,
+while generation, GPU-consumption, scientific and formal claims remain false.
 The observations above do not change the matrix planning totals, G2/G5
 thresholds or formal DONE count.
 

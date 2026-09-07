@@ -1,6 +1,6 @@
 # Run status — implementation in progress
 
-## Actual checkpoint: HF012 route timing, P7 init failures and C6 native control (2026-09-07)
+## Actual checkpoint: HF012, P7 requested rho controls and C6 fixed work (2026-09-07)
 
 All records in this section are standalone diagnostics. Formal DONE remains 0.
 
@@ -33,8 +33,44 @@ All records in this section are standalone diagnostics. Formal DONE remains 0.
   matched its requests/nodes to on-demand item for item. These differences
   are not prefetch benefit, generation speedup or hardware validation. The
   independent accounting recheck passed in 0.516548358 s and retained all claim
-  boundaries as false. A rho=1/32 run is only a proposed non-original-matrix
-  sensitivity diagnostic; it has not run and supplies no result.
+  boundaries as false. The later explicit rho=1/32 capacity-sensitivity run completed all six
+  cells in 110.927016 s. Both ahead cells issued 2,304 prefetch requests;
+  independent semantic counts were real 918 useful/270 late/1,041 evicted/3
+  terminal/72 horizon and shuffled 1,104/270/865/2/63. Real ahead residual was
+  311,849,604 ns with 35,823,550,464 traffic bytes versus on-demand
+  453,507,660 ns/25,291,653,120 bytes; shuffled ahead was 268,609,120 ns with
+  34,068,234,240 bytes versus 442,698,120 ns/25,291,653,120 bytes. This is an
+  extra sensitivity observation, not an original rho cell or generation/cache
+  speedup. The retained 8 GiB cache field is distinct from physical GPU
+  capacity; the media profile remains the capacity-only 56 GiB diagnostic.
+  Evidence is `route-horizon-hf012-rho1-32-sensitivity-attempt-004/`; the
+  independent semantic reconstruction is retained in
+  `route-horizon-hf012-rho1-32-semantic-review-attempt-004/` under the HF routing
+  gold root.
+- The requested rho=1/2 and rho=1 rows then completed 12 projected cells in
+  79.638914 s. Both rows recorded 1,860 hits, 828 misses, zero prefetch and zero
+  evictions in every policy. Real residuals were 151,496,400 ns for `none` and
+  139,740,180 ns for on-demand/ahead, with 7,813,988,352 traffic bytes;
+  shuffled residuals were 149,861,820 and 135,854,820 ns with 7,804,551,168
+  bytes. One shuffled terminal cold miss was not issued. Independent accounting
+  passed in 0.667704454/0.768508366 s, and semantic reconstruction passed in
+  0.3069178/0.2975702 s with `PREFETCH_TRIGGER_NOT_OBSERVED`. Together with the
+  earlier rho=1/16 attempt003 receipt, the three requested rho settings now
+  supply 18 projected cells across two executions and receipt-specific profile
+  inputs. Attempt003's `hbm_cache_bytes` is 8,589,934,592, while attempt005's
+  rho=1/2 and rho=1 values are 28,991,029,248/57,982,058,496; backing
+  `capacity_bytes` stays 60,129,542,144. Python replay uses each budget's aligned
+  effective bytes, so this is not a single common-profile run. They remain
+  prefix-media replay, not measured GPU consumption,
+  generation completion, prefetch benefit, scientific validation or formal
+  cells. Evidence is
+  `route-horizon-hf012-original-rho-matrix-attempt-005/` (execution SHA256
+  `b30845024e76b2b92c94486740a7874b0816c79cf4f3a2355b52e8086ae87278`)
+  and `route-horizon-hf012-original-rho-data-review-attempt-005/` (execution
+  SHA256 `c924d932ffb850160886f8f6a19e34f188395ed72745ce8634080ae0fec7de57`).
+  The combined semantic review is
+  `route-horizon-hf012-original-rho-semantic-review-attempt-005/` (manifest
+  SHA256 `185386445c3c116772fa05d9b8643efc55cefaf9e8ac0a26458034edc659c12e`).
 - C6 retains a globaltimer-compatible future mapping (`future-delay-attempt-004`)
   and an independent untransformed native mapping
   (`native-control-attempt-001`), both explicitly unproved. The host compile
@@ -48,6 +84,17 @@ All records in this section are standalone diagnostics. Formal DONE remains 0.
   7,040 ns (ordinary-native controls: 7,072 ns). The chosen W produced no
   duration separation, so this result is `NON_IDENTIFYING` and cannot close G5
   or overlap.
+- A subsequent single-active-lane fixed-work build/mapping/GPU slice completed.
+  Four distinct optimized cubins retain exact K=0/K=4096 markers; structural
+  SASS review finds the 4,096 dependent IMAD chain but keeps mapping
+  `NOT_PROVEN`. Two sequential children completed 68 launches in 9.129740622 s.
+  Independent analysis checked 2,112 outputs, 46 future groups, 92 traces and
+  cleanup. K=4096 W medians were 6,976/6,928/7,008 ns by arm versus K=0 medians
+  of zero, but all 20 delayed samples expired before work (minimum prework
+  35,776/46,304 ns versus D=20,000 ns). The result remains
+  `NON_IDENTIFYING_PREWORK_COVERS_DELAY`; no scoreboard, completion, overlap,
+  G5 or full C6 closure follows. The combined independent SASS/GPU report is
+  `results/gold/timing-future-unit/c6-single-lane-data-review-attempt-001/`.
 - Known-delay G2, C6.3, G5, overlap, native completion timing, physical storage
   and formal registration remain open. No threshold changed.
 

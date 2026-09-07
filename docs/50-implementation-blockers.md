@@ -19,20 +19,42 @@
   experts). `none` serializes same-layer misses; on-demand batches them, and the
   inactive one-layer-ahead policy matches on-demand. Independent review checked
   all 2,304 prediction candidates per series as resident and ready and matched
-  one-layer-ahead requests/nodes to on-demand item for item. A rho=1/32 run may
-  be used only as an explicit non-original-matrix sensitivity diagnostic; it has
-  not run and has no result. No prefetch benefit was observed.
+  one-layer-ahead requests/nodes to on-demand item for item. The explicit rho=1/32 non-original-matrix sensitivity diagnostic subsequently
+  completed all six cells and exercised 2,304 ahead requests per series.
+  Independent semantic counts conserve useful/late/evicted/terminal/censored
+  outcomes, but the run changes capacity and cannot establish an original-rho,
+  generation-speedup, hardware-residency or causal real-route claim. The 8 GiB
+  field is the retained profile cache budget, not physical GPU capacity. No
+  validated prefetch benefit was established.
   An independent standard-library accounting recheck passed in 0.516548358 s;
   generation completion, GPU consumption, hardware/scientific validation and
-  speedup claims all remain false. A smaller-cache diagnostic remains pending
-  independent review.
+  speedup claims all remain false. The later rho=1/32 semantic reconstruction
+  also passed, without promoting the sensitivity condition into the original
+  matrix. The requested rho=1/2 and rho=1 rows subsequently completed 12 more
+  projected cells in 79.638914 s. Their independently recomputed metrics match
+  across the two rows: 1,860 hits/828 misses, zero prefetch and eviction counts,
+  and ahead equal to on-demand. One shuffled terminal cold miss is censored and
+  not issued. Combined with attempt003's rho=1/16 receipt, all three requested
+  rho settings now have 18 projected cells across two executions; the profile
+  inputs remain receipt-specific. Attempt003 retained an 8 GiB
+  `hbm_cache_bytes` field, whereas attempt005 uses the two row budgets'
+  28,991,029,248/57,982,058,496-byte aligned effective capacities; all keep the
+  same 60,129,542,144-byte backing service capacity. Python replay uses the
+  budget's aligned effective bytes, and these fields are not measured GPU
+  residency. Independent accounting and semantic review
+  classify the new rows `PREFETCH_TRIGGER_NOT_OBSERVED`. This does not close
+  GPU-consumption, generation, scientific or formal gates.
 - **C6 future/native control:** globaltimer-compatible future004, native001 and
   the repaired host build are retained with mapping validation still
   `NOT_PROVEN`. GPU002 was rejected by the resource guard while a foreign GPU
   process existed. GPU003 later completed, and its independent arithmetic
   checks pass, but every D=20,000 ns future was ready before work began and
-  K0/K4096 work medians were both 7,040 ns. The result is `NON_IDENTIFYING` for
-  W/overlap and does not close C6.3 or G5.
+  K0/K4096 work medians were both 7,040 ns. A subsequent single-active-lane
+  fixed-work slice retained distinct K=0/K=4096 optimized images and produced
+  separated W, but all 20 delayed samples still expired before work began.
+  Independent review passes arithmetic, trace, binding and cleanup consistency;
+  mapping remains `NOT_PROVEN`. The result is
+  `NON_IDENTIFYING_PREWORK_COVERS_DELAY` and does not close C6.3 or G5.
 - **Gate state:** known-delay G2, C6.3/G5, physical storage, formal handlers and
   formal matrix execution remain open. Formal DONE remains 0.
 
@@ -51,7 +73,7 @@ do not close the current gold gates.
 | BASE-CONFIG | RESOLVED | Fresh configure without the frozen libbpf-discovery exclusion fails. Reproducing `CMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON` builds the exact base and passes 42/42 CPU tests; existing evaluation pipeline passes 20/20. | Preserve frozen options and baseline evidence in `results/gold/base/frozen-config/`; no production build workaround was introduced. |
 | GPU-DRIVER | RESOLVED FOR HOST EXECUTION | Sandbox NVML queries fail, but authorized host queries and real guarded controls succeed on GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174, RTX PRO 6000 Blackwell Server Edition, driver595.84. Evidence: `results/gold/known-delay/gpu-controls/*/raw.gpu.jsonl`. | Run GPU work through the host execution boundary with unchanged resource guards; no system repair. |
 | ASYNC-INTEGRATION | C6.2 CLOSED; NATIVE DIAGNOSTICS ACQUIRED; FULL GOLD OPEN | Exact native four-case run128outputs/72consumes and new conditional three-case run96outputs/96consumes returned CAPTURED_UNVALIDATED. | Continue trueD0/knownD, D/W and full lifecycle gold. Keep broader TMA/capacity/reference/hybrid/empirical admission closed. |
-| FUTURE-SASS | NATIVE IMAGE BOUND; CONTROL PROOF NOT_PROVEN | New conditional cubin0804821c... is passed as the same checked buffer to the driver. Both SASS dumps preserve conditional-first and unconditional-second consumer paths. | Scoreboard/control semantics, physical load completion and actual overlap remain unproved; exact image binding alone does not close C6.3/G5. |
+| FUTURE-SASS | FIXED-WORK IMAGES BOUND; CONTROL PROOF NOT_PROVEN | Conditional cubin0804821c... remains bound. New K=0/K=4096 future/native cubins retain exact four-byte work markers; structural SASS review finds the dependent 4,096-IMAD interval between load and wait/consumer, and runtime marker lookups passed. | Scoreboard/control semantics, physical load completion and actual overlap remain unproved; exact image binding and instruction retention do not close C6.3/G5. |
 | STORAGE-TARGET | BLOCKED_STORAGE_BUSY | User authorizes selecting a safe project path. Selected candidate is `results/storage-inputs/read-only-benchmark.bin`, not created. Project filesystem shares root disk `/dev/nvme4n1p2` (Lexar ARES 4TB); no exclusive SSD I/O-path evidence. Identity and mount evidence: `results/manifests/storage-device.json`. | Keep physical acquisition closed; continue CPU replay/tooling. No payload I/O, benchmark-file initialization, writes, trim or format performed. |
 | CHECKPOINT | METADATA VERIFIED | Found project-local `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf`, a 61,095,802,848-byte allocated file. Embedded metadata: 48 layers, E=128, k=8. Inventory reconciles 579 tensors, 6,144 experts and 57,982,058,496 eligible bytes. | Use `results/manifests/qwen3-30b-a3b-inventory.json`; payload hash/GPU load not performed. Actual GPU fast-tier capacity and live cache gold remain unverified. |
 | HF-CHECKPOINT | MODEL AND GENERATION OBSERVED | HF010 real16-shard BF16 native/capture/repeat arms returned identical8-token outputs; capture/repeat39x48x8 routes matched. | Retain actual source/model bindings; do not substitute metadata identity or claim fresh payload hashes. |

@@ -14,6 +14,17 @@ completed 67 launches and passed independent output/counter/trace arithmetic,
 but all D=20,000 ns futures were ready before work. K0/K4096 work medians were
 both 7,040 ns, so the selected W is `NON_IDENTIFYING`.
 
+A subsequent single-active-lane fixed-work slice passed seven focused CPU
+checks, a serial build, two transforms and four optimized-image collections.
+The actual K=0/K=4096 cubins retain exact work markers and structural SASS shows
+the 4,096 dependent IMAD chain in the intended load-to-wait/consumer interval;
+this remains mapping `NOT_PROVEN`. Two sequential GPU children completed68
+launches and independent analysis checked2,112 outputs,46 future groups and92
+traces. The fixed work produced separated W (K=4096 medians6,928-7,008 ns
+versus K=0 medians0), but all20 D=20,000 ns samples expired before work began.
+The result is `NON_IDENTIFYING_PREWORK_COVERS_DELAY`, so the D/W overlap gate
+is still open.
+
 Preserve the exact guard, source, future004, native001 and accepted host-build
 bindings for any next bounded condition. Do not alter G5 thresholds or claim
 overlap/native-completion from mapping, host-build or this non-identifying GPU

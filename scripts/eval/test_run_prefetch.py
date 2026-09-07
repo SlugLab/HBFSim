@@ -175,6 +175,11 @@ class RouteHorizonCliTests(unittest.TestCase):
                                        capture_output=True,text=True,timeout=10)
             self.assertNotEqual(sensitivity.returncode,0)
             self.assertIn('requires captured HF inputs',sensitivity.stderr)
+            original=subprocess.run(sensitivity_argv+
+                ['--cache-sensitivity','ORIGINAL_RHO_MATRIX_PROJECTED_CONTROL'],
+                capture_output=True,text=True,timeout=10)
+            self.assertNotEqual(original.returncode,0)
+            self.assertIn('requires captured HF inputs',original.stderr)
 
 
 if __name__=='__main__':

@@ -170,7 +170,7 @@ class RouteHorizonInputTests(unittest.TestCase):
             self.assertEqual(data['route_horizon']['series'],series)
 
     def test_rho_one_thirty_two_requires_exact_nonmatrix_opt_in(self):
-        snapshots,_,_,hf,_,_=self.fixture
+        snapshots,index,buffers,hf,_,_=self.fixture
         inv=json.loads(snapshots['inventory']);shape=inv['kv_shape']
         kv=64*shape['layers']*shape['heads_kv']*(shape['key_length']+shape['value_length'])*2
         def recomputed(divisor):
@@ -180,6 +180,12 @@ class RouteHorizonInputTests(unittest.TestCase):
                 hf_snapshot=hf,inventory_file_bytes=snapshots['inventory'])
         sensitivity=recomputed(32)
         self.assertEqual(sensitivity['C_fast_effective']*32,inv['eligible_expert_bytes'])
+        default=recomputed(16)
+        self.assertEqual((sensitivity['C_fast_effective'],sensitivity['rho_requested'],
+                          sensitivity['achieved_rho']),(6144,1/32,0.0))
+        self.assertEqual((default['C_fast_effective'],default['rho_requested'],
+                          default['achieved_rho']),(12288,1/16,0.0))
+        self.assertIsNone(bridge.capacity_contract(inv,default,False,None))
         with self.assertRaisesRegex(ValueError,'fixed capacity budget'):
             bridge.capacity_contract(inv,sensitivity,False,None)
         marker=bridge.capacity_contract(inv,sensitivity,False,bridge.CACHE_SENSITIVITY_RHO_1_32)
@@ -191,6 +197,34 @@ class RouteHorizonInputTests(unittest.TestCase):
             bridge.capacity_contract(inv,recomputed(2),False,bridge.CACHE_SENSITIVITY_RHO_1_32)
         with self.assertRaisesRegex(ValueError,'requires captured HF'):
             bridge.capacity_contract(inv,sensitivity,True,bridge.CACHE_SENSITIVITY_RHO_1_32)
+        for divisor in (16,2,1):
+            budget=recomputed(divisor)
+            marker=bridge.capacity_contract(inv,budget,False,bridge.ORIGINAL_RHO_MATRIX)
+            self.assertEqual(marker,dict(kind='ORIGINAL_RHO_MATRIX_PROJECTED_CONTROL',
+                rho_requested=1/divisor,original_requested_matrix=True,
+                parameter_selected_for_win=False,
+                purpose='COMPLETE_ORIGINAL_REQUESTED_RHO_MATRIX_PROJECTED_CONTROL'))
+        with self.assertRaisesRegex(ValueError,'unsupported original rho'):
+            bridge.capacity_contract(inv,sensitivity,False,bridge.ORIGINAL_RHO_MATRIX)
+        drifted=recomputed(2);drifted['rho_requested']=1.0
+        with self.assertRaisesRegex(ValueError,'unsupported original rho'):
+            bridge.capacity_contract(inv,drifted,False,bridge.ORIGINAL_RHO_MATRIX)
+        with self.assertRaisesRegex(ValueError,'unsupported original rho'):
+            bridge.capacity_contract(inv,recomputed(2),False,'UNKNOWN_RHO_MARKER')
+        drifted_snapshots=dict(snapshots);drifted_budget=json.loads(snapshots['budget'])
+        drifted_budget['fast_bytes']+=1;drifted_snapshots['budget']=canonical(drifted_budget)
+        with self.assertRaisesRegex(ValueError,'fixed capacity budget'):
+            bridge.prepare_route_horizon(drifted_snapshots,index,buffers,hf,'cold',
+                                         bridge.ORIGINAL_RHO_MATRIX)
+        achieved_drift=dict(snapshots);achieved_budget=json.loads(snapshots['budget'])
+        achieved_budget['achieved_rho']=1/16;achieved_drift['budget']=canonical(achieved_budget)
+        with self.assertRaisesRegex(ValueError,'fixed capacity budget'):
+            bridge.prepare_route_horizon(achieved_drift,index,buffers,hf,'cold',
+                                         bridge.ORIGINAL_RHO_MATRIX)
+        with self.assertRaisesRegex(ValueError,'unsupported cache sensitivity'):
+            bridge.capacity_contract(inv,recomputed(2),False,bridge.CACHE_SENSITIVITY_RHO_1_32)
+        with self.assertRaisesRegex(ValueError,'requires captured HF'):
+            bridge.capacity_contract(inv,recomputed(2),True,bridge.ORIGINAL_RHO_MATRIX)
 
     def test_acquire_uses_each_artifact_role_byte_limit(self):
         snapshots,index,_,_,_,_=self.fixture

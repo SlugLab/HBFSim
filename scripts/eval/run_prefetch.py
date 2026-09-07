@@ -273,7 +273,8 @@ def main():
     timing.add_argument('--compute',type=Path)
     timing.add_argument('--route-horizon',type=Path)
     parser.add_argument('--hf-metadata-refresh',type=Path)
-    parser.add_argument('--cache-sensitivity',choices=('RHO_1_32_EXTRA_DIAGNOSTIC',))
+    parser.add_argument('--cache-sensitivity',choices=(
+        'RHO_1_32_EXTRA_DIAGNOSTIC','ORIGINAL_RHO_MATRIX_PROJECTED_CONTROL'))
     parser.add_argument('--binary',type=Path,required=True)
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--initial-residency',choices=('budget','cold'),default='budget')

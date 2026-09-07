@@ -21,6 +21,7 @@ from verify_hf_metadata import canonical, strict_object
 
 SEMANTICS='ROUTE_TO_ROUTE_DEVICE_ELAPSED_INCLUDING_CAPTURE_AND_SCHEDULING'
 CACHE_SENSITIVITY_RHO_1_32='RHO_1_32_EXTRA_DIAGNOSTIC'
+ORIGINAL_RHO_MATRIX='ORIGINAL_RHO_MATRIX_PROJECTED_CONTROL'
 ARTIFACTS=('sidecar','binding','protocol','raw_return','raw_routes','routing_trace',
            'worker','wrapper','triplet','runtime_manifest','project_manifest',
            'tuning_manifest','consistency','capture_review')
@@ -244,13 +245,21 @@ def capacity_contract(inv, budget, mock, cache_sensitivity):
         require(budget['C_fast_effective']*16==inv['eligible_expert_bytes'],
                 'fixed capacity budget')
         return None
-    require(cache_sensitivity==CACHE_SENSITIVITY_RHO_1_32 and
-            budget['C_fast_effective']*32==inv['eligible_expert_bytes'] and
-            budget['rho_requested']==1/32 and budget['rho']==1/32,
-            'unsupported cache sensitivity budget/marker')
-    return dict(kind=CACHE_SENSITIVITY_RHO_1_32,rho_requested=budget['rho_requested'],
-                original_requested_matrix=False,parameter_selected_for_win=False,
-                purpose='EXERCISE_PREFETCH_ISSUE_PATH_NOT_REQUIRE_BENEFIT')
+    if cache_sensitivity==CACHE_SENSITIVITY_RHO_1_32:
+        require(budget['C_fast_effective']*32==inv['eligible_expert_bytes'] and
+                budget['rho_requested']==1/32 and budget['rho']==1/32,
+                'unsupported cache sensitivity budget/marker')
+        return dict(kind=CACHE_SENSITIVITY_RHO_1_32,rho_requested=budget['rho_requested'],
+                    original_requested_matrix=False,parameter_selected_for_win=False,
+                    purpose='EXERCISE_PREFETCH_ISSUE_PATH_NOT_REQUIRE_BENEFIT')
+    matched=[divisor for divisor in (16,2,1)
+             if budget['C_fast_effective']*divisor==inv['eligible_expert_bytes'] and
+             budget['rho_requested']==1/divisor and budget['rho']==1/divisor]
+    require(cache_sensitivity==ORIGINAL_RHO_MATRIX and len(matched)==1,
+            'unsupported original rho budget/marker')
+    return dict(kind=ORIGINAL_RHO_MATRIX,rho_requested=budget['rho_requested'],
+                original_requested_matrix=True,parameter_selected_for_win=False,
+                purpose='COMPLETE_ORIGINAL_REQUESTED_RHO_MATRIX_PROJECTED_CONTROL')
 
 
 def prepare_route_horizon(snapshots, index, buffers, hf_snapshot, initial_residency,

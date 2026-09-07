@@ -51,6 +51,41 @@ within `results/gold/timing-future-unit/`. Independent mapping and arithmetic
 reviews are combined under `c6-single-lane-data-review-attempt-001/` (manifest
 SHA256 `e44c84dff7482d01582f77fa6fc978ddc6c0423e6e903fcca3d8fd43a17cc816`).
 
+### Executed overwrite and unused-exit continuation
+
+The distinct `c6_future_lifecycle_candidate` module now has actual transformed
+PTX and optimized sm_120 cubin binding. Seven focused CPU methods and one host
+build passed before the three-launch GPU capture at a61e0ef1 in 4.452103516 s.
+
+| Actual case | Outputs | Issued / ready | Consumed | Drained | Traces |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Executed overwrite | 32 | 32 / 32 | 0 | 32 | 64 |
+| False overwrite, then consume | 32 | 32 / 32 | 32 | 0 | 64 |
+| Unused future at exit | 32 retained sentinels | 32 / 32 | 0 | 32 | 64 |
+
+Independent formulas reproduce all 96 words and checksums. Reservations 1/2/3
+each have one issue and one correct terminal per lane, totaling three groups
+and 192 nontruncated traces with pending/error/overflow zero. The modeled
+ready interval is 10,000 ns in each case. Structural PTX/SASS review identifies
+the overwrite/consumer/store/return wait paths; no unpublished scoreboard
+semantics are inferred. The saved transformed-PTX file has one trailing LF more
+than the exact compiler/driver-bound mapped buffer (169,529 versus 169,528 bytes).
+
+The mapped PTX SHA256 is
+`65635db6979cd5d1d90a9aba49814437fa9b1e3834ff8d04153b52d458d4fa09`;
+the retained 90,128-byte cubin is
+`e4954d3fc1370a8cbf9302c823daa1f58028b09038162eb2c713c07ca3211f8b`.
+Final raw SHA256 is
+`05cf7fcaf8f5eed74d8f8a52f8183cfe0fbe805ee1008f9162719796f08c704d`.
+The actual mapping is `c6-mapping/future-lifecycle-attempt-001/`, the capture
+is `c6-future-lifecycle-attempt-001/`, and the nine-file independent review is
+`c6-future-lifecycle-data-review-attempt-001/`, all under
+`results/gold/timing-future-unit/`. The latter manifest SHA256 is
+`a0a8408140731ecff8201bd89f96bc61d10ece85317e2a2955bb66ab9ee95240`.
+Observable retirement/cleanup succeeded; void context destruction remains
+`UNOBSERVABLE_VOID_API`. The outer owned runner was reaped with no remaining
+owned process or uncertain session. Acquisition remains `CAPTURED_UNVALIDATED`.
+
 These results do not close C6.3, G5, D/W, native completion, overlap, full
 lifecycle, capacity/reference/hybrid/empirical support or TMA. The acquisitions
 below remain historical `CAPTURED_UNVALIDATED` evidence.

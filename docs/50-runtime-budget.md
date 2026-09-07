@@ -21,6 +21,29 @@
 | C6 single-lane fixed-work mapping | 11.456092 s | Two transforms, four optimized cubins and four full disassemblies; structural review only, mapping `NOT_PROVEN` |
 | C6 single-lane fixed-work GPU | 9.129740622 s | Two children/68 launches; 2,112 outputs, 46 groups and 92 traces pass; D still expires before W |
 | C6 single-lane independent analysis | 1.421391600 s | Exact raw/mapping/outer arithmetic and cleanup consistency; no scientific promotion |
+| P7 latency006, 12 new 8/12 us projected cells | 215.956931 s | Four serial stages 56.220150574/52.533888849/54.079949134/51.882887741 s; retained 10 us was not rerun |
+| P7 latency006 independent accounting | 1.019289790 / 1.168929184 s | Two saved-buffer row checks; projected claims retained |
+| P7 latency006 independent semantic review | 0.4742477 / 0.465483 s | Two request/cache reconstructions; baseline source versions differ |
+| C6 lifecycle seven focused CPU methods | 0.468451848 s | Actual bounded CPU process; no GPU inference |
+| C6 lifecycle configure / host build | 0.369810125 / 17.6115962 s | One opt-in target; whole build pipeline 19.254003 s, prior helper/image bytes retained |
+| C6 lifecycle three-case GPU acquisition | 4.452103516 s | Three launches; 96 outputs, 32 consumes/64 drains, 192 traces; sampled GPU peak 28 MiB, not a hard allocation bound |
+
+
+Single-block known-delay host controls ran only two existing CPU methods
+(0.317976759 s), the stored nvcc object recipe (16.577126847 s) and its g++ link
+(0.117186650 s). Old host/object/dependency bytes were archived; helper, plugin,
+PTX, gate, daemon and libraries were retained. The following one-child ABBA
+GPU attempt took 5.679440482 s, including one warmup/four measured launches and
+guard/cleanup. The existing child timeout stayed 30 s; the outer bound was 120 s.
+These process times are not lane-delay or whole-model runtime measurements.
+
+The lifecycle child retained its 120-second limit; the outer limit was
+300 seconds with bounded owned cleanup and a 4,096 MiB sampled-memory veto.
+Explicit benchmark cudaMalloc requests totaled 135,295 bytes, distinct from
+module/context/helper memory. No actual process wall time is a kernel-only or
+generation-time measurement. The new P7 sensitivity kept the existing per-series
+900-second/2 GiB limits and 60-second native response timeout; it does not revise
+the formal runtime estimate.
 
 The 56 GiB-derived P7 profile passed one zero-request initialization
 header-plus-finish capacity probe and six projected cells. The retained

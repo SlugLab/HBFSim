@@ -25,7 +25,19 @@ versus K=0 medians0), but all20 D=20,000 ns samples expired before work began.
 The result is `NON_IDENTIFYING_PREWORK_COVERS_DELAY`, so the D/W overlap gate
 is still open.
 
-Preserve the exact guard, source, future004, native001 and accepted host-build
+The executed-overwrite/false-overwrite/unused-exit slice is now physically
+acquired with its own mapped PTX and retained optimized cubin. Seven focused
+CPU methods and one host build passed. A single three-launch GPU run in
+4.452103516 s independently matched 96 outputs, 96 issued/readies, 32 consumes,
+64 drains, three groups and 192 traces, with no pending/error/overflow. The
+unused-exit path retained all 32 sentinels. The independent evidence bundle is
+`results/gold/timing-future-unit/c6-future-lifecycle-data-review-attempt-001/`
+(manifest `a0a8408140731ecff8201bd89f96bc61d10ece85317e2a2955bb66ab9ee95240`).
+These three correctness paths are recorded without treating them as complete
+C6.4 gold. Context-destroy completion remains unobservable through its void
+API, and the prior D/W `NON_IDENTIFYING_PREWORK_COVERS_DELAY` result stands.
+
+Preserve the exact guard, source, per-experiment image and accepted host-build
 bindings for any next bounded condition. Do not alter G5 thresholds or claim
 overlap/native-completion from mapping, host-build or this non-identifying GPU
 evidence. Shared public ABI,

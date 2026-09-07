@@ -55,6 +55,24 @@
   Independent review passes arithmetic, trace, binding and cleanup consistency;
   mapping remains `NOT_PROVEN`. The result is
   `NON_IDENTIFYING_PREWORK_COVERS_DELAY` and does not close C6.3 or G5.
+- **Latency sensitivity acquired:** the rho=1/32 8/12 us controls completed
+  12 new projected cells with independent accounting/semantic checks. The
+  retained 10 us baseline was not rerun and differs in two tool versions;
+  descriptive sensitivity does not close same-source causal or physical
+  performance validation. Terminal demand and horizon censoring remain explicit.
+- **Ordinary-future lifecycle slice acquired:** executed overwrite drained,
+  false overwrite consumed, and unused exit drained in three actual launches.
+  Independent arithmetic matched 96 outputs/96 issues/readies, 32 consumes,
+  64 drains, three groups and 192 traces with zero pending/error/overflow.
+  This removes the absence of these three physical correctness observations;
+  full lifecycle gold, context-destroy completion, C6.3 and G5 remain open.
+- **Single-block known-delay observation:** one K1/W1/low ABBA run retained
+  wait deltas 512/512 ns and chain deltas 544/576 ns for requested 500 ns.
+  Independent two-pair chain MAE/P95 errors 60/76 ns meet the unchanged 100/200 ns
+  descriptive limits. The separate CUDA Event deltas have opposite signs.
+  This bounded positive lane-level observation does not invalidate the retained
+  wider-grid failures or close matrix-wide G2, clock/DVFS explanations or
+  scientific timing validation; no threshold was changed.
 - **Gate state:** known-delay G2, C6.3/G5, physical storage, formal handlers and
   formal matrix execution remain open. Formal DONE remains 0.
 
@@ -66,7 +84,7 @@ do not close the current gold gates.
 
 | ID | State | Evidence and impact | Next action |
 |---|---|---|---|
-| KNOWN-DELAY | OPEN - CURRENT HARDWARE G2 FAILED | New per-chain K1 D0 mean absolute noise167310.128ns; D500 mean/P95 error106758.213/117620ns against unchanged100/200ns. Local waits512ns. Actual rows and independent reviews: `results/gold/known-delay/per-chain-k1-data-review-attempt-001/`. | Same-process ABBA now captured two pairs: mean absolute error versus500ns is5083.489/13193.532ns, still above original100ns threshold. Wait increment512ns; cause and formal G2 remain open. Evidence `results/gold/known-delay/per-chain-abba-attempt-001/`. |
+| KNOWN-DELAY | OPEN - CURRENT HARDWARE G2 FAILED | New per-chain K1 D0 mean absolute noise167310.128ns; D500 mean/P95 error106758.213/117620ns against unchanged 100/200ns. Local waits512ns. Actual rows and independent reviews: `results/gold/known-delay/per-chain-k1-data-review-attempt-001/`. | Same-process ABBA now captured two pairs: mean absolute error versus500ns is5083.489/13193.532ns, still above original100ns threshold. Wait increment512ns; cause and formal G2 remain open. Evidence `results/gold/known-delay/per-chain-abba-attempt-001/`. |
 | HOST-MEMORY | REAL HF010 TRIPLET COMPLETED | HF010 loaded56.88GiB per arm and all3 arms returned. Prior HF005 and first256MiB consistency MemoryErrors remain preserved; consistency later passed at1GiB. | Use existing runtime guards and stage-appropriate finite CPU limits. These observations neither reserve resources nor prove the cause of earlier failures. |
 | GPU-BUSY | LATEST GUARDED RUNS RETURNED | HF010, native-image C6, conditional-consumer C6 and per-chain delay attempts acquired through existing guards; earlier foreign-job rejection is retained. | Recheck guard at every new run; never affect foreign work. |
 | WORKSPACE | RESOLVED | `/root/hbfsim-exp` is an experiment container, not a Git root. After user-authorized branch discovery, `/root/hbfsim-exp/eval-base-integration` contains the exact frozen base and all required 49-audit files. | Use only this nested checkout for implementation. |

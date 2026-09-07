@@ -95,6 +95,31 @@ All records in this section are standalone diagnostics. Formal DONE remains 0.
   `NON_IDENTIFYING_PREWORK_COVERS_DELAY`; no scoreboard, completion, overlap,
   G5 or full C6 closure follows. The combined independent SASS/GPU report is
   `results/gold/timing-future-unit/c6-single-lane-data-review-attempt-001/`.
+- P7 latency006 completed all 12 new 8/12 us projected cells in 215.956931 s;
+  10 us reuses attempt004. Both accounting and independent semantic checks
+  passed. Useful counts decrease and late counts increase across the retained
+  8/10/12 us points; every ahead point issues 2,304 requests. Two source-tool
+  versions differ between004 and006, so this is descriptive sensitivity rather
+  than a same-source causal slope. The 17-file semantic review is retained at
+  `route-horizon-hf012-latency-sensitivity-semantic-review-attempt-006/`.
+- C6 lifecycle mapping/build/three-case GPU acquisition completed. The GPU run
+  took 4.452103516 s and independently matched 96 outputs, 96 issues/readies,
+  32 consumes, 64 drains, three groups and 192 traces with zero pending/error/
+  overflow. The unused-exit case retained 32 sentinels. Observable cleanup
+  succeeded, the owned runner was reaped, and sampled peak GPU memory was
+  28 MiB. Void context destruction remains unobservable. Evidence is
+  `results/gold/timing-future-unit/c6-future-lifecycle-data-review-attempt-001/`;
+  the capture remains `CAPTURED_UNVALIDATED` and closes no broader gate.
+- The single-block K1/W1/low ABBA diagnostic completed once in 5.679440482 s
+  after two focused CPU methods and direct host-only compile/link. Each of four
+  measured launches retained one row/eight ordered events; the unchanged old
+  helper/plugin/PTX were reused explicitly. Independent signed pair deltas were
+  wait +512/+512 ns, chain +544/+576 ns and CUDA Event -12,608.0513/+54,208.0402 ns.
+  Two-pair descriptive chain MAE/P95 errors 60/76 ns meet the unchanged 100/200 ns
+  diagnostic limits. This does not close matrix-wide G2, timing causality or
+  scientific validation. The owned runner was reaped without remaining owned
+  processes or an uncertain session. Evidence is
+  `results/gold/known-delay/per-chain-single-block-abba-attempt-001/`.
 - Known-delay G2, C6.3, G5, overlap, native completion timing, physical storage
   and formal registration remain open. No threshold changed.
 

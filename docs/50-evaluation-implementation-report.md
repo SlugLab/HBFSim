@@ -125,6 +125,76 @@ The combined SASS/GPU independent review is retained at
 (manifest SHA256
 `e44c84dff7482d01582f77fa6fc978ddc6c0423e6e903fcca3d8fd43a17cc816`).
 
+
+The rho=1/32 latency sensitivity then completed 12 additional projected cells
+at 8,000 and 12,000 ns in 215.956931 s. The 10,000 ns point is the retained
+attempt004 result and was not rerun. Independent accounting and semantic
+reconstruction passed; every ahead point issued 2,304 prefetch requests.
+
+| Series | Modeled read latency | Ahead residual | Useful / late requests |
+| --- | ---: | ---: | ---: |
+| Real | 8,000 ns | 208,838,276 ns | 1,141 / 47 |
+| Real, retained attempt004 | 10,000 ns | 311,849,604 ns | 918 / 270 |
+| Real | 12,000 ns | 430,620,304 ns | 770 / 418 |
+| Shuffled | 8,000 ns | 178,958,228 ns | 1,333 / 41 |
+| Shuffled, retained attempt004 | 10,000 ns | 268,609,120 ns | 1,104 / 270 |
+| Shuffled | 12,000 ns | 377,884,984 ns | 931 / 443 |
+
+Ahead traffic remained 35,823,550,464 bytes for real and 34,068,234,240 bytes
+for shuffled. This is descriptive PROJECTED sensitivity: the baseline004 and
+new006 receipts retain different `hf_route_horizon_inputs.py` and
+`run_prefetch.py` versions (11 of 13 tools match), so the three points do not
+establish a same-source causal slope. Inventory/budget/routes/horizon inputs
+match; only modeled profile latency differs among those inputs. There is no
+generation-completion, GPU-residency, parameter-selection, scientific or
+speedup claim. The 17-file independent review is
+`results/gold/hf-routing-runner/route-horizon-hf012-latency-sensitivity-semantic-review-attempt-006/`
+(manifest SHA256 `898519dc98430337a3fc1a5af73a14302b367da5e214c92d81aadae0b02ef921`).
+
+
+The next ordinary-future correctness experiment actually exercised executed
+overwrite, false overwrite followed by consume, and unused-future exit.
+Seven focused CPU methods, one host build and independently reviewed new
+PTX/cubin mapping preceded a single three-launch GPU run in 4.452103516 s at
+source commit `a61e0ef1decf709587f103055cbda0d4f41d6139`.
+Independent recomputation matched all 96 outputs, including 32 retained exit
+sentinels, 96 issued/ready futures, 32 consumes, 64 drains, three groups and
+192 traces; pending/error/overflow remained zero. Each lane issued once and
+terminated once on its executed path. The exact retained cubin loaded
+successfully; observable cleanup succeeded and owned processes were reaped.
+Context destruction still uses a void API, with completion
+`UNOBSERVABLE_VOID_API`. This is `CAPTURED_UNVALIDATED` correctness evidence;
+it does not change the non-identifying D/W result or close full lifecycle,
+C6.3, G5 or native-completion timing. The nine-file independent review is
+`results/gold/timing-future-unit/c6-future-lifecycle-data-review-attempt-001/`
+(manifest SHA256 `a0a8408140731ecff8201bd89f96bc61d10ece85317e2a2955bb66ab9ee95240`).
+
+The explicit single-block K1/W1/low known-delay ABBA diagnostic subsequently
+ran once in 5.679440482 s at source commit
+`7ce8c2ca9a2733fe4b0b1462a11191ee3cd4ea29`. Two focused CPU methods and
+direct host compile/link passed. The prior helper/plugin/PTX and libraries
+stayed byte-identical; no CMake dependency rebuild changed that experiment.
+One D500 warmup preceded four measured A(0), B(500), B(500), A(0) launches.
+Independent review found one row/eight ordered events per measured launch,
+fixed module/context/allocation identity, epochs 2/3/4/5 and checksum 1.
+
+| Adjacent pair | Wait delta | Other chain work/bookkeeping delta | Whole-chain delta | CUDA Event delta |
+| --- | ---: | ---: | ---: | ---: |
+| Launch 0 D0 to launch 1 D500 | +512 ns | +32 ns | +544 ns | -12,608.0513 ns |
+| Launch 3 D0 to launch 2 D500 | +512 ns | +64 ns | +576 ns | +54,208.0402 ns |
+
+The two chain errors from requested 500 ns are 44/76 ns: descriptive mean
+absolute error 60 ns and P95 error 76 ns against the unchanged 100/200 ns limits.
+That two-pair diagnostic flag is true; matrix-wide G2 remains open. The other
+chain interval includes instrumentation/bookkeeping, and the separate CUDA
+Event measurement does not track these lane deltas consistently. This sample
+does not establish causality, exclude clock/DVFS effects or prove a scientific
+timing result. The actual capture is
+`results/gold/known-delay/per-chain-single-block-abba-attempt-001/`; raw SHA256
+`796097261f0bcadc28ce17f7b0326352f68a9e561d2a8792744e27426b32b613`.
+The uploaded independent review is `results/gold/known-delay/per-chain-single-block-abba-data-review-attempt-001/`
+(manifest SHA256 `5afc4ae4a770ad2e232acacd95a78a8a176c6dcef5438fad4842a101e2d16979`).
+
 G2, C6.3, G5, overlap and formal admission remain open; formal DONE is 0.
 
 The dated HF010, route-only, known-delay and earlier C6 sections below are
@@ -147,12 +217,12 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 - Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
-- Latest integrated checkpoint HEAD: `6228d513bbbcb049f7ecc5cdeee49047b21d87e2`.
-  HF010 returned identical tokens across its three arms after the scoped Ray
-  compatibility repair; capture/repeat route arrays matched, while native did
-  not capture routing. C6 native-image and conditional-consumer GPU diagnostics returned.
-  Formal origins, timing/performance gold and physical storage remain open.
-  See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf010-and-native-conditional-consumers-2026-09-06).
+- Pre-document source checkpoint HEAD: `7ce8c2ca9a2733fe4b0b1462a11191ee3cd4ea29`.
+  HF012, the P7 capacity/latency replays, C6 lifecycle and single-block
+  known-delay acquisition each retain their own source and execution receipts;
+  this checkpoint does not retrospectively change those origins. Formal timing,
+  performance, physical storage and matrix gates remain open.
+  See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf012-p7-requested-rho-controls-and-c6-fixed-work-2026-09-07).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.
 - Async donor S: `f4dc28b2671c01939d98e4a968e6fb37b2e364d9`.
 - Capacity/routing donor X: `37144843906b3bd71f3fbac1fecc6b5080d82b95`.

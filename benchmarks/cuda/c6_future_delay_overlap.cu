@@ -78,16 +78,8 @@ constexpr std::uint32_t kFutureBits = kKernelBits | kHelperEntry | kArrival |
 
 #if defined(HBFSIM_C6_FUTURE_DELAY_KERNEL_ONLY)
 
-namespace {
-__device__ __forceinline__ std::uint64_t diagnostic_time_ns()
-{
-    std::uint64_t now;
-    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(now) : : "memory");
-    return now;
-}
-
 #define C6_PREDICATED_WORK_STEP                                             \
-    "@c6_work_active mad.lo.u32 %0, %0, 0x0019660d, %1;\n\t"
+    "@%%c6_work_active mad.lo.u32 %0, %0, 0x0019660d, %1;\n\t"
 #define C6_REPEAT_2(item) item item
 #define C6_REPEAT_4(item) C6_REPEAT_2(item) C6_REPEAT_2(item)
 #define C6_REPEAT_8(item) C6_REPEAT_4(item) C6_REPEAT_4(item)
@@ -101,73 +93,56 @@ __device__ __forceinline__ std::uint64_t diagnostic_time_ns()
 #define C6_REPEAT_2048(item) C6_REPEAT_1024(item) C6_REPEAT_1024(item)
 #define C6_REPEAT_4096(item) C6_REPEAT_2048(item) C6_REPEAT_2048(item)
 
-__device__ __forceinline__ std::uint32_t predicated_fixed_work(
-    std::uint32_t seed, std::uint32_t lane, std::uint32_t work_count)
-{
-    std::uint32_t value = seed ^ (lane * 0x9e3779b9U + 0x85ebca6bU);
-    const std::uint32_t addend = 0x3c6ef35fU + lane;
-    // Both K=0 and K=4096 execute this same branch-free instruction stream.
-    // K=0 predicates the 4096 arithmetic steps off; its issue/decode cost is
-    // measured overhead and is never treated as zero work time.
-    asm volatile(
-        "{\n\t"
-        ".reg .pred c6_work_active;\n\t"
-        "setp.ne.u32 c6_work_active, %2, 0;\n\t"
-        C6_REPEAT_4096(C6_PREDICATED_WORK_STEP)
-        "}\n\t"
-        : "+r"(value)
-        : "r"(addend), "r"(work_count)
-        : "memory");
-    return value;
-}
-
-template <bool Future>
-__device__ __forceinline__ void run_lane(
-    const std::uint32_t* input, std::uint32_t* output,
-    c6_delay::Record* records, std::uint32_t seed,
-    std::uint32_t work_count, std::uint64_t launch_epoch)
-{
-    const std::uint32_t lane = threadIdx.x;
-    auto* const record = &records[lane];
-    std::uint32_t loaded;
-    asm volatile("ld.global.u32 %0, [%1];"
-                 : "=r"(loaded) : "l"(&input[lane]) : "memory");
-    const auto native_after = diagnostic_time_ns();
-    const auto work_begin = diagnostic_time_ns();
-    const auto work = predicated_fixed_work(seed, lane, work_count);
-    const auto work_end = diagnostic_time_ns();
-    // This is the first source-level use of loaded after independent work.
-    // The optimized PTX and SASS paths remain mandatory review inputs.
-    const auto value = loaded ^ work ^ 0xd1b54a35U;
-    asm volatile("" : : "r"(value) : "memory");
-    const auto consumer_after = diagnostic_time_ns();
-
-    // No record or output store occurs before the independent work and first
-    // consume. The final mask is a kernel declaration, not evidence that the
-    // helper timestamps ran; host checks require those fields and counters.
-    record->launch_epoch = launch_epoch;
-    if constexpr (!Future) {
-        record->configured_delay_ns = 0;
-        record->status = 1;
-    }
-    record->native_instruction_after_ns = native_after;
-    record->work_begin_ns = work_begin;
-    record->work_end_ns = work_end;
-    record->consumer_after_ns = consumer_after;
-    record->lane = lane;
-    record->valid_bits = Future ? c6_delay::kFutureBits : c6_delay::kKernelBits;
-    record->work_count = work_count;
-    record->output_bits = value;
-    output[lane] = value;
-}
-} // namespace
+// Expand directly in each entry to keep CUDA line information in the
+// existing parser's non-inlined form. The PTX predicate lives in the entry
+// register namespace; no nested assembly scope or unprefixed name is needed.
+// K=0 still pays the measured cost of 4096 predicated-off instructions.
+// All original stores follow the first consumer. Host helper-field and
+// counter checks remain independent of the final kernel validity mask.
+#define C6_RUN_LANE(Future) \
+    do { \
+        const std::uint32_t lane = threadIdx.x; \
+        auto* const record = &records[lane]; \
+        std::uint32_t loaded; \
+        asm volatile("ld.global.u32 %0, [%1];" \
+                     : "=r"(loaded) : "l"(&input[lane]) : "memory"); \
+        std::uint64_t native_after, work_begin, work_end, consumer_after; \
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(native_after) : : "memory"); \
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(work_begin) : : "memory"); \
+        std::uint32_t work = seed ^ (lane * 0x9e3779b9U + 0x85ebca6bU); \
+        const std::uint32_t addend = 0x3c6ef35fU + lane; \
+        asm volatile( \
+            ".reg .pred %%c6_work_active;\n\t" \
+            "setp.ne.u32 %%c6_work_active, %2, 0;\n\t" \
+            C6_REPEAT_4096(C6_PREDICATED_WORK_STEP) \
+            : "+r"(work) : "r"(addend), "r"(work_count) : "memory"); \
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(work_end) : : "memory"); \
+        const auto value = loaded ^ work ^ 0xd1b54a35U; \
+        asm volatile("" : : "r"(value) : "memory"); \
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(consumer_after) : : "memory"); \
+        record->launch_epoch = launch_epoch; \
+        if constexpr (!(Future)) { \
+            record->configured_delay_ns = 0; \
+            record->status = 1; \
+        } \
+        record->native_instruction_after_ns = native_after; \
+        record->work_begin_ns = work_begin; \
+        record->work_end_ns = work_end; \
+        record->consumer_after_ns = consumer_after; \
+        asm volatile("st.global.u32 [%0], %1;" : : "l"(&record->lane), "r"(lane) : "memory"); \
+        const std::uint32_t valid_mask = (Future) ? c6_delay::kFutureBits : c6_delay::kKernelBits; \
+        asm volatile("st.global.u32 [%0], %1;" : : "l"(&record->valid_bits), "r"(valid_mask) : "memory"); \
+        record->work_count = work_count; \
+        record->output_bits = value; \
+        output[lane] = value; \
+    } while (false)
 
 extern "C" __global__ __launch_bounds__(32) void c6_future_delay_native(
     const std::uint32_t* input, std::uint32_t* output,
     c6_delay::Record* records, std::uint32_t seed,
     std::uint32_t work_count, std::uint64_t launch_epoch)
 {
-    run_lane<false>(input, output, records, seed, work_count, launch_epoch);
+    C6_RUN_LANE(false);
 }
 
 extern "C" __global__ __launch_bounds__(32) void c6_future_delay_future(
@@ -175,7 +150,7 @@ extern "C" __global__ __launch_bounds__(32) void c6_future_delay_future(
     c6_delay::Record* records, std::uint32_t seed,
     std::uint32_t work_count, std::uint64_t launch_epoch)
 {
-    run_lane<true>(input, output, records, seed, work_count, launch_epoch);
+    C6_RUN_LANE(true);
 }
 
 #else

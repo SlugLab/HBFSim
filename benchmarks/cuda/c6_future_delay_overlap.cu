@@ -86,40 +86,79 @@ __device__ __forceinline__ std::uint64_t diagnostic_time_ns()
     return now;
 }
 
-__device__ __forceinline__ std::uint32_t retained_work(
-    std::uint32_t seed, std::uint32_t lane, std::uint32_t count)
+#define C6_PREDICATED_WORK_STEP                                             \
+    "@c6_work_active mad.lo.u32 %0, %0, 0x0019660d, %1;\n\t"
+#define C6_REPEAT_2(item) item item
+#define C6_REPEAT_4(item) C6_REPEAT_2(item) C6_REPEAT_2(item)
+#define C6_REPEAT_8(item) C6_REPEAT_4(item) C6_REPEAT_4(item)
+#define C6_REPEAT_16(item) C6_REPEAT_8(item) C6_REPEAT_8(item)
+#define C6_REPEAT_32(item) C6_REPEAT_16(item) C6_REPEAT_16(item)
+#define C6_REPEAT_64(item) C6_REPEAT_32(item) C6_REPEAT_32(item)
+#define C6_REPEAT_128(item) C6_REPEAT_64(item) C6_REPEAT_64(item)
+#define C6_REPEAT_256(item) C6_REPEAT_128(item) C6_REPEAT_128(item)
+#define C6_REPEAT_512(item) C6_REPEAT_256(item) C6_REPEAT_256(item)
+#define C6_REPEAT_1024(item) C6_REPEAT_512(item) C6_REPEAT_512(item)
+#define C6_REPEAT_2048(item) C6_REPEAT_1024(item) C6_REPEAT_1024(item)
+#define C6_REPEAT_4096(item) C6_REPEAT_2048(item) C6_REPEAT_2048(item)
+
+__device__ __forceinline__ std::uint32_t predicated_fixed_work(
+    std::uint32_t seed, std::uint32_t lane, std::uint32_t work_count)
 {
     std::uint32_t value = seed ^ (lane * 0x9e3779b9U + 0x85ebca6bU);
-#pragma unroll 1
-    for (std::uint32_t index = 0; index < count; ++index) {
-        const std::uint32_t addend = 0x3c6ef35fU + lane + index;
-        asm volatile("mad.lo.u32 %0, %0, %1, %2;"
-                     : "+r"(value)
-                     : "r"(0x0019660dU), "r"(addend));
-    }
+    const std::uint32_t addend = 0x3c6ef35fU + lane;
+    // Both K=0 and K=4096 execute this same branch-free instruction stream.
+    // K=0 predicates the 4096 arithmetic steps off; its issue/decode cost is
+    // measured overhead and is never treated as zero work time.
+    asm volatile(
+        "{\n\t"
+        ".reg .pred c6_work_active;\n\t"
+        "setp.ne.u32 c6_work_active, %2, 0;\n\t"
+        C6_REPEAT_4096(C6_PREDICATED_WORK_STEP)
+        "}\n\t"
+        : "+r"(value)
+        : "r"(addend), "r"(work_count)
+        : "memory");
     return value;
 }
 
-__device__ __forceinline__ void finish_lane(
-    std::uint32_t loaded, std::uint32_t* output, c6_delay::Record* record,
-    std::uint32_t seed, std::uint32_t work_count)
+template <bool Future>
+__device__ __forceinline__ void run_lane(
+    const std::uint32_t* input, std::uint32_t* output,
+    c6_delay::Record* records, std::uint32_t seed,
+    std::uint32_t work_count, std::uint64_t launch_epoch)
 {
-    asm volatile("" : : : "memory");
-    record->native_instruction_after_ns = diagnostic_time_ns();
-    record->valid_bits |= c6_delay::kNativeAfter;
-    record->work_begin_ns = diagnostic_time_ns();
-    record->valid_bits |= c6_delay::kWorkBegin;
-    const auto work = retained_work(seed, threadIdx.x, work_count);
-    record->work_end_ns = diagnostic_time_ns();
-    record->valid_bits |= c6_delay::kWorkEnd;
+    const std::uint32_t lane = threadIdx.x;
+    auto* const record = &records[lane];
+    std::uint32_t loaded;
+    asm volatile("ld.global.u32 %0, [%1];"
+                 : "=r"(loaded) : "l"(&input[lane]) : "memory");
+    const auto native_after = diagnostic_time_ns();
+    const auto work_begin = diagnostic_time_ns();
+    const auto work = predicated_fixed_work(seed, lane, work_count);
+    const auto work_end = diagnostic_time_ns();
     // This is the first source-level use of loaded after independent work.
-    // The optimized machine path must be reviewed before any overlap claim.
+    // The optimized PTX and SASS paths remain mandatory review inputs.
     const auto value = loaded ^ work ^ 0xd1b54a35U;
-    output[threadIdx.x] = value;
-    asm volatile("" : : : "memory");
-    record->consumer_after_ns = diagnostic_time_ns();
+    asm volatile("" : : "r"(value) : "memory");
+    const auto consumer_after = diagnostic_time_ns();
+
+    // No record or output store occurs before the independent work and first
+    // consume. The final mask is a kernel declaration, not evidence that the
+    // helper timestamps ran; host checks require those fields and counters.
+    record->launch_epoch = launch_epoch;
+    if constexpr (!Future) {
+        record->configured_delay_ns = 0;
+        record->status = 1;
+    }
+    record->native_instruction_after_ns = native_after;
+    record->work_begin_ns = work_begin;
+    record->work_end_ns = work_end;
+    record->consumer_after_ns = consumer_after;
+    record->lane = lane;
+    record->valid_bits = Future ? c6_delay::kFutureBits : c6_delay::kKernelBits;
+    record->work_count = work_count;
     record->output_bits = value;
-    record->valid_bits |= c6_delay::kConsumerAfter | c6_delay::kOutput;
+    output[lane] = value;
 }
 } // namespace
 
@@ -128,15 +167,7 @@ extern "C" __global__ __launch_bounds__(32) void c6_future_delay_native(
     c6_delay::Record* records, std::uint32_t seed,
     std::uint32_t work_count, std::uint64_t launch_epoch)
 {
-    if (gridDim.x != 1 || blockDim.x != 32 || threadIdx.x >= 32) return;
-    auto* record = &records[threadIdx.x];
-    record->launch_epoch = launch_epoch;
-    record->configured_delay_ns = 0;
-    record->lane = threadIdx.x;
-    record->status = 1;
-    record->work_count = work_count;
-    const auto loaded = input[threadIdx.x];
-    finish_lane(loaded, output, record, seed, work_count);
+    run_lane<false>(input, output, records, seed, work_count, launch_epoch);
 }
 
 extern "C" __global__ __launch_bounds__(32) void c6_future_delay_future(
@@ -144,13 +175,7 @@ extern "C" __global__ __launch_bounds__(32) void c6_future_delay_future(
     c6_delay::Record* records, std::uint32_t seed,
     std::uint32_t work_count, std::uint64_t launch_epoch)
 {
-    if (gridDim.x != 1 || blockDim.x != 32 || threadIdx.x >= 32) return;
-    auto* record = &records[threadIdx.x];
-    const auto loaded = input[threadIdx.x];
-    if (record->launch_epoch != launch_epoch || record->lane != threadIdx.x ||
-        record->work_count != work_count)
-        return;
-    finish_lane(loaded, output, record, seed, work_count);
+    run_lane<true>(input, output, records, seed, work_count, launch_epoch);
 }
 
 #else
@@ -423,8 +448,9 @@ std::uint32_t cpu_work(std::uint32_t seed, std::uint32_t lane,
                        std::uint32_t count)
 {
     std::uint32_t value = seed ^ (lane * 0x9e3779b9U + 0x85ebca6bU);
+    const std::uint32_t addend = 0x3c6ef35fU + lane;
     for (std::uint32_t index = 0; index < count; ++index)
-        value = value * 0x0019660dU + (0x3c6ef35fU + lane + index);
+        value = value * 0x0019660dU + addend;
     return value;
 }
 
@@ -651,6 +677,13 @@ json acquire_launch(
         if (cell.future_arm) {
             require(record.configured_delay_ns == cell.delay_ns &&
                         record.valid_bits == c6_delay::kFutureBits &&
+                        record.helper_entry_ns != 0 &&
+                        record.arrival_ns != 0 &&
+                        record.helper_issue_exit_ns != 0 &&
+                        record.native_instruction_after_ns != 0 &&
+                        record.work_begin_ns != 0 && record.work_end_ns != 0 &&
+                        record.wait_enter_ns != 0 && record.wait_exit_ns != 0 &&
+                        record.consumer_after_ns != 0 && record.ready_ns != 0 &&
                         record.helper_entry_ns <= record.arrival_ns &&
                         record.arrival_ns <= record.helper_issue_exit_ns &&
                         record.helper_issue_exit_ns <=
@@ -668,6 +701,9 @@ json acquire_launch(
         } else {
             require(record.configured_delay_ns == 0 &&
                         record.valid_bits == c6_delay::kKernelBits &&
+                        record.native_instruction_after_ns != 0 &&
+                        record.work_begin_ns != 0 && record.work_end_ns != 0 &&
+                        record.consumer_after_ns != 0 &&
                         record.native_instruction_after_ns <= record.work_begin_ns &&
                         record.work_begin_ns <= record.work_end_ns &&
                         record.work_end_ns <= record.consumer_after_ns,
@@ -855,6 +891,8 @@ int main(int argc, char** argv)
                     pass.at("unsupported_instructions") == 0 &&
                     pass.at("future_kernel").at("static_producers") == 1 &&
                     pass.at("future_kernel").at("required_threads") ==
+                        json::array({0, 0, 0}) &&
+                    pass.at("future_kernel").at("maximum_threads") ==
                         json::array({32, 1, 1}),
                 "plugin manifest does not bind one one-warp producer");
 

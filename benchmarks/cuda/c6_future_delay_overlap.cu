@@ -196,6 +196,7 @@ struct Options {
     std::string transformed_ptx;
     std::string cubin;
     std::string binding;
+    std::string native_binding;
     std::string output;
     std::string report_dir;
 };
@@ -211,6 +212,13 @@ struct NativeBinding {
     std::string disassembly_manifest_sha;
     std::string nvdisasm_sha;
     std::string cuobjdump_sha;
+};
+
+struct OrdinaryNativeBinding {
+    std::size_t original_bytes{}, cubin_bytes{};
+    std::string original_sha, cubin_sha, cubin_path;
+    std::string build_manifest_sha, disassembly_manifest_sha;
+    std::string nvdisasm_sha, cuobjdump_sha;
 };
 
 struct Cell {
@@ -292,6 +300,7 @@ Options parse_options(int argc, char** argv)
         else if (key == "--transformed-ptx") options.transformed_ptx = value;
         else if (key == "--cubin") options.cubin = value;
         else if (key == "--binding") options.binding = value;
+        else if (key == "--native-binding") options.native_binding = value;
         else if (key == "--output") options.output = value;
         else if (key == "--report-dir") options.report_dir = value;
         else throw std::runtime_error("unknown option " + key);
@@ -299,7 +308,8 @@ Options parse_options(int argc, char** argv)
     require(!options.profile.empty() && !options.plugin.empty() &&
                 !options.ptx.empty() && !options.transformed_ptx.empty() &&
                 !options.cubin.empty() &&
-                !options.binding.empty() && !options.output.empty() &&
+                !options.binding.empty() && !options.native_binding.empty() &&
+                !options.output.empty() &&
                 !options.report_dir.empty(),
             "all artifact paths are required");
     const auto profile = json::parse(read_file(options.profile));
@@ -348,6 +358,42 @@ NativeBinding parse_binding(const std::string& path)
                 valid_sha(result.disassembly_manifest_sha) &&
                 valid_sha(result.nvdisasm_sha) && valid_sha(result.cuobjdump_sha),
             "native-image binding has invalid size or hash");
+    return result;
+}
+
+OrdinaryNativeBinding parse_native_binding(const std::string& path,
+                                           const NativeBinding& future_binding)
+{
+    const auto value = json::parse(read_file(path));
+    require(value.size() == 11 && value.at("schema_version") == 1 &&
+                value.at("selected_kernel") == kNativeKernel &&
+                value.at("transform_mode") == "native_untransformed" &&
+                value.at("mapping_validation") == "NOT_PROVEN" &&
+                value.at("compiler") == json({{"tool", "ptxas"},
+                    {"architecture", "sm_120"}, {"optimization", "-O3"}}),
+            "ordinary native binding contract mismatch");
+    OrdinaryNativeBinding result{
+        value.at("original_ptx").at("bytes").get<std::size_t>(),
+        value.at("cubin").at("bytes").get<std::size_t>(),
+        value.at("original_ptx").at("sha256").get<std::string>(),
+        value.at("cubin").at("sha256").get<std::string>(),
+        value.at("cubin").at("path").get<std::string>(),
+        value.at("build_manifest").at("sha256").get<std::string>(),
+        value.at("disassembly_manifest").at("sha256").get<std::string>(),
+        value.at("nvdisasm").at("sha256").get<std::string>(),
+        value.at("cuobjdump").at("sha256").get<std::string>()};
+    const auto valid_sha = [](const std::string& text) {
+        return text.size() == 64 && std::all_of(text.begin(), text.end(),
+            [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+    };
+    require(result.original_bytes == future_binding.original_bytes &&
+                result.original_sha == future_binding.original_sha &&
+                result.cubin_bytes && !result.cubin_path.empty() &&
+                result.cubin_path.front() == '/' && valid_sha(result.cubin_sha) &&
+                valid_sha(result.build_manifest_sha) &&
+                valid_sha(result.disassembly_manifest_sha) &&
+                valid_sha(result.nvdisasm_sha) && valid_sha(result.cuobjdump_sha),
+            "ordinary native binding has wrong source, size or hash");
     return result;
 }
 
@@ -710,9 +756,11 @@ json acquire_launch(
 
 struct Resources {
     CUmodule module{};
+    CUmodule native_module{};
     hbfsim_context* context{};
     std::uint32_t* input_backing{};
     std::uint32_t* input{};
+    std::uint32_t* native_input{};
     std::uint32_t* output{};
     c6_delay::Record* records{};
     void* plugin{};
@@ -724,12 +772,14 @@ json cleanup(Resources& value, Journal* journal) noexcept
 {
     json report{{"diagnostic_disable", {{"called", false}, {"confirmed", false}}},
                 {"module_unload", {{"called", false}, {"confirmed", false}}},
+                {"native_module_unload", {{"called", false}, {"confirmed", false}}},
                 {"range_unregister", {{"called", false}, {"confirmed", false}}},
                 {"context_destroy", {{"called", false},
                                       {"completion", "NOT_CALLED"}}},
                 {"records_free", {{"called", false}, {"confirmed", false}}},
                 {"output_free", {{"called", false}, {"confirmed", false}}},
                 {"input_free", {{"called", false}, {"confirmed", false}}},
+                {"native_input_free", {{"called", false}, {"confirmed", false}}},
                 {"plugin_close", {{"called", false}, {"confirmed", false}}}};
     const auto publish = [&] { if (journal) journal->cleanup(report); };
     if (value.module && value.diagnostic_config) {
@@ -762,6 +812,23 @@ json cleanup(Resources& value, Journal* journal) noexcept
             publish(); return report;
         }
         value.module = nullptr;
+    }
+    if (value.native_module) {
+        report["native_module_unload"]["called"] = true;
+        const auto sync = cudaDeviceSynchronize();
+        const auto code = sync == cudaSuccess ? cuModuleUnload(value.native_module)
+                                              : CUDA_ERROR_NOT_READY;
+        report["native_module_unload"]["sync_result"] = sync;
+        report["native_module_unload"]["result"] = code;
+        report["native_module_unload"]["confirmed"] =
+            sync == cudaSuccess && code == CUDA_SUCCESS;
+        publish();
+        if (sync != cudaSuccess || code != CUDA_SUCCESS) {
+            report["stopped_after"] = "native_module_unload";
+            report["later_resources_retained_until_process_exit"] = true;
+            publish(); return report;
+        }
+        value.native_module = nullptr;
     }
     if (value.registered) {
         report["range_unregister"]["called"] = true;
@@ -799,6 +866,7 @@ json cleanup(Resources& value, Journal* journal) noexcept
     bool success = free_one(value.records, "records_free");
     success = free_one(value.output, "output_free") && success;
     success = free_one(value.input_backing, "input_free") && success;
+    success = free_one(value.native_input, "native_input_free") && success;
     value.input = value.input_backing ? value.input : nullptr;
     if (value.plugin) {
         report["plugin_close"]["called"] = true;
@@ -823,6 +891,7 @@ int main(int argc, char** argv)
     try {
         const auto options = parse_options(argc, argv);
         const auto binding = parse_binding(options.binding);
+        const auto native_binding = parse_native_binding(options.native_binding, binding);
         journal = std::make_unique<Journal>(options.output + ".partial.json");
         auto original_ptx = read_file(options.ptx);
         require(original_ptx.size() == binding.original_bytes &&
@@ -832,6 +901,23 @@ int main(int argc, char** argv)
         require(cubin.size() == binding.cubin_bytes &&
                     sha256_hex(cubin) == binding.cubin_sha,
                 "cubin differs from reviewed binding");
+        const auto native_cubin = read_file(native_binding.cubin_path);
+        require(native_cubin.size() == native_binding.cubin_bytes &&
+                    sha256_hex(native_cubin) == native_binding.cubin_sha &&
+                    native_cubin.size() >= 4 &&
+                    native_cubin.compare(0, 4, "\x7f" "ELF", 4) == 0,
+                "ordinary native cubin differs from retained binding");
+        json native_control{{"original_ptx_sha256", native_binding.original_sha},
+            {"cubin_sha256", sha256_hex(native_cubin)},
+            {"cubin_bytes", native_cubin.size()},
+            {"build_manifest_sha256", native_binding.build_manifest_sha},
+            {"disassembly_manifest_sha256", native_binding.disassembly_manifest_sha},
+            {"nvdisasm_sha256", native_binding.nvdisasm_sha},
+            {"cuobjdump_sha256", native_binding.cuobjdump_sha},
+            {"selected_kernel", kNativeKernel}, {"mapping_validation", "NOT_PROVEN"},
+            {"same_retained_buffer", true}, {"load_result", "NOT_CALLED"},
+            {"future_requirements_absent", false}, {"distinct_modules", false}};
+        journal->field("native_control_binding", native_control);
         resources.plugin = dlopen(options.plugin.c_str(), RTLD_NOW | RTLD_GLOBAL);
         require(resources.plugin != nullptr, "cannot load actual PTX plugin");
         auto process = reinterpret_cast<int (*)(const char*, int, char*)>(
@@ -884,21 +970,43 @@ int main(int argc, char** argv)
                            kInputBytes), "allocate output");
         runtime(cudaMalloc(reinterpret_cast<void**>(&resources.records),
                            kRecordBytes), "allocate records");
+        runtime(cudaMalloc(reinterpret_cast<void**>(&resources.native_input),
+                           kInputBytes), "allocate ordinary native input");
         const auto input_begin = aligned;
         const auto input_end = input_begin + kRegisteredBytes;
         const auto output_begin = reinterpret_cast<std::uintptr_t>(resources.output);
         const auto output_end = output_begin + kInputBytes;
         const auto records_begin = reinterpret_cast<std::uintptr_t>(resources.records);
         const auto records_end = records_begin + kRecordBytes;
+        const auto native_begin = reinterpret_cast<std::uintptr_t>(resources.native_input);
+        const auto native_end = native_begin + kInputBytes;
         require((input_end <= output_begin || output_end <= input_begin) &&
                     (input_end <= records_begin || records_end <= input_begin) &&
                     (output_end <= records_begin || records_end <= output_begin),
                 "input/output/record spans overlap");
+        require((native_end <= input_begin || input_end <= native_begin) &&
+                    (native_end <= output_begin || output_end <= native_begin) &&
+                    (native_end <= records_begin || records_end <= native_begin),
+                "ordinary native input overlaps another span");
         std::array<std::uint32_t, 32> input{};
         for (std::uint32_t lane = 0; lane < 32; ++lane) input[lane] = input_word(lane);
         runtime(cudaMemset(resources.input, 0, kRegisteredBytes), "clear input range");
         runtime(cudaMemcpy(resources.input, input.data(), sizeof(input),
                            cudaMemcpyHostToDevice), "initialize input");
+        runtime(cudaMemcpy(resources.native_input, input.data(), sizeof(input),
+                           cudaMemcpyHostToDevice), "initialize ordinary native input");
+        std::array<std::uint32_t, 32> native_echo{}, future_echo{};
+        runtime(cudaMemcpy(native_echo.data(), resources.native_input, sizeof(native_echo),
+                           cudaMemcpyDeviceToHost), "read back ordinary native input");
+        runtime(cudaMemcpy(future_echo.data(), resources.input, sizeof(future_echo),
+                           cudaMemcpyDeviceToHost), "read back future input");
+        const json native_input{{"address", native_begin}, {"bytes", kInputBytes},
+            {"registered", false}, {"words", native_echo}, {"future_words", future_echo},
+            {"future_address", input_begin}, {"future_registered_bytes", kRegisteredBytes},
+            {"contents_equal", native_echo == input && future_echo == input},
+            {"disjoint", true}};
+        journal->field("native_input", native_input);
+        require(native_echo == input && future_echo == input, "native/future input readback mismatch");
 
         hbfsim_options context_options{.profile_path = options.profile.c_str(),
             .report_dir = options.report_dir.c_str(), .mode = HBFSIM_MODEL_FAST,
@@ -923,8 +1031,26 @@ int main(int argc, char** argv)
         CUfunction native_kernel = nullptr;
         driver(cuModuleGetFunction(&future_kernel, resources.module, kFutureKernel),
                "lookup future kernel");
-        driver(cuModuleGetFunction(&native_kernel, resources.module, kNativeKernel),
-               "lookup native kernel");
+        stage = "load_ordinary_native_module"; journal->stage(stage);
+        // No future transaction is fabricated for this ordinary untransformed
+        // image. The existing interposer still checks the module classification.
+        const auto native_load = cuModuleLoadDataEx(&resources.native_module,
+            native_cubin.data(), 0, nullptr, nullptr);
+        native_control["load_result"] = native_load;
+        native_control["distinct_modules"] = resources.native_module &&
+            resources.native_module != resources.module;
+        journal->field("native_control_binding", native_control);
+        driver(native_load, "load retained ordinary native image");
+        require(resources.native_module != resources.module, "native/future module alias");
+        CUdeviceptr unexpected_future{}; std::size_t unexpected_bytes{};
+        const auto lookup = cuModuleGetGlobal(&unexpected_future, &unexpected_bytes,
+            resources.native_module, "__hbfsim_timing_future_requirements_v1");
+        native_control["future_requirements_lookup"] = lookup;
+        native_control["future_requirements_absent"] = lookup == CUDA_ERROR_NOT_FOUND;
+        journal->field("native_control_binding", native_control);
+        require(lookup == CUDA_ERROR_NOT_FOUND, "ordinary native module has future metadata or unreadable classification");
+        driver(cuModuleGetFunction(&native_kernel, resources.native_module, kNativeKernel),
+               "lookup ordinary native kernel");
         resources.diagnostic_config = module_object<c6_delay::Config>(
             resources.module, "__hbfsim_eval_future_delay_config_v1");
         const auto counters_address = module_object<future::Counters>(
@@ -947,7 +1073,8 @@ int main(int argc, char** argv)
                 launches.push_back(acquire_launch(
                     cell, warmup, warmup ? 0 : ordinal - kWarmups, ++epoch,
                     instruction, cell.future_arm ? future_kernel : native_kernel,
-                    resources.input, resources.output, resources.records,
+                    cell.future_arm ? resources.input : resources.native_input,
+                    resources.output, resources.records,
                     resources.diagnostic_config, counters_address, trace_address,
                     trace_bytes, *journal, stage));
             }
@@ -976,6 +1103,7 @@ int main(int argc, char** argv)
                 {"nvdisasm_sha256", binding.nvdisasm_sha},
                 {"cuobjdump_sha256", binding.cuobjdump_sha},
                 {"mapping_validation", "NOT_PROVEN"}}},
+            {"native_control_binding", native_control}, {"native_input", native_input},
             {"launches", launches}, {"cleanup", cleanup_report}};
         journal->captured();
         write_file(options.output, result.dump(2));

@@ -5,6 +5,8 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
+import copy
 
 TEST_DIR = Path(__file__).resolve().parent
 if str(TEST_DIR) not in sys.path:
@@ -77,7 +79,26 @@ def binding_for(directory: Path):
     return path, value
 
 
-def valid_raw(binding):
+def native_binding_for(directory: Path, future_binding):
+    native = directory / "native"
+    native.mkdir(exist_ok=True)
+    value = {"schema_version": 1, "selected_kernel": target.NATIVE_KERNEL,
+             "transform_mode": "native_untransformed", "mapping_validation": "NOT_PROVEN",
+             "compiler": {"tool": "ptxas", "architecture": "sm_120", "optimization": "-O3"},
+             "original_ptx": dict(future_binding["original_ptx"])}
+    for name, data in {"cubin": b"\x7fELFordinary-native", "build_manifest": b"native-build",
+                       "disassembly_manifest": b"native-disassembly", "nvdisasm": b"native-nvdisasm",
+                       "cuobjdump": b"native-cuobjdump"}.items():
+        path = native / name
+        path.write_bytes(data)
+        value[name] = {"path": str(path), "sha256": target.sha256(data)}
+        if name == "cubin": value[name]["bytes"] = len(data)
+    path = native / "native-binding.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path, value
+
+
+def valid_raw(binding, native_binding):
     launches = []
     for work in target.WORK_COUNTS:
         for arm in target.ARMS:
@@ -99,6 +120,21 @@ def valid_raw(binding):
         "g5_closed": False,
         "overlap_closed": False,
         "native_completion_timing": False,
+        "native_control_binding": {
+            **{name + "_sha256": native_binding[name]["sha256"] for name in
+               ("original_ptx", "cubin", "build_manifest", "disassembly_manifest", "nvdisasm", "cuobjdump")},
+            "cubin_bytes": native_binding["cubin"]["bytes"], "selected_kernel": target.NATIVE_KERNEL,
+            "mapping_validation": "NOT_PROVEN", "same_retained_buffer": True,
+            "load_result": 0, "future_requirements_lookup": 500,
+            "future_requirements_absent": True, "distinct_modules": True,
+        },
+        "native_input": {
+            "address": 0x20000, "bytes": 128, "registered": False,
+            "words": [((lane * 0x45d9f3b) & 0xffffffff) ^ 0xa5a55a5a for lane in range(32)],
+            "future_words": [((lane * 0x45d9f3b) & 0xffffffff) ^ 0xa5a55a5a for lane in range(32)],
+            "future_address": 0x10000, "future_registered_bytes": 4096,
+            "contents_equal": True, "disjoint": True,
+        },
         "launches": launches,
         "native_image_binding": {
             "original_ptx_sha256": binding["original_ptx"]["sha256"],
@@ -177,7 +213,8 @@ class RawValidationTests(unittest.TestCase):
     def test_complete_fixed_matrix_remains_unvalidated(self):
         with tempfile.TemporaryDirectory() as directory:
             _path, binding = binding_for(Path(directory))
-            analysis = target.validate_raw(valid_raw(binding), binding)
+            _native_path, native = native_binding_for(Path(directory), binding)
+            analysis = target.validate_raw(valid_raw(binding, native), binding, native)
             self.assertEqual(analysis["status"], "TIMING_INTERVALS_CAPTURED_UNVALIDATED")
             self.assertEqual(len(analysis["future_d_samples"]), 20)
             self.assertFalse(analysis["g5_closed"])
@@ -185,18 +222,80 @@ class RawValidationTests(unittest.TestCase):
     def test_missing_launch_cannot_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             _path, binding = binding_for(Path(directory))
-            raw = valid_raw(binding)
+            _native_path, native = native_binding_for(Path(directory), binding)
+            raw = valid_raw(binding, native)
             raw["launches"].pop()
             with self.assertRaisesRegex(ValueError, "launch count mismatch"):
-                target.validate_raw(raw, binding)
+                target.validate_raw(raw, binding, native)
 
     def test_integer_false_cannot_impersonate_claim_boolean(self):
         with tempfile.TemporaryDirectory() as directory:
             _path, binding = binding_for(Path(directory))
-            raw = valid_raw(binding)
+            _native_path, native = native_binding_for(Path(directory), binding)
+            raw = valid_raw(binding, native)
             raw["scientific_claim"] = 0
             with self.assertRaisesRegex(ValueError, "scientific_claim"):
-                target.validate_raw(raw, binding)
+                target.validate_raw(raw, binding, native)
+
+
+class NativeControlTests(unittest.TestCase):
+    def test_native_binding_rejections_precede_guard_and_acquisition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            future_path, future = binding_for(root)
+            native_path, native = native_binding_for(root, future)
+            loaded, paths = target.load_native_binding(native_path, future)
+            frozen = target.verify_binding_files(loaded, paths)
+            self.assertEqual(frozen["cubin"], b"\x7fELFordinary-native")
+            self.assertEqual(frozen["original_ptx"], b"original")
+            variants = []
+            for key, value in (("selected_kernel", target.SELECTED_KERNEL),
+                               ("transform_mode", "timing_load_future_v1"),
+                               ("compiler", {"tool": "ptxas", "architecture": "sm_90", "optimization": "-O3"})):
+                changed = copy.deepcopy(native); changed[key] = value; variants.append(changed)
+            changed = copy.deepcopy(native); changed["original_ptx"]["sha256"] = "0" * 64; variants.append(changed)
+            changed = copy.deepcopy(native); del changed["nvdisasm"]; variants.append(changed)
+            with mock.patch.object(target, "ROOT", root), mock.patch.object(target, "ResourceGuard") as guard, mock.patch.object(target, "run_child") as launch:
+                for index, changed in enumerate(variants):
+                    native_path.write_text(json.dumps(changed))
+                    with self.subTest(index=index), self.assertRaises(ValueError):
+                        target.execute(root / f"results/gold/timing-future-unit/bad{index}", root / "no-build", root / "no-profile", future_path, native_path, "GPU-test")
+                native_path.write_text(json.dumps(native))
+                for index, data in enumerate((b"\x7f", b"\x7fELFordinarY-native")):
+                    paths["cubin"].write_bytes(data)
+                    with self.subTest(cubin=index), self.assertRaises(ValueError):
+                        target.execute(root / f"results/gold/timing-future-unit/cubin{index}", root / "no-build", root / "no-profile", future_path, native_path, "GPU-test")
+                guard.assert_not_called(); launch.assert_not_called()
+
+    def test_native_load_and_input_join_reject_wrong_identity_or_registration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _path, future = binding_for(Path(directory))
+            _native_path, native = native_binding_for(Path(directory), future)
+            raw = valid_raw(future, native)
+            self.assertEqual(len(raw["launches"]), 66)
+            self.assertEqual(raw["native_input"]["words"][0], 0xa5a55a5a)
+            analysis = target.validate_raw(raw, future, native)
+            self.assertEqual(len(analysis["future_d_samples"]), 20)
+            self.assertEqual(analysis["future_d_samples"][0]["intervals"][0]["work_ns"], 4000)
+            self.assertFalse(analysis["g5_closed"])
+            for key, value in (("cubin_sha256", future["cubin"]["sha256"]), ("load_result", 801),
+                               ("load_result", False), ("future_requirements_absent", False),
+                               ("future_requirements_lookup", 0), ("distinct_modules", False)):
+                changed = copy.deepcopy(raw); changed["native_control_binding"][key] = value
+                with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "ordinary native load"):
+                    target.validate_raw(changed, future, native)
+            for key, value in (("registered", True), ("address", 0x10020), ("words", [0] * 32)):
+                changed = copy.deepcopy(raw); changed["native_input"][key] = value
+                with self.subTest(input=key), self.assertRaises(ValueError):
+                    target.validate_raw(changed, future, native)
+
+    def test_execute_cli_requires_separate_native_binding(self):
+        argv = ["run", "--execute", "--out", "/unused/out", "--build-dir", "/unused/build",
+                "--profile", "/unused/profile", "--binding", "/unused/binding", "--gpu-uuid", "GPU-test"]
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(target, "execute") as execute:
+            with self.assertRaises(SystemExit) as error: target.main()
+            self.assertEqual(error.exception.code, 2)
+            execute.assert_not_called()
 
 
 class FinalizeTests(unittest.TestCase):

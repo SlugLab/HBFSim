@@ -94,8 +94,12 @@ def load_binding(path: pathlib.Path) -> tuple[dict, dict[str, pathlib.Path]]:
         != {"tool": "ptxas", "architecture": "sm_120", "optimization": "-O3"}
     ):
         raise ValueError("binding identity/compiler mismatch")
+    return value, _binding_paths(value, ("original_ptx", "transformed_ptx", "cubin"))
+
+
+def _binding_paths(value: dict, sized_names: tuple[str, ...]) -> dict[str, pathlib.Path]:
     paths: dict[str, pathlib.Path] = {}
-    for name in ("original_ptx", "transformed_ptx", "cubin"):
+    for name in sized_names:
         artifact = value[name]
         if type(artifact) is not dict or set(artifact) != {"path", "bytes", "sha256"}:
             raise ValueError(name + " binding schema mismatch")
@@ -116,6 +120,25 @@ def load_binding(path: pathlib.Path) -> tuple[dict, dict[str, pathlib.Path]]:
         paths[name] = pathlib.Path(artifact["path"]).resolve()
         if not pathlib.Path(artifact["path"]).is_absolute():
             raise ValueError(name + " path must be absolute")
+    return paths
+
+
+def load_native_binding(path: pathlib.Path, future_binding: dict) -> tuple[dict, dict[str, pathlib.Path]]:
+    value = json.loads(regular_bytes(path))
+    expected = {"schema_version", "selected_kernel", "transform_mode", "mapping_validation",
+                "compiler", "original_ptx", "cubin", *_SHA_KEYS}
+    if type(value) is not dict or set(value) != expected:
+        raise ValueError("ordinary native binding schema mismatch")
+    if (_exact_int(value["schema_version"], "native schema_version", 1) != 1
+        or value["selected_kernel"] != NATIVE_KERNEL
+        or value["transform_mode"] != "native_untransformed"
+        or value["mapping_validation"] != "NOT_PROVEN"
+        or value["compiler"] != {"tool": "ptxas", "architecture": "sm_120", "optimization": "-O3"}):
+        raise ValueError("ordinary native binding identity/compiler mismatch")
+    paths = _binding_paths(value, ("original_ptx", "cubin"))
+    for key in ("bytes", "sha256"):
+        if value["original_ptx"][key] != future_binding["original_ptx"][key]:
+            raise ValueError("ordinary native original PTX differs from future image source")
     return value, paths
 
 
@@ -178,7 +201,7 @@ def classify_future_d(records: list[dict]) -> dict:
     }
 
 
-def validate_raw(raw: dict, expected_binding: dict) -> dict:
+def validate_raw(raw: dict, expected_binding: dict, expected_native_binding: dict) -> dict:
     if type(raw) is not dict:
         raise ValueError("raw diagnostic must be an object")
     for key, expected in {
@@ -238,6 +261,38 @@ def validate_raw(raw: dict, expected_binding: dict) -> dict:
     }
     if type(binding) is not dict or binding != expected_hashes:
         raise ValueError("raw native-image binding mismatch")
+    native = raw.get("native_control_binding")
+    expected_native = {
+        **{name + "_sha256": expected_native_binding[name]["sha256"]
+           for name in ("original_ptx", "cubin", *_SHA_KEYS)},
+        "cubin_bytes": expected_native_binding["cubin"]["bytes"],
+        "selected_kernel": NATIVE_KERNEL, "mapping_validation": "NOT_PROVEN",
+        "same_retained_buffer": True, "load_result": 0,
+        "future_requirements_lookup": 500,  # CUDA_ERROR_NOT_FOUND
+        "future_requirements_absent": True, "distinct_modules": True,
+    }
+    if type(native) is not dict or set(native) != set(expected_native) or any(
+        type(native[key]) is not type(value) or native[key] != value
+        for key, value in expected_native.items()
+    ):
+        raise ValueError("raw ordinary native load binding mismatch")
+    echoed = raw.get("native_input")
+    fields = {"address", "bytes", "registered", "words", "future_words", "future_address",
+              "future_registered_bytes", "contents_equal", "disjoint"}
+    if type(echoed) is not dict or set(echoed) != fields:
+        raise ValueError("native input readback schema mismatch")
+    expected_words = [((lane * 0x45d9f3b) & 0xffffffff) ^ 0xa5a55a5a for lane in range(LANES)]
+    if (echoed["registered"] is not False or echoed["contents_equal"] is not True
+        or echoed["disjoint"] is not True or echoed["words"] != expected_words
+        or echoed["future_words"] != expected_words
+        or any(type(word) is not int for key in ("words", "future_words") for word in echoed[key])
+        or _exact_int(echoed["bytes"], "native input bytes", 1) != 128
+        or _exact_int(echoed["future_registered_bytes"], "future range bytes", 1) != 4096):
+        raise ValueError("native input is registered or differs from fixed future input")
+    address = _exact_int(echoed["address"], "native input address", 1)
+    future_address = _exact_int(echoed["future_address"], "future input address", 1)
+    if not (address + 128 <= future_address or future_address + 4096 <= address):
+        raise ValueError("native input overlaps the registered future range")
     return {
         "schema_version": 1,
         "status": "TIMING_INTERVALS_CAPTURED_UNVALIDATED",
@@ -290,17 +345,20 @@ def finalize_attempt(out: pathlib.Path, manifest: dict, status: dict, final: str
 
 
 def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
-            binding_path: pathlib.Path, gpu_uuid: str) -> dict:
+            binding_path: pathlib.Path, native_binding_path: pathlib.Path, gpu_uuid: str) -> dict:
     out = out.resolve()
     build = build.resolve()
     profile = profile.resolve()
     binding_path = binding_path.resolve()
+    native_binding_path = native_binding_path.resolve()
     gold_root = (ROOT / "results/gold/timing-future-unit").resolve()
     if not out.is_relative_to(gold_root):
         raise ValueError("output must be under the timing-future-unit gold root")
     out.mkdir(parents=True, exist_ok=False)
     binding, binding_paths = load_binding(binding_path)
     verified_binding = verify_binding_files(binding, binding_paths)
+    native_binding, native_paths = load_native_binding(native_binding_path, binding)
+    verified_native = verify_binding_files(native_binding, native_paths)
     paths = {
         "binary": build / "benchmarks/cuda/c6_future_delay_overlap",
         "plugin": build / "libptxpass_hbf.so",
@@ -308,6 +366,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
         "daemon": build / "hbfsimd",
         "profile": profile,
         "binding": binding_path,
+        "native_binding": native_binding_path,
         "build_config": build / "CMakeCache.txt",
         "runner": pathlib.Path(__file__).resolve(),
         "benchmark_source": ROOT / "benchmarks/cuda/c6_future_delay_overlap.cu",
@@ -315,10 +374,14 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
         "future_abi": ROOT / "include/hbfsim/timing_future_abi.hpp",
     }
     paths.update({"binding_" + name: path for name, path in binding_paths.items()})
+    paths.update({"native_binding_" + name: path for name, path in native_paths.items()})
     frozen = {name: regular_bytes(path) for name, path in paths.items()}
     for name, data in verified_binding.items():
         if frozen["binding_" + name] != data:
             raise ValueError("binding artifact changed during initial freeze: " + name)
+    for name, data in verified_native.items():
+        if frozen["native_binding_" + name] != data:
+            raise ValueError("ordinary native artifact changed during initial freeze: " + name)
     manifest = {
         "schema_version": 1,
         "created_at": now(),
@@ -382,6 +445,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
                 "--transformed-ptx", str(paths["binding_transformed_ptx"]),
                 "--cubin", str(paths["binding_cubin"]),
                 "--binding", str(paths["binding"]),
+                "--native-binding", str(paths["native_binding"]),
                 "--output", str(directory / "raw.json"),
                 "--report-dir", str(directory / "reports"),
             ]
@@ -410,7 +474,7 @@ def execute(out: pathlib.Path, build: pathlib.Path, profile: pathlib.Path,
             if code:
                 raise FailedRun("C6 future-delay diagnostic failed")
             raw = json.loads(regular_bytes(directory / "raw.json"))
-            analysis = validate_raw(raw, binding)
+            analysis = validate_raw(raw, binding, native_binding)
             atomic_json(directory / "analysis.json", analysis)
             guard.check("after-diagnostic")
             if git_snapshot(ROOT) != manifest["git"]:
@@ -449,6 +513,7 @@ def main() -> int:
     parser.add_argument("--build-dir", type=pathlib.Path)
     parser.add_argument("--profile", type=pathlib.Path)
     parser.add_argument("--binding", type=pathlib.Path)
+    parser.add_argument("--native-binding", type=pathlib.Path)
     parser.add_argument("--gpu-uuid")
     args = parser.parse_args()
     if not args.execute:
@@ -461,10 +526,10 @@ def main() -> int:
             "validation_status": "UNVALIDATED",
         }, indent=2))
         return 0
-    if not all((args.out, args.build_dir, args.profile, args.binding, args.gpu_uuid)):
-        parser.error("execution requires --out --build-dir --profile --binding --gpu-uuid")
+    if not all((args.out, args.build_dir, args.profile, args.binding, args.native_binding, args.gpu_uuid)):
+        parser.error("execution requires --out --build-dir --profile --binding --native-binding --gpu-uuid")
     result = execute(
-        args.out, args.build_dir, args.profile, args.binding, args.gpu_uuid
+        args.out, args.build_dir, args.profile, args.binding, args.native_binding, args.gpu_uuid
     )
     print(json.dumps(result, indent=2))
     return 0 if result["state"] == "CAPTURED_UNVALIDATED" else 2

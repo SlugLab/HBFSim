@@ -1,5 +1,36 @@
 # Runtime budget — bounded controls only
 
+## Current bounded observations — 2026-09-07
+
+| Observation | Process wall time | Boundary |
+| --- | ---: | --- |
+| HF012 native/capture/repeat triplet | 451.929812513 s | Three arms returned identical tokens; only capture/repeat routes match; not generation latency or a formal cell |
+| P7 route-horizon attempt001 | 0.318749618 s | Failed at bounded routing-trace input read; no service/cell |
+| P7 route-horizon attempt002 | 5.136081178 s | HF bridge passed; MQSim `std::bad_alloc` before first header under 2 GiB AS; no cell |
+| P7 56 GiB zero-request init probe | 0.359337893 s | 164,192 KiB initialization-only RSS; header/finish all zero; not a replay peak |
+| P7 route-horizon six cells, 56 GiB profile | 54.779875 s | Real/shuffled 29.103271656/25.255706970 s; 228,192/228,952 KiB peak RSS; traffic 14,080,278,528/12,324,962,304 bytes per cell; zero prefetch/extra bytes |
+| P7 independent six-cell accounting | 0.516548358 s | Standard-library recomputation; all generation/GPU/science/speedup claims remain false |
+| C6 repaired native-control host build | 18.534684581 s | Focused single target only; no GPU or G5 result |
+| C6 GPU002 | ResourceBusy preflight | Foreign GPU process present; no owned kernel |
+| C6 GPU003 native/future diagnostic | 9.237038743 s | 67 launches; arithmetic/conservation PASS; D expired before work, so `NON_IDENTIFYING` for W/overlap |
+
+The 56 GiB-derived P7 profile passed one zero-request initialization
+header-plus-finish capacity probe and six projected cells. The retained
+384-expert cache equals 48 layers x eight routed experts; every cell issued zero
+prefetch and extra bytes. Independent review found all 2,304 prediction
+candidates per series resident and ready and matched one-layer-ahead to
+on-demand item for item. `none` uses serial miss service while on-demand batches
+same-layer demand, so their residual difference is not a prefetch speedup. The
+2 GiB value was an address-space cap. The recorded RSS is observed host-process
+memory for these bounded runs; it is not GPU/cache residency, a validated replay
+budget or a revised formal runtime estimate. A rho=1/32 smaller-cache run is
+only a proposed, non-original-matrix
+sensitivity diagnostic; it has not run and supplies no runtime or outcome.
+The observations above do not change the matrix planning totals, G2/G5
+thresholds or formal DONE count.
+
+The tables and dated notes below preserve earlier observations.
+
 The matrix estimates remain planning values. Known-delay and bounded C6 GPU
 controls plus HF runtime diagnostics have run. G2 remains failed; HF010
 completed all three real generation arms in 400.154178222 s. No physical-storage pilot has run. This checkpoint cannot replace

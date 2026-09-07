@@ -1,5 +1,44 @@
 # Evaluation implementation blockers
 
+## Current blocker delta — 2026-09-07
+
+- **HF012 acquisition:** all three real arms returned identical generated tokens.
+  Native did not capture routing; capture/repeat 39x48x8 route arrays match. Their
+  seven decode token slots x 48 layers supply 336 nodes and 335 adjacent
+  intervals. The triplet remains provisional and does not authenticate origin or
+  close timing/performance gates.
+- **P7 route-horizon replay:** implementation controls pass. Actual attempt001
+  stopped at the old bounded metadata reader; attempt002 passed the reader and
+  HF input bridge, then MQSim exited with `std::bad_alloc` before its first
+  header under the 2 GiB process limit. Neither of those attempts produced a
+  valid policy cell. A
+  56 GiB-derived zero-request capacity/init probe subsequently passed
+  header/finish with all counters zero; its 164,192 KiB RSS covers initialization
+  only. Six-cell attempt003 then completed, but all prefetch and extra bytes were
+  zero under the 384-expert cache configuration (48 layers x eight routed
+  experts). `none` serializes same-layer misses; on-demand batches them, and the
+  inactive one-layer-ahead policy matches on-demand. Independent review checked
+  all 2,304 prediction candidates per series as resident and ready and matched
+  one-layer-ahead requests/nodes to on-demand item for item. A rho=1/32 run may
+  be used only as an explicit non-original-matrix sensitivity diagnostic; it has
+  not run and has no result. No prefetch benefit was observed.
+  An independent standard-library accounting recheck passed in 0.516548358 s;
+  generation completion, GPU consumption, hardware/scientific validation and
+  speedup claims all remain false. A smaller-cache diagnostic remains pending
+  independent review.
+- **C6 future/native control:** globaltimer-compatible future004, native001 and
+  the repaired host build are retained with mapping validation still
+  `NOT_PROVEN`. GPU002 was rejected by the resource guard while a foreign GPU
+  process existed. GPU003 later completed, and its independent arithmetic
+  checks pass, but every D=20,000 ns future was ready before work began and
+  K0/K4096 work medians were both 7,040 ns. The result is `NON_IDENTIFYING` for
+  W/overlap and does not close C6.3 or G5.
+- **Gate state:** known-delay G2, C6.3/G5, physical storage, formal handlers and
+  formal matrix execution remain open. Formal DONE remains 0.
+
+The table and dated notes below preserve earlier checkpoint history. Where their
+"latest" wording differs, this current delta governs.
+
 Status is specific to this checkout and this execution; historical PASS records
 do not close the current gold gates.
 

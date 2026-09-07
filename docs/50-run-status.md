@@ -1,5 +1,58 @@
 # Run status — implementation in progress
 
+## Actual checkpoint: HF012 route timing, P7 init failures and C6 native control (2026-09-07)
+
+All records in this section are standalone diagnostics. Formal DONE remains 0.
+
+- HF012 completed native/capture/repeat in 451.929812513 s. All arms returned
+  identical generated tokens. Native did not capture routing. Capture/repeat each
+  retain 384 router-call events (48 layers x eight forwards), eight saves and 39
+  token slots (32 prefill plus seven decode); their joined 39x48x8 route arrays
+  match exactly. Seven decode slots x 48 layers form 336 decode nodes and 335
+  adjacent intervals.
+  Status remains `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED`; no formal source,
+  compute-time, generation-latency or speedup claim follows.
+- The P7 route-horizon source passed seven focused implementation tests, and the
+  later bounded private-reader regression passed. Attempt001 failed before
+  service startup because the 20,893,685-byte routing trace exceeded the old
+  small metadata reader. Attempt002 passed the HF012 metadata/input bridge, then
+  the first real/none native MQSim process exited before its header with
+  `std::bad_alloc` under the 2 GiB address-space cap. Its transcript is empty and
+  there is no raw cell to analyze. Both failed attempts are retained.
+- A separate 56 GiB-derived, zero-request initialization probe passed its
+  header/finish handshake in 0.359337893 s with 164,192 KiB maximum RSS and all
+  request counters zero. Attempt003 then completed all six projected cells in
+  54.779875 s: real/shuffled stages took 29.103271656/25.255706970 s with
+  228,192/228,952 KiB peak RSS. Real residuals were 272,190,600 ns for `none`
+  and 254,812,260 ns for both other policies; shuffled residuals were
+  236,996,520 ns and 219,656,820 ns. Traffic was 14,080,278,528 bytes
+  in every real cell and 12,324,962,304 bytes in every shuffled cell. All cells
+  issued zero prefetch and extra bytes. `none` serializes same-layer misses while on-demand batches them;
+  one-layer-ahead was inactive at this 384-expert capacity. Independent review
+  checked all 2,304 prediction candidates per series as resident and ready and
+  matched its requests/nodes to on-demand item for item. These differences
+  are not prefetch benefit, generation speedup or hardware validation. The
+  independent accounting recheck passed in 0.516548358 s and retained all claim
+  boundaries as false. A rho=1/32 run is only a proposed non-original-matrix
+  sensitivity diagnostic; it has not run and supplies no result.
+- C6 retains a globaltimer-compatible future mapping (`future-delay-attempt-004`)
+  and an independent untransformed native mapping
+  (`native-control-attempt-001`), both explicitly unproved. The host compile
+  repair changed only `journal.stage` to `journal->stage` and its focused host
+  build passed. GPU002 stopped at ResourceBusy while a foreign process owned the
+  GPU; no owned kernel ran and no foreign process was modified. Fresh GPU003
+  then completed 67 launches in 9.237038743 s. Independent analysis matched
+  2,112 outputs, 1,440 issued/ready/consumed requests, 45 groups and 2,880
+  traces. All futureD lanes were already ready before work, with prework medians
+  309,376/316,856 ns versus D=20,000 ns. K0/K4096 work medians were both
+  7,040 ns (ordinary-native controls: 7,072 ns). The chosen W produced no
+  duration separation, so this result is `NON_IDENTIFYING` and cannot close G5
+  or overlap.
+- Known-delay G2, C6.3, G5, overlap, native completion timing, physical storage
+  and formal registration remain open. No threshold changed.
+
+The HF010 and earlier sections below remain dated history.
+
 Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
 Latest standalone update: HF010 returned three real arms; single-member decode
 metrics, native four-case C6 and native conditional-consumer GPU diagnostics ran.

@@ -1,5 +1,33 @@
 # C6 one-warp GPU correctness diagnostic
 
+## Current future/native continuation — 2026-09-07
+
+The current path adds an actual globaltimer-compatible future mapping at
+`results/gold/timing-future-unit/c6-mapping/future-delay-attempt-004/` and a
+separately assembled, untransformed native control at
+`c6-mapping/native-control-attempt-001/`. Their states remain
+`COLLECTED_NOT_PROVEN` and `COLLECTED_NATIVE_CONTROL_NOT_PROVEN`; collecting
+PTX/SASS and a native binding does not establish load-completion timing or
+overlap.
+
+The native-control host integration passed its four focused CPU controls. Its
+first host build retained a compile failure caused by calling `stage` through a
+`std::unique_ptr<Journal>` with `.`. The reviewed one-line `->` repair then
+passed the focused single-target host build without rebuilding the future image.
+GPU002 reached the existing resource guard and stopped on foreign GPU ownership;
+it launched no owned kernel and did not touch that process. Fresh GPU003 then
+completed 67 launches in 9.237038743 s. Its independent analysis matched all
+2,112 outputs, 1,440 issued/ready/consumed requests, 45 groups and 2,880 traces;
+observable cleanup succeeded, while the void context-destroy completion remains
+unobservable. Every futureD measured lane was ready before work began. The
+K0/K4096 prework medians were 309,376/316,856 ns versus D=20,000 ns, and both
+work medians were 7,040 ns (ordinary native: 7,072 ns). This W choice is
+`NON_IDENTIFYING`, not evidence of overlap or native completion timing.
+
+These results do not close C6.3, G5, D/W, native completion, overlap, full
+lifecycle, capacity/reference/hybrid/empirical support or TMA. The acquisitions
+below remain historical `CAPTURED_UNVALIDATED` evidence.
+
 This opt-in diagnostic is **UNVALIDATED**. It does not close C6.3, overlap, G5,
 or a native-load completion-time claim. Later acquisitions now load explicitly
 bound native images; their semantic mapping status remains `NOT_PROVEN`.

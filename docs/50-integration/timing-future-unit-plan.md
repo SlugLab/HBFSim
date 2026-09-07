@@ -1,5 +1,28 @@
 # ABI4 TIMING Ordinary-Future Unit Implementation Plan
 
+## Current execution addendum — 2026-09-07
+
+Implementation has advanced beyond several historical unchecked items in this
+plan, but no broad gate is promoted. The actual globaltimer-compatible future
+image is retained at `c6-mapping/future-delay-attempt-004/`; the separate
+untransformed native control is retained at
+`c6-mapping/native-control-attempt-001/`. Both remain mapping
+`NOT_PROVEN`. A focused native-control host build now passes after the reviewed
+one-line `std::unique_ptr<Journal>` call repair. GPU002 then stopped at the
+foreign-process resource guard before an owned kernel launch. Fresh GPU003
+completed 67 launches and passed independent output/counter/trace arithmetic,
+but all D=20,000 ns futures were ready before work. K0/K4096 work medians were
+both 7,040 ns, so the selected W is `NON_IDENTIFYING`.
+
+Preserve the exact guard, source, future004, native001 and accepted host-build
+bindings for any next bounded condition. Do not alter G5 thresholds or claim
+overlap/native-completion from mapping, host-build or this non-identifying GPU
+evidence. Shared public ABI,
+default-OFF behavior and the existing timeout remain unchanged. C6.3, G5, full
+C6.4 and formal admission remain open; formal DONE remains 0. The checklist
+below is retained as design/history and must not be read as a current completion
+receipt without the corresponding actual evidence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task by task. Steps use checkboxes for tracking. Parent owns integration and commits; do not create additional workers or commit without its instruction.
 
 **Goal:** Implement and validate one complete, explicitly enabled ordinary-load future unit for physically backed TIMING ranges using the existing FAST scalar model, while retaining shared control ABI4 and synchronous production defaults.

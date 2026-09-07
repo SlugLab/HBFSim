@@ -1,5 +1,58 @@
 # Phase-two implementation checkpoint — ongoing
 
+## Current actual checkpoint — HF012, P7 and C6 (2026-09-07)
+
+This update is prepared from clean HEAD
+`5fa60e16698b9344ade5e134995ff502f113f872`. HF012 returned all three real
+native/capture/repeat arms in 451.929812513 s with identical generated tokens.
+Native did not capture routing. Capture and repeat each retain 384 router-call
+events (48 layers x eight forwards), eight saves and 39 token slots: 32 prefill
+plus seven decode. Their joined 39x48x8 route arrays match exactly. The seven
+decode slots x 48 layers form 336 decode nodes and 335 adjacent intervals.
+These remain `PROVISIONAL_TRIPLET_RETURNED_UNVALIDATED` observations, not
+source-origin, hardware-timing or formal evidence.
+
+The P7 route-horizon adapter, replay and CLI controls passed their seven focused
+implementation tests; the later private-reader regression also passed. The
+first two attempts produced no valid cell. Attempt001 rejected the 20,893,685-byte
+routing trace under the old small-metadata reader. After that bounded reader was
+fixed, attempt002 retained the complete HF012/input bridge but native MQSim exited
+before its first header with `std::bad_alloc` under the 2 GiB address-space cap.
+A separate 56 GiB-derived, zero-request capacity/init probe completed its
+header and finish handshake in 0.359337893 s with 164,192 KiB maximum RSS and
+all request counters zero. Attempt003 then completed all six projected cells in
+54.779875 s (real 29.103271656 s, shuffled 25.255706970 s; peak RSS
+228,192/228,952 KiB). Real cells each transferred 14,080,278,528 bytes; shuffled cells each
+transferred 12,324,962,304 bytes. Every cell issued zero prefetch bytes and zero
+extra bytes. The retained configuration has a 384-expert cache (48 layers x eight routed
+experts). Independent review checked 288 prediction nodes x eight candidates in
+each series: all 2,304 candidates were resident and ready, and one-layer-ahead
+requests/nodes matched on-demand item for item. Zero prefetch is therefore the
+bounded condition's structural result, not an implementation omission. The lower
+residual relative to `none` reflects batched same-layer demand issue versus
+serial miss service, not prefetch benefit. This remains a diagnostic capacity
+configuration, not measured residency, generation speedup or validated model
+capacity. The independent standard-library accounting recheck passed in
+0.516548358 s while preserving all claim boundaries as false. A rho=1/32
+run is only a proposed non-original-matrix sensitivity diagnostic; it has not
+run and supplies no result.
+
+C6 now retains the actual globaltimer-compatible future image at
+`future-delay-attempt-004` and a separate ordinary native image at
+`native-control-attempt-001`. Their mapping states remain `COLLECTED_NOT_PROVEN`
+and `COLLECTED_NATIVE_CONTROL_NOT_PROVEN`. The one-line host
+`unique_ptr<Journal>` call repair passed its focused host build. GPU002 stopped
+at the existing foreign-GPU guard without touching that process; fresh GPU003
+then completed 67 launches in 9.237038743 s. Independent arithmetic matched all
+2,112 outputs, 1,440 issued/ready/consumed requests, 45 groups and 2,880 traces.
+All futureD lanes were ready before work began: prework medians
+309,376/316,856 ns exceeded D=20,000 ns, while K0/K4096 work medians were both
+7,040 ns. This is `NON_IDENTIFYING` for the selected W, not G5 or overlap
+closure. G2, C6.3, G5, overlap and formal admission remain open; formal DONE is 0.
+
+The dated HF010, route-only, known-delay and earlier C6 sections below are
+historical evidence. They do not supersede this current checkpoint.
+
 P0/P1/P6 and bounded CPU portions of P2/P3/P7 are verified. This is an interim
 checkpoint, not completion of P0–P8 or permission to launch a formal matrix.
 Default-OFF ordinary TIMING future admission is implemented. Guarded native-image
@@ -18,8 +71,9 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
 - Latest actual checkpoint HEAD: `24d007371fc4ff1f1d2fde2a80d6e4b4d7d20ebc`.
-  HF010 returned matching tokens and routes after the scoped Ray compatibility
-  repair. C6 native-image and conditional-consumer GPU diagnostics returned.
+  HF010 returned identical tokens across its three arms after the scoped Ray
+  compatibility repair; capture/repeat route arrays matched, while native did
+  not capture routing. C6 native-image and conditional-consumer GPU diagnostics returned.
   Formal origins, timing/performance gold and physical storage remain open.
   See the [current actual checkpoint](50-run-status.md#actual-checkpoint-hf010-and-native-conditional-consumers-2026-09-06).
 - Local branch: `eval/eq1-eq4-implementation`; no push, merge or rebase.

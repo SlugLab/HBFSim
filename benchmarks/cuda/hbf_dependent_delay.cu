@@ -138,8 +138,8 @@ Options options(int argc, char** argv)
     require(o.warps && o.warps <= 16 && (o.warps & (o.warps - 1)) == 0, "invalid warp count");
     require(!o.diagnostic_blocks_set ||
                 (o.trace_mode == "per_chain_abba" &&
-                 o.diagnostic_blocks == 1),
-            "diagnostic block override requires per_chain_abba and one block");
+                 (o.diagnostic_blocks == 1 || o.diagnostic_blocks == 2)),
+            "diagnostic block override requires per_chain_abba and one or two blocks");
     require(!o.profile.empty() && !o.plugin.empty() && !o.ptx.empty() && !o.output.empty() && !o.report_dir.empty(), "missing explicit artifact paths");
     const auto profile = json::parse(read(o.profile));
     require(profile.at("time_scale").get<unsigned>() == 1 && profile.at("read_latency_ns").get<std::uint64_t>() > 0 &&
@@ -516,7 +516,7 @@ int main(int argc, char** argv)
         driver(cuOccupancyMaxActiveBlocksPerMultiprocessor(&maximum, kernel, o.warps * 32, shared), "occupancy limit");
         require(maximum > 0 && (o.occupancy == "low" ? maximum == 1 : maximum > 1), "requested occupancy unsupported");
         // The established default geometry remains fixed across treatments.
-        // The explicit ABBA-only diagnostic selector instead launches one block.
+        // The explicit ABBA-only diagnostic selector instead launches one or two blocks.
         const unsigned default_block_count =
             props.multiProcessorCount *
             (o.occupancy == "low" ? 1 : 32 / o.warps);

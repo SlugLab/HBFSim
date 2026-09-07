@@ -141,6 +141,23 @@ def raw_fixture(future, native, prework=10000):
 
 
 class SingleLaneFixedWorkTests(unittest.TestCase):
+    def test_observer_preparation_precedes_anchor_without_record_mutation(self):
+        source = (Path(__file__).resolve().parents[2] /
+                  "src/cuda_runtime/device/hbf_device.cu").read_text()
+        prepare = source.split("__device__ FutureDelayBinding future_delay_prepare(", 1)[1]
+        prepare = prepare.split("__device__ void future_delay_commit(", 1)[0]
+        self.assertIn("future_delay_record_is_zero(*record)", prepare)
+        self.assertNotIn("record->", prepare)
+        issue = source.split("__hbfsim_timing_future_issue_v1(", 1)[1]
+        issue = issue.split("__hbfsim_timing_future_poll_v1(", 1)[0]
+        self.assertLess(issue.index("diagnostic_helper_entry=EvalDelayClock{}()"),
+                        issue.index("future_delay_prepare(address,bytes,instruction)"))
+        self.assertLess(issue.index("future_delay_prepare(address,bytes,instruction)"),
+                        issue.index("const auto arrival=EvalDelayClock{}()"))
+        self.assertLess(issue.index("const auto arrival=EvalDelayClock{}()"),
+                        issue.index("future_delay_commit("))
+        self.assertLess(issue.index("future_delay_commit("), issue.index("future_liveness(h,f.control_generation,arrival)"))
+
     def test_both_explicit_pairs_and_rejections_precede_guard(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -190,6 +190,51 @@ class KnownDelayPerChainAbbaTests(unittest.TestCase):
             "launches": launches,
         }
 
+    def two_block_fixture(self):
+        raw = self.fixture()
+        for key in ("diagnostic_blocks_requested", "actual_grid_blocks", "actual_chain_rows"):
+            raw[key] = 2
+        for launch in raw["launches"]:
+            launch["blocks"] = launch["sm_count"] = 2
+            for key in ("covered_accesses", "covered_bytes", "bypass_accesses", "bypass_bytes", "eligible_bytes"):
+                launch[key] *= 2
+            diagnostic = launch["chain_diagnostic"]
+            for key in ("grid_x", "row_count", "storage_bytes", "chain_output_bytes", "block_output_bytes"):
+                diagnostic[key] *= 2
+            for collection in ("chains", "block_intervals"):
+                extra = copy.deepcopy(launch[collection][0])
+                extra["block"] = extra["sm"] = 1
+                launch[collection].append(extra)
+            wait = copy.deepcopy(launch["waits"][0])
+            wait["thread_id"] = 32
+            wait["address"] += 4096
+            launch["waits"].append(wait)
+            row = copy.deepcopy(diagnostic["rows"][0])
+            row["row"] = 1
+            row["writer_thread_id"] = 32
+            for event in row["events"]:
+                event["thread_id"] = 32
+                event["address"] += {1: 4096, 2: 32, 3: 24}[event["event_class"]]
+            diagnostic["rows"].append(row)
+        return raw
+
+    def test_two_blocks_preserve_every_chain_and_reject_partial_geometry(self):
+        raw = self.two_block_fixture()
+        report = abba.analyze_abba(raw, expected_blocks=2)
+        self.assertEqual(report["diagnostic_geometry"]["actual_chain_rows"], 2)
+        for pair in report["pairs"]:
+            self.assertEqual([r["thread_id"] for r in pair["per_chain"]], [0, 32])
+        with self.assertRaises(ValueError):
+            abba.analyze_abba(raw, expected_blocks=1)
+        for missing in ("chains", "waits", "block_intervals"):
+            invalid = copy.deepcopy(raw)
+            invalid["launches"][1][missing].pop()
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                abba.analyze_abba(invalid, expected_blocks=2)
+        for unsupported in (0, 3, True):
+            with self.subTest(blocks=unsupported), self.assertRaises(ValueError):
+                abba.analyze_abba(raw, expected_blocks=unsupported)
+
     def test_validates_actual_rows_and_retains_signed_adjacent_pairs(self):
         report = abba.analyze_abba(self.fixture())
         self.assertEqual(report["validation_status"], "CAPTURED_UNVALIDATED")

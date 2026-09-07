@@ -1,5 +1,36 @@
 # Run status — implementation in progress
 
+## Routing continuation batch — 2026-09-07
+
+At execution HEAD `aa5af1d125bbd5c758a0393a099e51e17e7fff51`, four additional
+fixed-token 16-member captures returned successfully in 644.265 seconds
+combined. The unchanged guarded controller was reused with fresh output paths.
+Together with attempt001 there are five captures / 80 generated requests and
+149,760 routing events. All 16 members have byte-identical raw route arrays and
+identical generated tokens across all five captures; relevant source hashes match.
+All owned cleanup receipts pass; a final host query showed no GPU processes and
+0 MiB used. This is fixed-input repeatability, not five formal replicates,
+natural-prompt coverage, live concurrency, source-origin certification or G9 closure.
+
+In parallel, 29 previously missing B=1/2/4/16 composition groups completed in
+54.807 child-process seconds; the two existing B=8 groups were reused.
+Independent standard-library arithmetic reconstructed frequency, union, entropy,
+Gini, Jaccard and reuse distances. Per B and real/shuffled series, the complete
+16-member set supplies 43,008 expert accesses. Mean real union at B=1/2/4/8/16
+is 8.0000/13.6272/20.7835/30.7515/40.7321. All results remain PROJECTED and
+TRACE_COMPOSED; shared groups are not independent repetitions, and finite reuse
+distance is not a cache hit. Byte-identical capture inputs permit reusing these
+statistics without repeated postprocessing.
+
+Evidence and exact commands: `results/batches/20260907-routing-continuation/`
+(`README.zh.md`, `gpu-progress.json`, `cpu-progress.json`,
+`capture-comparison.json`, `composition-summary.json`, `readiness.json`).
+The original matrix has 2,848 conditions / 20,485 planned repeats, of which
+13,105 repeats are minimum. Formal DONE remains 0: G2/G5, exclusive physical
+storage, matched compute-only inputs, dense matching and formal registrations
+remain open. No ideal sweep or unchanged failing diagnostic was rerun.
+
+
 ## Actual checkpoint: HF012, P7, C6 and routing_capture-01469 (2026-09-07)
 
 All records in this section are standalone diagnostics. Formal DONE remains 0.

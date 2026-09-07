@@ -894,9 +894,8 @@ __device__ bool future_delay_config_is_zero(
         config.block_x == 0 && config.work_count == 0 && config.reserved == 0;
 }
 
-__device__ FutureDelayBinding future_delay_bind(
-    std::uint64_t address, std::uint32_t bytes, std::uint32_t instruction,
-    std::uint64_t arrival)
+__device__ FutureDelayBinding future_delay_prepare(
+    std::uint64_t address, std::uint32_t bytes, std::uint32_t instruction)
 {
     using Config = hbfsim::device::EvalFutureDelayConfig;
     using Record = hbfsim::device::EvalFutureDelayRecord;
@@ -921,7 +920,7 @@ __device__ FutureDelayBinding future_delay_bind(
         blockDim.x != 32 || blockDim.y != 1 || blockDim.z != 1 || lane >= 32 ||
         config.input_base > UINT64_MAX - config.input_bytes ||
         config.records_address > UINT64_MAX - config.records_bytes ||
-        address > UINT64_MAX - bytes || arrival > UINT64_MAX - config.delay_ns)
+        address > UINT64_MAX - bytes)
         return result;
     const auto input_end = config.input_base + config.input_bytes;
     const auto records_end = config.records_address + config.records_bytes;
@@ -934,6 +933,19 @@ __device__ FutureDelayBinding future_delay_bind(
         static_cast<std::uintptr_t>(config.records_address));
     auto* record = &records[lane];
     if (!future_delay_record_is_zero(*record)) return result;
+    result.record = record;
+    result.valid = true;
+    return result;
+}
+
+// The launch configuration is frozen until the kernel returns. Preparation is
+// read-only: failed issue/overflow paths must not partially initialize a record.
+// This commit remains after the true issue clock and retains all observer stores.
+__device__ void future_delay_commit(
+    hbfsim::device::EvalFutureDelayRecord* record, std::uint64_t arrival)
+{
+    const auto config = __hbfsim_eval_future_delay_config_v1;
+    const auto lane = lane_id();
     record->launch_epoch = config.launch_epoch;
     record->configured_delay_ns = config.delay_ns;
     record->helper_entry_ns = 0;
@@ -945,9 +957,6 @@ __device__ FutureDelayBinding future_delay_bind(
     record->status = future::kPending;
     record->work_count = config.work_count;
     record->valid_bits = kFutureDelayArrival;
-    result.record = record;
-    result.valid = true;
-    return result;
 }
 
 __device__ hbfsim::device::EvalFutureDelayRecord* future_delay_existing(
@@ -1160,15 +1169,26 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
     f.control_alias=reinterpret_cast<std::uint64_t>(h);f.control_generation=system_acquire(&h->control_generation);
     const auto* ranges=reinterpret_cast<const SharedRangeRecord*>(reinterpret_cast<const std::byte*>(h)+h->range_offset);
     const auto* range=find_range(ranges,system_acquire(&h->range_count),address);
+#if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
+    HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
+    // Observer-only reads leave the model interval; all native mechanism work,
+    // including header/range lookup above, stays on its original side of issue.
+    // helper_entry_ns still includes preparation, so full issue cost is visible.
+    const auto diagnostic=future_delay_prepare(address,bytes,instruction);
+#endif
     const auto arrival=EvalDelayClock{}();f.issue_ns=arrival;f.ready_ns=arrival;
     if (arrival>UINT64_MAX-h->request_timeout_ns) return reject(tf::kUnsupported);
     f.deadline_ns=arrival+h->request_timeout_ns;
 #if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC
-    const auto diagnostic=future_delay_bind(address,bytes,instruction,arrival);
-    diagnostic_record=diagnostic.record;
+    const bool diagnostic_arrival_valid = !diagnostic.requested ||
+        (diagnostic.valid && arrival <= UINT64_MAX -
+            __hbfsim_eval_future_delay_config_v1.delay_ns);
+    diagnostic_record=diagnostic_arrival_valid ? diagnostic.record : nullptr;
+    if (diagnostic_record) future_delay_commit(diagnostic_record,arrival);
     if (diagnostic.requested &&
-        (!diagnostic.valid || arrival+diagnostic_record->configured_delay_ns>=f.deadline_ns)) {
+        (!diagnostic.valid || !diagnostic_arrival_valid ||
+         arrival+diagnostic_record->configured_delay_ns>=f.deadline_ns)) {
         // The transformed caller's native load follows this helper. A hard
         // diagnostic rejection keeps malformed configuration from reaching it.
         asm volatile("trap;");

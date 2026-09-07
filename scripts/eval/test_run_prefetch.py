@@ -7,9 +7,6 @@ import sys
 import tempfile
 import unittest
 
-import gguf
-import numpy as np
-
 from budget_fast_tier import budget_fast_tier
 from inventory_checkpoint import inventory_checkpoint
 from routing_metrics import analyze_routes
@@ -19,6 +16,8 @@ ROOT=Path(__file__).resolve().parents[2]
 
 class PrefetchCliTests(unittest.TestCase):
     def setUp(self):
+        import gguf
+        import numpy as np
         self.temp=tempfile.TemporaryDirectory(prefix='.prefetch-cli-test-',dir=ROOT)
         self.addCleanup(self.temp.cleanup)
         self.base=Path(self.temp.name)
@@ -115,6 +114,61 @@ class PrefetchCliTests(unittest.TestCase):
         process=self.invoke()
         self.assertNotEqual(process.returncode,0)
         self.assertFalse((self.base/'attempt').exists())
+
+
+class RouteHorizonCliTests(unittest.TestCase):
+    def test_hf_horizon_three_native_policies_keep_mock_terminal_and_accounting(self):
+        from test_hf_route_horizon_inputs import joined_fixture
+        from verify_hf_metadata import canonical
+        with tempfile.TemporaryDirectory(prefix='.hf-horizon-cli-',dir=ROOT) as temp:
+            base=Path(temp)
+            snapshots,_,_,_,bundle,_=joined_fixture(base)
+            profile=json.loads((ROOT/'configs/profiles/nominal.json').read_bytes())
+            profile.update(capacity_bytes=16<<30,hbm_cache_bytes=64<<20,queue_depth=2,time_scale=1)
+            snapshots['profile']=canonical(profile)
+            bootstrap=("import runpy,sys;sys.path.insert(0,"+repr(str(ROOT/'scripts/eval'))+
+                       ");sys.argv=sys.argv[1:];runpy.run_path(sys.argv[0],run_name='__main__')")
+            argv=[sys.executable,'-I','-S','-B','-X','pycache_prefix='+str(base/'pycache'),
+                  '-c',bootstrap,str(ROOT/'scripts/eval/run_prefetch.py'),'--binary',
+                  str(ROOT/'build-eval-implementation/hbf_mqsim_service'),
+                  '--out',str(base/'attempt'),'--initial-residency','cold',
+                  '--hf-metadata-refresh',str(bundle),'--timeout','30']
+            for name,raw in snapshots.items():
+                path=base/(name+'.json');path.write_bytes(raw)
+                argv+=['--'+name.replace('_','-'),str(path)]
+            process=subprocess.run(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=60)
+            self.assertEqual(process.returncode,0,process.stderr)
+            manifest=json.loads((base/'attempt/manifest.json').read_bytes())
+            self.assertEqual(manifest['scope'],'PROJECTED_ROUTE_INTERVAL_PREFIX_REPLAY')
+            self.assertEqual(manifest['provenance'],'MOCK')
+            self.assertFalse(manifest['scientific_validation_passed'])
+            self.assertIn('hf_route_array.py',manifest['tools'])
+            self.assertTrue({'freeze_storage_split.py','replay_arrivals.py','run_manifest.py'}
+                            <=set(manifest['tools']))
+            self.assertEqual(set(manifest['policies']),{'none','on_demand','one_layer_ahead'})
+            raws={policy:json.loads((base/'attempt'/policy/'raw.json').read_bytes()) for policy in manifest['policies']}
+            denominator=raws['on_demand']['prefix_ready_miss_bytes']
+            for policy,raw in raws.items():
+                self.assertEqual(raw['observed_route_span_ns'],260)
+                self.assertEqual(raw['projected_terminal_visible_ns'],260+raw['prefix_residual_ns'])
+                self.assertEqual(raw['prefix_nodes'],13);self.assertEqual(raw['demand_lookups'],14)
+                self.assertEqual(raw['cache_hits']+raw['cache_misses'],14)
+                self.assertEqual(raw['terminal_unserved_demand_bytes'],49152)
+                self.assertIsNone(raw['nodes'][-1]['route_gap_ns'])
+                self.assertIsNone(raw['nodes'][-1]['modeled_consume_ns'])
+                self.assertEqual(raw['service_receipt']['issued_bytes'],raw['traffic_bytes'])
+                self.assertEqual(raw['traffic_bytes'],sum(r['bytes'] for r in raw['requests']))
+                self.assertEqual(raw['gross_extra_bytes']-raw['saved_bytes'],raw['traffic_delta_vs_on_demand_bytes'])
+                self.assertEqual(raw['timely_denominator_on_demand_prefix_miss_bytes'],denominator)
+                self.assertEqual(raw['timely_coverage'],None if denominator==0 else raw['prefix_timely_prefetch_bytes']/denominator)
+                self.assertLessEqual(raw['peak_reserved_bytes'],98304)
+                self.assertTrue(all(r['ready_ns'] is not None for r in raw['requests']))
+                self.assertTrue((base/'attempt'/policy/'prefix-before-finish.json').is_file())
+                self.assertNotIn('decode_complete_ns',raw);self.assertNotIn('compute_ns',raw)
+                self.assertNotIn('unused_prefetch_bytes',raw)
+            denied=subprocess.run(argv+['--compute',str(base/'profile.json')],
+                                  capture_output=True,text=True,timeout=10)
+            self.assertNotEqual(denied.returncode,0)
 
 
 if __name__=='__main__':

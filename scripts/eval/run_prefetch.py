@@ -7,6 +7,10 @@ inventory and routing manifest hashes, series, prompt_tokens, source_kind, and
 one {step,layer,compute_ns} per composed layer batch. No default compute timing
 or model dimensions are supplied. All outputs remain PROJECTED (MOCK when any
 source is synthetic); no hardware gold receipt or scheduler DONE is produced.
+
+The explicit --route-horizon branch instead joins a frozen HF capture with
+335 route intervals and one missing terminal endpoint. Its added media waits
+are counterfactual prefix quantities, not compute-only or generation timing.
 """
 from __future__ import annotations
 
@@ -100,8 +104,27 @@ def run(args):
     output=args.out.resolve()
     if not output.is_relative_to(ROOT):
         raise ValueError('output must stay inside experiment checkout')
-    snapshots={name:regular_bytes(getattr(args,name).absolute()) for name in INPUTS}
-    data,nodes,objects,resident,provenance=prepare(snapshots,args.initial_residency)
+    route_horizon=getattr(args,'route_horizon',None) is not None
+    if route_horizon and (getattr(args,'compute',None) is not None or
+                          getattr(args,'hf_metadata_refresh',None) is None):
+        raise ValueError('route horizon requires HF metadata and excludes compute input')
+    if not route_horizon and (getattr(args,'compute',None) is None or
+                              getattr(args,'hf_metadata_refresh',None) is not None):
+        raise ValueError('legacy compute mode requires compute and excludes horizon-only metadata')
+    names=tuple(n for n in INPUTS if n!='compute')+('route_horizon',) if route_horizon else INPUTS
+    snapshots={name:regular_bytes(getattr(args,name).absolute()) for name in names}
+    auxiliary={};hf_snapshot=None
+    if route_horizon:
+        from hf_route_horizon_inputs import acquire,load_hf_snapshot,prepare_route_horizon
+        index,auxiliary=acquire(snapshots['route_horizon'])
+        hf_snapshot=load_hf_snapshot(args.hf_metadata_refresh)
+        data,nodes,objects,resident,provenance=prepare_route_horizon(
+            snapshots,index,auxiliary,hf_snapshot,args.initial_residency)
+        profile=json.loads(snapshots['profile'])
+        if profile.get('time_scale')!=1:
+            raise ValueError('route horizon service requires time_scale=1')
+    else:
+        data,nodes,objects,resident,provenance=prepare(snapshots,args.initial_residency)
     if provenance=='MOCK' and output.is_relative_to((ROOT/'results/runs').resolve()):
         raise ValueError('synthetic controls cannot write formal run directories')
     binary=regular_file(args.binary).resolve(strict=True)
@@ -119,8 +142,15 @@ def run(args):
                   address_map='DENSE_SORTED_LAYER_EXPERT_PAGE_PACKING_EXPERIMENT_ONLY',
                   binary=dict(path=str(binary),sha256=binary_hash,identity=binary_identity),
                   inputs={},policies={},git=git_snapshot(ROOT),tools={})
-    for name in ('run_prefetch.py','prefetch_replay.py','mqsim_service.py','budget_fast_tier.py','inventory_checkpoint.py'):
+    for name in ('run_prefetch.py','prefetch_replay.py','mqsim_service.py','budget_fast_tier.py',
+                 'inventory_checkpoint.py','freeze_storage_split.py','replay_arrivals.py','run_manifest.py'):
         manifest['tools'][name]=sha256(Path(__file__).with_name(name))
+    if route_horizon:
+        manifest.update(scope='PROJECTED_ROUTE_INTERVAL_PREFIX_REPLAY',
+                        input_validation='SUPPLIED_BUFFER_CONSISTENCY_NOT_CAPTURE_CERTIFICATION',
+                        route_horizon=data['route_horizon'])
+        for name in ('hf_route_horizon_inputs.py','hf_route_array.py','evaluation_inventory.py','verify_hf_metadata.py','routing_metrics.py'):
+            manifest['tools'][name]=sha256(Path(__file__).with_name(name))
     try:
         frozen=output/'inputs'
         frozen.mkdir()
@@ -130,15 +160,34 @@ def run(args):
                 stream.write(payload);stream.flush();os.fsync(stream.fileno())
             manifest['inputs'][name]=dict(path=str(path.relative_to(output)),original=str(getattr(args,name).absolute()),
                                           sha256=hashlib.sha256(payload).hexdigest())
+        if route_horizon:
+            # Retain exact acquired evidence and the accepted metadata snapshot.
+            from evaluation_inventory import _unpack
+            metadata_report,metadata_files,_,_=_unpack(hf_snapshot)
+            retained=dict(auxiliary)
+            retained.update({'metadata/'+k:v for k,v in metadata_files.items()})
+            retained['metadata/receipt.json']=hf_snapshot.receipt_bytes
+            retained['metadata/COMPLETE.json']=hf_snapshot.complete_bytes
+            manifest['horizon_evidence']={}
+            for name,payload in retained.items():
+                path=frozen/'horizon'/name;path.parent.mkdir(parents=True,exist_ok=True)
+                with path.open('xb') as stream:
+                    stream.write(payload);stream.flush();os.fsync(stream.fileno())
+                manifest['horizon_evidence'][name]=dict(path=str(path.relative_to(output)),
+                                                       sha256=hashlib.sha256(payload).hexdigest())
         atomic_json(output/'environment.json',environment_snapshot())
         results={}
         for policy in POLICIES:
             directory=output/policy
             started=time.monotonic()
+            if route_horizon:manifest['active_policy']=policy
             with MqsimService(binary,frozen/'profile.json',directory,timeout=args.timeout,
                               parallel_units=args.parallel_units) as service:
                 result=replay(nodes,objects,capacity_bytes=data['budget']['page_aligned_effective_bytes'],
-                              initial_resident=resident,policy=policy,service=service)
+                              initial_resident=resident,policy=policy,service=service,
+                              **({'route_horizon':True} if route_horizon else {}))
+                # Preserve the replay ledger before transport/finish validation.
+                if route_horizon:atomic_json(directory/'prefix-before-finish.json',result)
                 receipt=service.finish()
                 result.update(provenance=provenance,service_receipt=receipt,
                               service_observations=service.observations,topology=service.header)
@@ -164,6 +213,20 @@ def run(args):
                 raise ValueError('matched traffic accounting mismatch')
             result['extra_bytes_vs_on_demand']=max(0,result['traffic_bytes']-baseline)
             result['unused_prefetch_bytes']=sum(r['bytes'] for r in result['requests'] if r['classification']=='useless')
+            if route_horizon:
+                result.pop('unused_prefetch_bytes',None)
+                counts={label:sum(r['bytes'] for r in result['requests'] if r['classification']==label)
+                        for label in ('useful','late','useless_prefix','censored_terminal','censored_horizon')}
+                denominator=results['on_demand']['prefix_ready_miss_bytes']
+                result.update(prefix_timely_prefetch_bytes=counts['useful'],prefix_late_consumed_bytes=counts['late'],
+                    prefix_evicted_unconsumed_bytes=counts['useless_prefix'],
+                    terminal_censored_prefetch_bytes=counts['censored_terminal'],
+                    horizon_censored_prefetch_bytes=counts['censored_horizon'],
+                    timely_denominator_on_demand_prefix_miss_bytes=denominator,
+                    timely_coverage=None if denominator==0 else counts['useful']/denominator,
+                    timely_scope='MODEL_PREFIX_ROUTE_VISIBLE_DEADLINE_NOT_OBSERVED_GPU_CONSUMPTION',
+                    extra_traffic_ratio=None if baseline==0 else (result['traffic_bytes']-baseline)/baseline,
+                    traffic_scope='ISSUED_BEFORE_TERMINAL_ROUTE_VISIBILITY_NO_TERMINAL_DEMAND_SERVICE')
             path=output/policy/'raw.json'
             atomic_json(path,result)
             manifest['policies'][policy].update(raw_sha256=sha256(path),
@@ -174,6 +237,17 @@ def run(args):
         for item in manifest['inputs'].values():
             if sha256(output/item['path'])!=item['sha256']:
                 raise ValueError('frozen input changed during replay')
+        if route_horizon:
+            for item in manifest['horizon_evidence'].values():
+                if sha256(output/item['path'])!=item['sha256']:
+                    raise ValueError('frozen horizon evidence changed during replay')
+            for name,digest in manifest['tools'].items():
+                if sha256(Path(__file__).with_name(name))!=digest:
+                    raise ValueError('replay source changed during execution')
+            current=git_snapshot(ROOT)
+            if any(current[k]!=manifest['git'][k] for k in ('git_sha','branch','dirty_patch_sha256')):
+                raise ValueError('source HEAD/branch/tracked patch changed during replay')
+            manifest.pop('active_policy',None)
         manifest['validation']='VALIDATED_RAW_PROJECTED_CONTROL'
         atomic_json(output/'manifest.json',manifest)
     except BaseException as error:
@@ -186,7 +260,11 @@ def run(args):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in INPUTS:
-        parser.add_argument('--'+name.replace('_','-'),type=Path,required=True)
+        if name!='compute':parser.add_argument('--'+name.replace('_','-'),type=Path,required=True)
+    timing=parser.add_mutually_exclusive_group(required=True)
+    timing.add_argument('--compute',type=Path)
+    timing.add_argument('--route-horizon',type=Path)
+    parser.add_argument('--hf-metadata-refresh',type=Path)
     parser.add_argument('--binary',type=Path,required=True)
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--initial-residency',choices=('budget','cold'),default='budget')

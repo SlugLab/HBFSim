@@ -40,6 +40,80 @@ def nodes(steps=2, layers=3, compute=20):
 
 
 class PrefetchGold(unittest.TestCase):
+    def horizon(self, gap=20, capacity=1024, policy='one_layer_ahead'):
+        trace=[dict(step=s,layer=l,route_gap_ns=gap,members={'a':[0]})
+               for s in range(2) for l in range(3)]
+        trace[-1]['route_gap_ns']=None
+        service=ConstantDelayOracle()
+        result=replay(trace,objects(),capacity_bytes=capacity,initial_resident=(),
+                      policy=policy,service=service,route_horizon=True)
+        return result,service,trace
+
+    def test_horizon_causal_hand_oracle_preserves_legacy_clock(self):
+        result,service,trace=self.horizon()
+        self.assertEqual(result['observed_route_span_ns'],100)
+        self.assertEqual(result['projected_terminal_visible_ns'],130)
+        self.assertEqual(result['prefix_residual_ns'],30)
+        self.assertEqual([r['issue_ns'] for r in result['requests']],[0,30,60,70,90,110])
+        self.assertEqual([r['ready_ns'] for r in result['requests']],[10,40,70,80,100,120])
+        self.assertEqual([r['consume_ns'] for r in result['requests']],[10,40,70,90,110,None])
+        self.assertEqual([r['expert'] for r in result['requests']],[[0,0],[1,0],[2,0],[0,0],[1,0],[2,0]])
+        self.assertEqual([r['classification'] for r in result['requests']],
+                         ['demand']*3+['useful','useful','censored_terminal'])
+        basis=result['requests'][3]['prediction_basis']
+        self.assertEqual(basis['observations'],[dict(member='a',step=0,visible_at_ns=0,experts=[0])])
+        self.assertEqual(basis['visible_at_ns'],0)
+        self.assertEqual((result['demand_lookups'],result['cache_hits'],result['cache_misses']),(6,3,3))
+        self.assertEqual(result['traffic_bytes'],6*512)
+        self.assertEqual(result['terminal_unserved_demand_bytes'],512)
+        self.assertEqual(result['nodes'][-1]['demand_lookup'][0]['state'],'READY')
+        self.assertEqual(result['nodes'][-1]['candidate_not_issued'][0]['expert'],[0,0])
+        self.assertEqual(result['nodes'][-1]['modeled_consume_ns'],None)
+        self.assertNotIn('decode_complete_ns',result);self.assertNotIn('compute_ns',result)
+        changed=[dict(n,members={k:list(v) for k,v in n['members'].items()}) for n in trace]
+        changed[4]['members']['a']=[1]
+        other=replay(changed,objects(),capacity_bytes=1024,initial_resident=(),
+                     policy='one_layer_ahead',service=ConstantDelayOracle(),route_horizon=True)
+        self.assertEqual(other['requests'][3]['prediction_basis'],basis)
+        old,_=self.run_case('on_demand')
+        self.assertEqual(old['decode_complete_ns'],180)
+        self.assertNotIn('projected_terminal_visible_ns',old)
+
+    def test_horizon_pending_terminal_drains_without_consumption_or_duplicate_io(self):
+        result,service,_=self.horizon(gap=5)
+        self.assertEqual((result['observed_route_span_ns'],result['prefix_residual_ns'],
+                          result['projected_terminal_visible_ns'],result['drain_end_ns']),(25,40,65,70))
+        self.assertEqual([r['issue_ns'] for r in result['requests']],[0,15,30,40,50,60])
+        self.assertEqual([r['consume_ns'] for r in result['requests']],[10,25,40,50,60,None])
+        self.assertEqual([r['first_demand_ns'] for r in result['requests']],[0,15,30,45,55,65])
+        self.assertEqual([r['classification'] for r in result['requests']],
+                         ['demand']*3+['late','late','censored_terminal'])
+        terminal=result['requests'][-1]
+        self.assertIsNone(terminal['ready_at_horizon_ns']);self.assertEqual(terminal['ready_ns'],70)
+        self.assertEqual(result['pending_at_horizon'],[6])
+        self.assertEqual(result['nodes'][-1]['demand_lookup'],
+                         [dict(expert=[2,0],bytes=512,state='PENDING',request_id=6)])
+        self.assertEqual(len(service.submitted),6);self.assertEqual(service.pending,[])
+        self.assertEqual(result['traffic_bytes'],sum(r['bytes'] for r in service.submitted))
+        self.assertEqual(result['peak_reserved_bytes'],1024)
+
+    def test_horizon_pins_capacity_and_rejects_filled_or_missing_middle_gap(self):
+        result,service,trace=self.horizon(capacity=512)
+        self.assertEqual((result['projected_terminal_visible_ns'],result['peak_reserved_bytes']),(150,512))
+        self.assertEqual(result['traffic_bytes'],5*512)
+        self.assertEqual(len(result['prefetch_skipped']),3)
+        self.assertEqual(result['nodes'][-1]['demand_lookup'],
+                         [dict(expert=[2,0],bytes=512,state='MISSING',request_id=None)])
+        self.assertTrue(all(r['origin']=='demand' for r in result['requests']))
+        self.assertEqual(len(service.submitted),5)
+        for index,value in ((-1,0),(0,None),(0,-1),(0,True)):
+            altered=[dict(n) for n in trace];altered[index]['route_gap_ns']=value
+            oracle=ConstantDelayOracle()
+            with self.assertRaises(ValueError):
+                replay(altered,objects(),capacity_bytes=512,initial_resident=(),
+                       policy='on_demand',service=oracle,route_horizon=True)
+            self.assertEqual(oracle.submitted,[])
+
     def run_case(self, policy, trace=None, capacity=1024, initial=()):
         service = ConstantDelayOracle()
         result = replay(trace or nodes(), objects(), capacity_bytes=capacity,

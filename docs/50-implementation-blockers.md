@@ -1,5 +1,31 @@
 # Evaluation implementation blockers
 
+## Formal resume delta — 2026-09-07, after first30 D0 runs
+
+The batch `results/batches/20260907-formal-matrix-resume/` supersedes earlier
+blanket statements that no formal producer is registered: original D0 cells
+00001..00003 now have30 strictly validated formal repeats. Remaining full/minimum
+counts are20455/13075; larger D0 grids await compressed-output pilot budgeting.
+Scoped D0 receipts do not close nonzero G2 or global fidelity.
+
+Original1TiB MQSim now passes finite4GiBAS initialization and historicalHF012
+prefix replay (1492requests perpolicy, pending0). This resolves that workload's
+old2GiB bad_alloc, not physical calibration, natural fullgeneration or prefetch
+benefit: all three policy runs still have zero prefetch requests.
+
+C6 observer-only read preparation moved before issue, with unchanged disabled
+helper behavior and newly bound optimized images. Host acquisition attempt002
+completes, but all20 delayedD20 samples expire before work; medianH41.104/50.816us
+forK0/K4096. Remaining postissue time includes diagnostic stores and intrinsic
+mechanism/caller work; it has not been isolated as entirely intrinsic. G5/overlap
+remain open. Sandbox attempt001 was blocked before kernels; preserved as such.
+
+Two-blockK1 ABBA reproduces critical-chain disturbance with MAE536/P95652ns;
+localwaitdelta512ns alone does not satisfy original100/200ns fidelity limits.
+Natural input contract amendment and exclusive physicalSSD testfile remain
+external gaps. Existing fixedtoken captures and prefix projections retain their
+restricted diagnostic scope.
+
 ## Current blocker delta — 2026-09-07
 
 - **HF012 acquisition:** all three real arms returned identical generated tokens.

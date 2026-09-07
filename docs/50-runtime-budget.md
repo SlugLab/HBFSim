@@ -285,3 +285,19 @@ JIT, daemon startup and four cases. Its single observed8.308445783-second proces
 does not justify shrinking that guard and is not a throughput or formal-cell
 estimate. The live JIT image is not bound to the retained optimized cubin, so
 the observation supplies no C6.3, overlap, G5 or native-completion timing result.
+
+
+## Original matrix resume measured costs, 2026-09-07
+
+First3D0pilots+30formal repeats: 415.916s total.
+Pilots: 8.626, 10.880, 10.931s.
+Formal per-run mean: 12.740s.
+These include acquisition and strict validation, not kernel latency.
+Original1TiB MQSim129request probe:2.144s,2.101GiBRSS; historicalprefix3policy replay:
+36.995s,2.314GiBcombinedRSS,88.6MiBoutput,4GiBAS finite cap.
+LowW1sealedattempts6.18–10.78MB; oneclosed6.18MB sample compresses withgzip6 to0.590MB.
+Larger-grid ratios remain unmeasured; uncompressed remainingD0 couldrequire50–60GB.
+Budget nextgeometry with freshpilot and preserve raw losslessly. Initial currentbatch
+8GiBdisk/RAM reserves stay in force until a measured peak justifies a revised budget.
+The original full27.81GPU-h/240.64CPUcore-h planning totals are not observed calendar ETA.
+Family/gate/cost inputs are retained in `runtime-sizing.initial.json` within the batch.

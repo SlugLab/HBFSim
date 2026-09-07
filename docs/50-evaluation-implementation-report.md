@@ -936,3 +936,33 @@ trace paths to an explicit expected attempt path without filesystem reads.
 The pure verifier is now implemented as described above. Owned-origin validation
 and final publication remain later work; diagnostic execution may proceed under
 the existing guard without promoting its results to validated routing gold.
+
+
+## Implemented formal measurement path, 2026-09-07, first D0 slice
+
+Server backup stream PID2916359 completed before edits; server SHA256 receipt is retained in
+`results/batches/20260907-formal-matrix-resume/server-transfer.sha256`. Old data retained.
+Source updates77c60ab/b13d3b3 add scoped timing repairs, original-matrix coverage export and
+a real D0 producer/independent validator under the existing scheduler.
+
+Strict sealed coverage: **30/20485 full planned runs**,
+**30/13105 minimum runs**. Three original
+conditions gpu_delay-00001..00003 each have10 independent process repeats; three separate
+pilots do not count. All30 formal attempts completed; signed noise and negative findings
+are retained. Full G2 and every nonzero fidelity threshold remain unevaluated by theseD0
+receipts. The complete task remains PARTIAL.
+
+Machine evidence: `matrix-coverage.d0-30.csv`, `formal-d0-export-001/` (90metrics/30runs),
+`d0-30-statistics.json`, `d0-progress.json` in the batch. No six-figure completion is claimed.
+Remaining D0=27conditions/270repeats requires larger-grid pilots and lossless raw storage;
+straight uncompressed scaling50–60GB exceeds available workspace headroom.
+
+New independent diagnostics: original1TiB MQSim init129requests and historicalHF012 prefix
+three-policy replay1492requests each pass bounded resource/accounting checks; no physical
+SSD or fullgeneration result. Two-blockK1 ABBA chainMAE/P95=536/652ns fails100/200ns limits
+while localwaitdelta=512ns. C6 observer scan preparation is implemented; current matchedD20
+acquisition retained as CAPTURED_UNVALIDATED, with G5/overlap still open.
+
+External gaps: natural-input dataset/split/length/seed and16prompt/B32–128 conflict await
+user contract amendment; no authorized exclusive physicalSSD testfile. Unattempted rows
+remain PLANNED with explicit missing gates/handlers. No old outputs are overwritten.

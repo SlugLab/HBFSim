@@ -23,6 +23,27 @@ class FormalD0Tests(unittest.TestCase):
         altered=copy.deepcopy(self.plan); altered['condition']['cell_id']='gpu_delay-00004'
         with self.assertRaises(ValueError): formal.require_d0(altered)
 
+    def test_all_original_d0_cells_have_exact_default_geometry(self):
+        for cell in range(1,31):
+            plan=make_plan(formal.ROOT/'docs/49-eval-audit/run-matrix.csv',f'gpu_delay-{cell:05d}')
+            formal.require_d0(plan)
+            geometry=formal.condition_geometry(plan,188)
+            row=plan['condition'];warps=int(row['warps'])
+            self.assertEqual(geometry,dict(warps=warps,occupancy=row['occupancy'],
+                blocks=188*(1 if row['occupancy']=='low' else 32//warps)))
+        nonzero=make_plan(formal.ROOT/'docs/49-eval-audit/run-matrix.csv','gpu_delay-00031')
+        with self.assertRaises(ValueError):formal.require_d0(nonzero)
+        with self.assertRaises(ValueError):formal.condition_geometry(self.plan,True)
+
+    def test_diagnostic_block_geometry_cannot_be_formal(self):
+        cases=self.cases()
+        for case in cases.values():
+            case['evidence']='GPU_ACQUISITION';case['sm_count']=188
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);self.write_cases(root,cases)
+            with self.assertRaisesRegex(ValueError,'blocks'):
+                formal.validate_cases(root,self.plan,'legacy')
+
     def test_dead_or_absent_scheduler_never_authorizes_producer(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises((ValueError, OSError)):
@@ -36,6 +57,7 @@ class FormalD0Tests(unittest.TestCase):
         self.assertEqual(by_metric['critical_delta_us']['value'],'-0.4')
         self.assertEqual(by_metric['event_delta_us']['value'],'-1.2')
         self.assertEqual(by_metric['checksum_ok']['value'],'1')
+        self.assertTrue(all(r['figure']=='fig-e1-hardware-fidelity' and r['panel']=='gpu' for r in rows))
         self.assertTrue(all(r['profile']=='hbf_logical' and r['replicate']=='1' for r in rows))
 
     def test_payload_hash_change_rejected(self):
@@ -76,6 +98,17 @@ class FormalD0Tests(unittest.TestCase):
             (root/'target/raw.json').write_text(json.dumps(cases['target']))
             with self.assertRaisesRegex(ValueError,'coverage'):
                 formal.validate_cases(root,self.plan,'legacy')
+
+    def test_compressed_and_plain_observations_have_identical_analysis(self):
+        cases=self.cases()
+        for case in cases.values():case['evidence']='GPU_ACQUISITION'
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);self.write_cases(root,cases)
+            expected=formal.validate_cases(root,self.plan,'legacy','none')
+            for name in cases:formal.compress_raw(root/name)
+            self.assertEqual(formal.validate_cases(root,self.plan,'legacy','gzip'),expected)
+            with self.assertRaisesRegex(ValueError,'representation'):
+                formal.validate_cases(root,self.plan,'legacy','none')
 
     def test_mock_pilot_cannot_generate_pass_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:

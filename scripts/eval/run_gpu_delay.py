@@ -34,6 +34,7 @@ import statistics
 import sys
 
 from resource_guard import ResourceBusy, ResourceGuard
+from gpu_delay_raw import compress_raw, read_raw
 from run_manifest import (artifact_inventory, atomic_json, canonical_hash,
                           environment_snapshot, git_snapshot, now, sha256)
 from run_matrix import FailedRun, InterruptedRun, run_child
@@ -284,7 +285,9 @@ def analyze(cases):
         observed_peak_blocks_per_sm=residency,zero_delay_absolute_noise_ns=deltas if not applied else None)
 
 
-def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None,child_runner=None):
+def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None,child_runner=None,
+            compress_raw_output=False):
+    if type(compress_raw_output) is not bool:raise ValueError('compression option must be Boolean')
     out=pathlib.Path(out).resolve();build=pathlib.Path(build).resolve();profile=pathlib.Path(profile).resolve()
     test_only=gpu_probe is not None or child_runner is not None
     if trace_mode not in ('legacy','per_chain'):raise ValueError('invalid trace mode')
@@ -293,7 +296,7 @@ def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None
     out.mkdir(parents=True,exist_ok=False)
     manifest=dict(schema_version=1,created_at=now(),plan=plan,resource_class='GPU_EXCLUSIVE',gpu_uuid=gpu_uuid,
                   evidence='TEST_ONLY' if test_only else 'GPU_ACQUISITION',trace_mode=trace_mode,
-                  git=git_snapshot(ROOT),inputs={},commands={})
+                  git=git_snapshot(ROOT),inputs={},commands={},raw_compression='gzip' if compress_raw_output else 'none')
     atomic_json(out/'manifest.json',manifest);atomic_json(out/'environment.json',environment_snapshot())
     status=dict(state='PLANNED',updated_at=now());atomic_json(out/'status.json',status)
     signals={'signal':None};old_handlers={};final='FAILED'
@@ -307,7 +310,8 @@ def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None
                        helper=build/'generated/hbf_device.ptx',plugin=build/'libptxpass_hbf.so',gate=build/'libhbfsim_launch_gate.so',
                        daemon=build/'hbfsimd',build_config=build/'CMakeCache.txt',profile=profile,matrix=pathlib.Path(plan['matrix']),
                        runner=pathlib.Path(__file__).resolve(),benchmark_source=ROOT/'benchmarks/cuda/hbf_dependent_delay.cu',
-                       helper_source=ROOT/'src/cuda_runtime/device/hbf_device.cu',helper_header=ROOT/'src/cuda_runtime/device/hbf_device.cuh')
+                       helper_source=ROOT/'src/cuda_runtime/device/hbf_device.cu',helper_header=ROOT/'src/cuda_runtime/device/hbf_device.cuh',
+                       raw_io_source=ROOT/'scripts/eval/gpu_delay_raw.py')
             frozen={key:regular_bytes(path) for key,path in paths.items()}
             manifest['inputs']={key:dict(path=str(paths[key]),sha256=hashlib.sha256(data).hexdigest()) for key,data in frozen.items()}
             if manifest['inputs']['matrix']['sha256']!=plan['matrix_sha256']:raise ValueError('matrix changed since plan')
@@ -341,7 +345,7 @@ def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None
                 if code:raise FailedRun('benchmark failed: '+name)
                 files,rejected=artifact_inventory(out)
                 if rejected:raise ValueError('unsafe attempt artifacts')
-                cases[name]=json.loads(regular_bytes(directory/'raw.json'))
+                cases[name]=json.loads(read_raw(directory))
                 expected=dict(treatment=treatment,hops=plan['hops'],warps=int(row['warps']),
                               occupancy=row['occupancy'],requested_delay_ns=plan['delay_ns'],trace_mode=trace_mode)
                 for field,value in expected.items():
@@ -352,6 +356,7 @@ def execute(plan,out,build,profile,gpu_uuid,*,trace_mode='legacy',gpu_probe=None
                 if treatment!='native':
                     decisions=[json.loads(line) for line in regular_bytes(directory/'coverage.jsonl').splitlines() if line.strip()]
                     if not decisions or not all(d.get('allowed') is True and d.get('modeled') is True for d in decisions):raise ValueError('launch coverage gate failed')
+                if compress_raw_output:compress_raw(directory)
             guard.check('end-acquisition')
             for key,path in paths.items():
                 if hashlib.sha256(regular_bytes(path)).hexdigest()!=manifest['inputs'][key]['sha256']:raise ValueError('input changed: '+key)
@@ -388,11 +393,12 @@ def main():
     parser.add_argument('--out',type=pathlib.Path);parser.add_argument('--build-dir',type=pathlib.Path)
     parser.add_argument('--profile',type=pathlib.Path);parser.add_argument('--gpu-uuid')
     parser.add_argument('--trace-mode',choices=('legacy','per_chain'),default='legacy')
+    parser.add_argument('--compress-raw',action='store_true',help='losslessly compress new raw observations before sealing')
     args=parser.parse_args();plan=make_plan(args.matrix,args.cell_id,args.replicate,args.hops)
     if not args.execute or args.dry_run:print(json.dumps(plan,indent=2));return 0
     if not all((args.out,args.build_dir,args.profile,args.gpu_uuid)):parser.error('execution requires --out --build-dir --profile --gpu-uuid')
     result=execute(plan,args.out,args.build_dir,args.profile,args.gpu_uuid,
-                   trace_mode=args.trace_mode);print(json.dumps(result,indent=2))
+                   trace_mode=args.trace_mode,compress_raw_output=args.compress_raw);print(json.dumps(result,indent=2))
     return 0 if result['state']=='DONE' else 2
 
 

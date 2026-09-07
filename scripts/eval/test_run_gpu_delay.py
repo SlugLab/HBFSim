@@ -361,6 +361,22 @@ print('TEST_ONLY deterministic CPU fixture; no GPU measurements')
         self.assertIn('TEST_ONLY',(self.base/'out/target/stdout.log').read_text())
         self.assertEqual(len(manifest['commands']),3)
 
+    def test_opt_in_compression_preserves_test_only_triplet_observations(self):
+        from gpu_delay_raw import read_raw
+        plan,build,profile,child,probe=self.execution_fixture()
+        out=self.base/'compressed'
+        result=self.r.execute(plan,out,build,profile,'GPU-test',child_runner=child,
+                              gpu_probe=probe,compress_raw_output=True)
+        self.assertEqual(result['state'],'TEST_ONLY_DONE',result)
+        manifest=json.loads((out/'manifest.json').read_text())
+        self.assertEqual(manifest['raw_compression'],'gzip')
+        self.assertIn('raw_io_source',manifest['inputs'])
+        for name in ('native','matched_zero','target'):
+            self.assertFalse((out/name/'raw.json').exists())
+            self.assertEqual(read_raw(out/name),(self.base/(name+'.json')).read_bytes())
+            self.assertIn(name+'/raw.json.gz',manifest['artifact_hashes'])
+            self.assertIn(name+'/raw.json.gzip.json',manifest['artifact_hashes'])
+
     def test_per_chain_selector_requires_symbol_and_reaches_cpu_fixture(self):
         plan,build,profile,child,probe=self.execution_fixture();calls=[]
         def counted(*args):calls.append(args);return child(*args)

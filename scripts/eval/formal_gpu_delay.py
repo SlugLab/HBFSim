@@ -18,6 +18,7 @@ import sys
 import time
 
 from run_gpu_delay import ROOT, analyze, make_plan, regular_bytes
+from gpu_delay_raw import compress_raw, read_raw
 from run_manifest import (atomic_json, artifact_inventory, canonical_hash, git_snapshot,
                           identity_alive, owned_processes, process_identity, same_process,
                           sha256, uncertain_session, verify_hashes)
@@ -34,13 +35,23 @@ def document(path):
 
 def require_d0(plan):
     row=plan['condition']
-    if (row['cell_id'] not in {'gpu_delay-00001','gpu_delay-00002','gpu_delay-00003'}
+    if (row['cell_id'] not in {f'gpu_delay-{i:05d}' for i in range(1,31)}
             or plan['hops']!=64 or plan['delay_ns']!=0
-            or row['delay_us']!='0' or row['warps']!='1' or row['occupancy']!='low'
+            or row['delay_us']!='0' or row['warps'] not in {'1','2','4','8','16'}
+            or row['occupancy'] not in {'low','high'}
             or row['repeats']!='10' or row['minimum_configuration']!='yes'):
-        raise ValueError('only original minimum D0/one-warp/low/K64 cells are supported')
+        raise ValueError('only original minimum D0/K64 cells 00001 through 00030 are supported')
     expected=make_plan(plan['matrix'],row['cell_id'],plan['replicate'],64)
     if expected!=plan: raise ValueError('plan differs from exact original matrix row')
+
+
+def condition_geometry(plan, sm_count):
+    require_d0(plan)
+    if type(sm_count) is not int or sm_count < 1:
+        raise ValueError('positive actual SM count required')
+    warps=int(plan['condition']['warps']);occupancy=plan['condition']['occupancy']
+    return dict(warps=warps,occupancy=occupancy,
+                blocks=sm_count*(1 if occupancy=='low' else 32//warps))
 
 
 def verify_payloads(root, hashes):
@@ -51,13 +62,17 @@ def verify_payloads(root, hashes):
             raise ValueError('immutable payload hash mismatch: '+name)
 
 
-def validate_cases(root, plan, trace_mode):
+def validate_cases(root, plan, trace_mode, raw_compression=None):
     require_d0(plan)
+    if raw_compression not in (None,'none','gzip'):raise ValueError('unknown raw compression')
     cases={}
     for name,treatment in [('native','native'),('matched_zero','fast_logical'),
                            ('target',plan['condition']['profile'])]:
-        case=document(root/name/'raw.json')
-        for key,value in dict(treatment=treatment,hops=64,warps=1,occupancy='low',
+        if raw_compression is not None and (root/name/'raw.json.gz').exists()!=(raw_compression=='gzip'):
+            raise ValueError('raw representation differs from frozen compression mode')
+        case=json.loads(read_raw(root/name))
+        for key,value in dict(treatment=treatment,hops=64,
+                              **condition_geometry(plan,case.get('sm_count')),
                               requested_delay_ns=0,trace_mode=trace_mode,
                               evidence='GPU_ACQUISITION').items():
             if type(case.get(key)) is not type(value) or case[key]!=value:
@@ -79,7 +94,7 @@ def result_rows(plan, report, run_id, git, gpu_uuid):
     row.update(schema_version='1',provenance='MEASURED',run_id=run_id,
                git_sha=git['git_sha'],branch=git['branch'],hardware=gpu_uuid,
                model='dependent_pointer_chase',workload='deterministic_16MiB_K64',
-               mode='D0_absolute_noise',backend='physical_gpu',figure='fig-e1',panel='a',
+               mode='D0_absolute_noise',backend='physical_gpu',figure='fig-e1-hardware-fidelity',panel='gpu',
                series=plan['condition']['profile'],replicate=str(plan['replicate']),
                source_file=str(SOURCE),source_function='result_rows',
                source_line_start=str(result_rows.__code__.co_firstlineno),
@@ -153,6 +168,7 @@ def run_arm(argv, env, directory, owner):
 def produce(attempt, config_path):
     manifest,owner=scheduler_context(attempt)
     config=document(config_path); verify_hashes(config['artifacts'])
+    if config.get('raw_compression') not in ('none','gzip'):raise ValueError('unknown configured compression')
     row=manifest['condition']
     plan=make_plan(config['matrix'],row['cell_id'],manifest['replicate'],64);require_d0(plan)
     if row!=plan['condition'] or config['cell_id']!=row['cell_id']:
@@ -168,7 +184,7 @@ def produce(attempt, config_path):
         for name,treatment in [('native','native'),('matched_zero','fast_logical'),('target',row['profile'])]:
             verify_hashes(config['artifacts']);directory=root/name;directory.mkdir()
             argv=[str(paths['binary']),'--treatment',treatment,'--delay-ns','0','--hops','64',
-                  '--warps','1','--occupancy','low','--profile',str(paths['profile']),
+                  '--warps',row['warps'],'--occupancy',row['occupancy'],'--profile',str(paths['profile']),
                   '--plugin',str(paths['plugin']),'--ptx',str(paths['ptx']),
                   '--output',str(directory/'raw.json'),'--report-dir',str(directory/'reports'),
                   '--trace-mode',config['trace_mode']]
@@ -182,12 +198,14 @@ def produce(attempt, config_path):
                 launch_settings={k:v for k,v in env.items() if k.startswith('HBFSIM_')
                                  or k in ('CUDA_VISIBLE_DEVICES','CUDA_DEVICE_ORDER','LD_PRELOAD')}))
             run_arm(argv,env,directory,owner)
+            if config['raw_compression']=='gzip':compress_raw(directory)
         verify_hashes(config['artifacts'])
-        report=validate_cases(root,plan,config['trace_mode'])
+        report=validate_cases(root,plan,config['trace_mode'],config['raw_compression'])
         files,rejected=artifact_inventory(root)
         if rejected:raise ValueError('nonregular acquisition artifacts')
         acquisition=dict(schema_version=1,evidence='GPU_ACQUISITION',plan=plan,
                          gpu_uuid=config['gpu_uuid'],trace_mode=config['trace_mode'],
+                         raw_compression=config['raw_compression'],
                          config_sha256=sha256(config_path),run_id=manifest['run_id'],
                          artifacts={name:sha256(path) for name,path in files.items()},analysis=report,
                          g2_gate_closed=False,scope='original D0 absolute noise only')
@@ -206,7 +224,8 @@ def validate_attempt(attempt, config_path):
             or acquisition['config_sha256']!=sha256(config_path)
             or acquisition['run_id']!=manifest['run_id']
             or acquisition['gpu_uuid']!=config['gpu_uuid']
-            or acquisition['trace_mode']!=config['trace_mode']):
+            or acquisition['trace_mode']!=config['trace_mode']
+            or acquisition.get('raw_compression','none')!=config.get('raw_compression','none')):
         raise ValueError('acquisition provenance mismatch')
     root=attempt/'raw.triplet';verify_payloads(root,acquisition['artifacts'])
     files,rejected=artifact_inventory(root)
@@ -217,7 +236,7 @@ def validate_attempt(attempt, config_path):
                 or exit_record.get('owned_remaining')!=[]
                 or not same_process(exit_record.get('child'),ownership.get('child'))):
             raise ValueError('missing observed successful arm exit/ownership')
-    report=validate_cases(root,plan,config['trace_mode'])
+    report=validate_cases(root,plan,config['trace_mode'],config.get('raw_compression','none'))
     if report!=acquisition['analysis']:raise ValueError('raw analysis differs from independent recomputation')
     expected=result_rows(plan,report,manifest['run_id'],manifest['git'],config['gpu_uuid'])
     if read_rows(attempt/'raw.results.json')!=expected:raise ValueError('metric rows differ from raw recomputation')
@@ -242,7 +261,7 @@ def validate_pilot(pilot):
     current=git_snapshot(ROOT)
     for key in ('git_sha','dirty_patch_sha256'):
         if manifest['git'][key]!=current[key]:raise ValueError('pilot source snapshot changed: '+key)
-    report=validate_cases(pilot,plan,manifest['trace_mode'])
+    report=validate_cases(pilot,plan,manifest['trace_mode'],manifest.get('raw_compression','none'))
     if document(pilot/'raw.analysis.json')!=dict(report,evidence='GPU_ACQUISITION'):
         raise ValueError('pilot analysis mismatch')
     snapshots=[json.loads(line) for line in regular_bytes(pilot/'raw.gpu.jsonl').splitlines() if line.strip()]
@@ -267,12 +286,13 @@ def prepare(pilot, out):
     artifacts=[dict(path=item['path'],sha256=item['sha256'],role='config' if key=='profile' else 'input' if key=='matrix' else 'build')
                for key,item in manifest['inputs'].items()]
     dependencies=('formal_gpu_delay.py','run_gpu_delay.py','run_matrix.py','run_manifest.py',
-                  'resource_guard.py','export_results.py','validate_results.py')
+                  'resource_guard.py','export_results.py','validate_results.py','gpu_delay_raw.py')
     for path in [Path(sys.executable).resolve(),*[ROOT/'scripts/eval'/name for name in dependencies]]:
         if str(path) not in {a['path'] for a in artifacts}:
             artifacts.append(dict(path=str(path),sha256=sha256(path),role='build'))
     config=dict(schema_version=1,cell_id=plan['condition']['cell_id'],matrix=plan['matrix'],
                 gpu_uuid=manifest['gpu_uuid'],trace_mode=manifest['trace_mode'],artifacts=artifacts,
+                raw_compression=manifest.get('raw_compression','none'),
                 paths={key:item['path'] for key,item in manifest['inputs'].items()})
     config_path=out/'config.json';atomic_json(config_path,config)
     gates=['G1-GPU','G2-known-delay'];receipts=[out/(gate+'.json') for gate in gates]

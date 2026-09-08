@@ -4,6 +4,16 @@
 
 # 两种模式的定位与 SRAM 建模
 
+## 适用范围:`docs/48-两种模式的定位与SRAM建模.md` 里有一部分在 `eval_base` 上执行不了
+
+**`docs/48-两种模式的定位与SRAM建模.md` 里依赖 `readahead_pages` 与 `hbf_capacity_readahead_bench` 的那部分内容,在 `eval_base` 上执行不了。** `docs/48-两种模式的定位与SRAM建模.md` 写成时所在的那条 branch `docs/eval-mainline` 上有 `readahead_pages` 这个 profile 字段,也有 `benchmarks/prefetch/hbf_capacity_readahead_bench.cpp` 这个基准;`eval_base` 收进了 `docs/48-两种模式的定位与SRAM建模.md` 这份文档,没有收进 `readahead_pages` 与 `hbf_capacity_readahead_bench` 的实现。
+
+执行不了的是两类地方。一类是提到 profile 字段 `readahead_pages` 的地方,其中包括「`readahead_pages` 的缺省值仍然是 0」这一句。另一类是要求用 `hbf_capacity_readahead_bench` 跑出「按需缺页」与「预读」两个数的地方。
+
+`readahead_pages` 与 `hbf_capacity_readahead_bench` 不在 `eval_base` 上,是有理由的推迟,不是遗漏。`eval_base` 收进来的是离线的 prefetch 模型,运行时的 readahead 没有一起收进来,理由是运行时 readahead 取回的页在建模时间里不花代价:`run_one_readahead` 从不调用 `submit_speculative`,预读页因此是零成本变成常驻的。推迟的记录在 `docs/eval/EVAL_BASE_INTEGRATION.md`。
+
+要按 `docs/48-两种模式的定位与SRAM建模.md` 里的工作项做事之前,先确认 `readahead_pages` 与 `hbf_capacity_readahead_bench` 是否已经落到当前检出的 branch 上。
+
 ## 一、结论与三条措辞建议
 
 先把三条建议一句话列全,后面逐条展开。

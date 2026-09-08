@@ -126,7 +126,7 @@ device delay it is trying to model.
 
 ## Project status
 
-The `hybrid` branch now has real-GPU proof for automatic timing injection,
+`eval_base` now has real-GPU proof for automatic timing injection,
 public file-backed capacity beyond physical VRAM, deterministic vLLM and
 llama.cpp workloads, and GPU/CD8P thermal calibration. The table distinguishes
 those live gates from narrower CPU, fake-driver, and static PTX checks.
@@ -275,7 +275,7 @@ complements rather than replaces the failure-injection tests.
 ## Clone and build
 
 ```bash
-git clone --branch hybrid --recurse-submodules \
+git clone --recurse-submodules \
   https://github.com/SlugLab/HBFSim.git
 cd HBFSim
 
@@ -286,6 +286,10 @@ HBFSIM_ENABLE_MQSIM=ON \
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+The default branch is `eval_base`, so the clone above checks out `eval_base`
+without a `--branch` argument. Pass `--branch hybrid` only when the older
+`hybrid` branch is the one you want.
 
 The build checks that the submodules are at the required revisions:
 

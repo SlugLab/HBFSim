@@ -64,6 +64,30 @@ effects a number worth quoting in the paper" — see the limitations at the end.
 in every profile. Full JSON:
 `docs/proofs/artifacts/2026-08-16-density-interleave-nand-sweep.json`.
 
+**Superseded, 2026-09-08.** The `queue_depth = 64` setting stated in the
+sentence above had no effect on the runs that produced the three tables below:
+until commit `12ef138` ("Make the profile queue_depth field bound outstanding
+MQSim requests", merged as pull request #3), the `queue_depth` field of the
+profile JSON was parsed, validated, and written into
+`Device_Parameter_Set::IO_Queue_Depth`, but upstream MQSim reads
+`IO_Queue_Depth` only when it builds the SATA or the NVMe host interface and
+this simulator configures `HostInterface_Types::HBF`. All three sweeps below
+therefore ran with every request outstanding at once rather than against a
+64-deep queue, and no P50 or P99 value in the three tables below is
+reproducible under the corrected code. Whether the qualitative conclusions
+drawn below — the monotonic die-density trend, the small
+`plane_allocation_scheme` effect, and MLC landing above TLC — still hold at a
+bounded queue depth is not known; re-running the three sweeps with commit
+`12ef138` in the tree is what would settle that. Commit `12ef138` is present on
+every current branch (`git merge-base --is-ancestor 12ef138 origin/eval_base`
+returns true) and `src/mqsim_adapter/mqsim_online.cpp:290` now refuses
+admission once `in_device >= queue_depth`. The corrected numbers recorded in
+`docs/47-评估主线设计-辅助材料/01-事实清单.md` line 45 (average 664,995 ns, p50
+659,840 ns, p99 1,309,370 ns, modeled bandwidth 50.9 GB/s) come from a
+different benchmark — 4,096 requests of 16,384 bytes through `hbf_mqsim_bench`
+on `configs/profiles/nominal.json` — and are not corrected values for these
+three sweeps; no corrected values for these three sweeps exist yet.
+
 ### Die density/count (random pattern, seed 42; three seeds checked, see below)
 
 | dies_per_channel | total dies | capacity/die | P50 (ns) | P99 (ns) |
@@ -158,6 +182,10 @@ P99 of SLC.
   feature request from upstream, and the `pageID % 4` physical-page
   assignment is our own simplification in the same spirit as MQSim's existing
   MLC simplification — flagged in the patch itself.
+- **The "saturating a 64-deep queue" description above is not true of the runs
+  as executed**: the `queue_depth` field had no effect before commit `12ef138`,
+  so all three sweeps ran with every request outstanding at once — see the note
+  under `## Results`.
 
 ## What would close this before it goes in the paper as a claim
 

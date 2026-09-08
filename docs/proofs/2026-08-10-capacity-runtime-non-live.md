@@ -170,6 +170,30 @@ Captured result:
 | Simulator throughput | 43,713.193765657605 requests/s |
 | Effective capacity / blocks per plane | 68,719,476,736 bytes / 16 |
 
+**Superseded, 2026-09-08.** The `Average modeled latency`, `p50 / p99 modeled
+latency`, and `Modeled bandwidth` rows of the table above were produced before
+commit `12ef138` ("Make the profile queue_depth field bound outstanding MQSim
+requests", merged as pull request #3), and commit `12ef138` changes all four of
+those numbers. Before commit `12ef138`, the `queue_depth` field of the profile
+JSON was parsed, validated, and written into
+`Device_Parameter_Set::IO_Queue_Depth`, but upstream MQSim reads
+`IO_Queue_Depth` only when it builds the SATA or the NVMe host interface and
+this simulator configures `HostInterface_Types::HBF`, so the `queue_depth`
+field never took effect on the HBF path and this benchmark ran with every
+request outstanding at once. The corrected numbers for the same benchmark,
+measured after commit `12ef138`, are average 664,995 ns, p50 659,840 ns, p99
+1,309,370 ns, and modeled bandwidth 50.9 GB/s, recorded in
+`docs/47-评估主线设计-辅助材料/01-事实清单.md` line 45. Commit `12ef138` is
+present on every current branch (`git merge-base --is-ancestor 12ef138
+origin/eval_base` returns true) and `src/mqsim_adapter/mqsim_online.cpp:290`
+now refuses admission once `in_device >= queue_depth`, so the code is correct
+today and only the four numbers named above are stale. The `Submitted /
+completed`, `Host wall time`, `Simulator throughput`, and `Effective capacity /
+blocks per plane` rows are not latency or bandwidth figures and are not
+withdrawn; no corrected value has been recorded for the `Modeled makespan` row.
+The run was executed and recorded correctly, so this checkpoint is not
+withdrawn — the four numbers named above are.
+
 The modeled fields are deterministic for this request stream and profile. Host
 wall time and simulator throughput are observations of this run and can vary
 with host load; neither is evidence of live GPU delay.

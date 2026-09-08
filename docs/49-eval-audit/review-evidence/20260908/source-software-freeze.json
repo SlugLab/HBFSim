@@ -1,0 +1,77 @@
+{
+  "access_date": "2026-09-08",
+  "scope": "Read-only official source verification; not installed or measured",
+  "accel_sim": {
+    "release": {
+      "url": "https://github.com/accel-sim/accel-sim-framework/releases/tag/v2.0.0",
+      "tag": "v2.0.0",
+      "commit": "64653015f85fb5664c84a10f48527e8897d289d0",
+      "published_at": "2026-08-25T17:37:42Z"
+    },
+    "observed_default_head": {
+      "sha": "d930ad6d02c09bb56867132583735aba0389cff4",
+      "date": "2026-08-26T15:35:44Z"
+    },
+    "performance_model": {
+      "url": "https://github.com/accel-sim/gpgpu-sim_distribution/pull/143",
+      "merge_sha": "e10018b67a4b668e7b43f89280cf67624f1df4ff",
+      "merged_at": "2026-08-25T17:34:54Z"
+    },
+    "setup_dependency_policy": {
+      "url": "https://github.com/accel-sim/accel-sim-framework/blob/64653015f85fb5664c84a10f48527e8897d289d0/gpu-simulator/setup_environment.sh",
+      "gpgpusim_branch_default": "dev",
+      "pybind11_branch_default": "master",
+      "frozen": false
+    }
+  },
+  "mqsim": {
+    "url": "https://github.com/CMU-SAFARI/MQSim",
+    "head": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16"
+  },
+  "threed_ice": {
+    "release_url": "https://github.com/esl-epfl/3d-ice/releases/tag/4.0",
+    "tag": "4.0",
+    "tag_sha": "e0bb6850c5e446363e26936586d625270c87f224",
+    "release_date": "2025-12-05T11:59:33Z",
+    "observed_head": "4953952a1ef6d38807ff307212a6f15e5b2ef935"
+  },
+  "rsync": {
+    "local_version": "3.4.1 protocol 32",
+    "upstream_tag": "v3.4.1",
+    "tag_sha": "fa39b7341ae300dfd5ebdcffc2413057a831aae0",
+    "commit": "3305a7a063ab0167cab5bf7029da53abaa9fdb6e",
+    "date": "2025-01-15T20:52:52Z",
+    "upstream_doc": "https://github.com/RsyncProject/rsync/blob/3305a7a063ab0167cab5bf7029da53abaa9fdb6e/rsync.1.md",
+    "floating_doc_version": "3.5.0"
+  },
+  "git": {
+    "local_version": "2.53.0",
+    "doc": "https://git-scm.com/docs/git-worktree/2.53.0"
+  },
+  "ncu": {
+    "local_version": "2025.4.1.0",
+    "build": "37053803",
+    "binary": "/opt/nvidia/nsight-compute/2025.4.1/ncu",
+    "doc": "/opt/nvidia/nsight-compute/2025.4.1/docs/ProfilingGuide/index.html",
+    "doc_sha256": "415a4ae5d990c5111c532fcf7ada0014ba98a91072005765fb5b3da74b9b272c"
+  },
+  "ocp_hbf": {
+    "url": "https://www.opencompute.org/documents/ocp-hbf-architecture-specification-v0-7-0-final-pdf",
+    "title": "HIGH BANDWIDTH FLASH HIGH-LEVEL BASE DIE SPECIFICATION",
+    "version": "0.7.0",
+    "date": "2026-08-03",
+    "pages": 130,
+    "web_text_verified": true,
+    "pdf_local_hash_status": "BLOCKED_HTTP_403",
+    "local_download_attempts": [
+      "sandbox DNS resolution failed",
+      "permitted direct public HTTP fetch returned 403"
+    ],
+    "source_inconsistency": "Table 4 grade 2/3 maxima 1.536/3.072 TB/s; sections 5.1.2.2/5.1.2.3 say 94/188 GB/s per module times 16 = 1.504/3.008 TB/s; preserve both, do not silently reconcile"
+  },
+  "zhihu": {
+    "url": "https://zhuanlan.zhihu.com/p/2070827402964497125",
+    "status": "BLOCKED_FETCH",
+    "fallback": "Reviewer questions supplied by the user attachment only"
+  }
+}

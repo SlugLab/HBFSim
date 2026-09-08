@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "planning_only": true,
+  "auto_execute": false,
+  "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "cells": 300,
+  "pilot_runs_upper_bound": 300,
+  "confirmation_runs_min_after_gates": 1994,
+  "executed_this_round_cells": [
+    "Q1-CPU",
+    "Q1-ORACLE"
+  ],
+  "by_eq": {
+    "EQ1": 114,
+    "EQ2": 26,
+    "EQ3": 132,
+    "EQ4": 28
+  },
+  "by_status": {
+    "BLOCKED": 5,
+    "BLOCKED_FROZEN_CAPTURE_AND_NULL_MATCH": 15,
+    "BLOCKED_GENERAL_NATIVE_KERNEL": 1,
+    "BLOCKED_HARNESS_AND_BASE_GATE": 19,
+    "BLOCKED_IDENTIFIABLE_W_AND_GENERAL_HARNESS": 81,
+    "BLOCKED_KERNEL_AND_SEMANTIC_GATE": 1,
+    "BLOCKED_MATCHED_MODEL_OR_LIVE_RUNTIME": 4,
+    "BLOCKED_MATCHED_REPLAY_REGISTRATION": 9,
+    "BLOCKED_PHYSICAL_INPUTS_TRUE_OFF_COMPLETION_BINS": 18,
+    "BLOCKED_PLATFORM_CAPABILITY_AND_HARNESS": 1,
+    "BLOCKED_REQUIRED_MATCHED_IMPLEMENTATION": 12,
+    "BLOCKED_RUNTIME": 2,
+    "BLOCKED_RUNTIME_AND_LIFETIME": 1,
+    "BLOCKED_SM120_SUPPORT": 1,
+    "BLOCKED_SOURCE_BACKED_SENSE_MAPPING": 6,
+    "BLOCKED_STAGING_RESERVATION_API": 51,
+    "BLOCKED_TOPOLOGY_AND_BUDGET_SERVICE_BINDING": 60,
+    "EXECUTED_CPU_PASS": 2,
+    "INFEASIBLE_EMPTY_INTERVAL": 4,
+    "INFEASIBLE_NO_LEGAL_ZERO_STAGING": 3,
+    "READY_AFTER_BINDING": 1,
+    "READY_NOT_RUN": 3
+  },
+  "matrix_sha256": "3c3126fe2949ec7e2f7499baba48ea8841623c89e63e4ee66ad64d0867a2de67",
+  "refinement_rule": "After reviewed pilot freezes physical profiles and noise/CI thresholds, bisect only adjacent feasible cells bracketing 5/10/20 percent slowdown or OOM boundary; at most two midpoints per bracket per axis; freeze confirmation set before new seeds. No crossing => no contour."
+}

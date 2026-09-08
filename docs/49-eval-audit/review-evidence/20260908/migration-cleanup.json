@@ -1,0 +1,14 @@
+{
+  "state": "VERIFIED_SOURCE_COPY_REMOVED",
+  "exact_removed_directory": "/root/hbfsim-exp.migration-source-20260908",
+  "entries_rechecked": 615503,
+  "source_metadata_errors": [],
+  "source_users": [],
+  "root_free_before_cleanup": 16771158016,
+  "root_free_after_cleanup": 158410854400,
+  "observed_root_free_increase_bytes": 141639696384,
+  "wall_seconds": 11.313344501977554,
+  "outside_files_removed": false,
+  "quarantine_exists": false,
+  "rollback_full_source_retained": false
+}

@@ -1,5 +1,7 @@
 # Hardware ground-truth and workload contract
 
+> Historical frozen audit below. Current source and capability corrections are in [current-state-20260908.md](current-state-20260908.md) and [the canonical plan](../49-new-evaluation-plan.md). Current external versions and specification boundaries: [source research](review-evidence/20260908/source-research.md). Original historical findings retain their source SHA and are not silently renewed.
+
 **预注册草案，待人工审阅后冻结，尚未采集新性能数据。** 实现依据见 [B01–B19/S01–S19](source-ledger.md)，方法来源 X02/doc19 与本轮用户 prompt；阈值和预算均是事前设计选择，不是测量。
 
 ## Evidence classes and hardware identity

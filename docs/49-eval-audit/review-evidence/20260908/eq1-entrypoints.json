@@ -1,0 +1,38 @@
+[
+  {
+    "command": [
+      "python3",
+      "-B",
+      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_c6_future_delay_overlap.py",
+      "--help"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.13946123200003058,
+    "stdout": "usage: run_c6_future_delay_overlap.py [-h] [--execute] [--out OUT]\n                                      [--build-dir BUILD_DIR]\n                                      [--profile PROFILE]\n                                      [--binding-k0 BINDING_K0]\n                                      [--native-binding-k0 NATIVE_BINDING_K0]\n                                      [--binding-k4096 BINDING_K4096]\n                                      [--native-binding-k4096 NATIVE_BINDING_K4096]\n                                      [--gpu-uuid GPU_UUID]\n\nAcquire two fixed-work, single-active-lane C6 slices under one guard.\nSuccessful execution remains CAPTURED_UNVALIDATED. It cannot close C6.3, C6.4,\nG5, overlap, native-completion timing, or SASS semantics.\n\noptions:\n  -h, --help            show this help message and exit\n  --execute\n  --out OUT\n  --build-dir BUILD_DIR\n  --profile PROFILE\n  --binding-k0 BINDING_K0\n  --native-binding-k0 NATIVE_BINDING_K0\n  --binding-k4096 BINDING_K4096\n  --native-binding-k4096 NATIVE_BINDING_K4096\n  --gpu-uuid GPU_UUID\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python3",
+      "-B",
+      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_c6_future_lifecycle_correctness.py",
+      "--help"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.14224714500596747,
+    "stdout": "usage: run_c6_future_lifecycle_correctness.py [-h] [--execute] [--out OUT]\n                                              [--build-dir BUILD_DIR]\n                                              [--profile PROFILE] [--ptx PTX]\n                                              [--cubin CUBIN]\n                                              [--gpu-uuid GPU_UUID]\n\nRun one bounded C6 correctness process under the existing GPU guard. This\ncandidate captures executed overwrite, false overwrite and terminal exit\ncases. A successful capture remains UNVALIDATED and does not close C6.3,\noverlap, G5, or native-completion timing claims.\n\noptions:\n  -h, --help            show this help message and exit\n  --execute\n  --out OUT\n  --build-dir BUILD_DIR\n  --profile PROFILE\n  --ptx PTX\n  --cubin CUBIN\n  --gpu-uuid GPU_UUID\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python3",
+      "-B",
+      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_known_delay_per_chain_abba.py",
+      "--help"
+    ],
+    "returncode": 0,
+    "elapsed_s": 0.14883372900658287,
+    "stdout": "usage: run_known_delay_per_chain_abba.py [-h] [--execute] [--out OUT]\n                                         [--build-dir BUILD_DIR]\n                                         [--profile PROFILE]\n                                         [--gpu-uuid GPU_UUID]\n                                         [--expected-head EXPECTED_HEAD]\n                                         [--diagnostic-blocks {1,2}]\n\nRun one bounded same-process K1/W1/low per-chain ABBA diagnostic.\n\noptions:\n  -h, --help            show this help message and exit\n  --execute\n  --out OUT\n  --build-dir BUILD_DIR\n  --profile PROFILE\n  --gpu-uuid GPU_UUID\n  --expected-head EXPECTED_HEAD\n  --diagnostic-blocks {1,2}\n",
+    "stderr": ""
+  }
+]

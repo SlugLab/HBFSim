@@ -1,6 +1,8 @@
 # HBFSim
 
-On `eval_base`, start with the [Evaluation integration and reproduction index](docs/eval/README.md). The proof results below remain tied to their original source snapshots; current validation and deferred features are recorded in the integration manifest.
+中文审阅入口：[eval_base 审阅指南](docs/49-eval-audit/REVIEW_GUIDE.md)。
+
+For the current campaign, start with [EQ1–EQ4, revised 2026-09-08](docs/49-new-evaluation-plan.md) and the [integration and reproduction index](docs/eval/README.md). The proof results below remain tied to their original source snapshots; current validation and deferred features are recorded in the integration manifest.
 
 HBFSim is a live workload emulator for studying a simple systems question:
 
@@ -11,7 +13,7 @@ HBFSim is a live workload emulator for studying a simple systems question:
 The project calls that hypothetical tier **High-Bandwidth Flash (HBF)**. HBFSim
 does not assume a particular vendor device or finalized HBF standard. Instead,
 it provides named, synthetic profiles so researchers can explore the design
-space before hardware exists.
+space under explicitly labeled assumptions. The OCP HBF v0.7.0 high-level base-die specification is now available; its architecture and protocol constraints do not establish that these synthetic profiles are calibrated to HBF silicon. See the current source ledger.
 
 ## The high-level idea
 

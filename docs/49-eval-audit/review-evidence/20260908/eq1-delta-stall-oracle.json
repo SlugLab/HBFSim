@@ -1,0 +1,45 @@
+{
+  "evidence_kind": "controlled test-only model",
+  "validation_scope": "arithmetic oracle only; not a GPU timing measurement",
+  "formula": "max(L1-W,0)-max(L0-W,0), L1=L0+D when D is extra latency",
+  "rows": [
+    {
+      "L0_us": 0.5,
+      "L1_us": 5,
+      "extra_D_us": 4.5,
+      "W_us": 6,
+      "S0_us": 0,
+      "S1_us": 0,
+      "DeltaS_us": 0,
+      "incorrect_extra_D_minus_W_us": 0,
+      "expected_DeltaS_us": 0,
+      "pass": true
+    },
+    {
+      "L0_us": 0.5,
+      "L1_us": 5,
+      "extra_D_us": 4.5,
+      "W_us": 2,
+      "S0_us": 0,
+      "S1_us": 3,
+      "DeltaS_us": 3,
+      "incorrect_extra_D_minus_W_us": 2.5,
+      "expected_DeltaS_us": 3,
+      "pass": true
+    },
+    {
+      "L0_us": 0.5,
+      "L1_us": 5,
+      "extra_D_us": 4.5,
+      "W_us": 0.2,
+      "S0_us": 0.3,
+      "S1_us": 4.8,
+      "DeltaS_us": 4.5,
+      "incorrect_extra_D_minus_W_us": 4.3,
+      "expected_DeltaS_us": 4.5,
+      "pass": true
+    }
+  ],
+  "all_pass": true,
+  "old_formula_wrong_cases": 2
+}

@@ -1,0 +1,45 @@
+{
+  "state": "PASS",
+  "checked_utc": "2026-09-08T11:31:27.645562+00:00",
+  "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "matrix_cells": 300,
+  "by_eq": {
+    "EQ1": 114,
+    "EQ2": 26,
+    "EQ3": 132,
+    "EQ4": 28
+  },
+  "checked_markdown": [
+    "/root/hbfsim-exp/eval-base-integration/README.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/async-tma-audit.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/claim-gates.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/current-capability-audit.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/execution-plan.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/figure-plan.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/hardware-groundtruth-contract.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/result-schema.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/source-ledger.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-new-evaluation-plan.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/eval/README.md",
+    "/root/hbfsim-exp/eval-base-integration/scripts/eval/README.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/current-state-20260908.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/minimal-followups.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/replan-execution-checklist.md",
+    "/root/hbfsim-exp/eval-base-integration/docs/49-eval-audit/reviewer-response-matrix.md",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/migration-report.md",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/migration-runbook.md",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/交付结论.md"
+  ],
+  "local_links_checked": 116,
+  "historical_document_hashes_checked": 6,
+  "entrypoints_checked": 9,
+  "errors": [],
+  "code_changes": [
+    "scripts/eval/generate_run_matrix.py",
+    "scripts/eval/test_run_matrix.py"
+  ],
+  "runtime_modified": false,
+  "new_figures_generated": false,
+  "complete_diff_sha256": "abba2cb595100f7cb5e50bec1a8045736f07011bd9b61074bbcea0add2554270",
+  "scope": "Final static document/matrix/link/history/receipt checks; not live scientific execution."
+}

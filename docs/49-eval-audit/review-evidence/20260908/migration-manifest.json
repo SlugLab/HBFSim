@@ -1,0 +1,95 @@
+{
+  "schema_version": 2,
+  "state": "COMPLETE_VERIFIED_AND_SOURCE_CLEANED",
+  "completed_utc": "2026-09-08T11:29:03.852631+00:00",
+  "logical_source": "/root/hbfsim-exp",
+  "original_physical_source": "/root/hbfsim-exp",
+  "target": "/mnt/disk0/hbfsim-exp",
+  "path_mapping": {
+    "/root/hbfsim-exp": "/mnt/disk0/hbfsim-exp"
+  },
+  "source_backing_before": {
+    "source": "/dev/nvme1n1p2",
+    "device_family": "Lexar root filesystem"
+  },
+  "target_mount": {
+    "target": "/mnt/disk0",
+    "source": "/dev/nvme2n1p1",
+    "uuid": "37be6892-a8aa-4fae-885d-5feed3b28fab",
+    "options": "rw,relatime"
+  },
+  "target_device_serial": "S6USNE0TA08224",
+  "verified_complete": true,
+  "source_cleaned": true,
+  "quarantine": "/root/hbfsim-exp.migration-source-20260908",
+  "quarantine_exists": false,
+  "rollback_full_source_retained": false,
+  "automatic_experiment_restart": false,
+  "checks": {
+    "final_checksum_dry_run_exit_code": 0,
+    "final_checksum_difference_bytes": 0,
+    "source_entries": 615503,
+    "target_entries_at_verification": 615504,
+    "only_extra_target_path": [
+      ".migration-owner-20260908.json"
+    ],
+    "key_sha256_comparisons": 77,
+    "metadata_errors": [],
+    "sparse_files": 6,
+    "git_repositories": 660,
+    "git_mismatches": 0,
+    "git_worktree_path_normalization": {
+      "/root/hbfsim-exp": "/mnt/disk0/hbfsim-exp"
+    },
+    "smoke": {
+      "state": "PASS",
+      "errors": [],
+      "command_count": 9,
+      "model_shards": 16,
+      "small_tensor_bytes_loaded": 4096,
+      "tensor_sha256": "c6755a7c1b685b73df10de5f89d1d4266be41b21f0ed0f1c1aa95104f525a9d1",
+      "external_links_checked": 67,
+      "preexisting_dangling_links": 0,
+      "inference_executed": false,
+      "normalization": "allow recorded physical-prefix mapping; ldd ASLR addresses ignored only for ldd"
+    },
+    "guard_state": "GUARD_PASS",
+    "guard_mock_tests": 13
+  },
+  "space": {
+    "root_free_before_cleanup_bytes": 16771158016,
+    "root_free_after_cleanup_bytes": 158410854400,
+    "observed_root_free_increase_bytes": 141639696384,
+    "target_free_at_final_guard_bytes": 548464287744,
+    "target_low_water_reserve_bytes": 137438953472,
+    "default_bounded_output_estimate_bytes": 68719476736
+  },
+  "outside_files_removed": false,
+  "original_experiment_artifacts_modified": false,
+  "post_cutover_task_changes": [
+    "final migration report/manifest/checklist/Chinese delivery",
+    "retained copies of temporary verification receipts",
+    "task launcher monitor error cleanup and its mock tests"
+  ],
+  "receipts": [
+    "source-inventory.json",
+    "source-files.jsonl",
+    "source-key-hashes.json",
+    "migration-hardlink-summary.json",
+    "migration-preflight.json",
+    "migration-first-copy.json",
+    "hbfsim-final-source-files-20260908.jsonl",
+    "hbfsim-migration-verification-20260908.json",
+    "hbfsim-cutover-20260908.json",
+    "migration-git-after-raw-path-differences.json",
+    "migration-git-after.json",
+    "migration-smoke-before.json",
+    "migration-smoke-after.json",
+    "migration-smoke-comparison.json",
+    "migration-cleanup.json",
+    "migration-guard-check.json",
+    "migration-guard-test.json",
+    "retained-temporary-receipts.json"
+  ],
+  "scope_limit": "Project-scoped process/fd checks, not a host-wide freeze guarantee. No inference, full campaign, global environment change, external-file cleanup, merge or push."
+}

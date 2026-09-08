@@ -1,0 +1,49 @@
+{
+  "counts": {
+    "HASHED": 13,
+    "MATCH": 45,
+    "MISMATCH": 0,
+    "MISSING": 0,
+    "DEFERRED": 2
+  },
+  "bytes_hashed": 95774517,
+  "elapsed_wall_seconds": 0.4399922100128606,
+  "raw_recounts": {
+    "cl-0-002": {
+      "rows": 400,
+      "time_monotonic": true,
+      "first_time_ns": 10000000,
+      "last_time_ns": 4000000000,
+      "gate_time_ns": 530000000,
+      "recovery_time_ns": 560000000,
+      "completed_requests": 350,
+      "offered_requests": 382,
+      "queued_requests": 32,
+      "useful_bytes_from_completions": 367001600,
+      "runner_served_bytes": 367001600,
+      "useful_byte_rate_whole_window": 91750400.0,
+      "physical_bytes_from_media_bins": 367001600,
+      "media_events": 22400,
+      "max_hotspot_c": 42.75395062171178,
+      "peak_hbf_w": 64.50000000000003
+    },
+    "bw-0-001": {
+      "rows": 800,
+      "time_monotonic": true,
+      "first_time_ns": 10000000,
+      "last_time_ns": 8000000000,
+      "gate_time_ns": null,
+      "recovery_time_ns": null,
+      "completed_requests": 573,
+      "offered_requests": 573,
+      "queued_requests": 0,
+      "useful_bytes_from_completions": 600834048,
+      "runner_served_bytes": 600834048,
+      "useful_byte_rate_whole_window": 75104256.0,
+      "physical_bytes_from_media_bins": 600834048,
+      "media_events": 36672,
+      "max_hotspot_c": 42.42977753992784,
+      "peak_hbf_w": 64.50000000000003
+    }
+  }
+}

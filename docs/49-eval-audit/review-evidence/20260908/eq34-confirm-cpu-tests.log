@@ -1,0 +1,35 @@
+TEST_ONLY; existing tests; no measured GPU/HBF/serving performance evidence
+{"scope": "TEST_ONLY_CPU_CONTRACT_VALIDATION_NOT_EXPERIMENT_RESULT", "gpu_used": false, "new_capture": false, "checkpoint_weight_payload_read": false, "limits": {"one_python_process": true, "cpu_affinity": [0], "wall_seconds": 120, "address_space_bytes": 1073741824, "cpu_seconds": 120, "per_file_output_bytes": 1048576, "total_output_budget_bytes": 10485760}, "python": "/opt/miniconda3/bin/python3", "python_version": "3.13.9 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 19:16:10) [GCC 11.2.0]"}
+test_failed_speculative_reservation_does_not_evict_ready_data (test_prefetch_replay.PrefetchGold.test_failed_speculative_reservation_does_not_evict_ready_data) ... ok
+test_full_residency_issues_no_media_and_preserves_compute (test_prefetch_replay.PrefetchGold.test_full_residency_issues_no_media_and_preserves_compute) ... ok
+test_horizon_causal_hand_oracle_preserves_legacy_clock (test_prefetch_replay.PrefetchGold.test_horizon_causal_hand_oracle_preserves_legacy_clock) ... ok
+test_horizon_pending_terminal_drains_without_consumption_or_duplicate_io (test_prefetch_replay.PrefetchGold.test_horizon_pending_terminal_drains_without_consumption_or_duplicate_io) ... ok
+test_horizon_pins_capacity_and_rejects_filled_or_missing_middle_gap (test_prefetch_replay.PrefetchGold.test_horizon_pins_capacity_and_rejects_filled_or_missing_middle_gap) ... ok
+test_infeasible_batch_fails_before_io (test_prefetch_replay.PrefetchGold.test_infeasible_batch_fails_before_io) ... ok
+test_late_prefetch_promotes_without_duplicate_issue (test_prefetch_replay.PrefetchGold.test_late_prefetch_promotes_without_duplicate_issue) ... ok
+test_mutating_unseen_routes_cannot_change_prior_prediction (test_prefetch_replay.PrefetchGold.test_mutating_unseen_routes_cannot_change_prior_prediction) ... ok
+test_none_serializes_issue_while_on_demand_shares_queue (test_prefetch_replay.PrefetchGold.test_none_serializes_issue_while_on_demand_shares_queue) ... ok
+test_on_demand_chain_matches_analytical_oracle (test_prefetch_replay.PrefetchGold.test_on_demand_chain_matches_analytical_oracle) ... ok
+test_pinned_current_weights_prevent_speculative_eviction (test_prefetch_replay.PrefetchGold.test_pinned_current_weights_prevent_speculative_eviction) ... ok
+test_prefetch_hides_only_visible_compute_and_records_final_waste (test_prefetch_replay.PrefetchGold.test_prefetch_hides_only_visible_compute_and_records_final_waste) ... ok
+test_frequency_entropy_gini_and_jaccard (test_routing_metrics.RoutingMetricsTests.test_frequency_entropy_gini_and_jaccard) ... ok
+test_incomplete_duplicate_and_invalid_routes_reject (test_routing_metrics.RoutingMetricsTests.test_incomplete_duplicate_and_invalid_routes_reject) ... ok
+test_reuse_distance_counts_distinct_intervening_experts (test_routing_metrics.RoutingMetricsTests.test_reuse_distance_counts_distinct_intervening_experts) ... ok
+test_shuffling_preserves_whole_topk_marginals_and_seed (test_routing_metrics.RoutingMetricsTests.test_shuffling_preserves_whole_topk_marginals_and_seed) ... ok
+test_union_active_sequences_and_null_are_distinct (test_routing_metrics.RoutingMetricsTests.test_union_active_sequences_and_null_are_distinct) ... ok
+test_budget_deductions_and_legacy_separation (test_inventory_checkpoint.InventoryTests.test_budget_deductions_and_legacy_separation) ... ok
+test_impossible_budget_and_corrupt_inventory_rejected (test_inventory_checkpoint.InventoryTests.test_impossible_budget_and_corrupt_inventory_rejected) ... ok
+test_loaded_layout_contract_is_revalidated (test_inventory_checkpoint.InventoryTests.test_loaded_layout_contract_is_revalidated) ... ok
+test_metadata_shape_disagreement_rejected (test_inventory_checkpoint.InventoryTests.test_metadata_shape_disagreement_rejected) ... ok
+test_missing_projection_rejected (test_inventory_checkpoint.InventoryTests.test_missing_projection_rejected) ... ok
+test_no_complete_expert_fits_is_infeasible (test_inventory_checkpoint.InventoryTests.test_no_complete_expert_fits_is_infeasible) ... ok
+test_padded_experts_do_not_overstate_capacity (test_inventory_checkpoint.InventoryTests.test_padded_experts_do_not_overstate_capacity) ... ok
+test_real_file_metadata_and_complete_experts (test_inventory_checkpoint.InventoryTests.test_real_file_metadata_and_complete_experts) ... ok
+test_segment_identity_and_embedded_config_cannot_drift (test_inventory_checkpoint.InventoryTests.test_segment_identity_and_embedded_config_cannot_drift) ... ok
+test_truncated_payload_rejected_without_reading_weights (test_inventory_checkpoint.InventoryTests.test_truncated_payload_rejected_without_reading_weights) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.032s
+
+OK
+TEST_ONLY excess-capacity oracle: {"C_fast_effective": 984, "W_HBF_eligible": 96, "rho_requested": 10.25, "rho_achieved": 1.0, "cache_validation": "NOT_EXECUTED"}

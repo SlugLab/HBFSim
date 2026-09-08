@@ -554,7 +554,8 @@ print('producer diagnostic',file=sys.stderr,flush=True)
         self.assertEqual(self.exporter.collect_done(self.results)[0],[])
 
     def test_matrix_resource_classification_is_complete(self):
-        with (ROOT/'docs/49-eval-audit/run-matrix.csv').open() as stream:
+        # Frozen campaign counts belong to the historical snapshot, not a new plan.
+        with (ROOT/'docs/49-eval-audit/history/20260905/run-matrix.csv').open() as stream:
             rows=list(csv.DictReader(stream))
         self.assertEqual(len(rows),2848);self.assertEqual(sum(int(r['repeats']) for r in rows),20485)
         for row in rows:
@@ -562,6 +563,11 @@ print('producer diagnostic',file=sys.stderr,flush=True)
             if row['group']=='flash_fidelity':self.assertEqual(row['resource_class'],'STORAGE_EXCLUSIVE' if row['backend']=='physical' else 'CPU_ONLY')
             if row['group']=='three_arm':self.assertEqual(row['resource_class'],'GPU_STORAGE_EXCLUSIVE')
             if row['group'] in {'gpu_delay','async_overlap','async_correctness','live_confirmation','mode_cost'}:self.assertEqual(row['resource_class'],'GPU_EXCLUSIVE')
+        current = self.runner.load_matrix(ROOT/'docs/49-eval-audit/run-matrix.csv')
+        self.assertTrue(current)
+        for row in current:
+            self.assertIn(row['resource_class'], self.guards.RESOURCE_CLASSES)
+            self.assertIn('REPLAN_REVIEWED_REGISTRY', row['blocking_gate'].split(';'))
 
 if __name__=='__main__':
     unittest.main()

@@ -1,0 +1,298 @@
+{
+  "schema_version": 1,
+  "scope": "reviewable follow-up candidates; not authorized full campaign execution",
+  "source_audit": "thermal-audit.md",
+  "cells": [
+    {
+      "cell_id": "eq2-test-only-8hi-shadow",
+      "status": "READY_NOT_RUN",
+      "executed_this_turn": false,
+      "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
+      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint_exists": true,
+      "argv": [
+        "--device-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
+        "--package-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
+        "--model",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
+        "--output",
+        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-8hi-shadow",
+        "--duration-ns",
+        "4000000000",
+        "--offered-byte-rate",
+        "100000000",
+        "--peak-byte-rate",
+        "200000000",
+        "--request-bytes",
+        "1048576",
+        "--queue-depth",
+        "128",
+        "--seed",
+        "21001",
+        "--arrival-mode",
+        "periodic",
+        "--workload",
+        "read",
+        "--pattern",
+        "random"
+      ],
+      "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "input_files": {
+        "device_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
+          "sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335"
+        },
+        "package_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
+          "sha256": "c6a143b6be10de240804314d6fe4fd1a87464a9c056318bab167a47a69cdeb52"
+        },
+        "rom": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
+          "sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524"
+        }
+      },
+      "mode": "shadow",
+      "replicates": 1,
+      "seed": 21001,
+      "model_duration_ns": 4000000000,
+      "pilot_override": {
+        "duration_ns": 100000000,
+        "max_wall_seconds": 120,
+        "max_rss_bytes": 2147483648,
+        "max_output_bytes": 104857600
+      },
+      "pilot_measured": false,
+      "dependencies": [
+        "migration_mount_and_space_guard",
+        "isolated_single_CPU_no_heavy_copy",
+        "verify_binary_and_environment_again_before_run"
+      ],
+      "resource_class": "CPU_ONLY_SERIAL",
+      "failure_rule": "preserve partial evidence; stop on mismatch/unsupported/OOM/timeout or missing mount; no full matrix launch",
+      "acceptance_scope": "historical mechanism reproducer; no physical HBF or full three-arm new claim"
+    },
+    {
+      "cell_id": "eq2-test-only-8hi-active",
+      "status": "READY_NOT_RUN",
+      "executed_this_turn": false,
+      "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
+      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint_exists": true,
+      "argv": [
+        "--device-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
+        "--package-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
+        "--model",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+        "--output",
+        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-8hi-active",
+        "--duration-ns",
+        "4000000000",
+        "--offered-byte-rate",
+        "100000000",
+        "--peak-byte-rate",
+        "200000000",
+        "--request-bytes",
+        "1048576",
+        "--queue-depth",
+        "128",
+        "--seed",
+        "21001",
+        "--arrival-mode",
+        "periodic",
+        "--workload",
+        "read",
+        "--pattern",
+        "random"
+      ],
+      "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "input_files": {
+        "device_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
+          "sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335"
+        },
+        "package_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
+          "sha256": "af55f556048e6220a1e648d200a3ce92f5cb8eaab5b87f17c1fc3680dd90f9ee"
+        },
+        "rom": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+          "sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524"
+        }
+      },
+      "mode": "active",
+      "replicates": 1,
+      "seed": 21001,
+      "model_duration_ns": 4000000000,
+      "pilot_override": {
+        "duration_ns": 100000000,
+        "max_wall_seconds": 120,
+        "max_rss_bytes": 2147483648,
+        "max_output_bytes": 104857600
+      },
+      "pilot_measured": false,
+      "dependencies": [
+        "migration_mount_and_space_guard",
+        "isolated_single_CPU_no_heavy_copy",
+        "verify_binary_and_environment_again_before_run"
+      ],
+      "resource_class": "CPU_ONLY_SERIAL",
+      "failure_rule": "preserve partial evidence; stop on mismatch/unsupported/OOM/timeout or missing mount; no full matrix launch",
+      "acceptance_scope": "historical mechanism reproducer; no physical HBF or full three-arm new claim"
+    },
+    {
+      "cell_id": "eq2-test-only-16hi-active",
+      "status": "READY_NOT_RUN",
+      "executed_this_turn": false,
+      "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
+      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint_exists": true,
+      "argv": [
+        "--device-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
+        "--package-profile",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
+        "--model",
+        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+        "--output",
+        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-16hi-active",
+        "--duration-ns",
+        "8000000000",
+        "--offered-byte-rate",
+        "75000000",
+        "--peak-byte-rate",
+        "200000000",
+        "--request-bytes",
+        "1048576",
+        "--queue-depth",
+        "128",
+        "--seed",
+        "32001",
+        "--arrival-mode",
+        "periodic",
+        "--workload",
+        "mixed",
+        "--pattern",
+        "random"
+      ],
+      "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "input_files": {
+        "device_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
+          "sha256": "0bd39f11255ce0b2cec771b23c91d8d576d9e91342eed672a75d5eac3a575e11"
+        },
+        "package_profile": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
+          "sha256": "7c977fe4ef9c20c91d2c514f6ba5b4d4caf05325c815bccd1be36e437b37a8aa"
+        },
+        "rom": {
+          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+          "sha256": "7634f3fa010a22262a4330b6a438a8222fd8005a06c7b5354bb09b64a3759d65"
+        }
+      },
+      "mode": "active",
+      "replicates": 1,
+      "seed": 32001,
+      "model_duration_ns": 8000000000,
+      "pilot_override": {
+        "duration_ns": 100000000,
+        "max_wall_seconds": 120,
+        "max_rss_bytes": 2147483648,
+        "max_output_bytes": 104857600
+      },
+      "pilot_measured": false,
+      "dependencies": [
+        "migration_mount_and_space_guard",
+        "isolated_single_CPU_no_heavy_copy",
+        "verify_binary_and_environment_again_before_run"
+      ],
+      "resource_class": "CPU_ONLY_SERIAL",
+      "failure_rule": "preserve partial evidence; stop on mismatch/unsupported/OOM/timeout or missing mount; no full matrix launch",
+      "acceptance_scope": "historical mechanism reproducer; no physical HBF or full three-arm new claim"
+    },
+    {
+      "cell_id": "eq2-device-true-off",
+      "status": "BLOCKED",
+      "executed_this_turn": false,
+      "entrypoint": null,
+      "blocked_by": [
+        "EQ2_TRUE_OFF_RUNNER"
+      ],
+      "reason": "runner stage=off still runs ROM; requires P-T1",
+      "dependencies": [
+        "EQ2_TRUE_OFF_RUNNER"
+      ],
+      "resource_class": "NOT_ADMITTED",
+      "failure_rule": "do not launch or substitute projected data"
+    },
+    {
+      "cell_id": "eq2-nominal-three-arm",
+      "status": "BLOCKED",
+      "executed_this_turn": false,
+      "entrypoint": null,
+      "blocked_by": [
+        "EQ2_PHYSICAL_INPUTS",
+        "EQ2_TRUE_OFF_RUNNER",
+        "EQ2_COMPLETION_BIN_ACCOUNTING"
+      ],
+      "reason": "source-constrained inputs and useful per-completion series required",
+      "dependencies": [
+        "EQ2_PHYSICAL_INPUTS",
+        "EQ2_TRUE_OFF_RUNNER",
+        "EQ2_COMPLETION_BIN_ACCOUNTING"
+      ],
+      "resource_class": "NOT_ADMITTED",
+      "failure_rule": "do not launch or substitute projected data"
+    },
+    {
+      "cell_id": "eq2-live-llm",
+      "status": "BLOCKED",
+      "executed_this_turn": false,
+      "entrypoint": null,
+      "blocked_by": [
+        "EQ1_APP_TIMING",
+        "THERMAL_COMBINATION_PARITY"
+      ],
+      "reason": "current evaluation tree has no thermal runtime; prototype host-launch path insufficient",
+      "dependencies": [
+        "EQ1_APP_TIMING",
+        "THERMAL_COMBINATION_PARITY"
+      ],
+      "resource_class": "NOT_ADMITTED",
+      "failure_rule": "do not launch or substitute projected data"
+    },
+    {
+      "cell_id": "eq2-refresh-feedback",
+      "status": "BLOCKED",
+      "executed_this_turn": false,
+      "entrypoint": null,
+      "blocked_by": [
+        "REFRESH_DISPATCH_COMPLETION_ENERGY"
+      ],
+      "reason": "Phase3 model gives offline demand; no validated current MQSim executed refresh loop",
+      "dependencies": [
+        "REFRESH_DISPATCH_COMPLETION_ENERGY"
+      ],
+      "resource_class": "NOT_ADMITTED",
+      "failure_rule": "do not launch or substitute projected data"
+    },
+    {
+      "cell_id": "eq2-hbm-real-transient",
+      "status": "BLOCKED",
+      "executed_this_turn": false,
+      "entrypoint": null,
+      "blocked_by": [
+        "REAL_TRANSIENT_TIME_MAPPING"
+      ],
+      "reason": "Phase3 energy envelope preserves integrated energy, not original command timing",
+      "dependencies": [
+        "REAL_TRANSIENT_TIME_MAPPING"
+      ],
+      "resource_class": "NOT_ADMITTED",
+      "failure_rule": "do not launch or substitute projected data"
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "bytes_hashed": 23587477,
+  "checks": [
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/8hi-held-square-wave.json",
+      "sha256": "b2db4089e6e374d5cbb346000ca16c493ab84f28154404a05162831d63d3df49",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/8hi-held-burst.json",
+      "sha256": "9a3efd079cc958174174daadc5c7d902a00981b9dd0af1acc66eaebeefdfdb6b",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/8hi-held-read-heavy.json",
+      "sha256": "9a36cda1ccafb8a030514e8e9d2dacddff2c6da254176a9060cde7a1b5194cca",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/8hi-held-mixed.json",
+      "sha256": "d849f8c30911c91f1d19ccefe3aa5910201548502e123f1db10523a528ddbfdf",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/8hi-held-write-heavy.json",
+      "sha256": "0e18ace0fcd33cd0814c947bc0686aec1fdef2a09aa6ecfee07e0108d1317718",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/package-rom-g1-8hi-10ms.json",
+      "sha256": "7447070489f3aff8dd8a57ade461da82c505aa2a98c005fdd4a7fcabf7419cd8",
+      "expected": "7447070489f3aff8dd8a57ade461da82c505aa2a98c005fdd4a7fcabf7419cd8",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-validation-8hi.json",
+      "sha256": "2676298c6cb26f52bd0dd9a8591265d6da8f46170947ba896b4bcd1448eb09a0",
+      "expected": "2676298c6cb26f52bd0dd9a8591265d6da8f46170947ba896b4bcd1448eb09a0",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/package-rom-g1-8hi-10ms.json.fit.json",
+      "sha256": "5016211b089aa6677a1827a8f08a2bfd2797e95661b8f82bf31b59223bdf205a",
+      "expected": "5016211b089aa6677a1827a8f08a2bfd2797e95661b8f82bf31b59223bdf205a",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-decomposition-8hi.json",
+      "sha256": "1fc5047f3f9e48be422cb1cbea93600ff30d1b24c188ee1f306ea266a4220a2d",
+      "expected": "1fc5047f3f9e48be422cb1cbea93600ff30d1b24c188ee1f306ea266a4220a2d",
+      "matches": true
+    },
+    {
+      "height": 8,
+      "all_heldout_hashes_present": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/16hi-held-mixed.json",
+      "sha256": "eaf42b2316147e9f45dfd3c473ed34ec35d8180d81900268d8dc6fd6d2ca3ad8",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/16hi-held-read-heavy.json",
+      "sha256": "b27e364bfc5709d3b79702a34ef4d7e342d3156433cc7c444c871fd1427cda3b",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/16hi-held-burst.json",
+      "sha256": "8d2c18ed084f9dd596a9ba4002033d75ebe6eee787f71abc73fa29f6095b982d",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/16hi-held-square-wave.json",
+      "sha256": "e78ae688cb2f276d640bf79fc1279d7340dfdb32b7b9f3329c7143a524aa3a3a",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/datasets/16hi-held-write-heavy.json",
+      "sha256": "c07e78abaaa3cebf19388681536ac203b287861938bdebd9efc62e83f74b54c0",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/package-rom-g1-16hi-10ms.json",
+      "sha256": "a6ee59101be93cea18081423147fe6f149c08345396784d0089944d047d2b46c",
+      "expected": "a6ee59101be93cea18081423147fe6f149c08345396784d0089944d047d2b46c",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-validation-16hi.json",
+      "sha256": "235a1db453eb9b3f0bf7a1cae3a699c1345e3d02918acae28e293b081c50cc55",
+      "expected": "235a1db453eb9b3f0bf7a1cae3a699c1345e3d02918acae28e293b081c50cc55",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/package-rom-g1-16hi-10ms.json.fit.json",
+      "sha256": "e2a65772e93c47dc38fd17f3bf81c2e3964c5706a3ae67da29f9c04188ea5ac5",
+      "expected": "e2a65772e93c47dc38fd17f3bf81c2e3964c5706a3ae67da29f9c04188ea5ac5",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-decomposition-16hi.json",
+      "sha256": "b97dd7abfa99091f5591de05c3ed75ee7d1a40cf65b76f6bd7e673d38c1b8648",
+      "expected": "b97dd7abfa99091f5591de05c3ed75ee7d1a40cf65b76f6bd7e673d38c1b8648",
+      "matches": true
+    },
+    {
+      "height": 16,
+      "all_heldout_hashes_present": true
+    }
+  ],
+  "scope": "Frozen held-out dataset/ROM/fit/decomposition hash verification; no solver rerun"
+}

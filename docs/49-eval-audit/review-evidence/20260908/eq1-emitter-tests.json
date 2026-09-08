@@ -1,0 +1,14 @@
+{
+  "command": [
+    "python3",
+    "/root/hbfsim-exp/eval-base-integration/tests/integration/test_future_emitter.py",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/eq1-future-driver",
+    "-v"
+  ],
+  "returncode": 0,
+  "elapsed_s": 1.729600038001081,
+  "stdout": "",
+  "stderr": "test_actual_wait_return_controls_consumer (__main__.EmitterTests.test_actual_wait_return_controls_consumer) ... ok\ntest_executing_fence_and_predicated_store (__main__.EmitterTests.test_executing_fence_and_predicated_store) ... ok\ntest_explicit_launch_geometry (__main__.EmitterTests.test_explicit_launch_geometry) ... ok\ntest_false_producer_preserves_destination (__main__.EmitterTests.test_false_producer_preserves_destination) ... ok\ntest_integer_and_float_bits (__main__.EmitterTests.test_integer_and_float_bits) ... ok\ntest_invalid_parameter_and_ordering_forms (__main__.EmitterTests.test_invalid_parameter_and_ordering_forms) ... ok\ntest_mixed_lanes_and_pages (__main__.EmitterTests.test_mixed_lanes_and_pages) ... ok\ntest_mixed_producer_and_consumer_predicates (__main__.EmitterTests.test_mixed_producer_and_consumer_predicates) ... ok\ntest_native_output_store_guard (__main__.EmitterTests.test_native_output_store_guard) ... ok\ntest_predicate_and_ordering_table (__main__.EmitterTests.test_predicate_and_ordering_table) ... ok\ntest_predicate_combinations (__main__.EmitterTests.test_predicate_combinations) ... ok\ntest_predicated_second_producer_same_destination (__main__.EmitterTests.test_predicated_second_producer_same_destination) ... ok\ntest_reject_before_native_load (__main__.EmitterTests.test_reject_before_native_load) ... ok\ntest_rejection_table (__main__.EmitterTests.test_rejection_table) ... ok\ntest_selected_statement_strings_reject (__main__.EmitterTests.test_selected_statement_strings_reject) ... ok\ntest_spans_and_comments (__main__.EmitterTests.test_spans_and_comments) ... ok\ntest_unrelated_entry_is_opaque (__main__.EmitterTests.test_unrelated_entry_is_opaque) ... ok\ntest_unsupported_types_and_parameter_identity (__main__.EmitterTests.test_unsupported_types_and_parameter_identity) ... ok\ntest_validated_address_header (__main__.EmitterTests.test_validated_address_header) ... ok\n\n----------------------------------------------------------------------\nRan 19 tests in 1.557s\n\nOK\n",
+  "evidence_kind": "controlled test-only model",
+  "validation_scope": "CPU PTX emitter interpretation; no native GPU, SASS timing, capacity or TMA support claim"
+}

@@ -1,0 +1,493 @@
+{
+  "audit_scope": "read-only selected historical hashes and CSV recount, not new thermal/GPU measurement",
+  "resource_budget": {
+    "read_bytes_cap": 134217728,
+    "address_space_bytes_cap": 536870912
+  },
+  "bytes_hashed": 95774517,
+  "elapsed_wall_seconds": 0.4399922100128606,
+  "source_states": {
+    "current": {
+      "path": "/root/hbfsim-exp/eval-base-integration",
+      "head": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": []
+    },
+    "prototype": {
+      "path": "/root/hbfsim-exp/prototype-revalidation/sources/diagnostics/cell-c-phase2-adaptation-001",
+      "head": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "status": []
+    }
+  },
+  "checks": [
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/final-requirement-audit-002/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "43de94f9f9eaa395171beb8d1e35721fde7d2a61d8a9389f3e63829d75ac31df",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/reports/prototype-revalidation/report-manifest.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "95af53910fd6bb63d0b1345eb611ee4af45fd0c7e08f58e90f2cf334bf104607",
+      "actual_sha256": "95af53910fd6bb63d0b1345eb611ee4af45fd0c7e08f58e90f2cf334bf104607",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/reports/environment/report-manifest.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "b07348bd0f52500b5e9cfc1f58d8950f0745160c8ac766f3379c12c2f64ef788",
+      "actual_sha256": "b07348bd0f52500b5e9cfc1f58d8950f0745160c8ac766f3379c12c2f64ef788",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/final-campaign-audit-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "e69efebf249d5d40ac004f1dd91010f64ba3ff97adf2793de9ab225717a252e0",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/vllm-2x2-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "ad73797ce1aa16a938b2b9dde9d5ee9ab66b526cb21a701e46e6f2810e26683a",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-a-023/gate-summary.json",
+      "label": "evidence path/hash",
+      "expected_sha256": "ac7a1b4a307aeb5211f7be220fb55ee763007c8ea781e2cd329feb6b84a782c8",
+      "actual_sha256": "ac7a1b4a307aeb5211f7be220fb55ee763007c8ea781e2cd329feb6b84a782c8",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-c-002/cell-c-summary.json",
+      "label": "evidence path/hash",
+      "expected_sha256": "76c5428e5b479ac23b519a9518e32e3987bd119bf9f1298fc45442eac5d3365c",
+      "actual_sha256": "76c5428e5b479ac23b519a9518e32e3987bd119bf9f1298fc45442eac5d3365c",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-a-023/core-provenance.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "a2acd6b679e9233e0813d3d21d307d959139e72acd90de9a0927ac309c728546",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-a-023/gate-summary.json",
+      "label": "core provenance target",
+      "expected_sha256": "ac7a1b4a307aeb5211f7be220fb55ee763007c8ea781e2cd329feb6b84a782c8",
+      "actual_sha256": "ac7a1b4a307aeb5211f7be220fb55ee763007c8ea781e2cd329feb6b84a782c8",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-c-002/core-provenance.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cell-c-002/cell-c-summary.json",
+      "label": "core provenance target",
+      "expected_sha256": "76c5428e5b479ac23b519a9518e32e3987bd119bf9f1298fc45442eac5d3365c",
+      "actual_sha256": "76c5428e5b479ac23b519a9518e32e3987bd119bf9f1298fc45442eac5d3365c",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/app0-002/app0-provenance.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "23c32a5b4bf76233c29e9f626a525308d14076b5e81d1491645730164fd77658",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/benchmarks/cuda/hbf_microbench",
+      "label": "embedded path/hash",
+      "expected_sha256": "399a56da63db88e5694fcd9a8c855e3edd0e5965ec3b89fd13b94ffbe964e4a2",
+      "actual_sha256": "399a56da63db88e5694fcd9a8c855e3edd0e5965ec3b89fd13b94ffbe964e4a2",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/hbfsimd",
+      "label": "embedded path/hash",
+      "expected_sha256": "dd0cc5b69bce18977239dde1b76142a322a5428d4d1b1878ec4f3dc5f8200413",
+      "actual_sha256": "dd0cc5b69bce18977239dde1b76142a322a5428d4d1b1878ec4f3dc5f8200413",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/libhbfsim.so.0.1.0",
+      "label": "embedded path/hash",
+      "expected_sha256": "40b8cb57653dd81f88d0a1426e409bf73c3943f05357d89fd4c37935e5c05310",
+      "actual_sha256": "40b8cb57653dd81f88d0a1426e409bf73c3943f05357d89fd4c37935e5c05310",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/libhbfsim_launch_gate.so",
+      "label": "embedded path/hash",
+      "expected_sha256": "220b697412919f4d763abe4c788bed88e333060a7f196b754ca9eb48f045e2f1",
+      "actual_sha256": "220b697412919f4d763abe4c788bed88e333060a7f196b754ca9eb48f045e2f1",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/libptxpass_hbf.so",
+      "label": "embedded path/hash",
+      "expected_sha256": "18c2c1229b88eeaece42ec6487c358a6d4fafc6d161272f0bfb10bfe818ceafd",
+      "actual_sha256": "18c2c1229b88eeaece42ec6487c358a6d4fafc6d161272f0bfb10bfe818ceafd",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/hbfsim_bpftime_attach_loader",
+      "label": "embedded path/hash",
+      "expected_sha256": "530ae0c90209047a747b6418d0a90727324f28623537ab7bbe1350bd7b10de67",
+      "actual_sha256": "530ae0c90209047a747b6418d0a90727324f28623537ab7bbe1350bd7b10de67",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/microbench_probe.bpf.o",
+      "label": "embedded path/hash",
+      "expected_sha256": "eced631bd7e57f25d7c2d1923e7b02b47249f1187152870caeb4e0e869f3b174",
+      "actual_sha256": "eced631bd7e57f25d7c2d1923e7b02b47249f1187152870caeb4e0e869f3b174",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-a-017-platform-adaptation-bpftime/runtime/agent/libbpftime-agent.so",
+      "label": "embedded path/hash",
+      "expected_sha256": "77721b6175db68c2435d488086d4f5b7d6380ca97f5e7b537dc0dd82de0c6e17",
+      "actual_sha256": "DEFERRED_READ_BUDGET",
+      "status": "DEFERRED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/builds/cell-a-017-platform-adaptation-bpftime/runtime/syscall-server/libbpftime-syscall-server.so",
+      "label": "embedded path/hash",
+      "expected_sha256": "e650bbd2afd85e476963b7d29b5f8d0ccf7600f70c0a422c2eb1741e72bb53c1",
+      "actual_sha256": "DEFERRED_READ_BUDGET",
+      "status": "DEFERRED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/app0-002/app0-summary.json",
+      "label": "APP0 provenance target",
+      "expected_sha256": "a14bd1b25892c4179884db2a8a5138e9137a87bad81f195285d9559eae6c666d",
+      "actual_sha256": "a14bd1b25892c4179884db2a8a5138e9137a87bad81f195285d9559eae6c666d",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/golden-0-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "a8313e8e634bba4700a52f6abf987a6642d0af9607f9f523b89d83baa12db031",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-validation-8hi.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "2676298c6cb26f52bd0dd9a8591265d6da8f46170947ba896b4bcd1448eb09a0",
+      "actual_sha256": "2676298c6cb26f52bd0dd9a8591265d6da8f46170947ba896b4bcd1448eb09a0",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-rom-g1-2mm-10ms-era224-v2-20260827T163000Z/rom-validation-16hi.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "235a1db453eb9b3f0bf7a1cae3a699c1345e3d02918acae28e293b081c50cc55",
+      "actual_sha256": "235a1db453eb9b3f0bf7a1cae3a699c1345e3d02918acae28e293b081c50cc55",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "c854597552fd80a3585d56393c94ed6fe437e4b7f7841c9c55603e4404b78de7",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/closed-loop-analysis.json",
+      "label": "raw result artifact",
+      "expected_sha256": "023557d9de526bd26593ab1a4dd0b7262d68769b470d9bdd55f8442561ff46d9",
+      "actual_sha256": "023557d9de526bd26593ab1a4dd0b7262d68769b470d9bdd55f8442561ff46d9",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/experiment-manifest.json",
+      "label": "raw result artifact",
+      "expected_sha256": "e621b95ba2d81580572a8e940242efd597418e5039327ff2e9361f56891d19ca",
+      "actual_sha256": "e621b95ba2d81580572a8e940242efd597418e5039327ff2e9361f56891d19ca",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/package-thermal-timeline.csv",
+      "label": "raw result artifact",
+      "expected_sha256": "b6c17be71072d463a05b7266ded3ca4b95f586739e887353b533dab55d35f231",
+      "actual_sha256": "b6c17be71072d463a05b7266ded3ca4b95f586739e887353b533dab55d35f231",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/package-thermal.json",
+      "label": "raw result artifact",
+      "expected_sha256": "9b4b049d3f5d8c89238426eee8d838943374ac7e8c038d886547f62796b8b4d3",
+      "actual_sha256": "9b4b049d3f5d8c89238426eee8d838943374ac7e8c038d886547f62796b8b4d3",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/request-summary.json",
+      "label": "raw result artifact",
+      "expected_sha256": "bf905a116419a1a9f07602c62191d29696795981a74e1c6a846923a6c4fbddf2",
+      "actual_sha256": "bf905a116419a1a9f07602c62191d29696795981a74e1c6a846923a6c4fbddf2",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/runner-result.json",
+      "label": "raw result artifact",
+      "expected_sha256": "b3b983a81d9954b766a85ed428477fdcd5df4e54a574066e862c4968b38ea9be",
+      "actual_sha256": "b3b983a81d9954b766a85ed428477fdcd5df4e54a574066e862c4968b38ea9be",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/source-power-summary.json",
+      "label": "raw result artifact",
+      "expected_sha256": "b08c298fd1bbaed59984d0cf94206066d0151f844a5b6c8bb367ded50efc2eb8",
+      "actual_sha256": "b08c298fd1bbaed59984d0cf94206066d0151f844a5b6c8bb367ded50efc2eb8",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/cl-0-002/stationarity.json",
+      "label": "raw result artifact",
+      "expected_sha256": "c2437462ddad1c9eaa7c2afe4ed9e98b118cfb26cb96d2559b5b6fc32cd50cb6",
+      "actual_sha256": "c2437462ddad1c9eaa7c2afe4ed9e98b118cfb26cb96d2559b5b6fc32cd50cb6",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "78b8c6582eea29a3e9ea2138303e5538200cef7bf677323d61c63030fd488460",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/closed-loop-analysis.json",
+      "label": "raw result artifact",
+      "expected_sha256": "b2522b1cc279266afdcf2f74ac796a0179f73bd8fbdf61ff2316b2929475a8c1",
+      "actual_sha256": "b2522b1cc279266afdcf2f74ac796a0179f73bd8fbdf61ff2316b2929475a8c1",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/experiment-manifest.json",
+      "label": "raw result artifact",
+      "expected_sha256": "a15ad922cdbd32c0810199ffede4c89318ff68bad1e2faee6ea9737cd398f6a3",
+      "actual_sha256": "a15ad922cdbd32c0810199ffede4c89318ff68bad1e2faee6ea9737cd398f6a3",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/package-thermal-timeline.csv",
+      "label": "raw result artifact",
+      "expected_sha256": "96dca57d09ea5c40b3e57fda476d0a840b9053f896402e4ca0e22b23ad8268de",
+      "actual_sha256": "96dca57d09ea5c40b3e57fda476d0a840b9053f896402e4ca0e22b23ad8268de",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/package-thermal.json",
+      "label": "raw result artifact",
+      "expected_sha256": "ac0757c17a76765311c07f1f9a2279f378794941d57e3729ac4cf48ce0d98b2f",
+      "actual_sha256": "ac0757c17a76765311c07f1f9a2279f378794941d57e3729ac4cf48ce0d98b2f",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/request-summary.json",
+      "label": "raw result artifact",
+      "expected_sha256": "0c6a466ee922340079f11381c2bb1d1a4380e58213561fb2b4c1dd4db38da3aa",
+      "actual_sha256": "0c6a466ee922340079f11381c2bb1d1a4380e58213561fb2b4c1dd4db38da3aa",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/runner-result.json",
+      "label": "raw result artifact",
+      "expected_sha256": "4e7ae5ae8030f4c8f74199b9e0fc767d44045a0a767368e54364c9f528370916",
+      "actual_sha256": "4e7ae5ae8030f4c8f74199b9e0fc767d44045a0a767368e54364c9f528370916",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/source-power-summary.json",
+      "label": "raw result artifact",
+      "expected_sha256": "bfcb0a8fccdaa53631e0d54265bfd6c30805f3bd64356579fac109c07a4d31cc",
+      "actual_sha256": "bfcb0a8fccdaa53631e0d54265bfd6c30805f3bd64356579fac109c07a4d31cc",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/bw-0-001/stationarity.json",
+      "label": "raw result artifact",
+      "expected_sha256": "0c5dbb1cdc6be4b64e9d2cea21e9ce9d79e7c09708888424c09eb82b25f06eb6",
+      "actual_sha256": "0c5dbb1cdc6be4b64e9d2cea21e9ce9d79e7c09708888424c09eb82b25f06eb6",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/hbm-0-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "fcfb1c9cca4f384eced3a3b7c4649cf77eed34b0561644b92c36e70ab376670c",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/workload-matrix-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "d3541041af2c4bef15c03ce41788e3abe282dde023688fe750bce6517422e171",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/lit-1-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "8c9b440c8f43a26adba172869ae7c0b6647b162e29705e1643bb2ddcafe83010",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/lit-2-001/result.json",
+      "label": "requested historical result",
+      "expected_sha256": null,
+      "actual_sha256": "079ee3823b268d1459483aeeff2a0b4ff19701c9cb146a9de25aaa51e00ba679",
+      "status": "HASHED"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335",
+      "actual_sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "af55f556048e6220a1e648d200a3ce92f5cb8eaab5b87f17c1fc3680dd90f9ee",
+      "actual_sha256": "af55f556048e6220a1e648d200a3ce92f5cb8eaab5b87f17c1fc3680dd90f9ee",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "actual_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "0bd39f11255ce0b2cec771b23c91d8d576d9e91342eed672a75d5eac3a575e11",
+      "actual_sha256": "0bd39f11255ce0b2cec771b23c91d8d576d9e91342eed672a75d5eac3a575e11",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "7c977fe4ef9c20c91d2c514f6ba5b4d4caf05325c815bccd1be36e437b37a8aa",
+      "actual_sha256": "7c977fe4ef9c20c91d2c514f6ba5b4d4caf05325c815bccd1be36e437b37a8aa",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+      "label": "embedded path/hash",
+      "expected_sha256": "7634f3fa010a22262a4330b6a438a8222fd8005a06c7b5354bb09b64a3759d65",
+      "actual_sha256": "7634f3fa010a22262a4330b6a438a8222fd8005a06c7b5354bb09b64a3759d65",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/results/phase2-bw-g1-16hi-coarse-v1-20260827T120000Z/sustainable-bandwidth-refined.json",
+      "label": "historical boundary",
+      "expected_sha256": "1fe075c2b9f8baa9897b080364fb1a04706d4dd386365c56d1c83510525d9851",
+      "actual_sha256": "1fe075c2b9f8baa9897b080364fb1a04706d4dd386365c56d1c83510525d9851",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/sources/diagnostics/cell-a-platform-adaptation-001/CMakeLists.txt",
+      "label": "source build config",
+      "expected_sha256": "7f740b36ffe843aacb641d7745b367371e01b68b3891bf7f44315b034111bb00",
+      "actual_sha256": "7f740b36ffe843aacb641d7745b367371e01b68b3891bf7f44315b034111bb00",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/sources/diagnostics/cell-c-phase2-adaptation-001/CMakeLists.txt",
+      "label": "source build config",
+      "expected_sha256": "556387e3a8b342d672cc1bca6a0e87a7310dd838dae98fb3c22761b17f90dd48",
+      "actual_sha256": "556387e3a8b342d672cc1bca6a0e87a7310dd838dae98fb3c22761b17f90dd48",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/w0-001/workload-provenance.json",
+      "label": "workload provenance",
+      "expected_sha256": "85ded655a961ae03bafbbb553dc798d3ef3a18da284e588ee398eebec10a217a",
+      "actual_sha256": "85ded655a961ae03bafbbb553dc798d3ef3a18da284e588ee398eebec10a217a",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/w1-001/workload-provenance.json",
+      "label": "workload provenance",
+      "expected_sha256": "891e64566930beff9730d598ba09872d2044c9170dcd3ff2d7f90e384b6ca1ae",
+      "actual_sha256": "891e64566930beff9730d598ba09872d2044c9170dcd3ff2d7f90e384b6ca1ae",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/w2-001/workload-provenance.json",
+      "label": "workload provenance",
+      "expected_sha256": "3492e1e64950839637c77f09e7ecddd2c50dbcc898737f91fb3b24cb76d927ba",
+      "actual_sha256": "3492e1e64950839637c77f09e7ecddd2c50dbcc898737f91fb3b24cb76d927ba",
+      "status": "MATCH"
+    },
+    {
+      "path": "/root/hbfsim-exp/prototype-revalidation/results/w3-001/workload-provenance.json",
+      "label": "workload provenance",
+      "expected_sha256": "86f2ea535764ab38576eeb6a9960d9e83007e9fbc359c0d213113eff6b412865",
+      "actual_sha256": "86f2ea535764ab38576eeb6a9960d9e83007e9fbc359c0d213113eff6b412865",
+      "status": "MATCH"
+    }
+  ],
+  "counts": {
+    "HASHED": 13,
+    "MATCH": 45,
+    "MISMATCH": 0,
+    "MISSING": 0,
+    "DEFERRED": 2
+  },
+  "raw_recounts": {
+    "cl-0-002": {
+      "rows": 400,
+      "time_monotonic": true,
+      "first_time_ns": 10000000,
+      "last_time_ns": 4000000000,
+      "gate_time_ns": 530000000,
+      "recovery_time_ns": 560000000,
+      "completed_requests": 350,
+      "offered_requests": 382,
+      "queued_requests": 32,
+      "useful_bytes_from_completions": 367001600,
+      "runner_served_bytes": 367001600,
+      "useful_byte_rate_whole_window": 91750400.0,
+      "physical_bytes_from_media_bins": 367001600,
+      "media_events": 22400,
+      "max_hotspot_c": 42.75395062171178,
+      "peak_hbf_w": 64.50000000000003
+    },
+    "bw-0-001": {
+      "rows": 800,
+      "time_monotonic": true,
+      "first_time_ns": 10000000,
+      "last_time_ns": 8000000000,
+      "gate_time_ns": null,
+      "recovery_time_ns": null,
+      "completed_requests": 573,
+      "offered_requests": 573,
+      "queued_requests": 0,
+      "useful_bytes_from_completions": 600834048,
+      "runner_served_bytes": 600834048,
+      "useful_byte_rate_whole_window": 75104256.0,
+      "physical_bytes_from_media_bins": 600834048,
+      "media_events": 36672,
+      "max_hotspot_c": 42.42977753992784,
+      "peak_hbf_w": 64.50000000000003
+    }
+  },
+  "limits": [
+    "Does not rehash model weight tensors or all historical binary components.",
+    "Stored fingerprints are historical unless their explicit constituent path/hash pair is verified here.",
+    "No GPU or new physical/thermal experiment executed."
+  ]
+}

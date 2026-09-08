@@ -1,0 +1,36 @@
+{
+  "status": "SUPERSEDED_PLAN_ONLY",
+  "frozen_from_current_head": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "records": [
+    {
+      "path": "docs/49-new-evaluation-plan.md",
+      "historical_copy": "docs/49-eval-audit/history/20260905/49-new-evaluation-plan.md",
+      "sha256": "f042314c677d8db8a81b6595efc90877f963fc110096ceec78888cf7001a6458"
+    },
+    {
+      "path": "docs/49-eval-audit/execution-plan.md",
+      "historical_copy": "docs/49-eval-audit/history/20260905/execution-plan.md",
+      "sha256": "c753c819509c51ac1ecec6f4f09ebc8246e34ea76212f11c2fa0129b3aea0edf"
+    },
+    {
+      "path": "docs/49-eval-audit/figure-plan.md",
+      "historical_copy": "docs/49-eval-audit/history/20260905/figure-plan.md",
+      "sha256": "9ee5f72c38888c21711feafea2a91f5bf6cc182dce372bd77ad3dd7e8e33a270"
+    },
+    {
+      "path": "docs/49-eval-audit/run-matrix.csv",
+      "historical_copy": "docs/49-eval-audit/history/20260905/run-matrix.csv",
+      "sha256": "33de7cad2731d611a92a4be0852aa98b914f62e227a720d3e3e0eb007be8462e"
+    },
+    {
+      "path": "docs/49-eval-audit/claim-gates.md",
+      "historical_copy": "docs/49-eval-audit/history/20260905/claim-gates.md",
+      "sha256": "6f954a719b7ff7f2fc2c32109071d0f52df3276099cd3c2e6a3112ac32cd3aaf"
+    },
+    {
+      "path": "docs/49-eval-audit/result-schema.md",
+      "historical_copy": "docs/49-eval-audit/history/20260905/result-schema.md",
+      "sha256": "e68084c0db982418223c8a11aa71dad4b9542fd97949429adeb4fb01c0b12f5d"
+    }
+  ]
+}

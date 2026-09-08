@@ -1,0 +1,46 @@
+{
+  "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "files": {
+    "eq1-audit.md": {
+      "bytes": 17522,
+      "sha256": "3d69d86bd64077e0be67161b84bf91facadbf860382fe48fa865e328a400b5b0"
+    },
+    "eq1-build-complete.json": {
+      "bytes": 1432,
+      "sha256": "f1d23b5e7c5a31f02027237d5d5feea8c90011ccf1999dc0d894f1deee602a4f"
+    },
+    "eq1-build.json": {
+      "bytes": 1833,
+      "sha256": "b700b604f8021511322e78701aab63f5b07780e93439b971c449fa52b7aa16d2"
+    },
+    "eq1-delta-stall-oracle.json": {
+      "bytes": 1011,
+      "sha256": "644a2665f01692664dbf04b7e7fa0a8ac797dc218534ef7747dfc1d11ce21d53"
+    },
+    "eq1-donor-snippets.json": {
+      "bytes": 9729,
+      "sha256": "61fa57b473d49e570434a84a9d390ed0c69be6e0ca5aa99ff11b00b6c73111ca"
+    },
+    "eq1-emitter-tests.json": {
+      "bytes": 2486,
+      "sha256": "67e7020c5a04372740a7f46e6ba768d6bd8b88e4b0358d62ab2e42c2af9fc5fa"
+    },
+    "eq1-entrypoints.json": {
+      "bytes": 3407,
+      "sha256": "192b7a1e79e75435feaa37ff309a264912e74a1d1ecf3295eaaf029540a543dc"
+    },
+    "eq1-experiments.json": {
+      "bytes": 12675,
+      "sha256": "2e3fd0ec01c52cb58d82a0d225306d39871099bd7e5efaa1312f37b6483c1036"
+    },
+    "eq1-future-driver": {
+      "bytes": 1380280,
+      "sha256": "c0e03016205a6887e24da97eec315ceeaa4deb1676eddb0775dae86a5bd9bca9"
+    },
+    "eq1-history-refs.json": {
+      "bytes": 1419,
+      "sha256": "dc6fa31e296efb0614a8c304fd68301e3a0876ed1f491f05408f04a66c37ba11"
+    }
+  },
+  "gpu_executed": false
+}

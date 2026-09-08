@@ -1,0 +1,12 @@
+{
+  "state": "PASS",
+  "errors": [],
+  "command_count": 9,
+  "model_shards": 16,
+  "small_tensor_bytes_loaded": 4096,
+  "tensor_sha256": "c6755a7c1b685b73df10de5f89d1d4266be41b21f0ed0f1c1aa95104f525a9d1",
+  "external_links_checked": 67,
+  "preexisting_dangling_links": 0,
+  "inference_executed": false,
+  "normalization": "allow recorded physical-prefix mapping; ldd ASLR addresses ignored only for ldd"
+}

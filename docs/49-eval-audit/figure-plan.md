@@ -1,34 +1,37 @@
-# Figure contracts and preview QA
+# 新EQ图契约，2026-09-08
 
-所有图使用同一 `render_figures.py` 中 plotting functions；CSV/JSON 决定坐标、series、数值、provenance。mock generator 完全独立于 renderer；正式运行只替换输入和 manifest，不改 plotting code。每 panel 是冻结切片，其余矩阵维度留在 CSV/exporter 或明确独立 series，禁止暗中平均不同 profiles。全部结果是 long-form metrics，parity 通过相同 cell/run 精确关联，不以两个排序列表 zip。
+定义见[主规范](../49-new-evaluation-plan.md)，科学判定见[gates](claim-gates.md)，cell状态见[matrix](run-matrix.csv)。此处规定待产出图，不声称已实现。旧六图renderer/MOCK及[旧图契约](history/20260905/figure-plan.md)保持历史用途。新字段/panel/统计扩展是[独立补丁](minimal-followups.md)，完成前新图为BLOCKED_RENDERER。
 
-## Six figures
+## 旧新映射
 
-| Figure | EQ / question | Family / panels | Data grain and minimum | Output |
-|---|---|---|---|---|
-| fig-e1-hardware-fidelity | EQ1，observable delay/flash service 是否对齐 | Relationship + benchmark；GPU y=x；SSD size P50、QD P99/rate/IOPS；三臂 delta parity | GPU7 D ×10 reps/固定warp-occupancy；storage8 size、8 QD；三臂≥8 paired cells | PNG/PDF/SVG，3×2 panels |
-| fig-e2-async-semantics | EQ2，等待是否只在必要时支付 | Lines + oracle；consume residual、issue+consume total、new residual parity | 7 W/D、5 D、3模式、4 op（cp.async条件）；markers 区分四 op | PNG/PDF/SVG，3×1 |
-| fig-e3-hbf-feasibility | EQ3，rho×service 的边界 | Matrix + contour；6个 tR 切片 | 每 panel6 rho×6N，paired service metric；不完整网格拒绝 | PNG/PDF/SVG，3×2 |
-| fig-e4-expert-union | EQ4，路由与并发 | Lines：union、entropy、Jaccard | 8 active B；real/shuffled/null；所有 E/k 来自输入 | PNG/PDF/SVG，3×1 |
-| fig-e5-workload-boundary | EQ4，sparsity/prefetch/concurrency | Lines：MoE、capacity-dense、compute-dense、concurrency service boundary | 6rho×3策略；8B×3策略；其它变量冻结 | PNG/PDF/SVG，2×2 |
-| fig-e6-robustness | EQ3/4 supporting appendix | Lines：参数敏感性、byte coverage、extra traffic | 6tR×3 assumption；8B 的coverage/traffic | PNG/PDF/SVG，3×1 |
+| 新图/EQ | 旧图去向 | 轴与分面 | 数据与门 |
+|---|---|---|---|
+| M1/EQ1 原生锚点 | fig-e1 GPU部分 | actualW / native与目标exposed stall；L0/L1、warm/cold切片 | native/zero/old/deferred、SASS首use；NQ1/NQ2；mapped-host仅合法LDG域 |
+| M2/EQ1 增量stall | fig-e2重构 | W(us) / DeltaS(us)，叠加[L1-W]+-[L0-W]+；issue_block/consume_residual/total_exposed附panel | 三种W区间、L0/L1/D定义、独立paired launches；consume小不隐藏issue付款 |
+| M3/EQ1 并发争用 | fig-e1/e2扩展 | achieved MLP/QD/occupancy / extra stall误差与完成吞吐 | NQ3；held-out、register/spill/shared/访问/sector/queue；未知域BLOCKED |
+| M4/EQ1 pipeline | fig-e2扩展 | actualstage/window/合法fanout / useful completion或exposed stall | NQ4；G→S/S→G/phase/group/descriptor，source fetch与fabric bytes分账；当前BLOCKED_RUNTIME |
+| T1/EQ2 持续吞吐 | 新图 | 模型时间(s) / 完成有用bytes/window所得GB/s；应用门过后另画tokens/s | NT0–NT4；三臂身份/同初态/原始完成账本，不用admission代替完成 |
+| T2/EQ2 hotspot | 新图，与T1同轴 | 模型时间(s) / layer热点T(°C) | shadow/active同模型；off无温度，不造平线；标threshold/hysteresis/触限恢复/Tmax/duty/uncertainty |
+| C1/EQ3 物理容量 | fig-e3拆分 | r=C_HBF/C_HBM / slowdown或完成service；fixed-total/fixed-HBM与capacity-only/coupled分面 | NC1/NC3；profile几何/N映射；r非rho，新增容量未用可平线 |
+| C2/EQ3 内部分配 | fig-e3拆分 | kappa/beta合法单纯形，颜色decode_norm或有用service；固定r/profile/thermal | NC2/NC3，真实KV/tile/stage下限；非法INFEASIBLE/缺实现BLOCKED，禁止跨不可行域插值 |
+| W1/EQ4 路由机制 | fig-e4 | actualB / union、entropy/Gini、Jaccard、reuse distance | G8/G9，逐layer/step真实E/k，real/shuffled/uniform-null，null假设明确 |
+| W2/EQ4 适用边界 | fig-e5 | actualB或有效驻留 / 5/10/20% slowdown服务边界 | G6–G10/NC；dense匹配与prefetch账本；纯预取匹配同demand并发 |
+| A1/附录 | fig-e1 SSD部分、fig-e6 | storage/calibration/held-out及profile/coverage/traffic敏感性 | G3/G4；独立来源域与不确定性，不作主文物理HBF真实性论证 |
 
-图3纵轴必须来自 `service_gbs` 同 cell 结果；不是 renderer 从 N/tR 推断出的“测量”。color 是 `decode_norm`，等高线1.05/1.10/1.20仅在数据范围内存在时绘制，不会为了好看伪造不存在的 crossing。所有 hypothetical HBF panels 自动注明参数为假设；formal legend/标题保留 PROJECTED。配置超出已校准 validity domain 时 exporter 必须标 PROJECTED，renderer 不负责科学判定。
+## T1/T2数据形状
 
-图2特别保留消费 residual 与总 exposed stall 的区别：old issue-stall 的 consume residual 可以≈0，总 stall/D 才可能≈1。图2(a)(b)默认展示 tma_g2s、D=5us 切片；完整四 op 与 D 在(c)/结果矩阵；预期趋势不是实验结论。cp.async 暂为 conditional/mock，正式数据不能补一个不存在的实测点。
+配对键至少source/env/model/physics-inputs/ROM/geometry/cooling/initial-temperature/seed/raw-demand哈希和replicate；每臂完整package-profile SHA另外保存，不作跨臂相等条件。字段有time_ns、window_start/end、thermal_mode、offered/useful_completed/refresh/read-retry bytes、queue、policy/throttle/hysteresis/duty及单位；T2另有layer/hotspot位置与temperature_C。GPU/HBM/HBF energy分账。旧analyzer只合计media read/program物理bytes，不等于T1 completion useful bytes；此输出缺口阻塞正式T1。
 
-## Visual specification
+固定arrival replay同原始arrival；live反馈可以改变后续arrival，须保留依赖与实际arrival并作为机制结果。off无温度；shadow为无反馈温度反事实。旧prototype stage=off仍算温度，保留旧名/语义，不画成新真off。缺臂图明确缺失，不称完整三臂。
 
-- 静态科研 artifact，白底、DejaVu Sans、弱网格、线宽一致。单图series≤5根颜色，marker/空心/虚线同时区分，不靠颜色独立表达语义。
-- GPU delay/parity 线性轴，QD/B/size/rho 用对数显示并保留单位；latency us，storage尺寸KiB，service GB/s（十进制）。百分数等高线明确是 normalized decode slowdown。
-- 主图是描述性标题，不在 mock 上写“正确/提高/可行”的结论。mock 顶部与中央自动 `MOCK DATA — NOT MEASURED`，不可通过省略 `--watermark` 去掉。
-- 误差条按 input replicate bootstrap；MOCK CI 只验证布局。single replicate 不编造 CI，说明无 uncertainty estimate。真实按 run/prompt 做预聚合后输入，不能把层或请求伪装为独立 run。
-- 当前是一组可审阅的完整图版，不宣称25个panel已经排进旧doc47的2页预算。论文排版时6图各挑主切片，其余同名图版进appendix；本轮不修改 private paper submodule。
+horizon至少5tau+统计窗口，核对温度斜率、queue漂移与served/offered守恒。窗长采集前冻结且三臂相同，不平滑掉反馈周期。nominal与test-only stress分面，8Hi/16Hi独立geometry来源；replicate CI与参数不确定区间分开。合理参数无差异如实画重合曲线。
 
-## Preview and replacement
+## 统计与拒绝规则
 
-[图1](../../figures/mock/fig-e1-hardware-fidelity.png) · [图2](../../figures/mock/fig-e2-async-semantics.png) · [图3](../../figures/mock/fig-e3-hbf-feasibility.png) · [图4](../../figures/mock/fig-e4-expert-union.png) · [图5](../../figures/mock/fig-e5-workload-boundary.png) · [图6](../../figures/mock/fig-e6-robustness.png)。
+按[结果契约](result-schema.md)long-form与明确cell/replicate/context配对，不排序zip。缺配对/单位/source/hash/时钟域/profile/unknown说明拒绝；禁止跨model/profile/geometry/time_scale/thermal-mode暗中平均。兼容MEASURED/VALIDATED_MODEL/PROJECTED/MOCK并记录evidence_kind/validation_scope；HBF外推保留PROJECTED标签。
 
-完整矩阵与论文切片分离：exporter 选择 figure/panel/series，保留其它条件。改变模型、真实 E/k、profile、replicate 数、延迟值，只改变数据。图外辅助指标（checksum、coverage、bytes、queue等）同 CSV 可以不画，但不得丢失 provenance。renderer 明确报错：缺必需 panel、缺 x/y sibling metric、重复 cell、混入不同 frozen context、缺失 heatmap 格；不能默默丢行后输出“完整”论文图。
+service_gbs由完成bytes/时间计算，不由renderer按N/tR推“测量”。1.05/1.10/1.20 contour只在可行有效数据范围有crossing时画；无crossing不外推精确边界。未实现轴不用旧rho/workspace换名。近零用绝对ns/us误差、偏差和分位数，不用MAPE。paired CI基于独立run/prompt，一次无CI；warp lanes/层/请求非独立重复。探索与held-out确认点区分；profiler与计时run分离，不把counter当逐条stall精确归因。
 
-当前预览检查：六张 PNG 已查看，坐标单位/marker/图例/水印和5/10/20%轮廓可读，PDF与SVG由同一figure导出。预览数量不足/过密是布局输入问题，不是实验发现。正式 renderer manifest 保存输入和代码hash、依赖版本、各panel点数与最小replicate数。
+科研图导出PNG/PDF/SVG，单位/对数轴明确，marker/线型同时区分，描述性标题不预设结论。MOCK仅布局并强水印，不进正式输出；本轮不造新MOCK图填缺口。manifest记录输入hash、renderer版本/依赖、panel点数、replicate与过滤拒绝原因。
+
+Thermal pair-key clarification: use shared `physics_inputs_sha256`/ROM/media/demand hashes; retain each arm's full package-profile SHA separately. The existing shadow/active package differs only by explicit `name` and `stage`, so full package SHA is not an equality join key. Exclusion rules are recorded; geometry/material/cooling/energy/threshold changes are never masked as arm differences.

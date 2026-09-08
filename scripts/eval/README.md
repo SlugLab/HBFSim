@@ -3,7 +3,6 @@
 Entry point: `docs/49-new-evaluation-plan.md`. Tested with Python 3.13.9, Matplotlib 3.10.8, NumPy 2.2.6. No network services or model download are required for previews.
 
 ```bash
-python scripts/eval/generate_run_matrix.py
 python scripts/eval/generate_mock.py
 python scripts/eval/validate_results.py --input results/mock/eval.csv
 python scripts/eval/render_figures.py --input results/mock/eval.csv --out figures/mock --watermark
@@ -22,3 +21,5 @@ python scripts/eval/render_figures.py --input results/measured/eval.csv --out fi
 Real CSV/JSON rows and a matching raw-artifact manifest are prerequisites. MOCK rows always get a watermark; a final output path or strict flag rejects them before writing. The renderer checks schema and artifact hashes, not the truth of scientific claims. See `docs/49-eval-audit/claim-gates.md`.
 
 No new runtime experiments run automatically. The run matrix is a costed proposal, not a job queue. The test suite creates explicitly synthetic PROJECTED test records in temporary directories only; these are neither measurements nor research predictions and are deleted after the tests.
+
+The existing `generate_run_matrix.py` is the historical 2026-09-05 generator. It now requires an explicit fresh `--output` path and refuses overwrite, so it cannot silently replace the current matrix or a frozen snapshot. Reproduce source-bound historical numbers in an isolated historical checkout. The revised campaign CSV is a reviewed planning artifact; no long jobs are registered or launched by this documentation update. The [archived generation script](../../docs/49-eval-audit/review-evidence/20260908/build_replan_matrix.py) retains its original host paths and is an audit artifact, not a portable runner. See the [review guide](../../docs/49-eval-audit/REVIEW_GUIDE.md).

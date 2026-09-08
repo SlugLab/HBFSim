@@ -1,0 +1,23 @@
+{
+  "mount": {
+    "target": "/mnt/disk0",
+    "source": "/dev/nvme2n1p1",
+    "uuid": "37be6892-a8aa-4fae-885d-5feed3b28fab",
+    "options": "rw,relatime"
+  },
+  "free_bytes": 548464287744,
+  "reserve_bytes": 137438953472,
+  "output_bound_bytes": 68719476736,
+  "environment": {
+    "TMPDIR": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/tmp",
+    "HF_HOME": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/hf",
+    "XDG_CACHE_HOME": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/xdg",
+    "TRITON_CACHE_DIR": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/triton",
+    "CUDA_CACHE_PATH": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/cuda",
+    "TORCH_EXTENSIONS_DIR": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/torch-extensions",
+    "NUMBA_CACHE_DIR": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/numba",
+    "PIP_CACHE_DIR": "/mnt/disk0/hbfsim-exp/.task-runtime/current-254d65a-cuda130-env20260908/pip"
+  },
+  "automatic_restart": false,
+  "state": "GUARD_PASS"
+}

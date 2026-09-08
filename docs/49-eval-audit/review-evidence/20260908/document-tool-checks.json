@@ -1,0 +1,56 @@
+[
+  {
+    "name": "matrix_resource",
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "test_run_matrix.MatrixRunnerTests.test_matrix_resource_classification_is_complete"
+    ],
+    "exit_code": 0,
+    "expected_exit": 0,
+    "pass": true,
+    "wall_seconds": 0.46642315699136816
+  },
+  {
+    "name": "legacy_generator_requires_output",
+    "argv": [
+      "python3",
+      "scripts/eval/generate_run_matrix.py"
+    ],
+    "exit_code": 2,
+    "expected_exit": 2,
+    "pass": true,
+    "wall_seconds": 0.11473726699477993
+  },
+  {
+    "name": "legacy_generator_refuses_overwrite",
+    "argv": [
+      "python3",
+      "scripts/eval/generate_run_matrix.py",
+      "--output",
+      "docs/49-eval-audit/run-matrix.csv"
+    ],
+    "exit_code": 2,
+    "expected_exit": 2,
+    "pass": true,
+    "wall_seconds": 0.11579075001645833
+  },
+  {
+    "name": "legacy_pipeline",
+    "argv": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "scripts/eval",
+      "-p",
+      "test_eval_pipeline.py"
+    ],
+    "exit_code": 0,
+    "expected_exit": 0,
+    "pass": true,
+    "wall_seconds": 9.872914753999794
+  }
+]

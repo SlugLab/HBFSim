@@ -1,0 +1,143 @@
+{
+  "scope": "TEST_ONLY_CPU_CONTRACT_VALIDATION_NOT_EXPERIMENT_RESULT",
+  "gpu_used": false,
+  "new_capture": false,
+  "checkpoint_weight_payload_read": false,
+  "limits": {
+    "one_python_process": true,
+    "cpu_affinity": [
+      0
+    ],
+    "wall_seconds": 120,
+    "address_space_bytes": 1073741824,
+    "cpu_seconds": 120,
+    "per_file_output_bytes": 1048576,
+    "total_output_budget_bytes": 10485760
+  },
+  "python": "/opt/miniconda3/bin/python3",
+  "python_version": "3.13.9 | packaged by Anaconda, Inc. | (main, Oct 21 2025, 19:16:10) [GCC 11.2.0]",
+  "tests_run": 27,
+  "successful": true,
+  "failures": 0,
+  "errors": 0,
+  "skipped": [],
+  "omitted_existing_test": "routing CLI test creates a subprocess; omitted to keep one-process scope",
+  "test_only_extra_budget_oracle_passed": true,
+  "hash_file_count": 36,
+  "unchanged_before_after": true,
+  "artifact_binding_checks": [
+    {
+      "binding": "composition inventory",
+      "matches": true
+    },
+    {
+      "binding": "member-0000",
+      "matches": true
+    },
+    {
+      "binding": "member-0001",
+      "matches": true
+    },
+    {
+      "binding": "member-0002",
+      "matches": true
+    },
+    {
+      "binding": "member-0003",
+      "matches": true
+    },
+    {
+      "binding": "member-0004",
+      "matches": true
+    },
+    {
+      "binding": "member-0005",
+      "matches": true
+    },
+    {
+      "binding": "member-0006",
+      "matches": true
+    },
+    {
+      "binding": "member-0007",
+      "matches": true
+    },
+    {
+      "binding": "member-0008",
+      "matches": true
+    },
+    {
+      "binding": "member-0009",
+      "matches": true
+    },
+    {
+      "binding": "member-0010",
+      "matches": true
+    },
+    {
+      "binding": "member-0011",
+      "matches": true
+    },
+    {
+      "binding": "member-0012",
+      "matches": true
+    },
+    {
+      "binding": "member-0013",
+      "matches": true
+    },
+    {
+      "binding": "member-0014",
+      "matches": true
+    },
+    {
+      "binding": "member-0015",
+      "matches": true
+    },
+    {
+      "binding": "metrics real",
+      "matches": true
+    },
+    {
+      "binding": "metrics shuffled",
+      "matches": true
+    },
+    {
+      "binding": "metrics null",
+      "matches": true
+    },
+    {
+      "binding": "HF receipt_sha256",
+      "matches": true
+    },
+    {
+      "binding": "HF complete_sha256",
+      "matches": true
+    },
+    {
+      "binding": "HF tensor_table_sha256",
+      "matches": true
+    },
+    {
+      "binding": "HF config_artifact_sha256",
+      "matches": true
+    }
+  ],
+  "artifact_bindings_match": true,
+  "elapsed_wall_seconds": 0.8282219730026554,
+  "peak_rss_bytes": 85291008,
+  "child_cpu_seconds": 0.039204,
+  "inventory_accounting": {
+    "layers": 48,
+    "E": 128,
+    "k": 8,
+    "page_bytes": 16384,
+    "eligible_expert_bytes": 57982058496,
+    "resident_non_offloaded_bytes": 3082186752,
+    "tensor_bytes": 61064245248,
+    "weight_dtype": "BF16",
+    "payload_identity_status": "HISTORICAL_ONLY_NOT_CURRENTLY_AUTHENTICATED",
+    "hardware_validated": false,
+    "scientific_validation_passed": false
+  }
+}

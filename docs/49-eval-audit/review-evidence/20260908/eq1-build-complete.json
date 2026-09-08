@@ -1,0 +1,28 @@
+{
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-O0",
+    "-I/root/hbfsim-exp/eval-base-integration/src/ptxpass_hbf",
+    "/root/hbfsim-exp/eval-base-integration/tests/cpu/ptx_future_emit_driver.cpp",
+    "/root/hbfsim-exp/eval-base-integration/src/ptxpass_hbf/ptx_ir.cpp",
+    "/root/hbfsim-exp/eval-base-integration/src/ptxpass_hbf/ptx_async_op.cpp",
+    "/root/hbfsim-exp/eval-base-integration/src/ptxpass_hbf/ptx_analysis.cpp",
+    "/root/hbfsim-exp/eval-base-integration/src/ptxpass_hbf/future_transform.cpp",
+    "-o",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/eq1-future-driver"
+  ],
+  "returncode": 0,
+  "elapsed_s": 11.79860099797952,
+  "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "source_hashes": {
+    "tests/cpu/ptx_future_emit_driver.cpp": "944164072361067bcce837370b58ec9ac378124ac21b5b0c4d6b9fc56e0e03f6",
+    "src/ptxpass_hbf/ptx_ir.cpp": "9eb4db59563a70e1a4d4bc1f51a91f18f2f78914b2644984b1b5f0e3c46d6ae3",
+    "src/ptxpass_hbf/ptx_async_op.cpp": "0c58f51dc91831ff2222ad4fe419433d93296eb4f72998d35ce762aeb2eb4bf1",
+    "src/ptxpass_hbf/ptx_analysis.cpp": "7c29a83ef37550aa1a29a2a5253c2d5559fb24191d1a2d3d330dd16629716fc1",
+    "src/ptxpass_hbf/future_transform.cpp": "9b40e79a637f5c5c4ecc1a5398d3890a91267ba207b1e47a560475d0b3decb03"
+  },
+  "stdout": "",
+  "stderr": "",
+  "scope": "CPU compile-only, no GPU; added required existing async parser translation unit after linker diagnostic"
+}

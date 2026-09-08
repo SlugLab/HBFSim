@@ -1,0 +1,562 @@
+{
+  "state": "VERIFIED_QUIESCENT_COPY",
+  "mount": {
+    "target": "/mnt/disk0",
+    "source": "/dev/nvme2n1p1",
+    "uuid": "37be6892-a8aa-4fae-885d-5feed3b28fab",
+    "options": "rw,relatime"
+  },
+  "commands": [
+    {
+      "stage": "final-sync",
+      "argv": [
+        "rsync",
+        "-aHAXS",
+        "--numeric-ids",
+        "--stats",
+        "--",
+        "/root/hbfsim-exp/",
+        "/mnt/disk0/hbfsim-exp/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 17.085033412004123,
+      "log": "/tmp/hbfsim-migration-final-sync-20260908.log",
+      "log_bytes": 605
+    },
+    {
+      "stage": "checksum",
+      "argv": [
+        "rsync",
+        "-aHAXS",
+        "--numeric-ids",
+        "--checksum",
+        "--dry-run",
+        "--itemize-changes",
+        "--",
+        "/root/hbfsim-exp/",
+        "/mnt/disk0/hbfsim-exp/"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 218.44445436800015,
+      "log": "/tmp/hbfsim-migration-checksum-20260908.log",
+      "log_bytes": 0
+    }
+  ],
+  "errors": [],
+  "time_started": 1788865481.8900013,
+  "source_entries": 615503,
+  "target_entries": 615504,
+  "extra_paths": [
+    ".migration-owner-20260908.json"
+  ],
+  "missing_paths": [],
+  "counts": {
+    "16384": 92022,
+    "32768": 521293,
+    "40960": 2187,
+    "4096": 1
+  },
+  "sparse": [
+    {
+      "path": "tools/hbm-power/sources/fpga/DRAMBender/prebuilt/XCU55/XCU55_latest_600MHz_chip0.bit",
+      "source_allocated": 47816704,
+      "target_allocated": 30597120,
+      "size": 84989271
+    },
+    {
+      "path": "tools/hbm-power/sources/fpga/DRAMBender/prebuilt/XCU55/XCU55_latest_600MHz_chip1.bit",
+      "source_allocated": 48603136,
+      "target_allocated": 30982144,
+      "size": 84989271
+    },
+    {
+      "path": "tools/hbm-power/sources/fpga/DRAMBender/prebuilt/XCU55/bram_tracer_chip0.bit",
+      "source_allocated": 47980544,
+      "target_allocated": 31043584,
+      "size": 84989271
+    },
+    {
+      "path": "tools/hbm-power/sources/fpga/DRAMBender/prebuilt/XCU55/bram_tracer_chip1.bit",
+      "source_allocated": 49094656,
+      "target_allocated": 32182272,
+      "size": 84989271
+    },
+    {
+      "path": "tools/hbm-power/sources/fpga/DRAMBender/prebuilt/XCU55/XCU55_no_hbm.bit",
+      "source_allocated": 48095232,
+      "target_allocated": 29802496,
+      "size": 84989271
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/frozen-trace-verifier-spec-attempt-001/mock-fixture/checkpoint/model-00001-of-00002.safetensors",
+      "source_allocated": 4096,
+      "target_allocated": 4096,
+      "size": 1248456
+    }
+  ],
+  "key_hash_checks": [
+    {
+      "path": "results/hbm-hbf-capacity-qwen/20260901T023111Z/e6/e6-a0-a3-delta-provenance.json",
+      "source_sha256": "e244d60fa735147d5c7cc8c21b0fc669b67e257317691e80fcbb826b68bd5b32",
+      "target_sha256": "e244d60fa735147d5c7cc8c21b0fc669b67e257317691e80fcbb826b68bd5b32",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/cell-c-002/core-provenance.json",
+      "source_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "target_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/w0-001/workload-provenance.json",
+      "source_sha256": "85ded655a961ae03bafbbb553dc798d3ef3a18da284e588ee398eebec10a217a",
+      "target_sha256": "85ded655a961ae03bafbbb553dc798d3ef3a18da284e588ee398eebec10a217a",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/legacy-0-001/legacy-provenance.json",
+      "source_sha256": "af5bd20d65d3663ffce92420755133e4bbd0df126e31d82cf06c15fd6b1287ae",
+      "target_sha256": "af5bd20d65d3663ffce92420755133e4bbd0df126e31d82cf06c15fd6b1287ae",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/llama-b-001/llama-provenance.json",
+      "source_sha256": "c1de1e067e867044f7e64e569ad45680a1719df926a98a6eeffc58e92712919e",
+      "target_sha256": "c1de1e067e867044f7e64e569ad45680a1719df926a98a6eeffc58e92712919e",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/llama-a-001/llama-provenance.json",
+      "source_sha256": "922bbcf9d375e3e10b80b2a2b536f9634a498ec8a4756713ba237054472270c5",
+      "target_sha256": "922bbcf9d375e3e10b80b2a2b536f9634a498ec8a4756713ba237054472270c5",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/cell-a-023/core-provenance.json",
+      "source_sha256": "a2acd6b679e9233e0813d3d21d307d959139e72acd90de9a0927ac309c728546",
+      "target_sha256": "a2acd6b679e9233e0813d3d21d307d959139e72acd90de9a0927ac309c728546",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/w3-001/workload-provenance.json",
+      "source_sha256": "86f2ea535764ab38576eeb6a9960d9e83007e9fbc359c0d213113eff6b412865",
+      "target_sha256": "86f2ea535764ab38576eeb6a9960d9e83007e9fbc359c0d213113eff6b412865",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/w2-001/workload-provenance.json",
+      "source_sha256": "3492e1e64950839637c77f09e7ecddd2c50dbcc898737f91fb3b24cb76d927ba",
+      "target_sha256": "3492e1e64950839637c77f09e7ecddd2c50dbcc898737f91fb3b24cb76d927ba",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/app0-002/app0-provenance.json",
+      "source_sha256": "23c32a5b4bf76233c29e9f626a525308d14076b5e81d1491645730164fd77658",
+      "target_sha256": "23c32a5b4bf76233c29e9f626a525308d14076b5e81d1491645730164fd77658",
+      "matches_original": true
+    },
+    {
+      "path": "prototype-revalidation/results/w1-001/workload-provenance.json",
+      "source_sha256": "891e64566930beff9730d598ba09872d2044c9170dcd3ff2d7f90e384b6ca1ae",
+      "target_sha256": "891e64566930beff9730d598ba09872d2044c9170dcd3ff2d7f90e384b6ca1ae",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/vllm/cell-c-core-provenance.json",
+      "source_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "target_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/vllm/cell-a-core-provenance.json",
+      "source_sha256": "a2acd6b679e9233e0813d3d21d307d959139e72acd90de9a0927ac309c728546",
+      "target_sha256": "a2acd6b679e9233e0813d3d21d307d959139e72acd90de9a0927ac309c728546",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/app0/app0-provenance.json",
+      "source_sha256": "23c32a5b4bf76233c29e9f626a525308d14076b5e81d1491645730164fd77658",
+      "target_sha256": "23c32a5b4bf76233c29e9f626a525308d14076b5e81d1491645730164fd77658",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/legacy/legacy-provenance.json",
+      "source_sha256": "af5bd20d65d3663ffce92420755133e4bbd0df126e31d82cf06c15fd6b1287ae",
+      "target_sha256": "af5bd20d65d3663ffce92420755133e4bbd0df126e31d82cf06c15fd6b1287ae",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/llama/llama-a-provenance.json",
+      "source_sha256": "922bbcf9d375e3e10b80b2a2b536f9634a498ec8a4756713ba237054472270c5",
+      "target_sha256": "922bbcf9d375e3e10b80b2a2b536f9634a498ec8a4756713ba237054472270c5",
+      "matches_original": true
+    },
+    {
+      "path": "exports/hbfsim-gpt-analysis-bundle-20260830-v1/results/llama/llama-b-provenance.json",
+      "source_sha256": "c1de1e067e867044f7e64e569ad45680a1719df926a98a6eeffc58e92712919e",
+      "target_sha256": "c1de1e067e867044f7e64e569ad45680a1719df926a98a6eeffc58e92712919e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-collector/provenance.json",
+      "source_sha256": "1daf2fd7de978e25ac5c159d789e28530ef55cfb3bf45b6d43cc2ce3dfb936f3",
+      "target_sha256": "1daf2fd7de978e25ac5c159d789e28530ef55cfb3bf45b6d43cc2ce3dfb936f3",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/mqsim-observation/provenance.json",
+      "source_sha256": "6970e955ba0fd73b182671f04668cb3e1a67db0b870246372e3b353bd44392c6",
+      "target_sha256": "6970e955ba0fd73b182671f04668cb3e1a67db0b870246372e3b353bd44392c6",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-arrivals/provenance.json",
+      "source_sha256": "304f0e13e3728d491ed8ec71bfd7faf98787064410d976a4dcbb42bf3d46a524",
+      "target_sha256": "304f0e13e3728d491ed8ec71bfd7faf98787064410d976a4dcbb42bf3d46a524",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/routing-metrics/provenance.json",
+      "source_sha256": "3af1514c8c9f81051ab411f90449e21e636ad58615a5ff159d4e8494da7a6d4d",
+      "target_sha256": "3af1514c8c9f81051ab411f90449e21e636ad58615a5ff159d4e8494da7a6d4d",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-unit/handoff/attempt-002/provenance.json",
+      "source_sha256": "e6feed2d4ec4a91cae73096154cf56a7f2a160a89433f9e1660cb5deb2aa7561",
+      "target_sha256": "e6feed2d4ec4a91cae73096154cf56a7f2a160a89433f9e1660cb5deb2aa7561",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-unit/handoff/attempt-003/provenance.json",
+      "source_sha256": "6c32e124b6f02f0eaffc953e93d6cfef96960369210b87ad102f68ab928f901c",
+      "target_sha256": "6c32e124b6f02f0eaffc953e93d6cfef96960369210b87ad102f68ab928f901c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-unit/handoff/attempt-001/provenance.json",
+      "source_sha256": "f8c04a91d2d82021f7e522960c4e62f341c14d8770338768fc03f4ef402eae60",
+      "target_sha256": "f8c04a91d2d82021f7e522960c4e62f341c14d8770338768fc03f4ef402eae60",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-unit/quality-cooperative-attempt-001/provenance.json",
+      "source_sha256": "c652eebbfe096bd9a7b27b9f86b533047cf3f02af13862f90fa9fdd17e1f784f",
+      "target_sha256": "c652eebbfe096bd9a7b27b9f86b533047cf3f02af13862f90fa9fdd17e1f784f",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-emitter/handoff/attempt-002/provenance.json",
+      "source_sha256": "3dd6257060db589e810d47f9c9356e2cb6712308575fa4d26a626273cef1b2f4",
+      "target_sha256": "3dd6257060db589e810d47f9c9356e2cb6712308575fa4d26a626273cef1b2f4",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-emitter/handoff/attempt-005/provenance.json",
+      "source_sha256": "3a046ca9cffd6ea71d3cb655f51dd0678d63eff2ba59b13ae11d13e1113ef21b",
+      "target_sha256": "3a046ca9cffd6ea71d3cb655f51dd0678d63eff2ba59b13ae11d13e1113ef21b",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-emitter/handoff/attempt-003/provenance.json",
+      "source_sha256": "6cb0b5f5be59d78a59f716b768acda48e59e8d02fa3a7d9bad0025d2c2bad27b",
+      "target_sha256": "6cb0b5f5be59d78a59f716b768acda48e59e8d02fa3a7d9bad0025d2c2bad27b",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-emitter/handoff/attempt-004/provenance.json",
+      "source_sha256": "1bd9667fc101330cfaa49a1e4d8078dfa63b01d8fca4356d707daf9697ab7550",
+      "target_sha256": "1bd9667fc101330cfaa49a1e4d8078dfa63b01d8fca4356d707daf9697ab7550",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c6-emitter/handoff/attempt-001/provenance.json",
+      "source_sha256": "1181e88a6dafd59e0a141a75a343d1ced004548013a4157c29e4e1f562c901e9",
+      "target_sha256": "1181e88a6dafd59e0a141a75a343d1ced004548013a4157c29e4e1f562c901e9",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/handoff/attempt-001/provenance.json",
+      "source_sha256": "22f67802ab17e3ef4e0949843419c01b94f6abf84c54e6edc86ef00bd406854d",
+      "target_sha256": "22f67802ab17e3ef4e0949843419c01b94f6abf84c54e6edc86ef00bd406854d",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c5-capability/attempt-005/failed-fixtures/.future-context-Li6QTW/profile.json",
+      "source_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "target_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c5-capability/attempt-005/failed-fixtures/.future-context-qpQj0J/profile.json",
+      "source_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "target_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c5-capability/attempt-005/failed-fixtures/.future-context-8hNbiI/profile.json",
+      "source_sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0",
+      "target_sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/timing-future-unit/c5-capability/attempt-005/failed-fixtures/.future-context-a3l7me/profile.json",
+      "source_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "target_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/mqsim-original-route-budget-attempt-001/real/inputs/profile.json",
+      "source_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "target_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/mqsim-horizon/provenance.json",
+      "source_sha256": "dfbe6a0c56d1c82b2d0bb383987c32639b86121e9d3bcc294d164c280ec02c36",
+      "target_sha256": "dfbe6a0c56d1c82b2d0bb383987c32639b86121e9d3bcc294d164c280ec02c36",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/base/provenance.json",
+      "source_sha256": "50d262b6eec446ca8652ecc014a486e3400293a24155c9a4a24f9d3512aa7b65",
+      "target_sha256": "50d262b6eec446ca8652ecc014a486e3400293a24155c9a4a24f9d3512aa7b65",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/routing-capture/provenance.json",
+      "source_sha256": "73b89157e7fe8c43593904497cc1b4f66113e6b0dc2364efb84016bb8c4b2488",
+      "target_sha256": "73b89157e7fe8c43593904497cc1b4f66113e6b0dc2364efb84016bb8c4b2488",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/prefetch-replay/provenance.json",
+      "source_sha256": "65774564678ee1185a14a50725a8095bf09ae14c4a675ad6293df41eb8df1a1c",
+      "target_sha256": "65774564678ee1185a14a50725a8095bf09ae14c4a675ad6293df41eb8df1a1c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/prefetch-replay/pilot-3-policy/provenance.json",
+      "source_sha256": "30b9d849406fc67013f6316a2d2b02928a6f0c76c49f380bc5cc550e714f47d0",
+      "target_sha256": "30b9d849406fc67013f6316a2d2b02928a6f0c76c49f380bc5cc550e714f47d0",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/prefetch-replay/pilot-3-policy/inputs/profile.json",
+      "source_sha256": "f7e8b0e2001729933019a02104f1ac859febab0cb60baa890dbb0604dd5bab7e",
+      "target_sha256": "f7e8b0e2001729933019a02104f1ac859febab0cb60baa890dbb0604dd5bab7e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/prefetch-replay/pilot-3-policy/attempt-001/inputs/profile.json",
+      "source_sha256": "f7e8b0e2001729933019a02104f1ac859febab0cb60baa890dbb0604dd5bab7e",
+      "target_sha256": "f7e8b0e2001729933019a02104f1ac859febab0cb60baa890dbb0604dd5bab7e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/known-delay/inputs/profile-provenance.json",
+      "source_sha256": "79542aa106155810253a86a26193fa43e6d9ea4f176d27887e7c99eea44b6226",
+      "target_sha256": "79542aa106155810253a86a26193fa43e6d9ea4f176d27887e7c99eea44b6226",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/fixed-observed/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/fixed-observed/pair/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/fixed-observed/pair/replay/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-policy/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-policy/pair/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-policy/pair/replay/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-observed/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-observed/pair/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/storage-pair/pilot-3-cell/closed-observed/pair/replay/profile.json",
+      "source_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "target_sha256": "48588759ba8d0bbff5a57e17c791bcab8a9c644f530438796d54d93db7b40a62",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-latency-sensitivity-attempt-006/latency12000/real/inputs/profile.json",
+      "source_sha256": "157e272fcdc2050ff99723920bd17b0c9ffa68077611966d8347064aea97c00f",
+      "target_sha256": "157e272fcdc2050ff99723920bd17b0c9ffa68077611966d8347064aea97c00f",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-latency-sensitivity-attempt-006/latency12000/shuffled/inputs/profile.json",
+      "source_sha256": "157e272fcdc2050ff99723920bd17b0c9ffa68077611966d8347064aea97c00f",
+      "target_sha256": "157e272fcdc2050ff99723920bd17b0c9ffa68077611966d8347064aea97c00f",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-latency-sensitivity-attempt-006/latency8000/real/inputs/profile.json",
+      "source_sha256": "5d199c8fad872b0b136c0045152606a3edcd38e8062bcbf8e38fc21c7bb9643b",
+      "target_sha256": "5d199c8fad872b0b136c0045152606a3edcd38e8062bcbf8e38fc21c7bb9643b",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-latency-sensitivity-attempt-006/latency8000/shuffled/inputs/profile.json",
+      "source_sha256": "5d199c8fad872b0b136c0045152606a3edcd38e8062bcbf8e38fc21c7bb9643b",
+      "target_sha256": "5d199c8fad872b0b136c0045152606a3edcd38e8062bcbf8e38fc21c7bb9643b",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/tuning-runtime-attempt-014/provenance.json",
+      "source_sha256": "8baeff191e82447a065a90d5d75fa3764fc1837bf1aa64f221b7ceb18fa207a8",
+      "target_sha256": "8baeff191e82447a065a90d5d75fa3764fc1837bf1aa64f221b7ceb18fa207a8",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-rho1-32-sensitivity-attempt-004/real/inputs/profile.json",
+      "source_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "target_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-rho1-32-sensitivity-attempt-004/shuffled/inputs/profile.json",
+      "source_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "target_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-attempt-002/real/inputs/profile.json",
+      "source_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "target_sha256": "63557d7355d431ea1473a4c263a4f5a38a30e99c35d15b7b289999502ab1281c",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-attempt-003/real/inputs/profile.json",
+      "source_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "target_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-attempt-003/shuffled/inputs/profile.json",
+      "source_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "target_sha256": "46e0a42c7dd2c688820668922c4f5c84a681c23fe1aeacc956f614918719344e",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-original-rho-matrix-attempt-005/rho1-2/real/inputs/profile.json",
+      "source_sha256": "e731c674ceaf654785681152cde422f75c4236ddea762d982aeea56dd71d4b98",
+      "target_sha256": "e731c674ceaf654785681152cde422f75c4236ddea762d982aeea56dd71d4b98",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-original-rho-matrix-attempt-005/rho1-2/shuffled/inputs/profile.json",
+      "source_sha256": "e731c674ceaf654785681152cde422f75c4236ddea762d982aeea56dd71d4b98",
+      "target_sha256": "e731c674ceaf654785681152cde422f75c4236ddea762d982aeea56dd71d4b98",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-original-rho-matrix-attempt-005/rho1/real/inputs/profile.json",
+      "source_sha256": "a57b0bdbfca39bac414cda8a3d5461d6f7f80bf288de1d61f8982bfee8704a43",
+      "target_sha256": "a57b0bdbfca39bac414cda8a3d5461d6f7f80bf288de1d61f8982bfee8704a43",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-original-rho-matrix-attempt-005/rho1/shuffled/inputs/profile.json",
+      "source_sha256": "a57b0bdbfca39bac414cda8a3d5461d6f7f80bf288de1d61f8982bfee8704a43",
+      "target_sha256": "a57b0bdbfca39bac414cda8a3d5461d6f7f80bf288de1d61f8982bfee8704a43",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/hf-routing-runner/tuning-runtime-attempt-009/provenance.json",
+      "source_sha256": "b7197eeff7e08c9f9bef8ac20b0c1b714b66d67a05ea13cdc27c4f11eb2ad167",
+      "target_sha256": "b7197eeff7e08c9f9bef8ac20b0c1b714b66d67a05ea13cdc27c4f11eb2ad167",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/concurrent-replay/provenance.json",
+      "source_sha256": "655965c163e86651b3920862e0f1f117a925ec59efeecd6a0f9d807bad54a587",
+      "target_sha256": "655965c163e86651b3920862e0f1f117a925ec59efeecd6a0f9d807bad54a587",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/concurrent-replay/pilot-3-cell/fixed-qd1/attempt/profile.json",
+      "source_sha256": "a8d927c652be1f942755bba707c5318d2a23d76e723d74689a8c44fecb02ee2a",
+      "target_sha256": "a8d927c652be1f942755bba707c5318d2a23d76e723d74689a8c44fecb02ee2a",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/concurrent-replay/pilot-3-cell/fixed-qd4/attempt/profile.json",
+      "source_sha256": "17a3807607905819bb14dd5b2dc794122691983ace7360e5f5eb2e2dea040eb1",
+      "target_sha256": "17a3807607905819bb14dd5b2dc794122691983ace7360e5f5eb2e2dea040eb1",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/concurrent-replay/pilot-3-cell/closed-qd4/attempt/profile.json",
+      "source_sha256": "17a3807607905819bb14dd5b2dc794122691983ace7360e5f5eb2e2dea040eb1",
+      "target_sha256": "17a3807607905819bb14dd5b2dc794122691983ace7360e5f5eb2e2dea040eb1",
+      "matches_original": true
+    },
+    {
+      "path": "eval-base-integration/results/gold/mqsim-service/provenance.json",
+      "source_sha256": "6fc211c7bd3eca64e9f35c78e0e156a3e537b4084b6a23d3be6f987e65e3ed97",
+      "target_sha256": "6fc211c7bd3eca64e9f35c78e0e156a3e537b4084b6a23d3be6f987e65e3ed97",
+      "matches_original": true
+    },
+    {
+      "path": "phase3/locks/baseline/rom.json",
+      "source_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "target_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "matches_original": true
+    },
+    {
+      "path": "phase3/locks/baseline/phase2-core-provenance.json",
+      "source_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "target_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "matches_original": true
+    },
+    {
+      "path": "phase3/deliverables/phase3-gpt-analysis-20260831-v1/phase3/locks/baseline/rom.json",
+      "source_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "target_sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "matches_original": true
+    },
+    {
+      "path": "phase3/deliverables/phase3-gpt-analysis-20260831-v1/phase3/locks/baseline/phase2-core-provenance.json",
+      "source_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "target_sha256": "3e00898c3d2ae6dfb3ae7c071c49960d9031aa7438353e4315797ff0a5c13f33",
+      "matches_original": true
+    }
+  ],
+  "wall_seconds": 306.88804817199707
+}

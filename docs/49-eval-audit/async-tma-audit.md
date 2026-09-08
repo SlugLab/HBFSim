@@ -1,5 +1,7 @@
 # Async / TMA audit — do not merge the candidate head
 
+> Historical frozen audit below. Current source and capability corrections are in [current-state-20260908.md](current-state-20260908.md) and [the canonical plan](../49-new-evaluation-plan.md). Current external versions and specification boundaries: [source research](review-evidence/20260908/source-research.md). Original historical findings retain their source SHA and are not silently renewed.
+
 审计对象 **S = feature/sm120-exact-stage1@f4dc28b2671c01939d98e4a968e6fb37b2e364d9**，对照 B = eval_base@fc829992ecdc3ca68881656722b67a31067c5d33。本文 [Sxx/Bxx](source-ledger.md) 给出逐条文件、函数和行段。结论：**已有可复用机制，但当前不可合并，也不满足完整 EQ2。**
 
 ## 1. PTX semantic boundary

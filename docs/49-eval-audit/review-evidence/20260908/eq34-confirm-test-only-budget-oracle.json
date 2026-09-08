@@ -1,0 +1,51 @@
+{
+  "scope": "TEST_ONLY_NOT_MODEL_EXPERIMENT",
+  "budget": {
+    "schema_version": 1,
+    "inventory_sha256": "c6f79aa7b3fae24c8f8d5a896b94350b78b476eae3df5ba12767164b57eb463e",
+    "fast_bytes": 1024,
+    "resident_non_offloaded_bytes": 32,
+    "active_sequences": 1,
+    "context_tokens": 1,
+    "kv_element_bytes": 1,
+    "kv_bytes": 8,
+    "workspace_bytes": 0,
+    "safety_bytes": 0,
+    "C_fast_effective": 984,
+    "page_aligned_effective_bytes": 976,
+    "fast_pages": 61,
+    "page_bytes": 16,
+    "W_HBF_eligible": 96,
+    "rho": 10.25,
+    "rho_requested": 10.25,
+    "achieved_rho": 1.0,
+    "rho_achieved": 1.0,
+    "budget_covered_bytes": 96,
+    "budget_fully_covered_experts": 4,
+    "selected_experts": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "placement_status": "BUDGET_FEASIBLE",
+    "unused_bytes": 856,
+    "packing_padding_bytes": 32,
+    "budget_order": "whole_experts_greedy_layer_then_expert; no partial expert",
+    "rho_interpretation": "CAPACITY_BUDGET_NOT_OBSERVED_RESIDENCY",
+    "legacy_ratio": null,
+    "cache_validation": "NOT_EXECUTED"
+  }
+}

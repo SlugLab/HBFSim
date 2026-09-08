@@ -1,0 +1,44 @@
+{
+  "head": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "local_refs_only": true,
+  "remote_fetched_this_audit": false,
+  "refs": [
+    {
+      "ref": "eval_base",
+      "sha": "fc829992ecdc3ca68881656722b67a31067c5d33",
+      "merge_base": "fc829992ecdc3ca68881656722b67a31067c5d33",
+      "ancestor_of_current": true
+    },
+    {
+      "ref": "origin/feature/sm120-exact-stage1",
+      "sha": "f4dc28b2671c01939d98e4a968e6fb37b2e364d9",
+      "merge_base": "0b34feb6459fb87eed8b40987e306d112118d363",
+      "ancestor_of_current": false
+    },
+    {
+      "ref": "origin/feature/thermal-reliability",
+      "sha": "0069b2eec4d8b9d37cdbc9fbf84035d15572b0dd",
+      "merge_base": "0b34feb6459fb87eed8b40987e306d112118d363",
+      "ancestor_of_current": false
+    },
+    {
+      "ref": "origin/\u5168\u94fe\u8def\u6e29\u5ea6\u6a21\u62df",
+      "sha": "fd11c3d98cde74977be7ec504c64429369b6fd3a",
+      "merge_base": null,
+      "ancestor_of_current": false
+    },
+    {
+      "ref": "origin/fix/mqsim-queue-depth-admission",
+      "sha": "12ef13809dc13424981c123f13dc31e6d0456a80",
+      "merge_base": "12ef13809dc13424981c123f13dc31e6d0456a80",
+      "ancestor_of_current": true
+    },
+    {
+      "ref": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
+      "merge_base": null,
+      "ancestor_of_current": false
+    }
+  ],
+  "sm120_is_ancestor_of_thermal": true
+}

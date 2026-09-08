@@ -1,0 +1,117 @@
+{
+  "scope": "independent selected phase3 hash and energy recount, not live injection or temporal mapping validation",
+  "checks": [
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t6-retention-refresh/campaign-001/summary.json",
+      "sha256": "f5a7f520b734ab9ff4d43c627a23064994d82007092c106b90961e11fbeca935",
+      "expected": null,
+      "matches": null
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t7-hbm-timescale/campaign-001/summary.json",
+      "sha256": "8a61b279140b32f11b134318dec60f077eb9cb2dcf3fe74f32b7f6ab72b6ed96",
+      "expected": null,
+      "matches": null
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/protocols/t7-energy-conserving-mapping.json",
+      "sha256": "b9fcb313d50c8a5c0f01936a071979fead75be86a4f224dd94120738f8945eb8",
+      "expected": null,
+      "matches": null
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/source/hbfsim-vllm015/experiments/external/hbm-power/energy_conserving_mapper.py",
+      "sha256": "187dbe893daf08e83de345a17aceb6e8018001735480cae1177e2a3c1158f575",
+      "expected": "187dbe893daf08e83de345a17aceb6e8018001735480cae1177e2a3c1158f575",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/protocols/t7-workload-schedule.csv",
+      "sha256": "339fdd5cb8571a4388ecaa0de30cd2e6565026a0e53de34a78f613278b8f4581",
+      "expected": "339fdd5cb8571a4388ecaa0de30cd2e6565026a0e53de34a78f613278b8f4581",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/source/hbfsim-vllm015/experiments/external/hbm-power/artifacts/hbm2-llama-bs32-2stack.csv",
+      "sha256": "04c2f1faa1c759f98f9d3a11bdc45f931a00afbf1e93a2966b51596ed698ef5e",
+      "expected": "04c2f1faa1c759f98f9d3a11bdc45f931a00afbf1e93a2966b51596ed698ef5e",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/source/hbfsim-vllm015/experiments/external/hbm-power/artifacts/hbm2-llama-bs32-2stack.manifest.json",
+      "sha256": "a91c242454b91c158269e07dfd06fa969745fe10706a2ef1132d65aedf5d1c83",
+      "expected": "a91c242454b91c158269e07dfd06fa969745fe10706a2ef1132d65aedf5d1c83",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/source/hbfsim-vllm015/experiments/external/hbm-power/artifacts/hbm3e-random-read-6stack.csv",
+      "sha256": "e0f2ddbf1cf632aa719598f210be2fb6fe99e13a8bcbdee56b9a67cf745af9cf",
+      "expected": "e0f2ddbf1cf632aa719598f210be2fb6fe99e13a8bcbdee56b9a67cf745af9cf",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/source/hbfsim-vllm015/experiments/external/hbm-power/artifacts/hbm3e-random-read-6stack.manifest.json",
+      "sha256": "c719f440254f97d245830994740e979a1c0a9ac7a08002bd16dc46dd5b240ea6",
+      "expected": "c719f440254f97d245830994740e979a1c0a9ac7a08002bd16dc46dd5b240ea6",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t7-hbm-timescale/campaign-001/hbm2-llama-bs32-2stack-24h.csv",
+      "sha256": "489a1f619b5b4de8366ff0a5279e1ee3ebf35d1922aaa19e7f1c24e247697725",
+      "expected": "489a1f619b5b4de8366ff0a5279e1ee3ebf35d1922aaa19e7f1c24e247697725",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t7-hbm-timescale/campaign-001/hbm2-llama-bs32-2stack-24h.manifest.json",
+      "sha256": "24c77de7be0476b41b0de3f9501f8e72aacfb3917a86a7c420169556086d6bf1",
+      "expected": "24c77de7be0476b41b0de3f9501f8e72aacfb3917a86a7c420169556086d6bf1",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t7-hbm-timescale/campaign-001/hbm3e-random-read-6stack-24h.csv",
+      "sha256": "1f222f753ea5abe3494de73149ad1ce017aa9adcf3ef98fcb1fc629b8f8c1526",
+      "expected": "1f222f753ea5abe3494de73149ad1ce017aa9adcf3ef98fcb1fc629b8f8c1526",
+      "matches": true
+    },
+    {
+      "path": "/root/hbfsim-exp/phase3/results/t7-hbm-timescale/campaign-001/hbm3e-random-read-6stack-24h.manifest.json",
+      "sha256": "abf1e240ab19ab9dae3cb73b4598f88b7acf1548ffc29cd7dd647922e3425c5d",
+      "expected": "abf1e240ab19ab9dae3cb73b4598f88b7acf1548ffc29cd7dd647922e3425c5d",
+      "matches": true
+    }
+  ],
+  "energy_recounts": [
+    {
+      "name": "hbm2-llama-bs32-2stack",
+      "energy_j_recomputed": [
+        3638.3106272485325,
+        3638.3106272485325
+      ],
+      "target": [
+        3638.3106272485325,
+        3638.3106272485325
+      ],
+      "max_relative_error": 0.0
+    },
+    {
+      "name": "hbm3e-random-read-6stack",
+      "energy_j_recomputed": [
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777
+      ],
+      "target": [
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777,
+        133416.19279256777
+      ],
+      "max_relative_error": 0.0
+    }
+  ]
+}

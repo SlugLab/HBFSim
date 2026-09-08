@@ -1,0 +1,85 @@
+{
+  "copies": [
+    {
+      "source": "/tmp/hbfsim-cleanup-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-cleanup-20260908.py",
+      "bytes": 3797
+    },
+    {
+      "source": "/tmp/hbfsim-cutover-20260908.json",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-cutover-20260908.json",
+      "bytes": 512
+    },
+    {
+      "source": "/tmp/hbfsim-cutover-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-cutover-20260908.py",
+      "bytes": 2585
+    },
+    {
+      "source": "/tmp/hbfsim-final-source-files-20260908.jsonl",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-final-source-files-20260908.jsonl",
+      "bytes": 138509417
+    },
+    {
+      "source": "/tmp/hbfsim-git-compat-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-git-compat-20260908.py",
+      "bytes": 1744
+    },
+    {
+      "source": "/tmp/hbfsim-guard-fixed-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-guard-fixed-20260908.py",
+      "bytes": 4603
+    },
+    {
+      "source": "/tmp/hbfsim-guard-tests-20260908.json",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-guard-tests-20260908.json",
+      "bytes": 1099
+    },
+    {
+      "source": "/tmp/hbfsim-guard-tests-20260908.log",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-guard-tests-20260908.log",
+      "bytes": 1830
+    },
+    {
+      "source": "/tmp/hbfsim-guard-tests-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-guard-tests-20260908.py",
+      "bytes": 5433
+    },
+    {
+      "source": "/tmp/hbfsim-migration-checksum-20260908.log",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-migration-checksum-20260908.log",
+      "bytes": 0
+    },
+    {
+      "source": "/tmp/hbfsim-migration-final-sync-20260908.log",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-migration-final-sync-20260908.log",
+      "bytes": 605
+    },
+    {
+      "source": "/tmp/hbfsim-migration-first-20260908.log",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-migration-first-20260908.log",
+      "bytes": 687
+    },
+    {
+      "source": "/tmp/hbfsim-migration-verification-20260908.json",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-migration-verification-20260908.json",
+      "bytes": 28568
+    },
+    {
+      "source": "/tmp/hbfsim-model-readonly-after-20260908.json",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-model-readonly-after-20260908.json",
+      "bytes": 388
+    },
+    {
+      "source": "/tmp/hbfsim-model-readonly-before-20260908.json",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-model-readonly-before-20260908.json",
+      "bytes": 388
+    },
+    {
+      "source": "/tmp/hbfsim-model-readonly-smoke-20260908.py",
+      "retained": "/root/hbfsim-exp/reports/eq-replan-20260908/hbfsim-model-readonly-smoke-20260908.py",
+      "bytes": 1060
+    }
+  ],
+  "note": "Original receipt bytes retained; embedded /tmp paths describe execution-time locations. Retained copies listed here."
+}

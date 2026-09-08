@@ -1,5 +1,7 @@
 # Current capability audit
 
+> Historical frozen audit below. Current source and capability corrections are in [current-state-20260908.md](current-state-20260908.md) and [the canonical plan](../49-new-evaluation-plan.md). Current external versions and specification boundaries: [source research](review-evidence/20260908/source-research.md). Original historical findings retain their source SHA and are not silently renewed.
+
 快照、函数与行号由 [source ledger](source-ledger.md) 定义。以下能力判断为 INFERRED；测试结果是执行记录，不是硬件性能测量。
 
 ## Execution and control flow

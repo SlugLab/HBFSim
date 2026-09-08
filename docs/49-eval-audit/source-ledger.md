@@ -1,5 +1,7 @@
 # Source ledger
 
+> Historical frozen audit below. Current source and capability corrections are in [current-state-20260908.md](current-state-20260908.md) and [the canonical plan](../49-new-evaluation-plan.md). Current external versions and specification boundaries: [source research](review-evidence/20260908/source-research.md). Original historical findings retain their source SHA and are not silently renewed.
+
 All implementation claims below are source inferences, not MEASURED performance. B/S/X/P/T freeze exact Git objects. CPU probe outcomes are separately recorded as STATIC_REPRODUCED, outside the four numerical result provenance classes.
 
 | ID | Branch / full SHA | Source and lines | Function / scope | Evidence |

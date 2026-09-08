@@ -1,0 +1,20 @@
+{"state": "STOP_SPACE_OR_MOUNT", "free_bytes": 136365211648, "utc_unix": 1788866786.318066}
+{"state": "STOP_SPACE_OR_MOUNT", "free_bytes": 536870912000, "utc_unix": 1788866786.3189726}
+test_cleanup_error_does_not_replace_original (__main__.GuardTests.test_cleanup_error_does_not_replace_original) ... ok
+test_disk_usage_error_preserves_original_and_cleans (__main__.GuardTests.test_disk_usage_error_preserves_original_and_cleans) ... ok
+test_escalates_owned_group_only (__main__.GuardTests.test_escalates_owned_group_only) ... ok
+test_exited_child_not_signaled_on_monitor_error (__main__.GuardTests.test_exited_child_not_signaled_on_monitor_error) ... ok
+test_findmnt_failure_preserves_original_and_cleans (__main__.GuardTests.test_findmnt_failure_preserves_original_and_cleans) ... ok
+test_invalid_json_preserves_original_and_cleans (__main__.GuardTests.test_invalid_json_preserves_original_and_cleans) ... ok
+test_keyboard_interrupt_in_monitor_cleans (__main__.GuardTests.test_keyboard_interrupt_in_monitor_cleans) ... ok
+test_keyboard_interrupt_while_waiting_cleans (__main__.GuardTests.test_keyboard_interrupt_while_waiting_cleans) ... ok
+test_normal_exit_after_successful_check_never_signals (__main__.GuardTests.test_normal_exit_after_successful_check_never_signals) ... ok
+test_normal_exit_never_signals (__main__.GuardTests.test_normal_exit_never_signals) ... ok
+test_real_malformed_findmnt_json_cleans (__main__.GuardTests.test_real_malformed_findmnt_json_cleans) ... ok
+test_space_failure_preserves_exit_74_and_cleans (__main__.GuardTests.test_space_failure_preserves_exit_74_and_cleans) ... ok
+test_wrong_mount_uuid_preserves_exit_and_cleans (__main__.GuardTests.test_wrong_mount_uuid_preserves_exit_and_cleans) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.009s
+
+OK

@@ -1,0 +1,28 @@
+{
+  "scope": "CPU numerical eigenanalysis only, not physical time-constant calibration",
+  "elapsed_wall_seconds": 0.10673376699560322,
+  "roms": [
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+      "sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524",
+      "state_count": 224,
+      "sample_period_ns": 10000000,
+      "spectral_radius": 0.9653112416445708,
+      "dominant_tau_ns": 283248410.4867209,
+      "five_tau_ns": 1416242052.4336047,
+      "spectral_stability": true,
+      "numpy_version": "2.2.6"
+    },
+    {
+      "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+      "sha256": "7634f3fa010a22262a4330b6a438a8222fd8005a06c7b5354bb09b64a3759d65",
+      "state_count": 224,
+      "sample_period_ns": 10000000,
+      "spectral_radius": 0.9902564310542085,
+      "dominant_tau_ns": 1021309820.7168326,
+      "five_tau_ns": 5106549103.584164,
+      "spectral_stability": true,
+      "numpy_version": "2.2.6"
+    }
+  ]
+}

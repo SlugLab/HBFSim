@@ -1,0 +1,9 @@
+{
+  "scope": "TEST_ONLY_PROCESS_CREATION_GUARD",
+  "return_code": 0,
+  "blocked_process_attempts": [],
+  "inherited_child_cpu_seconds": 0.039204,
+  "process_child_cpu_delta_seconds": 3.469446951953614e-18,
+  "original_audit_preserved": true,
+  "inventory_resolution": "Exact inventory.json retained by metrics manifest, not current GGUF inventory with same basename"
+}

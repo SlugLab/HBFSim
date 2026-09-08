@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""Expand the proposed campaign, not an experiment runner. Costs are planning estimates."""
+"""Reproduce the historical 2026-09-05 proposal into an explicit fresh output.
+
+The canonical campaign was replanned on 2026-09-08. This historical generator
+must never overwrite it or immutable historical evidence.
+"""
+import argparse
 import csv
 import itertools
 import pathlib
 import subprocess
 ROOT=pathlib.Path(__file__).resolve().parents[2]
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output',required=True,type=pathlib.Path)
+args=parser.parse_args()
+if args.output.exists():
+    parser.error('historical reproduction requires a new output path; refusing overwrite')
 SHA=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
 SM='f4dc28b2671c01939d98e4a968e6fb37b2e364d9'
 rows=[]
@@ -62,7 +72,7 @@ for tr,scale in itertools.product([1,2,4,5,10,20],[.8,1.,1.2]):
 for mode,workload in itertools.product(['reference','fast','hybrid'],['dependent_load','capacity_replay','qwen_decode']):
     add('APPENDIX','mode_cost','G1 for live; matched stream and time_scale=1',5,60,60,mode=mode,workload=workload,time_scale=1,minimum_configuration='yes')
 keys=list(dict.fromkeys(k for r in rows for k in r))
-with (ROOT/'docs/49-eval-audit/run-matrix.csv').open('w',newline='') as f:
+with args.output.open('x',newline='') as f:
     w=csv.DictWriter(f,fieldnames=keys); w.writeheader(); w.writerows(rows)
 for group in dict.fromkeys(r['group'] for r in rows):
     subset=[r for r in rows if r['group']==group]

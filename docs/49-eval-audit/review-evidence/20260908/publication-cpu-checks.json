@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "test_eval_pipeline",
+    "test_run_matrix.MatrixRunnerTests.test_matrix_resource_classification_is_complete"
+  ],
+  "cwd": "/root/hbfsim-exp/eval-base-integration/scripts/eval",
+  "exit_code": 0,
+  "wall_seconds": 8.661739903996931,
+  "scope": "CPU documentation-tool and matrix registration contracts; no GPU performance experiment",
+  "log_sha256": "488718abd088ea8383dd69b80a1ec5b1d3018b3691c6b2e723178adee794679d"
+}

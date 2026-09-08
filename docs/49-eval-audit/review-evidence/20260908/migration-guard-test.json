@@ -1,0 +1,15 @@
+{
+  "state": "PASS",
+  "exit_code": 0,
+  "wall_seconds": 0.1978890959871933,
+  "test_count": 13,
+  "command": [
+    "python3",
+    "-B",
+    "/root/hbfsim-exp/reports/eq-replan-20260908/migration-guard-test.py"
+  ],
+  "scope": "CPU mocks against installed launcher; no GPU and all killpg mocked",
+  "test_sha256": "394075874b1cdbf1bab880377fa3bf26da5761e68c41eec0f9b63355de77b438",
+  "launcher_sha256": "fbafbbdc49c8c886708edbaa13fa21455e7b7472e07628b9b5981e5c70bbc8b4",
+  "log_sha256": "c7748f6af953ddf6e4ace112ec3579bb520752cac0caf01ead737166c6d55844"
+}

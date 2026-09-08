@@ -1,0 +1,182 @@
+{
+  "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json",
+    "bytes": 9625635,
+    "sha256": "c1822bf88f432d3cfd44ef0994730803ab60a963e1d495c8b181054ac75422d6"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/inventory.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/inventory.json",
+    "bytes": 15545674,
+    "sha256": "ed64d4c0bd11ee75cb4cd1de4e82ed1b0071fbc4389b8b974e9275382a1e912a"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/members.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/members.json",
+    "bytes": 4444,
+    "sha256": "45dc43f48a8e39c2ae279710201766ae5919d7c448bd8b6d6cbaaa2b273dd1b7"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/manifest.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/manifest.json",
+    "bytes": 6626,
+    "sha256": "24667e6c1090bb1bf362dbdb7fb7fdf7bef6e873a5e22ca72b13448cfee14695"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/triplet-status.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/triplet-status.json",
+    "bytes": 5229,
+    "sha256": "442272cb125b217f26f196396ad5b9da40820a7652e5351275eaf0a82a88f4bc"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/receipt.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/receipt.json",
+    "bytes": 91236,
+    "sha256": "d40980fea11f3b9b2ca12c26e282fee40ae196e7e004d10889432416f292c8cb"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/COMPLETE.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/COMPLETE.json",
+    "bytes": 230,
+    "sha256": "27e36639663b7290749f61cc17e284b3b313b2998ddb220d3633f4251d93039d"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/tensors.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/tensors.json",
+    "bytes": 7867105,
+    "sha256": "ba916477c6f08817ada49650aba7f61781d5718983d743cf6c6a3b33607d2ff8"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/metadata/config.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/metadata/config.json",
+    "bytes": 963,
+    "sha256": "2850ddb3bf7aecad20b611e2d44f3077fc8193f4827c93beddd4c02ad63c2297"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0000-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0000-routing.jsonl",
+    "bytes": 20918021,
+    "sha256": "0131160ef0988ec8cdb0eb5b9569564bc83329933a28e08f3881d6228fb67cdc"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0001-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0001-routing.jsonl",
+    "bytes": 20918656,
+    "sha256": "713aa314d62ddbdc60b1b9b00fb42b8af6fa773555010c71213b96933c3977e9"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0002-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0002-routing.jsonl",
+    "bytes": 20918801,
+    "sha256": "174628f3219446a542781de8b25d1516cda486aeee4af2addd03b0aca7927f4c"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0003-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0003-routing.jsonl",
+    "bytes": 20916944,
+    "sha256": "d0866f35e1b7fabe79fc54c950ddb98eaa4bf9f2584c3f26800737b7a16c61b5"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0004-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0004-routing.jsonl",
+    "bytes": 20918070,
+    "sha256": "1382dcc7a1722da39a1f9a61e237fbb342ec2118eef983608204ab1c17a0a00d"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0005-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0005-routing.jsonl",
+    "bytes": 20918984,
+    "sha256": "84f97cb7c01dbb3b68554f2604f890daa1c9859ed1197c7a420563e598d3223d"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0006-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0006-routing.jsonl",
+    "bytes": 20917521,
+    "sha256": "c71ff1900df2bbf4c6b4f75a5e4aac3ddb2bdc178baa5ec1e5b8ed7705e6445e"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0007-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0007-routing.jsonl",
+    "bytes": 20917867,
+    "sha256": "8ea515a0efad2648514957c92abe9a2cefa1e1da9d23f3a9d1ea516ea05f7500"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0008-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0008-routing.jsonl",
+    "bytes": 20918645,
+    "sha256": "e0463865ef5a2b831e8dcf4bf32047d11266487b7beb19211ec804bb55c5fffc"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0009-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0009-routing.jsonl",
+    "bytes": 20918580,
+    "sha256": "71bf1c72b5e601ebb8020c0c5789d64254883146fe540f98be3003a8a4ca3005"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0010-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0010-routing.jsonl",
+    "bytes": 20925164,
+    "sha256": "019f0ad40938130a64c5e5494d5b28035b10cc86a22b2972b19642603803697f"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0011-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0011-routing.jsonl",
+    "bytes": 20923681,
+    "sha256": "7f32d54091d7d0c4e628536b31b9bd4cfda7e44d8aca281ab1133295c3906f1d"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0012-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0012-routing.jsonl",
+    "bytes": 20924025,
+    "sha256": "036ceb55f895162ec1d6ad4fd28d5d961aa0c058eb78beb54daa73b1c023cfd2"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0013-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0013-routing.jsonl",
+    "bytes": 20924560,
+    "sha256": "d9417368a097346be32b532760a592cfbcb700909c14fc408270964c3ac1353f"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0014-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0014-routing.jsonl",
+    "bytes": 20924436,
+    "sha256": "b63f0eed5e4a2f30a7cefc998aa34b96639b75a5bd0c68b1310459d11df5af0a"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0015-routing.jsonl": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0015-routing.jsonl",
+    "bytes": 20923571,
+    "sha256": "d284af6e622b580fcb3754992ad99ee383dc282034de7e8251a4514afcd9e390"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/real.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/real.json",
+    "bytes": 7702221,
+    "sha256": "d7bc3b7ba29230aea9d9e5c16d19003f61a253dd98cb4500b2af5071d8ab060a"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/shuffled.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/shuffled.json",
+    "bytes": 7702761,
+    "sha256": "0df1324406980a8588ada54db87c800f03631c3f27ff70248a6630c53b905c33"
+  },
+  "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/null.json": {
+    "path": "/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/null.json",
+    "bytes": 47128,
+    "sha256": "23222fdb1482d64f3d55f8b6da98dead7e4cc3f8ce468493cb0aab7e7fd7821f"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/budget_fast_tier.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/budget_fast_tier.py",
+    "bytes": 6277,
+    "sha256": "785390011fcacde4bd81c554a299e95aee1b0c9d08521d1e1d70414277b4cef2"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/prefetch_replay.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/prefetch_replay.py",
+    "bytes": 16740,
+    "sha256": "baa6ad7683a2588a6601b97b40459ecb68f445b7a6322c1be557be04ea1e1c3f"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/routing_metrics.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/routing_metrics.py",
+    "bytes": 11920,
+    "sha256": "9abe9da0a4421aca9878292f3cfb0f7b097585f2512d4e2578224e628132071d"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_prefetch.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_prefetch.py",
+    "bytes": 18258,
+    "sha256": "2d1f8184a0a6840aff22aa3329f73069cb220ff9a509029aca9f00e8bcab6566"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/evaluation_inventory.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/evaluation_inventory.py",
+    "bytes": 12590,
+    "sha256": "5857467b78a96bfa298126eba7dd404cf2715f9c666f85a3e2668ee9098e78e1"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_prefetch_replay.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_prefetch_replay.py",
+    "bytes": 11043,
+    "sha256": "7872c9992d1f12463d0ceaf3196d1ad9a0ffb9630397c146714f2c7b46b834b0"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_inventory_checkpoint.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_inventory_checkpoint.py",
+    "bytes": 7070,
+    "sha256": "e98e52396defa784898512f0935e4ddd3b2ebefec011d75bfa23669c0969d300"
+  },
+  "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_routing_metrics.py": {
+    "path": "/root/hbfsim-exp/eval-base-integration/scripts/eval/test_routing_metrics.py",
+    "bytes": 9462,
+    "sha256": "6bbca1921d1202689104b4f939ffd0fcb4e9e077545d18b3ae0e6e5e08748e9a"
+  }
+}

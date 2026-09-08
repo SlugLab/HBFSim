@@ -1,0 +1,747 @@
+{
+  "scope": "Selected small review evidence and planned-document publication; excludes full raw, weights and environments",
+  "source_checkout_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+  "original_documents_selected": 27,
+  "selected_reports": 57,
+  "selected_report_source_bytes": 303019,
+  "historical_files_byte_identical": [
+    "docs/49-eval-audit/history/20260905/49-new-evaluation-plan.md",
+    "docs/49-eval-audit/history/20260905/README.md",
+    "docs/49-eval-audit/history/20260905/claim-gates.md",
+    "docs/49-eval-audit/history/20260905/execution-plan.md",
+    "docs/49-eval-audit/history/20260905/figure-plan.md",
+    "docs/49-eval-audit/history/20260905/result-schema.md",
+    "docs/49-eval-audit/history/20260905/run-matrix.csv",
+    "docs/49-eval-audit/history/20260905/snapshot.json"
+  ],
+  "self_hash_excluded": true,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 22911,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/README.md",
+      "source_sha256": "566f979cc4af6434e18aed61791ca9cf55ca8cd35e0682c672356834978bf55c",
+      "published_sha256": "04026faf465d094481050afe771c01785819f99882022d1e940b8e361d9da88d",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/REVIEW_GUIDE.md",
+      "bytes": 3746,
+      "source_path": null,
+      "source_sha256": null,
+      "published_sha256": "b60de3f68ee4b2ec0bc326dfe96f632ea48e0e5aeb85533729baefce6ddbc13a",
+      "copy_status": "NEW_PUBLICATION_GUIDE"
+    },
+    {
+      "path": "docs/49-eval-audit/async-tma-audit.md",
+      "bytes": 10443,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/async-tma-audit.md",
+      "source_sha256": "86f494ce6d2a111e6d6d4a28403d5003d4ec96fd8c353a41fa7f75965f178532",
+      "published_sha256": "92cb2dbdcf082244d2161e1f340deff9da360ab6e1325d503cf2e114f18cb9d1",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/claim-gates.md",
+      "bytes": 8796,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/claim-gates.md",
+      "source_sha256": "7486c0ab196ebdb4287eb4525b68b0da32a5f37714db2a8ab96ed7b763d17369",
+      "published_sha256": "7486c0ab196ebdb4287eb4525b68b0da32a5f37714db2a8ab96ed7b763d17369",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/current-capability-audit.md",
+      "bytes": 8506,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/current-capability-audit.md",
+      "source_sha256": "fdfcf6b6d46b508cf17b587b686d3b87ec3f3b88fe698f27e87abeef81cc503d",
+      "published_sha256": "54f7ec00b7ab5cac75b8e0ee4cd9e3ed31b547434c87a67815c76400b28665b9",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/current-state-20260908.md",
+      "bytes": 8465,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/current-state-20260908.md",
+      "source_sha256": "0b6bf3536ccac4b29f6354fd66e5c14fe4815b1d101b1ebbde88ac30905f4643",
+      "published_sha256": "663ae75c8b2511fde67270415178e1d4a4d8df07870010062cc5c59291f13762",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/execution-plan.md",
+      "bytes": 15852,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/execution-plan.md",
+      "source_sha256": "0e5c10d5f356c4881914f901f0505572e1bf81457b98c1b2b3503c3082c34ff8",
+      "published_sha256": "6583c0f5c00244615416eb97ef9fccf6df0cf4abe65229f5ba5dce2cd945dee6",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/figure-plan.md",
+      "bytes": 5456,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/figure-plan.md",
+      "source_sha256": "729bba3864772e3a0f24e687926d73747aebbb460bf8f783cae4995ba88bac46",
+      "published_sha256": "729bba3864772e3a0f24e687926d73747aebbb460bf8f783cae4995ba88bac46",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/hardware-groundtruth-contract.md",
+      "bytes": 16063,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/hardware-groundtruth-contract.md",
+      "source_sha256": "0412ad097be36a396669c597e5e07b782f14d4bdfe23c52e79900b4c448b595c",
+      "published_sha256": "03a776bc92c9a6dc1dfac01d77df91daeee835391ed18be696c7067d477d5b4a",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/49-new-evaluation-plan.md",
+      "bytes": 5390,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/49-new-evaluation-plan.md",
+      "source_sha256": "f042314c677d8db8a81b6595efc90877f963fc110096ceec78888cf7001a6458",
+      "published_sha256": "f042314c677d8db8a81b6595efc90877f963fc110096ceec78888cf7001a6458",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/README.md",
+      "bytes": 317,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/README.md",
+      "source_sha256": "8e3e3c5cd611b8a0d5d5631a65e8ddfed89eaf20fd6719767b42f809cd033df5",
+      "published_sha256": "8e3e3c5cd611b8a0d5d5631a65e8ddfed89eaf20fd6719767b42f809cd033df5",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/claim-gates.md",
+      "bytes": 5142,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/claim-gates.md",
+      "source_sha256": "6f954a719b7ff7f2fc2c32109071d0f52df3276099cd3c2e6a3112ac32cd3aaf",
+      "published_sha256": "6f954a719b7ff7f2fc2c32109071d0f52df3276099cd3c2e6a3112ac32cd3aaf",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/execution-plan.md",
+      "bytes": 10107,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/execution-plan.md",
+      "source_sha256": "c753c819509c51ac1ecec6f4f09ebc8246e34ea76212f11c2fa0129b3aea0edf",
+      "published_sha256": "c753c819509c51ac1ecec6f4f09ebc8246e34ea76212f11c2fa0129b3aea0edf",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/figure-plan.md",
+      "bytes": 4876,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/figure-plan.md",
+      "source_sha256": "9ee5f72c38888c21711feafea2a91f5bf6cc182dce372bd77ad3dd7e8e33a270",
+      "published_sha256": "9ee5f72c38888c21711feafea2a91f5bf6cc182dce372bd77ad3dd7e8e33a270",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/result-schema.md",
+      "bytes": 4586,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/result-schema.md",
+      "source_sha256": "e68084c0db982418223c8a11aa71dad4b9542fd97949429adeb4fb01c0b12f5d",
+      "published_sha256": "e68084c0db982418223c8a11aa71dad4b9542fd97949429adeb4fb01c0b12f5d",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/run-matrix.csv",
+      "bytes": 890238,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/run-matrix.csv",
+      "source_sha256": "33de7cad2731d611a92a4be0852aa98b914f62e227a720d3e3e0eb007be8462e",
+      "published_sha256": "33de7cad2731d611a92a4be0852aa98b914f62e227a720d3e3e0eb007be8462e",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/history/20260905/snapshot.json",
+      "bytes": 1506,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/history/20260905/snapshot.json",
+      "source_sha256": "7e6f36a43d0f390020d373ed2105f84c1ff6718053338c83da56926a37c9e707",
+      "published_sha256": "7e6f36a43d0f390020d373ed2105f84c1ff6718053338c83da56926a37c9e707",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/minimal-followups.md",
+      "bytes": 6947,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/minimal-followups.md",
+      "source_sha256": "db3435f29e65cd2e0e802f475e1c20dbad4be3274c2ab2bec8df55d0786a5f18",
+      "published_sha256": "db3435f29e65cd2e0e802f475e1c20dbad4be3274c2ab2bec8df55d0786a5f18",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/replan-execution-checklist.md",
+      "bytes": 2711,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/replan-execution-checklist.md",
+      "source_sha256": "103dbf9c613cd1b9a485ceb2334cededdfa77869921ff889b0c3356cb34631a3",
+      "published_sha256": "ecffc605d595935e0e5e07dd62ca134bbe1a5b395f73c869cf88e6e4a18382ab",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/result-schema.md",
+      "bytes": 9876,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/result-schema.md",
+      "source_sha256": "999d03e338a52456de8b648d4fbc81f000206a1937f060577493adbff9de6d12",
+      "published_sha256": "999d03e338a52456de8b648d4fbc81f000206a1937f060577493adbff9de6d12",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/README.md",
+      "bytes": 3223,
+      "source_path": null,
+      "source_sha256": null,
+      "published_sha256": "dec1d15f8013921b6dbc33c6e0c7ad721d92e5f1fad4daba03876c8437876e5f",
+      "copy_status": "NEW_PUBLICATION_GUIDE"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/build_replan_matrix.py",
+      "bytes": 10971,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/build_replan_matrix.py",
+      "source_sha256": "b7ff30cae3d36ed54518067994b70735bccc0693abca2cfba1c85f0d76c5b7aa",
+      "published_sha256": "b7ff30cae3d36ed54518067994b70735bccc0693abca2cfba1c85f0d76c5b7aa",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/document-tool-checks.json",
+      "bytes": 1150,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/document-tool-checks.json",
+      "source_sha256": "9326ec6667cfa09feaf1e5569b1d81c2b17949e4687a754093e5acdef079519c",
+      "published_sha256": "9326ec6667cfa09feaf1e5569b1d81c2b17949e4687a754093e5acdef079519c",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/document-validation.json",
+      "bytes": 2273,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/document-validation.json",
+      "source_sha256": "b8c1802337aeee1c612db03966cb0f379ff133cd95d5e0382bea9e43daf322b7",
+      "published_sha256": "b8c1802337aeee1c612db03966cb0f379ff133cd95d5e0382bea9e43daf322b7",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-artifact-manifest.json",
+      "bytes": 1519,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-artifact-manifest.json",
+      "source_sha256": "a7ab839be16024e731faa9eea79ce990039d6dd69ba0b99af5058ed134503f0f",
+      "published_sha256": "a7ab839be16024e731faa9eea79ce990039d6dd69ba0b99af5058ed134503f0f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-audit.md",
+      "bytes": 17742,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-audit.md",
+      "source_sha256": "3d69d86bd64077e0be67161b84bf91facadbf860382fe48fa865e328a400b5b0",
+      "published_sha256": "ddcd1224427693185e8ef36cba4617208cf0bb11ec7304662b50987f4e329fe7",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-build-complete.json",
+      "bytes": 1432,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-build-complete.json",
+      "source_sha256": "f1d23b5e7c5a31f02027237d5d5feea8c90011ccf1999dc0d894f1deee602a4f",
+      "published_sha256": "f1d23b5e7c5a31f02027237d5d5feea8c90011ccf1999dc0d894f1deee602a4f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-build.json",
+      "bytes": 1833,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-build.json",
+      "source_sha256": "b700b604f8021511322e78701aab63f5b07780e93439b971c449fa52b7aa16d2",
+      "published_sha256": "b700b604f8021511322e78701aab63f5b07780e93439b971c449fa52b7aa16d2",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-delta-stall-oracle.json",
+      "bytes": 1011,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-delta-stall-oracle.json",
+      "source_sha256": "644a2665f01692664dbf04b7e7fa0a8ac797dc218534ef7747dfc1d11ce21d53",
+      "published_sha256": "644a2665f01692664dbf04b7e7fa0a8ac797dc218534ef7747dfc1d11ce21d53",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-donor-snippets.json",
+      "bytes": 9729,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-donor-snippets.json",
+      "source_sha256": "61fa57b473d49e570434a84a9d390ed0c69be6e0ca5aa99ff11b00b6c73111ca",
+      "published_sha256": "61fa57b473d49e570434a84a9d390ed0c69be6e0ca5aa99ff11b00b6c73111ca",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-emitter-tests.json",
+      "bytes": 2486,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-emitter-tests.json",
+      "source_sha256": "67e7020c5a04372740a7f46e6ba768d6bd8b88e4b0358d62ab2e42c2af9fc5fa",
+      "published_sha256": "67e7020c5a04372740a7f46e6ba768d6bd8b88e4b0358d62ab2e42c2af9fc5fa",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-entrypoints.json",
+      "bytes": 3407,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-entrypoints.json",
+      "source_sha256": "192b7a1e79e75435feaa37ff309a264912e74a1d1ecf3295eaaf029540a543dc",
+      "published_sha256": "192b7a1e79e75435feaa37ff309a264912e74a1d1ecf3295eaaf029540a543dc",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-experiments.json",
+      "bytes": 12675,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-experiments.json",
+      "source_sha256": "2e3fd0ec01c52cb58d82a0d225306d39871099bd7e5efaa1312f37b6483c1036",
+      "published_sha256": "2e3fd0ec01c52cb58d82a0d225306d39871099bd7e5efaa1312f37b6483c1036",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-history-refs.json",
+      "bytes": 1419,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-history-refs.json",
+      "source_sha256": "dc6fa31e296efb0614a8c304fd68301e3a0876ed1f491f05408f04a66c37ba11",
+      "published_sha256": "dc6fa31e296efb0614a8c304fd68301e3a0876ed1f491f05408f04a66c37ba11",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq1-oracle-check.py",
+      "bytes": 448,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq1-oracle-check.py",
+      "source_sha256": "c606c29f0fbbd303977bf522a45a29af0d32ca128c4a84ac7ba86c2119807038",
+      "published_sha256": "c606c29f0fbbd303977bf522a45a29af0d32ca128c4a84ac7ba86c2119807038",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-audit.md",
+      "bytes": 20717,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-audit.md",
+      "source_sha256": "55ad19d334fd897472e2958fd62a4f65b76ed9e0fa14c6c2730a16b03ec3c5a1",
+      "published_sha256": "ed96ec302c2885f1aebfc125e4a948090244bcacfc211dac07949599c96a2e7a",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-cpu-summary.json",
+      "bytes": 3112,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-cpu-summary.json",
+      "source_sha256": "e7ca4205acfed44dd073d9429f5e85819acb3960206a307c90a552fc4a5e015f",
+      "published_sha256": "e7ca4205acfed44dd073d9429f5e85819acb3960206a307c90a552fc4a5e015f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-cpu-tests.log",
+      "bytes": 4918,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-cpu-tests.log",
+      "source_sha256": "3834a872b1c7354fa8bfe43c62aa090d22dc987172c2b20daa6c07275e500c4f",
+      "published_sha256": "3834a872b1c7354fa8bfe43c62aa090d22dc987172c2b20daa6c07275e500c4f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-hashes-after.json",
+      "bytes": 13474,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-hashes-after.json",
+      "source_sha256": "275ee84f2ecd8ef3d38943175c4c1a6f7739a5adab52c20a9bc1dde4021c977c",
+      "published_sha256": "275ee84f2ecd8ef3d38943175c4c1a6f7739a5adab52c20a9bc1dde4021c977c",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-hashes-before.json",
+      "bytes": 13474,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-hashes-before.json",
+      "source_sha256": "275ee84f2ecd8ef3d38943175c4c1a6f7739a5adab52c20a9bc1dde4021c977c",
+      "published_sha256": "275ee84f2ecd8ef3d38943175c4c1a6f7739a5adab52c20a9bc1dde4021c977c",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-process-receipt.json",
+      "bytes": 369,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-process-receipt.json",
+      "source_sha256": "8aa9e5d131cb67fbd97d091209925182dd4503558d041f12410af06185dc16bf",
+      "published_sha256": "8aa9e5d131cb67fbd97d091209925182dd4503558d041f12410af06185dc16bf",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-confirm-test-only-budget-oracle.json",
+      "bytes": 1201,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-confirm-test-only-budget-oracle.json",
+      "source_sha256": "8b897c7f09dbc36a722ce87aa51e1b5b97ecc05f0591eeb58b53a67a41385bef",
+      "published_sha256": "8b897c7f09dbc36a722ce87aa51e1b5b97ecc05f0591eeb58b53a67a41385bef",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-cpu-audit.py",
+      "bytes": 7793,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-cpu-audit.py",
+      "source_sha256": "c07fd3c51ce5d91f224cc9dd3f1a859bca5d60223d3017486b807275f2960a5a",
+      "published_sha256": "c07fd3c51ce5d91f224cc9dd3f1a859bca5d60223d3017486b807275f2960a5a",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-cpu-confirm.py",
+      "bytes": 1796,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-cpu-confirm.py",
+      "source_sha256": "750eed0e3549349f8249a5a5c3a74591e9a36d538e1c7f5814269f8b7110178c",
+      "published_sha256": "750eed0e3549349f8249a5a5c3a74591e9a36d538e1c7f5814269f8b7110178c",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-cpu-summary.json",
+      "bytes": 3113,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-cpu-summary.json",
+      "source_sha256": "3ecf5d21e2a6b823748876a0b8de4328cea98b67a0fc0f99ef18c8b7bafaaa4f",
+      "published_sha256": "3ecf5d21e2a6b823748876a0b8de4328cea98b67a0fc0f99ef18c8b7bafaaa4f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/eq34-cpu-tests.log",
+      "bytes": 4918,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/eq34-cpu-tests.log",
+      "source_sha256": "3834a872b1c7354fa8bfe43c62aa090d22dc987172c2b20daa6c07275e500c4f",
+      "published_sha256": "3834a872b1c7354fa8bfe43c62aa090d22dc987172c2b20daa6c07275e500c4f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/final-independent-review.json",
+      "bytes": 686,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/final-independent-review.json",
+      "source_sha256": "ac6f6abb3151e42ee1930638aea0edba37dca7b1bc282ab416110f6a4775f442",
+      "published_sha256": "ac6f6abb3151e42ee1930638aea0edba37dca7b1bc282ab416110f6a4775f442",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/hbfsim-migration-verification-20260908.json",
+      "bytes": 28568,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/hbfsim-migration-verification-20260908.json",
+      "source_sha256": "9a13bbca458785d1ae5ce4410fa6270f09609037d2dab4da04cd3f9344a7e39e",
+      "published_sha256": "9a13bbca458785d1ae5ce4410fa6270f09609037d2dab4da04cd3f9344a7e39e",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/legacy_generator_refuses_overwrite.log",
+      "bytes": 153,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/legacy_generator_refuses_overwrite.log",
+      "source_sha256": "f8671e487654baf1f3334bbabf932742f1a761ad2f60d78625acda17c6022944",
+      "published_sha256": "f8671e487654baf1f3334bbabf932742f1a761ad2f60d78625acda17c6022944",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/legacy_generator_requires_output.log",
+      "bytes": 129,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/legacy_generator_requires_output.log",
+      "source_sha256": "f30776c8fc1cfb19ee28aa042d95db658ed68869b1e1254a0b61325b6b7cb135",
+      "published_sha256": "f30776c8fc1cfb19ee28aa042d95db658ed68869b1e1254a0b61325b6b7cb135",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/legacy_pipeline.log",
+      "bytes": 119,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/legacy_pipeline.log",
+      "source_sha256": "f3857d595677976ecc205b63947f0ea8d0c3348d568a4c7a0d05eb827aaf7bca",
+      "published_sha256": "f3857d595677976ecc205b63947f0ea8d0c3348d568a4c7a0d05eb827aaf7bca",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/matrix-resource-final.log",
+      "bytes": 98,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/matrix-resource-final.log",
+      "source_sha256": "1ceebcb5f628b1d98149958d980733f27f867d45a5c743724dee359712677d8f",
+      "published_sha256": "1ceebcb5f628b1d98149958d980733f27f867d45a5c743724dee359712677d8f",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/matrix-summary.json",
+      "bytes": 1685,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/matrix-summary.json",
+      "source_sha256": "e464ae2aec087cc67f1660c3b269597e97d7b6d0146e6b9b69cdc7002bb21c96",
+      "published_sha256": "e464ae2aec087cc67f1660c3b269597e97d7b6d0146e6b9b69cdc7002bb21c96",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-cleanup.json",
+      "bytes": 489,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-cleanup.json",
+      "source_sha256": "9ab4f4b0a555639e0d31d99950e961864878858570011cdc86d756e68dada788",
+      "published_sha256": "9ab4f4b0a555639e0d31d99950e961864878858570011cdc86d756e68dada788",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-guard-check.json",
+      "bytes": 1160,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-guard-check.json",
+      "source_sha256": "5d965390b99441a5028027ed356d81748b29b8a266fe64fbfcd7bd1d00e7a850",
+      "published_sha256": "5d965390b99441a5028027ed356d81748b29b8a266fe64fbfcd7bd1d00e7a850",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-guard-test.json",
+      "bytes": 556,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-guard-test.json",
+      "source_sha256": "5f71f9779e56be9957fb28908deb02b88f50c35630ac7add3859747932d5cb78",
+      "published_sha256": "5f71f9779e56be9957fb28908deb02b88f50c35630ac7add3859747932d5cb78",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-guard-test.log",
+      "bytes": 1829,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-guard-test.log",
+      "source_sha256": "c7748f6af953ddf6e4ace112ec3579bb520752cac0caf01ead737166c6d55844",
+      "published_sha256": "c7748f6af953ddf6e4ace112ec3579bb520752cac0caf01ead737166c6d55844",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-manifest.json",
+      "bytes": 3403,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-manifest.json",
+      "source_sha256": "fbd93a21803e579b726c74fbab12f19cba0a0388fdc6eef68ef846c9dcefa1d0",
+      "published_sha256": "fbd93a21803e579b726c74fbab12f19cba0a0388fdc6eef68ef846c9dcefa1d0",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-report.md",
+      "bytes": 5678,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-report.md",
+      "source_sha256": "40ef72fe164edff055231cfa8327ffc3a6c25a718efec1eebabb6827a33505a3",
+      "published_sha256": "ceb10819618b9fe3d6fa95482aac9d77f34e71a1bfb7050e34c727a8299f1d42",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-runbook.md",
+      "bytes": 3815,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-runbook.md",
+      "source_sha256": "23f572de29d19d8fdda9cca6ea63059b24894109000fa7aa30e83b72051ac45d",
+      "published_sha256": "3fb78d3c40d38ba7d76d3dbc460549150e18b768ac32fb19f5d3f4554aafce71",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration-smoke-comparison.json",
+      "bytes": 406,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration-smoke-comparison.json",
+      "source_sha256": "6b73b910551c06916d97729e8c79ce5c4bb088bcb3ed393baaf892549a0bd6fc",
+      "published_sha256": "6b73b910551c06916d97729e8c79ce5c4bb088bcb3ed393baaf892549a0bd6fc",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/migration_launch.py",
+      "bytes": 4603,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/migration_launch.py",
+      "source_sha256": "fbafbbdc49c8c886708edbaa13fa21455e7b7472e07628b9b5981e5c70bbc8b4",
+      "published_sha256": "fbafbbdc49c8c886708edbaa13fa21455e7b7472e07628b9b5981e5c70bbc8b4",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/oracle-recheck.log",
+      "bytes": 372,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/oracle-recheck.log",
+      "source_sha256": "048df3b598598e8693b4db66eb96acdc5b1e710297281f8447c35f7abe217529",
+      "published_sha256": "048df3b598598e8693b4db66eb96acdc5b1e710297281f8447c35f7abe217529",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/publication-cpu-checks.json",
+      "bytes": 490,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/publish-eval-base-20260908/publication-cpu-checks.json",
+      "source_sha256": "f01ee6b83f9e0dab7c2dba4e1dd11680e25dca36b218347ddf4f20b52d1ac162",
+      "published_sha256": "f01ee6b83f9e0dab7c2dba4e1dd11680e25dca36b218347ddf4f20b52d1ac162",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/publication-cpu-checks.log",
+      "bytes": 120,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/publish-eval-base-20260908/publication-cpu-checks.log",
+      "source_sha256": "488718abd088ea8383dd69b80a1ec5b1d3018b3691c6b2e723178adee794679d",
+      "published_sha256": "488718abd088ea8383dd69b80a1ec5b1d3018b3691c6b2e723178adee794679d",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/retained-temporary-receipts.json",
+      "bytes": 3233,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/retained-temporary-receipts.json",
+      "source_sha256": "250aa8ce67859b16a53f621292d3442865f20471e6537a68c1746bf271bbd493",
+      "published_sha256": "250aa8ce67859b16a53f621292d3442865f20471e6537a68c1746bf271bbd493",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/review-resolution.md",
+      "bytes": 903,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/review-resolution.md",
+      "source_sha256": "50af7f72d98a0e16684c5df5def254e92b421420353ec59f299b1a531cc33346",
+      "published_sha256": "07dd70218deacece00cb41d97ea2f2594a7397f6f3a822de8f0b4397c1acacc9",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/source-research.md",
+      "bytes": 18803,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/source-research.md",
+      "source_sha256": "4cb655e8726ca9a19c9d3037a09ebd49b9a61c8868333e9cd6db856b519d3747",
+      "published_sha256": "2e0ae07345c8afdc4d962db98d158c1675a49b913f3fad83841b164a439c860e",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/source-software-freeze.json",
+      "bytes": 3076,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/source-software-freeze.json",
+      "source_sha256": "642ef627b8c1017efb079a3e9572f89aa1268da8fe4ea658f226313d1c3fd2ce",
+      "published_sha256": "642ef627b8c1017efb079a3e9572f89aa1268da8fe4ea658f226313d1c3fd2ce",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-audit.md",
+      "bytes": 21326,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-audit.md",
+      "source_sha256": "b29a4221629cb9f61f56a8e52e43c1e7ce3b8caf3cf143f9b501f28ba7d7a8ea",
+      "published_sha256": "cabba7c37805949c2faf4d2b70974ca02759628d39174cfccc2da50483ffcb98",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-check.json",
+      "bytes": 23197,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-check.json",
+      "source_sha256": "4d3cee45eae5848061b72011bfaf109a78a01bd49ded34fb54631595b24f0fce",
+      "published_sha256": "4d3cee45eae5848061b72011bfaf109a78a01bd49ded34fb54631595b24f0fce",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-check.log",
+      "bytes": 1409,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-check.log",
+      "source_sha256": "7ebf9b446f680daa22acf74a05498c2d585509ab251fa67f5625fb199c76eebc",
+      "published_sha256": "7ebf9b446f680daa22acf74a05498c2d585509ab251fa67f5625fb199c76eebc",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-check.py",
+      "bytes": 5979,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-check.py",
+      "source_sha256": "f52fc6538824be22fbd93b901b2a0cd508a72348b7badbbc408b21a524c8a968",
+      "published_sha256": "f52fc6538824be22fbd93b901b2a0cd508a72348b7badbbc408b21a524c8a968",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-eq2-cells.json",
+      "bytes": 11260,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-eq2-cells.json",
+      "source_sha256": "37801510bcf21aa96790e4f7e7aeb834cd6ea1ee702d94c55b6ebcf6d1aae425",
+      "published_sha256": "37801510bcf21aa96790e4f7e7aeb834cd6ea1ee702d94c55b6ebcf6d1aae425",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-golden-check.json",
+      "bytes": 5346,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-golden-check.json",
+      "source_sha256": "a3c03d415c8c1b548ace7ed6d7bea9e1970cd9c7a959c1d03c3718eacf81bdd8",
+      "published_sha256": "a3c03d415c8c1b548ace7ed6d7bea9e1970cd9c7a959c1d03c3718eacf81bdd8",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-phase3-check.json",
+      "bytes": 4877,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-phase3-check.json",
+      "source_sha256": "3516e4bc96b64349dd09d03dc812b2a2de1ac58d432e94efaf7fc89691a36444",
+      "published_sha256": "3516e4bc96b64349dd09d03dc812b2a2de1ac58d432e94efaf7fc89691a36444",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-reuse-table.csv",
+      "bytes": 3155,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-reuse-table.csv",
+      "source_sha256": "92d904fc927e6fb78f548688ce6628b5664cc2dd88074a646fe66555b64fe20a",
+      "published_sha256": "92d904fc927e6fb78f548688ce6628b5664cc2dd88074a646fe66555b64fe20a",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-rom-eigencheck.json",
+      "bytes": 1086,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-rom-eigencheck.json",
+      "source_sha256": "a019ae99c8398ccd95fe63f1c3bf1d9d5d18b83267d771317b37728540884874",
+      "published_sha256": "a019ae99c8398ccd95fe63f1c3bf1d9d5d18b83267d771317b37728540884874",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/thermal-timeline-test.log",
+      "bytes": 38,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/thermal-timeline-test.log",
+      "source_sha256": "80c315f03dd69ff9940d828ab0a5bbeb14c33c71da48c9282f0a4645d085a216",
+      "published_sha256": "80c315f03dd69ff9940d828ab0a5bbeb14c33c71da48c9282f0a4645d085a216",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/review-evidence/20260908/交付结论.md",
+      "bytes": 3146,
+      "source_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/交付结论.md",
+      "source_sha256": "9eb836a4e8d070e87993a8807b782ddf352db20bb63744c4a4c14893cb4906da",
+      "published_sha256": "d6bbfdbc23e9ada8dcf4d45850af652d5ae5a5df39cafe55f953d919e46341fb",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/reviewer-response-matrix.md",
+      "bytes": 6470,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/reviewer-response-matrix.md",
+      "source_sha256": "be8cc47a928cf260d4c03d8b982861dbc1c2724ccc8d627dc12be63f99aa0957",
+      "published_sha256": "d8bf95442a4dd546771d095c3eb198258bd762b56904c13a16631ed31e759630",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-eval-audit/run-matrix.csv",
+      "bytes": 283303,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/run-matrix.csv",
+      "source_sha256": "3c3126fe2949ec7e2f7499baba48ea8841623c89e63e4ee66ad64d0867a2de67",
+      "published_sha256": "3c3126fe2949ec7e2f7499baba48ea8841623c89e63e4ee66ad64d0867a2de67",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "docs/49-eval-audit/source-ledger.md",
+      "bytes": 15555,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-eval-audit/source-ledger.md",
+      "source_sha256": "2145e1d36c5d1faea4e453e2cec2cf0859ab771ce526dc0acfef5527891f755c",
+      "published_sha256": "4cd9abb391d8b36215650670d849ad4f48c11389eb96cf6cb55d0bfbc00f9806",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/49-new-evaluation-plan.md",
+      "bytes": 10741,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/49-new-evaluation-plan.md",
+      "source_sha256": "d91a60b6271a522eb761e3d9bcdf038f7e18dcb58e61e049da8b292ddaee3b9f",
+      "published_sha256": "cc54d531d9c702f13e0935e3ecca1c237d8b5de5ffdbb27934929f33f11eab27",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "docs/eval/README.md",
+      "bytes": 1691,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/docs/eval/README.md",
+      "source_sha256": "a95a021daa8ffd70d9d1dab89d428950247f9cf6e53da5fe0e237a37f4195d7e",
+      "published_sha256": "a95a021daa8ffd70d9d1dab89d428950247f9cf6e53da5fe0e237a37f4195d7e",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "scripts/eval/README.md",
+      "bytes": 2215,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/scripts/eval/README.md",
+      "source_sha256": "728dc8b8ff8941076da74764f32743eece34ca2843e3d43073f3818f0a1ab1ef",
+      "published_sha256": "8338b5796e97872059b6d104dc448e1c77158573723d687063ad92f9fe91b48e",
+      "copy_status": "NAVIGATION_OR_PUBLICATION_TEXT_CHANGED"
+    },
+    {
+      "path": "scripts/eval/generate_run_matrix.py",
+      "bytes": 6689,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/scripts/eval/generate_run_matrix.py",
+      "source_sha256": "e0e19d88f4e2e1d0c8f405547eec51e81f9f893f62fe293f79f5ca6c8dabf6bd",
+      "published_sha256": "e0e19d88f4e2e1d0c8f405547eec51e81f9f893f62fe293f79f5ca6c8dabf6bd",
+      "copy_status": "IDENTICAL"
+    },
+    {
+      "path": "scripts/eval/test_run_matrix.py",
+      "bytes": 37803,
+      "source_path": "/mnt/disk0/hbfsim-exp/eval-base-integration/scripts/eval/test_run_matrix.py",
+      "source_sha256": "fbc7de876e72f25d6e107dbdc10164174ffacef256023f336667af37723616c4",
+      "published_sha256": "fbc7de876e72f25d6e107dbdc10164174ffacef256023f336667af37723616c4",
+      "copy_status": "IDENTICAL"
+    }
+  ],
+  "omitted_local_handoff_files": [
+    {
+      "name": "delivery-artifact-manifest.json",
+      "original_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/delivery-artifact-manifest.json",
+      "bytes": 460879,
+      "source_sha256": "d060d41779519cbc0839c5b80eb4c1b2e724136265f273dee278791c6335ce18",
+      "reason": "Full local handoff metadata or diff, not a manifest for this selected publication bundle"
+    },
+    {
+      "name": "delivery-index.json",
+      "original_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/delivery-index.json",
+      "bytes": 2935,
+      "source_sha256": "fb8480cd1d40826d8afec9cb81599402b12e7e866d7f26f30d899096e2d0a61a",
+      "reason": "Full local handoff metadata or diff, not a manifest for this selected publication bundle"
+    },
+    {
+      "name": "document-changes.diff",
+      "original_path": "/mnt/disk0/hbfsim-exp/reports/eq-replan-20260908/document-changes.diff",
+      "bytes": 2218272,
+      "source_sha256": "abba2cb595100f7cb5e50bec1a8045736f07011bd9b61074bbcea0add2554270",
+      "reason": "Full local handoff metadata or diff, not a manifest for this selected publication bundle"
+    }
+  ]
+}

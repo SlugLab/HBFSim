@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "scope": "EQ1 directed proposal; requires parent canonical matrix integration",
+  "rows": [
+    {
+      "cell_id": "Q1-CPU",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "EXECUTED_CPU_PASS",
+      "entrypoint": "tests/integration/test_future_emitter.py",
+      "dependencies": [],
+      "parameters": {
+        "test_count": 19
+      },
+      "evidence_kind": "controlled test-only model",
+      "resource_class": "CPU_ONLY",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 30,
+      "pilot_budget_is_measured": false,
+      "limitation": "No GPU/SASS timing claim; no unsupported admission",
+      "execution_this_round": true,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress",
+      "measured_cpu_compile_seconds": 11.79860099797952,
+      "measured_cpu_test_seconds": 1.729600038001081
+    },
+    {
+      "cell_id": "Q1-ORACLE",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "EXECUTED_CPU_PASS",
+      "entrypoint": "eq1-delta-stall-oracle.json",
+      "dependencies": [],
+      "parameters": {
+        "L0_us": 0.5,
+        "L1_us": 5,
+        "W_us": [
+          6,
+          2,
+          0.2
+        ],
+        "DeltaS_us": [
+          0,
+          3,
+          4.5
+        ]
+      },
+      "evidence_kind": "controlled test-only model",
+      "resource_class": "CPU_ONLY",
+      "pilot_budget_cap_seconds": 5,
+      "pilot_artifact_cap_MiB": 1,
+      "pilot_budget_is_measured": false,
+      "limitation": "Arithmetic only",
+      "execution_this_round": true,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-STRUCTURE",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_GENERAL_NATIVE_KERNEL",
+      "entrypoint": "scripts/eval/audit_sass_mapping.py",
+      "dependencies": [
+        "Q1-CPU"
+      ],
+      "parameters": {
+        "arms": [
+          "native",
+          "instrumented_zero",
+          "old_issue_stall",
+          "deferred"
+        ],
+        "optimized_sass": true
+      },
+      "evidence_kind": "controlled test-only model",
+      "resource_class": "CPU_ONLY",
+      "pilot_budget_cap_seconds": 300,
+      "pilot_artifact_cap_MiB": 1024,
+      "pilot_budget_is_measured": false,
+      "limitation": "Inspect true SASS first use; PTX virtual dependencies do not prove scoreboard fidelity",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-LIFECYCLE",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "READY_AFTER_BINDING",
+      "entrypoint": "scripts/eval/run_c6_future_lifecycle_correctness.py",
+      "dependencies": [
+        "Q1-STRUCTURE"
+      ],
+      "parameters": {
+        "pilot_pairs": 3,
+        "formal_pairs_minimum": 10,
+        "required_flags": [
+          "--execute",
+          "--out",
+          "--build-dir",
+          "--profile",
+          "--ptx",
+          "--cubin",
+          "--gpu-uuid"
+        ]
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "Preserve restricted mode and per-run artifact binding; not full G5",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-OVERLAP",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_IDENTIFIABLE_W_AND_GENERAL_HARNESS",
+      "entrypoint": "scripts/eval/run_c6_future_delay_overlap.py",
+      "dependencies": [
+        "Q1-STRUCTURE",
+        "Q1-LIFECYCLE",
+        "Q1-ORACLE"
+      ],
+      "parameters": {
+        "existing_delay_ns": [
+          0,
+          20000
+        ],
+        "existing_work_count": [
+          0,
+          4096
+        ],
+        "planned_extra_D_us": [
+          0,
+          0.5,
+          1,
+          2,
+          5,
+          10,
+          20
+        ],
+        "planned_W": "actual measured values bracketing L0 and L1",
+        "time_scale": 1,
+        "pilot_pairs": 3
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "Stop non-identifying prework/deadline or absent actual W contrast",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-MLP",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_HARNESS_AND_BASE_GATE",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-OVERLAP"
+      ],
+      "parameters": {
+        "MLP_QD": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ],
+        "occupancy": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "design": "orthogonal subset, not Cartesian",
+        "pilot_pairs": 3
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 300,
+      "pilot_artifact_cap_MiB": 256,
+      "pilot_budget_is_measured": false,
+      "limitation": "Achieved QD/occupancy measured; narrow unexplained concurrency deviations",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-NATIVE-SLOW",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_PLATFORM_CAPABILITY_AND_HARNESS",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-STRUCTURE"
+      ],
+      "parameters": {
+        "memory_paths": [
+          "device",
+          "mapped pinned host, only if supported"
+        ],
+        "held_out": [
+          "W",
+          "MLP"
+        ],
+        "pilot_pairs": 3
+      },
+      "evidence_kind": "physical measurement",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "PCIe/system memory is a limited slower-service anchor; not HBF, TMA or atomics",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-TMA-GS",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_RUNTIME",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-CPU"
+      ],
+      "parameters": {
+        "checks": [
+          "phase",
+          "expect_tx",
+          "arrival_count",
+          "try_wait",
+          "test_wait",
+          "multiwarp",
+          "multistage",
+          "legal multicast"
+        ],
+        "functional_repeats": 5
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "Require joint native/model/data readiness for every visible completion event",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-TMA-SG",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_RUNTIME",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-CPU"
+      ],
+      "parameters": {
+        "checks": [
+          "read_wait_then_shared_overwrite",
+          "separate_destination_visibility",
+          "dynamic_groups_N_0_1"
+        ],
+        "functional_repeats": 5
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "Read-done, destination-visible and persistence are distinct",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-TMAP-CAP",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_RUNTIME_AND_LIFETIME",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-TMA-GS",
+        "Q1-TMA-SG"
+      ],
+      "parameters": {
+        "checks": [
+          "host_encode_replace",
+          "device_replace_fence",
+          "A_to_B_checksum",
+          "mixed_tier_multi_range_page",
+          "tile_pin_eviction",
+          "source_fetch_vs_fabric_bytes"
+        ]
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 120,
+      "pilot_artifact_cap_MiB": 128,
+      "pilot_budget_is_measured": false,
+      "limitation": "Timing TMA does not establish capacity TMA; no unstable opaque descriptor decoding",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-SIM",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_SM120_SUPPORT",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-STRUCTURE"
+      ],
+      "parameters": {
+        "representative_kernels_only": true,
+        "requires": "frozen release/commit plus exact architecture/TMA coverage"
+      },
+      "evidence_kind": "numerical cross-validation",
+      "resource_class": "CPU_ONLY",
+      "pilot_budget_cap_seconds": 300,
+      "pilot_artifact_cap_MiB": 1024,
+      "pilot_budget_is_measured": false,
+      "limitation": "Do not substitute Hopper/B200 calibration for SM120; optional dependency only",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    },
+    {
+      "cell_id": "Q1-PIPELINE",
+      "new_eq": "EQ1",
+      "source_sha": "254d65a66279fbaffc5c185d04fbe41dc8dbba44",
+      "status": "BLOCKED_KERNEL_AND_SEMANTIC_GATE",
+      "entrypoint": null,
+      "dependencies": [
+        "Q1-OVERLAP",
+        "Q1-TMA-GS",
+        "Q1-TMA-SG"
+      ],
+      "parameters": {
+        "kernels": [
+          "compatible CUTLASS/Triton double-buffer GEMM/MoE"
+        ],
+        "arms": [
+          "real_async",
+          "forced_serial"
+        ],
+        "pilot_pairs": 3
+      },
+      "evidence_kind": "controlled GPU semantic experiment",
+      "resource_class": "GPU_EXCLUSIVE",
+      "pilot_budget_cap_seconds": 300,
+      "pilot_artifact_cap_MiB": 256,
+      "pilot_budget_is_measured": false,
+      "limitation": "Validate multiple outstanding requests and source/destination lifetime before performance claims",
+      "execution_this_round": false,
+      "stop_rule": "Any checksum/coverage/binding/timeout error is retained and blocks only dependent cells; no GPU performance concurrently with migration/compile/storage stress"
+    }
+  ]
+}

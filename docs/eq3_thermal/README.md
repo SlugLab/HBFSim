@@ -1,5 +1,25 @@
 # Independent EQ3 thermal P1
 
+## P2 continuation status
+
+P1 remains a verified standalone software fixture, not a calibrated package.
+See [old-artifact applicability audit](HISTORICAL_SUITABILITY_AUDIT.md) before
+reusing any historical floorplan/golden/ROM. The new small reference
+[numerical report](P2_NUMERICAL.md) records a **failed** lumped-RC heldout test,
+not a physics validation PASS. [GPU diagnosis](GPU_DIAGNOSTIC.md) distinguishes
+default agent device isolation from successful authorized host enumeration.
+[Source ledger](SOURCE_AND_GAP_LEDGER.md) and
+[reference manifest](reference_manifest.json) separate numerical, proxy and
+vendor evidence. [Approval contract](experiment_approval.md) applies before
+formal or GPU runs. This turn made no existing runtime or core changes.
+
+The next reference-only four-point refinement plan is persisted outside the
+Git checkout under workspace `eq3_thermal/plans/p2-reference-refinement-v1`.
+It binds a frozen code HEAD without a self-referential manifest commit.
+Its status is PENDING_USER_APPROVAL; script availability is not authorization.
+
+## P1 entry point
+
 Status: CPU numerical/test-fixture implementation; no live HBFSim thermal
 integration, calibrated ROM, physical HBF validation or closed-loop refresh yet.
 The existing top-level build is unchanged. Baseline runtime links no new code.

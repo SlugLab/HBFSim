@@ -18,8 +18,11 @@ Receipts: workspace `eq3_thermal/runs/p2-scale/*valid-id*`, stdout JSON and
 independent time/RSS stderr. Actual values are one execution each, no statistical
 claim. Two prior setup attempts exited134 before solving because the probe used
 reserved activity ID zero; the input generator was corrected to IDs1..N.
-Both failed receipts remain, and all four attempts count conservatively against
-the shared 12-attempt engineering budget. The core was not changed to hide error.
+Both failed receipts remain. Only the two successful numerical configurations
+count toward the shared12-configuration engineering budget; the two pre-solver
+input failures are separately recorded attempts. An earlier attempt-based
+exhaustion statement was overconservative and corrected. The core was not
+changed to hide error.
 
 Static source confirms distinct mechanisms: factor cache O(unique_dt*n²),
 seen-ID set O(total distinct events), and preloaded activity scan per interval

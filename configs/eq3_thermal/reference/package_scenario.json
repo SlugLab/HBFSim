@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "family": "PACKAGE_SCENARIO",
+  "reference_identity": "NEW_REFERENCE",
+  "scenario_id": "eq3-p2-tiled-package-v1",
+  "evidence_class": "CASE_ASSUMPTION",
+  "ambient_k": 300.0,
+  "package": {
+    "width_m": 0.04,
+    "height_m": 0.04,
+    "source_thickness_m": 0.0001,
+    "spreader_thickness_m": 0.0004,
+    "top_heat_transfer_w_m2_k": 1400.0
+  },
+  "mesh_cell_m": {"coarse": 0.002, "fine": 0.001},
+  "regions": [
+    {"id":"corner_sw","kind":"inactive","x_m":0.00,"y_m":0.00,"width_m":0.01,"height_m":0.01},
+    {"id":"hbm3","kind":"hbm","x_m":0.01,"y_m":0.00,"width_m":0.01,"height_m":0.01},
+    {"id":"hbf3","kind":"hbf","x_m":0.02,"y_m":0.00,"width_m":0.01,"height_m":0.01},
+    {"id":"corner_se","kind":"inactive","x_m":0.03,"y_m":0.00,"width_m":0.01,"height_m":0.01},
+    {"id":"hbm2","kind":"hbm","x_m":0.00,"y_m":0.01,"width_m":0.01,"height_m":0.01},
+    {"id":"gpu","kind":"gpu","x_m":0.01,"y_m":0.01,"width_m":0.02,"height_m":0.02},
+    {"id":"hbf2","kind":"hbf","x_m":0.03,"y_m":0.01,"width_m":0.01,"height_m":0.01},
+    {"id":"hbm1","kind":"hbm","x_m":0.00,"y_m":0.02,"width_m":0.01,"height_m":0.01},
+    {"id":"hbf1","kind":"hbf","x_m":0.03,"y_m":0.02,"width_m":0.01,"height_m":0.01},
+    {"id":"corner_nw","kind":"inactive","x_m":0.00,"y_m":0.03,"width_m":0.01,"height_m":0.01},
+    {"id":"hbm0","kind":"hbm","x_m":0.01,"y_m":0.03,"width_m":0.01,"height_m":0.01},
+    {"id":"hbf0","kind":"hbf","x_m":0.02,"y_m":0.03,"width_m":0.01,"height_m":0.01},
+    {"id":"corner_ne","kind":"inactive","x_m":0.03,"y_m":0.03,"width_m":0.01,"height_m":0.01}
+  ],
+  "sensor_mapping": {
+    "quantity": "source-region area-average temperature",
+    "regions": ["gpu","hbm0","hbm1","hbm2","hbm3","hbf0","hbf1","hbf2","hbf3"],
+    "sensor_hotspot_definition": "maximum of the nine reported source-region averages",
+    "grid_hotspot_definition": "maximum source-layer cell temperature with mesh-cell-center x/y and source-layer identity"
+  },
+  "limitations": [
+    "Abstract 4x4 tiled package used for numerical comparison; it is not a product floorplan.",
+    "HBM and HBF labels identify independent heat-source classes only; no stack die geometry is claimed.",
+    "Isotropic silicon and a single top convection boundary are case assumptions, not calibrated package facts."
+    ,"The top convection coefficient reuses the MFIT example-case top HTC; it is not a general package or HBF cooling value."
+  ]
+}

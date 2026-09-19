@@ -71,6 +71,11 @@ class ConfigTests(unittest.TestCase):
         self.thermal["capacity_j_k"]["GPU"] = float("nan")
         with self.assertRaises(ValueError): self.gen(load(ROOT / "topologies/mixed_direct_8.json"))
 
+    def test_zero_conductance_omits_edge(self):
+        self.thermal["conductance_w_k"]["gpu_interposer"] = 0
+        _, _, graph = self.gen(load(ROOT / "topologies/mixed_direct_8.json"))
+        self.assertFalse(any(a == "gpu" and b == "interposer" for a, b, g in graph["thermal_edges"]))
+
     def test_activity_fields_and_resources_preserved(self):
         self.power.update(operation="read", origin="refresh")
         _, events, graph = self.gen(load(ROOT / "topologies/daisy_4hbm_4hbf.json"))

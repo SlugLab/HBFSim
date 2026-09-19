@@ -98,7 +98,8 @@ def generate(topology, devices, thermal, power):
                       thermal["initial_k"], 0, boundary, thermal["ambient_k"]))
 
     def edge(a, b, conductance):
-        edges.append((a, b, conductance))
+        if conductance > 0:
+            edges.append((a, b, conductance))
 
     node("gpu", "gpu", "compute", "gpu", -1, c["GPU"])
     node("interposer", "interposer", "package", "interposer", -1, c["interposer"])

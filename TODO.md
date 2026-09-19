@@ -133,10 +133,6 @@ assigned in the internal defect register described at the top of this file.
 
 ## Repository and tooling
 
-- [ ] Tag the first release. No tag exists in the repository today, so the checkbox-and-release convention described at the top of this file has no starting point. No GPU hardware.
-  - Evidence that closes it: a tag on `main` and a release page listing the repository presentation work under Done below.
-- [ ] Update the clone and branch instructions in `README.md`. `README.md` states that the default branch is `eval_base` and that a clone should pass `--recurse-submodules`; the default branch is now `main`, and the `paper` submodule is marked `active = false` and `update = none` because the submodule points at a private Overleaf repository. No GPU hardware.
-  - Evidence that closes it: a clone of `main` on a machine with no credentials for the private repository, followed by a successful build.
 - [ ] Retarget the two open pull requests onto `main`. Pull request 4 carries `fix/ptx-async-copy-coverage` at `936b8e54`, whose classifier fix reached the default branch through a different commit, and pull request 5 carries the runtime readahead work at `1f19bdb`, recorded as deferred and unverified because `submit_speculative` has no caller and pages can become resident without a corresponding modeled speculative access. Neither head is an ancestor of the default branch. No GPU hardware.
   - Evidence that closes it: both pull requests either merged into `main` or closed with the reason recorded on the pull request.
 - [ ] Decide and record a redistribution license for the reference material under `docs/ref_article/`. The directory holds published PDFs from several venues alongside vendor documents and Chinese-language captures, while the repository as a whole is Apache-2.0, which does not cover redistribution of third-party papers. No GPU hardware.
@@ -155,8 +151,11 @@ Each entry below names the artifact inline, so the artifact is the evidence.
 - [x] Stop `git clone --recurse-submodules` from failing for outside users. The `paper` submodule pointed at a private Overleaf repository, so a clone with submodules failed on authentication; `.gitmodules` now marks the submodule `active = false` and `update = none`, and `scripts/bootstrap.sh` initializes only the two build dependencies.
 - [x] Add `.github/workflows/ci.yml`, a CPU-only build and test plus a repository hygiene check.
 - [x] Add `.github/ISSUE_TEMPLATE/` with bug report, feature request and config entries, and `.github/pull_request_template.md`.
-- [x] Add `scripts/check_doc_links.py`, which resolved all 667 in-repository Markdown links on the run recorded in this round.
+- [x] Add `scripts/check_doc_links.py`, which resolved all 710 in-repository Markdown links on the run recorded in this round.
 - [x] Add `docs/assets/hbfsim-architecture.png` and `docs/assets/hbfsim-architecture.svg`, the architecture figure from the paper.
+- [x] Rewrite `README.md` around a runnable quick start, and add `README.zh-CN.md`, `TODO.md`, `CONTRIBUTING.md` and `docs/README.md`.
+- [x] Verify the public clone path end to end. On a machine holding no credential for the private Overleaf repository, `git clone --recurse-submodules https://github.com/SlugLab/HBFSim.git` checked out bpftime and MQSim and skipped `paper`; `HBFSIM_ENABLE_CUDA=OFF HBFSIM_ENABLE_MQSIM=ON ./scripts/bootstrap.sh` configured, all 152 targets built, and `ctest` reported 31 of 31 passing with the three environment-bound tests excluded.
+- [x] Tag the first release, `v0.1.0`, covering the repository presentation work in this section.
 
 ## How to claim an entry
 

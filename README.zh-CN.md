@@ -49,6 +49,39 @@ ctest --test-dir build --output-on-failure
 
 默认分支是 `main`,所以上面的 `git clone` 不需要 `--branch` 参数。
 
+
+### 看一次运行
+
+介质基准不需要 GPU。它用确定性的顺序请求驱动在线 MQSim 参考模型,输出一份 JSON:
+
+```console
+$ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
+    --requests 1024 --bytes 16384 --operation read --arrival-gap-ns 0
+{
+  "effective_profile": {
+    "aggregate_bandwidth_bytes_per_s": 512000000000,
+    "blocks_per_plane": 16,
+    "capacity_bytes": 68719476736,
+    "channels": 32,
+    "hbm_cache_bytes": 67108864,
+    "nand_technology": "SLC",
+    "plane_allocation_scheme": "CWDP",
+    "program_latency_ns": 100000,
+    "read_latency_ns": 10000
+  },
+  "engine": "mqsim-hbf-media-only",
+  "latency_ns": { "average": 170115, "p50": 164960, "p99": 329920 },
+  "modeled_bandwidth_bytes_per_s": 50852376333.65665,
+  "requests": { "completed": 1024, "submitted": 1024 },
+  "simulator_requests_per_s": 6557.51045857279,
+  "timing_ns": { "modeled": 329920, "wall": 156156823 }
+}
+```
+
+最后两个字段要放在一起读。`timing_ns.modeled` 是 HBFSim 算出来的器件时间,`timing_ns.wall` 是算这件事本身花掉的时间。
+
+HBFSim 在任何地方都把这两个数分开报告,因为一个模拟器可以功能上完全正确,而模拟器自身的开销比它正在建模的延迟还大。
+
 <div align="center">
   <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim 架构:主机侧的初始化与注册表、通过 device ABI 运行 vLLM 的真实 GPU、带原生路径与 frame cache 的高带宽内存层、带承载文件与 prefetcher 的主机容量服务,以及建模出来的 HBF 行为" width="900">
   <p><em>HBFSim 做的事情,从左往右读。主机侧的初始化与注册表用 PTX pass 改写模块,再记下哪些地址区间被注册成 HBF。一块真实 GPU 通过 device ABI 在 Qwen3-30B 上运行 vLLM。在高带宽内存这一层,访问未注册的地址留在原生路径上,访问注册过的地址由 frame cache 供给。主机容量服务从承载文件里取出准确的 page 字节,prefetcher 顺带把后面几个 page 读进来。右边是 HBFSim 算出来的 HBF 行为:在线 MQSim 参考模型给出时序;结温同时决定 HBF 能维持的速率与数据保持期限;期限逼近就必须做刷新,也就是先读一遍再重写一遍;服务策略决定速率与准入;证据输出记录字节数与磨损。</em></p>

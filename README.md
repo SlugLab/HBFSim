@@ -55,6 +55,41 @@ Configure succeeds, all 152 build targets build, and 31 of the 34 tests pass on 
 without CUDA. [TODO.md](TODO.md) records the three tests that do not pass and the reason for
 each of those three.
 
+
+### See one run
+
+The media benchmark runs without a GPU. It drives the online MQSim reference model with
+deterministic sequential requests and emits one JSON document:
+
+```console
+$ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
+    --requests 1024 --bytes 16384 --operation read --arrival-gap-ns 0
+{
+  "effective_profile": {
+    "aggregate_bandwidth_bytes_per_s": 512000000000,
+    "blocks_per_plane": 16,
+    "capacity_bytes": 68719476736,
+    "channels": 32,
+    "hbm_cache_bytes": 67108864,
+    "nand_technology": "SLC",
+    "plane_allocation_scheme": "CWDP",
+    "program_latency_ns": 100000,
+    "read_latency_ns": 10000
+  },
+  "engine": "mqsim-hbf-media-only",
+  "latency_ns": { "average": 170115, "p50": 164960, "p99": 329920 },
+  "modeled_bandwidth_bytes_per_s": 50852376333.65665,
+  "requests": { "completed": 1024, "submitted": 1024 },
+  "simulator_requests_per_s": 6557.51045857279,
+  "timing_ns": { "modeled": 329920, "wall": 156156823 }
+}
+```
+
+Read the last two fields together. `timing_ns.modeled` is the device time HBFSim computed;
+`timing_ns.wall` is how long the computation itself took. The two are reported separately
+everywhere in HBFSim, because an emulator can be functionally correct while its own overhead
+exceeds the delay it models.
+
 <div align="center">
   <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: a host setup and registry, a real GPU running vLLM through a device ABI, a high-bandwidth memory tier with a native path and a frame cache, a host capacity service with a backing file and a prefetcher, and the modeled HBF behaviour" width="900">
   <p><em>What HBFSim does, read from left to right. The host setup and registry rewrites a module with the PTX pass, then records which address ranges are registered as HBF. A real GPU runs vLLM on Qwen3-30B through a device ABI. Inside the high-bandwidth memory tier, an access to an unregistered address stays on the native path, while an access to a registered address is served from a frame cache. The host capacity service supplies exact page bytes from a backing file, with a prefetcher loading the following pages. On the right, HBFSim computes the modeled HBF behaviour: an online MQSim reference model produces timing; junction temperature sets both the rate HBF sustains and the retention deadline; an approaching deadline forces refresh work, which is a read followed by a rewrite; a service policy sets rate and admission; the evidence output records bytes and wear.</em></p>

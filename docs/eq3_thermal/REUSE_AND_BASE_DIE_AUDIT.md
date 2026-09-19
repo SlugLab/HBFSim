@@ -1,5 +1,11 @@
 # 复用与 base-die 审计
 
+实施续接：新逐层路径已将每base导入参考cell、RC node、独立源和传感器映射，
+完成静态守恒/原生parse-only；尚未求解新封装。原RC引擎原样复用，新增独立
+slot-index runner消除旧CLI累计时钟造成的大量dt缓存；未更改核心cache策略。
+实际证据与仍待验证项目见CONVERTER_VALIDATION.md，不将base输入能力等同实物
+PHY/controller/relay功耗闭合。下面是实施前审计记录，保留其来源和限制。
+
 审计基点：00b860854ea79534fcef9c843218cf5d186118ca；结论 DOC_DERIVED。
 本报告是源码/输入审计，不是新的热求解或器件标定结果。
 

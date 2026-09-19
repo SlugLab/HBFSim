@@ -2,6 +2,15 @@
 
 ## Parameter-freeze continuation (current)
 
+Implementation update: [converter validation](CONVERTER_VALIDATION.md) and
+[actual execution readiness](EXECUTION_READINESS_v1.md). Generic IR, native
+3D-ICE/RC export, field/sensor mapping, parse-only probe and gated launcher now
+exist. First-example inputs have been generated and parsed **without solving**.
+Only R01 reference pilot is prepared for execution approval; the full matrix is
+not READY. External GDDR is excluded from the package thermal domain by the latest
+user decision. Memory ceiling is now 16 GiB task / 12 GiB process, not run approval.
+The older NOT_IMPLEMENTED converter statements below are historical and superseded.
+
 Scope revision v3: first 4+4 mixed-direct example accepted in principle; **all four
 topologies remain mandatory**. See [coverage and acceptance axes](FOUR_TOPOLOGY_COVERAGE.md),
 [reuse/base-die audit](REUSE_AND_BASE_DIE_AUDIT.md), and

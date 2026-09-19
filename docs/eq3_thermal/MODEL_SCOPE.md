@@ -1,5 +1,10 @@
 # 模型作用域与两次冻结
 
+实施更新：通用转换器/固定验证和首例静态双导出已完成，详见CONVERTER_VALIDATION。
+参考与RC均未对新封装求解；仅R01参考pilot具备执行包，整套矩阵尚未READY。
+物理假设未修改；RC显式3087节点为待确认的新数值版本，未偷偷沿用≤512承诺。
+最新用户决定：封装外GDDR不模拟热域；内存16GiB任务/12GiB进程，不授权执行。
+
 状态：首个4+4样例 PRINCIPLE_ACCEPTED_WITH_REQUIREMENTS；设计范围修订v3。
 MODEL_FREEZE未发生；执行仍 PENDING_USER_APPROVAL。完整范围以
 FOUR_TOPOLOGY_COVERAGE.md、LAYER_CONVERTER_CONTRACT.md及topology_scope.json为准。

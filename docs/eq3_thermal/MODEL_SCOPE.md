@@ -2,6 +2,11 @@
 
 状态：DESIGN_FREEZE_PROPOSED / PENDING_USER_APPROVAL；MODEL_FREEZE未发生。
 
+最新过程修订：CALIBRATION_PREFLIGHT_v2.md取代v1机械次数上限。10点/856模拟秒
+是首轮清单，不是总次数上限；按官方资料、推导、误差和可辨识性审阅迭代。
+CPU累计耗时估计改为复核节点，不作为科学停止理由；资源安全和执行版本确认
+仍保留。没有新的标定/GPU/矩阵启动授权。
+
 ## 实际代码状态
 
 本轮开始HEAD `f1eb88d18627665abf3359d605205d52c1931c73`，分支`eq3-thermal/p1`；

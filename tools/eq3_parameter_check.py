@@ -64,8 +64,11 @@ def check(root):
     isolated = {next(i for i,w in enumerate(v) if w) for v in power['traces']['train']['slots_W']
                 if sum(w != 0 for w in v)==1}
     assert len(isolated)==17
-    assert len(plan['runs'])==10 and sum(r['duration_s'] for r in plan['runs'])==856
-    assert sum(r['solver']=='reference' for r in plan['runs'])==7
+    counts = plan['count_contract']
+    assert len(plan['runs']) == counts['initial_total_points']
+    assert sum(r['duration_s'] for r in plan['runs']) == counts['initial_simulation_seconds']
+    assert sum(r['solver']=='reference' for r in plan['runs']) == counts['initial_reference_points']
+    assert counts['hard_configuration_limit'] is None, 'mechanical run cap is not the user-approved process'
     assert plan['status']=='PENDING_USER_APPROVAL' and plan['approval_record'] is None
     assert plan['construction']['physical_fit_parameter_count']==0
     for r in rows:

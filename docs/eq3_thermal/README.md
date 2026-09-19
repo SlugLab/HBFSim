@@ -5,11 +5,16 @@
 Start with [parameter decisions](PARAMETER_DECISIONS.md), [actual consumers](PARAMETER_CONSUMERS.md),
 [source audit](PARAMETER_SOURCE_AUDIT.md), [gaps](PARAMETER_GAPS.md) and [model scope](MODEL_SCOPE.md).
 The candidate is per-die4HBM4+4HBF mixed-direct, explicitly CONDITIONAL_SIMULATED.
-[Calibration preflight v1](CALIBRATION_PREFLIGHT_v1.md) and [staged EQ3 plan](EQ3_EXPERIMENT_PLAN_v1.md)
+[Calibration preflight v2](CALIBRATION_PREFLIGHT_v2.md) and [staged EQ3 plan](EQ3_EXPERIMENT_PLAN_v1.md)
 are PENDING_USER_APPROVAL. The new geometry converter is NOT_IMPLEMENTED: old two-layer
 tools are not an execution entry for this candidate. DESIGN_FREEZE precedes bounded
 calibration; MODEL_FREEZE follows independent validation and precedes formal EQ3 approval.
 The old four-point fixture plan below remains unapproved and is not the mainline blocker.
+
+User update: the ten listed calibration points are an initial queue, not a hard
+iteration cap. Continue only evidence-driven, reviewed refinement inside the
+approved scope; stop on scientific completion or safety conditions, not run count.
+v1 is retained as historical; v2 replaces its count/cumulative-time stop rules.
 
 Read-only input audit (no solver/GPU/approval writes):
 

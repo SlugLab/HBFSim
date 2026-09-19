@@ -1,7 +1,7 @@
 {
   "schema_version": "eq3-calibration-design-v1",
   "experiment_id": "EQ3-P2-PERDIE-CALIBRATION",
-  "version": 1,
+  "version": 2,
   "status": "PENDING_USER_APPROVAL",
   "execution_readiness": "BLOCKED_IMPLEMENTATION_AND_EXECUTION_BINDING",
   "design_profile": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
@@ -127,12 +127,14 @@
     }
   ],
   "count_contract": {
-    "reference_max": 7,
-    "RC_max": 3,
-    "total_max": 10,
-    "simulation_seconds_max": 856,
-    "retries": 0,
-    "reuse_previous_fixture": false
+    "initial_reference_points": 7,
+    "initial_RC_points": 3,
+    "initial_total_points": 10,
+    "initial_simulation_seconds": 856,
+    "hard_configuration_limit": null,
+    "automatic_blind_retries": 0,
+    "reuse_previous_fixture": false,
+    "count_note": "Initial audit queue, not a stop rule or execution approval; future points must be preregistered with rationale and cumulative resource receipts."
   },
   "resource_budget": {
     "aggregate_build_threads": 4,
@@ -142,21 +144,25 @@
     "max_process_address_space_GiB": 6,
     "max_task_RAM_GiB": 8,
     "additional_output_GiB": 4,
-    "total_new_CPU_s": 3600,
     "per_run_wall_timeout_s": 600,
-    "stage_wall_timeout_s": 5400,
     "GPU_compute_minutes": 0,
-    "cloud_cost": 0
+    "cloud_cost": 0,
+    "initial_cpu_seconds_estimate": 3600,
+    "cumulative_cpu_review_checkpoint_s": 3600,
+    "aggregate_compute_authorization": "PENDING_EXECUTION_VERSION_APPROVAL; no fixed scientific stop after1CPUhour; no implicit unlimited compute authorization"
   },
   "adaptive_rules": [
-    "Do not start anysolver before actual inputconverter, gate binding and static/unit checks arecomplete and executionversion approved.",
-    "Run R01 first; abort at anyresource/output/domainfailure, no retry.",
-    "Before R02 use4xcell increase and conservative8xfactor-memory growth bound fromR01 peak plus0.5GiB overhead; require forecast<=5GiB.",
-    "Before R03 usemax(8,R02_peak/R01_peak)*R02_peak+0.5GiB forecast<=5GiB; else RESOURCE_BLOCKED, no coarsesubstitute accepted asconverged.",
-    "Use all3space levels onlyfortrend/difference; R02/R03 mean/gridmaxdifferences must<=0.25K. Compare common timestamps. Else stopbeforetime/RCfits.",
-    "R04 compares20->10ms; ifbothmaxdeltas<=0.25K skipR05 anduse10ms forremainingruns (explicitcountreduction). Otherwise R05 at5ms; ifdeltasstill>0.25K stop, no2.5ms.",
-    "R06 then F01/F02. Onpasseddevelopment lock RC inputbytes/hash andmethod; onlythen R07/F03. No adaptation basedonblindoutputs.",
-    "Power/geometry/material changes requireupdateddesign/userconfirmation; neverreduceheat orrelaxmetrics toforcePASS."
+    "No solver before actual converter/static checks/execution binding and explicit execution-version approval.",
+    "R01 first; preserve resource/output/domain failures and diagnose; no blind parameter change or automatic failed-run retry.",
+    "Before any mesh refinement forecast sparse-factor memory from preceding observed peak/growth, using at least8x for4xcell growth +0.5GiB overhead; require forecast<=5GiB and retain6GiB process/8GiB task limits.",
+    "Initial queue uses4/2/1mm and20/10/5ms. These are starting points, not resolution or run-count stop boundaries.",
+    "After every completed point compare same-observable mean/grid-hotspot errors, conservation, provenance, resource cost and predicted diagnostic value before selecting and recording the nextpoint.",
+    "If accuracy goals are met stop refinement. If unmet and errors improve consistently (each selected error delta<=0.8 preceding delta, withzero tolerance1e-12), further same-question resolution refinement may be proposed within specificallyapproved adaptive scope and safetylimits. No run-count-based stop.",
+    "If improvement fails or evidence conflicts, pause numerical expansion for layered diagnosis/source review. After2unsuccessfulfixvariants widen diagnosis; no blind repeatedruns.",
+    "Changes to device/geometry/material/temperaturedomain/powertraces/fitparameters/control assumptions require revised scientific version and renewed user confirmation; original-doc review alone is not an execution approval.",
+    "Reference andRC development precede locking modelbytes/hash. Onlyafterlock may newblind outputs be generated/viewed. Model revisions invalidate that trace as soleblindtest and require a newlyregistered test.",
+    "Record cumulative CPU/wall/disk cost;1CPUhour is review checkpoint and estimate, not science-stop threshold. Resource scope beyondapproved executionmanifest requires confirmation; no unlimited budget implied.",
+    "No GPU/cloud/host-driver change; no reuse ofoldfour-point approval (noneexists)."
   ],
   "acceptance": {
     "per_powered_region_MAE_K": 1,
@@ -189,5 +195,34 @@
     "explicitexecution-version userconfirmation"
   ],
   "outputs": "new immutable eq3_thermal/runs/EQ3-P2-PERDIE-CALIBRATION-vN/run_id; nooverwrite",
-  "approval_record": null
+  "approval_record": null,
+  "iteration_record_contract": {
+    "required": [
+      "iteration_id",
+      "question",
+      "source/version/hash and original location",
+      "hypothesis vs fact",
+      "input differences and affectedclaims",
+      "predeclaredmetrics/expecteddiagnosticvalue",
+      "actualresultsincludingnegative",
+      "cumulativeCPU/RAM/disk",
+      "reviewdecision and nextpoint",
+      "approval_scope_check"
+    ],
+    "scientific_stop": [
+      "requestedaccuracyanddomainvalidated",
+      "currentquestionanswered",
+      "unidentifiableparameters or no usefuladditionalinformation; diagnose/reframe"
+    ],
+    "safety_stop": [
+      "memory/disk/interference",
+      "invalidinput/energy/clock",
+      "outsidechosenmaterialdomain"
+    ],
+    "no_stop_merely_for": [
+      "numberofruns",
+      "exhaustionofinitial10pointqueue",
+      "elapsedestimate"
+    ]
+  }
 }

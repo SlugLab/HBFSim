@@ -1,5 +1,13 @@
 # Independent EQ3 thermal P1
 
+## Current continuous campaign result (supersedes historical status below)
+
+[P2/P3/P4 actual result](P2_P3_P4_CAMPAIGN_RESULT.md): P2 remains blocked by
+reference precision/resources and development domain; no MODEL_FREEZE/blind.
+P3 actual MQSim CPU observer/advice and P4 resource/maintenance/control fixture
+are implemented and tested, including four topology paths and six mainline CPU
+engineering pilots. This is not physical calibration or a P5 paper matrix.
+
 ## Parameter-freeze continuation (current)
 
 Implementation update: [converter validation](CONVERTER_VALIDATION.md) and

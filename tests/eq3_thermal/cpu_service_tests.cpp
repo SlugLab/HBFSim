@@ -104,8 +104,15 @@ void control_cooling() {
   c["control"]["hbf0"]["hysteresis_k"]=.01;
   CpuService s(c.dump());for(unsigned i=0;i<3;++i)s.submit(request("q"+std::to_string(i)).dump());
   s.advance_to(500000000);auto r=J::parse(s.report());check(r["done"].size()==1&&r["queue"].size()==2,"control did not gate or drain");
-  bool shutdown=false;for(const auto& row:r["log"])if(row["kind"]=="control"&&row["to"]=="Shutdown")shutdown=true;
-  check(shutdown,"shutdown not reached");check(r["control"]["hbf1"]["applied"]=="Normal","control not per stack");
+  bool light=false,severe=false,shutdown=false;std::uint64_t previous=0;
+  for(const auto& row:r["log"])if(row["kind"]=="control") {
+    const auto at=row["time_ns"].get<std::uint64_t>();check(at>=20000000,"action delay ignored");
+    if(previous)check(at-previous>=30000000,"minimum dwell ignored");previous=at;
+    light|=row["to"]=="Light";severe|=row["to"]=="Severe";shutdown|=row["to"]=="Shutdown";
+  }
+  check(light&&severe&&shutdown,"not all heating states reached");
+  check(r["done"][0]["end_ns"]==100000000,"inflight was lost or retroactively delayed");
+  check(r["control"]["hbf1"]["applied"]=="Normal","control not per stack");
   const auto hot=r["temperature_k"]["hbf0_die0"].get<double>();s.advance_to(10000000000ULL);r=J::parse(s.report());
   check(r["done"].size()==3&&r["queue"].empty(),"idle recovery failed");check(r["temperature_k"]["hbf0_die0"].get<double>()<hot,"idle cooling absent");
   check(r["control"]["hbf0"]["applied"]=="Normal","hysteresis recovery failed");

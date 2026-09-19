@@ -55,8 +55,10 @@ Off, unavailable sensors, invalid/nonfinite input, window overlaps, completion
 timestamps and checkpoint model identity are negative tests. Build again from a
 different source/build path; copied binaries never count as reproduction.
 
-P2 first recovers donor 3D-ICE source/version/patch/input/golden provenance without
-merging it. Numerical agreement is not physical calibration. P3 adds only verified
+P2 performs a bounded donor provenance search without merging it. The user-approved
+P2 continuation permits NEW_REFERENCE after historical inputs remain unavailable;
+exact historical replay is not a prerequisite for independent numerical validation.
+Numerical agreement is not physical calibration. P3 adds only verified
 host activity observers and proves off/read_only/shadow parity. Existing request
 observations alone cannot establish NAND command/die energy. P4 requires actual
 maintenance scheduling/completion/energy/wear, and stops before unapproved ABI
@@ -67,8 +69,9 @@ target or predetermined compute-first fraction.
 ## Resource and evidence contract
 
 At most four aggregate compiler jobs and serial suites; OMP/BLAS threads=1,
-8 GiB RAM and 20 GiB task disk budget, GPU use zero until access/availability is
-verified. No system installation or driver work. Software unit runs are not
+8 GiB RAM and 20 GiB task disk budget, GPU compute zero until a specific
+version/hash-bound preflight receives explicit user approval, even when devices
+are visible. No system installation or driver work. Software unit runs are not
 paper-candidate experiments. Every later run retains immutable commands, source
 and configuration hashes, exit codes and evidence class. Small local commits
 are permitted; no push, merge, external publication or old data rewrite.

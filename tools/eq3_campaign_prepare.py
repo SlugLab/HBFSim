@@ -5,9 +5,9 @@ from eq3_experiment_gate import canonical_manifest_hash,verify_artifacts,observe
 
 def sha(p):
     with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
-def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',binary=None,model_lock=None):
+def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',binary=None,model_lock=None,reference_environment=None):
     code=root/'eq3_thermal/worktree';campaign=root/'eq3_thermal/plans/campaign-v1';plan=campaign/'points'/point
-    auth_path=campaign/'authorization-v2.json'
+    auth_path=campaign/'authorization-v3.json'
     auth=json.loads(auth_path.read_text());scope=json.loads((root/auth['scope_path']).read_text());g=generated.resolve();r=json.loads((g/'generation_receipt.json').read_text())
     base=root/'eq3_thermal/plans/layered-R02-v1';m=json.loads((base/'experiment_manifest.json').read_text());l=json.loads((base/'launch.json').read_text())
     def art(p,role,identity=None):
@@ -21,10 +21,13 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     files=[art(p,'generated physical/numerical input') for p in sorted(g.iterdir()) if p.is_file()]
     original_engine=m['dependencies'][0]
     reference_engine=original_engine
-    if family=='reference' and binary is not None:
+    is_reference=family in ('reference','reference_pilot')
+    if is_reference and binary is not None:
         reference_engine=art(binary,'same-method reference with isolated factor storage repair','reference-storage-backend')
         m['dependencies'].append(reference_engine)
-        m['dependencies'].append(art(root/'environments/eq3-thermal-reference-storage-v1/manifest.json','isolated factor storage environment'))
+        env_path=reference_environment or root/'environments/eq3-thermal-reference-storage-v1/manifest.json'
+        env=json.loads(env_path.read_text())
+        m['dependencies'].append(art(env_path,'isolated factor storage environment'))
     l.update(experiment_id='EQ3-P2-'+point,version='campaign-v1',run_id=point,artifacts=files)
     l['command']['cwd']=g.relative_to(root).as_posix();l['output']['path']=(plan/'runs'/point).relative_to(root).as_posix()
     if family in ('rc','rc_pilot'):
@@ -52,7 +55,7 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
         m['dependencies'] += [art(root/'environments/eq3-thermal-campaign-rc-v2/manifest.json','frozen sparse CPU environment'),art(root/'eq3_thermal/build/campaign-rc-v2/validation_receipt.json','sparse build and fixed equivalence evidence')]
     m['inputs']=files+[p for p in m['inputs'] if p['semantic_role']=='source scientific input']+[art(plan/'child.json','stage derived child scope','stage-child-contract'),art(plan/'launch.json','single run launch binding','layered-launch-manifest')]
     # Preserve original fixed-test evidence; current campaign regression is also bound.
-    m['prerequisites']=[m['prerequisites'][0],{'id':'campaign-regression','status':'PASSED','evidence':art(campaign/'software-tests-v4.log','fixed regression raw evidence')}]
+    m['prerequisites']=[m['prerequisites'][0],{'id':'campaign-regression','status':'PASSED','evidence':art(campaign/'software-tests-v6.log','fixed regression raw evidence')}]
     s=m['scientific_config'];s['workload_and_initial_state'].update(trace=trace,duration_s=r['duration_s'],input_energy_j=r['input_energy_j'])
     s['research_question_and_hypothesis']['question']=f'{point}: same-physics {family} numerical/resource validation at step{step}s and reference mesh{mesh}um; no physical calibration'
     s['geometry_materials_boundaries'].update(shape=r['reference_shape'],cells=r['reference_cells'],rc_nodes=r['rc_nodes'])
@@ -60,13 +63,13 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     s['scan_matrix_and_repetitions']={'runs':[{'point':point,'trace':trace,'step_s':step,'mesh_um':mesh,'repeat':1}],'automatic_followup':'stage dependencies, not unconditional','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE'}
     budget=s['acceptance_abort_and_outputs']
     budget.pop('combined_output_forecast_bytes',None)
-    budget.update(outputs=l['output'],raw_full_field_retained=family=='reference',output_policy=policy,resource_estimate='updated per child after measured predecessor; memory/time UNKNOWN',field_bytes_estimate=r['reference_field_bytes_estimated'] if family=='reference' else 0,staged_inputs_measured_bytes=sum(p.stat().st_size for p in g.iterdir() if p.is_file()))
+    budget.update(outputs=l['output'],raw_full_field_retained=is_reference,output_policy=policy,resource_estimate='updated per child after measured predecessor; memory/time UNKNOWN',field_bytes_estimate=r['reference_field_bytes_estimated'] if is_reference else 0,staged_inputs_measured_bytes=sum(p.stat().st_size for p in g.iterdir() if p.is_file()))
     m['execution_context']={'stage_id':scope['stage_id'],'code_root':code.relative_to(root).as_posix(),'environment_id':'eq3-thermal-campaign-rc-v2' if family in ('rc','rc_pilot') else 'eq3-thermal-reference-v1','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE','authorization_path':auth_path.relative_to(root).as_posix()}
-    if family=='reference' and binary is not None:
-        m['execution_context']['environment_id']='eq3-thermal-reference-storage-v1'
+    if is_reference and binary is not None:
+        m['execution_context']['environment_id']=env['environment_id']
     m['canonical_manifest_hash']=canonical_manifest_hash(m);verify_artifacts(m,root)
     validate_gate(m,auth,root,observed_code_revision=rev,observed_dirty_diff_sha256=diff)
     write('experiment_manifest.json',m);print(json.dumps({'point':point,'manifest_hash':m['canonical_manifest_hash'],'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','launch_performed':False}));return plan
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--point',required=True);p.add_argument('--generated',type=Path,required=True);p.add_argument('--trace',required=True);p.add_argument('--step',type=float,required=True);p.add_argument('--mesh',type=float,default=0);p.add_argument('--policy',choices=['full_text','lossless_gzip','lossless_EQ3TMK1'],required=True);p.add_argument('--family',choices=['reference','rc','rc_pilot','numerical_refinement'],required=True);p.add_argument('--dependencies',type=Path,required=True);p.add_argument('--reason',default='');p.add_argument('--binary',type=Path);a=p.parse_args();prepare(a.root.resolve(),a.point,a.generated,a.trace,a.step,a.mesh,a.policy,a.family,json.loads(a.dependencies.read_text()),a.reason,a.binary)
+    p=argparse.ArgumentParser();p.add_argument('--root',type=Path,required=True);p.add_argument('--point',required=True);p.add_argument('--generated',type=Path,required=True);p.add_argument('--trace',required=True);p.add_argument('--step',type=float,required=True);p.add_argument('--mesh',type=float,default=0);p.add_argument('--policy',choices=['full_text','lossless_gzip','lossless_EQ3TMK1'],required=True);p.add_argument('--family',choices=['reference','reference_pilot','rc','rc_pilot','numerical_refinement'],required=True);p.add_argument('--dependencies',type=Path,required=True);p.add_argument('--reason',default='');p.add_argument('--binary',type=Path);p.add_argument('--reference-environment',type=Path);a=p.parse_args();prepare(a.root.resolve(),a.point,a.generated,a.trace,a.step,a.mesh,a.policy,a.family,json.loads(a.dependencies.read_text()),a.reason,a.binary,reference_environment=a.reference_environment)

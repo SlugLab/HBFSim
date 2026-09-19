@@ -52,7 +52,7 @@ def validate_stage(authorization,manifest,root):
     if not norm:_fail('STAGE_INPUT_MISSING','normalized physical input absent')
     ir=json.loads(resolve(root,norm['path']).read_text())
     expected_hash=scope['traces'][contract['trace']]['normalized_sha256']
-    if family=='rc_pilot':
+    if family in ('rc_pilot','reference_pilot'):
         from eq3_layered_ir import normalize
         paths=scope['frozen_scientific_inputs']
         profile=next(p for p in paths if p.endswith('/candidate_profile.json'));power=next(p for p in paths if p.endswith('/calibration_power.json'))
@@ -74,10 +74,10 @@ def validate_stage(authorization,manifest,root):
     if science['time_and_numerics']['step_s']!=contract['step_s']:_fail('STAGE_NUMERICS_INVALID','step differs from scientific manifest')
     trace=scope['traces'][contract['trace']]
     workload=science['workload_and_initial_state']
-    expected_energy=ir['power']['total_energy_j'] if family=='rc_pilot' else trace['energy_j']
-    expected_duration=max(row['end_s'] for row in ir['power']['intervals']) if family=='rc_pilot' else trace['duration_s']
+    expected_energy=ir['power']['total_energy_j'] if family in ('rc_pilot','reference_pilot') else trace['energy_j']
+    expected_duration=max(row['end_s'] for row in ir['power']['intervals']) if family in ('rc_pilot','reference_pilot') else trace['duration_s']
     if workload['input_energy_j']!=expected_energy or workload['duration_s']!=expected_duration:_fail('STAGE_TRACE_INVALID','duration or power differs')
-    if family=='reference':
+    if family in ('reference','reference_pilot'):
         mesh=contract['mesh_um'];ratio=4000/mesh
         if mesh<=0 or abs(ratio-round(ratio))>1e-8 or round(ratio)&(round(ratio)-1):_fail('STAGE_NUMERICS_INVALID','non-dyadic reference grid')
     return {'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','stage_id':scope['stage_id'],'point_id':contract['point_id']}

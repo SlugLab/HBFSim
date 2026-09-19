@@ -2,9 +2,10 @@
 import argparse, hashlib, json, os, resource, signal, subprocess, sys, time
 from pathlib import Path
 
-p=argparse.ArgumentParser();p.add_argument('mode',choices=['solve','observe']);p.add_argument('--root',type=Path,required=True);p.add_argument('--point',type=Path,required=True)
+p=argparse.ArgumentParser();p.add_argument('mode',choices=['solve','observe','observe-audit']);p.add_argument('--root',type=Path,required=True);p.add_argument('--point',type=Path,required=True)
 a=p.parse_args(); root=a.root.resolve(); plan=a.point.resolve()
 code=root/'eq3_thermal/worktree'; launch=json.loads((plan/'launch.json').read_text());run=root/launch['output']['path']; derived=plan/'derived'
+if a.mode=='observe-audit':derived=plan/'derived-invalid-domain-audit'
 receipt=plan/(a.mode+'-operational.json')
 if receipt.exists(): raise SystemExit('No operational retry/overwrite allowed')
 gib=1024**3
@@ -27,8 +28,9 @@ else:
     if not (run/'DONE.json').exists():raise SystemExit('No completed solver receipt; diagnose only')
     argv=[sys.executable,'-B',str(code/'tools/eq3_layered_observe.py'),'--run-dir',str(run),'--generated',str(root/launch['command']['cwd']),'--output',str(derived)]
 
-if a.mode=='observe' and contract['family'] in ('rc','rc_pilot'):
+if a.mode!='solve' and contract['family'] in ('rc','rc_pilot'):
     argv+=['--kind','rc']
+if a.mode=='observe-audit':argv+=['--audit-invalid-domain']
 
 def bytes_in(path):return sum(x.stat().st_size for x in path.rglob('*') if x.is_file())
 initial_task_bytes=bytes_in(root/'eq3_thermal')
@@ -50,7 +52,7 @@ def tree():
 def limits():
     # Parent launcher stays <=512 MiB; its already-bound child restriction raises
     # only solver address-space to12GiB. Observe is sequential and <=12GiB.
-    if a.mode=='observe':resource.setrlimit(resource.RLIMIT_AS,(12*gib,12*gib))
+    if a.mode!='solve':resource.setrlimit(resource.RLIMIT_AS,(12*gib,12*gib))
     resource.setrlimit(resource.RLIMIT_CORE,(0,0))
 
 collector=root/'tools/collect_experiment_metadata.py'
@@ -78,7 +80,7 @@ with (plan/(a.mode+'-stdout.log')).open('xb') as out,(plan/(a.mode+'-stderr.log'
         if rss>16*gib/1024:reason='TASK_RSS_LIMIT'
         if size>4*gib:reason='COMBINED_OUTPUT_LIMIT'
         if bytes_in(root/'eq3_thermal')>20*gib:reason='TASK_DISK_LIMIT'
-        if a.mode=='observe' and time.monotonic()-started>600:reason='POSTPROCESS_WATCHDOG'
+        if a.mode!='solve' and time.monotonic()-started>600:reason='POSTPROCESS_WATCHDOG'
         if reason:
             for pid in ids-{os.getpid()}:
                 try:os.kill(pid,signal.SIGKILL)

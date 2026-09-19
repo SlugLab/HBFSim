@@ -34,4 +34,32 @@ class StageGateTests(unittest.TestCase):
         self.c['family']='GPU';self.write('child.json',json.dumps(self.c))
         with self.assertRaises(GateError):self.check()
 
+    def reference_prefix(self,end=4.,mesh=1000,corrupt=False):
+        from unittest.mock import patch
+        from eq3_campaign_gate import prefix_ir
+        full={'power':{'intervals':[{'start_s':0.,'end_s':100.,'power_w':{'x':13.65}}],
+            'component_energy_j':{'x':1365.},'total_energy_j':1365.}}
+        self.scope['allowed_families'].append('reference_pilot')
+        self.scope['traces']['train']['normalized_sha256']=canonical(full)
+        (self.root/'config').mkdir()
+        for name in ('config/candidate_profile.json','config/calibration_power.json'):
+            self.write(name,'{}');self.scope['frozen_scientific_inputs'][name]=sha(self.root/name)
+        self.write('scope.json',json.dumps(self.scope));self.a['scope_sha256']=sha(self.root/'scope.json')
+        ir=prefix_ir(full,end)
+        if corrupt:ir['power']['intervals'][0]['power_w']={'x':20.}
+        self.write('x/normalized.json',json.dumps(ir))
+        self.c.update(family='reference_pilot',point_id='REFERENCE-PREFIX',derivation_reason='exact-prefix resource diagnostic',mesh_um=mesh)
+        self.write('child.json',json.dumps(self.c))
+        self.m['scientific_config']['workload_and_initial_state'].update(duration_s=end,input_energy_j=ir['power']['total_energy_j'])
+        with patch('eq3_layered_ir.normalize',return_value=full):return self.check()
+
+    def test_reference_prefix_exact_pass(self):
+        self.assertEqual(self.reference_prefix()['status'],'AUTHORIZED_BY_USER_STAGE_SCOPE')
+    def test_reference_prefix_reject_changed_power(self):
+        with self.assertRaises(GateError):self.reference_prefix(corrupt=True)
+    def test_reference_prefix_reject_full_duration(self):
+        with self.assertRaises(GateError):self.reference_prefix(end=100.)
+    def test_reference_prefix_reject_non_dyadic_mesh(self):
+        with self.assertRaises(GateError):self.reference_prefix(mesh=700)
+
 if __name__=='__main__':unittest.main()

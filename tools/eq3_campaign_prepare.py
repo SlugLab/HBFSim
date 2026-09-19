@@ -20,17 +20,24 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     plan.mkdir(parents=True,exist_ok=False);(plan/'runs').mkdir();write('child.json',contract)
     files=[art(p,'generated physical/numerical input') for p in sorted(g.iterdir()) if p.is_file()]
     original_engine=m['dependencies'][0]
+    reference_engine=original_engine
+    if family=='reference' and binary is not None:
+        reference_engine=art(binary,'same-method reference with isolated factor storage repair','reference-storage-backend')
+        m['dependencies'].append(reference_engine)
+        m['dependencies'].append(art(root/'environments/eq3-thermal-reference-storage-v1/manifest.json','isolated factor storage environment'))
     l.update(experiment_id='EQ3-P2-'+point,version='campaign-v1',run_id=point,artifacts=files)
     l['command']['cwd']=g.relative_to(root).as_posix();l['output']['path']=(plan/'runs'/point).relative_to(root).as_posix()
     if family in ('rc','rc_pilot'):
         l['backend']=art(binary,'sparse same-equation RC backend','rc-backend');l['command']['argv']=[l['backend']['path'],'--run','--model','model.txt','--events','events.txt','--step-s',str(step),'--slot-s','.5','--sample-s','.1','--end-s',str(r['duration_s']),'--min-k','300','--max-k','400']
     elif policy in ('lossless_gzip','lossless_EQ3TMK1'):
-        l['backend']=art(code/'tools/eq3_campaign_stream.py','byte-lossless output adapter','stream-backend');nx,ny,nz=r['reference_shape'];l['command']['argv']=[l['backend']['path'],'--backend',original_engine['path'],'--stack','package.stk','--layers',str(nz),'--frames',str(round(r['duration_s']/step)),'--nx',str(nx),'--ny',str(ny),'--watchdog','600']
+        l['backend']=art(code/'tools/eq3_campaign_stream.py','byte-lossless output adapter','stream-backend');nx,ny,nz=r['reference_shape'];l['command']['argv']=[l['backend']['path'],'--backend',reference_engine['path'],'--stack','package.stk','--layers',str(nz),'--frames',str(round(r['duration_s']/step)),'--nx',str(nx),'--ny',str(ny),'--watchdog','600']
         if policy=='lossless_EQ3TMK1':
             codec=art(root/'eq3_thermal/build/campaign-codec-v1/libeq3_campaign_nativecodec.so','byte-lossless native field codec','native-field-codec')
             m['dependencies'].append(codec)
             l['command']['argv']+=['--policy',policy,'--codec-library',codec['path']]
-    else:l['command']['argv']=[l['backend']['path'],'package.stk']
+    else:
+        l['backend']=reference_engine
+        l['command']['argv']=[l['backend']['path'],'package.stk']
     write('launch.json',l)
     m.update(experiment_id=l['experiment_id'],version=l['version'],approval_status='USER_APPROVED')
     # USER_APPROVED describes stage eligibility; not a fabricated per-point signature.
@@ -55,6 +62,8 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     budget.pop('combined_output_forecast_bytes',None)
     budget.update(outputs=l['output'],raw_full_field_retained=family=='reference',output_policy=policy,resource_estimate='updated per child after measured predecessor; memory/time UNKNOWN',field_bytes_estimate=r['reference_field_bytes_estimated'] if family=='reference' else 0,staged_inputs_measured_bytes=sum(p.stat().st_size for p in g.iterdir() if p.is_file()))
     m['execution_context']={'stage_id':scope['stage_id'],'code_root':code.relative_to(root).as_posix(),'environment_id':'eq3-thermal-campaign-rc-v2' if family in ('rc','rc_pilot') else 'eq3-thermal-reference-v1','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE','authorization_path':auth_path.relative_to(root).as_posix()}
+    if family=='reference' and binary is not None:
+        m['execution_context']['environment_id']='eq3-thermal-reference-storage-v1'
     m['canonical_manifest_hash']=canonical_manifest_hash(m);verify_artifacts(m,root)
     validate_gate(m,auth,root,observed_code_revision=rev,observed_dirty_diff_sha256=diff)
     write('experiment_manifest.json',m);print(json.dumps({'point':point,'manifest_hash':m['canonical_manifest_hash'],'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','launch_performed':False}));return plan

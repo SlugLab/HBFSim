@@ -1,0 +1,346 @@
+{
+  "schema_version": "eq3-source-evidence-v1",
+  "audit_date_utc": "2026-09-19",
+  "purpose": "Machine-readable source audit for DESIGN_FREEZE decisions; not an experiment approval or MODEL_FREEZE.",
+  "evidence_classification": {
+    "SPECIFIED": "Value stated by the identified specification/vendor under recorded conditions.",
+    "PROXY": "A non-target source; proxy_subtype records whether it is measured or a published numerical case.",
+    "DERIVED": "Unit-consistent arithmetic from identified parent evidence.",
+    "SCENARIO_ASSUMPTION": "Explicit research choice, not a device fact.",
+    "UNKNOWN_BLOCKING": "No defensible target value/range for an absolute claim."
+  },
+  "sources": [
+    {
+      "source_id": "OCP-HBF-0.7.0",
+      "kind": "SPECIFICATION",
+      "path": "eq3_thermal/worktree/docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf",
+      "version": "0.7.0",
+      "date": "2026-08-03",
+      "sha256": "307531eb8053f00cbeccbc907ddff0a9c4fe6f9d0066a077ce33b0ac99312da3",
+      "license_or_redistribution": "Document copyright/license not inferred by this audit."
+    },
+    {
+      "source_id": "SANDISK-HBF-FACT-2025-07",
+      "kind": "VENDOR_TECH_BRIEF",
+      "path": "eq3_thermal/reference/vendor-20260919/Sandisk-HBF-Fact-Sheet.pdf",
+      "version": "July 2025",
+      "sha256": "349f05372fb528702d2fe95ec8f3a9cb9b4dd976c7d115a3db49f26031b10111",
+      "license_or_redistribution": "All rights reserved in document; cite, do not assume raw-data license."
+    },
+    {
+      "source_id": "HBM-POWER-4642c61",
+      "kind": "PUBLIC_ARTIFACT",
+      "path": "eq3_thermal/reference/HBM-Power",
+      "git_commit": "4642c61f856cbd9d5d3f37d56214e5dbfa663703",
+      "license_or_redistribution": "UNKNOWN: no root LICENSE, COPYING, or NOTICE in pinned tree; bundled subproject licenses do not establish CSV licensing."
+    },
+    {
+      "source_id": "MFIT-4444336",
+      "kind": "PUBLIC_ARTIFACT",
+      "path": "eq3_thermal/reference/MFIT",
+      "git_commit": "4444336d95fe7e9a3bf440c96937831126c6a37f",
+      "license_or_redistribution": "GPL-3.0"
+    },
+    {
+      "source_id": "HEATWATCH-HPCA-2018",
+      "kind": "PEER_REVIEWED_PAPER",
+      "path": "eq3_thermal/worktree/docs/ref_article/luo2018-heatwatch-nand-temperature.pdf",
+      "version": "HPCA 2018",
+      "sha256": "a1d2140c3c9c0ae2fedf7741f1e9d2af2fe777742509fc19875a5c559cc2f608",
+      "license_or_redistribution": "Cite paper; no raw-characterization-data license inferred."
+    }
+  ],
+  "evidence": [
+    {
+      "parameter_id": "hbf.ocp.speed_grade_max_user_bandwidth",
+      "values": [384, 1536, 3072],
+      "unit": "GB/s_decimal",
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.16 Table 4; original values 0.384/1.536/3.072 TB/s",
+      "conditions": "x64 package, UCIe 8/16/32 GT/s; maxima",
+      "transfer_restrictions": "Do not treat as sustained NAND delivery, actual operating point, or TiB/s."
+    },
+    {
+      "parameter_id": "hbf.ocp.max_stack_height_by_grade",
+      "values": [8, 16, 16],
+      "unit": "stack_height_count_unspecified",
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.16 Table 4",
+      "transfer_restrictions": "Maximum height is not actual NAND die count and grade 3 does not imply 32 dies."
+    },
+    {
+      "parameter_id": "hbf.ocp.example_capacity",
+      "source_value": 512,
+      "source_unit": "GiB",
+      "si_value": 549755813888,
+      "si_unit": "byte",
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.16 Table 3",
+      "conditions": "16 dies, 16 banks/channel, 4096-byte page example",
+      "transfer_restrictions": "Not interchangeable with Sandisk decimal 512 GB."
+    },
+    {
+      "parameter_id": "hbf.ocp.outer_envelope",
+      "source_value": [10.975, 16.0, 0.775],
+      "source_unit": "mm_xyz",
+      "derived_area_mm2": 175.6,
+      "derived_rectangular_volume_mm3": 136.09,
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.16 approximate footprint statement",
+      "transfer_restrictions": "Approximate outer envelope; no internal layer allocation or active area."
+    },
+    {
+      "parameter_id": "hbf.ocp.power_on_retention",
+      "source_value": 24,
+      "source_unit": "hour",
+      "temperature_C": 85,
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.106 section 9 and Table 33",
+      "conditions": "Power on; core-die stored data",
+      "transfer_restrictions": "Does not identify Ea, RBER, ECC, retry, P/E limit, or policy threshold."
+    },
+    {
+      "parameter_id": "hbf.ocp.junction_operating_range",
+      "bounds": [0, 105],
+      "unit": "degC",
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.106 section 9.1",
+      "transfer_restrictions": "Junction range, not ambient or cold-plate boundary and not Light/Severe thresholds."
+    },
+    {
+      "parameter_id": "hbf.ocp.refresh_interval_typical",
+      "bounds": [24, 48],
+      "unit": "hour",
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.118 section 11.5",
+      "conditions": "Typical periodic data refresh; actual reliability interval product-specific",
+      "transfer_restrictions": "Not a universal guaranteed deadline; service time, energy, granularity, and read-count trigger unavailable."
+    },
+    {
+      "parameter_id": "hbf.ocp.same_die_read_refresh_exclusion",
+      "value": true,
+      "evidence_kind": "SPECIFIED",
+      "source_id": "OCP-HBF-0.7.0",
+      "location": "PDF p.118 section 11.5",
+      "conditions": "When host interleaves refresh with active workload",
+      "transfer_restrictions": "Does not define service duration or cross-die contention."
+    },
+    {
+      "parameter_id": "hbf.maintenance_profile_conflict",
+      "value": "OCP_PERIODIC_REFRESH_VS_SANDISK_NO_REFRESH_POWER",
+      "evidence_kind": "SCENARIO_ASSUMPTION",
+      "source_id": "OCP-HBF-0.7.0+SANDISK-HBF-FACT-2025-07",
+      "location": "OCP PDF p.118; Sandisk PDF p.2 / extracted lines 53-54",
+      "transfer_restrictions": "Profiles must be separate. No-refresh Sandisk boundary cannot also claim OCP refresh contention."
+    },
+    {
+      "parameter_id": "hbm2.fpga.idd_column",
+      "source_value": "Current_Avg(mA)",
+      "normalized_unit": "mA",
+      "evidence_kind": "PROXY",
+      "proxy_subtype": "MEASURED",
+      "source_id": "HBM-POWER-4642c61",
+      "source_hashes": {
+        "csv_sha256": "8beb9a4114ed88536ee03f0839696246a632d4dd27889fc0b08e6f9572797e38",
+        "unit_source_git_blob": "7f70fa37f6e73d577bb6f5e5a395a80cb6c81152",
+        "unit_source_sha256": "6c6a3598e156568124984e2e7360d8b3197d5196f9bb93170562bf036c60293d"
+      },
+      "location": "generate_standardized_csvs.py lines 201-209; output header lines 244-262",
+      "conditions": "Pinned HBM2 FPGA artifact; chip_id maps FPGA/chip_in_fpga and selected channels",
+      "transfer_restrictions": "Current, not power; not per die; target HBM4/HBF transfer prohibited without a model."
+    },
+    {
+      "parameter_id": "hbm2.fpga.ipp_column",
+      "source_value": "Power_VPP_Avg(mW)/2.5V",
+      "normalized_unit": "mA",
+      "evidence_kind": "DERIVED",
+      "source_id": "HBM-POWER-4642c61",
+      "location": "generate_standardized_csvs.py lines 28 and 201-209",
+      "derivation": "ipp_mA = Power_VPP_Avg_mW / 2.5_V; inverse P_VPP_mW = ipp_mA * 2.5_V",
+      "transfer_restrictions": "ipp is current, not power. Do not add idd+ipp. VDD power needs a cited VDD voltage or direct power field."
+    },
+    {
+      "parameter_id": "hbm2.fpga.trace_vdd_power",
+      "source_value": "mean(last 10 Power_VDD_Ins(mW) rows)",
+      "normalized_unit": "mW",
+      "evidence_kind": "PROXY",
+      "proxy_subtype": "MEASURED",
+      "source_id": "HBM-POWER-4642c61",
+      "source_hashes": {
+        "allzeros_csv_sha256": "16020638216c5f143e0a103b29a9b781a9b573e77f070d1099f0a3a7e1136708",
+        "random_csv_sha256": "3c1444634dbdbc9a4596c7ab05cc5d9049bacf27e9161912bdf079de4f134632",
+        "aggregation_source_git_blob": "b0499ab7160da37cf667aead57c6894a75fe0628",
+        "aggregation_source_sha256": "f546547708c59dfd9de702d896246949e72e2b778c3594f21e7b6cf1ae03a25f"
+      },
+      "location": "aggregate_trace_ground_truth.py lines 18-22, 77-78, 139-161",
+      "transfer_restrictions": "HBM2 VDD rail steady-state trace power; not total stack/board, per-die energy, HBM4, or HBF."
+    },
+    {
+      "parameter_id": "hbm3e.h200.aggregate_random_read_active_energy",
+      "selected_interval": [45.81497797356828, 46.94067159226651],
+      "nominal_mean": 46.41387406547878,
+      "unit": "pJ/delivered_byte_decimal_GB",
+      "evidence_kind": "DERIVED",
+      "source_id": "HBM-POWER-4642c61",
+      "source_hashes": {
+        "csv_sha256": "eddcd6bd5277a7870d794a7377107a7f89a11f7dce83a8da40c4933e4b822607",
+        "logger_sha256": "9b825327ce3baa79cabc89ce13ab8ce243781e9a2c8d14fdbe292fa91a670caf",
+        "quick_measure_sha256": "af533dfdf58ce76dbda0c717e999fed03363e111157b6811f5fe37514b204c78"
+      },
+      "location": "HBM3E_measurements.csv rows 2-4; log_power.py lines 2-13, 60-85; quick_measure_h200.py lines 2-17, 51-59, 77-117",
+      "conditions": "Three H200/HBM3E aggregate NVIDIA SMI memory-domain measurements at 4517.3-4523.3 GB/s random read; active=total-idle",
+      "derivation": "pJ/B = (total_W-idle_W)/read_GBps*1000 for decimal GB/s",
+      "transfer_restrictions": "Aggregate memory rail, not per stack; no temperature; narrow high-bandwidth domain; HBM4/HBF use only as labeled platform/generation proxy."
+    },
+    {
+      "parameter_id": "hbm_power.dataset_license",
+      "value": "UNKNOWN",
+      "evidence_kind": "UNKNOWN_BLOCKING",
+      "source_id": "HBM-POWER-4642c61",
+      "location": "Pinned root tree has no LICENSE/COPYING/NOTICE",
+      "claim_effect_if_unknown": "Do not assume permission to redistribute raw measurement rows."
+    },
+    {
+      "parameter_id": "mfit.case.material_properties",
+      "value": {
+        "link": {"rho_kg_m3": 1250, "cp_J_kgK": 628.75, "k_W_mK": {"x": 212, "y": 150, "z": 150}, "Cv_J_m3K": 785937.5},
+        "link_cu": {"rho_kg_m3": 8960, "cp_J_kgK": 385, "k_W_mK": 398, "Cv_J_m3K": 3449600},
+        "link_si": {"rho_kg_m3": 2330, "cp_J_kgK": 710, "k_W_mK": 150, "Cv_J_m3K": 1654300},
+        "ubump": {"rho_kg_m3": 2056, "cp_J_kgK": 52, "k_W_mK": 30.94, "Cv_J_m3K": 106912},
+        "tim": {"rho_kg_m3": 2500, "cp_J_kgK": 1000, "k_W_mK": 10, "Cv_J_m3K": 2500000},
+        "substrate": {"rho_kg_m3": 1250, "cp_J_kgK": 1300, "k_W_mK": {"x": 20.68, "y": 20.68, "z": 0.3783}, "Cv_J_m3K": 1625000},
+        "lid": {"rho_kg_m3": 8960, "cp_J_kgK": 385, "k_W_mK": 398, "Cv_J_m3K": 3449600},
+        "interposer": {"rho_kg_m3": 2330, "cp_J_kgK": 710, "k_W_mK": 150, "Cv_J_m3K": 1654300},
+        "chiplet": {"rho_kg_m3": 2330, "cp_J_kgK": 710, "k_W_mK": 150, "Cv_J_m3K": 1654300},
+        "c4": {"rho_kg_m3": 1250, "cp_J_kgK": 1300, "k_W_mK": {"x": 0.6431, "y": 0.6431, "z": 2.348}, "Cv_J_m3K": 1625000},
+        "adhesive": {"rho_kg_m3": 2500, "cp_J_kgK": 1000, "k_W_mK": 1.9, "Cv_J_m3K": 2500000}
+      },
+      "evidence_kind": "PROXY",
+      "proxy_subtype": "CASE",
+      "source_id": "MFIT-4444336",
+      "source_hash": "d9686b55bf37898b21878e1cc0aeadaa748744f72f8eed30d25a53ac37179e10",
+      "location": "material_prop.yml lines 1-63; units from INPUT_FORMAT.md lines 11-26",
+      "transfer_restrictions": "No cited material grade, temperature, uncertainty, or measurement method; not target HBF/HBM package facts."
+    },
+    {
+      "parameter_id": "mfit.case.homogeneous_geometry",
+      "value": {
+        "package_mm": [9.5, 9.5, 1.855],
+        "chiplet_mm": [1.5, 1.5],
+        "chiplet_count": 4,
+        "chiplet_spacing_mm": 1.5,
+        "top_htc_W_m2K": 1400,
+        "bottom_htc_W_m2K": 25,
+        "ambient_K": 300,
+        "layer_thickness_mm": {"substrate_1": 0.5, "substrate_2": 0.5, "c4": 0.08, "interposer": 0.1, "ubump": 0.025, "chiplet": 0.1, "tim": 0.05, "lid_1": 0.25, "lid_2": 0.25},
+        "thickness_sum_mm": 1.855,
+        "max_power_per_chiplet_W": 3
+      },
+      "evidence_kind": "PROXY",
+      "proxy_subtype": "CASE",
+      "source_id": "MFIT-4444336",
+      "source_hash": "c960f0693ae28b0ad7ab92097da586f129029c069063a1965818684ea9c53533",
+      "location": "example_1 geometry lines 1-141; power config lines 1-34",
+      "transfer_restrictions": "Numerical chiplet case, not stacked HBF/HBM geometry and inconsistent with OCP approximate outer envelope."
+    },
+    {
+      "parameter_id": "mfit.case.simple_areal_RC",
+      "value": {
+        "substrate_each": {"C_A_J_m2K": 812.5, "Rpp_m2K_W": 0.0013217023526301875},
+        "c4": {"C_A_J_m2K": 130.0, "Rpp_m2K_W": 0.00003407155025553663},
+        "interposer": {"C_A_J_m2K": 165.43, "Rpp_m2K_W": 6.666666666666667e-7},
+        "ubump": {"C_A_J_m2K": 2.6728, "Rpp_m2K_W": 8.080155138978669e-7},
+        "chiplet": {"C_A_J_m2K": 165.43, "Rpp_m2K_W": 6.666666666666667e-7},
+        "tim": {"C_A_J_m2K": 125.0, "Rpp_m2K_W": 0.000005},
+        "lid_each": {"C_A_J_m2K": 862.4, "Rpp_m2K_W": 6.28140703517588e-7},
+        "full_surface_top_Rconv_K_W": 7.914127423822716,
+        "full_surface_bottom_Rconv_K_W": 443.21329639889195
+      },
+      "evidence_kind": "DERIVED",
+      "source_id": "MFIT-4444336",
+      "derivation": "C_A=rho*cp*thickness; Rpp=thickness/k_z; Rconv=1/(h*0.0095m*0.0095m)",
+      "transfer_restrictions": "Uniform 1-D idealization; omits lateral/partial footprints, contacts, temperature dependence, and target package geometry."
+    },
+    {
+      "parameter_id": "nand.retention.activation_energy_heatwatch",
+      "selected_value": 1.04,
+      "selected_interval": [1.01, 1.08],
+      "unit": "eV",
+      "evidence_kind": "PROXY",
+      "proxy_subtype": "MEASURED",
+      "source_id": "HEATWATCH-HPCA-2018",
+      "location": "PDF p.10 section 4.2; device/method conditions pp.4-5 and p.9",
+      "conditions": "One-vendor 30-40-layer 3D charge-trap MLC; fit over 20-70C and 1000-10000 P/E cycles; 70C/3600s reference loss point; R2=0.76",
+      "transfer_restrictions": "Not Sandisk HBF measurement; 85-105C is extrapolation; not a complete RBER/ECC/retry/lifetime model."
+    },
+    {
+      "parameter_id": "nand.retention.arrhenius_rate_heatwatch_proxy",
+      "reference_temperature_C": 20,
+      "kB_eV_K": 0.0000862,
+      "formula": "exp((Ea/kB)*(1/Tref_K-1/T_K))",
+      "rates": {
+        "0C_interval_extrapolated": [0.04374583133105523, 0.0535826405633314],
+        "25C_interval": [1.9547940543332587, 2.047747134602691],
+        "70C_interval": [338.27203205531237, 506.47937205435863],
+        "85C_interval_extrapolated": [1413.6318853388948, 2337.095580956295],
+        "105C_interval_extrapolated": [7975.998473936448, 14866.39983596117]
+      },
+      "evidence_kind": "DERIVED",
+      "source_id": "HEATWATCH-HPCA-2018",
+      "parent_parameters": ["nand.retention.activation_energy_heatwatch"],
+      "consistency_checks": ["rate(Tref)=1", "positive Ea gives monotonic increase with T", "all temperatures converted to kelvin"],
+      "transfer_restrictions": "0C, 85C, and 105C exceed the 20-70C fit domain; mechanism/sensitivity only."
+    }
+  ],
+  "unavailable_target_parameters": [
+    {
+      "parameter": "HBF absolute idle/read/program/erase/maintenance/ECC/PHY/base-die energy",
+      "status": "UNKNOWN_BLOCKING",
+      "bounded_option": "Use separate explicit scenario components; H200 active pJ/B may bound only an aggregate high-bandwidth DRAM-link proxy, never Sandisk absolute power.",
+      "claim_restriction": "No absolute HBF watts, energy efficiency, or junction-temperature claim."
+    },
+    {
+      "parameter": "Target HBM4 per-stack/core/PHY/refresh power versus traffic and temperature",
+      "status": "UNKNOWN_BLOCKING",
+      "bounded_option": "Use H200/HBM3E aggregate rail as generation/platform proxy with idle separate and sensitivity; calibrate allocation before per-stack results.",
+      "claim_restriction": "No per-stack measured-HBM4 wording."
+    },
+    {
+      "parameter": "HBF/HBM4 internal die, bond, mold/underfill, base-die, TSV, TIM, interposer, lid geometry and contact resistance",
+      "status": "UNKNOWN_BLOCKING",
+      "bounded_option": "Use OCP outer envelope as constraint; MFIT values as labeled starting proxies; sweep independently sourced material/contact intervals and validate a new reference geometry.",
+      "claim_restriction": "No calibrated physical package temperature until geometry/material/calibration closure."
+    },
+    {
+      "parameter": "Target NAND Ea(T,PEC), RBER response, ECC capability, retry distribution, read-disturb threshold, P/E limit",
+      "status": "UNKNOWN_BLOCKING",
+      "bounded_option": "OCP deadline-only model plus HeatWatch 1.01/1.04/1.08 eV mechanism sensitivity; report traffic/conditional age rather than failure probability or years of life.",
+      "claim_restriction": "No Sandisk failure probability, ECC margin, or lifetime extension."
+    },
+    {
+      "parameter": "Product Light/Severe/Shutdown temperature thresholds and slowdown fractions",
+      "status": "UNKNOWN_BLOCKING",
+      "bounded_option": "Keep policy thresholds as SCENARIO_ASSUMPTION strictly inside the 0-105C junction range and separate from OCP physical limits.",
+      "claim_restriction": "No vendor-threshold wording."
+    }
+  ],
+  "required_static_checks": [
+    "Preserve GB/GiB and TB/TiB distinctions.",
+    "Reject current-as-power conversions without a cited rail voltage.",
+    "Reject per-stack division of H200 aggregate memory power without an allocation model.",
+    "Require energy denominator domain: useful bytes, physical NAND bytes, or delivered link bytes.",
+    "Require MFIT-case versus target-geometry identity check.",
+    "Require kelvin and rate(Tref)=1 for Arrhenius calculations.",
+    "Mark HeatWatch use below 20C or above 70C as extrapolated.",
+    "Make Sandisk no-refresh and OCP maintenance-enabled profiles mutually exclusive.",
+    "Keep product thermal thresholds UNKNOWN until a product source exists.",
+    "Block absolute power, temperature, RBER, ECC, retry, and lifetime claims when target parameters are unavailable."
+  ]
+}

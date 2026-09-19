@@ -13,8 +13,16 @@ cpu=min(os.sched_getaffinity(0));os.sched_setaffinity(0,{cpu})
 for key in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS','BLIS_NUM_THREADS','VECLIB_MAXIMUM_THREADS'):os.environ[key]='1'
 os.environ['CUDA_VISIBLE_DEVICES']=''
 contract=json.loads((plan/'child.json').read_text())
+manifest=json.loads((plan/'experiment_manifest.json').read_text())
+for dependency in manifest['dependencies']:
+    if dependency['logical_id']=='native-field-codec':
+        library=root/dependency['path']
+        if hashlib.sha256(library.read_bytes()).hexdigest()!=dependency['sha256']:
+            raise SystemExit('Bound codec library changed')
+        os.environ['EQ3_CAMPAIGN_NATIVECODEC']=str(library)
+authorization_path=root/manifest.get('execution_context',{}).get('authorization_path','eq3_thermal/plans/campaign-v1/authorization.json')
 if a.mode=='solve':
-    argv=[sys.executable,'-B',str(code/'tools/eq3_layered_launch.py'),'run','--root',str(root),'--code-root',str(code),'--manifest',str(plan/'experiment_manifest.json'),'--launch',str(plan/'launch.json'),'--approval',str(root/'eq3_thermal/plans/campaign-v1/authorization.json')]
+    argv=[sys.executable,'-B',str(code/'tools/eq3_layered_launch.py'),'run','--root',str(root),'--code-root',str(code),'--manifest',str(plan/'experiment_manifest.json'),'--launch',str(plan/'launch.json'),'--approval',str(authorization_path)]
 else:
     if not (run/'DONE.json').exists():raise SystemExit('No completed solver receipt; diagnose only')
     argv=[sys.executable,'-B',str(code/'tools/eq3_layered_observe.py'),'--run-dir',str(run),'--generated',str(root/launch['command']['cwd']),'--output',str(derived)]
@@ -45,6 +53,22 @@ def limits():
     if a.mode=='observe':resource.setrlimit(resource.RLIMIT_AS,(12*gib,12*gib))
     resource.setrlimit(resource.RLIMIT_CORE,(0,0))
 
+collector=root/'tools/collect_experiment_metadata.py'
+metadata=plan/'metadata.json'
+if a.mode=='solve':
+    binding=next(d for d in manifest['dependencies'] if d['logical_id']=='metadata-collector')
+    if hashlib.sha256(collector.read_bytes()).hexdigest()!=binding['sha256']:
+        raise SystemExit('Metadata collector changed')
+    inventory=[sys.executable,str(collector),'start','--metadata',str(metadata),
+        '--project-root',str(code),'--experiment-id',manifest['experiment_id'],
+        '--run-id',contract['point_id'],'--environment-id',manifest['execution_context']['environment_id'],
+        '--config',str(plan/'experiment_manifest.json'),'--workload',contract['trace'],
+        '--input-path',launch['command']['cwd'],'--output-path',launch['output']['path'],
+        '--design-version','DESIGN_FREEZE-v3','--reference-version','NEW_REFERENCE',
+        '--',*argv]
+    with (plan/'metadata-start.log').open('xb') as log:
+        subprocess.run(inventory,stdout=log,stderr=subprocess.STDOUT,check=True)
+
 started=time.monotonic(); peak=0;samples=0;reason=None
 with (plan/(a.mode+'-stdout.log')).open('xb') as out,(plan/(a.mode+'-stderr.log')).open('xb') as err:
     child=subprocess.Popen(argv,stdout=out,stderr=err,preexec_fn=limits)
@@ -74,4 +98,9 @@ result={'mode':a.mode,'argv':argv,'exit_code':child.returncode,'stop_reason':rea
         'disk_mechanism':'bound launcher4GiB raw monitor plus outer4GiB combined plan/raw/derived monitor; sampled not filesystem quota',
         'supervisor_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 with receipt.open('x') as f:json.dump(result,f,indent=2)
+if a.mode=='solve':
+    with (plan/'metadata-finish.log').open('xb') as log:
+        subprocess.run([sys.executable,str(collector),'finish','--metadata',str(metadata),
+            '--exit-code',str(child.returncode),'--raw-log',str(plan/'solve-stdout.log'),
+            '--raw-data',str(run)],stdout=log,stderr=subprocess.STDOUT,check=True)
 print(json.dumps(result));sys.exit(0 if child.returncode==0 and not reason else 1)

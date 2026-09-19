@@ -68,6 +68,51 @@ class Field:
                 'domain_300_400_k': self.rows > 0 and self.low >= 300 and self.high <= 400,
                 'compressed_bytes': self.path.stat().st_size}
 
+    def close_failed(self):
+        if not self.file.closed:
+            try:
+                self.file.write(self.compressor.flush())
+            finally:
+                self.file.close()
+
+
+class NativeField:
+    """EQ3TMK1 acceleration, with independent incoming-byte identity."""
+    def __init__(self, path, nx, ny, expected, library):
+        from eq3_campaign_nativecodec import Encoder
+        self.path = Path(path)
+        self.encoder = Encoder(path, nx, ny, expected, library=library)
+        self.hash = hashlib.sha256()
+        self.bytes = 0
+        self.finished = None
+
+    def feed(self, data):
+        self.hash.update(data)
+        self.bytes += len(data)
+        self.encoder.feed(data)
+
+    def finish(self):
+        self.finished = self.encoder.finish()
+        if (self.finished['native_sha256'] != self.hash.hexdigest() or
+                self.finished['native_bytes'] != self.bytes):
+            raise ValueError('native codec incoming-byte identity mismatch')
+        return self.record()
+
+    def record(self):
+        result = self.finished or {}
+        return {'path': self.path.name, 'codec': 'EQ3TMK1',
+                'uncompressed_sha256': self.hash.hexdigest(),
+                'uncompressed_bytes': self.bytes,
+                'frames': result.get('frames'), 'rows': result.get('rows'),
+                'temperature_min_k': None, 'temperature_max_k': None,
+                'domain_300_400_k': 'PENDING_POSTRUN_OBSERVATION',
+                'compressed_bytes': self.path.stat().st_size}
+
+    def close_failed(self):
+        # Do not manufacture a valid footer for a truncated/invalid native stream.
+        # Retain its raw encoded prefix and FIFO as failed transport evidence.
+        self.encoder.close()
+
 
 def verify_gzip(path, expected_hash, expected_bytes):
     """Streaming replay reads through gzip footer; no uncompressed disk copy."""
@@ -96,14 +141,18 @@ def replay(source, destination, nx, ny, frames):
 
 
 def run_stream(argv, directory, layers, frames, nx, ny, watchdog=600,
-               max_bytes=4 * 1024**3):
+               max_bytes=4 * 1024**3, policy='gzip', codec_library=None):
     if min(layers, frames, nx, ny) < 1 or not 0 < watchdog <= 600:
         raise ValueError('invalid dimensions or watchdog')
+    if policy not in ('gzip', 'lossless_EQ3TMK1'):
+        raise ValueError('unknown output policy')
+    if policy == 'lossless_EQ3TMK1' and codec_library is None:
+        raise ValueError('native output policy requires explicit codec library')
     directory = Path(directory)
     if (directory / 'stream_receipt.json').exists():
         raise FileExistsError('stream receipt already exists')
     for z in range(layers):
-        for suffix in ('.txt', '.txt.gz'):
+        for suffix in ('.txt', '.txt.gz', '.txt.tmk', '.tmk'):
             if (directory / f'field_{z}{suffix}').exists():
                 raise FileExistsError('field output already exists')
     started = time.monotonic()
@@ -121,7 +170,9 @@ def run_stream(argv, directory, layers, frames, nx, ny, watchdog=600,
             reader = os.open(pipe, os.O_RDONLY | os.O_NONBLOCK)
             readers.append(reader)
             anchors.append(os.open(pipe, os.O_WRONLY | os.O_NONBLOCK))
-            field = Field(directory / f'field_{z}.txt.gz', nx, ny, frames)
+            field = (Field(directory / f'field_{z}.txt.gz', nx, ny, frames)
+                     if policy == 'gzip' else
+                     NativeField(directory / f'field_{z}.txt.tmk', nx, ny, frames, codec_library))
             fields.append(field)
             selector.register(reader, selectors.EVENT_READ, field)
         process = subprocess.Popen(argv, cwd=directory, close_fds=True,
@@ -166,16 +217,14 @@ def run_stream(argv, directory, layers, frames, nx, ny, watchdog=600,
             os.close(fd)
         selector.close()
         for field in fields:
-            if not field.file.closed:
-                # Keep a decompressible failed prefix, never certify it complete.
-                try:
-                    field.file.write(field.compressor.flush())
-                finally:
-                    field.file.close()
+            field.close_failed()
         receipt = {'status': status, 'error': error,
+                   'output_policy': policy,
                    'raw_full_field_retained': status == 'PASS',
-                   'retention': 'byte-lossless gzip native stream' if status == 'PASS' else 'failed prefixes retained',
-                   'gzip_crc_verification': 'PENDING_POSTRUN_STREAMING_REPLAY',
+                   'retention': ('byte-lossless native stream: '+policy) if status == 'PASS' else 'failed prefixes retained',
+                   'gzip_crc_verification': ('PENDING_POSTRUN_STREAMING_REPLAY'
+                                             if policy == 'gzip' else 'NOT_APPLICABLE'),
+                   'decoded_hash_verification': 'PENDING_POSTRUN_STREAMING_REPLAY',
                    'wall_seconds': time.monotonic() - started,
                    'producer_exit_code': process.returncode if process else None,
                    'fields': records or [field.record() for field in fields]}
@@ -194,6 +243,8 @@ def main():
     for flag in ('layers', 'frames', 'nx', 'ny'):
         p.add_argument('--' + flag, type=int, required=True)
     p.add_argument('--watchdog', type=float, default=600)
+    p.add_argument('--policy', choices=('gzip','lossless_EQ3TMK1'), default='gzip')
+    p.add_argument('--codec-library')
     a = p.parse_args()
     # A low soft ceiling for this bridge must not propagate to the solver.
     hard = resource.getrlimit(resource.RLIMIT_AS)[1]
@@ -204,8 +255,12 @@ def main():
     backend = Path(a.backend)
     if not backend.is_absolute():
         backend = Path(os.environ.get('EQ3_ARTIFACT_ROOT', str(Path.cwd()))) / backend
+    codec_library = Path(a.codec_library) if a.codec_library else None
+    if codec_library is not None and not codec_library.is_absolute():
+        codec_library = Path(os.environ.get('EQ3_ARTIFACT_ROOT', str(Path.cwd()))) / codec_library
     run_stream([str(backend.resolve()), a.stack], Path.cwd(),
-               a.layers, a.frames, a.nx, a.ny, a.watchdog)
+               a.layers, a.frames, a.nx, a.ny, a.watchdog,
+               policy=a.policy, codec_library=codec_library)
 
 
 if __name__ == '__main__':

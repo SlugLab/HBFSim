@@ -120,6 +120,55 @@ class CampaignSparseRunnerTests(unittest.TestCase):
             self.assertTrue(inspected["factor_fill_memory_unmeasured_until_pilot"])
             self.assertFalse((root / "rc_energy_receipt.json").exists())
 
+    def test_zero_source_equilibrium_exact_with_nonhardcoded_origin(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            model, events = root/'model.txt', root/'events.txt'
+            model.write_text('HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n'
+                             'node a hbf capacity_memory s0 0 0.00001 312 0 0.01 312\n'
+                             'node b hbf capacity_memory s1 0 20 312 0 2 312\n'
+                             'edge a b 10000 component\n')
+            events.write_text('HBFSIM_EQ3_THERMAL_EVENTS 1\n')
+            command = self.command(self.sparse,model,events,'--run')
+            command[command.index('--min-k')+1] = '312'
+            result = self.execute(command,root)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertTrue(all(value==312 for value in self.csv_values(result.stdout).values()))
+            receipt=json.loads((root/'rc_energy_receipt.json').read_text())
+            self.assertEqual(receipt['temperature_origin_k'],312)
+            self.assertFalse(receipt['temperature_clamping'])
+            for field in ('stored_energy_change_j','boundary_loss_j','energy_residual_j'):
+                self.assertEqual(receipt[field],0)
+
+    def test_real_domain_violation_not_clamped(self):
+        with tempfile.TemporaryDirectory() as root:
+            root=Path(root)
+            model,events=root/'model.txt',root/'events.txt'
+            model.write_text('HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n'
+                             'node a hbf capacity_memory s0 0 1 300 0 1 290\n')
+            events.write_text('HBFSIM_EQ3_THERMAL_EVENTS 1\n')
+            command=self.command(self.sparse,model,events,'--run')
+            command[command.index('--min-k')+1]='300'
+            result=self.execute(command,root)
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('temperature left required domain',result.stderr)
+
+    def test_candidate_equilibrium_diagnostic_when_available(self):
+        generated=WORKSPACE/'generated/layered-v3/train-4mm-20ms'
+        if not generated.is_dir():
+            self.skipTest('generated candidate unavailable')
+        with tempfile.TemporaryDirectory() as root:
+            command=self.command(self.sparse,generated/'model.txt',generated/'events.txt',
+                                 '--equilibrium-diagnostic',end='100')
+            command[command.index('--step-s')+1]='0.005'
+            command[command.index('--slot-s')+1]='0.5'
+            result=self.execute(command,root)
+            self.assertEqual(result.returncode,0,result.stderr)
+            receipt=json.loads(result.stdout)
+            self.assertFalse(receipt['workload_executed'])
+            self.assertEqual(receipt['theta_max_abs_k'],0)
+            self.assertLess(receipt['absolute_max_equilibrium_error_k'],1e-8)
+
     def test_generated_candidate_inspect_when_available(self):
         generated = WORKSPACE / "generated/layered-v1/train-4mm-20ms"
         if not generated.is_dir():

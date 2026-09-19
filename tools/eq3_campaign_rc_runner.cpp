@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -31,7 +32,7 @@ using SparseSolver = Eigen::SimplicialLDLT<SparseMatrix, Eigen::Lower,
 struct Options {
   std::string model_path, events_path;
   double step_s{}, slot_s{}, end_s{}, sample_s{}, min_k{}, max_k{};
-  bool inspect_only{}, run{};
+  bool inspect_only{}, run{}, equilibrium_diagnostic{};
 };
 
 struct Schedule {
@@ -72,6 +73,11 @@ Options options_from(int argc, char** argv) {
   Options options;
   for (int index = 1; index < argc; ++index) {
     const std::string argument = argv[index];
+    if (argument == "--equilibrium-diagnostic") {
+      require(!options.equilibrium_diagnostic, "duplicate diagnostic flag");
+      options.equilibrium_diagnostic = true;
+      continue;
+    }
     if (argument == "--inspect-only") {
       require(!options.inspect_only, "duplicate --inspect-only");
       options.inspect_only = true;
@@ -98,8 +104,8 @@ Options options_from(int argc, char** argv) {
     else if (argument == "--min-k") options.min_k = number(value, argument);
     else if (argument == "--max-k") options.max_k = number(value, argument);
   }
-  require(options.inspect_only != options.run,
-          "exactly one of --inspect-only or --run is required; execution is default-off");
+  require(int(options.inspect_only) + int(options.run) + int(options.equilibrium_diagnostic) == 1,
+          "exactly one of --inspect-only, --equilibrium-diagnostic or --run is required");
   require(!options.model_path.empty() && !options.events_path.empty(),
           "--model and --events are required");
   require(options.step_s > 0 && options.slot_s > 0 && options.end_s > 0 &&
@@ -278,6 +284,38 @@ SparseMatrix system_matrix(const ThermalModelConfig& config, double step_s) {
   return matrix;
 }
 
+// Fixed zero-source equilibrium diagnostic, never the supplied workload.
+void equilibrium_diagnostic(const ThermalModelConfig& config, double step_s) {
+  const double reference = config.nodes.front().initial_temperature_k;
+  const SparseMatrix matrix = system_matrix(config, step_s);
+  SparseSolver solver;
+  solver.compute(matrix);
+  require(solver.info() == Eigen::Success, "diagnostic factorization failed");
+  Eigen::VectorXd rhs(config.nodes.size());
+  for (std::size_t i = 0; i < config.nodes.size(); ++i) {
+    const auto& node = config.nodes[i];
+    require(node.initial_temperature_k == reference && node.static_power_w == 0 &&
+                (node.boundary_conductance_w_per_k == 0 || node.boundary_temperature_k == reference),
+            "diagnostic requires zero-static-power isothermal equilibrium");
+    rhs[i] = node.heat_capacity_j_per_k / step_s * reference +
+             node.boundary_conductance_w_per_k * node.boundary_temperature_k;
+  }
+  const Eigen::VectorXd absolute = solver.solve(rhs);
+  require(solver.info() == Eigen::Success, "absolute diagnostic solve failed");
+  const Eigen::VectorXd theta = solver.solve(Eigen::VectorXd::Zero(rhs.size()));
+  require(solver.info() == Eigen::Success, "theta diagnostic solve failed");
+  std::cout << std::setprecision(17)
+            << "{\"mode\":\"zero_source_equilibrium_diagnostic\",\"workload_executed\":false,"
+            << "\"reference_k\":" << reference
+            << ",\"absolute_min_k\":" << absolute.minCoeff()
+            << ",\"absolute_max_k\":" << absolute.maxCoeff()
+            << ",\"absolute_max_equilibrium_error_k\":" << (absolute.array()-reference).abs().maxCoeff()
+            << ",\"absolute_residual_inf\":" << (matrix*absolute-rhs).lpNorm<Eigen::Infinity>()
+            << ",\"theta_max_abs_k\":" << theta.lpNorm<Eigen::Infinity>()
+            << ",\"factor_L_nnz\":" << solver.matrixL().nestedExpression().nonZeros()
+            << "}\n";
+}
+
 std::vector<Eigen::VectorXd> slot_powers(
     const ThermalModelConfig& config,
     const std::vector<PhysicalActivity>& activities,
@@ -317,7 +355,8 @@ void receipt(const Options& options, const Schedule& schedule,
              double alignment_error_s, double min_observed_k,
              double max_observed_k, long double declared_energy_j,
              long double applied_energy_j, long double stored_energy_j,
-             long double boundary_loss_j) {
+             long double boundary_loss_j, double origin_k,
+             std::size_t factor_nnz, double factor_seconds) {
   const std::filesystem::path final{"rc_energy_receipt.json"};
   const std::filesystem::path temporary{"rc_energy_receipt.json.tmp"};
   require(!std::filesystem::exists(final) && !std::filesystem::exists(temporary),
@@ -331,6 +370,11 @@ void receipt(const Options& options, const Schedule& schedule,
          << "{\n"
          << "  \"schema_version\": \"eq3-campaign-sparse-rc-energy-v1\",\n"
          << "  \"backend\": \"Eigen::SimplicialLDLT_AMD\",\n"
+         << "  \"state_variable\": \"theta=T-origin\",\n"
+         << "  \"temperature_origin_k\": " << origin_k << ",\n"
+         << "  \"temperature_clamping\": false,\n"
+         << "  \"factor_L_nnz\": " << factor_nnz << ",\n"
+         << "  \"factor_seconds\": " << factor_seconds << ",\n"
          << "  \"factorization_count\": 1,\n"
          << "  \"factor_cache_limit\": 1,\n"
          << "  \"matrix_structural_nnz\": " << matrix_nnz << ",\n"
@@ -373,19 +417,24 @@ void run(const ThermalModelConfig& config,
           "refusing to overwrite RC energy receipt");
   const SparseMatrix matrix = system_matrix(config, options.step_s);
   SparseSolver solver;
+  const auto factor_start = std::chrono::steady_clock::now();
   solver.compute(matrix);
+  const double factor_seconds = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - factor_start).count();
   require(solver.info() == Eigen::Success, "sparse LDLT factorization failed");
   const auto powers = slot_powers(config, activities, options, schedule);
   const Eigen::Index n = static_cast<Eigen::Index>(config.nodes.size());
-  Eigen::VectorXd temperature(n), capacity_over_dt(n), static_and_boundary(n);
+  const double origin = config.nodes.front().initial_temperature_k;
+  Eigen::VectorXd temperature(n), theta(n), capacity_over_dt(n), static_and_boundary(n);
   Eigen::VectorXd applied = Eigen::VectorXd::Zero(n);
   for (Eigen::Index index = 0; index < n; ++index) {
     const auto& node = config.nodes[static_cast<std::size_t>(index)];
     temperature[index] = node.initial_temperature_k;
+    theta[index] = node.initial_temperature_k - origin;
     capacity_over_dt[index] = node.heat_capacity_j_per_k / options.step_s;
     static_and_boundary[index] =
         node.static_power_w + node.boundary_conductance_w_per_k *
-                                  node.boundary_temperature_k;
+                                  (node.boundary_temperature_k - origin);
   }
   double minimum = temperature.minCoeff(), maximum = temperature.maxCoeff();
   const auto check_domain = [&] {
@@ -405,15 +454,17 @@ void run(const ThermalModelConfig& config,
     for (std::uint64_t local = 1; local <= schedule.steps_per_slot; ++local) {
       ++global;
       const Eigen::VectorXd rhs =
-          capacity_over_dt.cwiseProduct(temperature) + static_and_boundary + power;
-      temperature = solver.solve(rhs);
+          capacity_over_dt.cwiseProduct(theta) + static_and_boundary + power;
+      theta = solver.solve(rhs);
+      temperature = theta.array() + origin;
       require(solver.info() == Eigen::Success, "sparse LDLT solve failed");
       check_domain();
       for (Eigen::Index index = 0; index < n; ++index) {
         const auto& node = config.nodes[static_cast<std::size_t>(index)];
         boundary_loss += static_cast<long double>(options.step_s) *
                          node.boundary_conductance_w_per_k *
-                         (temperature[index] - node.boundary_temperature_k);
+                         (static_cast<long double>(theta[index]) +
+                          (origin - node.boundary_temperature_k));
       }
       applied += power * options.step_s;
       if (global % schedule.steps_per_sample == 0) {
@@ -430,12 +481,15 @@ void run(const ThermalModelConfig& config,
     applied_energy += applied[index];
     const auto& node = config.nodes[static_cast<std::size_t>(index)];
     stored += node.heat_capacity_j_per_k *
-              (temperature[index] - node.initial_temperature_k);
+              (static_cast<long double>(theta[index]) -
+               (node.initial_temperature_k - origin));
   }
   receipt(options, schedule, config, static_cast<std::size_t>(matrix.nonZeros()),
           alignment_error_s, minimum, maximum,
           declared_activity_energy(activities), applied_energy, stored,
-          boundary_loss);
+          boundary_loss, origin,
+          static_cast<std::size_t>(solver.matrixL().nestedExpression().nonZeros()),
+          factor_seconds);
 }
 }  // namespace
 
@@ -449,6 +503,10 @@ int main(int argc, char** argv) try {
   const double alignment_error = validate_activities(activities, options);
   if (options.inspect_only) {
     inspect(config, activities, options, schedule, alignment_error);
+    return 0;
+  }
+  if (options.equilibrium_diagnostic) {
+    equilibrium_diagnostic(config, options.step_s);
     return 0;
   }
   run(config, activities, options, schedule, alignment_error);

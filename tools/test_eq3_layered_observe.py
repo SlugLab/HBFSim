@@ -1,11 +1,30 @@
 import io
+import gzip
+import tempfile
+from pathlib import Path
 import unittest
-from eq3_layered_observe import frames, sensor_mapping, readings, rc_frames
+from eq3_layered_observe import frames, sensor_mapping, readings, rc_frames, open_field
 from eq3_layered_export import discretize
 from test_eq3_layered_export import slab
 
 
 class ObserveTests(unittest.TestCase):
+    def test_retained_field_selection_rejects_ambiguity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'field.txt'
+            with self.assertRaisesRegex(ValueError,'missing or ambiguous'):
+                with open_field(p): pass
+            p.write_text('300.000\n')
+            with open_field(p) as stream:
+                self.assertEqual(list(stream),['300.000\n'])
+            compressed=Path(str(p)+'.gz')
+            compressed.write_bytes(gzip.compress(b'300.000\n'))
+            with self.assertRaisesRegex(ValueError,'missing or ambiguous'):
+                with open_field(p): pass
+            p.unlink()
+            with open_field(p) as stream:
+                self.assertEqual(list(stream),['300.000\n'])
+
     def test_field_grid_max_is_not_max_of_region_means(self):
         ir=slab(); grid=discretize(ir,.001)
         ir['sensors']=[{'id':'base_mean','reduction':'weighted_mean',

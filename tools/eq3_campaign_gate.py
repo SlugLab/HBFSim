@@ -59,7 +59,7 @@ def validate_stage(authorization,manifest,root):
         full=normalize(json.loads(resolve(root,profile).read_text()),json.loads(resolve(root,power).read_text()),contract['trace'])
         if canonical(full)!=expected_hash:_fail('STAGE_PHYSICS_CHANGED','reconstructed full trace differs')
         end=manifest['scientific_config']['workload_and_initial_state']['duration_s']
-        if not 0<end<=min(5,scope['traces'][contract['trace']]['duration_s']):_fail('STAGE_TRACE_INVALID','resource pilot must be <=5s original prefix')
+        if not 0<end<scope['traces'][contract['trace']]['duration_s']:_fail('STAGE_TRACE_INVALID','resource pilot must be a proper original prefix')
         expected_hash=canonical(prefix_ir(full,end))
     if canonical(ir)!=expected_hash:_fail('STAGE_PHYSICS_CHANGED','IR differs from frozen physical/power/sensor input or exact authorized prefix')
     r=manifest['resource_budget']['requested']

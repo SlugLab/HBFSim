@@ -10,20 +10,30 @@ import gzip
 import json
 import math
 from pathlib import Path
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 
 from eq3_layered_export import network, close
 
 
+@contextmanager
 def open_field(path):
     """Read retained native bytes without an uncompressed temporary file."""
     path = Path(path)
     compressed = path.with_name(path.name + '.gz')
-    if path.is_file() and compressed.exists():
-        raise ValueError('ambiguous plain and compressed field artifacts')
-    if path.is_file():
-        return path.open()
-    return gzip.open(compressed, 'rt')
+    encoded = path.with_name(path.name + '.tmk')
+    available = [p for p in (path, compressed, encoded) if p.is_file()]
+    if len(available) != 1:
+        raise ValueError('missing or ambiguous retained field artifacts')
+    if encoded in available:
+        from eq3_campaign_nativecodec import decoded_lines
+        lines = decoded_lines(encoded)
+        try:
+            yield (line.decode('ascii') for line in lines)
+        finally:
+            lines.close()
+    else:
+        with (path.open() if path in available else gzip.open(compressed, 'rt')) as stream:
+            yield stream
 
 
 def frames(stream, nx, ny):

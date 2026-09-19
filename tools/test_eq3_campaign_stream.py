@@ -1,6 +1,7 @@
 """Fixed transport tests; fake producer only, never invoke a thermal solver."""
 import gzip
 import hashlib
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -76,6 +77,56 @@ class StreamTests(unittest.TestCase):
             compressed.write_bytes(data)
             with self.assertRaises((OSError, EOFError)):
                 verify_gzip(compressed, result['uncompressed_sha256'], result['uncompressed_bytes'])
+
+
+class NativeStreamTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.library = os.environ.get('EQ3_CAMPAIGN_NATIVECODEC')
+        if not cls.library:
+            raise unittest.SkipTest('native codec library must be explicitly supplied')
+
+    def producer(self, directory, mode='ok', layers=3, nx=2, ny=2):
+        return run_stream([sys.executable, '-c', PRODUCER, str(layers), '4',
+                           str(nx), str(ny), mode], directory, layers, 4, nx, ny, 10,
+                          policy='lossless_EQ3TMK1', codec_library=self.library)
+
+    def test_native_reopen_byte_identity(self):
+        from eq3_campaign_fieldcodec import decoded_lines
+        with tempfile.TemporaryDirectory() as tmp:
+            result=self.producer(tmp)
+            self.assertEqual(result['status'],'PASS')
+            self.assertEqual(result['output_policy'],'lossless_EQ3TMK1')
+            for z,field in enumerate(result['fields']):
+                original=f'% header layer {z}\n'.encode()
+                original+=((b'300.000  300.000  \n'*2)+b'\n')*4
+                decoded=b''.join(decoded_lines(Path(tmp)/field['path']))
+                self.assertEqual(decoded,original)
+                self.assertEqual(hashlib.sha256(decoded).hexdigest(),field['uncompressed_sha256'])
+                self.assertEqual(field['frames'],4)
+                self.assertIsNone(field['temperature_min_k'])
+
+    def test_native_backpressure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result=self.producer(tmp,layers=63,nx=128,ny=64)
+            self.assertEqual(result['status'],'PASS')
+            self.assertEqual(len(result['fields']),63)
+
+    def test_native_truncation_retains_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                self.producer(tmp,mode='truncate')
+            self.assertTrue((Path(tmp)/'field_0.txt').is_fifo())
+            self.assertTrue((Path(tmp)/'field_0.txt.tmk').is_file())
+            self.assertIn('FAILED',(Path(tmp)/'stream_receipt.json').read_text())
+
+    def test_native_existing_output_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target=Path(tmp)/'field_0.txt.tmk'
+            target.write_bytes(b'original')
+            with self.assertRaises(FileExistsError):
+                self.producer(tmp)
+            self.assertEqual(target.read_bytes(),b'original')
 
 
 if __name__ == '__main__':

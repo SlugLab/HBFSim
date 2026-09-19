@@ -45,6 +45,10 @@ class ActivityObserver {
   double external_energy_j() const noexcept { return external_energy_j_; }
   const ThermalModel* model() const noexcept { return runtime_.model(); }
   SensorSnapshot sensors() const;
+  // Stateless shadow-only recommendation, never an admission action. Thresholds
+  // and component selection are explicit caller inputs, not product defaults.
+  std::optional<unsigned> advise(const std::vector<std::string>& components,
+                                double light_k,double severe_k,double shutdown_k) const;
   ObserverCheckpoint checkpoint() const;
   void restore(const ObserverCheckpoint& state);
   void reset();

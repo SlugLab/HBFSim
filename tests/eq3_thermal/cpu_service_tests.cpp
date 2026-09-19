@@ -71,6 +71,12 @@ void resource_energy_topologies() {
   check(J::parse(configurable.report())["done"].size()==1,"non4+4 unsupported");
   auto bad=fixture();bad["topology"]="unknown";rejects([&]{CpuService s(bad.dump());});
   CpuService s(fixture().dump());rejects([&]{s.submit(request("bad","hbf0","relay").dump());});
+  CpuService erase(fixture().dump());erase.submit(request("erase","hbf0","direct","erase").dump());erase.advance_to(400000000);
+  auto er=J::parse(erase.report());check(er["cohorts"]["hbf0:0"]["erase_attempts"]==1&&er["cohorts"]["hbf0:0"]["successful_erases"]==1,"explicit erase accounting");
+  near(er["energy_j"]["hbf0_die0"],1.5);
+  CpuService relay(fixture("relay").dump());relay.submit(request("relay","hbf0","relay").dump());relay.submit(request("hbm","hbm0").dump());relay.advance_to(300000000);
+  auto rr=J::parse(relay.report());check(rr["done"][1]["start_ns"]==100000000,"HBM direct failed to share relay base/link");
+  near(rr["energy_j"]["hbm0_die0"],.2);
 }
 void maintenance_failures_restart() {
   auto c=fixture();c["hbf_maintenance_period_ns"]=100000000;c["hbm_refresh_period_ns"]=500000000;

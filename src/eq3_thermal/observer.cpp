@@ -117,6 +117,13 @@ ObserverCheckpoint ActivityObserver::checkpoint() const {
   if(auto* m=runtime_.model())s.thermal=m->checkpoint();
   return s;
 }
+std::optional<unsigned> ActivityObserver::advise(const std::vector<std::string>& components,double light,double severe,double shutdown) const {
+  if(mode_!=RuntimeMode::Shadow)return std::nullopt;
+  check(!components.empty()&&std::isfinite(light)&&std::isfinite(severe)&&std::isfinite(shutdown)&&light>0&&light<severe&&severe<shutdown,"invalid explicit advisory policy");
+  double hottest=0;
+  for(const auto& id:components){check(indices_.contains(id),"unknown advisory component");hottest=std::max(hottest,runtime_.model()->temperatures_k()[indices_.at(id)]);}
+  return static_cast<unsigned>(hottest>=light)+static_cast<unsigned>(hottest>=severe)+static_cast<unsigned>(hottest>=shutdown);
+}
 void ActivityObserver::restore(const ObserverCheckpoint& s) {
   check(s.mode==mode_,"observer checkpoint mode mismatch");
   check(s.thermal.has_value()==runtime_.solver_constructed(),"checkpoint solver mismatch");

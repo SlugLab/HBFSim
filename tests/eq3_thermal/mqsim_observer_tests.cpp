@@ -7,7 +7,7 @@ using namespace hbfsim;
 using namespace hbfsim::eq3_thermal;
 namespace {
 void require(bool v,const char* m){if(!v)throw std::runtime_error(m);}
-struct Result {std::vector<HbfCompletion> completions;std::vector<ObservedEvent> events;double wall{},energy{};};
+struct Result {std::vector<HbfCompletion> completions;std::vector<ObservedEvent> events;double wall{},energy{};unsigned advice_samples{};};
 Result run(Profile profile,RuntimeMode mode){
   auto wall=std::chrono::steady_clock::now();
   ThermalModelConfig model;
@@ -30,6 +30,10 @@ Result run(Profile profile,RuntimeMode mode){
       require(c->modeled_completion_ns<=engine.current_time_ns(),"future reported completion leaked");
     }
     adapter.drain_to_current_time();
+    // Tiny explicit fixture thresholds test advice without changing service.
+    const auto advice=observer.advise({"fixture_hbf"},300.0000001,300.000001,300.00001);
+    require(advice.has_value()==(mode==RuntimeMode::Shadow),"non-shadow advice");
+    if(advice&&*advice)++result.advice_samples;
     for(const auto& e:observer.terminals())require(e.time_ns<=horizon,"future completion bin");
   }
   require(engine.pending()==0&&result.completions.size()==6,"lost actual MQSim requests");
@@ -55,7 +59,8 @@ int main(int argc,char** argv){
     require(a.request_id==b.request_id&&a.modeled_completion_ns==b.modeled_completion_ns&&a.modeled_ns==b.modeled_ns&&a.service_ns==b.service_ns&&a.status==b.status,"mode changed actual MQSim service");
   }
   require(read.energy==shadow.energy,"shadow duplicated energy");
+  require(shadow.advice_samples>0&&!off.advice_samples&&!read.advice_samples,"shadow advice not consumed");
   std::cout<<"PASS CPU_PATH_VERIFIED actual MQSim6requests; off/read_only/shadow; GPU_LIVE_NOT_TESTED\n"
     <<"wall_s off="<<off.wall<<" read_only="<<read.wall<<" shadow="<<shadow.wall
-    <<" fixture_energy_j="<<shadow.energy<<"\n";
+    <<" fixture_energy_j="<<shadow.energy<<" shadow_advice_samples="<<shadow.advice_samples<<"\n";
 }

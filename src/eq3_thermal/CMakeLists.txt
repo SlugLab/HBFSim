@@ -14,6 +14,13 @@ add_library(hbfsim_eq3_observer STATIC observer.cpp)
 target_link_libraries(hbfsim_eq3_observer PUBLIC hbfsim_eq3_thermal)
 target_compile_options(hbfsim_eq3_observer PRIVATE -Wall -Wextra -Wpedantic)
 
+add_library(hbfsim_eq3_cpu_service STATIC cpu_service.cpp)
+target_link_libraries(hbfsim_eq3_cpu_service PUBLIC hbfsim_eq3_observer)
+target_include_directories(hbfsim_eq3_cpu_service PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/bpftime/third_party")
+target_compile_options(hbfsim_eq3_cpu_service PRIVATE -Wall -Wextra -Wpedantic)
+add_executable(hbfsim_eq3_cpu_pilot cpu_pilot.cpp)
+target_link_libraries(hbfsim_eq3_cpu_pilot PRIVATE hbfsim_eq3_cpu_service)
+
 add_executable(hbfsim_eq3_thermal_cli cli.cpp)
 target_link_libraries(hbfsim_eq3_thermal_cli PRIVATE hbfsim_eq3_thermal)
 
@@ -24,6 +31,9 @@ if(BUILD_TESTING)
   add_executable(hbfsim_eq3_observer_tests ../../tests/eq3_thermal/observer_tests.cpp)
   target_link_libraries(hbfsim_eq3_observer_tests PRIVATE hbfsim_eq3_observer)
   add_test(NAME hbfsim_eq3_observer_tests COMMAND hbfsim_eq3_observer_tests)
+  add_executable(hbfsim_eq3_cpu_service_tests ../../tests/eq3_thermal/cpu_service_tests.cpp)
+  target_link_libraries(hbfsim_eq3_cpu_service_tests PRIVATE hbfsim_eq3_cpu_service)
+  add_test(NAME hbfsim_eq3_cpu_service_tests COMMAND hbfsim_eq3_cpu_service_tests)
 
   set(HBFSIM_EQ3_HOST_CORE_ARCHIVE "" CACHE FILEPATH "Reviewed existing host core archive; recreate via main CPU build")
   set(HBFSIM_EQ3_MQSIM_ARCHIVE "" CACHE FILEPATH "Matching patched MQSim archive; no copied-binary portability claim")

@@ -114,7 +114,8 @@ SensorSnapshot ActivityObserver::sensors() const {
 }
 ObserverCheckpoint ActivityObserver::checkpoint() const {
   ObserverCheckpoint s{mode_,time_ns_,next_energy_id_,seen_,active_,pending_,journal_,terminals_,energy_j_,external_energy_j_,std::nullopt};
-  if(auto* m=runtime_.model())s.thermal=m->checkpoint();return s;
+  if(auto* m=runtime_.model())s.thermal=m->checkpoint();
+  return s;
 }
 void ActivityObserver::restore(const ObserverCheckpoint& s) {
   check(s.mode==mode_,"observer checkpoint mode mismatch");
@@ -136,8 +137,10 @@ void ActivityObserver::restore(const ObserverCheckpoint& s) {
   external_energy_j_=s.external_energy_j;
 }
 void ActivityObserver::reset() {
-  if(auto* m=runtime_.model())m->reset();time_ns_=0;next_energy_id_=1;
+  if(auto* m=runtime_.model())m->reset();
+  time_ns_=0;next_energy_id_=1;
   seen_.clear();active_.clear();pending_.clear();journal_.clear();terminals_.clear();
-  for(auto& [id,e]:energy_j_)e=0;external_energy_j_=0;
+  for(auto& [id,e]:energy_j_)e=0;
+  external_energy_j_=0;
 }
 } // namespace hbfsim::eq3_thermal

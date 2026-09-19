@@ -95,12 +95,12 @@ int main(int argc, char** argv) try {
     for (const auto& reading : provider.snapshot().nodes)
       std::cout << model.time_s() << ",node," << reading.location << ','
                 << physical_name(reading.physical_type) << ','
-                << logical_name(reading.logical_role) << ",simulated,1,"
+                << logical_name(reading.logical_role) << ",SIMULATED,1,"
                 << *reading.value_k << ",,,\n";
     for (const auto& group : model.grouped_temperatures())
       std::cout << model.time_s() << ",group," << group.group_id << ','
                 << physical_name(group.physical_type) << ',' << logical_name(group.logical_role)
-                << ",simulated,1,," << group.hotspot_k
+                << ",SIMULATED,1,," << group.hotspot_k
                 << ',' << group.mean_k << ',' << group.node_count << '\n';
   }
   return 0;

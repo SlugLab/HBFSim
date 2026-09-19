@@ -61,7 +61,7 @@ def main():
                 if not expected <= groups:
                     raise RuntimeError("missing component sensors")
                 for row in rows:
-                    if row["source"] != "simulated" or row["valid"] != "1":
+                    if row["source"] != "SIMULATED" or row["valid"] != "1":
                         raise RuntimeError("wrong sensor provenance")
                     value = float(row["value_k"] or row["hotspot_k"])
                     if not math.isfinite(value) or value <= 0:

@@ -1,0 +1,72 @@
+name: Bug report
+description: Something builds, runs, or measures differently than documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Before filing: HBFSim reports modeled device time separately from host
+        service time, wall-clock time, and emulator overhead. A wall-clock number
+        that looks wrong is often the emulator's own overhead rather than the
+        modeled delay. Please say which of the four you are looking at.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The exact commands, in order, starting from a clean clone.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse HEAD`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: build-options
+    attributes:
+      label: Build configuration
+      description: >
+        The values you set for HBFSIM_ENABLE_CUDA, HBFSIM_ENABLE_MQSIM,
+        HBFSIM_ENABLE_LLM_TESTS, and CMAKE_CUDA_ARCHITECTURES.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >
+        Linux distribution and kernel, CMake version, compiler version, CUDA
+        toolkit version, NVIDIA driver version, and GPU model. `nvidia-smi` output
+        is ideal.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: profile
+    attributes:
+      label: HBF profile
+      description: Which file under configs/profiles/ the run used.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: The failing output, the coverage manifest, or the ctest log.
+      render: shell

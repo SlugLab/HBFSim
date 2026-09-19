@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main, eval_base]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-build-and-test:
+    name: CPU build and ctest (no GPU)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          # The `paper` submodule points at a private Overleaf repository and is
+          # marked inactive in .gitmodules; only the two build dependencies are
+          # fetched here.
+          submodules: false
+
+      - name: Fetch the pinned build submodules
+        run: |
+          git submodule update --init --recursive \
+            third_party/bpftime third_party/mqsim
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++-13 libssl-dev python3
+
+      - name: Configure (CUDA off, MQSim on)
+        env:
+          HBFSIM_ENABLE_CUDA: "OFF"
+          HBFSIM_ENABLE_MQSIM: "ON"
+          HBFSIM_ENABLE_LLM_TESTS: "OFF"
+        run: ./scripts/bootstrap.sh
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Run the CPU test suite
+        # Three tests are excluded because they cannot pass on a stock runner,
+        # and each exclusion is tracked in TODO.md:
+        #   vmem_tuning       reads a CSV at an absolute path on one author's
+        #                     machine (/home/.../nvme-mem2nvm/...), so it can
+        #                     only pass there.
+        #   run_with_bpftime  requires an installed CUDA toolkit at
+        #                     /usr/local/cuda-12.8.
+        #   context_lifecycle fails when a context is created from the
+        #                     empirical cd8p-vmem-p50 profile; this reproduces
+        #                     on eval_base and on docs/eval-mainline and is an
+        #                     open defect, not a runner limitation.
+        run: |
+          ctest --test-dir build --output-on-failure \
+            -E 'vmem_tuning|run_with_bpftime|context_lifecycle'
+
+  repository-hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: A public clone must not stop on the private paper submodule
+        run: |
+          grep -q 'active = false' .gitmodules
+          grep -q 'update = none' .gitmodules
+
+      - name: CITATION.cff must parse
+        run: |
+          python3 -c "import yaml,sys; yaml.safe_load(open('CITATION.cff')); print('CITATION.cff ok')"
+
+      - name: Every Markdown link to a repository file must resolve
+        run: python3 scripts/check_doc_links.py

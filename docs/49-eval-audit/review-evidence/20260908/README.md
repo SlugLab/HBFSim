@@ -1,6 +1,6 @@
 # 2026-09-08 审阅依据包
 
-这是从原执行环境 `/root/hbfsim-exp/reports/eq-replan-20260908/` 选拷的小型报告和收据，供 GitHub 上审阅；不是完整实验数据集。[中文审阅指南](../../REVIEW_GUIDE.md)给出阅读顺序，[发布摘要](交付结论.md)概括已经完成与仍待验证的范围。
+这是从原执行环境 `/root/hbfsim-exp/reports/eq-replan-20260908/` 选拷的小型报告和收据，供 GitHub 上审阅；不是完整实验数据集。[中文审阅指南](../../REVIEW_GUIDE.md)给出阅读顺序，发布摘要 (an internal working document, not published in this repository)概括已经完成与仍待验证的范围。
 
 | 主题 | 入口与收据 |
 |---|---|

@@ -1,6 +1,6 @@
 # Evaluation scope
 
-The canonical plan is [doc 47](../47-评估主线设计.md), selected from docs/eval-mainline 297db90e761784463bcbace4803667d5b9fe0028. Its E1–E4 organization wins over older alternative outlines. It is a research plan, not evidence that every runner exists.
+The canonical plan is doc 47 (an internal working document, not published in this repository), selected from docs/eval-mainline 297db90e761784463bcbace4803667d5b9fe0028. Its E1–E4 organization wins over older alternative outlines. It is a research plan, not evidence that every runner exists.
 
 | Canonical experiment | Question | Current entry point / gap |
 |---|---|---|

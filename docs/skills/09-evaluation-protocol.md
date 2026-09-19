@@ -65,7 +65,7 @@ Mixing time_scale=100 history with formal time_scale=1; contaminating heldout; c
 
 ## Tests proving the behavior
 
-[PipelineTests](../../scripts/eval/test_eval_pipeline.py) supplies schema, renderer and rejection tests. Component tests appear in each topic document. The current GOLD-0 run and phase-specific records are separate from this documentation validation: see [base execution](../../results/gold/base/frozen-config/execution.json), [base test log](../../results/gold/base/frozen-config/ctest.log), and [pipeline log](../../results/gold/base/eval-pipeline.log). Formal GPU/storage gates require their own newly acquired raw evidence. Thresholds, repeat counts and validity rules are authoritative in the linked claim/hardware contracts; do not duplicate and drift them in runners.
+[PipelineTests](../../scripts/eval/test_eval_pipeline.py) supplies schema, renderer and rejection tests. Component tests appear in each topic document. The current GOLD-0 run and phase-specific records are separate from this documentation validation: see base execution (a generated artifact, produced by a run rather than committed), base test log (a generated artifact, produced by a run rather than committed), and pipeline log (a generated artifact, produced by a run rather than committed). Formal GPU/storage gates require their own newly acquired raw evidence. Thresholds, repeat counts and validity rules are authoritative in the linked claim/hardware contracts; do not duplicate and drift them in runners.
 
 ## What not to change casually
 

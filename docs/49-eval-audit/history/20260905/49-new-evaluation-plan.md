@@ -2,7 +2,7 @@
 
 本轮完成第一阶段：审计、增量实施计划、矩阵、数据契约与 MOCK 图。**没有实施新的 runtime、合并 feature branch 或运行硬件性能实验。** `docs/47` 的旧 E2 不再是主问题；本文件是本轮新 Evaluation 的入口，旧文档和历史证据保留为来源。
 
-审计基础：`eval_base@fc829992ecdc3ca68881656722b67a31067c5d33`；异步候选：`feature/sm120-exact-stage1@f4dc28b2671c01939d98e4a968e6fb37b2e364d9`。没有把远端跟踪分支当成自动最新承诺，本轮冻结本地已有 Git 对象。所有实现判断按 [source ledger](49-eval-audit/source-ledger.md) 绑定 branch、完整 SHA、文件、函数、行段。`INFERRED` 是代码推断；`STATIC_REPRODUCED` 是本轮编译转换复现；二者都不能填成物理性能 `MEASURED`。
+审计基础：`eval_base@fc829992ecdc3ca68881656722b67a31067c5d33`；异步候选：`feature/sm120-exact-stage1@f4dc28b2671c01939d98e4a968e6fb37b2e364d9`。没有把远端跟踪分支当成自动最新承诺，本轮冻结本地已有 Git 对象。所有实现判断按 [source ledger](../../source-ledger.md) 绑定 branch、完整 SHA、文件、函数、行段。`INFERRED` 是代码推断；`STATIC_REPRODUCED` 是本轮编译转换复现；二者都不能填成物理性能 `MEASURED`。
 
 ## Four fixed questions
 
@@ -27,11 +27,11 @@ reference / fast / hybrid 的 runtime、host cost、time_scale、coverage 保留
 
 ## 阅读顺序
 
-- [Current capability audit](49-eval-audit/current-capability-audit.md)：当前实现、已有实验、分支复用、旧文档纠偏。
-- [Async/TMA audit](49-eval-audit/async-tma-audit.md)：符号逐项、PTX 语义、CFG、插桩、完成语义、coverage、fail-closed，以及复现。
-- [Hardware ground-truth contract](49-eval-audit/hardware-groundtruth-contract.md)：可检验对照、冻结切分、计时域与统计。
-- [Figure plan](49-eval-audit/figure-plan.md) 与 [schema](49-eval-audit/result-schema.md)：数据替换契约和六图。
-- [Execution plan](49-eval-audit/execution-plan.md)、[run matrix](49-eval-audit/run-matrix.csv)、[claim gates](49-eval-audit/claim-gates.md)：实施顺序、预算、blocking dependencies、最小与理想配置。
+- [Current capability audit](../../current-capability-audit.md)：当前实现、已有实验、分支复用、旧文档纠偏。
+- [Async/TMA audit](../../async-tma-audit.md)：符号逐项、PTX 语义、CFG、插桩、完成语义、coverage、fail-closed，以及复现。
+- [Hardware ground-truth contract](../../hardware-groundtruth-contract.md)：可检验对照、冻结切分、计时域与统计。
+- [Figure plan](../../figure-plan.md) 与 [schema](../../result-schema.md)：数据替换契约和六图。
+- [Execution plan](../../execution-plan.md)、[run matrix](../../run-matrix.csv)、[claim gates](../../claim-gates.md)：实施顺序、预算、blocking dependencies、最小与理想配置。
 
 ## 两个必须修正的方法学细节
 

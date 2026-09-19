@@ -8,7 +8,11 @@ cuda_enabled="${HBFSIM_ENABLE_CUDA:-ON}"
 mqsim_enabled="${HBFSIM_ENABLE_MQSIM:-ON}"
 llm_tests_enabled="${HBFSIM_ENABLE_LLM_TESTS:-OFF}"
 
-git -C "${repo_root}" submodule update --init --recursive
+# Only the two build dependencies are initialised.  The `paper` submodule
+# points at a private Overleaf repository, is not part of the build, and
+# would fail authentication for anyone outside the author group.
+git -C "${repo_root}" submodule update --init --recursive \
+    third_party/bpftime third_party/mqsim
 
 if [[ "${cuda_enabled}" == "ON" ]]; then
     cuda_nvcc="/usr/local/cuda-12.8/bin/nvcc"

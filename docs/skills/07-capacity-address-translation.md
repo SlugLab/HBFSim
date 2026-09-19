@@ -64,7 +64,7 @@ Ownership/destruction order, parent CUDA domain, one-pool budget, media-plan-bef
 
 ## Related docs
 
-[Address-flow diagram](01-hbfsim-architecture.md#call-path--data-path), [MQSim](06-mqsim-online-service.md), [ABI](05-device-helper-and-control-abi.md), [historical capacity design](../superpowers/specs/2026-08-10-public-capacity-runtime-design.md), and [doc48 with base-status correction](../48-两种模式的定位与SRAM建模.md).
+[Address-flow diagram](01-hbfsim-architecture.md#call-path--data-path), [MQSim](06-mqsim-online-service.md), [ABI](05-device-helper-and-control-abi.md), [historical capacity design](../superpowers/specs/2026-08-10-public-capacity-runtime-design.md), and doc48 with base-status correction (an internal working document, not published in this repository).
 
 Phase-two inventory tooling is separate from the runtime backing manifest.
 [inventory_checkpoint.py](../../scripts/eval/inventory_checkpoint.py) reads

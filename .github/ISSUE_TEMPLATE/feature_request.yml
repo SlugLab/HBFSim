@@ -1,0 +1,43 @@
+name: Feature or modeling request
+description: Ask for a device behavior, workload, or measurement HBFSim does not cover yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Open work already on the roadmap is listed in
+        [TODO.md](https://github.com/SlugLab/HBFSim/blob/main/TODO.md). Please check
+        it first, and link the item if your request refines one that is already there.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What question would this let someone answer
+      description: >
+        Name the design decision a user could measure instead of assume once this
+        exists. "Model X" on its own is hard to prioritise; "decide whether N
+        stacks beat one at fixed capacity" is not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you are proposing
+      description: The behavior, configuration field, metric, or workload you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: grounding
+    attributes:
+      label: Source
+      description: >
+        If the behavior comes from the OCP HBF specification, a vendor document,
+        or a paper, cite it with a section or page number. Requests grounded in a
+        primary source move first.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you have tried instead

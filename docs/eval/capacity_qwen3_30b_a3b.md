@@ -1,6 +1,6 @@
 # Qwen3-30B-A3B HBM/HBF capacity evaluation
 
-Source: [capacity study at 3714484](https://github.com/SlugLab/HBFSim/tree/37144843906b3bd71f3fbac1fecc6b5080d82b95), especially `experiments/hbm_hbf_capacity/README.md`, `adapters/vllm_capacity`, and `docs/重要实现问题以及需补做实验/19-hardware-grounded-evaluation-plan.md`. Current organization follows [doc 47](../47-评估主线设计.md); old EQ labels are cross-referenced in [overview](overview.md).
+Source: [capacity study at 3714484](https://github.com/SlugLab/HBFSim/tree/37144843906b3bd71f3fbac1fecc6b5080d82b95), especially `experiments/hbm_hbf_capacity/README.md`, `adapters/vllm_capacity`, and `docs/重要实现问题以及需补做实验/19-hardware-grounded-evaluation-plan.md`. Current organization follows the evaluation mainline design (an internal working document, not published in this repository); old EQ labels are cross-referenced in [overview](overview.md).
 
 ## Capacity and placement
 

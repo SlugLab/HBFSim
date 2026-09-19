@@ -27,7 +27,7 @@
 
 ## Preview and replacement
 
-[图1](../../figures/mock/fig-e1-hardware-fidelity.png) · [图2](../../figures/mock/fig-e2-async-semantics.png) · [图3](../../figures/mock/fig-e3-hbf-feasibility.png) · [图4](../../figures/mock/fig-e4-expert-union.png) · [图5](../../figures/mock/fig-e5-workload-boundary.png) · [图6](../../figures/mock/fig-e6-robustness.png)。
+图1 (a generated artifact, produced by a run rather than committed) · 图2 (a generated artifact, produced by a run rather than committed) · 图3 (a generated artifact, produced by a run rather than committed) · 图4 (a generated artifact, produced by a run rather than committed) · 图5 (a generated artifact, produced by a run rather than committed) · 图6 (a generated artifact, produced by a run rather than committed)。
 
 完整矩阵与论文切片分离：exporter 选择 figure/panel/series，保留其它条件。改变模型、真实 E/k、profile、replicate 数、延迟值，只改变数据。图外辅助指标（checksum、coverage、bytes、queue等）同 CSV 可以不画，但不得丢失 provenance。renderer 明确报错：缺必需 panel、缺 x/y sibling metric、重复 cell、混入不同 frozen context、缺失 heatmap 格；不能默默丢行后输出“完整”论文图。
 

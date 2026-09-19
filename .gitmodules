@@ -7,3 +7,10 @@
 [submodule "paper"]
 	path = paper
 	url = https://git@git.overleaf.com/6a7bdca65b0b3f3b7f676b14
+	# The paper lives in a private Overleaf repository that only the authors can
+	# reach.  It is not part of the build and nothing in the source tree reads it.
+	# `active = false` and `update = none` keep `git clone --recurse-submodules`
+	# and `git submodule update --init --recursive` from stopping on an
+	# authentication failure.  The paper itself is public: arXiv:2609.09800.
+	active = false
+	update = none

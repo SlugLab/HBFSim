@@ -1,394 +1,166 @@
-# HBFSim
+# HBFSim: simulating High-Bandwidth Flash while the workload runs on a real GPU
 
-中文审阅入口：[eval_base 审阅指南](docs/49-eval-audit/REVIEW_GUIDE.md)。
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
+[![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)
 
-For the current campaign, start with [EQ1–EQ4, revised 2026-09-08](docs/49-new-evaluation-plan.md) and the [integration and reproduction index](docs/eval/README.md). The proof results below remain tied to their original source snapshots; current validation and deferred features are recorded in the integration manifest.
+**English** | [中文](README.zh-CN.md)
 
-HBFSim is a live workload emulator for studying a simple systems question:
+HBFSim is an evaluation platform for High-Bandwidth Flash (**HBF**), a memory tier that
+stacks NAND flash inside the accelerator package, one tier below high-bandwidth memory. HBF
+parts cannot be bought today: the first technical specification was published by SanDisk and
+SK hynix through the Open Compute Project on August 3, 2026, and the first inference devices
+are expected to sample in early 2027. HBFSim lets an application execute normally on a real
+GPU and applies HBF timing, capacity, and thermal effects to that application during
+execution, instead of recording an access sequence and replaying the recorded sequence
+afterwards.
 
-> What would GPU applications look like if they could directly access a large,
-> flash-backed memory tier with much higher bandwidth than conventional storage,
-> but higher latency than HBM?
+🚀 [Quick start](#quick-start) \
+⚙️ [How it works](#how-it-works) \
+📊 [What HBFSim has measured](#what-hbfsim-has-measured) \
+📄 [Paper on arXiv](https://arxiv.org/abs/2609.09800) \
+📝 [Open work in TODO.md](TODO.md)
 
-The project calls that hypothetical tier **High-Bandwidth Flash (HBF)**. HBFSim
-does not assume a particular vendor device or finalized HBF standard. Instead,
-it provides named, synthetic profiles so researchers can explore the design
-space under explicitly labeled assumptions. The OCP HBF v0.7.0 high-level base-die specification is now available; its architecture and protocol constraints do not establish that these synthetic profiles are calibrated to HBF silicon. See the current source ledger.
+## The question HBFSim answers
 
-## The high-level idea
+Serving a large language model is limited by memory capacity, and a designer choosing how
+much HBF capacity to buy, or which tensors to place in HBF, cannot wait for silicon. Three
+existing methods do not settle that decision:
 
-Most storage simulators replay traces after an application has finished, while
-most GPU memory simulators do not execute the original CUDA workload. HBFSim is
-designed to keep the workload live: the application runs normally, selected GPU
-memory operations are identified automatically, and HBF timing or capacity
-effects are applied during execution.
+- a storage simulator that replays a recorded access sequence never executes the workload;
+- a GPU simulator does not run the real compute kernels; and
+- a cycle-accurate simulator cannot finish one large language model inference run.
 
-Three ideas make this possible:
+HBFSim applies HBF timing, capacity, and thermal effects to a real inference workload while
+that workload executes on a real GPU. Timing comes from measurements of a real device rather
+than from a parameter sheet, and junction temperature sets both the rate HBF sustains and
+the retention deadline that forces refresh writes.
 
-1. **Explicit HBF ranges define intent.** Only addresses registered by the
-   application or runtime are treated as HBF. Ordinary HBM pointers remain on
-   the native fast path.
-2. **PTX rewriting provides visibility.** A bpftime/eGPU-derived interception
-   path rewrites supported global loads and stores so HBF accesses can be
-   resolved without modifying each CUDA kernel by hand. A coverage gate rejects
-   any HBF pointer that reaches code whose behavior cannot be proven safe.
-3. **Detailed and fast timing models work together.** An online, media-only
-   MQSim path is the detailed reference model. A calibrated GPU-local model is
-   intended to handle the common path cheaply, while sampled requests keep it
-   anchored to MQSim.
+## Quick start
 
-The result is intended to preserve application semantics while changing where
-data comes from and how long access takes.
-
-### Calibrating the model from a real vmem path
-
-Named synthetic profiles remain useful for design-space exploration, but they
-do not capture the non-linear cost of a complete software-backed memory path.
-The `cd8p-vmem-p50` profile is calibrated from the committed
-`nvme-mem2nvm` cold-fault measurements on a Dell CD8P. It records cumulative
-P50 latency at 1, 4, 16, 64, 256, and 512 contiguous 4 KiB pages rather than
-reducing the path to one constant page latency or bandwidth number.
-
-For a sequential GPU access, HBFSim derives the current page's marginal delay
-from that cumulative curve and serializes it on the GPU-local fast timing
-channel. Random, reverse, repeated, or cross-operation accesses start a new
-burst. Legacy profiles still use the scalar latency/bandwidth model; malformed
-empirical metadata fails closed instead of falling back silently.
-
-This is a calibration of the complete measured vmem path, including its
-software overhead. The CD8P is PCIe NVMe, not a physical CXL endpoint, and an
-exact fit at the six source breakpoints is not an independent prediction. The
-[CD8P vmem proof](docs/proofs/2026-08-11-cd8p-vmem-tuning.md) records the source
-hash, scalar-model error, and a real-GPU automatic-PTX replay of all six points.
-
-## Two complementary modes
-
-| Mode | What changes | Primary question |
-|---|---|---|
-| **Timing-only** | Data stays in normal GPU memory; HBFSim injects modeled delay for registered accesses. | How sensitive is this workload to HBF latency, bandwidth, and contention? |
-| **Capacity** | Registered data is backed by a file and staged through an HBM page cache. | Can a workload run with a working set larger than available VRAM, and what cache behavior results? |
-
-Both modes use the same explicit ranges, PTX coverage rules, named HBF profiles,
-and reporting model. Timing-only mode isolates delay from paging. Capacity mode
-adds page residency, eviction, and backing I/O.
-
-In capacity mode, all registered file ranges in a context share one bounded HBM
-page cache. A cache hit resolves directly to its resident HBM frame. A miss
-loads the backing page and contributes one modeled media read; a dirty eviction
-contributes a modeled media program before its bytes return to the backing
-file. MQSim therefore sees the HBF media work caused by misses and dirty
-writebacks, rather than every GPU load and store.
-
-## Intended end-to-end path
-
-```text
-CUDA workload (microbenchmark, llama.cpp, or vLLM)
-                         |
-                         v
-       explicit HBF ranges + fail-closed coverage gate
-                         |
-                         v
-          automatic PTX load/store instrumentation
-                         |
-                         v
-             GPU range lookup and page resolver
-                  /                    \
-                 v                      v
-       HBM / HBM-cache hit       shared request ring
-                                         |
-                                         v
-                                HBF host service
-                                /              \
-                               v                v
-                    online MQSim timing   file backing store
-```
-
-MQSim is used as a flash-media model, not as an SSD host-stack model. The HBF
-adapter bypasses NVMe, PCIe, SATA, and host-driver events while retaining flash
-mapping, transaction scheduling, NAND timing, queueing, contention, and channel
-behavior.
-
-HBFSim reports modeled device time separately from host service time, wall-clock
-time, and emulator overhead. This separation is essential: a live emulator can
-be functionally correct while its own software overhead is larger than the
-device delay it is trying to model.
-
-## What HBFSim is meant to evaluate
-
-- sensitivity to HBF read/program latency, channel count, queue depth, and
-  aggregate bandwidth;
-- the benefit of an HBM cache in front of a much larger flash-backed tier;
-- detailed MQSim timing versus a calibrated fast model;
-- correctness and failure behavior when only part of a CUDA workload can be
-  instrumented; and
-- end-to-end effects on deterministic llama.cpp and vLLM inference, including
-  bit-exact token checks against each runtime's own baseline.
-
-## Project status
-
-`eval_base` now has real-GPU proof for automatic timing injection,
-public file-backed capacity beyond physical VRAM, deterministic vLLM and
-llama.cpp workloads, and GPU/CD8P thermal calibration. The table distinguishes
-those live gates from narrower CPU, fake-driver, and static PTX checks.
-
-| Component | Status |
-|---|---|
-| Pinned bpftime and MQSim dependencies | Implemented |
-| Named synthetic HBF profiles | Implemented and validated |
-| Request/completion protocol and page state machine | Implemented and tested |
-| Incremental media-only MQSim interface and trace equivalence | Implemented and tested |
-| Reproducible MQSim media benchmark | Implemented and tested |
-| PTX rewriting for supported global loads/stores | Implemented; static PTX checks pass |
-| bpftime pass ABI and fail-closed CUDA launch gate | Implemented; static/Release checks pass |
-| Live bpftime + GPU interception proof | Passed on real vLLM Triton `cuLaunchKernelEx` variants |
-| Timing-only host range registration and host service | Implemented; CPU/static checks pass |
-| PTX resolver helper | Implemented; self-contained PTX and CUDA 12.8 assembly checks pass |
-| vLLM timing-only adapter | Real Qwen3-30B-A3B execution passed with selective named ranges and bit-exact tokens |
-| Live timing-only GPU delay proof | Passed: 24 modeled fused-MoE launches on an explicit 16 KiB weight range |
-| File-backed capacity mode | Public `map`/`flush`/`unregister`, multi-file routing, shared bounded cache, MQSim miss/writeback timing, and checked teardown pass CPU/fake-driver tests |
-| Direct real-GPU capacity-runtime smoke | Passed on RTX PRO 6000: VMM frame fill, CUDA kernel write, dirty flush, and backing-byte check |
-| Hybrid fast model | Implemented with named `reference`, `fast`, and sampled `hybrid` modes |
-| Public/PTX real-GPU capacity and over-VRAM proof | Passed with a 110 GiB logical range and a 2 GiB HBM cache |
-| CUDA fault matrix and llama.cpp proof runs | Passed; TinyLlama timing-only injection preserves deterministic output |
-| GPU and Dell CD8P thermal validation | Calibrated LogP profile from live BF16 heating and read-only SMART/fio telemetry |
-
-Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live
-GPU proof. The newer live results below close the earlier timing scalability,
-over-VRAM capacity, llama.cpp, and LogP calibration proof gates, while keeping
-their boundaries explicit. The complete non-live
-checkpoint and exact commands are recorded
-in [the 2026-08-10 non-live proof artifact](docs/proofs/2026-08-10-capacity-runtime-non-live.md).
-A separate [live hardware checkpoint](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)
-records the bounded real-GPU smoke, GPU thermal response, and read-only Dell
-CD8P media baseline without treating them as end-to-end HBF workload proof.
-The [real-GPU vLLM adapter proof](docs/proofs/2026-08-11-vllm-timing-adapter.md)
-records bit-exact Qwen execution, registration coverage, performance, and the
-cubin-only instrumentation blocker.
-The [exact Triton live-delay proof](docs/proofs/2026-08-11-vllm-exact-live-delay.md)
-supersedes that blocker with automatic variant rewriting, nonzero modeled
-coverage, a matched baseline, and a read-only Dell CD8P comparison.
-
-### Latest live benchmark
-
-The validated Qwen3-30B-A3B smoke used one 32-token prompt and generated eight
-tokens. A matched baseline took 0.270 s; the detailed reference path took
-44.469 s, while the fast path completed in 2.014 s and preserved the exact
-token IDs. Fast mode is therefore about 20.8x faster than the reference
-emulator on this proof shape. These wall-clock ratios characterize the
-emulator, not projected HBF hardware.
-
-The public capacity benchmark also completed a 110 GiB logical workload on a
-97,887 MiB RTX PRO 6000 using a 2 GiB HBM cache. All 128 sampled accesses
-matched the baseline checksum, all 128 page requests completed, and no unsafe
-launch was admitted. This is a sparse logical-capacity proof: it demonstrates
-address span and page routing beyond VRAM, not that 110 GiB of payload was
-resident or read during the short run.
-
-The llama.cpp timing-only adapter ran TinyLlama-1.1B-Chat-v1.0 F16 with ten
-50 ms GPU delay injections. Baseline and timing runs both generated
-`The author suggests that the fastest route`; the repository runner treats any
-semantic mismatch or zero-injection run as a failure.
-
-A fresh concurrent, read-only Dell CD8P run sustained 7.577 GB/s and 57.81k
-IOPS with zero writes. GPU temperature rose from 28 to 73 degrees C and CD8P
-SMART temperature rose from 34 to 37 degrees C. The fitted first-order LogP
-profile has time constants of 13.1 s (GPU) and 12.4 s (SSD); GPU BF16
-throughput changed by -3.72% across the sampled heating run with an exact
-scalar checksum. The CD8P is PCIe NVMe rather than a CXL endpoint; it is the
-physical flash/thermal proxy for the proposed HBF/CXL-attached storage tier.
-The consolidated evidence and proof boundaries are recorded in
-[the 2026-08-11 hybrid completion checkpoint](docs/proofs/2026-08-11-hybrid-complete.md).
-
-### Reproduce the live paths
-
-The microbenchmark covers automatic PTX rewriting, all access patterns,
-timing modes, public file-backed capacity, and over-VRAM logical spans:
+HBFSim needs native Linux, CMake 3.25 or newer, Ninja, a compiler with C++20 support,
+OpenSSL, and Python 3. The CUDA components need CUDA 12.8 or newer. The media simulator and
+the benchmark of the media simulator build without CUDA, which is the configuration below.
 
 ```bash
-python3 scripts/run_microbench.py --help
-```
-
-The end-to-end CD8P-vmem calibration has its own exact-breakpoint runner. It
-does not open `/dev/vmem0` or the raw NVMe namespace:
-
-```bash
-cmake --build /dev/shm/hbfsim-vllm-gpu13 \
-  --target hbf_vmem_tuning_bench hbfsimd \
-           hbfsim_vmem_tuning_probe -j2
-HBFSIM_BUILD_DIR=/dev/shm/hbfsim-vllm-gpu13 \
-HBFSIM_BPFTIME_BUILD_DIR=/dev/shm/hbfsim-bpftime-variant-gcc14 \
-python3 scripts/run_vmem_tuning_bench.py \
-  --profile configs/profiles/cd8p-vmem-p50.json \
-  --output /path/to/cd8p-vmem-summary.json
-```
-
-The pinned llama.cpp adapter and deterministic comparison are driven by:
-
-```bash
-HBFSIM_BUILD_DIR=/dev/shm/hbfsim-release-gpu13 \
-  adapters/llama_cpp/build.sh
-python3 adapters/llama_cpp/run.py --mode compare \
-  --llama-cli /dev/shm/hbfsim-llama-build/bin/llama-cli \
-  --model /path/to/tinyllama-f16.gguf \
-  --hbf-build /dev/shm/hbfsim-release-gpu13 \
-  --profile configs/profiles/nominal.json \
-  --report-dir /path/to/report
-```
-
-Thermal validation discovers the CD8P by exact model name, refuses mounted or
-held namespaces, and uses read-only fio. The simulated warning profile
-extrapolates the calibration without driving hardware to unsafe temperatures:
-
-```bash
-python3 scripts/thermal/collect.py --output /path/to/thermal-proof
-python3 scripts/thermal/fit_logp.py \
-  --input /path/to/thermal-proof --output /path/to/profile.json
-python3 scripts/thermal/simulate_overheat.py \
-  --calibration configs/thermal/gpu-cd8p-logp-live.json \
-  --scenarios configs/thermal/scenarios.json \
-  --profile simulated-warning --output /path/to/simulation.json
-```
-
-## Requirements
-
-- Native Linux
-- Git with submodule support
-- CMake 3.25 or newer
-- Ninja
-- A C++20 compiler
-- Python 3
-- CUDA 13.0 at `/usr/local/cuda-13.0` for the validated Blackwell build;
-  CUDA 12.8 remains the minimum supported toolkit for PTX validation
-
-The current media simulator and its benchmark can be built without a GPU.
-
-The capacity runtime owns the logical CUDA VMM ranges, one shared HBM frame
-pool, the clock cache, backing-file router, bounce page, page service, and
-parent worker. Public `hbfsim_map_file`, `hbfsim_flush`, and
-`hbfsim_unregister` use transactional publication and checked rollback. Dirty
-teardown failures quarantine the owner so a relevant launch fails closed
-instead of bypassing unresolved state. These properties have CPU,
-CUDA-static/PTX, fake-driver, MQSim, and real-GPU coverage. The 110 GiB
-logical-range run is the public API plus automatic PTX capacity gate; it
-complements rather than replaces the failure-injection tests.
-
-## Clone and build
-
-```bash
-git clone --recurse-submodules \
-  https://github.com/SlugLab/HBFSim.git
+git clone https://github.com/SlugLab/HBFSim.git
 cd HBFSim
 
-HBFSIM_ENABLE_CUDA=OFF \
-HBFSIM_ENABLE_MQSIM=ON \
-./scripts/bootstrap.sh
-
-cmake --build build -j
+HBFSIM_ENABLE_CUDA=OFF HBFSIM_ENABLE_MQSIM=ON ./scripts/bootstrap.sh
+cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure
 ```
 
-The default branch is `eval_base`, so the clone above checks out `eval_base`
-without a `--branch` argument. Pass `--branch hybrid` only when the older
-`hybrid` branch is the one you want.
+Configure succeeds, all 152 build targets build, and 31 of the 34 tests pass on a machine
+without CUDA. [TODO.md](TODO.md) records the three tests that do not pass and the reason for
+each of those three.
 
-The build checks that the submodules are at the required revisions:
+<div align="center">
+  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: a host setup and registry, a real GPU running vLLM through a device ABI, a high-bandwidth memory tier with a native path and a frame cache, a host capacity service with a backing file and a prefetcher, and the modeled HBF behaviour" width="900">
+  <p><em>What HBFSim does, read from left to right. The host setup and registry rewrites a module with the PTX pass, then records which address ranges are registered as HBF. A real GPU runs vLLM on Qwen3-30B through a device ABI. Inside the high-bandwidth memory tier, an access to an unregistered address stays on the native path, while an access to a registered address is served from a frame cache. The host capacity service supplies exact page bytes from a backing file, with a prefetcher loading the following pages. On the right, HBFSim computes the modeled HBF behaviour: an online MQSim reference model produces timing; junction temperature sets both the rate HBF sustains and the retention deadline; an approaching deadline forces refresh work, which is a read followed by a rewrite; a service policy sets rate and admission; the evidence output records bytes and wear.</em></p>
+</div>
 
-- bpftime: `ec26daecc8e787fb80fd95dd596a576404a5e36e`
-- MQSim: `51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16`
+## How it works
 
-HBFSim copies MQSim into `build/_deps/mqsim-hbf-src`, checks and applies
-`patches/mqsim/0001-online-hbf-api.patch`, then compiles the patched copy. The
-MQSim submodule remains clean.
+Three mechanisms carry the design.
 
-Build options:
+1. **Explicitly registered address ranges define intent.** Only an address the application
+   or the runtime has registered is treated as HBF. An ordinary pointer into high-bandwidth
+   memory stays on the original fast path and is left alone.
 
-| Option | Default | Purpose |
-|---|---:|---|
-| `HBFSIM_ENABLE_CUDA` | `ON` | Enable CUDA-facing components and toolkit validation |
-| `HBFSIM_ENABLE_MQSIM` | `ON` | Build the online MQSim backend and media benchmark |
-| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable environment-dependent llama.cpp and vLLM integration tests |
+2. **Rewriting PTX provides visibility.** An interception path derived from bpftime and eGPU
+   automatically rewrites the supported global load and store instructions, so no CUDA
+   kernel has to be edited by hand. PTX is the intermediate code the compiler of NVIDIA
+   emits. A coverage gate rejects a kernel launch outright once an HBF pointer reaches code
+   whose behaviour cannot be proven safe, rather than letting the launch through quietly.
+   The build checks that the resulting module is self-contained and assembles the module
+   with CUDA 12.8 `ptxas`; this is still static proof, not evidence that delay has been
+   injected on a live GPU.
 
-### Selecting a CUDA architecture
+3. **A detailed path and a fast path work together.** The online, media-only MQSim path is
+   the detailed reference model. A calibrated GPU-local model carries the common path, and
+   sampled requests keep the GPU-local model anchored to MQSim. MQSim is used as a
+   flash-media model, not as an SSD host-stack model.
 
-The CUDA device helper does not use Blackwell-only instructions. A build can
-therefore select one numeric baseline architecture of compute capability 7.0
-or newer through `CMAKE_CUDA_ARCHITECTURES`; `120` remains the default and the
-reference target. A single architecture is required because HBFSim embeds the
-helper PTX into each instrumented module. Compiling and assembling another
-target is not proof that the live host/GPU control protocol is portable to that
-platform: CUDA does not guarantee that GPU atomics to mapped page-locked host
-memory are atomic from the host's point of view. See
-[`docs/cuda-architecture-compatibility.md`](docs/重要实现问题以及需补做实验/cuda-problems-from-new-collaborator/cuda-architecture-compatibility.md)
-for the feature audit, support levels, and validation requirements.
+HBFSim reports four kinds of time separately: modeled device time, host service time,
+wall-clock time, and the overhead of HBFSim itself. That separation matters, because HBFSim
+can be functionally correct while the software overhead of HBFSim is larger than the device
+delay HBFSim is modeling.
 
-CUDA Toolkit can be kept in a user directory without installing a Linux driver
-or changing the shell environment. For example:
+## Two modes
 
-```bash
-env \
-  CUDAToolkit_ROOT="$HOME/opt/cuda-12.8" \
-  CUDACXX="$HOME/opt/cuda-12.8/bin/nvcc" \
-  PATH="$HOME/opt/cuda-12.8/bin:$PATH" \
-  cmake -S . -B build-sm89 -G Ninja \
-    -DHBFSIM_ENABLE_CUDA=ON \
-    -DHBFSIM_ENABLE_MQSIM=ON \
-    -DCMAKE_CUDA_ARCHITECTURES=89 \
-    -DCUDAToolkit_ROOT="$HOME/opt/cuda-12.8" \
-    -DCMAKE_CUDA_COMPILER="$HOME/opt/cuda-12.8/bin/nvcc"
-```
+| Mode | What changes | Question answered |
+|---|---|---|
+| **Timing-only** | Data stays in ordinary GPU memory, and HBFSim injects modeled delay for registered accesses only. | How sensitive is this workload to HBF latency, bandwidth, and contention? |
+| **Capacity** | Registered data is backed by a file and staged through a bounded page cache held in GPU memory. | Can this workload still run when the working set is larger than GPU memory, and what cache behaviour results? |
 
-## Run the MQSim media benchmark
+Both modes use the same explicitly registered ranges, the same PTX coverage rules, the same
+named HBF profiles, and the same reporting model. In capacity mode, every registered file
+range in one context shares one bounded high-bandwidth memory (**HBM**) page cache: a hit
+resolves to a resident HBM frame, a miss loads the backing page and contributes one modeled
+media read, and a dirty eviction contributes a modeled media program before the bytes of
+that page return to the backing file.
 
-The current benchmark submits deterministic sequential requests through
-`MqsimOnlineEngine` and emits one JSON document:
+## What HBFSim has measured
 
-```bash
-./build/hbf_mqsim_bench \
-  --profile configs/profiles/nominal.json \
-  --requests 4096 \
-  --bytes 16384 \
-  --operation read \
-  --arrival-gap-ns 0 \
-  > mqsim-nominal-read.json
-```
+- **Six calibration breakpoints match exactly.** The measured P50 latency and the modeled
+  value agree point by point at 1, 4, 16, 64, 256, and 512 contiguous 4 KiB pages, on an
+  NVIDIA RTX PRO 6000 Blackwell Server Edition with driver 595.84. This is a deterministic
+  calibration check, not a cross-validation: all six points took part in the fit, and none
+  of the six was held out. Source: [vmem tuning
+  proof](docs/proofs/2026-08-11-cd8p-vmem-tuning.md).
 
-Available workload controls:
+- **The fast path is 20.8x faster than the detailed reference path.** On the same
+  deterministic Qwen3-30B case, the reference path took 44.469 s and the fast path took
+  2.014352 s, with both runs generating identical token identifiers. The ratio of 20.8x
+  holds between two wall-clock times of HBFSim, and is not a prediction of HBF hardware
+  performance. Source: [hybrid completion proof](docs/proofs/2026-08-11-hybrid-complete.md).
 
-| Argument | Values | Default |
-|---|---|---:|
-| `--profile` | Path to a profile JSON file | Required |
-| `--requests` | Positive request count | `1024` |
-| `--bytes` | Non-zero multiple of 512 | `16384` |
-| `--operation` | `read`, `write`, or alternating `mixed` | `read` |
-| `--arrival-gap-ns` | Modeled gap between submissions | `0` |
-| `--capacity-bytes` | Effective reference-model capacity | Auto: 16 blocks/plane |
+- **Delay injected into an unmodified vLLM leaves the output unchanged, token by token.**
+  With vLLM 0.15.1 serving Qwen3-30B, 24 of 2,304 `fused_moe_kernel` launches were modeled
+  launches, and the token identifiers matched the baseline. Only the first 16,384 bytes of
+  one tensor were registered, out of the 61,064,245,248 bytes of that tensor. Source: [exact
+  live delay proof](docs/proofs/2026-08-11-vllm-exact-live-delay.md).
 
-The benchmark reports:
+- **A 110 GiB logical range ran on a 97,887 MiB GPU.** A 110 GiB logical address range with
+  a 2 GiB HBM cache completed all 128 accesses, produced checksum `14245581564465502923`,
+  which is the checksum the baseline produced, and admitted zero unsafe launches. This is a
+  sparse logical-capacity proof, and makes no claim that 110 GiB was physically read.
+  Source: [hybrid completion proof](docs/proofs/2026-08-11-hybrid-complete.md).
 
-- average, p50, and p99 modeled request latency;
-- modeled makespan and modeled bandwidth;
-- host wall time and simulator requests per second; and
-- the effective MQSim profile and completed-request count.
+- **Temperature changes the behaviour of one GPU.** The same BF16 8192x8192 matrix multiply
+  reached 379.117 TFLOP/s in a cold exclusive run that went from 35 to 70 degrees C, against
+  348.427 TFLOP/s in a hot exclusive run that went from 61 to 85 degrees C, a difference of
+  -8.10%. Source: [thermal proof](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md).
 
-By default, the benchmark chooses the smaller of the profile capacity and a
-geometry with 16 blocks per plane. This keeps MQSim's reference mapping tables
-reasonably sized while leaving enough free blocks for its write/GC guard. It
-does not change the selected profile's NAND latency, channel count, queue depth,
-or bandwidth cap. Set `--capacity-bytes` explicitly when capacity geometry is
-part of the experiment; write and mixed runs reject geometries with ten or
-fewer blocks per plane instead of stalling.
+- **The timing model is calibrated from a real device.** The calibration source is a Dell DC
+  NVMe CD8P E3.S 1.92TB attached over PCIe 5.0 32 GT/s x4. The Dell CD8P is an ordinary PCIe
+  NVMe endpoint, not a CXL endpoint.
 
-To run the benchmark regression gate:
+Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live GPU proof.
 
-```bash
-python3 tests/integration/test_mqsim_benchmark.py
-```
+## HBFSim next to the alternatives
 
-This benchmark is media-only. The complete CUDA benchmark will additionally
-measure live injected delay, semantic checksums, coverage, cache behavior,
-fault handling, and over-VRAM capacity after those runtime components land.
+Each alternative below is good at something HBFSim does not attempt. A storage simulator
+replaying a recorded access sequence is cheap and repeatable, and needs no accelerator. A
+GPU simulator exposes microarchitectural detail HBFSim never observes. A cycle-accurate
+simulator is the reference for correctness on a small kernel. A vendor parameter sheet is
+the only description available for a part nobody outside the vendor has measured.
 
-## Named HBF profiles
+| Method | Executes the real workload | Runs on real hardware | Models the medium | Models temperature |
+|---|:---:|:---:|:---:|:---:|
+| Storage simulator replaying a recorded access sequence | ✗ | ✗ | ✓ | ✗ |
+| GPU simulator that does not run the real compute kernels | ✗ | ✗ | ✗ | ✗ |
+| Cycle-accurate simulator | ✓ | ✗ | ✓ | ✗ |
+| Vendor parameter sheet | ✗ | ✗ | ✗ | ✗ |
+| HBFSim | ✓ | ✓ | ✓ | ✓ |
+
+The rows name methods rather than specific products, so one particular tool may add one of
+the four capabilities. A cycle-accurate simulator does execute the workload, but cannot
+finish one large language model inference run, so the check mark in the first column does
+not settle that row.
+
+## Named HBF profiles and build options
 
 | Profile | Page | Read | Program | Channels | Queue depth | Aggregate cap |
 |---|---:|---:|---:|---:|---:|---:|
@@ -396,90 +168,92 @@ fault handling, and over-VRAM capacity after those runtime components land.
 | `nominal` | 16 KiB | 10 us | 100 us | 32 | 128 | 512 GB/s |
 | `aggressive` | 16 KiB | 5 us | 50 us | 64 | 256 | 1 TB/s |
 
-Profiles live in `configs/profiles/` and are checked by the typed loader. The
-schema is `configs/schema/hbf-profile.schema.json`.
+A fourth profile, `cd8p-vmem-p50`, is not synthetic: the values of `cd8p-vmem-p50` are
+calibrated from the measured latency curve of the Dell CD8P, and that curve measures a
+complete software path, software overhead included. The three profiles in the table are
+stated assumptions for design-space exploration; the Open Compute Project HBF specification
+being available does not establish that the three profiles are calibrated to HBF silicon.
+All four profiles live in `configs/profiles/`, checked by the typed loader against
+`configs/schema/hbf-profile.schema.json`.
 
-## MQSim trace input
+| Build option | Default | Purpose |
+|---|---|---|
+| `HBFSIM_ENABLE_CUDA` | `ON` | Build CUDA instrumentation and runtime components |
+| `HBFSIM_ENABLE_MQSIM` | `ON` | Build the MQSim-backed host service |
+| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable llama.cpp and vLLM integration tests |
+| `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | Build offline evaluation models and replay tools |
 
-`hbfsim::run_mqsim_trace` accepts MQSim's five-column ASCII request format:
+## Repository layout
 
-```text
-arrival_ns device start_sector sector_count operation
+- `src/` — all C++ and CUDA production code, in ten components; the three largest are the
+  CUDA interception runtime, the PTX pass, and the host service.
+- `include/hbfsim/` — public headers and the contracts that cross the host and device
+  boundary.
+- `adapters/` — three integration adapters: `llama_cpp/`, `vllm/`, and `vllm_capacity/`.
+- `benchmarks/` — measurement drivers: CUDA microbenchmarks, the MQSim media benchmark,
+  prefetch, and trace replay.
+- `configs/` — JSON fixtures: the named HBF profiles, three parameter sweeps, thermal
+  fixtures, two JSON Schemas.
+- `scripts/` — the bootstrap entry point, the Python evaluation harness, and the thermal
+  calibration pipeline.
+- `tests/` — CPU tests, integration tests, GPU tests, and PTX fixtures.
+- `tools/` — standalone thermal configuration tooling, Python standard library only.
+- `patches/` — the out-of-tree patches applied to the two pinned submodules.
+- `third_party/` — the two pinned submodules: bpftime and MQSim.
+- `cmake/` — submodule pinning, PTX embedding, and the patched MQSim build.
+- `docs/` — design specifications, implementation plans, proof checkpoints, evaluation
+  runbooks, reference papers.
+- `paper/` — a submodule needed neither to build nor to test HBFSim; `.gitmodules` marks
+  `paper/` inactive, and `scripts/bootstrap.sh` initializes only the two build dependencies.
+
+## Documentation
+
+- [`docs/proofs/`](docs/proofs/) — the checkpoint documents that hold every experiment
+  number, each with the commands and the boundaries of the claim.
+- [`docs/eval/`](docs/eval/) — the evaluation plan, the workload methodology, and the
+  reproduction runbooks.
+- [`docs/skills/`](docs/skills/) — a reading order plus one document per subsystem, for
+  someone new to the code.
+- [`docs/reference/`](docs/reference/) — reference notes, including the CUDA architecture
+  compatibility audit.
+- [`TODO.md`](TODO.md) — the open roadmap. Each item names the evidence that would close it.
+
+## Paper and citation
+
+The paper describing HBFSim is [arXiv:2609.09800](https://arxiv.org/abs/2609.09800).
+
+```bibtex
+@article{hu2026hbfsim,
+  title   = {HBFSim: Fast and Faithful Simulation of High-Bandwidth Flash Under Real GPU Execution},
+  author  = {Hu, Yanpeng and Yang, Yiwei and Zhu, Yuanwu and Zheng, Yusheng and Zhang, Wei and Quinn, Andi},
+  journal = {arXiv preprint arXiv:2609.09800},
+  year    = {2026}
+}
 ```
 
-For the HBF media path, `device` must be `0`; operation `0` is a write and `1`
-is a read. Addresses and sizes use 512-byte sectors. The adapter rejects
-non-monotonic arrivals, overflow, unsupported operations, and out-of-capacity
-requests.
+`CITATION.cff` carries the same entry, which is what makes GitHub render a "Cite this
+repository" button on the repository page.
 
-## PTX rewriting pass
+## Contributing
 
-The standalone pass consumes bpftime-style JSON on standard input and emits
-transformed PTX plus a coverage manifest on standard output. Its configuration
-is in `configs/ptxpass/hbf-memory.json`.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) states what a contribution needs, and the one rule
+that matters most here: a number may only enter the repository together with the checkpoint
+document that produced it. Bug reports and feature requests go through the templates in
+[`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/), and a pull request follows
+[`.github/pull_request_template.md`](.github/pull_request_template.md). Build and test with
+the quick start above before opening a pull request, and say which of the four kinds of time
+a new measurement refers to. Participation is governed by the [Code of
+Conduct](CODE_OF_CONDUCT.md). Report a vulnerability through [`SECURITY.md`](SECURITY.md)
+rather than in a public issue.
 
-Run its integration check with:
+## License
 
-```bash
-python3 tests/integration/run_ptxpass_json.py \
-  build/src/ptxpass_hbf/ptxpass_hbf sm_120 "$(command -v ptxas)"
-```
+HBFSim is released under the Apache License 2.0. The full text is in [`LICENSE`](LICENSE).
 
-When CUDA 12.8 is installed, the check assembles rewritten PTX for the
-single architecture selected at configure time with `ptxas`. The initial pass
-recognizes selected scalar/vector,
-predicated, offset, and cache-qualified global loads and stores. Atomics,
-generic-space operations, texture/surface operations, malformed addresses, and
-inline SASS remain outside the supported HBF path. The runtime coverage gate
-rejects a relevant launch when those operations could consume an HBF pointer;
-this behavior has static/fake-driver coverage but no live-GPU proof yet.
+## Acknowledgements
 
-For a modified module, the pass now embeds one PTX-callable resolver directly
-into that module. The helper validates control ABI v2 and the exact control
-generation, searches at most 64 sorted explicit ranges, coalesces matching
-lanes by warp and page, and exchanges timing requests with the host through
-system-scope ordered rings. Each range is assigned a page-aligned synthetic
-media interval within the selected profile's capacity, so MQSim sees bounded
-HBF page addresses rather than process-specific GPU virtual addresses.
-Out-of-range HBM addresses remain unchanged, while an access spanning two HBF
-pages is rejected until split-access support exists.
+HBFSim builds on two projects, kept as pinned submodules. bpftime, released under the MIT
+license, supplies the interception path the PTX rewriting is derived from. MQSim, released
+under an MIT-style license by the SAFARI Research Group at ETH Zurich, supplies the flash
+media model HBFSim drives online through an out-of-tree patch.
 
-Only a CUDA-enabled build contains the production helper PTX. A CPU-only pass
-therefore rejects a module that would require instrumentation instead of
-emitting unresolved or user-supplied resolver symbols. Repeated per-kernel
-passes accept an existing helper only when the plugin can authenticate the
-entire module as one it previously emitted. The build checks that the resulting
-module is self-contained and assembles it with CUDA 12.8 `ptxas`; this is still
-static proof, not evidence that delay has been injected on a live GPU.
-
-## Verification
-
-```bash
-cmake --build build -j
-ctest --test-dir build --output-on-failure
-
-cmake -S . -B build-gpu-static -G Ninja \
-  -DHBFSIM_ENABLE_CUDA=ON \
-  -DHBFSIM_ENABLE_MQSIM=OFF \
-  -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc \
-  -DCMAKE_CUDA_ARCHITECTURES=120
-cmake --build build-gpu-static -j
-ctest --test-dir build-gpu-static --output-on-failure
-python3 tests/integration/run_ptxpass_json.py \
-  build-gpu-static/src/ptxpass_hbf/ptxpass_hbf sm_120 \
-  /usr/local/cuda-12.8/bin/ptxas
-```
-
-The design contract and implementation plan are in:
-
-- `docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md`
-- `docs/superpowers/plans/2026-08-09-hbfsim-hybrid.md`
-
-## Roadmap
-
-1. Calibrate a sampled GPU-local LogP path against MQSim so modeled delay can
-   be separated from current request-path overhead.
-2. Validate the file-backed cache with public automatic PTX and an over-VRAM
-   workload, then add the calibrated GPU-local hybrid model.
-3. Run the deterministic CUDA fault matrix and TinyLlama through llama.cpp,
-   then extend the existing GPU/CD8P thermal checkpoint to the calibrated path.

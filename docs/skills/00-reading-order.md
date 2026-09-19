@@ -8,7 +8,7 @@ Provide a source-first entry point for changing HBFSim without reconstructing it
 
 This pack describes the audited base `fc829992ecdc3ca68881656722b67a31067c5d33` (B), inspected on branch `eval/eq1-eq4-implementation`. It is ordinary version-controlled documentation, with no agent-specific loader format. The async donor `f4dc28b2671c01939d98e4a968e6fb37b2e364d9` (S) has **no integrated production runtime** in this snapshot; its optional CPU parser reuse is identified separately below. Refresh the affected document and function map when implementation changes.
 
-Current phase-two readiness is separate from B capabilities: [fresh GOLD-0 log](../../results/gold/base/frozen-config/ctest.log) records 42/42 CPU tests passing under the frozen configuration; [pipeline log](../../results/gold/base/eval-pipeline.log) records 20 tests passing. The [donor counterexample log](../../results/gold/async-counterexample/red.log) records expected failing semantic cases. C2 adds optional CPU parsing/analysis, not a production future/helper ABI port; see [PTX documentation](02-ptx-instrumentation.md) and the function map. These run outcomes must be read with their manifests/configuration and do not establish GPU readiness.
+Current phase-two readiness is separate from B capabilities: fresh GOLD-0 log (a generated artifact, produced by a run rather than committed) records 42/42 CPU tests passing under the frozen configuration; pipeline log (a generated artifact, produced by a run rather than committed) records 20 tests passing. The donor counterexample log (a generated artifact, produced by a run rather than committed) records expected failing semantic cases. C2 adds optional CPU parsing/analysis, not a production future/helper ABI port; see [PTX documentation](02-ptx-instrumentation.md) and the function map. These run outcomes must be read with their manifests/configuration and do not establish GPU readiness.
 
 ## Key concepts
 
@@ -53,7 +53,7 @@ B has no deferred-load future ABI, TensorMap lifecycle model, modeled ordinary `
 
 ## Common failure modes
 
-[README](../../README.md) contains historical live results; its opening integration note controls their scope. [Doc47](../47-评估主线设计.md) has an older cost-centered E2 superseded by new EQ2. [Doc48](../48-两种模式的定位与SRAM建模.md) correctly distinguishes addresses but its readahead/profile-only SRAM proposal does not describe B. A 110 GiB sparse logical span is not a 110 GiB physical-read experiment. A copied audit link is not proof that its target artifact exists.
+[README](../../README.md) contains historical live results; its opening integration note controls their scope. Doc47 (an internal working document, not published in this repository) has an older cost-centered E2 superseded by new EQ2. Doc48 (an internal working document, not published in this repository) correctly distinguishes addresses but its readahead/profile-only SRAM proposal does not describe B. A 110 GiB sparse logical span is not a 110 GiB physical-read experiment. A copied audit link is not proof that its target artifact exists.
 
 ## Tests proving the behavior
 
@@ -73,4 +73,4 @@ Historical context consulted by topic (goals, architecture, failure rules, file 
 - [vLLM spec](../superpowers/specs/2026-08-10-vllm-hbf-timing-adapter-design.md) and [plan](../superpowers/plans/2026-08-10-vllm-hbf-timing-adapter.md).
 - [Triton variant spec](../superpowers/specs/2026-08-11-vllm-triton-variant-binding-design.md) and [plan](../superpowers/plans/2026-08-11-vllm-triton-variant-binding.md).
 - [Empirical vmem spec](../superpowers/specs/2026-08-11-cd8p-vmem-tuning-design.md) and [plan](../superpowers/plans/2026-08-11-cd8p-vmem-tuning.md).
-- [Base integration plan](../superpowers/plans/2026-09-05-eval-base-integration.md), [integration manifest](../eval/EVAL_BASE_INTEGRATION.md), and [known implementation issues](../重要实现问题以及需补做实验/README.md).
+- [Base integration plan](../superpowers/plans/2026-09-05-eval-base-integration.md), [integration manifest](../eval/EVAL_BASE_INTEGRATION.md), and known implementation issues (an internal working document, not published in this repository).

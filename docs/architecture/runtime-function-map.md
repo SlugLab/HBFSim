@@ -161,8 +161,8 @@ This section describes C2 additions after B. The `hbfsim_eval_ptx` library is op
 | [ptx_source.hpp](../../src/ptxpass_hbf/ptx_source.hpp) | `code_without_comments` | Shared scanner extracted from B without changing the production call behavior |
 | [ptx_ir.hpp](../../src/ptxpass_hbf/ptx_ir.hpp), [ptx_ir.cpp](../../src/ptxpass_hbf/ptx_ir.cpp) | `parse_module`, `Module::function`, `Instruction`, `BasicBlock`, `MemoryInstruction` | CPU IR with source locations, defs/uses, branch targets and optional memory/async records; rejects unproved packed syntax and unterminated comments |
 | [ptx_async_op.hpp](../../src/ptxpass_hbf/ptx_async_op.hpp), [ptx_async_op.cpp](../../src/ptxpass_hbf/ptx_async_op.cpp) | `parse_async_instruction`, `TmaInstruction`, `BarrierInstruction`, `BulkGroupInstruction`, `TensorMapInstruction` | Parse supported candidate instruction grammar; no native/model completion or descriptor lifetime is executed |
-| [IR gold test](../../tests/cpu/ptx_ir_gold_test.cpp) | Decorated multiline loads and rejected packing/comment cases | CPU regression; the [targeted log](../../results/gold/ptx-parser/packing-green.log) records the phase-two parser run, not a full phase regression or GPU test |
-| [Future gold counterexample](../../tests/cpu/ptx_future_gold_test.cpp) | Donor predication and unproved control-flow cases | Expected donor RED is in [red.log](../../results/gold/async-counterexample/red.log); analysis repair/production integration are separate gates |
+| [IR gold test](../../tests/cpu/ptx_ir_gold_test.cpp) | Decorated multiline loads and rejected packing/comment cases | CPU regression; the targeted log (a generated artifact, produced by a run rather than committed) records the phase-two parser run, not a full phase regression or GPU test |
+| [Future gold counterexample](../../tests/cpu/ptx_future_gold_test.cpp) | Donor predication and unproved control-flow cases | Expected donor RED is in red.log (a generated artifact, produced by a run rather than committed); analysis repair/production integration are separate gates |
 
 ## Donor-only functions that are not production B
 
@@ -170,7 +170,7 @@ See [async knowledge](../skills/04-cuda-async-cpasync-tma.md) and [S source ledg
 
 ## Verification boundaries
 
-This map is checked against local paths and source symbols, with donor symbols checked in the frozen Git object. The [GOLD-0 execution manifest](../../results/gold/base/frozen-config/execution.json) records the fresh 42-test CPU baseline; [pipeline log](../../results/gold/base/eval-pipeline.log) records 20 pipeline tests. Topic documents link meaningful tests by behavior. No GPU/storage payload experiment was run for this map, and no static map or test count closes hardware fidelity, whole-model coverage or general async semantics.
+This map is checked against local paths and source symbols, with donor symbols checked in the frozen Git object. The GOLD-0 execution manifest (a generated artifact, produced by a run rather than committed) records the fresh 42-test CPU baseline; pipeline log (a generated artifact, produced by a run rather than committed) records 20 pipeline tests. Topic documents link meaningful tests by behavior. No GPU/storage payload experiment was run for this map, and no static map or test count closes hardware fidelity, whole-model coverage or general async semantics.
 
 ## Evaluation future state oracle — CPU only
 

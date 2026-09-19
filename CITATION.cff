@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: "If you use HBFSim in academic work, please cite the paper below."
+title: "HBFSim: Fast and Faithful Simulation of High-Bandwidth Flash Under Real GPU Execution"
+abstract: >-
+  Serving a large language model is limited by memory capacity. High-Bandwidth
+  Flash (HBF) stacks NAND flash inside the accelerator package, one tier below
+  high-bandwidth memory (HBM). HBFSim applies HBF timing, capacity, and thermal
+  effects to a real inference workload while that workload executes on a real
+  GPU. It rewrites PTX, the intermediate code NVIDIA's compiler emits, and gates
+  kernel launches; issue is separated from consumption, so real hardware supplies
+  the computation that hides an access. Timing comes from measurements of a real
+  device rather than a parameter sheet, and junction temperature sets both the
+  rate HBF sustains and the retention deadline that forces refresh writes.
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/SlugLab/HBFSim"
+url: "https://arxiv.org/abs/2609.09800"
+keywords:
+  - high-bandwidth flash
+  - HBF
+  - GPU simulation
+  - PTX instrumentation
+  - LLM inference
+  - NAND flash
+  - thermal modeling
+authors:
+  - family-names: Hu
+    given-names: Yanpeng
+  - family-names: Yang
+    given-names: Yiwei
+  - family-names: Zhu
+    given-names: Yuanwu
+  - family-names: Zheng
+    given-names: Yusheng
+  - family-names: Zhang
+    given-names: Wei
+  - family-names: Quinn
+    given-names: Andi
+identifiers:
+  - type: other
+    value: "arXiv:2609.09800"
+    description: The arXiv preprint for HBFSim
+preferred-citation:
+  type: article
+  title: "HBFSim: Fast and Faithful Simulation of High-Bandwidth Flash Under Real GPU Execution"
+  year: 2026
+  journal: "arXiv preprint arXiv:2609.09800"
+  url: "https://arxiv.org/abs/2609.09800"
+  authors:
+    - family-names: Hu
+      given-names: Yanpeng
+    - family-names: Yang
+      given-names: Yiwei
+    - family-names: Zhu
+      given-names: Yuanwu
+    - family-names: Zheng
+      given-names: Yusheng
+    - family-names: Zhang
+      given-names: Wei
+    - family-names: Quinn
+      given-names: Andi

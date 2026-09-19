@@ -27,4 +27,4 @@
 
 仓库提供实现、计划、原字节历史方案与小型审计收据；`review-evidence/20260908/` 是经明确选拷的发布副本。模型权重、完整 raw、原主机环境、部分外部源码 checkout 和完整迁移清单未上传；记录里的 `/root/hbfsim-exp/...` 等路径只表示原执行环境。需要复现相应实验时，应先按入口所需的 source/build/input hash、数据与门禁单独准备，不能将 clone 成功视为已具备运行条件。
 
-[历史方案](history/20260905/README.md)保留原始内容和 SHA；其中旧相对链接可能依赖原目录布局。本次未重写其字节。当前导航以本指南与主规范为准。迁移与实际轻量检查概览见[发布摘要](review-evidence/20260908/交付结论.md)。
+[历史方案](history/20260905/README.md)保留原始内容和 SHA；其中旧相对链接可能依赖原目录布局。本次未重写其字节。当前导航以本指南与主规范为准。迁移与实际轻量检查概览见发布摘要 (an internal working document, not published in this repository)。

@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the paper first
+    url: https://arxiv.org/abs/2609.09800
+    about: >-
+      What HBFSim models, what it deliberately does not model, and which numbers
+      are measured rather than projected, are all explained in the paper.
+  - name: Security report
+    url: https://github.com/SlugLab/HBFSim/security/advisories/new
+    about: Report a vulnerability privately instead of opening a public issue.

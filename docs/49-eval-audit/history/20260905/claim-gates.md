@@ -1,6 +1,6 @@
 # Claim gates — proposed before data collection
 
-本表为事前验收草案，随本计划人工审阅后冻结；数字不是事后拟合出来的门槛。source evidence与capability见 [ledger](source-ledger.md)，目前新性能数据均未测。
+本表为事前验收草案，随本计划人工审阅后冻结；数字不是事后拟合出来的门槛。source evidence与capability见 [ledger](../../source-ledger.md)，目前新性能数据均未测。
 
 | Gate | Required evidence | Acceptance rule | Current status / failure wording |
 |---|---|---|---|

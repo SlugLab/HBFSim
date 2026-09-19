@@ -52,7 +52,7 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
         m['dependencies'] += [art(root/'environments/eq3-thermal-campaign-rc-v2/manifest.json','frozen sparse CPU environment'),art(root/'eq3_thermal/build/campaign-rc-v2/validation_receipt.json','sparse build and fixed equivalence evidence')]
     m['inputs']=files+[p for p in m['inputs'] if p['semantic_role']=='source scientific input']+[art(plan/'child.json','stage derived child scope','stage-child-contract'),art(plan/'launch.json','single run launch binding','layered-launch-manifest')]
     # Preserve original fixed-test evidence; current campaign regression is also bound.
-    m['prerequisites']=[m['prerequisites'][0],{'id':'campaign-regression','status':'PASSED','evidence':art(campaign/'software-tests-v3.log','fixed regression raw evidence')}]
+    m['prerequisites']=[m['prerequisites'][0],{'id':'campaign-regression','status':'PASSED','evidence':art(campaign/'software-tests-v4.log','fixed regression raw evidence')}]
     s=m['scientific_config'];s['workload_and_initial_state'].update(trace=trace,duration_s=r['duration_s'],input_energy_j=r['input_energy_j'])
     s['research_question_and_hypothesis']['question']=f'{point}: same-physics {family} numerical/resource validation at step{step}s and reference mesh{mesh}um; no physical calibration'
     s['geometry_materials_boundaries'].update(shape=r['reference_shape'],cells=r['reference_cells'],rc_nodes=r['rc_nodes'])

@@ -120,7 +120,7 @@ def rc_frames(stream, grid, dt):
     yield [current[c['id']] for c in grid['cells']]
 
 
-def observe(run_dir, generated, output, kind='reference'):
+def observe(run_dir, generated, output, kind='reference', audit_invalid_domain=False):
     output=Path(output)
     if output.exists(): raise FileExistsError('refusing to overwrite derived output')
     ir=json.loads((generated/'normalized.json').read_text())
@@ -136,6 +136,7 @@ def observe(run_dir, generated, output, kind='reference'):
     mapping=sensor_mapping(ir,grid); _,bounds=network(ir,grid)
     nx,ny,nz=grid['shape']; initial=ir['boundaries']['initial_temperature_k']
     loss=0.; extrema=[initial,initial]; stored=0.
+    domain_failure_count=0; first_domain_failure_s=None
     # Preserve output on any failure as a visibly incomplete artifact.
     output.mkdir(parents=True)
     with ExitStack() as stack:
@@ -148,10 +149,14 @@ def observe(run_dir, generated, output, kind='reference'):
             for stream in streams:
                 try: values.extend(next(stream))
                 except StopIteration as exc: raise ValueError('truncated research field output') from exc
-            extrema=[min(extrema[0],min(values)),max(extrema[1],max(values))]
+            frame_min,frame_max=min(values),max(values)
+            extrema=[min(extrema[0],frame_min),max(extrema[1],frame_max)]
             domain=ir['temperature_domain_k']
-            if extrema[0]<domain[0]-1e-3 or extrema[1]>domain[1]+1e-3:
-                raise ValueError('DOMAIN_FAILED: outside declared constant-property domain')
+            if frame_min<domain[0]-1e-3 or frame_max>domain[1]+1e-3:
+                domain_failure_count+=1
+                if first_domain_failure_s is None:first_domain_failure_s=step*dt
+                if not audit_invalid_domain:
+                    raise ValueError('DOMAIN_FAILED: outside declared constant-property domain')
             loss += dt*sum(g*(v-t) for (g,t),v in zip(bounds,values))
             stored=sum(c['capacity_j_k']*(v-initial) for c,v in zip(grid['cells'],values))
             t=step*dt
@@ -173,6 +178,12 @@ def observe(run_dir, generated, output, kind='reference'):
             'boundary_integration':('backward Euler every solver-step field' if kind=='reference'
                                     else 'runner receipt integrated every solver step before output decimation'),
             'sensor_mapping':mapping,'initial_state_kind':'DECLARED_INPUT_NOT_MEASUREMENT'}
+    if audit_invalid_domain:
+        result.update(audit_only=True,domain_valid=domain_failure_count==0,
+                      domain_failure_frame_count=domain_failure_count,
+                      first_domain_failure_s=first_domain_failure_s,
+                      interpretation='Read-only audit of retained output; out-of-domain temperatures are not valid physical/model predictions')
+        if domain_failure_count:result['status']='DOMAIN_FAILED_AUDIT_ONLY'
     (output/'observation_receipt.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
 
@@ -181,7 +192,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('run-dir','generated','output'): parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--kind',choices=('reference','rc'),default='reference')
-    args=parser.parse_args(); result=observe(args.run_dir,args.generated,args.output,args.kind)
+    parser.add_argument('--audit-invalid-domain',action='store_true',
+                        help='Read retained data through domain failure for diagnosis; never certify it valid')
+    args=parser.parse_args(); result=observe(args.run_dir,args.generated,args.output,args.kind,args.audit_invalid_domain)
     print(json.dumps({k:v for k,v in result.items() if k!='sensor_mapping'}))
 
 

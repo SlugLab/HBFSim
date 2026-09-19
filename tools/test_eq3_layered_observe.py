@@ -5,12 +5,28 @@ import json
 import tempfile
 from pathlib import Path
 import unittest
-from eq3_layered_observe import frames, sensor_mapping, readings, rc_frames, open_field
-from eq3_layered_export import discretize
+from eq3_layered_observe import frames, sensor_mapping, readings, rc_frames, open_field, observe
+from eq3_layered_export import discretize,generate
 from test_eq3_layered_export import slab
 
 
 class ObserveTests(unittest.TestCase):
+    def test_domain_audit_retains_failure_without_weakening_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);ir=slab();ir['temperature_domain_k']=[300,400]
+            generated=root/'generated';generate(ir,generated,.001,.02)
+            run=root/'raw';run.mkdir()
+            for z in range(2):
+                (run/f'field_{z}.txt').write_text(('401.000  401.000  \n\n')*50)
+            with self.assertRaisesRegex(ValueError,'DOMAIN_FAILED'):
+                observe(run,generated,root/'strict')
+            result=observe(run,generated,root/'audit',audit_invalid_domain=True)
+            self.assertEqual(result['status'],'DOMAIN_FAILED_AUDIT_ONLY')
+            self.assertFalse(result['domain_valid'])
+            self.assertEqual(result['domain_failure_frame_count'],50)
+            self.assertEqual(result['first_domain_failure_s'],.02)
+            self.assertEqual(result['frames'],50)
+
     @unittest.skipUnless(os.environ.get('EQ3_CAMPAIGN_NATIVECODEC'), 'native codec opt-in')
     def test_native_transport_hash_verified_after_full_decode(self):
         from eq3_campaign_nativecodec import Encoder

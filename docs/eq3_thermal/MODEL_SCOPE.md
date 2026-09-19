@@ -1,6 +1,8 @@
 # 模型作用域与两次冻结
 
-状态：DESIGN_FREEZE_PROPOSED / PENDING_USER_APPROVAL；MODEL_FREEZE未发生。
+状态：首个4+4样例 PRINCIPLE_ACCEPTED_WITH_REQUIREMENTS；设计范围修订v3。
+MODEL_FREEZE未发生；执行仍 PENDING_USER_APPROVAL。完整范围以
+FOUR_TOPOLOGY_COVERAGE.md、LAYER_CONVERTER_CONTRACT.md及topology_scope.json为准。
 
 最新过程修订：CALIBRATION_PREFLIGHT_v2.md取代v1机械次数上限。10点/856模拟秒
 是首轮清单，不是总次数上限；按官方资料、推导、误差和可辨识性审阅迭代。
@@ -43,9 +45,9 @@ CPU累计耗时估计改为复核节点，不作为科学停止理由；资源�
 逐层材料与坐标见candidate_profile.json。数据图与热图分离；同器件重接线不自动
 改变热坐标。共享lid/interposer须保留横向热自由度，不能再次做单个等温sink。
 
-扩展不省略：
+强制交付（前三行其它拓扑与mixed-direct同属必交范围，不是可选扩展）：
 
-| 扩展 | 与主线的差异/前置条件 |
+| 必交拓扑/配置与规格后续域 | 与首例的差异/前置条件 |
 |---|---|
 | 8HBF direct + GDDR | 物理快存是GDDR，另需board/cooling/PHY；不是“HBM换标签” |
 | mixed-direct其它HBM/HBF分配 | 总数8；当前P1默认2+6与候选4+4不同，不能静默复用 |

@@ -2,6 +2,13 @@
 
 ## Parameter-freeze continuation (current)
 
+Scope revision v3: first 4+4 mixed-direct example accepted in principle; **all four
+topologies remain mandatory**. See [coverage and acceptance axes](FOUR_TOPOLOGY_COVERAGE.md),
+[reuse/base-die audit](REUSE_AND_BASE_DIE_AUDIT.md), and
+[generic converter contract](LAYER_CONVERTER_CONTRACT.md).
+Base dies exist in P1 and candidate geometry, but the research converter and actual
+base/PHY/relay power consumers remain incomplete. No calibration/GPU/matrix approval.
+
 Start with [parameter decisions](PARAMETER_DECISIONS.md), [actual consumers](PARAMETER_CONSUMERS.md),
 [source audit](PARAMETER_SOURCE_AUDIT.md), [gaps](PARAMETER_GAPS.md) and [model scope](MODEL_SCOPE.md).
 The candidate is per-die4HBM4+4HBF mixed-direct, explicitly CONDITIONAL_SIMULATED.

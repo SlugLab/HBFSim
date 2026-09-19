@@ -1,0 +1,32 @@
+{
+  "schema_version": "eq3-topology-scope-v1",
+  "design_version": 3,
+  "evidence": "USER_CONFIRMED_SCOPE; DOC_DERIVED_CAPABILITY_AUDIT",
+  "first_example": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
+  "first_example_acceptance": "PRINCIPLE_ACCEPTED_WITH_FOUR_TOPOLOGY_REQUIREMENTS",
+  "parameter_completeness_accepted": false,
+  "converter_status": "NOT_IMPLEMENTED",
+  "execution_status": "PENDING_USER_APPROVAL",
+  "execution_authorized": false,
+  "required_topologies": [
+    {"id": "all_hbf_direct_8", "required": true, "hbm_count": 0, "hbf_count": 8, "fast_memory_physical_type": "GDDR", "configuration": "P1_FIXTURE_PASS_RESEARCH_INCOMPLETE", "thermal_model": "NOT_VALIDATED", "system_behavior": "NOT_IMPLEMENTED", "gaps": ["GDDR_devices_geometry", "board_cooling_coupling", "external_memory_service_power", "HBF_layered_profile"]},
+    {"id": "mixed_direct_8", "required": true, "stack_total": 8, "hbm_count_domain": [1, 7], "hbf_count_expression": "8-hbm_count", "first_example_counts": {"hbm": 4, "hbf": 4}, "configuration": "P1_FIXTURE_PASS_FIRST_RESEARCH_EXAMPLE_STATIC_ONLY", "thermal_model": "NOT_VALIDATED", "system_behavior": "NOT_IMPLEMENTED", "gaps": ["generic_layer_converter", "count_dependent_geometry", "activity_to_power", "shared_GPU_resources"]},
+    {"id": "daisy_4hbm_4hbf", "required": true, "hbm_count": 4, "hbf_count": 4, "configuration": "P1_FIXTURE_PASS_RESEARCH_INCOMPLETE", "thermal_model": "NOT_VALIDATED", "system_behavior": "NOT_IMPLEMENTED", "gaps": ["matched_device_profiles", "custom_base_relay", "pairing_arbitration", "PHY_relay_energy_latency"]},
+    {"id": "dash_4pairs_8stacks", "required": true, "hbm_count": 4, "hbf_count": 4, "pair_count": 4, "configuration": "P1_FIXTURE_PASS_RESEARCH_INCOMPLETE", "thermal_model": "NOT_VALIDATED", "system_behavior": "NOT_IMPLEMENTED", "gaps": ["matched_device_profiles", "dual_path_selection_backpressure", "shared_array_TSV_arbitration", "PHY_relay_energy_latency"]}
+  ],
+  "converter_requirements": {
+    "generate_from": ["devices", "component_geometry", "materials_boundaries", "power_mapping"],
+    "hardcoded_example_counts_allowed": false,
+    "implicit_fallback_allowed": false,
+    "power_modes": ["per_component", "explicit_group_weights"],
+    "uniform_per_die_is_workload_specific": true,
+    "base_die_required_for_current_hbm_hbf": true,
+    "base_die_outputs": ["temperature", "energy"],
+    "reuse_requires_audit": true,
+    "validation_axes": ["configuration", "thermal_model", "system_behavior"]
+  },
+  "coverage_report": "docs/eq3_thermal/FOUR_TOPOLOGY_COVERAGE.md",
+  "reuse_audit": "docs/eq3_thermal/REUSE_AND_BASE_DIE_AUDIT.md",
+  "converter_contract": "docs/eq3_thermal/LAYER_CONVERTER_CONTRACT.md",
+  "next_confirmation": "Executable first-example CPU layered-reference/RC calibration manifest with exact commands, revisions, input hashes, resources and criteria; not GPU or formal matrix"
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": "eq3-research-design-v1",
   "profile_id": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
-  "status": "PENDING_USER_APPROVAL",
+  "status": "PRINCIPLE_ACCEPTED_WITH_FOUR_TOPOLOGY_REQUIREMENTS",
   "runtime_consumed": false,
   "evidence_kind": "CONDITIONAL_SIMULATED",
   "purpose": "Per-die power-to-temperature numerical reference candidate, not a shipping GPU/HBF package or calibrated product.",

@@ -26,7 +26,7 @@ HBFSim 让应用照常在真实 GPU 上执行,并在执行过程中对这个应�
 - GPU 模拟器不运行真正的计算 kernel;
 - cycle-accurate 模拟器跑不完一次大语言模型推理。
 
-HBFSim 的做法是:负载在真实 GPU 上执行的同时,对这个真实的推理负载施加 HBF 的时序、容量与温度效应。
+HBFSim 在负载于真实 GPU 上执行的同时,对这个真实的推理负载施加 HBF 的时序、容量与温度效应。
 
 时序来自一台真实器件的实测数据,不来自参数表;结温同时决定 HBF 能维持的速率,以及触发刷新写入的数据保持期限。
 
@@ -34,7 +34,7 @@ HBFSim 的做法是:负载在真实 GPU 上执行的同时,对这个真实的推
 
 HBFSim 需要 Native Linux、CMake 3.25 或更新、Ninja、支持 C++20 的编译器、OpenSSL、Python 3。CUDA 部分需要 CUDA 12.8 或更新。
 
-介质模拟器与介质模拟器的基准不装 CUDA 也能构建,下面这段就是一个不装 CUDA 的配置:
+介质模拟器与介质模拟器的基准不装 CUDA 也能构建:
 
 ```bash
 git clone https://github.com/SlugLab/HBFSim.git
@@ -45,14 +45,14 @@ cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure
 ```
 
-在一台没有 CUDA 的机器上:configure 通过,152 个构建目标全部构建通过,34 个测试里 31 个通过。[TODO.md](TODO.md) 记录了没通过的那三个测试,以及三个测试各自的原因。
+在一台没有 CUDA 的机器上:configure 通过,152 个构建目标全部构建通过,34 个测试里 31 个通过。[TODO.md](TODO.md) 记录了没通过的那三个测试,以及每个测试没通过的原因。
 
 默认分支是 `main`,所以上面的 `git clone` 不需要 `--branch` 参数。
 
 
 ### 看一次运行
 
-介质基准不需要 GPU。它用确定性的顺序请求驱动在线 MQSim 参考模型,输出一份 JSON:
+介质基准不需要 GPU。介质基准用确定性的顺序请求驱动在线 MQSim 参考模型,输出一份 JSON:
 
 ```console
 $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
@@ -144,13 +144,13 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 
   这块 Dell CD8P 是普通 PCIe NVMe 端点,不是 CXL 端点。
 
-构建通过、CPU 测试通过、MQSim 回归通过、PTX 汇编成功,这四件事都不构成真实 GPU 上的证据。
+构建通过、CPU 测试通过、MQSim 回归通过,加上 PTX 汇编成功,这四件事都不构成真实 GPU 上的证据。
 
 ## HBFSim 与其它几种办法的对比
 
 下面每一种办法都有 HBFSim 不去做的长处。
 
-回放已记录访问序列的存储模拟器便宜、可重复,而且不需要加速器。GPU 模拟器给出的微架构细节是 HBFSim 从来看不到的。cycle-accurate 模拟器在小 kernel 上是正确性的参照。厂商参数表则是唯一能拿到的描述,因为厂商之外没有人量过 HBF 这个器件。
+回放已记录访问序列的存储模拟器便宜、可重复,而且不需要加速器。GPU 模拟器给出的微架构细节是 HBFSim 从来看不到的。在小 kernel 上,cycle-accurate 模拟器是正确性的参照。厂商参数表则是唯一能拿到的描述,因为厂商之外没有人量过 HBF 这个器件。
 
 | 办法 | 执行真实负载 | 跑在真实硬件上 | 建模介质 | 建模温度 |
 |---|:---:|:---:|:---:|:---:|

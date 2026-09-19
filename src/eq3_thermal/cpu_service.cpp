@@ -25,7 +25,8 @@ J event_json(const ObservedEvent& e){return J{{"event_id",e.event_id},{"operatio
  {"external_power_w",e.external_power_w},{"evidence",e.evidence},{"outcome",e.outcome}};}
 ObservedEvent json_event(const J& j){ObservedEvent e;e.event_id=j.at("event_id");e.operation_id=j.at("operation_id");e.request_id=j.at("request_id");e.phase=static_cast<Phase>(j.at("phase").get<int>());
  e.time_ns=tick(j.at("time_ns"));e.operation=j.at("operation");e.source=j.at("source");e.physical_type=j.at("physical_type");e.stack_id=j.at("stack_id");
- if(!j.at("die").is_null())e.die=j.at("die").get<std::size_t>();if(!j.at("plane").is_null())e.plane=j.at("plane").get<std::size_t>();
+ if(!j.at("die").is_null())e.die=j.at("die").get<std::size_t>();
+ if(!j.at("plane").is_null())e.plane=j.at("plane").get<std::size_t>();
  e.logical_bytes=tick(j.at("logical_bytes"));if(!j.at("physical_bytes").is_null())e.physical_bytes=tick(j.at("physical_bytes"));if(!j.at("link_bytes").is_null())e.link_bytes=tick(j.at("link_bytes"));
  e.resources=j.at("resources").get<std::vector<std::string>>();e.component_power_w=j.at("power").get<std::map<std::string,double>>();e.external_power_w=number(j.at("external_power_w"));e.evidence=j.at("evidence");e.outcome=j.at("outcome");return e;}
 J observer_json(const ObserverCheckpoint& s){J j={{"mode",static_cast<int>(s.mode)},{"time_ns",s.time_ns},{"next_energy_id",s.next_energy_id},{"energy_j",s.energy_j},{"external_energy_j",s.external_energy_j}};
@@ -33,9 +34,13 @@ J observer_json(const ObserverCheckpoint& s){J j={{"mode",static_cast<int>(s.mod
  for(const auto& [name,map]:std::vector<std::pair<std::string,const std::map<std::string,ObservedEvent>*>>{{"seen",&s.seen},{"active",&s.active}}){j[name]=J::object();for(const auto& [id,e]:*map)j[name][id]=event_json(e);}
  j["thermal"]=s.thermal?J(checkpoint_to_text(*s.thermal)):J(nullptr);return j;}
 ObserverCheckpoint json_observer(const J& j){ObserverCheckpoint s;s.mode=static_cast<RuntimeMode>(j.at("mode").get<int>());s.time_ns=tick(j.at("time_ns"));s.next_energy_id=tick(j.at("next_energy_id"));s.energy_j=j.at("energy_j").get<std::map<std::string,double>>();s.external_energy_j=number(j.at("external_energy_j"));
- for(const auto& e:j.at("pending"))s.pending.push_back(json_event(e));for(const auto& e:j.at("journal"))s.journal.push_back(json_event(e));for(const auto& e:j.at("terminals"))s.terminals.push_back(json_event(e));
- for(const auto& [id,e]:j.at("seen").items())s.seen[id]=json_event(e);for(const auto& [id,e]:j.at("active").items())s.active[id]=json_event(e);
- if(!j.at("thermal").is_null())s.thermal=checkpoint_from_text(j.at("thermal").get<std::string>());return s;}
+ for(const auto& e:j.at("pending"))s.pending.push_back(json_event(e));
+ for(const auto& e:j.at("journal"))s.journal.push_back(json_event(e));
+ for(const auto& e:j.at("terminals"))s.terminals.push_back(json_event(e));
+ for(const auto& [id,e]:j.at("seen").items())s.seen[id]=json_event(e);
+ for(const auto& [id,e]:j.at("active").items())s.active[id]=json_event(e);
+ if(!j.at("thermal").is_null())s.thermal=checkpoint_from_text(j.at("thermal").get<std::string>());
+ return s;}
 }
 
 struct CpuService::Impl {

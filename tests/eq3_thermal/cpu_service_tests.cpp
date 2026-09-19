@@ -6,6 +6,10 @@
 #include <functional>
 #include <stdexcept>
 #include <sstream>
+#ifdef EQ3_TEST_DISPATCHER
+#include "../../src/host_service/request_dispatcher.hpp"
+#include <cstdlib>
+#endif
 using namespace hbfsim::eq3_thermal;
 using J=nlohmann::json;
 void check(bool b,const char* s){if(!b)throw std::runtime_error(s);}
@@ -77,7 +81,8 @@ void maintenance_failures_restart() {
   s.advance_to(2000000000);restored.advance_to(2000000000);check(s.report()==restored.report(),"checkpoint continuation differs");
   r=J::parse(s.report());const auto& cohort=r["cohorts"]["hbf0:0"];
   check(cohort["maintenance_failures"]==1&&cohort["commits"].get<unsigned>()>0,"failure/commit accounting");
-  check(cohort["program_attempts"].get<unsigned>()==cohort["successful_programs"].get<unsigned>()+1,"actual program accounting");
+  unsigned inflight_programs=0;for(const auto& job:r["active"])if(job["stack"]=="hbf0"&&job["die"]==0&&job["op"]=="program")++inflight_programs;
+  check(cohort["program_attempts"].get<unsigned>()==cohort["successful_programs"].get<unsigned>()+1+inflight_programs,"actual program accounting including inflight");
   check(cohort["erase_attempts"]==0,"refresh intent counted as erase");
   for(const auto& job:r["done"])if(job["status"]=="FAILED")check(job["end_ns"].get<unsigned long long>()-job["start_ns"].get<unsigned long long>()==100000000,"partial failure duration");
   check(r["energy_j"]["hbf0_die0"].get<double>()>0,"maintenance no energy");
@@ -99,4 +104,27 @@ void control_cooling() {
   c["policy"]="none";CpuService no(c.dump());for(unsigned i=0;i<3;++i)no.submit(request("q"+std::to_string(i)).dump());no.advance_to(500000000);
   check(J::parse(no.report())["done"].size()==3,"no-action control blocked work");
 }
-int main(){try{resource_energy_topologies();maintenance_failures_restart();control_cooling();std::cout<<"PASS four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
+void actual_dispatcher() {
+#ifdef EQ3_TEST_DISPATCHER
+  using namespace hbfsim::host_service;
+  void* storage=nullptr;const auto bytes=control_region_bytes(8);check(posix_memalign(&storage,64,bytes)==0,"control allocation");
+  std::unique_ptr<void,decltype(&std::free)> owned(storage,&std::free);ControlView view(storage,bytes);check(view.initialize(8),"control initialization");
+  CpuService service(fixture().dump());hbfsim::HbfRequest original{};original.request_id=1001;original.bytes=64;
+  original.operation=static_cast<std::uint32_t>(hbfsim::RequestOperation::Read);original.page_generation=9;
+  std::uint64_t ticket;check(view.try_push_request(original,ticket),"dispatcher enqueue");
+  hbfsim::HbfRequest submitted{};
+  RequestDispatcher dispatcher(view,{
+    .prepare=[](const hbfsim::HbfRequest& r){PreparedDispatch p;p.completion.request_id=r.request_id;p.completion.page_generation=r.page_generation;
+      p.completion.status=static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready);p.media_actions[0]=r;p.media_action_count=1;return p;},
+    .submit=[&](const hbfsim::HbfRequest& r){submitted=r;auto q=request(std::to_string(r.request_id));q["arrival_ns"]=r.arrival_ns;service.submit(q.dump());},
+    .run_next_completion=[&]()->std::optional<hbfsim::HbfCompletion>{
+      service.advance_to(100000000);const auto r=J::parse(service.report());check(r["done"].size()==1,"dispatcher not consuming actual service");
+      hbfsim::HbfCompletion c{};c.request_id=submitted.request_id;c.page_generation=submitted.page_generation;
+      c.modeled_completion_ns=r["done"][0]["end_ns"];c.modeled_ns=c.modeled_completion_ns;c.status=static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready);return c;}});
+  check(dispatcher.poll_once(),"actual dispatcher no progress");hbfsim::HbfCompletion completion{};
+  check(view.try_consume_completion(ticket,completion),"actual shared completion not published");
+  check(completion.request_id==1001&&completion.modeled_ns==100000000,"dispatcher ID/time semantics");
+  std::cout<<"PASS actual RequestDispatcher Engine and shared completion consumer (CPU fixture, not live GPU)\n";
+#endif
+}
+int main(){try{resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -39,6 +39,8 @@ if(BUILD_TESTING)
   set(HBFSIM_EQ3_HOST_CORE_ARCHIVE "" CACHE FILEPATH "Reviewed existing host core archive; recreate via main CPU build")
   set(HBFSIM_EQ3_MQSIM_ARCHIVE "" CACHE FILEPATH "Matching patched MQSim archive; no copied-binary portability claim")
   if(HBFSIM_EQ3_HOST_CORE_ARCHIVE AND HBFSIM_EQ3_MQSIM_ARCHIVE)
+    target_compile_definitions(hbfsim_eq3_cpu_service_tests PRIVATE EQ3_TEST_DISPATCHER=1)
+    target_link_libraries(hbfsim_eq3_cpu_service_tests PRIVATE "${HBFSIM_EQ3_HOST_CORE_ARCHIVE}" "${HBFSIM_EQ3_MQSIM_ARCHIVE}")
     add_executable(hbfsim_eq3_mqsim_observer_tests ../../tests/eq3_thermal/mqsim_observer_tests.cpp)
     target_link_libraries(hbfsim_eq3_mqsim_observer_tests PRIVATE hbfsim_eq3_observer
       "${HBFSIM_EQ3_HOST_CORE_ARCHIVE}" "${HBFSIM_EQ3_MQSIM_ARCHIVE}")

@@ -6,12 +6,24 @@ completed time steps, not t=0. Initial state is the declared input state.
 """
 import argparse
 import csv
+import gzip
 import json
 import math
 from pathlib import Path
 from contextlib import ExitStack
 
 from eq3_layered_export import network, close
+
+
+def open_field(path):
+    """Read retained native bytes without an uncompressed temporary file."""
+    path = Path(path)
+    compressed = path.with_name(path.name + '.gz')
+    if path.is_file() and compressed.exists():
+        raise ValueError('ambiguous plain and compressed field artifacts')
+    if path.is_file():
+        return path.open()
+    return gzip.open(compressed, 'rt')
 
 
 def frames(stream, nx, ny):
@@ -103,7 +115,7 @@ def observe(run_dir, generated, output, kind='reference'):
     with ExitStack() as stack:
         series=stack.enter_context((output/'sensors.csv').open('w',newline=''))
         writer=csv.writer(series); writer.writerow(['time_s','sensor_id','temperature_k','hotspot_cell_id'])
-        streams=([frames(stack.enter_context((run_dir/f'field_{z}.txt').open()),nx,ny) for z in range(nz)]
+        streams=([frames(stack.enter_context(open_field(run_dir/f'field_{z}.txt')),nx,ny) for z in range(nz)]
                  if kind=='reference' else [rc_frames(stack.enter_context((run_dir/'stdout.log').open()),grid,dt)])
         for step in range(1,count+1):
             values=[]

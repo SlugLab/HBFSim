@@ -450,6 +450,7 @@ def execute_launch(manifest, approval, launch, launch_path, root, approval_path=
             env[name] = "1"
         env["CUDA_VISIBLE_DEVICES"] = ""
         env["EQ3_OUTPUT_DIR"] = str(output)
+        env["EQ3_ARTIFACT_ROOT"] = str(root)
         ram_bytes = int(launch["limits"]["ram_gib"] * 1024 ** 3)
 
         def restrict_process():

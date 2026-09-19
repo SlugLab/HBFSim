@@ -1,0 +1,212 @@
+{
+  "classification": "SOURCE_ACQUISITION_AND_DERIVED_ARITHMETIC",
+  "historical_reproduction": false,
+  "gpu_workload_launched": false,
+  "MFIT": {
+    "repository": "https://github.com/AlishKanani/MFIT",
+    "revision": "4444336d95fe7e9a3bf440c96937831126c6a37f",
+    "license": "GPL-3.0; see frozen LICENSE",
+    "acquisition_date": "2026-09-19",
+    "files": [
+      {
+        "path": "FEM_models/README.md",
+        "sha256": "88e7340a281a94edf61d4ee630c5ae5abf2a776f3049dc0e97201bdbb12f67df",
+        "bytes": 557
+      },
+      {
+        "path": "INPUT_FORMAT.md",
+        "sha256": "f7c305cbfb780b0ab7047e1a1002d13ba72a2c6b72415e8cdcf5708174e17604",
+        "bytes": 6970
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "bytes": 35149
+      },
+      {
+        "path": "README.md",
+        "sha256": "8ed5f9fc0a3777f0b30b67fd94e09f3ff61bbfe15e8fb8e03dd344419d86a034",
+        "bytes": 9810
+      },
+      {
+        "path": "example_1_uniform_nodes_homogeneous_chiplets/chiplet_geometry_4_chiplets_uniform_nodes.yml",
+        "sha256": "c960f0693ae28b0ad7ab92097da586f129029c069063a1965818684ea9c53533",
+        "bytes": 2341
+      },
+      {
+        "path": "example_1_uniform_nodes_homogeneous_chiplets/power_dist_config_homogeneous.yml",
+        "sha256": "5e06e04b0b3346d7e8d58a7648c5f19bf84120b351f7ef8112091d7d6e154bcb",
+        "bytes": 806
+      },
+      {
+        "path": "example_1_uniform_nodes_homogeneous_chiplets/power_seq_random_4.csv",
+        "sha256": "d8939348c58dfcc9183e986a7fca302135e7e1a3b755153138a7c9751bbb3a84",
+        "bytes": 670
+      },
+      {
+        "path": "example_1_uniform_nodes_homogeneous_chiplets/run1.sh",
+        "sha256": "413754c12f4985b23e04031a66108191b6a957e4f1bf3036dce3ba823c02c436",
+        "bytes": 969
+      },
+      {
+        "path": "example_2_non_uniform_nodes_homogeneous_chiplets/chiplet_geometry_4_chiplets_non_uniform.yml",
+        "sha256": "c72ea646dba061f07a80a35ee5b485da18063cc67e0874a824dcb709792f741a",
+        "bytes": 2727
+      },
+      {
+        "path": "example_2_non_uniform_nodes_homogeneous_chiplets/power_dist_config_tiles_tx_rx.yml",
+        "sha256": "9bba69c25d2d10ea8625cdf351eaf788175b73a8ffdf44639a959084fd4d9b61",
+        "bytes": 3671
+      },
+      {
+        "path": "example_2_non_uniform_nodes_homogeneous_chiplets/power_seq_30s_tiles_tx_rs.csv",
+        "sha256": "40bd730266994681838d0e41af9b72e3601ae05b5a01feb04b426a2690a136da",
+        "bytes": 16439
+      },
+      {
+        "path": "example_2_non_uniform_nodes_homogeneous_chiplets/run2.sh",
+        "sha256": "f93ce8d58ab58868a26641ee52de60d932999be3526dc3f6867d65c9bbc3e29d",
+        "bytes": 1297
+      },
+      {
+        "path": "example_3_heterogeneous_chiplets/chiplet_geometry_3_chiplets_uniform_nodes.yml",
+        "sha256": "20993ec4d02c8d14fce643ce737ae2826e022c3f2ea0a01aca7e75f0a746c19b",
+        "bytes": 2341
+      },
+      {
+        "path": "example_3_heterogeneous_chiplets/power_dist_config_heterogeneous.yml",
+        "sha256": "62bd475e78ce593eefd3d91141c698c03aa55ac8bae09581e24f8232e66f10f7",
+        "bytes": 1957
+      },
+      {
+        "path": "example_3_heterogeneous_chiplets/power_seq_random_3.csv",
+        "sha256": "2e0c0aa19d31cbfef2bfd7bee4882cf35570ceb11dd43c80ff40df57ddb7fd99",
+        "bytes": 498
+      },
+      {
+        "path": "example_3_heterogeneous_chiplets/run3.sh",
+        "sha256": "d42799802a4c13c62d36d51d3c30625b86edbff45f86d82dcf7f323188d5036d",
+        "bytes": 1322
+      },
+      {
+        "path": "material_prop.yml",
+        "sha256": "d9686b55bf37898b21878e1cc0aeadaa748744f72f8eed30d25a53ac37179e10",
+        "bytes": 934
+      }
+    ]
+  },
+  "HBM-Power": {
+    "repository": "https://github.com/CMU-SAFARI/HBM-Power",
+    "revision": "4642c61f856cbd9d5d3f37d56214e5dbfa663703",
+    "license": "UNKNOWN root dataset license; component licenses do not imply dataset license",
+    "acquisition_date": "2026-09-19",
+    "files": [
+      {
+        "path": "README.md",
+        "sha256": "a1d549a0c3f3a795662eca2b211f2d79d48ece60635281d302615ff09d2746f3",
+        "bytes": 14056
+      },
+      {
+        "path": "data/HBM3E_measurements.csv",
+        "sha256": "eddcd6bd5277a7870d794a7377107a7f89a11f7dce83a8da40c4933e4b822607",
+        "bytes": 150
+      },
+      {
+        "path": "data/all_idd_measurements.csv",
+        "sha256": "8beb9a4114ed88536ee03f0839696246a632d4dd27889fc0b08e6f9572797e38",
+        "bytes": 26223133
+      },
+      {
+        "path": "data/ground_truth_allzeros.csv",
+        "sha256": "16020638216c5f143e0a103b29a9b781a9b573e77f070d1099f0a3a7e1136708",
+        "bytes": 14441
+      },
+      {
+        "path": "data/ground_truth_random.csv",
+        "sha256": "3c1444634dbdbc9a4596c7ab05cc5d9049bacf27e9161912bdf079de4f134632",
+        "bytes": 16299
+      },
+      {
+        "path": "scripts/h200/README.md",
+        "sha256": "38d2539b8c29ef15454913bbf1892f8d5e4242807fe12b5de34d8338c00176ee",
+        "bytes": 3992
+      },
+      {
+        "path": "sources/h200/log_power.py",
+        "sha256": "9b825327ce3baa79cabc89ce13ab8ce243781e9a2c8d14fdbe292fa91a670caf",
+        "bytes": 4663
+      },
+      {
+        "path": "sources/h200/quick_measure_h200.py",
+        "sha256": "af533dfdf58ce76dbda0c717e999fed03363e111157b6811f5fe37514b204c78",
+        "bytes": 5647
+      }
+    ]
+  },
+  "HBM3E_summary": {
+    "rows": [
+      {
+        "sample": "tuning_read_rand",
+        "aggregate_memory_power_W": 255.22,
+        "idle_memory_power_W": 44.95,
+        "read_GB_s": 4523.3,
+        "marginal_read_energy_pJ_per_byte": 46.485972630601545
+      },
+      {
+        "sample": "quick_145512",
+        "aggregate_memory_power_W": 247.75,
+        "idle_memory_power_W": 35.55,
+        "read_GB_s": 4520.6,
+        "marginal_read_energy_pJ_per_byte": 46.94067159226651
+      },
+      {
+        "sample": "quick_145735",
+        "aggregate_memory_power_W": 241.71,
+        "idle_memory_power_W": 34.75,
+        "read_GB_s": 4517.3,
+        "marginal_read_energy_pJ_per_byte": 45.81497797356828
+      }
+    ],
+    "count": 3,
+    "source_sha256": "eddcd6bd5277a7870d794a7377107a7f89a11f7dce83a8da40c4933e4b822607",
+    "temperature_trace_available": false,
+    "time_column_available": false,
+    "per_stack_power_available": false,
+    "interpretation": "Memory-domain aggregate; pJ/B is derived at three close bandwidth points, not a fitted power law or HBM4/HBF transfer parameter."
+  },
+  "HBM2_csv_inventory": {
+    "all_idd_measurements.csv": {
+      "columns": [
+        "chip_id",
+        "test_loop",
+        "sample_id",
+        "temperature",
+        "idd",
+        "ipp"
+      ],
+      "row_count": 792636,
+      "sha256": "8beb9a4114ed88536ee03f0839696246a632d4dd27889fc0b08e6f9572797e38",
+      "units": "Retain raw values; IDD/IPP and power_vdd units require upstream measurement/model confirmation before conversion"
+    },
+    "ground_truth_allzeros.csv": {
+      "columns": [
+        "chip_id",
+        "test_name",
+        "power_vdd_avg"
+      ],
+      "row_count": 390,
+      "sha256": "16020638216c5f143e0a103b29a9b781a9b573e77f070d1099f0a3a7e1136708",
+      "units": "Retain raw values; IDD/IPP and power_vdd units require upstream measurement/model confirmation before conversion"
+    },
+    "ground_truth_random.csv": {
+      "columns": [
+        "chip_id",
+        "test_name",
+        "power_vdd_avg"
+      ],
+      "row_count": 396,
+      "sha256": "3c1444634dbdbc9a4596c7ab05cc5d9049bacf27e9161912bdf079de4f134632",
+      "units": "Retain raw values; IDD/IPP and power_vdd units require upstream measurement/model confirmation before conversion"
+    }
+  }
+}

@@ -64,10 +64,12 @@ struct CpuService::Impl {
     need(tick(config.at("page_bytes"))>0,"maintenance page bytes required");
     for(std::size_t i=0;i<thermal.nodes.size();++i)nodes[thermal.nodes[i].id]=i;
     need(nodes.contains("gpu"),"GPU component missing");
-    state={{"now",0},{"next_sample",0},{"sequence",1},{"maintenance_sequence",1},
+    state={{"now",0},{"next_sample",0},{"sequence",1},{"maintenance_sequence",1},{"boundary_energy_j",0.0},
       {"queue",J::array()},{"active",J::array()},{"done",J::array()},{"log",J::array()},
       {"samples",J::array()},{"requests",J::object()},{"resources",J::object()},
       {"cohorts",J::object()},{"control",J::object()}};
+    state["temperature_range_k"]=J::object();
+    for(const auto& n:thermal.nodes)state["temperature_range_k"][n.id]={{"min",n.initial_temperature_k},{"max",n.initial_temperature_k}};
     std::size_t hbms=0,hbfs=0;
     for(const auto& stack:config.at("stacks")) {
       const std::string id=stack.at("id"),kind=stack.at("physical_kind");
@@ -150,7 +152,7 @@ struct CpuService::Impl {
     log("enqueue",{{"id",job.at("id")},{"maintenance",job.at("maintenance")},{"arrival_ns",job.at("arrival_ns")}});
   }
   bool submit(const J& request) {
-    const std::string id=request.at("id");need(!id.empty(),"missing request id");
+    const std::string id=request.at("id");need(!id.empty()&&!id.starts_with("maintenance:")&&id!="gpu-external","missing or reserved request id");
     if(state["requests"].contains(id)){need(state["requests"][id]==request,"conflicting request replay");return false;}
     need(tick(request.at("arrival_ns"))>=now(),"request submitted in committed past");
     const std::string stack=request.at("stack");need(stack=="gddr"||stacks.contains(stack),"unknown stack");
@@ -278,7 +280,15 @@ struct CpuService::Impl {
       for(const auto& [id,c]:state["cohorts"].items())if(!c.at("pending").get<bool>()) {
         if(age(c)<period(c))consider(now()+period(c)-age(c));else consider(c.value("retry_after_ns",Tick{0}));
       }
-      observer.advance_to(next);state["now"]=next;
+      const double dt=static_cast<double>(next-now())*1e-9;
+      observer.advance_to(next);
+      for(const auto& [id,i]:nodes) {
+        const double t=observer.model()->temperatures_k()[i];auto& range=state["temperature_range_k"][id];
+        range["min"]=std::min(range.at("min").get<double>(),t);range["max"]=std::max(range.at("max").get<double>(),t);
+      }
+      double boundary=state.at("boundary_energy_j").get<double>();
+      for(std::size_t i=0;i<thermal.nodes.size();++i)boundary+=dt*thermal.nodes[i].boundary_conductance_w_per_k*(observer.model()->temperatures_k()[i]-thermal.nodes[i].boundary_temperature_k);
+      state["boundary_energy_j"]=boundary;state["now"]=next;
     }
     complete_due();observer.advance_to(now()); // complete boundaries, no new admission beyond horizon
   }
@@ -288,6 +298,17 @@ struct CpuService::Impl {
     result["energy_j"]=observer.energy_j();result["external_energy_j"]=observer.external_energy_j();
     result["external_gddr_temperature"]="UNAVAILABLE_OUTSIDE_PACKAGE";
     result["temperature_k"]=J::object();for(const auto& [id,i]:nodes)result["temperature_k"][id]=observer.model()->temperatures_k()[i];
+    double input=0,stored=0,mapping_error=0;
+    for(std::size_t i=0;i<thermal.nodes.size();++i) {
+      const auto& n=thermal.nodes[i];const double energy=observer.energy_j().at(n.id);
+      input+=energy+n.static_power_w*now()*1e-9;
+      stored+=n.heat_capacity_j_per_k*(observer.model()->temperatures_k()[i]-n.initial_temperature_k);
+      mapping_error=std::max(mapping_error,std::abs(energy-observer.model()->applied_energy_j()[i]));
+    }
+    const double residual=input-stored-state.at("boundary_energy_j").get<double>();
+    result["balance"]={{"input_j",input},{"storage_change_j",stored},{"boundary_out_j",state.at("boundary_energy_j")},{"residual_j",residual},
+      {"relative_residual",input?std::abs(residual)/input:std::abs(residual)},{"max_component_mapping_error_j",mapping_error},
+      {"method","backward-Euler endpoint boundary flux for every event-aligned thermal step; external GDDR excluded"}};
     for(auto& [id,c]:result["cohorts"].items())c["age_ns"]=age(c);
     return result;
   }

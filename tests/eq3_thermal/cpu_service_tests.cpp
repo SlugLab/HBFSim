@@ -55,6 +55,8 @@ void resource_energy_topologies() {
     check(r["done"][1]["start_ns"]==100000000,"shared upstream must serialize DASH and direct");
     near(r["energy_j"]["hbf0_die0"],.2);near(r["energy_j"]["hbf0_die1"],.2);near(r["energy_j"]["hbf0_base"],.2);
     near(r["energy_j"]["gpu"],.1);
+    check(r["balance"]["relative_residual"].get<double>()<.001,"discrete energy conservation");
+    near(r["balance"]["max_component_mapping_error_j"],0);
     if(std::string(topology)=="relay"||std::string(topology)=="dash") {
       near(r["energy_j"]["hbm0_base"],std::string(topology)=="relay"?.6:.3);
       near(r["energy_j"]["hbm0_die0"],0); // forwarding is NOT an HBM array access

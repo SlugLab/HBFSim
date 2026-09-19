@@ -1,0 +1,1 @@
+{"schema_version":1,"mode":"off","status":"NOT_IMPLEMENTED_RUNTIME_CONTROL","thresholds":{"GPU":null,"HBM4":null,"HBF":null},"note":"Standalone thermal solver is available; live read_only/shadow/active and refresh actuators require later gates. Never translate null to 0C."}

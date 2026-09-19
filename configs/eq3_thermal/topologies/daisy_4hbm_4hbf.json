@@ -1,0 +1,1 @@
+{"schema_version":1,"name":"daisy_4hbm_4hbf","layout":"daisy","stack_count":8,"hbm_count":4,"hbf_count":4,"hbf_profile":"hbf_assumed_8hi","hbm_profile":"micron_hbm4_36gb_12hi","external_fast_memory_profile":null,"custom_base_die_relay":true,"source_type":"ASSUMED","comparison_basis":"fixed_stack_count_only_interface_area_not_matched"}

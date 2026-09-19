@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "ocp_hbf_0384": {"physical_kind": "HBF", "bandwidth_bytes_s": 384000000000, "maximum_stack_height": 8, "ucie_gt_s": 8, "ucie_width_bits": 64, "die_count": null, "capacity_bytes": null, "source_id": "OCP070", "verification": "SPEC_TABLE4_LOCAL_PDF_VERIFIED"},
+    "ocp_hbf_1536": {"physical_kind": "HBF", "bandwidth_bytes_s": 1536000000000, "maximum_stack_height": 16, "ucie_gt_s": 16, "ucie_width_bits": 64, "die_count": null, "capacity_bytes": null, "source_id": "OCP070", "verification": "SPEC_TABLE4_LOCAL_PDF_VERIFIED_WITH_BODY_CONFLICT"},
+    "ocp_hbf_3072": {"physical_kind": "HBF", "bandwidth_bytes_s": 3072000000000, "maximum_stack_height": 16, "ucie_gt_s": 32, "ucie_width_bits": 64, "die_count": null, "capacity_bytes": null, "source_id": "OCP070", "verification": "SPEC_TABLE4_LOCAL_PDF_VERIFIED_WITH_BODY_CONFLICT"},
+    "sandisk_hbf_gen1_1600": {"physical_kind": "HBF", "bandwidth_bytes_s": 1600000000000, "die_count": 16, "die_capacity_bits": 256000000000, "capacity_bytes": 512000000000, "source_id": "SANDISK202507", "verification": "SPEC_PRODUCT_TARGET_WEB_VERIFIED"},
+    "hbf_assumed_8hi": {"physical_kind": "HBF", "bandwidth_bytes_s": null, "die_count": 8, "capacity_bytes": null, "source_id": "FIXTURE", "verification": "ASSUMED_TEST_FIXTURE"},
+    "hbf_assumed_16hi": {"physical_kind": "HBF", "bandwidth_bytes_s": null, "die_count": 16, "capacity_bytes": null, "source_id": "FIXTURE", "verification": "ASSUMED_TEST_FIXTURE"},
+    "micron_hbm4_36gb_12hi": {"physical_kind": "HBM4", "die_count": 12, "capacity_label": "36 GB", "capacity_bytes": null, "interface_bits": 2048, "source_id": "MICRONHBM4", "verification": "SPEC_WEB_VERIFIED_CAPACITY_BYTE_CONVENTION_PENDING", "operating_point": {"bit_rate_s": 8000000000, "peak_bytes_s": 2048000000000, "source_type": "ASSUMED", "meaning": "chosen 8 Gbps interface test point; not measured or a vendor guaranteed point"}},
+    "micron_hbm4_48gb_16hi": {"physical_kind": "HBM4", "die_count": 16, "capacity_label": "48 GB", "capacity_bytes": null, "interface_bits": 2048, "source_id": "MICRONHBM4", "verification": "SPEC_WEB_VERIFIED_CAPACITY_BYTE_CONVENTION_PENDING", "operating_point": {"bit_rate_s": 8000000000, "peak_bytes_s": 2048000000000, "source_type": "ASSUMED", "meaning": "chosen interface test point, not measured"}},
+    "gddr_logical_hbm_fixture": {"physical_kind": "GDDR", "die_count": 1, "capacity_bytes": null, "source_id": "FIXTURE", "verification": "ASSUMED_TEST_FIXTURE"}
+  }
+}

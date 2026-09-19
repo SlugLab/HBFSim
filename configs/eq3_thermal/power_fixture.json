@@ -1,0 +1,1 @@
+{"schema_version":1,"source_id":"FIXTURE","source_type":"ASSUMED","evidence_class":"UNIT_TEST_ENERGY_INPUT","operation":"read","origin":"demand","bytes":4096,"start_s":0.0,"end_s":0.1,"energy_j_per_source":0.1,"note":"Synthetic physical-activity fixture, not a measured energy/byte model. Inject each named component independently; no board-power decomposition claim."}

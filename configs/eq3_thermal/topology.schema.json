@@ -1,0 +1,26 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"EQ3 independent data topology input v1",
+  "type":"object",
+  "required":["schema_version","name","layout","stack_count","hbm_count","hbf_count","hbf_profile","hbm_profile","source_type","comparison_basis"],
+  "properties":{
+    "schema_version":{"const":1},
+    "name":{"type":"string","minLength":1},
+    "layout":{"enum":["direct","daisy","dual"]},
+    "stack_count":{"type":"integer","minimum":1},
+    "hbm_count":{"type":"integer","minimum":0},
+    "hbf_count":{"type":"integer","minimum":0},
+    "hbf_profile":{"type":"string"},
+    "hbm_profile":{"type":"string"},
+    "source_type":{"const":"ASSUMED"},
+    "comparison_basis":{"type":"string"},
+    "external_fast_memory_profile":{"type":["string","null"]},
+    "custom_base_die_relay":{"type":"boolean"},
+    "requested_name":{"type":"string"},
+    "candidate_resolution":{"type":"string"},
+    "name_status":{"enum":["PENDING_USER_CONFIRMATION","USER_CONFIRMED"]},
+    "claim_status":{"type":"string"}
+  },
+  "additionalProperties":false,
+  "$comment":"Cross-field stack conservation, profile type, die count and relay constraints are enforced by tools/eq3_thermal_config.py. This schema does not certify physical geometry or data arbitration."
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "source_id": "FIXTURE",
+  "source_type": "ASSUMED",
+  "evidence_class": "UNCALIBRATED_TEST_FIXTURE",
+  "ambient_k": 298.15,
+  "initial_k": 298.15,
+  "capacity_j_k": {"GPU": 4.0, "base": 0.3, "die": 0.1, "interposer": 2.0, "sink": 10.0, "GDDR": 0.4},
+  "conductance_w_k": {"gpu_interposer": 2.0, "gpu_sink": 4.0, "base_interposer": 0.3, "vertical": 1.0, "top_sink": 0.3, "interposer_sink": 1.0, "sink_ambient": 8.0, "gddr_ambient": 0.4, "gddr_gpu_board_proxy": 0.02},
+  "geometry": {"status":"NOT_PHYSICALLY_CALIBRATED","dimensions_mm":null,"materials":null,"tim":null,"underfill":null,"anisotropy":null,"note":"RC test network, not geometry-derived. P2 must supply dimensions/materials/contact resistances before physical use."}
+}

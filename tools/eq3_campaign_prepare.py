@@ -1,5 +1,5 @@
 """Freeze one child of an actually user-authorized campaign. Never execute."""
-import argparse,copy,hashlib,json,sys
+import argparse,copy,hashlib,json,sys,subprocess
 from pathlib import Path
 from eq3_experiment_gate import canonical_manifest_hash,verify_artifacts,observed_git_state,validate_gate
 
@@ -31,9 +31,12 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     # USER_APPROVED describes stage eligibility; not a fabricated per-point signature.
     m['code']={'repository_revision':rev,'dirty_diff_sha256':diff,'artifacts':[art(code/p['path'].split('eq3_thermal/worktree/')[1],'source') for p in m['code']['artifacts']]}
     seen={x['path'] for x in m['code']['artifacts']}
-    for p in sorted((code/'tools').glob('eq3_campaign*')):
+    tracked=subprocess.check_output(['git','-C',str(code),'ls-files','tools/eq3_campaign*'],text=True).splitlines()
+    for p in [code/name for name in tracked]:
         if p.is_file() and p.relative_to(root).as_posix() not in seen:m['code']['artifacts'].append(art(p,'stage execution source'))
     if l['backend']['logical_id']!=original_engine['logical_id']:m['dependencies'].append(l['backend'])
+    if family in ('rc','rc_pilot'):
+        m['dependencies'] += [art(root/'environments/eq3-thermal-campaign-rc-v1/manifest.json','frozen sparse CPU environment'),art(root/'eq3_thermal/build/campaign-rc-v1/validation_receipt.json','sparse build and fixed equivalence evidence')]
     m['inputs']=files+[p for p in m['inputs'] if p['semantic_role']=='source scientific input']+[art(plan/'child.json','stage derived child scope','stage-child-contract'),art(plan/'launch.json','single run launch binding','layered-launch-manifest')]
     # Preserve original fixed-test evidence; current campaign regression is also bound.
     m['prerequisites']=[m['prerequisites'][0],{'id':'campaign-regression','status':'PASSED','evidence':art(campaign/'software-tests.log','fixed regression raw evidence')}]
@@ -42,7 +45,7 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
     s['time_and_numerics'].update(step_s=step)
     s['scan_matrix_and_repetitions']={'runs':[{'point':point,'trace':trace,'step_s':step,'mesh_um':mesh,'repeat':1}],'automatic_followup':'stage dependencies, not unconditional','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE'}
     s['acceptance_abort_and_outputs'].update(outputs=l['output'],raw_full_field_retained=family=='reference',output_policy=policy,resource_estimate='updated per child after measured predecessor; memory/time UNKNOWN',field_bytes_estimate=r['reference_field_bytes_estimated'])
-    m['execution_context']={'stage_id':scope['stage_id'],'code_root':code.relative_to(root).as_posix(),'environment_id':'eq3-thermal-reference-v1','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE'}
+    m['execution_context']={'stage_id':scope['stage_id'],'code_root':code.relative_to(root).as_posix(),'environment_id':'eq3-thermal-campaign-rc-v1' if family in ('rc','rc_pilot') else 'eq3-thermal-reference-v1','authorization_class':'AUTHORIZED_BY_USER_STAGE_SCOPE'}
     m['canonical_manifest_hash']=canonical_manifest_hash(m);verify_artifacts(m,root)
     auth=json.loads((campaign/'authorization.json').read_text());validate_gate(m,auth,root,observed_code_revision=rev,observed_dirty_diff_sha256=diff)
     write('experiment_manifest.json',m);print(json.dumps({'point':point,'manifest_hash':m['canonical_manifest_hash'],'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','launch_performed':False}));return plan

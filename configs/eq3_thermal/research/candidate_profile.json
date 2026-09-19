@@ -1,0 +1,5462 @@
+{
+  "schema_version": "eq3-research-design-v1",
+  "profile_id": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
+  "status": "PENDING_USER_APPROVAL",
+  "runtime_consumed": false,
+  "evidence_kind": "CONDITIONAL_SIMULATED",
+  "purpose": "Per-die power-to-temperature numerical reference candidate, not a shipping GPU/HBF package or calibrated product.",
+  "approval_scope": "Design only; no calibration launch authorized",
+  "device_selection": {
+    "gpu": {
+      "identity": "custom research compute die",
+      "board_model": null,
+      "real_gpu_load": false
+    },
+    "hbm": {
+      "manufacturer_anchor": "Micron HBM4",
+      "count": 4,
+      "dram_dies_per_stack": 12,
+      "nominal_capacity_label": "36 GB",
+      "capacity_bytes": null,
+      "bus_bits": 2048,
+      "selected_rate_bps_per_pin": 8000000000,
+      "selected_rate_kind": "SCENARIO_ASSUMPTION explicit lower-rate point, not claimed manufacturer bin",
+      "raw_bandwidth_Bps": 2048000000000,
+      "payload_efficiency": null,
+      "thermal_b_power_source": "independent synthetic array/base heat, no command-power fit"
+    },
+    "hbf": {
+      "manufacturer_anchor": "Sandisk July 2025 Gen1 target",
+      "count": 4,
+      "nand_dies_per_stack": 16,
+      "capacity_bytes_per_stack": 512000000000,
+      "density_bits_per_die": 256000000000,
+      "read_bandwidth_target_Bps": 1600000000000,
+      "achieved_payload_Bps": null,
+      "ocp_protocol_compatibility": "unverified research hypothesis; NOT a certified Sandisk OCP implementation"
+    }
+  },
+  "data_topology": {
+    "kind": "mixed_direct",
+    "gpu_links": [
+      [
+        "gpu",
+        "hbm0"
+      ],
+      [
+        "gpu",
+        "hbm1"
+      ],
+      [
+        "gpu",
+        "hbm2"
+      ],
+      [
+        "gpu",
+        "hbm3"
+      ],
+      [
+        "gpu",
+        "hbf0"
+      ],
+      [
+        "gpu",
+        "hbf1"
+      ],
+      [
+        "gpu",
+        "hbf2"
+      ],
+      [
+        "gpu",
+        "hbf3"
+      ]
+    ],
+    "hbm_total_data_pins": 8192,
+    "hbf_gpu_facing_phy": "UNKNOWN_BLOCKING for service/area claims",
+    "link_and_nand_arbitration": "NOT_IMPLEMENTED",
+    "coordinates_do_not_change_on_graph_rewiring": true
+  },
+  "units": {
+    "geometry": "um",
+    "material": "SI",
+    "power": "W",
+    "temperature": "K",
+    "time": "s",
+    "capacity": "B; HBM exact byte convention unresolved"
+  },
+  "package_size_um": [
+    64000,
+    64000,
+    2580
+  ],
+  "materials": {
+    "silicon": {
+      "rho_kg_m3": 2330,
+      "cp_j_kg_k": 710,
+      "k_w_m_k": [
+        150,
+        150,
+        150
+      ],
+      "source_id": "MFIT-material",
+      "evidence_kind": "PROXY"
+    },
+    "substrate": {
+      "rho_kg_m3": 1250,
+      "cp_j_kg_k": 1300,
+      "k_w_m_k": [
+        20.68,
+        20.68,
+        0.3783
+      ],
+      "source_id": "MFIT-material",
+      "evidence_kind": "PROXY"
+    },
+    "c4": {
+      "rho_kg_m3": 1250,
+      "cp_j_kg_k": 1300,
+      "k_w_m_k": [
+        0.6431,
+        0.6431,
+        2.348
+      ],
+      "source_id": "MFIT-material",
+      "evidence_kind": "PROXY"
+    },
+    "bond": {
+      "rho_kg_m3": 7380,
+      "cp_j_kg_k": 250,
+      "k_w_m_k": [
+        5.5,
+        5.5,
+        113
+      ],
+      "source_id": "3DICE4-TableII",
+      "evidence_kind": "PROXY"
+    },
+    "underfill": {
+      "rho_kg_m3": 1400,
+      "cp_j_kg_k": 1100,
+      "k_w_m_k": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "source_id": "3DICE4-TableII",
+      "evidence_kind": "PROXY"
+    },
+    "tim": {
+      "rho_kg_m3": 2500,
+      "cp_j_kg_k": 1000,
+      "k_w_m_k": [
+        10,
+        10,
+        10
+      ],
+      "source_id": "MFIT-material",
+      "evidence_kind": "PROXY"
+    },
+    "copper": {
+      "rho_kg_m3": 8960,
+      "cp_j_kg_k": 385,
+      "k_w_m_k": [
+        398,
+        398,
+        398
+      ],
+      "source_id": "MFIT-material",
+      "evidence_kind": "PROXY"
+    }
+  },
+  "placements": [
+    {
+      "id": "gpu",
+      "device": "GPU",
+      "xy_um": [
+        20000,
+        20000
+      ],
+      "footprint_um": [
+        24000,
+        24000
+      ],
+      "array_die_count": 0
+    },
+    {
+      "id": "hbm0",
+      "device": "HBM4",
+      "xy_um": [
+        16000,
+        48000
+      ],
+      "footprint_um": [
+        12000,
+        16000
+      ],
+      "array_die_count": 12
+    },
+    {
+      "id": "hbm1",
+      "device": "HBM4",
+      "xy_um": [
+        0,
+        36000
+      ],
+      "footprint_um": [
+        16000,
+        12000
+      ],
+      "array_die_count": 12
+    },
+    {
+      "id": "hbm2",
+      "device": "HBM4",
+      "xy_um": [
+        0,
+        16000
+      ],
+      "footprint_um": [
+        16000,
+        12000
+      ],
+      "array_die_count": 12
+    },
+    {
+      "id": "hbm3",
+      "device": "HBM4",
+      "xy_um": [
+        16000,
+        0
+      ],
+      "footprint_um": [
+        12000,
+        16000
+      ],
+      "array_die_count": 12
+    },
+    {
+      "id": "hbf0",
+      "device": "HBF",
+      "xy_um": [
+        36000,
+        48000
+      ],
+      "footprint_um": [
+        12000,
+        16000
+      ],
+      "array_die_count": 16
+    },
+    {
+      "id": "hbf1",
+      "device": "HBF",
+      "xy_um": [
+        48000,
+        36000
+      ],
+      "footprint_um": [
+        16000,
+        12000
+      ],
+      "array_die_count": 16
+    },
+    {
+      "id": "hbf2",
+      "device": "HBF",
+      "xy_um": [
+        48000,
+        16000
+      ],
+      "footprint_um": [
+        16000,
+        12000
+      ],
+      "array_die_count": 16
+    },
+    {
+      "id": "hbf3",
+      "device": "HBF",
+      "xy_um": [
+        36000,
+        0
+      ],
+      "footprint_um": [
+        12000,
+        16000
+      ],
+      "array_die_count": 16
+    }
+  ],
+  "blocks": [
+    {
+      "id": "substrate",
+      "device": "package",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        0,
+        0
+      ],
+      "size_um": [
+        64000,
+        64000,
+        1000
+      ],
+      "material": "substrate",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "c4",
+      "device": "package",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        0,
+        1000
+      ],
+      "size_um": [
+        64000,
+        64000,
+        80
+      ],
+      "material": "c4",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "interposer",
+      "device": "package",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        0,
+        1080
+      ],
+      "size_um": [
+        64000,
+        64000,
+        100
+      ],
+      "material": "silicon",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "lid",
+      "device": "package",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        0,
+        2080
+      ],
+      "size_um": [
+        64000,
+        64000,
+        500
+      ],
+      "material": "copper",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "gpu.attach",
+      "device": "GPU",
+      "die_index": -1,
+      "xyz_um": [
+        20000,
+        20000,
+        1180
+      ],
+      "size_um": [
+        24000,
+        24000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "gpu",
+      "device": "GPU",
+      "die_index": 0,
+      "xyz_um": [
+        20000,
+        20000,
+        1205
+      ],
+      "size_um": [
+        24000,
+        24000,
+        700
+      ],
+      "material": "silicon",
+      "power_group": "gpu",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "gpu.tim",
+      "device": "GPU",
+      "die_index": -1,
+      "xyz_um": [
+        20000,
+        20000,
+        1905
+      ],
+      "size_um": [
+        24000,
+        24000,
+        175
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.attach",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        48000,
+        1180
+      ],
+      "size_um": [
+        12000,
+        16000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.base",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        48000,
+        1205
+      ],
+      "size_um": [
+        12000,
+        16000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        16000,
+        48000,
+        1255
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        16000,
+        48000,
+        1263
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        16000,
+        48000,
+        1303
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        16000,
+        48000,
+        1311
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        16000,
+        48000,
+        1351
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        16000,
+        48000,
+        1359
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        16000,
+        48000,
+        1399
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        16000,
+        48000,
+        1407
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        16000,
+        48000,
+        1447
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        16000,
+        48000,
+        1455
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        16000,
+        48000,
+        1495
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        16000,
+        48000,
+        1503
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        16000,
+        48000,
+        1543
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        16000,
+        48000,
+        1551
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        16000,
+        48000,
+        1591
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        16000,
+        48000,
+        1599
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        16000,
+        48000,
+        1639
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        16000,
+        48000,
+        1647
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        16000,
+        48000,
+        1687
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        16000,
+        48000,
+        1695
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        16000,
+        48000,
+        1735
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        16000,
+        48000,
+        1743
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.bond11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        16000,
+        48000,
+        1783
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.die11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        16000,
+        48000,
+        1791
+      ],
+      "size_um": [
+        12000,
+        16000,
+        100
+      ],
+      "material": "silicon",
+      "power_group": "hbm0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm0.tim",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        48000,
+        1891
+      ],
+      "size_um": [
+        12000,
+        16000,
+        189
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.attach",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        36000,
+        1180
+      ],
+      "size_um": [
+        16000,
+        12000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.base",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        36000,
+        1205
+      ],
+      "size_um": [
+        16000,
+        12000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        0,
+        36000,
+        1255
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        0,
+        36000,
+        1263
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        0,
+        36000,
+        1303
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        0,
+        36000,
+        1311
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        0,
+        36000,
+        1351
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        0,
+        36000,
+        1359
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        0,
+        36000,
+        1399
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        0,
+        36000,
+        1407
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        0,
+        36000,
+        1447
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        0,
+        36000,
+        1455
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        0,
+        36000,
+        1495
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        0,
+        36000,
+        1503
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        0,
+        36000,
+        1543
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        0,
+        36000,
+        1551
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        0,
+        36000,
+        1591
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        0,
+        36000,
+        1599
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        0,
+        36000,
+        1639
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        0,
+        36000,
+        1647
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        0,
+        36000,
+        1687
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        0,
+        36000,
+        1695
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        0,
+        36000,
+        1735
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        0,
+        36000,
+        1743
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.bond11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        0,
+        36000,
+        1783
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.die11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        0,
+        36000,
+        1791
+      ],
+      "size_um": [
+        16000,
+        12000,
+        100
+      ],
+      "material": "silicon",
+      "power_group": "hbm1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm1.tim",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        36000,
+        1891
+      ],
+      "size_um": [
+        16000,
+        12000,
+        189
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.attach",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        16000,
+        1180
+      ],
+      "size_um": [
+        16000,
+        12000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.base",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        16000,
+        1205
+      ],
+      "size_um": [
+        16000,
+        12000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        0,
+        16000,
+        1255
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        0,
+        16000,
+        1263
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        0,
+        16000,
+        1303
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        0,
+        16000,
+        1311
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        0,
+        16000,
+        1351
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        0,
+        16000,
+        1359
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        0,
+        16000,
+        1399
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        0,
+        16000,
+        1407
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        0,
+        16000,
+        1447
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        0,
+        16000,
+        1455
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        0,
+        16000,
+        1495
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        0,
+        16000,
+        1503
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        0,
+        16000,
+        1543
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        0,
+        16000,
+        1551
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        0,
+        16000,
+        1591
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        0,
+        16000,
+        1599
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        0,
+        16000,
+        1639
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        0,
+        16000,
+        1647
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        0,
+        16000,
+        1687
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        0,
+        16000,
+        1695
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        0,
+        16000,
+        1735
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        0,
+        16000,
+        1743
+      ],
+      "size_um": [
+        16000,
+        12000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.bond11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        0,
+        16000,
+        1783
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.die11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        0,
+        16000,
+        1791
+      ],
+      "size_um": [
+        16000,
+        12000,
+        100
+      ],
+      "material": "silicon",
+      "power_group": "hbm2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm2.tim",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        0,
+        16000,
+        1891
+      ],
+      "size_um": [
+        16000,
+        12000,
+        189
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.attach",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        0,
+        1180
+      ],
+      "size_um": [
+        12000,
+        16000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.base",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        0,
+        1205
+      ],
+      "size_um": [
+        12000,
+        16000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        16000,
+        0,
+        1255
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die0",
+      "device": "HBM4",
+      "die_index": 0,
+      "xyz_um": [
+        16000,
+        0,
+        1263
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        16000,
+        0,
+        1303
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die1",
+      "device": "HBM4",
+      "die_index": 1,
+      "xyz_um": [
+        16000,
+        0,
+        1311
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        16000,
+        0,
+        1351
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die2",
+      "device": "HBM4",
+      "die_index": 2,
+      "xyz_um": [
+        16000,
+        0,
+        1359
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        16000,
+        0,
+        1399
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die3",
+      "device": "HBM4",
+      "die_index": 3,
+      "xyz_um": [
+        16000,
+        0,
+        1407
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        16000,
+        0,
+        1447
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die4",
+      "device": "HBM4",
+      "die_index": 4,
+      "xyz_um": [
+        16000,
+        0,
+        1455
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        16000,
+        0,
+        1495
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die5",
+      "device": "HBM4",
+      "die_index": 5,
+      "xyz_um": [
+        16000,
+        0,
+        1503
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        16000,
+        0,
+        1543
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die6",
+      "device": "HBM4",
+      "die_index": 6,
+      "xyz_um": [
+        16000,
+        0,
+        1551
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        16000,
+        0,
+        1591
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die7",
+      "device": "HBM4",
+      "die_index": 7,
+      "xyz_um": [
+        16000,
+        0,
+        1599
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        16000,
+        0,
+        1639
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die8",
+      "device": "HBM4",
+      "die_index": 8,
+      "xyz_um": [
+        16000,
+        0,
+        1647
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        16000,
+        0,
+        1687
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die9",
+      "device": "HBM4",
+      "die_index": 9,
+      "xyz_um": [
+        16000,
+        0,
+        1695
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        16000,
+        0,
+        1735
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die10",
+      "device": "HBM4",
+      "die_index": 10,
+      "xyz_um": [
+        16000,
+        0,
+        1743
+      ],
+      "size_um": [
+        12000,
+        16000,
+        40
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.bond11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        16000,
+        0,
+        1783
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.die11",
+      "device": "HBM4",
+      "die_index": 11,
+      "xyz_um": [
+        16000,
+        0,
+        1791
+      ],
+      "size_um": [
+        12000,
+        16000,
+        100
+      ],
+      "material": "silicon",
+      "power_group": "hbm3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbm3.tim",
+      "device": "HBM4",
+      "die_index": -1,
+      "xyz_um": [
+        16000,
+        0,
+        1891
+      ],
+      "size_um": [
+        12000,
+        16000,
+        189
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.attach",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        48000,
+        1180
+      ],
+      "size_um": [
+        12000,
+        16000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.base",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        48000,
+        1205
+      ],
+      "size_um": [
+        12000,
+        16000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        36000,
+        48000,
+        1255
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        36000,
+        48000,
+        1263
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        36000,
+        48000,
+        1298.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        36000,
+        48000,
+        1306.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        36000,
+        48000,
+        1342.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        36000,
+        48000,
+        1350.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        36000,
+        48000,
+        1386.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        36000,
+        48000,
+        1394.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        36000,
+        48000,
+        1430
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        36000,
+        48000,
+        1438
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        36000,
+        48000,
+        1473.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        36000,
+        48000,
+        1481.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        36000,
+        48000,
+        1517.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        36000,
+        48000,
+        1525.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        36000,
+        48000,
+        1561.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        36000,
+        48000,
+        1569.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        36000,
+        48000,
+        1605
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        36000,
+        48000,
+        1613
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        36000,
+        48000,
+        1648.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        36000,
+        48000,
+        1656.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        36000,
+        48000,
+        1692.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        36000,
+        48000,
+        1700.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        36000,
+        48000,
+        1736.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        36000,
+        48000,
+        1744.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        36000,
+        48000,
+        1780
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        36000,
+        48000,
+        1788
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        36000,
+        48000,
+        1823.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        36000,
+        48000,
+        1831.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        36000,
+        48000,
+        1867.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        36000,
+        48000,
+        1875.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.bond15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        36000,
+        48000,
+        1911.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.die15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        36000,
+        48000,
+        1919.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf0.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf0.tim",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        48000,
+        1955
+      ],
+      "size_um": [
+        12000,
+        16000,
+        125
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.attach",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        36000,
+        1180
+      ],
+      "size_um": [
+        16000,
+        12000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.base",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        36000,
+        1205
+      ],
+      "size_um": [
+        16000,
+        12000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        48000,
+        36000,
+        1255
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        48000,
+        36000,
+        1263
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        48000,
+        36000,
+        1298.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        48000,
+        36000,
+        1306.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        48000,
+        36000,
+        1342.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        48000,
+        36000,
+        1350.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        48000,
+        36000,
+        1386.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        48000,
+        36000,
+        1394.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        48000,
+        36000,
+        1430
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        48000,
+        36000,
+        1438
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        48000,
+        36000,
+        1473.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        48000,
+        36000,
+        1481.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        48000,
+        36000,
+        1517.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        48000,
+        36000,
+        1525.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        48000,
+        36000,
+        1561.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        48000,
+        36000,
+        1569.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        48000,
+        36000,
+        1605
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        48000,
+        36000,
+        1613
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        48000,
+        36000,
+        1648.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        48000,
+        36000,
+        1656.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        48000,
+        36000,
+        1692.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        48000,
+        36000,
+        1700.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        48000,
+        36000,
+        1736.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        48000,
+        36000,
+        1744.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        48000,
+        36000,
+        1780
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        48000,
+        36000,
+        1788
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        48000,
+        36000,
+        1823.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        48000,
+        36000,
+        1831.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        48000,
+        36000,
+        1867.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        48000,
+        36000,
+        1875.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.bond15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        48000,
+        36000,
+        1911.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.die15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        48000,
+        36000,
+        1919.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf1.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf1.tim",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        36000,
+        1955
+      ],
+      "size_um": [
+        16000,
+        12000,
+        125
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.attach",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        16000,
+        1180
+      ],
+      "size_um": [
+        16000,
+        12000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.base",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        16000,
+        1205
+      ],
+      "size_um": [
+        16000,
+        12000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        48000,
+        16000,
+        1255
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        48000,
+        16000,
+        1263
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        48000,
+        16000,
+        1298.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        48000,
+        16000,
+        1306.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        48000,
+        16000,
+        1342.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        48000,
+        16000,
+        1350.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        48000,
+        16000,
+        1386.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        48000,
+        16000,
+        1394.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        48000,
+        16000,
+        1430
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        48000,
+        16000,
+        1438
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        48000,
+        16000,
+        1473.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        48000,
+        16000,
+        1481.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        48000,
+        16000,
+        1517.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        48000,
+        16000,
+        1525.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        48000,
+        16000,
+        1561.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        48000,
+        16000,
+        1569.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        48000,
+        16000,
+        1605
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        48000,
+        16000,
+        1613
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        48000,
+        16000,
+        1648.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        48000,
+        16000,
+        1656.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        48000,
+        16000,
+        1692.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        48000,
+        16000,
+        1700.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        48000,
+        16000,
+        1736.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        48000,
+        16000,
+        1744.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        48000,
+        16000,
+        1780
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        48000,
+        16000,
+        1788
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        48000,
+        16000,
+        1823.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        48000,
+        16000,
+        1831.75
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        48000,
+        16000,
+        1867.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        48000,
+        16000,
+        1875.5
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.bond15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        48000,
+        16000,
+        1911.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.die15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        48000,
+        16000,
+        1919.25
+      ],
+      "size_um": [
+        16000,
+        12000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf2.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf2.tim",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        48000,
+        16000,
+        1955
+      ],
+      "size_um": [
+        16000,
+        12000,
+        125
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.attach",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        0,
+        1180
+      ],
+      "size_um": [
+        12000,
+        16000,
+        25
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.base",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        0,
+        1205
+      ],
+      "size_um": [
+        12000,
+        16000,
+        50
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.base",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        36000,
+        0,
+        1255
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die0",
+      "device": "HBF",
+      "die_index": 0,
+      "xyz_um": [
+        36000,
+        0,
+        1263
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        36000,
+        0,
+        1298.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die1",
+      "device": "HBF",
+      "die_index": 1,
+      "xyz_um": [
+        36000,
+        0,
+        1306.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        36000,
+        0,
+        1342.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die2",
+      "device": "HBF",
+      "die_index": 2,
+      "xyz_um": [
+        36000,
+        0,
+        1350.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        36000,
+        0,
+        1386.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die3",
+      "device": "HBF",
+      "die_index": 3,
+      "xyz_um": [
+        36000,
+        0,
+        1394.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        36000,
+        0,
+        1430
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die4",
+      "device": "HBF",
+      "die_index": 4,
+      "xyz_um": [
+        36000,
+        0,
+        1438
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        36000,
+        0,
+        1473.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die5",
+      "device": "HBF",
+      "die_index": 5,
+      "xyz_um": [
+        36000,
+        0,
+        1481.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        36000,
+        0,
+        1517.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die6",
+      "device": "HBF",
+      "die_index": 6,
+      "xyz_um": [
+        36000,
+        0,
+        1525.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        36000,
+        0,
+        1561.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die7",
+      "device": "HBF",
+      "die_index": 7,
+      "xyz_um": [
+        36000,
+        0,
+        1569.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        36000,
+        0,
+        1605
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die8",
+      "device": "HBF",
+      "die_index": 8,
+      "xyz_um": [
+        36000,
+        0,
+        1613
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        36000,
+        0,
+        1648.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die9",
+      "device": "HBF",
+      "die_index": 9,
+      "xyz_um": [
+        36000,
+        0,
+        1656.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        36000,
+        0,
+        1692.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die10",
+      "device": "HBF",
+      "die_index": 10,
+      "xyz_um": [
+        36000,
+        0,
+        1700.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        36000,
+        0,
+        1736.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die11",
+      "device": "HBF",
+      "die_index": 11,
+      "xyz_um": [
+        36000,
+        0,
+        1744.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        36000,
+        0,
+        1780
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die12",
+      "device": "HBF",
+      "die_index": 12,
+      "xyz_um": [
+        36000,
+        0,
+        1788
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        36000,
+        0,
+        1823.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die13",
+      "device": "HBF",
+      "die_index": 13,
+      "xyz_um": [
+        36000,
+        0,
+        1831.75
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        36000,
+        0,
+        1867.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die14",
+      "device": "HBF",
+      "die_index": 14,
+      "xyz_um": [
+        36000,
+        0,
+        1875.5
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.bond15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        36000,
+        0,
+        1911.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        8
+      ],
+      "material": "bond",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.die15",
+      "device": "HBF",
+      "die_index": 15,
+      "xyz_um": [
+        36000,
+        0,
+        1919.25
+      ],
+      "size_um": [
+        12000,
+        16000,
+        35.75
+      ],
+      "material": "silicon",
+      "power_group": "hbf3.array",
+      "sensor": "volume_mean_and_cell_max",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    },
+    {
+      "id": "hbf3.tim",
+      "device": "HBF",
+      "die_index": -1,
+      "xyz_um": [
+        36000,
+        0,
+        1955
+      ],
+      "size_um": [
+        12000,
+        16000,
+        125
+      ],
+      "material": "tim",
+      "power_group": null,
+      "sensor": "passive_energy_accounting",
+      "contact_model": "finite_thickness_layers; no additional interface resistance in v1 (ideal residual-contact assumption)",
+      "geometry_evidence": "SCENARIO_ASSUMPTION"
+    }
+  ],
+  "background": {
+    "z_interval_um": [
+      1180,
+      2080
+    ],
+    "xy_extent_um": [
+      0,
+      0,
+      64000,
+      64000
+    ],
+    "material": "underfill",
+    "rule": "fill complement of explicit block footprints at every union-z slab; no overlap with blocks; generate explicit tiles before solver launch"
+  },
+  "boundaries": {
+    "initial_temperature_k": 300,
+    "top": {
+      "ambient_k": 300,
+      "h_w_m2_k": 1400
+    },
+    "bottom": {
+      "ambient_k": 300,
+      "h_w_m2_k": 25
+    },
+    "sides": "adiabatic idealization, not real package",
+    "additional_area_contact_resistance_m2_k_W": 0,
+    "contact_note": "finite bonds/TIM included; residual contacts idealized, NOT measured zero; nonzero contact model requires new design"
+  },
+  "model_domain": {
+    "temperature_k": [
+      300,
+      400
+    ],
+    "temperature_domain_kind": "chosen constant-property scenario; no product-specific material validation",
+    "source_groups": 17,
+    "powered_physical_regions": 121,
+    "array_group_weights": "equal watts per active array die within each stack, including thicker HBM top die",
+    "arbitrary_per_die_excitation_validated": false,
+    "thermal_reference": "3D-ICE e0bb685; new input generator NOT_IMPLEMENTED",
+    "rc": "existing P1 engine retained; geometry mapper NOT_IMPLEMENTED; <=512 proposed nodes; no isothermal shared lid",
+    "fit_parameter_count": 0,
+    "fit_reason": "Numerical reference cannot identify unknown physical product parameters; construct C/G first; no free fit in v1",
+    "rom": "NOT_NEEDED_UNLESS_RC_VALIDATION_AND_COST_JUSTIFY"
+  },
+  "mesh_candidates_um": [
+    4000,
+    2000,
+    1000
+  ],
+  "sensor_contract": {
+    "gpu": "volume mean and spatial cell max",
+    "hbm_hbf": "each array die/base volume mean+cell max; stack volume-weighted array mean, array maximum and base separately",
+    "hotspot": "actual all-powered-cell maximum, with node,x,y,z; not maximum of averages",
+    "time_sample_s": 0.1
+  },
+  "non_claims": [
+    "absolute HBF product temperatures/power/retention/lifetime",
+    "HBM4 command-level timing accuracy",
+    "shipping GPU port/PHY compatibility",
+    "LLM token throughput",
+    "P3/P4/P5 completion"
+  ],
+  "geometry_anchor": {
+    "source_id": "OCP070",
+    "location": "p16 approximate footprint10.975x16mm height775um",
+    "allocation_rule": "12x16mm allocated rectangle rounds10.975mm upward to4mm grid; rotated side stacks; 9.3394% area expansion, not actual product outline",
+    "hbf_z_rule": "775um proxy outerheight decomposed into25attach+50base+16*(8bond+35.75NAND), not vendor layer dimensions; OCP height reference plane itself unspecified",
+    "mapping": "OCP outer-envelope proxy transferred toSandiskGen1target; HBM sameallocatedfootprint is separate research assumption; compatibility UNKNOWN"
+  }
+}

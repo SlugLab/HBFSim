@@ -1,0 +1,48 @@
+{
+  "evidence_kind": "STATIC_DERIVATION_NOT_SOLVER_RUN",
+  "status": "GEOMETRY_CONSISTENCY_PASSED_NOT_PHYSICAL_VALIDATION",
+  "profile_id": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
+  "block_count": 255,
+  "powered_regions": 121,
+  "input_groups": 17,
+  "z_slabs": 63,
+  "cells_by_lateral_um": {
+    "4000": 16128,
+    "2000": 64512,
+    "1000": 258048
+  },
+  "background_volume_m3": 1.7855999999999995e-06,
+  "total_heat_capacity_J_K": 21.157243788800002,
+  "sum_convection_G_W_K": 5.8368,
+  "lumped_C_over_boundaryG_s": 3.6248019100877196,
+  "lumped_C_over_boundaryG_caveat": "not dominant observable time constant; ignores internal thermal gradients",
+  "top_convection_R_K_W": 0.17438616071428573,
+  "bottom_convection_R_K_W": 9.765625,
+  "tim_R_K_W": {
+    "gpu.tim": 0.03038194444444444,
+    "hbm0.tim": 0.0984375,
+    "hbm1.tim": 0.0984375,
+    "hbm2.tim": 0.0984375,
+    "hbm3.tim": 0.0984375,
+    "hbf0.tim": 0.06510416666666667,
+    "hbf1.tim": 0.06510416666666667,
+    "hbf2.tim": 0.06510416666666667,
+    "hbf3.tim": 0.06510416666666667
+  },
+  "tim_C_J_K": {
+    "gpu.tim": 0.252,
+    "hbm0.tim": 0.09072,
+    "hbm1.tim": 0.09072,
+    "hbm2.tim": 0.09072,
+    "hbm3.tim": 0.09072,
+    "hbf0.tim": 0.060000000000000005,
+    "hbf1.tim": 0.060000000000000005,
+    "hbf2.tim": 0.060000000000000005,
+    "hbf3.tim": 0.060000000000000005
+  },
+  "power_domain_max_W": 840,
+  "isothermal_boundary_rise_at_domain_max_K": 143.91447368421052,
+  "geometry_overlap_checks": 32385,
+  "oct_stack_capacity_HBF_B": 2048000000000.0,
+  "HBM_capacity_B": null
+}

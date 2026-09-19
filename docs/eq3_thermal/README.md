@@ -1,5 +1,26 @@
 # Independent EQ3 thermal P1
 
+## Parameter-freeze continuation (current)
+
+Start with [parameter decisions](PARAMETER_DECISIONS.md), [actual consumers](PARAMETER_CONSUMERS.md),
+[source audit](PARAMETER_SOURCE_AUDIT.md), [gaps](PARAMETER_GAPS.md) and [model scope](MODEL_SCOPE.md).
+The candidate is per-die4HBM4+4HBF mixed-direct, explicitly CONDITIONAL_SIMULATED.
+[Calibration preflight v1](CALIBRATION_PREFLIGHT_v1.md) and [staged EQ3 plan](EQ3_EXPERIMENT_PLAN_v1.md)
+are PENDING_USER_APPROVAL. The new geometry converter is NOT_IMPLEMENTED: old two-layer
+tools are not an execution entry for this candidate. DESIGN_FREEZE precedes bounded
+calibration; MODEL_FREEZE follows independent validation and precedes formal EQ3 approval.
+The old four-point fixture plan below remains unapproved and is not the mainline blocker.
+
+Read-only input audit (no solver/GPU/approval writes):
+
+```sh
+python3 -B tools/eq3_parameter_check.py --root .
+python3 -B -m unittest discover -s tools -p 'test_eq3_*.py' -v
+```
+
+34 fixed Python tests and the existing P1 core regression pass; this does not change
+the FAILED old RC, missing physical calibration or NOT_IMPLEMENTED P3–P5 status.
+
 ## P2 continuation status
 
 P1 remains a verified standalone software fixture, not a calibrated package.

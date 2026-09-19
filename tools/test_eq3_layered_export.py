@@ -1,5 +1,6 @@
 """Hand-computable fixed software fixtures; no research solver execution."""
 import copy
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +96,63 @@ class LayeredExportTests(unittest.TestCase):
             self.assertEqual(receipt['rc_execution_readiness'],'BLOCKED_NODE_BUDGET')
             self.assertFalse(receipt['research_solver_started'])
             self.assertFalse(list(p.glob('field_*.txt')))
+
+    def test_default_rc_mesh_preserves_original_native_inputs(self):
+        ir=slab()
+        expected,_=rc_files(ir,discretize(ir))
+        with tempfile.TemporaryDirectory() as tmp:
+            a,b=Path(tmp)/'default',Path(tmp)/'explicit-none'
+            generate(ir,a,.001,.02)
+            generate(ir,b,.001,.02,rc_mesh_m=None)
+            for name,contents in expected.items():
+                self.assertEqual((a/name).read_text(),contents)
+                self.assertEqual((a/name).read_bytes(),(b/name).read_bytes())
+
+    def test_explicit_rc_mesh_preserves_science_and_reference(self):
+        ir=slab()
+        ir['sensors'].append({'id':'base:hotspot','reduction':'max','components':['base']})
+        with tempfile.TemporaryDirectory() as tmp:
+            a,b=Path(tmp)/'coarse',Path(tmp)/'fine'
+            coarse=generate(ir,a,.001,.02)
+            fine=generate(ir,b,.001,.02,rc_node_budget=1,rc_mesh_m=.001)
+            self.assertEqual(fine['rc_mesh_m'],.001)
+            self.assertEqual(fine['rc_numerical_variant'],'explicit_uniform_xy')
+            self.assertEqual(fine['rc_nodes'],4)
+            self.assertEqual(fine['rc_execution_readiness'],'BLOCKED_NODE_BUDGET')
+            self.assertEqual(fine['emitted_energy_j'],coarse['emitted_energy_j'])
+            for name in ('normalized.json','package.stk','reference_grid.json',
+                         'reference_sensors.json','floorplan_map.json','L0.flp','L1.flp'):
+                self.assertEqual((a/name).read_bytes(),(b/name).read_bytes())
+            grid=json.loads((b/'rc_grid.json').read_text())
+            reference=json.loads((b/'reference_grid.json').read_text())
+            self.assertEqual(grid,reference)
+            self.assertEqual(grid['axes_m'][2],discretize(ir)['axes_m'][2])
+            for component in ir['components']:
+                cid=component['id']
+                original=discretize(ir)
+                for property in ('volume_m3','capacity_j_k'):
+                    self.assertAlmostEqual(sum(grid['cells'][i][property] for i in grid['component_cells'][cid]),
+                                           sum(original['cells'][i][property] for i in original['component_cells'][cid]))
+            mapping=json.loads((b/'rc_sensors.json').read_text())
+            self.assertAlmostEqual(sum(w for _,w in mapping[0]['cell_weights']),1)
+            self.assertEqual(mapping[1]['reduction'],'max')
+            self.assertEqual(set(mapping[1]['cell_indices']),set(grid['component_cells']['base']))
+            self.assertEqual(len(fine['base_die_mapping']),1)
+            self.assertEqual(len(fine['base_die_mapping'][0]['rc_nodes']),2)
+            edges,bounds=network(ir,grid)
+            self.assertTrue(all(g>0 for _,_,g in edges))
+            self.assertEqual(len({tuple(sorted((a,b))) for a,b,_ in edges}),len(edges))
+            reached={i for i,(g,_) in enumerate(bounds) if g>0}
+            for _ in grid['cells']:
+                reached |= {b for a,b,_ in edges if a in reached}
+                reached |= {a for a,b,_ in edges if b in reached}
+            self.assertEqual(len(reached),len(grid['cells']))
+
+    def test_explicit_rc_mesh_rejects_snapping_and_invalid_size(self):
+        for mesh in (.0007,0,-.001,float('nan')):
+            with self.subTest(mesh=mesh),tempfile.TemporaryDirectory() as tmp:
+                with self.assertRaises(ValueError):
+                    generate(slab(),Path(tmp)/'out',.001,.02,rc_mesh_m=mesh)
 
 
 if __name__=='__main__': unittest.main()

@@ -1,5 +1,7 @@
 import io
 import gzip
+import os
+import json
 import tempfile
 from pathlib import Path
 import unittest
@@ -9,6 +11,20 @@ from test_eq3_layered_export import slab
 
 
 class ObserveTests(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get('EQ3_CAMPAIGN_NATIVECODEC'), 'native codec opt-in')
+    def test_native_transport_hash_verified_after_full_decode(self):
+        from eq3_campaign_nativecodec import Encoder
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'field_0.txt';encoded=Path(str(p)+'.tmk')
+            enc=Encoder(encoded,1,1,1);enc.feed(b'300.000  \n');r=enc.finish()
+            receipt={'status':'PASS','fields':[{'path':encoded.name,'uncompressed_sha256':r['native_sha256'],'uncompressed_bytes':r['native_bytes']}]}
+            (Path(tmp)/'stream_receipt.json').write_text(json.dumps(receipt))
+            with open_field(p) as f:self.assertEqual(list(f),['300.000  \n'])
+            receipt['fields'][0]['uncompressed_sha256']='0'*64
+            (Path(tmp)/'stream_receipt.json').write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(ValueError,'identity mismatch'):
+                with open_field(p) as f:list(f)
+
     def test_retained_field_selection_rejects_ambiguity(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/'field.txt'

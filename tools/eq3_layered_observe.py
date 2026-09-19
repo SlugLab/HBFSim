@@ -7,6 +7,7 @@ completed time steps, not t=0. Initial state is the declared input state.
 import argparse
 import csv
 import gzip
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -27,8 +28,23 @@ def open_field(path):
     if encoded in available:
         from eq3_campaign_nativecodec import decoded_lines
         lines = decoded_lines(encoded)
+        transport = path.parent/'stream_receipt.json'
+        expected = None
+        if transport.exists():
+            receipt = json.loads(transport.read_text())
+            if receipt['status'] != 'PASS':
+                raise ValueError('incomplete native field transport')
+            expected = next(row for row in receipt['fields'] if row['path']==encoded.name)
+        def verified_lines():
+            digest=hashlib.sha256();size=0
+            for line in lines:
+                digest.update(line);size+=len(line)
+                yield line.decode('ascii')
+            if expected and (digest.hexdigest()!=expected['uncompressed_sha256'] or
+                             size!=expected['uncompressed_bytes']):
+                raise ValueError('native field reconstructed-byte identity mismatch')
         try:
-            yield (line.decode('ascii') for line in lines)
+            yield verified_lines()
         finally:
             lines.close()
     else:

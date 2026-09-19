@@ -207,20 +207,25 @@ def rc_files(ir, grid):
     return {'model.txt':'\n'.join(lines)+'\n','events.txt':'\n'.join(events)+'\n'}, {'edge_count':len(edges),'emitted_energy_j':emitted}
 
 
-def generate(ir, output, mesh_m, step_s, sample_s=0.1, rc_node_budget=512):
+def generate(ir, output, mesh_m, step_s, sample_s=0.1, rc_node_budget=512,
+             rc_mesh_m=None):
     from eq3_layered_observe import sensor_mapping
     if ir['boundaries'].get('additional_area_contact_resistance_m2_k_W',0)!=0:
         raise ValueError('BACKEND_GAP: nonzero residual contact not supported by stock exporter')
     if not str(ir['boundaries']['sides']).startswith('adiabatic'):
         raise ValueError('BACKEND_GAP: lateral boundary must be explicitly adiabatic')
-    ref=discretize(ir,mesh_m); rc=discretize(ir)
+    ref=discretize(ir,mesh_m); rc=discretize(ir,rc_mesh_m)
     files,floormaps=reference_files(ir,ref,step_s,sample_s)
     rcfiles,rcreceipt=rc_files(ir,rc); files.update(rcfiles)
     receipt={'status':'GENERATED_NOT_SOLVED','schema_version':'eq3-layered-export-v1',
         'entity_count':len(ir['components']),'z_layers':ref['shape'][2],
         'reference_shape':ref['shape'],'reference_cells':len(ref['cells']),
         'rc_shape':rc['shape'],'rc_nodes':len(rc['cells']),
-        'rc_discretization':'orthogonal Cartesian all-geometry-edge planes; no fit, no removed layers',
+        'rc_discretization':('orthogonal Cartesian all-geometry-edge planes; no fit, no removed layers'
+                             if rc_mesh_m is None else
+                             'uniform XY aligned to every geometry edge; original Z interface planes; no fit, no removed layers'),
+        'rc_mesh_m':rc_mesh_m,
+        'rc_numerical_variant':'geometry_edges' if rc_mesh_m is None else 'explicit_uniform_xy',
         'rc_proposed_node_budget':rc_node_budget,
         'rc_execution_readiness':'BLOCKED_NODE_BUDGET' if len(rc['cells'])>rc_node_budget else 'PENDING_EXECUTION_APPROVAL',
         'rc_dense_bytes_per_matrix':8*len(rc['cells'])**2,
@@ -262,10 +267,13 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('profile','power','output'): p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--trace',required=True); p.add_argument('--mesh-um',type=float,required=True)
+    p.add_argument('--rc-mesh-um',type=float,default=None,
+                   help='Optional independent RC XY mesh; preserves all original edges/Z interfaces; no snapping')
     p.add_argument('--step-s',type=float,required=True); p.add_argument('--sample-s',type=float,default=.1)
     args=p.parse_args()
     ir=normalize(json.loads(args.profile.read_text()),json.loads(args.power.read_text()),args.trace)
-    print(json.dumps(generate(ir,args.output,args.mesh_um*1e-6,args.step_s,args.sample_s),indent=2))
+    print(json.dumps(generate(ir,args.output,args.mesh_um*1e-6,args.step_s,args.sample_s,
+                             rc_mesh_m=None if args.rc_mesh_um is None else args.rc_mesh_um*1e-6),indent=2))
 
 
 if __name__=='__main__': main()

@@ -3,7 +3,7 @@
   "classification": "SOFTWARE_VALIDATION_ONLY",
   "date": "2026-09-19",
   "python_unit_cases": 29,
-  "python_receipt": "eq3_thermal/runs/p2-software/20260919T060059Z-all-python-tests-final-3",
+  "python_receipt": "eq3_thermal/runs/p2-software/20260919T060609Z-iterative-workflow-unit-tests-3",
   "core_ctest_targets_passed": 1,
   "core_receipt": "eq3_thermal/runs/p2-software/20260919T055051Z-core-regression-12",
   "baseline_original_full_suite": "32/34; historical path prerequisites remain unresolved",

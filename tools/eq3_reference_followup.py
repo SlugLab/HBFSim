@@ -22,17 +22,17 @@ import eq3_experiment_gate
 import eq3_reference
 
 
-STEP_S = 0.025
+STEP_S = 0.00625
 FINE_CELL_M = 0.0005
 TIMEOUT_S = 300
 TOTAL_CPU_S = 1200.0
 ADDRESS_SPACE_BYTES = 4 * 1024**3
 DISK_BYTES = 1024**3
 RUN_SPECS = (
-    ("eq3-p2-ref-train-mesh1mm-dt25ms", "train", "original", 0.001),
-    ("eq3-p2-ref-train-mesh0p5mm-dt25ms", "train", "derived_fine", FINE_CELL_M),
-    ("eq3-p2-ref-heldout-mesh1mm-dt25ms", "heldout", "original", 0.001),
-    ("eq3-p2-ref-heldout-mesh0p5mm-dt25ms", "heldout", "derived_fine", FINE_CELL_M),
+    ("eq3-p2-ref-train-mesh1mm-dt6p25ms", "train", "original", 0.001),
+    ("eq3-p2-ref-train-mesh0p5mm-dt6p25ms", "train", "derived_fine", FINE_CELL_M),
+    ("eq3-p2-ref-heldout-mesh1mm-dt6p25ms", "heldout", "original", 0.001),
+    ("eq3-p2-ref-heldout-mesh0p5mm-dt6p25ms", "heldout", "derived_fine", FINE_CELL_M),
 )
 WORKFLOW_COMMANDS = {
     "approved_run": (
@@ -82,7 +82,7 @@ def build_plan(case_path: pathlib.Path, materials_path: pathlib.Path,
     plan = {
         "schema_version": "eq3-reference-followup-plan-v1",
         "approval_status": "PENDING_USER_APPROVAL",
-        "purpose": "Characterize 1 mm versus 0.5 mm spatial-reference uncertainty at fixed dt=0.025 s before any RC structural change.",
+        "purpose": "Characterize 1 mm versus 0.5 mm spatial-reference uncertainty at fixed dt=0.00625 s before any RC structural change.",
         "non_goals": ["RC or ROM fitting", "GPU work", "physical calibration", "paper claim"],
         "inputs": {
             "package_scenario_sha256": eq3_reference.sha256(case_path),
@@ -107,8 +107,8 @@ def build_plan(case_path: pathlib.Path, materials_path: pathlib.Path,
         "analysis": {
             "pairs": [
                 {"trace": trace,
-                 "mesh1mm_run_id": f"eq3-p2-ref-{trace}-mesh1mm-dt25ms",
-                 "mesh0p5mm_run_id": f"eq3-p2-ref-{trace}-mesh0p5mm-dt25ms"}
+                 "mesh1mm_run_id": f"eq3-p2-ref-{trace}-mesh1mm-dt6p25ms",
+                 "mesh0p5mm_run_id": f"eq3-p2-ref-{trace}-mesh0p5mm-dt6p25ms"}
                 for trace in ("train", "heldout")
             ],
             "metrics": ["per-sensor MAE/max delta K", "grid-hotspot MAE/max delta K",
@@ -252,8 +252,8 @@ def analyze(args: argparse.Namespace) -> None:
     power = eq3_reference.load(args.power)
     results = {}
     for trace in ("train", "heldout"):
-        one = args.run_root / f"eq3-p2-ref-{trace}-mesh1mm-dt25ms"
-        half = args.run_root / f"eq3-p2-ref-{trace}-mesh0p5mm-dt25ms"
+        one = args.run_root / f"eq3-p2-ref-{trace}-mesh1mm-dt6p25ms"
+        half = args.run_root / f"eq3-p2-ref-{trace}-mesh0p5mm-dt6p25ms"
         one_series, one_hot = _verified_series(one, trace, power)
         half_series, half_hot = _verified_series(half, trace, power)
         results[trace] = {"region_average_delta": eq3_reference.series_delta(one_series, half_series),

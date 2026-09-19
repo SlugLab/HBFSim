@@ -17,6 +17,10 @@ The next reference-only four-point refinement plan is persisted outside the
 Git checkout under workspace `eq3_thermal/plans/p2-reference-refinement-v1`.
 It binds a frozen code HEAD without a self-referential manifest commit.
 Its status is PENDING_USER_APPROVAL; script availability is not authorization.
+The later user-authorized [iterative engineering checks](ITERATIVE_VALIDATION.md)
+are separate from that unlaunched batch. Three consecutive timestep refinements
+improved the reference and reached the preregistered0.25K stopping target.
+This does not turn the failed lumped-RC comparison into PASS.
 
 ## P1 entry point
 

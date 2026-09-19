@@ -11,8 +11,8 @@ void check(bool ok,const char* why) { if(!ok) throw std::invalid_argument(why); 
 bool terminal(Phase p) { return p==Phase::Complete || p==Phase::Fail || p==Phase::Cancel; }
 }
 ActivityObserver::ActivityObserver(RuntimeMode mode,ThermalModelConfig config)
- : mode_(mode),config_(std::move(config)),runtime_(mode,mode==RuntimeMode::Off ?
-       std::nullopt : std::optional<ThermalModelConfig>(config_)) {
+ : mode_(mode),config_(std::move(config)),runtime_(mode,mode==RuntimeMode::Shadow ?
+       std::optional<ThermalModelConfig>(config_) : std::nullopt) {
   check(mode!=RuntimeMode::Active,"observer alone cannot implement active control");
   if(mode==RuntimeMode::Off) return;
   validate_model_config(config_);

@@ -28,6 +28,15 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
         env_path=reference_environment or root/'environments/eq3-thermal-reference-storage-v1/manifest.json'
         env=json.loads(env_path.read_text())
         m['dependencies'].append(art(env_path,'isolated factor storage environment'))
+        for path,expected in env.get('artifacts',{}).items():
+            artifact=art(root/path,'private reference reproducibility artifact')
+            if artifact['sha256']!=expected:raise ValueError('private environment artifact changed: '+path)
+            if path not in {x['path'] for x in m['dependencies']}:m['dependencies'].append(artifact)
+        validation=env.get('validation_receipt')
+        if validation:
+            artifact=art(root/validation['path'],'private reference fixed validation receipt')
+            if artifact['sha256']!=validation['sha256']:raise ValueError('private reference validation changed')
+            m['dependencies'].append(artifact)
     l.update(experiment_id='EQ3-P2-'+point,version='campaign-v1',run_id=point,artifacts=files)
     l['command']['cwd']=g.relative_to(root).as_posix();l['output']['path']=(plan/'runs'/point).relative_to(root).as_posix()
     if family in ('rc','rc_pilot'):
@@ -51,6 +60,7 @@ def prepare(root,point,generated,trace,step,mesh,policy,family,deps,reason='',bi
         if p.is_file() and p.relative_to(root).as_posix() not in seen:m['code']['artifacts'].append(art(p,'stage execution source'))
     if l['backend']['logical_id']!=original_engine['logical_id']:m['dependencies'].append(l['backend'])
     m['dependencies'].append(art(root/'tools/collect_experiment_metadata.py','prelaunch environment inventory and metadata validator','metadata-collector'))
+    m['dependencies'].append(art(campaign/'FOLLOWUP_DIAGNOSTIC_PREFLIGHT.md','stage-derived diagnostic preflight'))
     if family in ('rc','rc_pilot'):
         m['dependencies'] += [art(root/'environments/eq3-thermal-campaign-rc-v2/manifest.json','frozen sparse CPU environment'),art(root/'eq3_thermal/build/campaign-rc-v2/validation_receipt.json','sparse build and fixed equivalence evidence')]
     m['inputs']=files+[p for p in m['inputs'] if p['semantic_role']=='source scientific input']+[art(plan/'child.json','stage derived child scope','stage-child-contract'),art(plan/'launch.json','single run launch binding','layered-launch-manifest')]

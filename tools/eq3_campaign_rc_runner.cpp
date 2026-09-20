@@ -31,6 +31,10 @@ using SparseSolver = Eigen::SimplicialLDLT<SparseMatrix, Eigen::Lower,
 
 struct Options {
   std::string model_path, events_path;
+  std::string model_sha256{"UNKNOWN_NOT_SUPPLIED"};
+  std::string events_sha256{"UNKNOWN_NOT_SUPPLIED"};
+  std::string runner_source_sha256{"UNKNOWN_NOT_SUPPLIED"};
+  std::string domain_version{"eq3-runner-cli-temperature-domain-v1"};
   double step_s{}, slot_s{}, end_s{}, sample_s{}, min_k{}, max_k{};
   bool inspect_only{}, run{}, equilibrium_diagnostic{};
 };
@@ -91,12 +95,18 @@ Options options_from(int argc, char** argv) {
     const bool takes_value =
         argument == "--model" || argument == "--events" || argument == "--step-s" ||
         argument == "--slot-s" || argument == "--end-s" || argument == "--sample-s" ||
-        argument == "--min-k" || argument == "--max-k";
+        argument == "--min-k" || argument == "--max-k" ||
+        argument == "--model-sha256" || argument == "--events-sha256" ||
+        argument == "--runner-source-sha256" || argument == "--domain-version";
     require(takes_value, "unknown argument " + argument);
     require(index + 1 < argc, "missing value after " + argument);
     const std::string value = argv[++index];
     if (argument == "--model") options.model_path = value;
     else if (argument == "--events") options.events_path = value;
+    else if (argument == "--model-sha256") options.model_sha256 = value;
+    else if (argument == "--events-sha256") options.events_sha256 = value;
+    else if (argument == "--runner-source-sha256") options.runner_source_sha256 = value;
+    else if (argument == "--domain-version") options.domain_version = value;
     else if (argument == "--step-s") options.step_s = number(value, argument);
     else if (argument == "--slot-s") options.slot_s = number(value, argument);
     else if (argument == "--end-s") options.end_s = number(value, argument);
@@ -113,6 +123,9 @@ Options options_from(int argc, char** argv) {
           "step, slot, end, and sample seconds must be positive");
   require(options.min_k > 0 && options.max_k > options.min_k,
           "--min-k and --max-k must satisfy 0 < min < max");
+  require(!options.model_sha256.empty() && !options.events_sha256.empty() &&
+              !options.runner_source_sha256.empty() && !options.domain_version.empty(),
+          "diagnostic identity values must not be empty");
   return options;
 }
 
@@ -350,6 +363,247 @@ void emit(double time_s, const ThermalModelConfig& config,
               << temperature[static_cast<Eigen::Index>(index)] << '\n';
 }
 
+std::string json_string(const std::string& value) {
+  std::ostringstream out;
+  out << '"';
+  for (const unsigned char character : value) {
+    switch (character) {
+      case '"': out << "\\\""; break;
+      case '\\': out << "\\\\"; break;
+      case '\b': out << "\\b"; break;
+      case '\f': out << "\\f"; break;
+      case '\n': out << "\\n"; break;
+      case '\r': out << "\\r"; break;
+      case '\t': out << "\\t"; break;
+      default:
+        if (character < 0x20)
+          out << "\\u" << std::hex << std::setfill('0') << std::setw(4)
+              << static_cast<unsigned>(character) << std::dec << std::setfill(' ');
+        else
+          out << character;
+    }
+  }
+  return out.str() + '"';
+}
+
+std::string csv_string(const std::string& value) {
+  std::string result{"\""};
+  for (const char character : value) {
+    if (character == '"') result += '"';
+    result += character;
+  }
+  return result + '"';
+}
+
+std::string json_number_or_null(double value) {
+  if (!std::isfinite(value)) return "null";
+  std::ostringstream output;
+  output << std::setprecision(17) << value;
+  return output.str();
+}
+
+void write_state(const std::filesystem::path& final,
+                 const ThermalModelConfig& config,
+                 const Eigen::VectorXd& temperature) {
+  const std::filesystem::path temporary{final.string() + ".tmp"};
+  require(!std::filesystem::exists(final) && !std::filesystem::exists(temporary),
+          "refusing to overwrite failure state " + final.string());
+  std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+  if (!output) throw std::runtime_error("cannot create failure state " + final.string());
+  output << "node_index,node_id,group_id,die_index,temperature_k\n"
+         << std::setprecision(17);
+  for (std::size_t index = 0; index < config.nodes.size(); ++index) {
+    const auto& node = config.nodes[index];
+    output << index << ',' << csv_string(node.id) << ',' << csv_string(node.group_id) << ',';
+    if (node.die_index) output << *node.die_index;
+    else output << "UNKNOWN";
+    output << ',' << temperature[static_cast<Eigen::Index>(index)] << '\n';
+  }
+  output.close();
+  if (!output) throw std::runtime_error("failed writing failure state " + final.string());
+  std::filesystem::rename(temporary, final);
+}
+
+long double stored_energy(const ThermalModelConfig& config,
+                          const Eigen::VectorXd& theta, double origin) {
+  long double result = 0;
+  for (Eigen::Index index = 0; index < theta.size(); ++index) {
+    const auto& node = config.nodes[static_cast<std::size_t>(index)];
+    result += node.heat_capacity_j_per_k *
+              (static_cast<long double>(theta[index]) -
+               (node.initial_temperature_k - origin));
+  }
+  return result;
+}
+
+void unknown_trial_diagnostic(const Options& options,
+                              const ThermalModelConfig& config,
+                              const Eigen::VectorXd& last_valid_temperature,
+                              const Eigen::VectorXd& last_valid_theta,
+                              const Eigen::VectorXd& applied,
+                              const Eigen::VectorXd& power,
+                              std::uint64_t completed_steps,
+                              std::uint64_t trial_step, std::uint64_t slot,
+                              double last_valid_time_s, double trial_time_s,
+                              long double boundary_loss_j, double origin_k,
+                              const std::string& reason) {
+  const std::filesystem::path final{"rc_failure_diagnostic.json"};
+  const std::filesystem::path temporary{"rc_failure_diagnostic.json.tmp"};
+  require(!std::filesystem::exists(final) && !std::filesystem::exists(temporary),
+          "refusing to overwrite RC failure diagnostic");
+  write_state("rc_failure_last_valid.csv", config, last_valid_temperature);
+  long double activity_completed = 0;
+  for (Eigen::Index index = 0; index < applied.size(); ++index)
+    activity_completed += applied[index];
+  const long double static_completed = static_energy(config, last_valid_time_s);
+  const long double stored_completed = stored_energy(config, last_valid_theta, origin_k);
+  const long double residual_completed = activity_completed + static_completed -
+                                         stored_completed - boundary_loss_j;
+  std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+  if (!output) throw std::runtime_error("cannot create RC failure diagnostic");
+  output << std::setprecision(17)
+         << "{\n"
+         << "  \"schema_version\": \"eq3-campaign-sparse-rc-failure-v1\",\n"
+         << "  \"status\": \"NUMERICAL_FAILURE\",\n"
+         << "  \"exit_reason\": " << json_string(reason) << ",\n"
+         << "  \"failure_returned_to_caller\": true,\n"
+         << "  \"last_valid_state_file\": \"rc_failure_last_valid.csv\",\n"
+         << "  \"trial_state_file\": null,\n"
+         << "  \"trial_state_status\": \"UNKNOWN_SOLVER_FAILURE\",\n"
+         << "  \"last_valid_time_s\": " << last_valid_time_s << ",\n"
+         << "  \"trial_target_time_s\": " << trial_time_s << ",\n"
+         << "  \"completed_steps\": " << completed_steps << ",\n"
+         << "  \"trial_step_1_based\": " << trial_step << ",\n"
+         << "  \"step_s\": " << options.step_s << ",\n"
+         << "  \"input_slot_index_0_based\": " << slot << ",\n"
+         << "  \"input_interval_start_s\": " << static_cast<double>(slot) * options.slot_s << ",\n"
+         << "  \"input_interval_end_s\": " << static_cast<double>(slot + 1) * options.slot_s << ",\n"
+         << "  \"trial_activity_power_w\": " << json_number_or_null(power.sum()) << ",\n"
+         << "  \"domain_version\": " << json_string(options.domain_version) << ",\n"
+         << "  \"domain_min_k\": " << options.min_k << ",\n"
+         << "  \"domain_max_k\": " << options.max_k << ",\n"
+         << "  \"model_sha256\": " << json_string(options.model_sha256) << ",\n"
+         << "  \"events_sha256\": " << json_string(options.events_sha256) << ",\n"
+         << "  \"runner_source_sha256\": " << json_string(options.runner_source_sha256) << ",\n"
+         << "  \"completed_interval_energy\": {\"activity_input_j\":" << activity_completed
+         << ",\"static_input_j\":" << static_completed
+         << ",\"stored_energy_change_j\":" << stored_completed
+         << ",\"boundary_loss_j\":" << boundary_loss_j
+         << ",\"energy_residual_j\":" << residual_completed << "},\n"
+         << "  \"failed_trial_step_energy\": {\"status\":\"UNKNOWN_NOT_INTEGRATED\","
+            "\"activity_input_j\":null,\"static_input_j\":null,"
+            "\"stored_energy_change_j\":null,\"boundary_loss_j\":null,"
+            "\"energy_residual_j\":null}\n"
+         << "}\n";
+  output.close();
+  if (!output) throw std::runtime_error("failed writing RC failure diagnostic");
+  std::filesystem::rename(temporary, final);
+}
+
+void failure_diagnostic(const Options& options, const ThermalModelConfig& config,
+                        const Eigen::VectorXd& last_valid_temperature,
+                        const Eigen::VectorXd& trial_temperature,
+                        const Eigen::VectorXd& last_valid_theta,
+                        const Eigen::VectorXd& applied,
+                        const Eigen::VectorXd& power,
+                        std::uint64_t completed_steps, std::uint64_t trial_step,
+                        std::uint64_t slot, double last_valid_time_s,
+                        double trial_time_s, long double boundary_loss_j,
+                        double origin_k, const std::string& reason) {
+  const std::filesystem::path final{"rc_failure_diagnostic.json"};
+  const std::filesystem::path temporary{"rc_failure_diagnostic.json.tmp"};
+  require(!std::filesystem::exists(final) && !std::filesystem::exists(temporary),
+          "refusing to overwrite RC failure diagnostic");
+  write_state("rc_failure_last_valid.csv", config, last_valid_temperature);
+  write_state("rc_failure_trial.csv", config, trial_temperature);
+
+  std::vector<std::size_t> offending;
+  std::size_t nonfinite_count = 0;
+  for (Eigen::Index index = 0; index < trial_temperature.size(); ++index) {
+    const double value = trial_temperature[index];
+    if (!std::isfinite(value)) ++nonfinite_count;
+    if (!std::isfinite(value) || value < options.min_k || value > options.max_k)
+      offending.push_back(static_cast<std::size_t>(index));
+  }
+  long double activity_completed = 0;
+  for (Eigen::Index index = 0; index < applied.size(); ++index)
+    activity_completed += applied[index];
+  const long double static_completed = static_energy(config, last_valid_time_s);
+  const long double stored_completed = stored_energy(config, last_valid_theta, origin_k);
+  const long double residual_completed = activity_completed + static_completed -
+                                         stored_completed - boundary_loss_j;
+  const bool finite_trial = trial_temperature.allFinite();
+
+  std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+  if (!output) throw std::runtime_error("cannot create RC failure diagnostic");
+  output << std::setprecision(17)
+         << "{\n"
+         << "  \"schema_version\": \"eq3-campaign-sparse-rc-failure-v1\",\n"
+         << "  \"status\": "
+         << json_string(nonfinite_count ? "NUMERICAL_FAILURE" : "DOMAIN_FAILURE") << ",\n"
+         << "  \"exit_reason\": " << json_string(reason) << ",\n"
+         << "  \"failure_returned_to_caller\": true,\n"
+         << "  \"temperature_clamping\": false,\n"
+         << "  \"last_valid_state_file\": \"rc_failure_last_valid.csv\",\n"
+         << "  \"trial_state_file\": \"rc_failure_trial.csv\",\n"
+         << "  \"last_valid_time_s\": " << last_valid_time_s << ",\n"
+         << "  \"trial_target_time_s\": " << trial_time_s << ",\n"
+         << "  \"completed_steps\": " << completed_steps << ",\n"
+         << "  \"trial_step_1_based\": " << trial_step << ",\n"
+         << "  \"step_s\": " << options.step_s << ",\n"
+         << "  \"input_slot_index_0_based\": " << slot << ",\n"
+         << "  \"input_interval_start_s\": " << static_cast<double>(slot) * options.slot_s << ",\n"
+         << "  \"input_interval_end_s\": " << static_cast<double>(slot + 1) * options.slot_s << ",\n"
+         << "  \"trial_activity_power_w\": " << json_number_or_null(power.sum()) << ",\n"
+         << "  \"domain_version\": " << json_string(options.domain_version) << ",\n"
+         << "  \"domain_min_k\": " << options.min_k << ",\n"
+         << "  \"domain_max_k\": " << options.max_k << ",\n"
+         << "  \"model_path\": " << json_string(options.model_path) << ",\n"
+         << "  \"events_path\": " << json_string(options.events_path) << ",\n"
+         << "  \"model_sha256\": " << json_string(options.model_sha256) << ",\n"
+         << "  \"events_sha256\": " << json_string(options.events_sha256) << ",\n"
+         << "  \"runner_source_sha256\": " << json_string(options.runner_source_sha256) << ",\n"
+         << "  \"coordinate_status\": \"UNKNOWN_NOT_EXPOSED_BY_MODEL_TEXT_API\",\n"
+         << "  \"nonfinite_trial_nodes\": " << nonfinite_count << ",\n"
+         << "  \"trial_extrema_available\": " << (finite_trial ? "true" : "false") << ",\n";
+  if (finite_trial)
+    output << "  \"trial_min_k\": " << trial_temperature.minCoeff() << ",\n"
+           << "  \"trial_max_k\": " << trial_temperature.maxCoeff() << ",\n";
+  else
+    output << "  \"trial_min_k\": null,\n  \"trial_max_k\": null,\n";
+  output << "  \"offending_nodes\": [";
+  for (std::size_t position = 0; position < offending.size(); ++position) {
+    if (position) output << ',';
+    const std::size_t index = offending[position];
+    const auto& node = config.nodes[index];
+    output << "{\"index\":" << index << ",\"id\":" << json_string(node.id)
+           << ",\"group_id\":" << json_string(node.group_id) << ",\"die_index\":";
+    if (node.die_index) output << *node.die_index;
+    else output << "null";
+    output << ",\"temperature_k\":";
+    const double value = trial_temperature[static_cast<Eigen::Index>(index)];
+    if (std::isfinite(value)) output << value;
+    else output << json_string(std::isnan(value) ? "NaN" : value > 0 ? "+Infinity" : "-Infinity");
+    output << '}';
+  }
+  output << "],\n"
+         << "  \"completed_interval_energy\": {\n"
+         << "    \"activity_input_j\": " << activity_completed << ",\n"
+         << "    \"static_input_j\": " << static_completed << ",\n"
+         << "    \"stored_energy_change_j\": " << stored_completed << ",\n"
+         << "    \"boundary_loss_j\": " << boundary_loss_j << ",\n"
+         << "    \"energy_residual_j\": " << residual_completed << "\n"
+         << "  },\n"
+         << "  \"failed_trial_step_energy\": {\"status\":\"UNKNOWN_NOT_INTEGRATED\","
+            "\"activity_input_j\":null,\"static_input_j\":null,"
+            "\"stored_energy_change_j\":null,\"boundary_loss_j\":null,"
+            "\"energy_residual_j\":null}\n"
+         << "}\n";
+  output.close();
+  if (!output) throw std::runtime_error("failed writing RC failure diagnostic");
+  std::filesystem::rename(temporary, final);
+}
+
 void receipt(const Options& options, const Schedule& schedule,
              const ThermalModelConfig& config, std::size_t matrix_nnz,
              double alignment_error_s, double min_observed_k,
@@ -412,9 +666,12 @@ void run(const ThermalModelConfig& config,
          const std::vector<PhysicalActivity>& activities,
          const Options& options, const Schedule& schedule,
          double alignment_error_s) {
-  require(!std::filesystem::exists("rc_energy_receipt.json") &&
-              !std::filesystem::exists("rc_energy_receipt.json.tmp"),
-          "refusing to overwrite RC energy receipt");
+  for (const char* path : {"rc_energy_receipt.json", "rc_energy_receipt.json.tmp",
+                           "rc_failure_diagnostic.json", "rc_failure_diagnostic.json.tmp",
+                           "rc_failure_last_valid.csv", "rc_failure_last_valid.csv.tmp",
+                           "rc_failure_trial.csv", "rc_failure_trial.csv.tmp"})
+    require(!std::filesystem::exists(path),
+            std::string("refusing to overwrite RC output ") + path);
   const SparseMatrix matrix = system_matrix(config, options.step_s);
   SparseSolver solver;
   const auto factor_start = std::chrono::steady_clock::now();
@@ -437,14 +694,6 @@ void run(const ThermalModelConfig& config,
                                   (node.boundary_temperature_k - origin);
   }
   double minimum = temperature.minCoeff(), maximum = temperature.maxCoeff();
-  const auto check_domain = [&] {
-    require(temperature.allFinite(), "sparse solve produced nonfinite temperature");
-    minimum = std::min(minimum, temperature.minCoeff());
-    maximum = std::max(maximum, temperature.maxCoeff());
-    require(temperature.minCoeff() >= options.min_k &&
-                temperature.maxCoeff() <= options.max_k,
-            "temperature left required domain");
-  };
   std::cout << "time_s,node_id,temperature_k\n" << std::setprecision(17);
   emit(0.0, config, temperature);
   long double boundary_loss = 0;
@@ -455,10 +704,39 @@ void run(const ThermalModelConfig& config,
       ++global;
       const Eigen::VectorXd rhs =
           capacity_over_dt.cwiseProduct(theta) + static_and_boundary + power;
-      theta = solver.solve(rhs);
-      temperature = theta.array() + origin;
-      require(solver.info() == Eigen::Success, "sparse LDLT solve failed");
-      check_domain();
+      const Eigen::VectorXd trial_theta = solver.solve(rhs);
+      const Eigen::VectorXd trial_temperature = trial_theta.array() + origin;
+      const double trial_time = local == schedule.steps_per_slot
+                                    ? static_cast<double>(slot + 1) * options.slot_s
+                                    : static_cast<double>(slot) * options.slot_s +
+                                          static_cast<double>(local) * options.step_s;
+      const double last_valid_time = local == 1
+                                         ? static_cast<double>(slot) * options.slot_s
+                                         : static_cast<double>(slot) * options.slot_s +
+                                               static_cast<double>(local - 1) * options.step_s;
+      if (solver.info() != Eigen::Success) {
+        unknown_trial_diagnostic(options, config, temperature, theta, applied, power,
+                                 global - 1, global, slot, last_valid_time,
+                                 trial_time, boundary_loss, origin,
+                                 "sparse LDLT solve failed");
+        fail("sparse LDLT solve failed");
+      }
+      const bool finite = trial_temperature.allFinite();
+      const bool in_domain = finite && trial_temperature.minCoeff() >= options.min_k &&
+                             trial_temperature.maxCoeff() <= options.max_k;
+      if (!in_domain) {
+        failure_diagnostic(options, config, temperature, trial_temperature, theta,
+                           applied, power, global - 1, global, slot,
+                           last_valid_time, trial_time, boundary_loss,
+                           origin, finite ? "temperature left required domain"
+                                          : "sparse solve produced nonfinite temperature");
+        fail(finite ? "temperature left required domain"
+                    : "sparse solve produced nonfinite temperature");
+      }
+      theta = trial_theta;
+      temperature = trial_temperature;
+      minimum = std::min(minimum, temperature.minCoeff());
+      maximum = std::max(maximum, temperature.maxCoeff());
       for (Eigen::Index index = 0; index < n; ++index) {
         const auto& node = config.nodes[static_cast<std::size_t>(index)];
         boundary_loss += static_cast<long double>(options.step_s) *
@@ -476,14 +754,11 @@ void run(const ThermalModelConfig& config,
       }
     }
   }
-  long double applied_energy = 0, stored = 0;
+  long double applied_energy = 0;
   for (Eigen::Index index = 0; index < n; ++index) {
     applied_energy += applied[index];
-    const auto& node = config.nodes[static_cast<std::size_t>(index)];
-    stored += node.heat_capacity_j_per_k *
-              (static_cast<long double>(theta[index]) -
-               (node.initial_temperature_k - origin));
   }
+  const long double stored = stored_energy(config, theta, origin);
   receipt(options, schedule, config, static_cast<std::size_t>(matrix.nonZeros()),
           alignment_error_s, minimum, maximum,
           declared_activity_energy(activities), applied_energy, stored,

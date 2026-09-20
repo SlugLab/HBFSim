@@ -13,17 +13,22 @@ def read(path):
             seq.append((t,v))
     return result
 
-def crossings(seq,threshold):
+def crossings(seq,threshold,initial_k=300.,initial_time_s=0.):
     # All transitions, both heating and cooling, linear interpolation of the
-    # registered0.1s observations; t0 explicitly from declared300K initial state.
-    out=[];previous=(0.,300.)
+    # registered observations; t0 comes from the selected analysis contract.
+    if not math.isfinite(initial_k) or not math.isfinite(initial_time_s):
+        raise ValueError('initial state must be finite')
+    out=[];previous=(initial_time_s,initial_k)
     for current in seq:
         t0,v0=previous;t,v=current
         if (v0<threshold<=v) or (v<threshold<=v0):out.append(('up' if v>v0 else 'down',t0+(t-t0)*(threshold-v0)/(v-v0)))
         previous=current
     return out
 
-def compare(reference,candidate,mode):
+def compare(reference,candidate,mode,initial_k=300.,probes_k=(301.,330.)):
+    probes_k=tuple(float(value) for value in probes_k)
+    if not math.isfinite(initial_k) or not probes_k or any(not math.isfinite(v) for v in probes_k):
+        raise ValueError('initial temperature and probes must be finite and probes nonempty')
     ref=read(reference);cand=read(candidate)
     if set(ref)!=set(cand):raise ValueError('sensor coverage differs')
     rows=[]
@@ -33,15 +38,15 @@ def compare(reference,candidate,mode):
         errors=[abs(a[1]-b[1]) for a,b in zip(rv,cv)];mae=math.fsum(errors)/len(errors);maximum=max(errors)
         scale=max(max(v for t,v in rv)-min(v for t,v in rv),1.)
         crossing=[]
-        for threshold in [301,330]:
-            a=crossings(rv,threshold);b=crossings(cv,threshold)
+        for threshold in probes_k:
+            a=crossings(rv,threshold,initial_k);b=crossings(cv,threshold,initial_k)
             ok=len(a)==len(b) and all(x[0]==y[0] and abs(x[1]-y[1])<=max(.2,.05*x[1]) for x,y in zip(a,b))
             crossing.append({'probe_k':threshold,'reference':a,'candidate':b,'status':'NOT_APPLICABLE' if not a and not b else 'PASS' if ok else 'FAIL'})
         ok=maximum<=.25 if mode=='reference' else (mae<=1 and mae/scale<=.05 and ('hotspot' not in sid or maximum<=2) and all(x['status']!='FAIL' for x in crossing))
         rows.append({'sensor_id':sid,'mae_k':mae,'max_abs_k':maximum,'normalized_mae':mae/scale,'reference_range_k':scale,'crossings':crossing,'passed':ok})
-    return {'status':'PASS' if all(r['passed'] for r in rows) else 'NUMERICAL_FAIL','mode':mode,'max_abs_k':max(r['max_abs_k'] for r in rows),'worst_mae_k':max(r['mae_k'] for r in rows),'worst_normalized_mae':max(r['normalized_mae'] for r in rows),'sensors':rows,'crossing_semantics':'all ascending and descending transitions interpolated on0.1s observations; declared initial300K','physical_calibration':False}
+    return {'status':'PASS' if all(r['passed'] for r in rows) else 'NUMERICAL_FAIL','mode':mode,'max_abs_k':max(r['max_abs_k'] for r in rows),'worst_mae_k':max(r['mae_k'] for r in rows),'worst_normalized_mae':max(r['normalized_mae'] for r in rows),'sensors':rows,'analysis_initial_k':initial_k,'analysis_probes_k':list(probes_k),'crossing_semantics':f'all ascending and descending transitions interpolated on registered observations; selected initial {initial_k:g}K','physical_calibration':False}
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--reference',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--mode',choices=['reference','rc'],required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args();r=compare(a.reference,a.candidate,a.mode)
+    p=argparse.ArgumentParser();p.add_argument('--reference',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--mode',choices=['reference','rc'],required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--initial-k',type=float,default=300.);p.add_argument('--probe-k',type=float,action='append',dest='probes_k');a=p.parse_args();r=compare(a.reference,a.candidate,a.mode,a.initial_k,a.probes_k or (301.,330.))
     with a.output.open('x') as f:json.dump(r,f,indent=2)
     print(json.dumps({k:v for k,v in r.items() if k!='sensors'}))

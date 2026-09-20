@@ -314,14 +314,18 @@ def validate_gate(manifest, approval, root, approval_path=None,
         _fail("CODE_DIFF_MISMATCH", "current tracked Git diff differs from the bound diff")
     if approval is None:
         _fail("PENDING_USER_APPROVAL", "no independently supplied user confirmation record was provided")
+    stage = None
     if approval.get('record_kind') == 'USER_STAGE_AUTHORIZATION':
         from eq3_campaign_gate import validate_stage
-        validate_stage(approval, manifest, root)
+        stage = validate_stage(approval, manifest, root)
     else:
         validate_approval(approval, manifest, expected_hash, approval_path)
-    return {"status": "READY_FOR_SUBMISSION", "experiment_id": manifest["experiment_id"],
+    result={"status": "READY_FOR_SUBMISSION", "experiment_id": manifest["experiment_id"],
             "version": manifest["version"], "canonical_manifest_hash": expected_hash,
             "launch_performed": False}
+    if stage:
+        result.update(resource_policy=stage['resource_policy'],resource_limits=stage['resource_limits'])
+    return result
 
 
 def main(argv=None):

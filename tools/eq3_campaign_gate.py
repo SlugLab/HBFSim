@@ -1,5 +1,5 @@
 """Small stage-scope gate, not a user-signature synthesizer or scheduler."""
-import hashlib,json,re,copy
+import hashlib,json,re,copy,math
 from pathlib import Path
 from eq3_experiment_gate import _fail,canonical_manifest_hash
 
@@ -14,6 +14,25 @@ def resolve(root,path):
     p=(root/path).resolve()
     if root not in p.parents or not p.is_file():_fail('STAGE_PATH_INVALID',path)
     return p
+
+def resource_limits(scope):
+    """Return a validated per-experiment envelope, or the legacy fixed one."""
+    limits=scope['limits']
+    if scope.get('resource_policy')!='PER_EXPERIMENT_USER_CONFIRMED':
+        return {'task_ram_gib':16,'process_ram_gib':12,'threads':1,'watchdog_s':600,
+          'point_disk_gib':4,'task_disk_gib':20,'min_free_disk_gib':0,'gpu':0,'cloud':0}
+    required={'task_ram_gib','process_ram_gib','threads','watchdog_s','point_disk_gib',
+      'task_disk_gib','min_free_disk_gib','gpu','cloud'}
+    if set(limits)!=required:_fail('STAGE_RESOURCE_POLICY_INVALID','per-experiment limits incomplete')
+    if any(isinstance(limits[x],bool) or not isinstance(limits[x],(int,float)) or not math.isfinite(limits[x]) for x in required):
+        _fail('STAGE_RESOURCE_POLICY_INVALID','per-experiment limits must be numeric')
+    if not all(limits[x]>0 for x in ('task_ram_gib','process_ram_gib','threads','watchdog_s','point_disk_gib','task_disk_gib')):
+        _fail('STAGE_RESOURCE_POLICY_INVALID','per-experiment positive limits required')
+    if limits['process_ram_gib']>limits['task_ram_gib'] or limits['point_disk_gib']>limits['task_disk_gib'] or limits['min_free_disk_gib']<0:
+        _fail('STAGE_RESOURCE_POLICY_INVALID','per-experiment resource hierarchy invalid')
+    if int(limits['threads'])!=limits['threads'] or limits['gpu']!=0 or limits['cloud']!=0:
+        _fail('STAGE_RESOURCE_POLICY_INVALID','integer threads and zero GPU/cloud required')
+    return limits
 
 def validate_stage(authorization,manifest,root):
     root=Path(root).resolve()
@@ -63,7 +82,11 @@ def validate_stage(authorization,manifest,root):
         expected_hash=canonical(prefix_ir(full,end))
     if canonical(ir)!=expected_hash:_fail('STAGE_PHYSICS_CHANGED','IR differs from frozen physical/power/sensor input or exact authorized prefix')
     r=manifest['resource_budget']['requested']
-    if r['ram_gib']>12 or r['disk_gib']>4 or r['build_threads']!=1 or r['gpu_compute_minutes']!=0 or r['cpu_configurations']!=1 or r['executions_per_configuration']!=1:_fail('STAGE_RESOURCE_EXCEEDED','stage envelope')
+    limits=resource_limits(scope)
+    if (r['ram_gib']>limits['process_ram_gib'] or r['disk_gib']>limits['point_disk_gib'] or
+        r['build_threads']!=limits['threads'] or r['gpu_compute_minutes']!=0 or
+        r['cpu_configurations']!=1 or r['executions_per_configuration']!=1):
+        _fail('STAGE_RESOURCE_EXCEEDED','stage envelope')
     if contract['limits']!=scope['limits']:_fail('STAGE_RESOURCE_EXCEEDED','child must retain stage safety limits')
     if contract['fit_parameters']!=0 or contract['rom_count']!=0:_fail('STAGE_METHOD_OUT_OF_SCOPE','no fit/ROM')
     if not 0<contract['step_s']<=.02:_fail('STAGE_NUMERICS_INVALID','invalid step')
@@ -80,4 +103,5 @@ def validate_stage(authorization,manifest,root):
     if family in ('reference','reference_pilot'):
         mesh=contract['mesh_um'];ratio=4000/mesh
         if mesh<=0 or abs(ratio-round(ratio))>1e-8 or round(ratio)&(round(ratio)-1):_fail('STAGE_NUMERICS_INVALID','non-dyadic reference grid')
-    return {'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','stage_id':scope['stage_id'],'point_id':contract['point_id']}
+    return {'status':'AUTHORIZED_BY_USER_STAGE_SCOPE','stage_id':scope['stage_id'],'point_id':contract['point_id'],
+      'resource_policy':scope.get('resource_policy','LEGACY_FIXED'),'resource_limits':limits}

@@ -66,6 +66,18 @@ class StreamTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'producer failed'):
                 self.producer(tmp, mode='fail')
 
+    def test_bound_outer_policy_can_supply_longer_watchdog_and_process_ram(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result=run_stream([sys.executable,'-c',PRODUCER,'1','1','1','1','ok'],tmp,1,1,1,1,
+                              watchdog=3600,process_ram_gib=.25)
+            self.assertEqual(result['status'],'PASS')
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError,'invalid dimensions or watchdog'):
+                run_stream([sys.executable,'-c','pass'],tmp,1,1,1,1,watchdog=0)
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError,'point output budget exceeded'):
+                run_stream([sys.executable,'-c',PRODUCER,'1','1','1','1','ok'],tmp,1,1,1,1,watchdog=10,max_bytes=1)
+
     def test_replay_and_corrupt_footer(self):
         with tempfile.TemporaryDirectory() as tmp:
             source, compressed = Path(tmp) / 'field', Path(tmp) / 'field.gz'

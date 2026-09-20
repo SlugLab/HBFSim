@@ -13,6 +13,11 @@ class GuardContractTests(unittest.TestCase):
         result=x.advance(0,20,{})
         self.assertEqual(result['stack_states'],{'hbf0':'severe'})
         self.assertEqual(result['temperatures']['gpu'],325)
+    def test_gpu_light_propagates_half_budget(self):
+        x=self.client();x.command=lambda _:dict(entity_temperatures_k={'gpu':{'hotspot_k':315},'hbf0.die0':{'hotspot_k':300}})
+        result=x.advance(0,20,{})
+        self.assertEqual(result['stack_states'],{'hbf0':'light'})
+        self.assertEqual(result['hysteresis_budget_bytes'],{'hbf0':50})
     def test_escalation_delay_and_recovery_dwell(self):
         x=self.client(20)
         def sample(temp,t):return x._guard({'hbf0.die0':{'hotspot_k':temp}},t)[1]['hbf0']

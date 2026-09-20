@@ -12,6 +12,7 @@ from closed_loop import ClosedLoopCoordinator, UnsupportedComposition
 from read_rate_policy import EngineeringProfile, ReadRatePolicy
 from eq3_basic_fabric import BasicFabric
 from eq3_basic_system import engineering_fixture
+from incremental_fabric import IncrementalBasicFabric
 
 
 class FakeMqsim:
@@ -22,6 +23,7 @@ class FakeMqsim:
         self.observations, self.native_observations = [], []
         self.requests, self.completions, self.pending = {}, {}, []
         self.maintenance_events, self.maintenance_completions = [], {}
+        self.maintenance_requests = {}
 
     def try_submit(self, request):
         request = dict(request)
@@ -48,11 +50,16 @@ class FakeMqsim:
                                                 "state": "commit", "time_ns": reported,
                                                 "transaction_id": None, "source": {},
                                                 "destination": None})
+                cleanup_failure = self.maintenance_mode == "POSTCOMMIT_ERASE_FAILURE"
                 self.maintenance_completions[rid] = {
                     "request_id": rid, "parent_id": rid, "status": "COMMITTED",
                     "enqueue_ns": reported-25, "start_ns": reported-25,
                     "end_ns": reported, "mapping_committed": True,
-                    "age_reset_ns": reported}
+                    "age_reset_ns": reported, "erase_completed": not cleanup_failure}
+                if cleanup_failure:
+                    self.maintenance_completions[rid]["status"] = "FAILED_AFTER_COMMIT_NEEDS_RECONCILE"
+                elif self.maintenance_mode == "COMMITTED_RECLAIM_DEFERRED":
+                    self.maintenance_completions[rid]["status"] = "COMMITTED_RECLAIM_DEFERRED"
                 completion = None
             else:
                 request = self.requests[rid]
@@ -70,6 +77,7 @@ class FakeMqsim:
         if self.maintenance_mode == "UNSUPPORTED_CAPABILITY":
             return {"status": "UNSUPPORTED_CAPABILITY", "submitted": False}
         rid = request['request_id']
+        self.maintenance_requests[rid] = dict(request)
         heapq.heappush(self.pending, (self.now + 25, rid, "maintenance"))
         return {"status": "ACCEPTED", "maintenance_accepted": 1,
                 "placement": {"stack": request["stack"]}, "target": {}}
@@ -127,13 +135,14 @@ def request(request_id, arrival=0):
 
 class ClosedLoopTests(unittest.TestCase):
     def build(self, *, end=100, raw_offset=0, policy=None, thermal_states=None,
-              maintenance="UNSUPPORTED_CAPABILITY"):
+              maintenance="UNSUPPORTED_CAPABILITY", budget=1024,
+              fabric_class=BasicFabric):
         fixture = engineering_fixture("all_hbf_direct", 64)
-        fabric = BasicFabric(fixture["fabric"])
+        fabric = fabric_class(fixture["fabric"])
         stacks = sorted(fixture["fabric"]["hbf"])
-        budgets = {stack: 1024 for stack in stacks}
+        budgets = {stack: budget for stack in stacks}
         policy = policy or ReadRatePolicy(EngineeringProfile(profile_id="off", window_ns=100))
-        endpoint = {f"{stack}:gpu-link": 1024 for stack in stacks}
+        endpoint = {f"{stack}:gpu-link": budget for stack in stacks}
         mqsim = FakeMqsim(raw_offset=raw_offset, maintenance=maintenance)
         thermal = FakeThermal(stacks, thermal_states)
         system = ClosedLoopCoordinator(
@@ -207,6 +216,81 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(row["submit_ns"], 200)
         self.assertTrue(any(event["phase"] == "THERMAL_BLOCKED"
                             for event in result["timeline"]["maintenance"]))
+
+    def test_weight_metadata_and_effective_bytes_are_preserved(self):
+        system, mqsim, _ = self.build(budget=64)
+        weighted = request("weighted")
+        weighted.update(valid_weight_bytes=16, global_page=9, global_byte_address=144,
+                        logical_regions=["layer.0"], scan_index=2, local_page=1)
+        result = system.run([weighted])
+        row = result["requests"][0]
+        self.assertEqual(row["valid_weight_bytes"], 16)
+        self.assertEqual(row["global_page"], 9)
+        self.assertEqual(row["logical_regions"], ["layer.0"])
+        self.assertEqual(mqsim.requests[1]["bytes"], 64)
+        self.assertEqual(result["summary"]["offered_effective_bytes"], 16)
+        self.assertEqual(result["summary"]["offered_physical_bytes"], 64)
+        rate = result["timeline"]["rates"][0]["stacks"][0]
+        self.assertEqual(rate["offered_bytes"], 16)
+        self.assertEqual(rate["physical_offered_bytes"], 64)
+
+    def test_invalid_valid_weight_extent_is_rejected(self):
+        system, _, _ = self.build()
+        invalid = request("invalid")
+        invalid["valid_weight_bytes"] = 65
+        with self.assertRaisesRegex(ValueError, "must not exceed"):
+            system.run([invalid])
+
+    def test_admission_gate_still_reserves_physical_bytes(self):
+        profile = EngineeringProfile(profile_id="physical-gate", enabled=True,
+                                     strategy="guard_only", window_ns=100,
+                                     target_bytes_per_s=1, step_bytes=1,
+                                     minimum_budget_bytes=0, maximum_budget_bytes=16,
+                                     severe_budget_bytes=0)
+        system, mqsim, _ = self.build(budget=16, policy=ReadRatePolicy(profile))
+        weighted = request("physical-gate")
+        weighted["valid_weight_bytes"] = 8
+        result = system.run([weighted])
+        self.assertEqual(mqsim.requests, {})
+        self.assertEqual(result["summary"]["censored_effective_bytes"], 8)
+        self.assertEqual(result["summary"]["censored_physical_bytes"], 64)
+
+    def test_trigger_and_postcommit_cleanup_failure_preserve_age_reset(self):
+        system, mqsim, _ = self.build(maintenance="POSTCOMMIT_ERASE_FAILURE")
+        maintenance = [{"request_id": 1001, "stack": "hbf0", "stack_local_page": 0,
+                        "due_ns": 10, "initial_age_s": 86_399.5, "bytes": 64}]
+        result = system.run([], maintenance)
+        row = result["maintenance"][0]
+        self.assertEqual(mqsim.maintenance_requests[1001]["trigger_reason"], "RETENTION_AGE_DUE")
+        self.assertEqual(row["state"], "COMMITTED_CLEANUP_FAILED")
+        self.assertTrue(row["mapping_committed"])
+        self.assertIsInstance(row["age_reset_ns"], int)
+        self.assertEqual(result["summary"]["maintenance_committed"], 1)
+        self.assertEqual(result["summary"]["maintenance_failed"], 0)
+        self.assertEqual(result["summary"]["maintenance_cleanup_failed_after_commit"], 1)
+
+    def test_coordinator_prefers_incremental_fabric_observer(self):
+        class IncrementalOnly(IncrementalBasicFabric):
+            def events(self):
+                raise AssertionError("full event snapshot must not be requested")
+
+            def completions(self):
+                raise AssertionError("full completion snapshot must not be requested")
+
+        system, _, _ = self.build(fabric_class=IncrementalOnly)
+        result = system.run([request("incremental")])
+        self.assertEqual(result["summary"]["observation_completed_count"], 1)
+
+    def test_safe_reclaim_deferred_is_not_cleanup_failure(self):
+        system, _, _ = self.build(maintenance="COMMITTED_RECLAIM_DEFERRED")
+        maintenance = [{"request_id": 1001, "stack": "hbf0", "stack_local_page": 0,
+                        "due_ns": 10, "initial_age_s": 86_399.5, "bytes": 64}]
+        result = system.run([], maintenance)
+        row = result["maintenance"][0]
+        self.assertEqual(row["state"], "COMMITTED")
+        self.assertFalse(row["cleanup_failed"])
+        self.assertEqual(result["summary"]["maintenance_committed"], 1)
+        self.assertEqual(result["summary"]["maintenance_cleanup_failed_after_commit"], 0)
 
 
 if __name__ == "__main__":

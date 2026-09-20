@@ -25,7 +25,7 @@ from read_rate_policy import EngineeringProfile,ReadRatePolicy
 from maintenance_service import MaintenanceMqsimService
 from weight_workloads import weight_extent,generate_weight_requests
 from eq3_basic_hbm import BasicHbm
-from eq3_basic_fabric import BasicFabric
+from incremental_fabric import IncrementalBasicFabric as BasicFabric
 
 
 def write_json(path,value):
@@ -110,6 +110,11 @@ def run(args):
           wall_s=600,expected_output_gib=1,host_memory_reserve_gib=32,host_disk_reserve_gib=100),
           resource_reason='First medium-event pilot; source tests and complete-model paired factorRSS<0.4GiB; two owned serial CPU processes plus coordinator.',
           scientific_scope='Finite working region, true16die MQSim topology, original complete2mm thermal model; no product throughput/capacity/energy calibration or token causality')
+    if args.campaign_lock:
+        lock=args.campaign_lock.resolve(strict=True)
+        meta['kind']='FROZEN_CONDITIONAL_ENGINEERING_CAMPAIGN'
+        meta['campaign_lock']=str(lock)
+        meta['campaign_lock_sha256']=hashlib.sha256(lock.read_bytes()).hexdigest()
     for name,obj in [('configuration.json',cfg),('profile.json',cfg['profile']),('stack-map.json',cfg['stack_map']),
                      ('requests-input.json',requests),('maintenance-input.json',maintenance),
                      ('energy-profile.json',coefficient),('policy-profile.json',asdict(policy_profile))]:
@@ -168,6 +173,11 @@ def run(args):
         write_csv(output/'requests.csv',result['requests'])
         write_csv(output/'maintenance.csv',result['maintenance'])
         for name,rows in result['timeline'].items():write_csv(output/(name+'.csv'),rows)
+        commands=[]
+        for event in result['timeline']['native']:
+            header={k:v for k,v in event.items() if k!='transactions'}
+            commands.extend(dict(header,**transaction) for transaction in event.get('transactions',[]))
+        write_csv(output/'commands.csv',commands)
         write_csv(output/'energy-activity.csv',energy.rows)
         summary=result['summary']
         summary.update(mode=args.mode,workload=args.workload,policy=args.policy,
@@ -198,6 +208,7 @@ if __name__=='__main__':
     p.add_argument('--active-s',type=float,default=.4);p.add_argument('--recovery-s',type=float,default=.2)
     p.add_argument('--maintenance',action='store_true')
     p.add_argument('--maintenance-due-s',type=float,default=None)
+    p.add_argument('--campaign-lock',type=Path,default=None)
     p.add_argument('--weight-model',default=None)
     p.add_argument('--capacity-model',default='Qwen/Qwen2.5-72B-Instruct')
     p.add_argument('--scan-period-s',type=float,default=None)

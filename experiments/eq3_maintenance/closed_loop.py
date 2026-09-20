@@ -14,6 +14,9 @@ from read_rate_policy import (ByteTokenLedger, Decision, StackDecision,
 
 
 MAX_HORIZON_NS = (1 << 64) - 1
+REQUEST_METADATA_FIELDS = (
+    "global_page", "global_byte_address", "logical_regions", "scan_index", "local_page",
+)
 
 
 class UnsupportedComposition(RuntimeError):
@@ -72,7 +75,8 @@ class ClosedLoopCoordinator:
         self._records, self._waiting, self._mq_pending = {}, [], {}
         self._maintenance, self._maintenance_pending = {}, {}
         self._next_backend_id = 1
-        self._fabric_seen = self._native_seen = self._observation_seen = 0
+        self._fabric_seen = self._fabric_completion_seen = 0
+        self._native_seen = self._observation_seen = 0
         self._maintenance_event_seen = 0
         self._maintenance_completion_seen = set()
         self._energy_row_seen = 0
@@ -142,15 +146,23 @@ class ClosedLoopCoordinator:
             if route != "direct" or raw["operation"] not in {"read", "write"}:
                 raise ValueError("HBM supports direct read/write only")
             local_page = None
+        physical_bytes = _integer(raw["bytes"], "bytes", positive=True)
+        valid_bytes = _integer(raw.get("valid_weight_bytes", physical_bytes),
+                               "valid_weight_bytes", positive=True)
+        if valid_bytes > physical_bytes:
+            raise ValueError("valid_weight_bytes must not exceed physical bytes")
         row = {"request_id": request_id, "sequence": sequence, "kind": kind,
                "stack": stack, "route": route,
-               "bytes": _integer(raw["bytes"], "bytes", positive=True),
+               "bytes": physical_bytes, "valid_weight_bytes": valid_bytes,
                "arrival_ns": _integer(raw["arrival_ns"], "arrival_ns"),
                "operation": raw["operation"], "stack_local_page": local_page,
                "route_endpoints": self._route_endpoints(raw), "state": "NOT_ARRIVED",
                "backend_submit_ns": None, "backend_completion_ns": None,
                "backend_media_ns": None, "fabric_completion_ns": None,
                "final_completion_ns": None, "gate_limited": False}
+        for field in REQUEST_METADATA_FIELDS:
+            if field in raw:
+                row[field] = copy.deepcopy(raw[field])
         self._records[request_id] = row
         return row
 
@@ -217,12 +229,25 @@ class ClosedLoopCoordinator:
             mid = self._maintenance_pending.pop(backend_id)
             row = self._maintenance[mid]
             row["completion_ns"] = completion["end_ns"]
-            successful = completion.get("status") in {
-                "COMMITTED", "COMMITTED_RECLAIM_DEFERRED"}
-            if successful and not completion.get("mapping_committed"):
+            status = completion.get("status")
+            mapping_committed = completion.get("mapping_committed") is True
+            age_reset_ns = completion.get("age_reset_ns")
+            if mapping_committed and not isinstance(age_reset_ns, int):
                 raise UnsupportedComposition(
-                    "maintenance status and mapping commit fact disagree")
-            row["state"] = "COMMITTED" if successful else "FAILED"
+                    "mapping commit lacks an observed age_reset_ns")
+            if not mapping_committed and age_reset_ns is not None:
+                raise UnsupportedComposition(
+                    "uncommitted maintenance reported an age reset")
+            normal_commit = status in {"COMMITTED", "COMMITTED_RECLAIM_DEFERRED"}
+            if normal_commit and not mapping_committed:
+                raise UnsupportedComposition("maintenance status and mapping commit fact disagree")
+            if mapping_committed:
+                row["state"] = "COMMITTED" if normal_commit else "COMMITTED_CLEANUP_FAILED"
+            else:
+                row["state"] = "FAILED"
+            row.update(backend_status=status, mapping_committed=mapping_committed,
+                       age_reset_ns=age_reset_ns,
+                       cleanup_failed=(status == "FAILED_AFTER_COMMIT_NEEDS_RECONCILE"))
             row["completion"] = copy.deepcopy(completion)
             self._timeline["maintenance"].append({"phase": row["state"], **copy.deepcopy(row)})
 
@@ -243,8 +268,12 @@ class ClosedLoopCoordinator:
             self.energy.hbm(value)
 
     def _accept_fabric(self):
-        events = self.fabric.events()
-        for event in events[self._fabric_seen:]:
+        if hasattr(self.fabric, "events_since"):
+            next_event_offset, new_events = self.fabric.events_since(self._fabric_seen)
+        else:
+            events = self.fabric.events()
+            next_event_offset, new_events = len(events), events[self._fabric_seen:]
+        for event in new_events:
             request = self._records[event["request_id"]]
             value = copy.deepcopy(event)
             self._timeline["fabric"].append(value)
@@ -252,8 +281,15 @@ class ClosedLoopCoordinator:
             if request["route"] == "relay":
                 energy_request["partner"] = self._pairs[request["stack"]]
             self.energy.fabric(value, energy_request)
-        self._fabric_seen = len(events)
-        for completion in self.fabric.completions():
+        self._fabric_seen = next_event_offset
+        if hasattr(self.fabric, "completions_since"):
+            next_completion_offset, new_completions = self.fabric.completions_since(
+                self._fabric_completion_seen)
+        else:
+            completions = self.fabric.completions()
+            next_completion_offset = len(completions)
+            new_completions = completions[self._fabric_completion_seen:]
+        for completion in new_completions:
             request = self._records[completion["request_id"]]
             if request["state"] == "COMPLETE":
                 continue
@@ -271,6 +307,7 @@ class ClosedLoopCoordinator:
             request["state"] = "COMPLETE"
             self._timeline["requests"].append({"phase": "FINAL_COMPLETE",
                                                **copy.deepcopy(request)})
+        self._fabric_completion_seen = next_completion_offset
 
     def _advance_components(self, target_ns):
         completion = self.mqsim.until(target_ns)
@@ -291,6 +328,8 @@ class ClosedLoopCoordinator:
             return False
         if request["state"] not in {"EXTERNAL_WAIT", "POLICY_WAIT", "SOURCE_RESERVED", "GATE_WAIT"}:
             return False
+        # Admission reserves physical transfer/media extent.  valid_weight_bytes
+        # is the delivered-work metric consumed by policy feedback below.
         if not self._ledger.can_consume(request["stack"], request["route_endpoints"], request["bytes"]):
             request["state"] = "POLICY_WAIT" if request["state"] == "EXTERNAL_WAIT" else request["state"]
             request["gate_limited"] = True
@@ -369,7 +408,8 @@ class ClosedLoopCoordinator:
             job.update(deadline_ns=row.get("deadline_ns", 0),
                        parent_id=row.get("parent_id"),
                        reclaim_source_block=row.get("reclaim_source_block", False),
-                       failure_injection=row.get("failure_injection", "none"))
+                       failure_injection=row.get("failure_injection", "none"),
+                       trigger_reason=row.get("trigger_reason", "RETENTION_AGE_DUE"))
             response = self.mqsim.maintain(job)
             status = response.get("status")
             if status == "UNSUPPORTED_CAPABILITY":
@@ -402,9 +442,9 @@ class ClosedLoopCoordinator:
             due = [m for m in self._maintenance.values() if m["stack"] == stack and
                    m["due_ns"] < end and m["state"] not in {"COMMITTED", "UNSUPPORTED_CAPABILITY"}]
             stack_facts.append(StackWindowFacts(
-                stack_id=stack, offered_bytes=sum(r["bytes"] for r in arrivals),
-                delivered_bytes=sum(r["bytes"] for r in delivered),
-                backlog_bytes=sum(r["bytes"] for r in backlog),
+                stack_id=stack, offered_bytes=sum(r["valid_weight_bytes"] for r in arrivals),
+                delivered_bytes=sum(r["valid_weight_bytes"] for r in delivered),
+                backlog_bytes=sum(r["valid_weight_bytes"] for r in backlog),
                 oldest_wait_ns=max((end-r["arrival_ns"] for r in backlog), default=0),
                 latency_p95_ns=_percentile95(latencies), censored_requests=len(backlog),
                 gate_limited=any(r.get("gate_limited") for r in backlog),
@@ -455,8 +495,23 @@ class ClosedLoopCoordinator:
         if boundary <= self.end_ns:
             facts = self._window_facts(self._thermal_start, boundary, thermal_result)
             decision = self.policy.evaluate(facts)
+            rate_rows = []
+            for fact in facts.stacks:
+                row = asdict(fact)
+                arrivals = [r for r in self._records.values() if r["stack"] == fact.stack_id and
+                            facts.start_ns <= r["arrival_ns"] < facts.end_ns]
+                delivered = [r for r in self._records.values() if r["stack"] == fact.stack_id and
+                             r["final_completion_ns"] is not None and
+                             facts.start_ns <= r["final_completion_ns"] < facts.end_ns]
+                backlog = [r for r in self._records.values() if r["stack"] == fact.stack_id and
+                           r["arrival_ns"] < facts.end_ns and r["state"] != "COMPLETE"]
+                row.update(physical_offered_bytes=sum(r["bytes"] for r in arrivals),
+                           physical_delivered_bytes=sum(r["bytes"] for r in delivered),
+                           physical_backlog_bytes=sum(r["bytes"] for r in backlog),
+                           byte_semantics="effective valid_weight_bytes; physical_* are backend extents")
+                rate_rows.append(row)
             self._timeline["rates"].append({"start_ns": facts.start_ns, "end_ns": facts.end_ns,
-                                            "stacks": [asdict(row) for row in facts.stacks]})
+                                            "stacks": rate_rows})
             self._timeline["control"].append(asdict(decision))
             self._current_budgets = {row.stack_id: row.budget_bytes for row in decision.stack_decisions}
             self._ledger = ByteTokenLedger(decision)
@@ -534,6 +589,8 @@ class ClosedLoopCoordinator:
         external_waits = [row["external_wait_ns"] for row in observation_completed]
         backend_latencies = [row["backend_latency_ns"] for row in observation_completed]
         fabric_latencies = [row["fabric_latency_ns"] for row in observation_completed]
+        effective = lambda rows: sum(row["valid_weight_bytes"] for row in rows)
+        physical = lambda rows: sum(row["bytes"] for row in rows)
         return {
             "schema_version": "eq3-isolated-maintenance-closed-loop-v1",
             "evidence": "CONDITIONAL_ENGINEERING_COMPOSITION",
@@ -544,21 +601,36 @@ class ClosedLoopCoordinator:
             "maintenance": [copy.deepcopy(row) for row in self._maintenance.values()],
             "summary": {
                 "offered_count": len(self._records),
-                "offered_bytes": sum(row["bytes"] for row in self._records.values()),
+                "offered_bytes": effective(self._records.values()),
+                "offered_effective_bytes": effective(self._records.values()),
+                "offered_physical_bytes": physical(self._records.values()),
                 "submitted_count": sum(row["backend_submit_ns"] is not None for row in self._records.values()),
                 "observation_completed_count": len(observation_completed),
-                "observation_completed_bytes": sum(row["bytes"] for row in observation_completed),
+                "observation_completed_bytes": effective(observation_completed),
+                "observation_completed_effective_bytes": effective(observation_completed),
+                "observation_completed_physical_bytes": physical(observation_completed),
                 "drain_completed_count": len(completed)-len(observation_completed),
+                "drain_completed_effective_bytes": effective(
+                    [row for row in completed if row not in observation_completed]),
+                "drain_completed_physical_bytes": physical(
+                    [row for row in completed if row not in observation_completed]),
                 "censored_count": len(censored),
-                "censored_bytes": sum(row["bytes"] for row in censored),
+                "censored_bytes": effective(censored),
+                "censored_effective_bytes": effective(censored),
+                "censored_physical_bytes": physical(censored),
+                "byte_semantics": ("legacy *_bytes aliases are effective valid_weight_bytes; "
+                                   "physical extents are explicit *_physical_bytes"),
                 "latency_p95_ns": _percentile95(latencies),
                 "external_wait_p95_ns": _percentile95(external_waits),
                 "backend_latency_p95_ns": _percentile95(backend_latencies),
                 "fabric_latency_p95_ns": _percentile95(fabric_latencies),
-                "maintenance_committed": sum(row["state"] == "COMMITTED"
+                "maintenance_committed": sum(row.get("mapping_committed") is True
                                              for row in self._maintenance.values()),
                 "maintenance_failed": sum(row["state"] == "FAILED"
                                           for row in self._maintenance.values()),
+                "maintenance_cleanup_failed_after_commit": sum(
+                    row["state"] == "COMMITTED_CLEANUP_FAILED"
+                    for row in self._maintenance.values()),
                 "maintenance_unsupported": sum(row["state"] == "UNSUPPORTED_CAPABILITY"
                                                for row in self._maintenance.values()),
                 "total_energy_j": getattr(self.energy, "total_j", sum(

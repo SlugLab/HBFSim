@@ -78,9 +78,9 @@ legacy、预登记集合检查和有符号误差过零积分后的最终复验�
 reference 的空间/时间相邻差仍分别以 0.25 K 目标审核。旧结果的任何 v2 重分析
 必须标 `RETROSPECTIVE_V2_REVIEW`，不回填或改写旧 `NUMERICAL_FAIL`。
 
-## D3 all-source steady cap 最小实现边界（未实施）
+## D3 all-source steady cap 最小实现（待固定验证）
 
-D3 可在既有 `eq3_campaign_rc_runner` 内增加默认关闭的 steady-envelope 模式，复用
+D3 在既有 `eq3_campaign_rc_runner` 内增加默认关闭的 `--steady-envelope` 模式，复用
 同一个 model/events parser、节点所有权、稀疏矩阵类型和分解后端。它只新增内部
 CLI/输出路径，不改 thermal core 公共 ABI、瞬态积分、checkpoint 或正常运行语义。
 现有 `--equilibrium-diagnostic` 仅在瞬态矩阵 `C/dt+L` 上验证零源等温不动点，
@@ -89,16 +89,20 @@ CLI/输出路径，不改 thermal core 公共 ABI、瞬态积分、checkpoint �
 最小计算为：从模型静态功率形成 `P_fixed`；按每个允许 source/group 在全输入中的
 逐节点最大映射求上限，再跨组求和形成 `P_cap`，避免只取实际同一时刻总功率而低估
 “所有允许组可达上限”的包络。构造只含边和边界散热的稳态 `L`，先验证至少一个
-散热出口、非负源、对称正热网络和可分解性，再用同一稀疏路径分别解
-`L*theta_fixed=P_fixed`、`L*theta_cap=P_cap`。对 `{1,.75,.5,.25}` 逐个仅计算
-`T_ambient+theta_fixed+alpha*theta_cap`，选择不超过 380 K 的最大 alpha；没有候选
+散热出口、非负源、对称正热网络和可分解性。为同时覆盖非统一边界温度，实际分别解
+`L*T_fixed=P_static+G_boundary*T_boundary`、`L*theta_cap=P_cap`。对
+`{1,.75,.5,.25}` 逐个仅计算 `T_fixed+alpha*theta_cap`，选择不超过 380 K 的最大 alpha；没有候选
 则返回 `DOMAIN_REDESIGN_REQUIRED`。同时逐节点检查初态是否被该包络覆盖。
 
 收据需保存每个 source/group 的 cap、逐节点合成 cap、矩阵规模/非零元、分解后端、
 残差、环境/初态假设、最大温度节点、四个候选结果和选中 alpha。输出状态只能是
-`PREDICTED_ENVELOPE`，直到原生 reference/RC 瞬态验证完成。该方案需要修改
-`tools/eq3_campaign_rc_runner.cpp` 的私有 CLI 和矩阵组装分支；本项目前仅为方案，
-没有运行计算，也没有改 runner。
+`PREDICTED_ENVELOPE`，直到原生 reference/RC 瞬态验证完成。实现只修改
+`tools/eq3_campaign_rc_runner.cpp` 的私有 CLI 和矩阵组装分支。
+`tools/eq3_all_source_cap.py` 从冻结的 `calibration_power.json` 读取 17 个公共 group
+cap（合计 840 W），用既有 `eq3_layered_ir.normalize` 将 group 权重映射到 component，
+再按既有 RC grid 的真实 cell 体积分配到 node。它不读取 train/development/blind
+温度轨迹；生成 receipt 保存 group/component 守恒和原件 SHA-256。当前代码尚未
+编译或运行固定测试，也没有执行实际 cap/steady 计算。
 
 建议的最小运行矩阵只有两项，且不读取 blind：先在已生成的 development 事件与
 generator/source ledger 上做 `CAP-EXTRACT`，逐组保存 cap 与合成守恒，预计单核、
@@ -109,3 +113,60 @@ generator/source ledger 上做 `CAP-EXTRACT`，逐组保存 cap 与合成守恒�
 复核。这只是资源估计，不从瞬态总耗时外推稳态必然完成。cap 来源必须是冻结 source
 ledger 的 17 组允许上限及 generator 的逐节点权重；若 events 无法无歧义恢复组身份，
 该点返回 `CAP_SOURCE_IDENTITY_BLOCKED`，不能按 activity ID 或热点位置猜组。
+
+固定验证通过后的派生命令分两步。先对已有 2 mm RC grid 以及 1 mm reference grid
+分别生成 cap events/receipt，并核对两种网格的 group/component 总量都为 840 W；
+这一步不求解，用于排除粗网格源映射丢失。1 mm reference-grid events 不能交给节点
+身份不同的 RC model。随后只先对 2 mm RC model 和匹配的 2 mm cap events 调用：
+
+```
+eq3_all_source_cap.py --profile candidate_profile.json --power calibration_power.json \
+  --rc-grid <matching-grid>/rc_grid-or-reference_grid.json --events-output <new>/cap_events.txt \
+  --receipt-output <new>/cap_receipt.json
+
+eq3_campaign_rc_runner --model <2mm>/model.txt --events <new>/cap_events.txt \
+  --step-s 0.5 --slot-s 0.5 --end-s 0.5 --sample-s 0.5 \
+  --min-k 300 --max-k 400 --envelope-limit-k 380 --steady-envelope
+```
+
+第二条命令的 step/slot 参数只满足既有输入调度验证；steady 模式组装的是不含
+`C/dt` 的 `L`，不会执行瞬态 workload。reference 未满足 0.25 K 时输出始终保持
+`PREDICTED_ENVELOPE`/`reference_qualified=false`。2 mm 若选出 alpha，仍需评估同源
+1 mm explicit-RC model 生成和 steady solve 的资源并核对结果；不得把 reference-grid
+events 错配给 2 mm model，也不得假定粗网格包络不会低估热点。
+
+`tools/eq3_domain_v2_input.py` 只读通过固定验证的 steady receipt，从候选顺序中复核
+`selected_alpha` 确为最大合格值，然后一次性派生 train 和 development。它把 17 组
+cap 和两个 trace 的每个非负功率项统一乘同一个 alpha；模型静态源不在 power trace
+内，因此保持不变。输出删除其它 trace，receipt 明确 `blind_trajectory_read=false`。
+未来 blind 解封后只能应用 receipt 中同一个 alpha，不允许重选；当前工具主动拒绝
+blind trace 请求。代码及固定测试已准备，但尚未运行。
+
+域内输入和两条完整生成命令预登记如下，当前不执行大 grid 生成或 solver：
+
+```
+python3 -B tools/eq3_domain_v2_input.py \
+  --power configs/eq3_thermal/research/calibration_power.json \
+  --steady-receipt <steady-envelope.json> --trace train --trace development \
+  --output <domain-v2>/power.json --receipt-output <domain-v2>/input_receipt.json
+
+python3 -B tools/eq3_layered_export.py \
+  --profile configs/eq3_thermal/research/candidate_profile.json \
+  --power <domain-v2>/power.json --trace train --mesh-um 2000 --rc-mesh-um 2000 \
+  --step-s 0.02 --sample-s 0.1 --output <domain-v2>/train
+
+python3 -B tools/eq3_layered_export.py \
+  --profile configs/eq3_thermal/research/candidate_profile.json \
+  --power <domain-v2>/power.json --trace development --mesh-um 2000 --rc-mesh-um 2000 \
+  --step-s 0.02 --sample-s 0.1 --output <domain-v2>/development
+```
+
+基础闭环先让 native reference 与 RC 都使用相同 2 mm 网格，复用既有材料、边界和
+映射，避免在 reference 已知未满足 0.25 K 时重复昂贵 1 mm 而没有新的机制信息。
+该闭环即使通过也只能记 `REFERENCE_UNQUALIFIED / DISCRETE_EQUIVALENCE_PASS`。
+生成后，RC 的 full train/development 分别使用同目录匹配的 `model.txt/events.txt`，
+`step=0.02 s`、`slot=0.5 s`、`sample=0.1 s`、`end=100/64 s` 和原 300--400 K
+逐步域检查。native reference 使用生成目录的 `package.stk` 与 floorplans，仍由现有
+reference launcher 执行；不能用 RC 通过代替 native reference。只有前置 reference
+空间资格出现足够改善或 2 mm 域内结果提出新的细化问题时，才把 `--mesh-um` 改为
+1000 做可选后继；alpha、输入映射和 v2/0.25 K 判据保持不变。

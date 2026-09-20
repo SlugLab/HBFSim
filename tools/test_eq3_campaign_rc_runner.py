@@ -16,7 +16,6 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE = ROOT.parent
 
 MODEL = """HBFSIM_EQ3_THERMAL_MODEL 1
 coupling on
@@ -42,6 +41,8 @@ class CampaignSparseRunnerTests(unittest.TestCase):
             )
         cls.sparse = Path(sparse).resolve()
         cls.dense = Path(dense).resolve()
+        generated = os.environ.get("EQ3_GENERATED_ROOT")
+        cls.generated_root = Path(generated).resolve() if generated else None
         for binary in (cls.sparse, cls.dense):
             if not binary.is_file() or not os.access(binary, os.X_OK):
                 raise unittest.SkipTest(f"runner is not executable: {binary}")
@@ -160,6 +161,61 @@ class CampaignSparseRunnerTests(unittest.TestCase):
             self.assertFalse(receipt['temperature_clamping'])
             for field in ('stored_energy_change_j','boundary_loss_j','energy_residual_j'):
                 self.assertEqual(receipt[field],0)
+
+    def test_steady_envelope_solves_fixed_and_all_source_cap_rhs(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            model, events = root / 'model.txt', root / 'events.txt'
+            model.write_text('HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n'
+                             'node a hbf capacity_memory s0 0 1 300 1 2 300\n')
+            events.write_text('HBFSIM_EQ3_THERMAL_EVENTS 1\n'
+                              'activity 1 cap external_heat external 0 -1 -1 -1 0 1 1 a 4\n')
+            command = self.command(self.sparse, model, events,
+                                   '--steady-envelope', end='1')
+            command += ['--envelope-limit-k', '302']
+            result = self.execute(command, root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            receipt = json.loads(result.stdout)
+            self.assertEqual(receipt['status'], 'PREDICTED_ENVELOPE')
+            self.assertEqual(receipt['selected_alpha'], .75)
+            self.assertEqual(receipt['cap_total_w'], 4)
+            self.assertAlmostEqual(receipt['candidates'][0]['max_k'], 302.5)
+            self.assertLess(receipt['fixed_residual_inf'], 1e-12)
+            self.assertLess(receipt['cap_residual_inf'], 1e-12)
+
+    def test_steady_envelope_rejects_network_without_heat_outlet(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            model, events = root / 'model.txt', root / 'events.txt'
+            model.write_text('HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n'
+                             'node a hbf capacity_memory s0 0 1 300 0 0 300\n')
+            events.write_text('HBFSIM_EQ3_THERMAL_EVENTS 1\n'
+                              'activity 1 cap external_heat external 0 -1 -1 -1 0 1 1 a 4\n')
+            command = self.command(self.sparse, model, events,
+                                   '--steady-envelope', end='1')
+            command += ['--envelope-limit-k', '380']
+            result = self.execute(command, root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('at least one heat-rejection boundary', result.stderr)
+
+    def test_steady_envelope_does_not_search_below_frozen_alpha_set(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            model, events = root / 'model.txt', root / 'events.txt'
+            model.write_text('HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n'
+                             'node a hbf capacity_memory s0 0 1 300 0 2 300\n')
+            events.write_text('HBFSIM_EQ3_THERMAL_EVENTS 1\n'
+                              'activity 1 cap external_heat external 0 -1 -1 -1 0 1 1 a 400\n')
+            command = self.command(self.sparse, model, events,
+                                   '--steady-envelope', end='1')
+            command += ['--envelope-limit-k', '320']
+            result = self.execute(command, root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            receipt = json.loads(result.stdout)
+            self.assertEqual(receipt['status'], 'DOMAIN_REDESIGN_REQUIRED')
+            self.assertIsNone(receipt['selected_alpha'])
+            self.assertEqual([item['alpha'] for item in receipt['candidates']],
+                             [1, .75, .5, .25])
 
     def test_node_reordering_preserves_small_model_solution(self):
         with tempfile.TemporaryDirectory() as root:
@@ -295,7 +351,9 @@ class CampaignSparseRunnerTests(unittest.TestCase):
             self.assertIn('cannot create failure state',result.stderr)
 
     def test_candidate_equilibrium_diagnostic_when_available(self):
-        generated=WORKSPACE/'generated/layered-v3/train-4mm-20ms'
+        if self.generated_root is None:
+            self.skipTest('EQ3_GENERATED_ROOT was not explicitly supplied')
+        generated=self.generated_root/'layered-v3/train-4mm-20ms'
         if not generated.is_dir():
             self.skipTest('generated candidate unavailable')
         with tempfile.TemporaryDirectory() as root:
@@ -311,7 +369,9 @@ class CampaignSparseRunnerTests(unittest.TestCase):
             self.assertLess(receipt['absolute_max_equilibrium_error_k'],1e-8)
 
     def test_generated_candidate_inspect_when_available(self):
-        generated = WORKSPACE / "generated/layered-v1/train-4mm-20ms"
+        if self.generated_root is None:
+            self.skipTest('EQ3_GENERATED_ROOT was not explicitly supplied')
+        generated = self.generated_root / "layered-v1/train-4mm-20ms"
         if not generated.is_dir():
             self.skipTest("generated candidate is unavailable")
         with tempfile.TemporaryDirectory() as root:

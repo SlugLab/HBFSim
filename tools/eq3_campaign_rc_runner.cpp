@@ -29,6 +29,8 @@ using SparseMatrix = Eigen::SparseMatrix<double>;
 using SparseSolver = Eigen::SimplicialLDLT<SparseMatrix, Eigen::Lower,
                                            Eigen::AMDOrdering<int>>;
 
+std::string json_string(const std::string& value);
+
 struct Options {
   std::string model_path, events_path;
   std::string model_sha256{"UNKNOWN_NOT_SUPPLIED"};
@@ -36,7 +38,8 @@ struct Options {
   std::string runner_source_sha256{"UNKNOWN_NOT_SUPPLIED"};
   std::string domain_version{"eq3-runner-cli-temperature-domain-v1"};
   double step_s{}, slot_s{}, end_s{}, sample_s{}, min_k{}, max_k{};
-  bool inspect_only{}, run{}, equilibrium_diagnostic{};
+  double envelope_limit_k{};
+  bool inspect_only{}, run{}, equilibrium_diagnostic{}, steady_envelope{};
 };
 
 struct Schedule {
@@ -82,6 +85,11 @@ Options options_from(int argc, char** argv) {
       options.equilibrium_diagnostic = true;
       continue;
     }
+    if (argument == "--steady-envelope") {
+      require(!options.steady_envelope, "duplicate --steady-envelope");
+      options.steady_envelope = true;
+      continue;
+    }
     if (argument == "--inspect-only") {
       require(!options.inspect_only, "duplicate --inspect-only");
       options.inspect_only = true;
@@ -96,6 +104,7 @@ Options options_from(int argc, char** argv) {
         argument == "--model" || argument == "--events" || argument == "--step-s" ||
         argument == "--slot-s" || argument == "--end-s" || argument == "--sample-s" ||
         argument == "--min-k" || argument == "--max-k" ||
+        argument == "--envelope-limit-k" ||
         argument == "--model-sha256" || argument == "--events-sha256" ||
         argument == "--runner-source-sha256" || argument == "--domain-version";
     require(takes_value, "unknown argument " + argument);
@@ -113,9 +122,12 @@ Options options_from(int argc, char** argv) {
     else if (argument == "--sample-s") options.sample_s = number(value, argument);
     else if (argument == "--min-k") options.min_k = number(value, argument);
     else if (argument == "--max-k") options.max_k = number(value, argument);
+    else if (argument == "--envelope-limit-k")
+      options.envelope_limit_k = number(value, argument);
   }
-  require(int(options.inspect_only) + int(options.run) + int(options.equilibrium_diagnostic) == 1,
-          "exactly one of --inspect-only, --equilibrium-diagnostic or --run is required");
+  require(int(options.inspect_only) + int(options.run) +
+              int(options.equilibrium_diagnostic) + int(options.steady_envelope) == 1,
+          "exactly one of --inspect-only, --equilibrium-diagnostic, --steady-envelope or --run is required");
   require(!options.model_path.empty() && !options.events_path.empty(),
           "--model and --events are required");
   require(options.step_s > 0 && options.slot_s > 0 && options.end_s > 0 &&
@@ -123,6 +135,8 @@ Options options_from(int argc, char** argv) {
           "step, slot, end, and sample seconds must be positive");
   require(options.min_k > 0 && options.max_k > options.min_k,
           "--min-k and --max-k must satisfy 0 < min < max");
+  require(!options.steady_envelope || options.envelope_limit_k > 0,
+          "--steady-envelope requires positive --envelope-limit-k");
   require(!options.model_sha256.empty() && !options.events_sha256.empty() &&
               !options.runner_source_sha256.empty() && !options.domain_version.empty(),
           "diagnostic identity values must not be empty");
@@ -295,6 +309,128 @@ SparseMatrix system_matrix(const ThermalModelConfig& config, double step_s) {
   matrix.setFromTriplets(entries.begin(), entries.end());
   matrix.makeCompressed();
   return matrix;
+}
+
+SparseMatrix steady_matrix(const ThermalModelConfig& config) {
+  require(config.nodes.size() <= static_cast<std::size_t>(std::numeric_limits<int>::max()),
+          "node count exceeds Eigen int index range");
+  const int n = static_cast<int>(config.nodes.size());
+  std::vector<Eigen::Triplet<double>> entries;
+  entries.reserve(config.nodes.size() + 4 * config.edges.size());
+  double boundary_total = 0;
+  for (int index = 0; index < n; ++index) {
+    const double boundary =
+        config.nodes[static_cast<std::size_t>(index)].boundary_conductance_w_per_k;
+    entries.emplace_back(index, index, boundary);
+    boundary_total += boundary;
+  }
+  require(boundary_total > 0, "steady envelope requires at least one heat-rejection boundary");
+  for (const auto& edge : config.edges) {
+    if (!config.direct_intercomponent_edges_enabled &&
+        edge.kind == ConductanceKind::InterComponent)
+      continue;
+    const int a = static_cast<int>(edge.node_a);
+    const int b = static_cast<int>(edge.node_b);
+    const double conductance = edge.conductance_w_per_k;
+    entries.emplace_back(a, a, conductance);
+    entries.emplace_back(b, b, conductance);
+    entries.emplace_back(a, b, -conductance);
+    entries.emplace_back(b, a, -conductance);
+  }
+  SparseMatrix matrix(n, n);
+  matrix.setFromTriplets(entries.begin(), entries.end());
+  matrix.makeCompressed();
+  return matrix;
+}
+
+void steady_envelope(const ThermalModelConfig& config,
+                     const std::vector<PhysicalActivity>& activities,
+                     const Options& options) {
+  const Eigen::Index n = static_cast<Eigen::Index>(config.nodes.size());
+  Eigen::VectorXd fixed_rhs(n), cap_power = Eigen::VectorXd::Zero(n);
+  for (Eigen::Index index = 0; index < n; ++index) {
+    const auto& node = config.nodes[static_cast<std::size_t>(index)];
+    fixed_rhs[index] = node.static_power_w +
+                       node.boundary_conductance_w_per_k * node.boundary_temperature_k;
+  }
+  double cap_total_w = 0;
+  for (const auto& activity : activities) {
+    const double duration = activity.end_time_s - activity.start_time_s;
+    require(duration > 0, "steady cap activity must have positive duration");
+    for (const auto& assignment : activity.node_energy) {
+      const double power = assignment.energy_j / duration;
+      require(std::isfinite(power) && power >= 0,
+              "steady cap activity power must be finite and nonnegative");
+      cap_power[static_cast<Eigen::Index>(assignment.node_index)] += power;
+      cap_total_w += power;
+    }
+  }
+  require(cap_total_w > 0, "steady envelope requires positive all-source cap power");
+  const SparseMatrix matrix = steady_matrix(config);
+  SparseSolver solver;
+  const auto factor_start = std::chrono::steady_clock::now();
+  solver.compute(matrix);
+  const double factor_seconds = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - factor_start).count();
+  require(solver.info() == Eigen::Success, "steady L factorization failed");
+  const Eigen::VectorXd fixed = solver.solve(fixed_rhs);
+  require(solver.info() == Eigen::Success && fixed.allFinite(),
+          "steady fixed-source solve failed");
+  const Eigen::VectorXd cap_rise = solver.solve(cap_power);
+  require(solver.info() == Eigen::Success && cap_rise.allFinite(),
+          "steady cap solve failed");
+  require(cap_rise.minCoeff() >= -1e-10,
+          "steady cap response violates positive-network monotonicity");
+  const double fixed_residual =
+      (matrix * fixed - fixed_rhs).lpNorm<Eigen::Infinity>();
+  const double cap_residual =
+      (matrix * cap_rise - cap_power).lpNorm<Eigen::Infinity>();
+  const std::vector<double> alphas{1.0, 0.75, 0.5, 0.25};
+  double selected = -1;
+  std::ostringstream candidates;
+  candidates << std::setprecision(17) << '[';
+  for (std::size_t number = 0; number < alphas.size(); ++number) {
+    const double alpha = alphas[number];
+    const Eigen::VectorXd envelope = fixed + alpha * cap_rise;
+    bool initial_covered = true;
+    for (Eigen::Index index = 0; index < n; ++index)
+      initial_covered &= config.nodes[static_cast<std::size_t>(index)].initial_temperature_k <=
+                         envelope[index] + 1e-10;
+    const bool within = envelope.maxCoeff() <= options.envelope_limit_k;
+    if (selected < 0 && within && initial_covered) selected = alpha;
+    Eigen::Index maximum_index{};
+    const double maximum = envelope.maxCoeff(&maximum_index);
+    if (number) candidates << ',';
+    candidates << "{\"alpha\":" << alpha << ",\"max_k\":" << maximum
+               << ",\"max_node\":"
+               << json_string(config.nodes[static_cast<std::size_t>(maximum_index)].id)
+               << ",\"within_limit\":" << (within ? "true" : "false")
+               << ",\"initial_covered\":" << (initial_covered ? "true" : "false")
+               << '}';
+  }
+  candidates << ']';
+  std::cout << std::setprecision(17)
+            << "{\"schema_version\":\"eq3-steady-envelope-v1\","
+            << "\"status\":" << json_string(selected > 0 ? "PREDICTED_ENVELOPE"
+                                                        : "DOMAIN_REDESIGN_REQUIRED")
+            << ",\"workload_executed\":false,\"reference_qualified\":false,"
+            << "\"model_sha256\":" << json_string(options.model_sha256)
+            << ",\"events_sha256\":" << json_string(options.events_sha256)
+            << ",\"runner_source_sha256\":" << json_string(options.runner_source_sha256)
+            << ",\"domain_version\":" << json_string(options.domain_version)
+            << ",\"declared_temperature_domain_k\":[" << options.min_k << ','
+            << options.max_k << "],"
+            << "\"cap_total_w\":" << cap_total_w
+            << ",\"envelope_limit_k\":" << options.envelope_limit_k
+            << ",\"selected_alpha\":";
+  if (selected > 0) std::cout << selected;
+  else std::cout << "null";
+  std::cout << ",\"matrix_nnz\":" << matrix.nonZeros()
+            << ",\"factor_L_nnz\":" << solver.matrixL().nestedExpression().nonZeros()
+            << ",\"factor_seconds\":" << factor_seconds
+            << ",\"fixed_residual_inf\":" << fixed_residual
+            << ",\"cap_residual_inf\":" << cap_residual
+            << ",\"candidates\":" << candidates.str() << "}\n";
 }
 
 // Fixed zero-source equilibrium diagnostic, never the supplied workload.
@@ -782,6 +918,10 @@ int main(int argc, char** argv) try {
   }
   if (options.equilibrium_diagnostic) {
     equilibrium_diagnostic(config, options.step_s);
+    return 0;
+  }
+  if (options.steady_envelope) {
+    steady_envelope(config, activities, options);
     return 0;
   }
   run(config, activities, options, schedule, alignment_error);

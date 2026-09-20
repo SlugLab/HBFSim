@@ -230,21 +230,21 @@ class ServiceProtocolTests(unittest.TestCase):
         variants = []
         profile_mismatch = json.loads(json.dumps(base))
         profile_mismatch['channels'] = 9
-        variants.append(profile_mismatch)
+        variants.append((profile_mismatch, 'stack map does not match'))
         overlap = json.loads(json.dumps(base))
         overlap['stacks'][1]['channels'] = overlap['stacks'][0]['channels']
-        variants.append(overlap)
+        variants.append((overlap, 'overlapping or invalid mqsim channel group'))
         incomplete = json.loads(json.dumps(base))
         incomplete['stacks'].pop()
-        variants.append(incomplete)
-        for index, config in enumerate(variants):
+        variants.append((incomplete, 'invalid mqsim stack-map geometry'))
+        for index, (config, expected_error) in enumerate(variants):
             with self.subTest(index=index):
                 invalid_path = Path(self.temp.name)/f'invalid-stack-map-{index}.json'
                 invalid_path.write_text(json.dumps(config))
                 _, failure = self.invoke([dict(command='finish')], success=False,
                                          profile=profile_path,
                                          extra=('--stack-map', str(invalid_path)))
-                self.assertIn('stack', failure.stderr.lower())
+                self.assertIn(expected_error, failure.stderr.lower())
 
 
 if __name__ == '__main__':

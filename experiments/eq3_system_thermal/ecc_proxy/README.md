@@ -59,3 +59,13 @@ hours. The implementation keeps the original HeatWatch-based Ea consistently
 for age integration; it does not pretend these different devices share a fitted
 law. This discrepancy and the assumed early-age interpolant are reasons for
 sensitivity analysis, not reasons to change Ea until a controller wins.
+
+The decoder resource currently has zero additional fixed stage latency and a
+throughput cap: this is an overlapped steady-flow engineering assumption, not a
+measured tECC. At the nominal two-times-media cap it need not be the bottleneck.
+The OCP interface rate used as fresh aggregate media supply remains the existing
+engineering matching assumption; no internal NAND timing measurement is implied.
+For example, a1.9-attempt cost limits a1.536TB/s fresh supply to at most about
+0.808TB/s useful payload before other route/control/DAG bottlenecks. Gate quotas
+continue counting admitted payload; media work additionally enforces physical
+capacity. No old controller is silently retuned for amplification.

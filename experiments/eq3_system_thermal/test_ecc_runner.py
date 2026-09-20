@@ -11,7 +11,7 @@ from test_run_causal_point import normalized, FakeThermal, trace, energy_profile
 PROFILE=json.loads((Path(__file__).parent/'ecc_proxy/profile_v1.json').read_text())
 
 class RunnerIntegrationTests(unittest.TestCase):
-    def run_case(self, strength, *, history_probe=False, hot=False):
+    def run_case(self, strength, *, history_probe=False, hot=False, migration=False):
         service=default_config('mixed_direct')
         baseline={s:10**12 for s in service['channels']}
         p=deepcopy(PROFILE);p['transfer_strength']=strength
@@ -27,6 +27,9 @@ class RunnerIntegrationTests(unittest.TestCase):
             'hbf_read_cost_proxy':{'mode':'conditional_nand_history_v1','profile':p,
                 'initial_by_stack':{s:{'equivalent_age_days_30c':(0 if history_probe else 90),'pe_cycles':(0 if history_probe else 1000),
                     'temperature_k':300} for s in service['fabric']['hbf']}}}
+        if migration:
+            config["executor"].update(migration_mode="basic", migration_capacity_bytes=8192,
+                fast_stripe_targets=[{"stack":"hbf1", "channel":"0", "route":"direct"}])
         def history_trace(index):
             result=trace(index)
             result['batches'][0]['arrival_ns']=index*20_000_000
@@ -63,6 +66,10 @@ class RunnerIntegrationTests(unittest.TestCase):
                            brows[0]['service']['completions'][0]['completion_ns'])
         self.assertEqual(rows[-1]['hbf_read_cost_proxy']['state']['states']['hbf0']['last_ns'],40_000_000)
         self.assertEqual(rows[-1]['hbf_read_cost_proxy']['admission_cost_decisions'],[])
+
+    def test_history_proxy_rejects_migration_without_data_age_identity(self):
+        with self.assertRaisesRegex(ValueError, "UNSUPPORTED_COMPOSITION.*migrated-data identity"):
+            self.run_case(.1, migration=True)
 
     def test_previous_thermal_observation_changes_only_later_admission_effort(self):
         _,cold=self.run_case(.1,history_probe=True)

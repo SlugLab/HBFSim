@@ -79,4 +79,4 @@ relay/DASH使用自身路径资源与伙伴检查，不回退direct。但本基�
 
 速率工作负载没有因果token完成，所以token/s为UNAVAILABLE。另有四拓扑真实tiny-template结构派生DAG的ECC八点验证；两组证据分别报告，不能用DAG结果回填速率基线。原生MQSim语义对照不等于实际TB/s硬件吞吐，P2原失败和未冻结状态保留。
 
-可复现派生来源：`BASE-ANALYSIS01/SYSTEM_THERMAL_CAMPAIGN_ANALYSIS.json`；原始启动索引和逐点收据在同阶段目录；现有16幅时间序列图与逐栈温度图不重复求解。维护争用主19点独立运行中；ECC与refresh数据身份尚未联合接通。
+可复现派生来源：`BASE-ANALYSIS01/SYSTEM_THERMAL_CAMPAIGN_ANALYSIS.json`；原始启动索引和逐点收据在同阶段目录；现有16幅时间序列图与逐栈温度图不重复求解。维护主19点已完成并通过审计；该场景共享与理想独立维护资源的有效交付差为零，未识别出吞吐惩罚。ECC与refresh数据身份尚未联合接通。

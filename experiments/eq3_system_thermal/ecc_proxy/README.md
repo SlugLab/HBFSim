@@ -34,7 +34,8 @@ age state and per-admission cost decisions. Default original/native MQSim is not
 modified or loaded by this equivalent service.
 
 HBM data, static retries combined with this proxy, and simultaneous maintenance
-with unmapped per-stack ages are rejected. Refreshing a subset must not reset
+with unmapped per-stack ages are rejected. Dynamic placement with this proxy is
+also rejected: destination-stack age cannot stand in for migrated-data history. Refreshing a subset must not reset
 all stack ages. A future per-extent mapping consumer is needed before claiming
 refresh improves this ECC model. Existing maintenance tests remain independent.
 No RBER, uncorrectable failure probability, decoded data bytes, or calibrated

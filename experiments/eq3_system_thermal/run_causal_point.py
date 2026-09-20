@@ -395,6 +395,8 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
             raise ValueError("static retry and history retry cannot be silently combined")
         if config.get("maintenance", {"mode": "disabled"})["mode"] != "disabled":
             raise ValueError("UNSUPPORTED_COMPOSITION: per-stack read age lacks refreshed-extent identity")
+        if config["executor"].get("migration_mode", "fixed") != "fixed":
+            raise ValueError("UNSUPPORTED_COMPOSITION: per-stack read age lacks migrated-data identity")
         initial = reliability_config["initial_by_stack"]
         if set(initial) != set(config["service"]["fabric"]["hbf"]):
             raise ValueError("HBF reliability state must cover exactly the actual HBF stacks")

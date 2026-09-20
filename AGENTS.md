@@ -1,0 +1,63 @@
+# HBFSim EQ3 project instructions
+
+Preserve the verified P1 checkpoint and immutable baseline. No driver/global
+environment changes, public ABI/PTX/TMA/future/cache rewrites, whole donor merges,
+or unrequested push. Independent, default-off, reversible changes only.
+Read docs/eq3_thermal/README.md and the current continuation/handoff records before
+work. When the surrounding workspace is available, also read its AGENTS.md and
+docs/codex/PROJECT_HANDOFF.md, PROJECT_STATE.md and CODEX_TODO.md.
+Distinguish USER_CONFIRMED, DOC_DERIVED and INFERRED assumptions; numerical
+references, physical proxies, vendor specifications and uncalibrated projections
+are not interchangeable. Never modify raw results or invent missing metadata.
+
+## 实验元信息与用户确认（强制）
+
+在任何大规模实验、正式论文候选实验、批量/多维参数扫描、跨设备批跑或新增 GPU 持续负载之前，必须先向用户展示实验预检单，并取得用户对该版本的明确确认。预检单至少包括：研究问题与假设、证据类型、代码与环境版本、器件/拓扑/几何/功耗/可靠性参数及来源、workload 和初始状态、扫描点与重复数、模拟时长和预计实际耗时、资源预算、对照与消融、观测指标、通过/失败/安全停止条件、输出位置及已知限制。用户沉默、历史泛化授权、代理自行生成的 approval 文件以及“开始前提醒过”均不构成批准。
+
+将预检单保存为可读报告及机器可读 manifest，以实验 ID、版本及内容哈希绑定确认。未确认时状态必须为 PENDING_USER_APPROVAL，禁止提交或后台启动正式任务，禁止拆成多个“小批次”规避。研究问题、物理假设、输入、扫描范围、控制策略或资源预算超出已批准范围时，先停止受影响的后续任务，更新差异并重新确认。只读排查、隔离构建、单元测试和已限定的小规模软件验证可继续；不得把它们改名后冒充正式实验。详细契约见 docs/eq3_thermal/experiment_approval.md。
+
+## 参数闭合与两次冻结
+
+盘点配置、代码常数、CLI/环境默认及实际消费者；未消费字段不能冒充扫描开关。
+逐项保存原值/单位、规范化值、原件位置/哈希、条件、推导、转用假设、允许域和
+缺失所影响的结论。使用 SPECIFIED / MEASURED / DERIVED / PROXY /
+SCENARIO_ASSUMPTION / UNKNOWN_BLOCKING / NOT_USED，禁止混淆证据身份。
+DESIGN_FREEZE 冻结器件/拓扑、假设、允许域、标定方法，不虚构最终拟合值；
+用户确认有界标定版本后才执行，独立验证后 MODEL_FREEZE，再另批正式 EQ3。
+关键输入只有情景依据时结果为 CONDITIONAL_SIMULATED，不是实物已标定。
+未知项只阻塞依赖它的结论，不阻塞独立工作。达到停止条件的旧时间检查保留，
+不继续机械细化；新几何不得继承旧精度/步长。已查看 heldout 不得再充当模型
+选择后的唯一盲测。方向性要求不批准旧四点计划、标定批次或 GPU/云负载。
+
+标定预检不以固定运行次数或首轮耗时估计作为科学停止上限；按原始资料、推导、
+逐次误差与可辨识性审核迭代，达到目标停止，无改善先诊断。资源安全/隔离边界及
+具体执行版本确认仍适用；该过程要求不构成标定/矩阵/GPU启动批准。改变物理
+假设、输入域或拟合方法时更新预检并重新确认。
+
+## 四拓扑与复用约束
+
+8HBF direct+物理GDDR、总stack8且数量可配的mixed-direct、4+4 relay、四对DASH
+均必须交付；4HBM4+4HBF只为首例。配置覆盖、热验证、系统行为分别验收。
+任何代码/工件复用先审查适用域与可靠性并记录证据；历史PASS不自动可复用。
+逐层转换器从器件、几何、功率映射生成，不硬编码4+4/121/255/die数/节点顺序。
+缺拓扑参数显式报错，禁止静默fallback。17组等权输入只属首轮，保留非均匀逐die
+功率；HBM/HBF base独立热实体、自热和输出须有实际消费者。GDDR单列板级/冷却/
+外存模型。首例原则接受不代表标定/GPU/矩阵授权，仍须具体执行版本确认。
+
+最新用户修订：8HBF拓扑的GDDR在封装外，本轮封装热域不模拟GDDR，不要求PCB/
+GDDR热参数来阻断封装thermal_only；仍保留physical GDDR身份和系统行为缺口。
+用户明确调整内存边界为任务总计16GiB、单进程12GiB；其它CPU/磁盘/watchdog边界
+不变，不构成研究求解或pilot批准。已授权隔离转换器开发及固定软件测试可继续。
+## 已明确授权阶段的执行规则
+
+对用户明确授权的整阶段实验，元信息确认单位为阶段范围、方法和资源边界，不是单个运行点。阶段内每点元信息必须在启动前持久化，代理完成依赖、身份、安全和科学范围检查后可连续执行，不再请求用户逐点回复。允许本阶段明确列出的等价工程修复、数值细化与复验；新hash不自动等于新科学授权需求。范围外的物理参数、输入/研究问题、方法或资源变化才需要重新确认。不得伪造逐点用户签名、绕过检查、拆任务规避预算或以自动授权掩盖数据失败。
+
+当前EQ3-P2-LAYERED-CAMPAIGN-v1授权来源及不可变量见工作区eq3_thermal/plans/campaign-v1；旧逐点确认保留为历史。阶段内依赖/盲测锁定/16GiB任务与12GiB进程/600s/每点4GiB/任务20GiB/GPU0安全门槛仍生效。
+
+当前用户已授权 EQ3-P2-P3-P4-CAMPAIGN-v1 连续执行。每个子任务仍须在启动前
+保存元信息并经过身份、依赖、科学域及资源检查，但范围内不逐点或逐阶段
+申请确认。出错先自主检索、复现和修复；无法在范围内解决时只暂存受影响
+分支，完成其他独立工作。范围外选择进入待用户决断清单，不伪造批准、不松
+科学阈值、不绕安全启动器。P2未通过时P3/P4仅可报告显式工程fixture，不造
+MODEL_FREEZE。真实授权见工作区eq3_thermal/plans/p2-p3-p4-campaign-v1。
+围绕主线推进；逐字节等价性用于首次链路或相关实现变化，不反复全验未变工件。

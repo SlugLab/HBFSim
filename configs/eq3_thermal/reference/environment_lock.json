@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "environment_id": "eq3-thermal-reference-v1",
+  "purpose": "Frozen reference-only follow-up; same dependency versions, new source identity in experiment manifest",
+  "reference": [
+    {
+      "name": "3D-ICE",
+      "repository": "https://github.com/esl-epfl/3d-ice.git",
+      "commit_or_tag": "e0bb6850c5e446363e26936586d625270c87f224"
+    },
+    {
+      "name": "bundled SuperLU MT",
+      "repository": "3D-ICE tracked superlu_mt-4.0.0.zip",
+      "commit_or_tag": "4.0.0 archive sha256 f43c21b34ad5dda5edc27b683ff027076299ed2f8d9eec29dd79d4f9ff15941b"
+    }
+  ],
+  "compiler": {
+    "compiler": "/usr/bin/gcc",
+    "compiler_version": "15.2.0 (Ubuntu 15.2.0-16ubuntu1)",
+    "linker": "GNU ld 2.46",
+    "build_system": "GNU Make 4.4.1",
+    "python": "NOT_REQUIRED",
+    "package_manager": "Ubuntu dpkg system prerequisites; no installs performed"
+  },
+  "dependencies": {
+    "lockfiles": [
+      "system-packages.lock",
+      "source-lock.txt"
+    ],
+    "important_packages": {
+      "OpenBLAS": "0.3.32+ds-5; runtime object sha256 be2e7d119279836105e0361be92c78dbcd8a6e7357e74339bdbb32a5195ee35e",
+      "flex": "2.6.4",
+      "bison": "3.8.2",
+      "OpenMP runtime": "libgomp1 16-20260322-1ubuntu1"
+    },
+    "models": [],
+    "datasets": []
+  },
+  "build": {
+    "target": "Stock 3D-ICE emulator; bundled SuperLU MT double precision OpenMP library",
+    "mode": "Upstream O3",
+    "flags": "max jobs 2; SuperLU CFLAGS=-O3 -std=gnu17 -D__OPENMP -D_LONGINT -DPRNTlevel=0 -DDEBUGlevel=0; BLASDEF=-DUSE_VENDOR_BLAS; BLASLIB=-lopenblas; 3D-ICE upstream CFLAGS=-MD -O3 -fopenmp",
+    "command": "environments/eq3-thermal-reference-v1/prepare.sh && environments/eq3-thermal-reference-v1/build.sh"
+  },
+  "solver_binary_sha256": "240b598c6c8fe1f19db2d945c34596db4a14df7f589bc2f205d74104927244a7",
+  "python": "CPython 3.14.4; stdlib only",
+  "omp_num_threads": 1,
+  "openblas_num_threads": 1,
+  "platform": {
+    "architecture": "x86_64",
+    "os": "Ubuntu 26.04.1 LTS",
+    "kernel": "7.0.0-mk1+"
+  },
+  "environment_changes": "NONE. GPU excluded; no package installation.",
+  "reproduction": "Use the workspace environments/eq3-thermal-reference-v1 source build recipe; byte-different compiler/dependency output requires new receipt and approval assessment. No opaque binary migration."
+}

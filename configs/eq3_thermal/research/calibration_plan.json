@@ -1,0 +1,228 @@
+{
+  "schema_version": "eq3-calibration-design-v1",
+  "experiment_id": "EQ3-P2-PERDIE-CALIBRATION",
+  "version": 2,
+  "status": "PENDING_USER_APPROVAL",
+  "execution_readiness": "BLOCKED_IMPLEMENTATION_AND_EXECUTION_BINDING",
+  "design_profile": "eq3-mixed-direct-4hbm4-4hbf-conditional-v1",
+  "inputs": [
+    "configs/eq3_thermal/research/candidate_profile.json",
+    "configs/eq3_thermal/research/parameter_registry.json",
+    "configs/eq3_thermal/research/calibration_power.json"
+  ],
+  "evidence": "NEW_REFERENCE / CONDITIONAL_SIMULATED; no physical measurements or HBF goldstandard",
+  "environment_id": "eq3-thermal-reference-v1",
+  "source_engine_revision": "f1eb88d18627665abf3359d605205d52c1931c73",
+  "stock_solver_revision": "e0bb6850c5e446363e26936586d625270c87f224",
+  "stock_solver_binary_sha256": "240b598c6c8fe1f19db2d945c34596db4a14df7f589bc2f205d74104927244a7",
+  "source_mapping": "17sourcegroups,121physicalpoweredregions,equal per-die arrayweights; no arbitrary per-die redistributionclaim",
+  "construction": {
+    "method": "C=rho*cp*V; positive harmonic halfcell conduction +finitebond/TIM; no fittedphysicalparameters; spatiallid/interposer",
+    "max_RC_nodes": 512,
+    "physical_fit_parameter_count": 0,
+    "optimization_evaluations": 0,
+    "ROM_candidates": 0,
+    "if_current_engine_geometry_fails": "PreserveFAILED; diagnose, requestseparaterevisedmethod; do not openblindoutputs"
+  },
+  "runs": [
+    {
+      "run_id": "R01",
+      "solver": "reference",
+      "trace": "train",
+      "lateral_mesh_um": 4000,
+      "step_s": 0.02,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R02",
+      "solver": "reference",
+      "trace": "train",
+      "lateral_mesh_um": 2000,
+      "step_s": 0.02,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R03",
+      "solver": "reference",
+      "trace": "train",
+      "lateral_mesh_um": 1000,
+      "step_s": 0.02,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R04",
+      "solver": "reference",
+      "trace": "train",
+      "lateral_mesh_um": 1000,
+      "step_s": 0.01,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R05",
+      "solver": "reference",
+      "trace": "train",
+      "lateral_mesh_um": 1000,
+      "step_s": 0.005,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R06",
+      "solver": "reference",
+      "trace": "development",
+      "lateral_mesh_um": 1000,
+      "step_s": 0.005,
+      "duration_s": 64,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "F01",
+      "solver": "current_RC_engine_new_geometry",
+      "trace": "train",
+      "lateral_mesh_um": null,
+      "step_s": 0.005,
+      "duration_s": 100,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "F02",
+      "solver": "current_RC_engine_new_geometry",
+      "trace": "development",
+      "lateral_mesh_um": null,
+      "step_s": 0.005,
+      "duration_s": 64,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "R07",
+      "solver": "reference",
+      "trace": "new_blind",
+      "lateral_mesh_um": 1000,
+      "step_s": 0.005,
+      "duration_s": 64,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    },
+    {
+      "run_id": "F03",
+      "solver": "current_RC_engine_new_geometry",
+      "trace": "new_blind",
+      "lateral_mesh_um": null,
+      "step_s": 0.005,
+      "duration_s": 64,
+      "repeat": 1,
+      "status": "NOT_RUN"
+    }
+  ],
+  "count_contract": {
+    "initial_reference_points": 7,
+    "initial_RC_points": 3,
+    "initial_total_points": 10,
+    "initial_simulation_seconds": 856,
+    "hard_configuration_limit": null,
+    "automatic_blind_retries": 0,
+    "reuse_previous_fixture": false,
+    "count_note": "Initial audit queue, not a stop rule or execution approval; future points must be preregistered with rationale and cumulative resource receipts."
+  },
+  "resource_budget": {
+    "aggregate_build_threads": 4,
+    "run_threads": 1,
+    "OMP_NUM_THREADS": 1,
+    "OPENBLAS_NUM_THREADS": 1,
+    "max_process_address_space_GiB": 6,
+    "max_task_RAM_GiB": 8,
+    "additional_output_GiB": 4,
+    "per_run_wall_timeout_s": 600,
+    "GPU_compute_minutes": 0,
+    "cloud_cost": 0,
+    "initial_cpu_seconds_estimate": 3600,
+    "cumulative_cpu_review_checkpoint_s": 3600,
+    "aggregate_compute_authorization": "PENDING_EXECUTION_VERSION_APPROVAL; no fixed scientific stop after1CPUhour; no implicit unlimited compute authorization"
+  },
+  "adaptive_rules": [
+    "No solver before actual converter/static checks/execution binding and explicit execution-version approval.",
+    "R01 first; preserve resource/output/domain failures and diagnose; no blind parameter change or automatic failed-run retry.",
+    "Before any mesh refinement forecast sparse-factor memory from preceding observed peak/growth, using at least8x for4xcell growth +0.5GiB overhead; require forecast<=5GiB and retain6GiB process/8GiB task limits.",
+    "Initial queue uses4/2/1mm and20/10/5ms. These are starting points, not resolution or run-count stop boundaries.",
+    "After every completed point compare same-observable mean/grid-hotspot errors, conservation, provenance, resource cost and predicted diagnostic value before selecting and recording the nextpoint.",
+    "If accuracy goals are met stop refinement. If unmet and errors improve consistently (each selected error delta<=0.8 preceding delta, withzero tolerance1e-12), further same-question resolution refinement may be proposed within specificallyapproved adaptive scope and safetylimits. No run-count-based stop.",
+    "If improvement fails or evidence conflicts, pause numerical expansion for layered diagnosis/source review. After2unsuccessfulfixvariants widen diagnosis; no blind repeatedruns.",
+    "Changes to device/geometry/material/temperaturedomain/powertraces/fitparameters/control assumptions require revised scientific version and renewed user confirmation; original-doc review alone is not an execution approval.",
+    "Reference andRC development precede locking modelbytes/hash. Onlyafterlock may newblind outputs be generated/viewed. Model revisions invalidate that trace as soleblindtest and require a newlyregistered test.",
+    "Record cumulative CPU/wall/disk cost;1CPUhour is review checkpoint and estimate, not science-stop threshold. Resource scope beyondapproved executionmanifest requires confirmation; no unlimited budget implied.",
+    "No GPU/cloud/host-driver change; no reuse ofoldfour-point approval (noneexists)."
+  ],
+  "acceptance": {
+    "per_powered_region_MAE_K": 1,
+    "actual_grid_hotspot_max_error_K": 2,
+    "normalized_MAE_max": 0.05,
+    "normalization": "divide bymax(referencewholetrajectoryrange,1K); proposedextracriterion, notchangeoldmetrics",
+    "temporal_max_consecutive_difference_K": 0.25,
+    "spatial_max_finest_difference_K": 0.25,
+    "energy_balance_relative_max": 0.001,
+    "energy_denominator": "max(cumulativeinputJ,1J); fullstoredenergy +integratedtop/bottomloss -input",
+    "sample_s": 0.1,
+    "temperature_domain_k": [
+      300,
+      400
+    ],
+    "crossing_probe_k": [
+      301,
+      330
+    ],
+    "crossing_rule": "samephysicalquantity; abs crossingerror<=max(0.2s,0.05*t_ref); missing/spuriouscrossingsfail; bothnocross=NOT_APPLICABLE",
+    "steady_state_claim": false
+  },
+  "command_status": "Newgeometrygenerate/run-approved entry NOT_IMPLEMENTED; existingeq3_reference_followup.py is fixedold4points andMUST_NOT beused",
+  "prelaunch_prerequisites": [
+    "designuserconfirmation",
+    "isolatednewgeometryconverterandfixedunittests",
+    "same-observable RCmappingandfullenergyreceipt",
+    "existingapprovalgateintegration",
+    "actual codeSHA/allgeneratedinputhashes boundoutsidegit",
+    "explicitexecution-version userconfirmation"
+  ],
+  "outputs": "new immutable eq3_thermal/runs/EQ3-P2-PERDIE-CALIBRATION-vN/run_id; nooverwrite",
+  "approval_record": null,
+  "iteration_record_contract": {
+    "required": [
+      "iteration_id",
+      "question",
+      "source/version/hash and original location",
+      "hypothesis vs fact",
+      "input differences and affectedclaims",
+      "predeclaredmetrics/expecteddiagnosticvalue",
+      "actualresultsincludingnegative",
+      "cumulativeCPU/RAM/disk",
+      "reviewdecision and nextpoint",
+      "approval_scope_check"
+    ],
+    "scientific_stop": [
+      "requestedaccuracyanddomainvalidated",
+      "currentquestionanswered",
+      "unidentifiableparameters or no usefuladditionalinformation; diagnose/reframe"
+    ],
+    "safety_stop": [
+      "memory/disk/interference",
+      "invalidinput/energy/clock",
+      "outsidechosenmaterialdomain"
+    ],
+    "no_stop_merely_for": [
+      "numberofruns",
+      "exhaustionofinitial10pointqueue",
+      "elapsedestimate"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "evidence_class": "PACKAGE_SCENARIO",
+  "reference_identity": "NEW_REFERENCE",
+  "units": "SI",
+  "materials": {
+    "silicon_case": {
+      "density_kg_m3": 2330.0,
+      "specific_heat_j_kg_k": 710.0,
+      "conductivity_w_m_k": 150.0,
+      "evidence": "REFERENCE_BENCHMARK_INPUT",
+      "provenance": "MFIT commit 4444336d95fe7e9a3bf440c96937831126c6a37f, material_prop.yml silicon entry",
+      "note": "Reused only in the MFIT case context; not an HBF product measurement."
+    }
+  },
+  "interfaces": {
+    "source_to_spreader": {
+      "contact_resistance_m2_k_w": 0.0,
+      "evidence": "CASE_ASSUMPTION",
+      "note": "Perfect contact is used because stock 3D-ICE input has no explicit contact layer in this bounded case."
+    }
+  }
+}

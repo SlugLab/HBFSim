@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "units": {"duration":"s","power":"W"},
+  "slot_s": 0.5,
+  "region_order": ["gpu","hbm0","hbm1","hbm2","hbm3","hbf0","hbf1","hbf2","hbf3"],
+  "traces": {
+    "train": {
+      "split": "TRAIN",
+      "description": "Independent multi-level GPU, HBM, HBF, then mixed excitation and cooling.",
+      "slots": [
+        {"label":"idle","power_w":[0,0,0,0,0,0,0,0,0]},
+        {"label":"gpu_low","power_w":[40,0,0,0,0,0,0,0,0]},
+        {"label":"gpu_high","power_w":[100,0,0,0,0,0,0,0,0]},
+        {"label":"cool_1","power_w":[0,0,0,0,0,0,0,0,0]},
+        {"label":"hbm_independent","power_w":[0,8,12,16,20,0,0,0,0]},
+        {"label":"hbf_independent","power_w":[0,0,0,0,0,6,10,14,18]},
+        {"label":"mixed","power_w":[70,5,9,13,17,4,8,12,16]},
+        {"label":"cool_2","power_w":[0,0,0,0,0,0,0,0,0]}
+      ]
+    },
+    "heldout": {
+      "split": "HELD_OUT_ENTIRE_TRACE",
+      "description": "Unseen asynchronous excitation, one hot HBF stack, one-slot pulse, and cooling tail.",
+      "slots": [
+        {"label":"idle","power_w":[0,0,0,0,0,0,0,0,0]},
+        {"label":"gpu_async","power_w":[65,0,0,0,0,0,0,0,0]},
+        {"label":"hbm_async","power_w":[20,4,11,2,15,0,0,0,0]},
+        {"label":"hbf_hotstack","power_w":[15,0,0,0,0,3,5,28,7]},
+        {"label":"mixed_async","power_w":[55,9,2,13,5,8,17,4,11]},
+        {"label":"pulse","power_w":[120,18,18,18,18,14,14,32,14]},
+        {"label":"cool_1","power_w":[0,0,0,0,0,0,0,0,0]},
+        {"label":"cool_2","power_w":[0,0,0,0,0,0,0,0,0]},
+        {"label":"cool_3","power_w":[0,0,0,0,0,0,0,0,0]}
+      ]
+    }
+  }
+}

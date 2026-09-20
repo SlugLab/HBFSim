@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "reference_id": "eq3-p2-new-reference-20260919T054929Z",
+  "reference_identity": "NEW_REFERENCE",
+  "evidence_class": "NUMERICAL_REFERENCE",
+  "status": "REFERENCE_CONVERGENCE_CHARACTERIZED_RC_VALIDATION_FAILED",
+  "source_revision": "5d5e9602b41b17bd398a29a54dc3cb88b705d22f",
+  "environment_id": "eq3-thermal-reference-v1",
+  "solver": {
+    "name": "stock 3D-ICE",
+    "source_commit": "e0bb6850c5e446363e26936586d625270c87f224",
+    "binary_sha256": "240b598c6c8fe1f19db2d945c34596db4a14df7f589bc2f205d74104927244a7",
+    "patches": [],
+    "threads": 1
+  },
+  "fast_model": {
+    "name": "current P1 C++ implicit-Euler lumped RC",
+    "binary_sha256": "b2c89d74df39ad95da93e252fae9a254c9a6d620a77ca1f4c7484298dadce1b0",
+    "parameter_method": "GEOMETRY_DERIVED_NOT_FITTED",
+    "fit_parameters": [],
+    "known_structural_limit": "One isothermal spreader node removes finite lateral spreader resistance present in the distributed 3D-ICE grid; this is a candidate contributor, not a proven sole cause."
+  },
+  "inputs": {
+    "families.json": "4e2f46d4acf859c2e1dfaacd7cd5bb4343ff4292b61ea574c46e0174343791e3",
+    "materials.json": "922a7f010c8fa90c47d617f6392a132cdae2c6309e14c6a32b615bd07d630971",
+    "package_scenario.json": "f0438e2e52f2df9430a240caf26a25bb29fa8612c854b785bdbc4670b5af2a63",
+    "power_traces.json": "29633adead8de0f6123d85cfb5cfc3743c34865cc841f514f7cdfdab3ab4e3e8",
+    "run_input_generator_sha256": {
+      "0e78d908df64431c3ac806aee869dd510e506df04a5273685ad79420a3f465b3": 7,
+      "31deff2e5d3b9323ff95bf498046047a12f6d1fe442a4683d96f982995b0d5e6": 1
+    },
+    "current_generator_and_analysis_sha256": "77d113870a39a6a447775b67095d83ef6658cef21718607210da5379f9940120"
+  },
+  "workspace_relative_raw_run_root": "eq3_thermal/runs/p2-reference-20260919T054929Z",
+  "attempts": {
+    "total_launch_attempts": 8,
+    "successful_numerical_configurations": 7,
+    "failed_before_solver": 1,
+    "failed_solver_runs": 0,
+    "failed_attempt_receipt_sha256": "90263e3e12c68debbf3e74c269d5b27200251fea4be4fd5cd548b41fa83026e7"
+  },
+  "configurations": [
+    {"id":"R1","engine":"3D-ICE","trace":"train","mesh_m":0.002,"dt_s":0.1,"run":"r1b-train-coarse-dt100ms"},
+    {"id":"R2","engine":"3D-ICE","trace":"train","mesh_m":0.002,"dt_s":0.05,"run":"r2-train-coarse-dt50ms"},
+    {"id":"R3","engine":"3D-ICE","trace":"train","mesh_m":0.001,"dt_s":0.1,"run":"r3-train-fine-dt100ms"},
+    {"id":"R4","engine":"3D-ICE","trace":"train","mesh_m":0.001,"dt_s":0.05,"run":"r4-train-fine-dt50ms"},
+    {"id":"R5","engine":"3D-ICE","trace":"heldout","mesh_m":0.001,"dt_s":0.05,"run":"r5-heldout-fine-dt50ms"},
+    {"id":"R6","engine":"P1_RC","trace":"train","dt_s":0.05,"run":"r6-rc-train-dt50ms"},
+    {"id":"R7","engine":"P1_RC","trace":"heldout","dt_s":0.05,"run":"r7-rc-heldout-dt50ms"}
+  ],
+  "derived_outputs": {
+    "convergence_v2.json": "0ab4a76c2292e000e14acdf79698474412d3607bb47949745257fb81929ca29c",
+    "train_comparison.json": "1e7edddf81827525312d6bc99220fe238bb0c4fae345eb2647acf52e18513e6a",
+    "heldout_comparison.json": "e772ead733a7110d17014c2c6358cfb189a87213b366ca97c22904abf537eef4"
+  },
+  "resources_observed": {
+    "successful_run_cpu_seconds_total": 0.101862,
+    "successful_run_wall_seconds_total": 0.1456570625,
+    "max_rss_kib_process_tree_upper_bound": 23352,
+    "raw_run_disk": "1.6 MiB"
+  },
+  "acceptance": {
+    "per_sensor_mae_k_max": 1.0,
+    "grid_hotspot_max_error_k": 2.0,
+    "threshold_k": 301.0,
+    "crossing_error": "max(2 observation slots, 5% of reference crossing time)",
+    "heldout_pass": false
+  },
+  "claim_limits": [
+    "No historical golden, floorplan, ROM parameter, or accuracy claim was reused.",
+    "No parameter was adjusted after inspecting results.",
+    "This is not physical GPU, HBM, HBF, package, cooling, or silicon calibration.",
+    "HBF labels are assumed heat-source classes and do not assert HBF stack geometry.",
+    "Steady-state and complete heat-flux/storage energy balance were not established."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "families": {
+    "TEST_FIXTURE": {
+      "location": "configs/eq3_thermal/thermal_fixture.json",
+      "status": "EXISTING_UNCHANGED",
+      "allowed_use": "software regression only"
+    },
+    "REFERENCE_BENCHMARK": {
+      "solver": "stock 3D-ICE e0bb6850c5e446363e26936586d625270c87f224",
+      "material_context": "MFIT 4444336d95fe7e9a3bf440c96937831126c6a37f material_prop.yml silicon entry and example-case top HTC",
+      "status": "INPUT_METHOD_REFERENCE",
+      "allowed_use": "units, solver execution, and mesh/time-step comparison; not HBF product calibration"
+    },
+    "PACKAGE_SCENARIO": {
+      "location": "configs/eq3_thermal/reference/package_scenario.json",
+      "identity": "eq3-p2-tiled-package-v1",
+      "status": "NEW_REFERENCE_CASE_ASSUMPTION",
+      "allowed_use": "bounded numerical comparison only; no physical HBF claim"
+    }
+  }
+}

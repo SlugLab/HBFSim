@@ -1,0 +1,145 @@
+#include <hbfsim/eq3_thermal/cpu_service.hpp>
+#include <hbfsim/eq3_thermal/thermal.hpp>
+#include <json.hpp>
+#include <cmath>
+#include <iostream>
+#include <functional>
+#include <stdexcept>
+#include <sstream>
+#ifdef EQ3_TEST_DISPATCHER
+#include "../../src/host_service/request_dispatcher.hpp"
+#include <cstdlib>
+#endif
+using namespace hbfsim::eq3_thermal;
+using J=nlohmann::json;
+void check(bool b,const char* s){if(!b)throw std::runtime_error(s);}
+void near(double a,double b){check(std::abs(a-b)<1e-7,"energy arithmetic");}
+void rejects(const std::function<void()>& f){bool hit=false;try{f();}catch(const std::exception&){hit=true;}check(hit,"expected rejection");}
+J fixture(std::string topology="mixed_direct",unsigned hbms=4) {
+  ThermalModelConfig c;c.nodes={{"gpu",PhysicalType::Gpu,LogicalRole::Compute,"gpu",std::nullopt,1,300,0,1,300}};
+  J j={{"evidence","ENGINEERING_FIXTURE"},{"topology",topology},{"policy","none"},
+    {"thermal_step_ns",10000000},{"sample_ns",10000000},{"hbf_maintenance_period_ns",10000000000ULL},
+    {"hbm_refresh_period_ns",20000000000ULL},{"page_bytes",4096},{"initial_age_ns",0},
+    {"external_fast_memory","GDDR"},{"custom_base_die_relay",true},
+    {"duration_ns",{{"read",100000000},{"program",200000000},{"erase",300000000},{"write",100000000},{"dram_refresh",50000000}}},
+    {"power_w",{{"read_array",2},{"program_array",4},{"erase_array",5},{"write_array",3},{"refresh_array",1},
+       {"base",1},{"relay_base",3},{"gpu_phy",.5},{"gddr",7},{"gpu_external",0}}},
+    {"stacks",J::array()},{"control",J::object()}};
+  for(unsigned i=0;i<8;++i) {
+    const bool hbm=i<hbms;const auto index=hbm?i:i-hbms;const std::string id=(hbm?"hbm":"hbf")+std::to_string(index);
+    J s={{"id",id},{"physical_kind",hbm?"HBM4":"HBF"},{"die_count",2}};
+    if(!hbm)s["pair"]="hbm"+std::to_string(index);j["stacks"].push_back(s);
+    const auto physical=hbm?PhysicalType::Hbm:PhysicalType::Hbf;const auto role=hbm?LogicalRole::FastMemory:LogicalRole::CapacityMemory;
+    c.nodes.push_back({id+"_base",physical,role,id,std::nullopt,1,300,0,1,300});
+    for(unsigned d=0;d<2;++d)c.nodes.push_back({id+"_die"+std::to_string(d),physical,role,id,d,1,300,0,1,300});
+    j["control"][id]={{"light_k",310},{"severe_k",320},{"shutdown_k",330},{"hysteresis_k",.05},
+      {"action_delay_ns",20000000},{"min_dwell_ns",30000000},{"light_gap_ns",250000000}};
+  }
+  std::ostringstream model;model<<"HBFSIM_EQ3_THERMAL_MODEL 1\ncoupling on\n";
+  for(const auto& n:c.nodes)model<<"node "<<n.id<<' '<<(n.physical_type==PhysicalType::Gpu?"gpu":n.physical_type==PhysicalType::Hbm?"hbm":"hbf")<<' '
+    <<(n.logical_role==LogicalRole::Compute?"compute":n.logical_role==LogicalRole::FastMemory?"fast_memory":"capacity_memory")<<' '<<n.group_id<<' '
+    <<(n.die_index?std::to_string(*n.die_index):"-1")<<" 1 300 0 1 300\n";
+  j["thermal_model_text"]=model.str();return j;
+}
+J request(std::string id,std::string stack="hbf0",std::string route="direct",std::string op="read",unsigned die=0) {
+  return {{"id",id},{"stack",stack},{"route",route},{"op",op},{"die",die},{"arrival_ns",0},
+    {"logical_bytes",64},{"physical_bytes",128},{"link_bytes",256},{"fail_fraction",0}};
+}
+void resource_energy_topologies() {
+  for(const auto& topology:{"mixed_direct","relay","dash","all_hbf_direct"}) {
+    auto config=fixture(topology,std::string(topology)=="all_hbf_direct"?0:4);CpuService s(config.dump());
+    const auto path=std::string(topology)=="relay"?"relay":"direct";
+    auto a=request("a","hbf0",path);check(s.submit(a.dump())&&!s.submit(a.dump()),"dedup");
+    auto b=request("b","hbf0",std::string(topology)=="dash"?"relay":path,"read",1);s.submit(b.dump());
+    s.advance_to(250000000);auto r=J::parse(s.report());check(r["done"].size()==2,"two actual completions");
+    check(r["done"][1]["start_ns"]==100000000,"shared upstream must serialize DASH and direct");
+    near(r["energy_j"]["hbf0_die0"],.2);near(r["energy_j"]["hbf0_die1"],.2);near(r["energy_j"]["hbf0_base"],.2);
+    near(r["energy_j"]["gpu"],.1);
+    check(r["balance"]["relative_residual"].get<double>()<.001,"discrete energy conservation");
+    near(r["balance"]["max_component_mapping_error_j"],0);
+    if(std::string(topology)=="relay"||std::string(topology)=="dash") {
+      near(r["energy_j"]["hbm0_base"],std::string(topology)=="relay"?.6:.3);
+      near(r["energy_j"]["hbm0_die0"],0); // forwarding is NOT an HBM array access
+    }
+    if(std::string(topology)=="all_hbf_direct") {
+      auto g=request("g","gddr");g["arrival_ns"]=250000000;s.submit(g.dump());s.advance_to(400000000);
+      r=J::parse(s.report());near(r["external_energy_j"],.7);check(!r["temperature_k"].contains("gddr"),"GDDR must remain external");
+    }
+    check(r["cohorts"]["hbf0:0"]["program_attempts"]==0,"read counted as P/E");
+  }
+  CpuService configurable(fixture("mixed_direct",2).dump());configurable.submit(request("2plus6").dump());configurable.advance_to(200000000);
+  check(J::parse(configurable.report())["done"].size()==1,"non4+4 unsupported");
+  auto bad=fixture();bad["topology"]="unknown";rejects([&]{CpuService s(bad.dump());});
+  CpuService s(fixture().dump());rejects([&]{s.submit(request("bad","hbf0","relay").dump());});
+  CpuService erase(fixture().dump());erase.submit(request("erase","hbf0","direct","erase").dump());erase.advance_to(400000000);
+  auto er=J::parse(erase.report());check(er["cohorts"]["hbf0:0"]["erase_attempts"]==1&&er["cohorts"]["hbf0:0"]["successful_erases"]==1,"explicit erase accounting");
+  near(er["energy_j"]["hbf0_die0"],1.5);
+  CpuService relay(fixture("relay").dump());relay.submit(request("relay","hbf0","relay").dump());relay.submit(request("hbm","hbm0").dump());relay.advance_to(300000000);
+  auto rr=J::parse(relay.report());check(rr["done"][1]["start_ns"]==100000000,"HBM direct failed to share relay base/link");
+  near(rr["energy_j"]["hbm0_die0"],.2);
+}
+void maintenance_failures_restart() {
+  auto c=fixture();c["hbf_maintenance_period_ns"]=100000000;c["hbm_refresh_period_ns"]=500000000;
+  c["fail_maintenance_once"]={{"cohort","hbf0:0"},{"op","program"},{"fraction",.5}};
+  CpuService s(c.dump());s.submit(request("front").dump());s.advance_to(150000000);
+  auto r=J::parse(s.report());check(r["cohorts"]["hbf0:0"]["commits"]==0,"enqueue or read reset age");
+  check(r["cohorts"]["hbf0:0"]["age_ns"]==150000000,"age not advancing");
+  const auto snapshot=s.checkpoint();CpuService restored(c.dump());restored.restore(snapshot);
+  auto invalid=J::parse(snapshot);invalid["state"]["resources"]=J::object();rejects([&]{restored.restore(invalid.dump());});
+  s.advance_to(2000000000);restored.advance_to(2000000000);check(s.report()==restored.report(),"checkpoint continuation differs");
+  r=J::parse(s.report());const auto& cohort=r["cohorts"]["hbf0:0"];
+  check(cohort["maintenance_failures"]==1&&cohort["commits"].get<unsigned>()>0,"failure/commit accounting");
+  unsigned inflight_programs=0;for(const auto& job:r["active"])if(job["stack"]=="hbf0"&&job["die"]==0&&job["op"]=="program")++inflight_programs;
+  check(cohort["program_attempts"].get<unsigned>()==cohort["successful_programs"].get<unsigned>()+1+inflight_programs,"actual program accounting including inflight");
+  check(cohort["erase_attempts"]==0,"refresh intent counted as erase");
+  for(const auto& job:r["done"])if(job["status"]=="FAILED")check(job["end_ns"].get<unsigned long long>()-job["start_ns"].get<unsigned long long>()==100000000,"partial failure duration");
+  check(r["energy_j"]["hbf0_die0"].get<double>()>0,"maintenance no energy");
+  // Explicit failed foreground keeps work and consumes exactly its elapsed energy.
+  CpuService f(fixture().dump());auto q=request("failed");q["fail_fraction"]=.25;f.submit(q.dump());f.advance_to(200000000);
+  auto fr=J::parse(f.report());near(fr["energy_j"]["hbf0_die0"],.05);check(fr["done"][0]["status"]=="FAILED","failure disappeared");
+}
+void control_cooling() {
+  auto c=fixture();c["policy"]="hysteresis";c["control"]["hbf0"]["light_k"]=300.02;
+  c["control"]["hbf0"]["severe_k"]=300.08;c["control"]["hbf0"]["shutdown_k"]=300.14;
+  c["control"]["hbf0"]["hysteresis_k"]=.01;
+  CpuService s(c.dump());for(unsigned i=0;i<3;++i)s.submit(request("q"+std::to_string(i)).dump());
+  s.advance_to(500000000);auto r=J::parse(s.report());check(r["done"].size()==1&&r["queue"].size()==2,"control did not gate or drain");
+  bool light=false,severe=false,shutdown=false;std::uint64_t previous=0;
+  for(const auto& row:r["log"])if(row["kind"]=="control") {
+    const auto at=row["time_ns"].get<std::uint64_t>();check(at>=20000000,"action delay ignored");
+    if(previous)check(at-previous>=30000000,"minimum dwell ignored");previous=at;
+    light|=row["to"]=="Light";severe|=row["to"]=="Severe";shutdown|=row["to"]=="Shutdown";
+  }
+  check(light&&severe&&shutdown,"not all heating states reached");
+  check(r["done"][0]["end_ns"]==100000000,"inflight was lost or retroactively delayed");
+  check(r["control"]["hbf1"]["applied"]=="Normal","control not per stack");
+  const auto hot=r["temperature_k"]["hbf0_die0"].get<double>();s.advance_to(10000000000ULL);r=J::parse(s.report());
+  check(r["done"].size()==3&&r["queue"].empty(),"idle recovery failed");check(r["temperature_k"]["hbf0_die0"].get<double>()<hot,"idle cooling absent");
+  check(r["control"]["hbf0"]["applied"]=="Normal","hysteresis recovery failed");
+  c["policy"]="none";CpuService no(c.dump());for(unsigned i=0;i<3;++i)no.submit(request("q"+std::to_string(i)).dump());no.advance_to(500000000);
+  check(J::parse(no.report())["done"].size()==3,"no-action control blocked work");
+}
+void actual_dispatcher() {
+#ifdef EQ3_TEST_DISPATCHER
+  using namespace hbfsim::host_service;
+  void* storage=nullptr;const auto bytes=control_region_bytes(8);check(posix_memalign(&storage,64,bytes)==0,"control allocation");
+  std::unique_ptr<void,decltype(&std::free)> owned(storage,&std::free);ControlView view(storage,bytes);check(view.initialize(8),"control initialization");
+  CpuService service(fixture().dump());hbfsim::HbfRequest original{};original.request_id=1001;original.bytes=64;
+  original.operation=static_cast<std::uint32_t>(hbfsim::RequestOperation::Read);original.page_generation=9;
+  std::uint64_t ticket;check(view.try_push_request(original,ticket),"dispatcher enqueue");
+  hbfsim::HbfRequest submitted{};
+  RequestDispatcher dispatcher(view,{
+    .prepare=[](const hbfsim::HbfRequest& r){PreparedDispatch p;p.completion.request_id=r.request_id;p.completion.page_generation=r.page_generation;
+      p.completion.status=static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready);p.media_actions[0]=r;p.media_action_count=1;return p;},
+    .submit=[&](const hbfsim::HbfRequest& r){submitted=r;auto q=request(std::to_string(r.request_id));q["arrival_ns"]=r.arrival_ns;service.submit(q.dump());},
+    .run_next_completion=[&]()->std::optional<hbfsim::HbfCompletion>{
+      service.advance_to(100000000);const auto r=J::parse(service.report());check(r["done"].size()==1,"dispatcher not consuming actual service");
+      hbfsim::HbfCompletion c{};c.request_id=submitted.request_id;c.page_generation=submitted.page_generation;
+      c.modeled_completion_ns=r["done"][0]["end_ns"];c.modeled_ns=c.modeled_completion_ns;c.status=static_cast<std::uint32_t>(hbfsim::RequestStatus::Ready);return c;}});
+  check(dispatcher.poll_once(),"actual dispatcher no progress");hbfsim::HbfCompletion completion{};
+  check(view.try_consume_completion(ticket,completion),"actual shared completion not published");
+  check(completion.request_id==1001&&completion.modeled_ns==100000000,"dispatcher ID/time semantics");
+  std::cout<<"PASS actual RequestDispatcher Engine and shared completion consumer (CPU fixture, not live GPU)\n";
+#endif
+}
+int main(){try{resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

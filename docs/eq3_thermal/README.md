@@ -1,5 +1,79 @@
 # Independent EQ3 thermal P1
 
+## Current continuous campaign result (supersedes historical status below)
+
+[P2/P3/P4 actual result](P2_P3_P4_CAMPAIGN_RESULT.md): P2 remains blocked by
+reference precision/resources and development domain; no MODEL_FREEZE/blind.
+P3 actual MQSim CPU observer/advice and P4 resource/maintenance/control fixture
+are implemented and tested, including four topology paths and six mainline CPU
+engineering pilots. This is not physical calibration or a P5 paper matrix.
+
+## Parameter-freeze continuation (current)
+
+Implementation update: [converter validation](CONVERTER_VALIDATION.md) and
+[actual execution readiness](EXECUTION_READINESS_v1.md). Generic IR, native
+3D-ICE/RC export, field/sensor mapping, parse-only probe and gated launcher now
+exist. First-example inputs have been generated and parsed **without solving**.
+Only R01 reference pilot is prepared for execution approval; the full matrix is
+not READY. External GDDR is excluded from the package thermal domain by the latest
+user decision. Memory ceiling is now 16 GiB task / 12 GiB process, not run approval.
+The older NOT_IMPLEMENTED converter statements below are historical and superseded.
+
+Scope revision v3: first 4+4 mixed-direct example accepted in principle; **all four
+topologies remain mandatory**. See [coverage and acceptance axes](FOUR_TOPOLOGY_COVERAGE.md),
+[reuse/base-die audit](REUSE_AND_BASE_DIE_AUDIT.md), and
+[generic converter contract](LAYER_CONVERTER_CONTRACT.md).
+Base dies exist in P1 and candidate geometry, but the research converter and actual
+base/PHY/relay power consumers remain incomplete. No calibration/GPU/matrix approval.
+
+Start with [parameter decisions](PARAMETER_DECISIONS.md), [actual consumers](PARAMETER_CONSUMERS.md),
+[source audit](PARAMETER_SOURCE_AUDIT.md), [gaps](PARAMETER_GAPS.md) and [model scope](MODEL_SCOPE.md).
+The candidate is per-die4HBM4+4HBF mixed-direct, explicitly CONDITIONAL_SIMULATED.
+[Calibration preflight v2](CALIBRATION_PREFLIGHT_v2.md) and [staged EQ3 plan](EQ3_EXPERIMENT_PLAN_v1.md)
+are PENDING_USER_APPROVAL. The new geometry converter is NOT_IMPLEMENTED: old two-layer
+tools are not an execution entry for this candidate. DESIGN_FREEZE precedes bounded
+calibration; MODEL_FREEZE follows independent validation and precedes formal EQ3 approval.
+The old four-point fixture plan below remains unapproved and is not the mainline blocker.
+
+User update: the ten listed calibration points are an initial queue, not a hard
+iteration cap. Continue only evidence-driven, reviewed refinement inside the
+approved scope; stop on scientific completion or safety conditions, not run count.
+v1 is retained as historical; v2 replaces its count/cumulative-time stop rules.
+
+Read-only input audit (no solver/GPU/approval writes):
+
+```sh
+python3 -B tools/eq3_parameter_check.py --root .
+python3 -B -m unittest discover -s tools -p 'test_eq3_*.py' -v
+```
+
+34 fixed Python tests and the existing P1 core regression pass; this does not change
+the FAILED old RC, missing physical calibration or NOT_IMPLEMENTED P3–P5 status.
+
+## P2 continuation status
+
+P1 remains a verified standalone software fixture, not a calibrated package.
+See [old-artifact applicability audit](HISTORICAL_SUITABILITY_AUDIT.md) before
+reusing any historical floorplan/golden/ROM. The new small reference
+[numerical report](P2_NUMERICAL.md) records a **failed** lumped-RC heldout test,
+not a physics validation PASS. [GPU diagnosis](GPU_DIAGNOSTIC.md) distinguishes
+default agent device isolation from successful authorized host enumeration.
+[Source ledger](SOURCE_AND_GAP_LEDGER.md) and
+[reference manifest](reference_manifest.json) separate numerical, proxy and
+vendor evidence. [Approval contract](experiment_approval.md) applies before
+formal or GPU runs. This turn made no existing runtime or core changes.
+
+The next reference-only four-point refinement plan is persisted outside the
+Git checkout under workspace `eq3_thermal/plans/p2-reference-refinement-v1`.
+It binds a frozen code HEAD without a self-referential manifest commit.
+Its status is PENDING_USER_APPROVAL; script availability is not authorization.
+The later user-authorized [iterative engineering checks](ITERATIVE_VALIDATION.md)
+are separate from that unlaunched batch. Three consecutive timestep refinements
+improved the reference and reached the preregistered0.25K stopping target.
+This does not turn the failed lumped-RC comparison into PASS.
+
+## P1 entry point
+
 Status: CPU numerical/test-fixture implementation; no live HBFSim thermal
 integration, calibrated ROM, physical HBF validation or closed-loop refresh yet.
 The existing top-level build is unchanged. Baseline runtime links no new code.

@@ -59,7 +59,9 @@ def main() -> int:
         "fast": 2,
         "reference": 0,
     }
-    assert result["modeled_device_service_ns"] == 20_064
+    # Two pages: each max(10,000 ns first-byte latency, 32 ns transfer).
+    # Upstream fast_service_ns overlaps these bounds rather than adding them.
+    assert result["modeled_device_service_ns"] == 20_000
     assert result["demand_exposed_stall_ns"] == 20_000
     assert result["emulator_dispatcher_wall_time_ns"] > 0
     hybrid = json.loads(hybrid_completed.stdout)

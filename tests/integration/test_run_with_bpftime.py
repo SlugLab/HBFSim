@@ -74,8 +74,13 @@ def main() -> int:
         )
 
         env = os.environ.copy()
+        # This is a wrapper/provenance test using fake loaders, not CUDA work.
+        # Give it an isolated existing root rather than requiring one host's SDK.
+        cuda_root = root / "cuda-fixture"
+        cuda_root.mkdir()
         env.update(
             {
+                "HBFSIM_CUDA_ROOT": str(cuda_root),
                 "HBFSIM_BUILD_DIR": str(hbfsim_build),
                 "HBFSIM_BPFTIME_BUILD_DIR": str(bpftime_build),
                 "HBFSIM_BPFTIME_LOADER": str(loader),
@@ -141,7 +146,7 @@ def main() -> int:
         lines = output.read_text().splitlines()
         require(lines[0] == str(hbfsim_build / "libptxpass_hbf.so"),
                 "wrapper exported wrong PTX pass library")
-        require(lines[1] == "/usr/local/cuda-12.8",
+        require(lines[1] == str(cuda_root),
                 "wrapper exported wrong CUDA root")
         require(
             lines[2].split(":") == [

@@ -126,7 +126,9 @@ def main() -> int:
         ]
         assert len(constrained) == 1
         assert constrained[0]["misses"] == 3
-        assert constrained[0]["modeled_device_time_ns"] == 30_096
+        # Three misses, each max(10,000 ns latency, 32 ns transfer), matching
+        # the upstream host/device overlap contract instead of the old sum.
+        assert constrained[0]["modeled_device_time_ns"] == 30_000
         assert summary["execution_order_seed"] == 0
         assert summary["execution_order_randomized"] is True
 

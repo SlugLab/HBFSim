@@ -283,6 +283,11 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
     if min(intervals, batch_size, attention_compute_ns, mlp_compute_ns,
            output_compute_ns) <= 0 or interval_ns < 0 or prefetch < 0:
         raise ValueError("trace counts/durations must be positive; interval/prefetch non-negative")
+    prefetch_mode = config.get("prefetch_mode", "layer_lookahead")
+    if prefetch_mode not in {"on_demand", "layer_lookahead"}:
+        raise ValueError("unknown prefetch_mode")
+    if prefetch_mode == "on_demand" and prefetch != 0:
+        raise ValueError("on-demand weights cannot also request layer lookahead")
     provenance = None
     if dependency_mode == "tiny_cpu_template":
         provenance = _validate_tiny_template(config, meta)
@@ -326,7 +331,7 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
             tasks.extend([
                 {"task_id": attn_read, "type": "storage",
                  "tensor": by_id[f"model.layers.{layer}.attention_bundle"],
-                 "issue_after": issue_parent, "consume_after": [previous],
+                 "issue_after": ([previous] if prefetch_mode == "on_demand" else issue_parent), "consume_after": [previous],
                  "consumer_count": batch_size,
                  "structure_template_op_ids": (
                      None if template is None else template["attention_op_ids"])},
@@ -336,7 +341,7 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
                  "structure_role": "ATTENTION_AFTER_INPUT_AND_WEIGHT_READ"},
                 {"task_id": mlp_read, "type": "storage",
                  "tensor": by_id[f"model.layers.{layer}.mlp_bundle"],
-                 "issue_after": [previous], "consume_after": [attn_compute],
+                 "issue_after": ([attn_compute] if prefetch_mode == "on_demand" else [previous]), "consume_after": [attn_compute],
                  "consumer_count": batch_size,
                  "structure_template_op_ids": (
                      None if template is None else template["mlp_op_ids"])},
@@ -377,7 +382,7 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
         "compute_cost_evidence": "EXPLICIT_SCENARIO_INPUT_NOT_RUNTIME_TRACE",
         "official_metadata": {k: meta[k] for k in (
             "revision", "resolved_commit", "tensor_payload_bytes", "architecture", "sources")},
-        "prefetch_layers": prefetch, "batches": batches,
+        "prefetch_layers": prefetch, "prefetch_mode": prefetch_mode, "batches": batches,
         "structure_provenance": provenance,
         "limitations": ["not a PyTorch or hardware runtime trace", "no NAND timing model",
                         "activation and KV-cache traffic unavailable"],
@@ -462,7 +467,7 @@ class CausalExecutor:
 
     def append_trace(self, trace):
         """Append an arrived batch; callers retain uninstantiated arrival backlog."""
-        for key in ('trace_origin','dependency_mode','model_id','embedding_access','prefetch_layers'):
+        for key in ('trace_origin','dependency_mode','model_id','embedding_access','prefetch_layers','prefetch_mode'):
             if trace.get(key) != self.trace.get(key):
                 raise ValueError('streaming trace scientific identity changed')
         left = (self.trace.get("structure_provenance") or {}).get("trace_sha256")

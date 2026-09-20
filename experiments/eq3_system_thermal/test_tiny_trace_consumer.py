@@ -31,6 +31,16 @@ def config(model="Qwen/Qwen2.5-7B-Instruct", mode="tiny_cpu_template"):
 
 
 class TinyTraceConsumerTests(unittest.TestCase):
+    def test_on_demand_has_no_hidden_within_layer_prefetch(self):
+        cfg=config();cfg.update(prefetch_layers=0,prefetch_mode="on_demand")
+        trace=build_architecture_trace(cfg)
+        tasks={t['task_id']:t for t in trace['batches'][0]['tasks']}
+        self.assertEqual(tasks['interval0:l0:attn_read']['issue_after'],['interval0:embed_read'])
+        self.assertEqual(tasks['interval0:l0:mlp_read']['issue_after'],['interval0:l0:attn_compute'])
+        self.assertEqual(tasks['interval0:l1:attn_read']['issue_after'],['interval0:l0:mlp_compute'])
+        cfg['prefetch_layers']=1
+        with self.assertRaises(ValueError):build_architecture_trace(cfg)
+
     def test_validated_template_drives_target_dependencies_and_shapes(self):
         for model, layers, payload in (
                 ("Qwen/Qwen2.5-7B-Instruct", 28, 15_231_233_024),

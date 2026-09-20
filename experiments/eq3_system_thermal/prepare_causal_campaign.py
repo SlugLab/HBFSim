@@ -34,7 +34,7 @@ def make_config(point_id,topology,strategy,model_id,active_s,recovery_s,rate=1_5
                               'bandwidth_bytes_per_s':rate} for c,rate in channels.items()}
     service['causal_channel_groups']=groups
     trace={'model_id':model_id,'batch_intervals':1,'batch_size':1,'batch_interval_ns':1,
-           'prefetch_layers':0,'attention_compute_ns_per_token':1000,
+           'prefetch_layers':0,'prefetch_mode':'on_demand','attention_compute_ns_per_token':1000,
            'mlp_compute_ns_per_token':1000,'output_compute_ns_per_token':1000,
            'embedding_access':'selected_token_rows','max_active_batches':4}
     trace_path=HERE/'stage/traces/tiny_qwen2_cpu_trace_v1/trace.json'

@@ -16,7 +16,7 @@ def make_point(root: Path, *, corrupt_backlog=False) -> Path:
     point = root / "base-mixed_direct-384-0-01"
     point.mkdir(parents=True)
     config = {"point_id": point.name, "topology": "mixed_direct", "strategy": "guard_only",
-              "workload": {"active_ns": 20, "per_stack_Bps": 384_000_000_000},
+              "workload": {"active_ns": 20, "per_stack_Bps": 1_536_000_000_000},
               "recovery_ns": 20}
     save(point / "config.json", config)
     save(point / "manifest.json", {
@@ -37,12 +37,12 @@ def make_point(root: Path, *, corrupt_backlog=False) -> Path:
                     "hbf0": {"offered_effective_bytes": offered,
                              "delivered_effective_bytes": delivered,
                              "backlog_effective_bytes": backlog,
-                             "media_payload_bytes": delivered,
+                             "media_activity_bytes": delivered,
                              "oldest_wait_ns": 20 if backlog else None},
                     "hbm0": {"offered_effective_bytes": 0,
                              "delivered_effective_bytes": 0,
                              "backlog_effective_bytes": 0,
-                             "media_payload_bytes": delivered,
+                             "media_activity_bytes": delivered,
                              "oldest_wait_ns": None},
                 },
                 "job_progress": [], "maintenance_completion_ids": [],
@@ -71,10 +71,12 @@ class AnalyzerTest(unittest.TestCase):
             self.assertEqual(result["totals"]["offered_effective_bytes"], 100)
             self.assertEqual(result["totals"]["delivered_effective_bytes"], 100)
             self.assertEqual(result["totals"]["byte_conservation_error"], 0)
-            self.assertEqual(result["per_stack"]["hbm0"]["media_payload_bytes"], 100)
+            self.assertEqual(result["per_stack"]["hbm0"]["media_activity_bytes"], 100)
             self.assertEqual(result["per_stack"]["hbm0"]["state_time_ns"]["light"], 20)
             self.assertEqual(result["token_metric"]["status"], "UNAVAILABLE")
             self.assertEqual(result["maintenance_metric"]["status"], "NOT_EXERCISED_NO_DEMAND")
+            self.assertEqual(set(result["_trace"]["temperatures_k_by_owner"]),
+                             {"gpu", "hbf0", "hbm0"})
 
     def test_detects_byte_failure(self):
         with tempfile.TemporaryDirectory() as td:
@@ -93,6 +95,7 @@ class AnalyzerTest(unittest.TestCase):
             write_outputs(analysis, output, plots=True)
             self.assertTrue((output / "per-stack-summary.csv").is_file())
             self.assertTrue((output / "six-panel-mixed-direct.png").is_file())
+            self.assertTrue((output / "owner-temperatures-mixed-direct-guard-only-1536.png").is_file())
             self.assertIn("Token/s remains unavailable", (output / "SYSTEM_THERMAL_CAMPAIGN_ANALYSIS.md").read_text())
 
 

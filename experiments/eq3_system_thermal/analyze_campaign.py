@@ -109,6 +109,14 @@ def _sum_energy(mapping: Any, label: str) -> float:
     return result
 
 
+def _media_activity_bytes(receipt: dict) -> int:
+    """Consume the final service field; retain one explicit fixture alias."""
+    present = [key for key in ("media_activity_bytes", "media_payload_bytes") if key in receipt]
+    if len(present) != 1:
+        raise ValueError("stack receipt must contain exactly one media activity byte field")
+    return _integer(receipt[present[0]], present[0])
+
+
 def analyze_point(point: Path) -> dict:
     config, manifest, done = (_load(point / "config.json"), _load(point / "manifest.json"),
                               _load(point / "DONE.json"))
@@ -122,12 +130,14 @@ def analyze_point(point: Path) -> dict:
     per_stack: dict[str, dict[str, Any]] = {}
     traces = {"end_ns": [], "offered_Bps": [], "delivered_Bps": [], "backlog_bytes": [],
               "max_temperature_k": [], "worst_state_rank": [], "maintenance_pending_bytes": [],
-              "maintenance_completions": [], "token_completions": []}
+              "maintenance_completions": [], "token_completions": [],
+              "temperatures_k_by_owner": {}}
     totals = {"offered_effective_bytes": 0, "delivered_effective_bytes": 0,
               "media_payload_bytes": 0, "energy_j": 0.0,
               "maintenance_completion_count": 0}
     expected_start = 0
     service_stacks: set[str] | None = None
+    thermal_owners: set[str] | None = None
     completed_maintenance: set[str] = set()
     token_semantics: set[str] = set()
     reliability_statuses: set[str] = set()
@@ -157,7 +167,7 @@ def analyze_point(point: Path) -> dict:
             for stack in sorted(service_stacks):
                 per_stack[stack] = {
                     "offered_effective_bytes": 0, "delivered_effective_bytes": 0,
-                    "media_payload_bytes": 0, "final_backlog_effective_bytes": 0,
+                    "media_activity_bytes": 0, "final_backlog_effective_bytes": 0,
                     "peak_temperature_k": None, "final_temperature_k": None,
                     "peak_oldest_wait_ns": None,
                     "state_time_ns": {state: 0 for state in STATE_RANK},
@@ -173,11 +183,11 @@ def analyze_point(point: Path) -> dict:
             offered = _integer(receipt.get("offered_effective_bytes"), "offered bytes")
             delivered = _integer(receipt.get("delivered_effective_bytes"), "delivered bytes")
             backlog = _integer(receipt.get("backlog_effective_bytes"), "backlog bytes")
-            media = _integer(receipt.get("media_payload_bytes"), "media payload bytes")
+            media = _media_activity_bytes(receipt)
             dest = per_stack[stack]
             dest["offered_effective_bytes"] += offered
             dest["delivered_effective_bytes"] += delivered
-            dest["media_payload_bytes"] += media
+            dest["media_activity_bytes"] += media
             dest["final_backlog_effective_bytes"] = backlog
             wait = receipt.get("oldest_wait_ns")
             if wait is not None:
@@ -215,6 +225,16 @@ def analyze_point(point: Path) -> dict:
             raise ValueError("thermal temperatures/states must be objects")
         if not service_stacks.issubset(temperatures) or not service_stacks.issubset(states):
             raise ValueError("thermal facts do not cover every service stack")
+        if thermal_owners is None:
+            thermal_owners = set(temperatures)
+            if "gpu" not in thermal_owners:
+                raise ValueError("thermal facts do not contain the package GPU owner")
+            traces["temperatures_k_by_owner"] = {owner: [] for owner in sorted(thermal_owners)}
+        elif set(temperatures) != thermal_owners:
+            raise ValueError("thermal owner coverage changed across windows")
+        for owner in sorted(thermal_owners):
+            traces["temperatures_k_by_owner"][owner].append(
+                _finite(temperatures[owner], f"temperature.{owner}"))
         worst_rank = 0
         for stack in sorted(service_stacks):
             temperature = _finite(temperatures[stack], f"temperature.{stack}")
@@ -254,7 +274,7 @@ def analyze_point(point: Path) -> dict:
         traces["offered_Bps"].append(window_offered * 1e9 / duration)
         traces["delivered_Bps"].append(window_delivered * 1e9 / duration)
         traces["backlog_bytes"].append(window_backlog)
-        traces["max_temperature_k"].append(max(float(temperatures[s]) for s in service_stacks))
+        traces["max_temperature_k"].append(max(float(temperatures[s]) for s in thermal_owners))
         traces["worst_state_rank"].append(worst_rank)
         traces["maintenance_pending_bytes"].append(pending_maintenance)
         traces["maintenance_completions"].append(len(completions))
@@ -278,8 +298,8 @@ def analyze_point(point: Path) -> dict:
         "mean_delivered_Bps": totals["delivered_effective_bytes"] * 1e9 / identity["duration_ns"],
         "delivery_fraction": (totals["delivered_effective_bytes"] / totals["offered_effective_bytes"]
                               if totals["offered_effective_bytes"] else None),
-        "peak_temperature_k": max(result["peak_temperature_k"] for result in per_stack.values()),
-        "final_peak_temperature_k": max(result["final_temperature_k"] for result in per_stack.values()),
+        "peak_temperature_k": max(traces["max_temperature_k"]),
+        "final_peak_temperature_k": max(values[-1] for values in traces["temperatures_k_by_owner"].values()),
     })
     token_available = all(value is not None for value in traces["token_completions"])
     no_maintenance = reliability_statuses == {"NO_MAINTENANCE_DEMAND_IN_BASE_RATE_WORKLOAD"}
@@ -461,6 +481,32 @@ def write_plots(analysis: dict, output: Path) -> list[str]:
         fig.savefig(path, dpi=150)
         plt.close(fig)
         paths.append(str(path))
+
+        # The overview intentionally uses a single worst-temperature trace.
+        # These representative plots retain every actual thermal owner instead
+        # of hiding GPU or HBM/HBF spatial asymmetry behind that maximum.
+        representative = [p for p in points if p["offered_rate_Bps"] == 1_536_000_000_000]
+        for point in sorted(representative, key=lambda p: STRATEGIES.index(p["strategy"])):
+            trace = point["_trace"]
+            x = [value / 1e9 for value in trace["end_ns"]]
+            owner_fig, axis = plt.subplots(figsize=(11, 6), constrained_layout=True)
+            for owner, values in sorted(trace["temperatures_k_by_owner"].items()):
+                if owner == "gpu":
+                    style, width = "-", 2.0
+                elif owner.startswith("hbm"):
+                    style, width = "--", 1.0
+                else:
+                    style, width = "-", 1.0
+                axis.plot(x, values, linestyle=style, linewidth=width, label=owner)
+            axis.axvline(point["active_ns"] / 1e9, color="gray", linestyle="-.", linewidth=.8)
+            axis.set_xlabel("Time (s)"); axis.set_ylabel("Owner hotspot K")
+            axis.grid(alpha=.2); axis.legend(ncol=5, fontsize=7)
+            axis.set_title(f"All package thermal owners | {topology} | 1.536 TB/s/stack | {point['strategy']}\n"
+                           "GPU thick; HBM dashed; HBF solid; conditional model temperatures")
+            owner_path = output / f"owner-temperatures-{_slug(topology)}-{_slug(point['strategy'])}-1536.png"
+            owner_fig.savefig(owner_path, dpi=150)
+            plt.close(owner_fig)
+            paths.append(str(owner_path))
     return paths
 
 

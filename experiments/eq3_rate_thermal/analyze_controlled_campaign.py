@@ -55,6 +55,58 @@ def _weighted_percentile(histogram: dict[int, int], percentile: int) -> int | No
     raise AssertionError("weighted percentile rank was not reached")
 
 
+def _nearest_rank(values: list[float], percentile: int) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    rank = max(1, (percentile * len(ordered) + 99) // 100)
+    return ordered[rank - 1]
+
+
+def _rate_stability(values: list[float]) -> dict:
+    if not values:
+        raise ValueError("stability interval has no complete windows")
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    return {
+        "window_count": len(values),
+        "mean_Bps": mean,
+        "population_cv": math.sqrt(variance) / mean if mean > 0.0 else None,
+        "p5_Bps": _nearest_rank(values, 5),
+        "p50_Bps": _nearest_rank(values, 50),
+        "p95_Bps": _nearest_rank(values, 95),
+        "zero_service_window_fraction": sum(value == 0.0 for value in values) / len(values),
+    }
+
+
+def _stability_intervals(trace: dict, stacks: list[str], active_ns: int) -> dict:
+    if active_ns % 2:
+        raise ValueError("active_ns must divide exactly for the fixed second-half interval")
+    midpoint = active_ns // 2
+    if midpoint not in trace["start_ns"]:
+        raise ValueError("fixed active midpoint is not a service-window boundary")
+    definitions = {
+        "active_full": (0, active_ns),
+        "active_second_half": (midpoint, active_ns),
+    }
+    result = {}
+    for name, (start_ns, end_ns) in definitions.items():
+        indices = [index for index, (start, end) in enumerate(zip(trace["start_ns"], trace["end_ns"]))
+                   if start >= start_ns and end <= end_ns]
+        result[name] = {
+            "start_ns": start_ns,
+            "end_ns": end_ns,
+            "selection": "ALL_COMPLETE_20MS_WINDOWS_IN_FIXED_INTERVAL",
+            "total": _rate_stability([trace["delivered_Bps"][index] for index in indices]),
+            "per_stack": {
+                stack: _rate_stability(
+                    [trace["delivered_Bps_by_stack"][stack][index] for index in indices]
+                ) for stack in stacks
+            },
+        }
+    return result
+
+
 def _finite(value: Any, path: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{path} must be numeric")
@@ -123,7 +175,8 @@ def analyze_point(point: Path) -> dict:
     totals = {"offered_bytes": 0, "delivered_bytes": 0, "active_delivered_bytes": 0,
               "energy_j": 0.0}
     any_stack_state_time_ns = {state: 0 for state in STATE_RANK}
-    trace = {"end_ns": [], "max_temperature_k": [], "delivered_Bps": [], "backlog_bytes": []}
+    trace = {"start_ns": [], "end_ns": [], "max_temperature_k": [], "delivered_Bps": [],
+             "delivered_Bps_by_stack": {stack: [] for stack in stacks}, "backlog_bytes": []}
     expected_start = 0
     final_thermal = None
     final_rate = None
@@ -206,9 +259,14 @@ def analyze_point(point: Path) -> dict:
             if STATE_RANK[state] > STATE_RANK[worst]:
                 worst = state
         any_stack_state_time_ns[worst] += duration_ns
+        trace["start_ns"].append(interval[0])
         trace["end_ns"].append(interval[1])
         trace["max_temperature_k"].append(max(float(temperatures[stack]) for stack in stacks))
         trace["delivered_Bps"].append(window_delivered * 1_000_000_000 / duration_ns)
+        for stack in stacks:
+            trace["delivered_Bps_by_stack"][stack].append(
+                int(receipts[stack]["delivered_bytes"]) * 1_000_000_000 / duration_ns
+            )
         trace["backlog_bytes"].append(window_backlog)
         final_thermal, final_rate = thermal, rate
 
@@ -250,6 +308,7 @@ def analyze_point(point: Path) -> dict:
     if abs(thermal_energy_error_j) > 1e-9 * max(1.0, totals["energy_j"]):
         raise ValueError(f"{point} thermal receipt and energy stream differ")
 
+    stability = _stability_intervals(trace, stacks, active_ns)
     return {
         "point_id": point.name,
         "point_path": str(point.resolve()),
@@ -280,6 +339,7 @@ def analyze_point(point: Path) -> dict:
         },
         "per_stack": per_stack,
         "any_stack_state_time_ns": any_stack_state_time_ns,
+        "service_rate_stability": stability,
         "final_guard_states": done["summary"].get("final_guard_states"),
         "semantics": done.get("semantics", {}),
         "limitations": {
@@ -334,6 +394,18 @@ def pairwise_costs(points: list[dict]) -> list[dict]:
                 "byte_weighted_delay_p99_ns_delta": _delta(rt["byte_weighted_delay_p99_ns"],
                                                               lt["byte_weighted_delay_p99_ns"]),
                 "energy_j_delta": _delta(rt["energy_j"], lt["energy_j"]),
+                "active_full_service_cv_delta": _delta(
+                    right["service_rate_stability"]["active_full"]["total"]["population_cv"],
+                    left["service_rate_stability"]["active_full"]["total"]["population_cv"],
+                ),
+                "active_second_half_service_cv_delta": _delta(
+                    right["service_rate_stability"]["active_second_half"]["total"]["population_cv"],
+                    left["service_rate_stability"]["active_second_half"]["total"]["population_cv"],
+                ),
+                "active_full_zero_service_fraction_delta": _delta(
+                    right["service_rate_stability"]["active_full"]["total"]["zero_service_window_fraction"],
+                    left["service_rate_stability"]["active_full"]["total"]["zero_service_window_fraction"],
+                ),
                 "light_or_worse_stack_ns_delta": _delta(
                     sum(rt_state for state, rt_state in right["any_stack_state_time_ns"].items()
                         if STATE_RANK[state] >= STATE_RANK["light"]),
@@ -504,12 +576,21 @@ def write_outputs(analysis: dict, output: Path, *, plots: bool = True) -> None:
         "delivery_fraction", "peak_temperature_k", "final_peak_temperature_k",
         "byte_weighted_delay_p95_ns", "byte_weighted_delay_p99_ns", "energy_j",
         "byte_conservation_error", "thermal_energy_error_j",
+        "active_full_service_cv", "active_second_half_service_cv",
+        "active_full_zero_service_fraction", "active_second_half_zero_service_fraction",
     ]
     with (output / "point-summary.csv").open("w", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=point_fields)
         writer.writeheader()
         for point in analysis["points"]:
-            writer.writerow({key: point.get(key, point["totals"].get(key)) for key in point_fields})
+            row = {key: point.get(key, point["totals"].get(key)) for key in point_fields}
+            row.update({
+                "active_full_service_cv": point["service_rate_stability"]["active_full"]["total"]["population_cv"],
+                "active_second_half_service_cv": point["service_rate_stability"]["active_second_half"]["total"]["population_cv"],
+                "active_full_zero_service_fraction": point["service_rate_stability"]["active_full"]["total"]["zero_service_window_fraction"],
+                "active_second_half_zero_service_fraction": point["service_rate_stability"]["active_second_half"]["total"]["zero_service_window_fraction"],
+            })
+            writer.writerow(row)
     pair_rows = analysis["pairwise_policy_costs"]
     if pair_rows:
         with (output / "pairwise-policy-costs.csv").open("w", newline="") as stream:

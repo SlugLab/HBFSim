@@ -24,6 +24,14 @@ It reports total and per-stack offered/delivered/backlog bytes, total-duration
 and active-window delivery rates, peak/final temperatures, state residence
 times, P95/P99 fluid delay, and incremental energy.
 
+Service stability uses two preregistered window sets: every complete 20 ms
+window in the full active interval, and every complete 20 ms window in the
+fixed second half of that active interval (10--20 s for the full campaign).
+For total service and each stack it reports population CV, nearest-rank
+P5/P50/P95, and the fraction of zero-service windows. These metrics expose both
+stop/start delivery and steady but lower service; they add no PASS threshold
+and no windows are selected from observed outcomes.
+
 Policy comparisons are paired within topology, model, pattern and scan rate.
 Every delta is `right - left`; no sign is named a benefit. The separate
 cross-topology table records:

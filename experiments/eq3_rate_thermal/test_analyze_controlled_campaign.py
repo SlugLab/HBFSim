@@ -20,7 +20,7 @@ def make_point(root: Path, strategy: str, served=(60, 20)) -> Path:
     stacks = ["hbf0", "hbf1"]
     workload = {
         "metadata": {"model_id": "Qwen/Qwen2.5-7B-Instruct", "pattern": "continuous",
-                     "stack_ids": stacks, "active_ns": 20, "weight_bytes": 100,
+                     "stack_ids": stacks, "active_ns": 40, "weight_bytes": 100,
                      "full_scans_per_s": 16},
         "windows": [{"start_ns": 0, "end_ns": 20, "total_offered_bytes": 100},
                     {"start_ns": 20, "end_ns": 40, "total_offered_bytes": 0}],
@@ -95,6 +95,16 @@ class ControlledAnalysisTests(unittest.TestCase):
             self.assertEqual(result["per_stack"]["hbf0"]["state_time_ns"]["normal"], 40)
             self.assertAlmostEqual(result["totals"]["energy_j"], 80 * 50e-12)
             self.assertEqual(result["limitations"]["token_per_s"], "UNKNOWN")
+            active = result["service_rate_stability"]["active_full"]["total"]
+            self.assertEqual(active["window_count"], 2)
+            self.assertAlmostEqual(active["population_cv"], 0.5)
+            self.assertEqual(active["p5_Bps"], 1e9)
+            self.assertEqual(active["p50_Bps"], 1e9)
+            self.assertEqual(active["p95_Bps"], 3e9)
+            self.assertEqual(active["zero_service_window_fraction"], 0.0)
+            latter = result["service_rate_stability"]["active_second_half"]["total"]
+            self.assertEqual(latter["window_count"], 1)
+            self.assertEqual(latter["population_cv"], 0.0)
 
     def test_partial_campaign_pairs_all_policies_without_benefit_label(self):
         with tempfile.TemporaryDirectory() as directory:

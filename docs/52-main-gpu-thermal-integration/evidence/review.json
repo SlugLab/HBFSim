@@ -1,0 +1,27 @@
+{
+  "upstream": "78125a5f30f8db8c958fc0f36de74057f7e84b9e",
+  "thermal_source": "d471697d4bd23bf8102743a5e598bc5ed34ac14b",
+  "environment": "CUDA13.1.115, GCC13.4.0, CMake4.2.3, glibc2.43, RTX5090, driver610.57.04",
+  "main_ctest": {
+    "passed": 94,
+    "failed": 0,
+    "wall_s": 49.5,
+    "nested_unittest_skip": "External original vmem calibration CSV is unavailable; committed artifact contract and five other software tests run"
+  },
+  "live_gpu": {
+    "cases": 6,
+    "status": "PASS",
+    "receipt": "live-main.jsonl",
+    "limits": "Real production device helpers; tiny device-memory control fixture, not host PCIe contention or full transformed application throughput"
+  },
+  "preserved_failures": [
+    "unmodified CUDA/glibc rsqrt declaration mismatch at compiler identification",
+    "GCC15 core/GCC13 CUDA host ABI link mismatch",
+    "standalone direct-host link of PTX-only device symbols",
+    "stale PTX raw coverage count expectation",
+    "external calibration source unavailable",
+    "PATH selected unrelated old CMake"
+  ],
+  "runtime_changes": "NONE_REQUIRED_BY_REVIEW",
+  "known_limitation": "Cache frame retirement ownership protocol remains unchanged; existing eviction race not claimed fixed"
+}

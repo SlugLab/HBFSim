@@ -29,9 +29,13 @@ def check_executable_logic(helper):
         assert 'isspacep.local' in body,'kernel-local token/metadata validation'
         assert '%globaltimer' in body and 'ld.acquire.sys' in body,'fresh clock and binding/liveness reads'
     labels={m[1]:m.start() for m in re.finditer(r'(?m)^([\w$]+):',wait)}
-    backedges=[(labels[m[1]],m.start()) for m in re.finditer(r'\bbra\s+([\w$]+)\s*;',wait)
+    backedges=[(labels[m[1]],m.start()) for m in re.finditer(r'\bbra(?:\.uni)?\s+([\w$]+)\s*;',wait)
                if m[1] in labels and labels[m[1]]<m.start()]
     assert any('%globaltimer' in wait[a:b] for a,b in backedges),'poll loop reloads GPU time'
+    assert any(all(op in wait[a:b] for op in
+                   ('%globaltimer', 'ld.acquire.sys', 'nanosleep.u32'))
+               for a,b in backedges), 'consume sleep cycle reloads clock and live control'
+    assert 'nanosleep' not in poll, 'nonblocking poll must not sleep'
     assert 'st.param' in issue and 'st.param' in wait,'actual returned token/value payload'
 
 def main():
@@ -40,7 +44,8 @@ def main():
     names=['__hbfsim_timing_future_issue_v1','__hbfsim_timing_future_poll_v1','__hbfsim_timing_future_wait_v1']
     for name in names:assert name in helper,f'missing complete helper: {name}'
     check_executable_logic(helper)
-    for corrupted in (helper.replace('match.any.sync.b32','match.broken'),helper.replace('%globaltimer','%clock64')):
+    for corrupted in (helper.replace('match.any.sync.b32','match.broken'),helper.replace('%globaltimer','%clock64'),
+                      helper.replace('nanosleep.u32','sleep_removed.u32')):
         try:check_executable_logic(corrupted)
         except AssertionError:pass
         else:raise AssertionError('compiled-code negative fixture was accepted')

@@ -72,7 +72,21 @@ class ActivityEnergyLedger:
     def native(self, event):
         phase, time, cid = event['phase'],event['time_ns'],event['command_id']
         transactions = event['transactions']
-        if phase in (1,2):
+        if phase == 0:
+            by_channel = {}
+            for tr in transactions:
+                stack,_ = self._placement(tr)
+                by_channel[tr['channel']] = (stack,self._source(tr))
+            for channel,(stack,source) in by_channel.items():
+                self._add(('command_bus',cid,channel),time,None,
+                          {f'{stack}.base':self.profile['nand_command_transfer_w']},
+                          'NAND_COMMAND_ADDRESS_DATA_IN',source)
+        elif phase in (1,2):
+            if phase == 1:
+                for channel in {tr['channel'] for tr in transactions}:
+                    key=('command_bus',cid,channel)
+                    if key in self.active:
+                        self._end(key,time)
             groups = defaultdict(list)
             for tr in transactions:
                 stack,component = self._placement(tr)

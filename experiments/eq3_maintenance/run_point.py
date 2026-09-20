@@ -23,6 +23,7 @@ from energy_ledger import ActivityEnergyLedger
 from thermal_client import ThermalService
 from read_rate_policy import EngineeringProfile,ReadRatePolicy
 from maintenance_service import MaintenanceMqsimService
+from weight_workloads import weight_extent,generate_weight_requests
 from eq3_basic_hbm import BasicHbm
 from eq3_basic_fabric import BasicFabric
 
@@ -43,12 +44,32 @@ def write_csv(path,rows):
 def run(args):
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     started=time.monotonic()
-    cfg=configuration(args.mode)
+    n=8 if args.mode=='all_hbf_direct' else 4
+    weight=weight_extent(args.weight_model,stacks=n) if args.weight_model else None
+    capacity_extent=weight_extent(args.capacity_model,stacks=n) if weight else None
+    pages_per_stack=max(32768,((capacity_extent['global_page_count']+n-1)//n+4095)//4096*4096) if weight else 65536
+    if weight and weight['global_page_count']>pages_per_stack*n:raise ValueError('weight model exceeds fixed modeled capacity')
+    if args.scan_period_s is not None:
+        if not weight or args.scan_period_s<=0:raise ValueError('scan period requires model and positive seconds')
+        args.total_hbf_rps=max(1,int(weight['global_page_count']/args.scan_period_s))
+    cfg=configuration(args.mode,pages_per_stack=pages_per_stack)
     active_ns=round(args.active_s*1e9);end_ns=active_ns+round(args.recovery_s*1e9)
     window_ns=20000000
     if active_ns%window_ns or end_ns%window_ns:
         raise ValueError('duration must align to thermal20ms')
     requests=workload(args.mode,args.workload,total_hbf_rps=args.total_hbf_rps,active_ns=active_ns)
+    weight_input=None
+    if weight:
+        region='model.layers.9' if args.workload=='W2' else None
+        start_page=next(r['first_global_page'] for r in weight['regions'] if r['id'].startswith(region+'.')) if region else 0
+        weight_input=generate_weight_requests(args.weight_model,args.total_hbf_rps*active_ns//1000000000,start_page,
+                     max(1,1000000000//args.total_hbf_rps),stacks=n,region=region)
+        hbf=[]
+        for row in weight_input['requests']:
+            route='relay' if args.mode=='relay' or args.mode=='dash' and row['local_page']%2 else 'direct'
+            hbf.append(dict(row,request_id='weight-'+str(row['request_id']),stack_local_page=row['local_page'],
+                            route=route,arrival_ns=row['arrival_ns']//window_ns*window_ns))
+        requests=sorted(hbf+[r for r in requests if r['stack'].startswith('hbm')],key=lambda r:(r['arrival_ns'],r['request_id']))
     coefficient=energy_profile()
     # Same GPU load in every arm: demand scenarios never modify an operation coefficient.
     stacks=list(cfg['fabric']['hbf'])+list(cfg['fabric']['hbm'])
@@ -64,12 +85,14 @@ def run(args):
           maximum_budget_bytes=budget,severe_budget_bytes=0)
     maintenance=[]
     if args.maintenance:
-        due=active_ns//2//window_ns*window_ns
-        for stack in cfg['fabric']['hbf']:
-            for page in range(16):
-                maintenance.append(dict(request_id=1000000+len(maintenance),stack=stack,
-                      stack_local_page=page,due_ns=due,deadline_ns=due+window_ns,
-                      initial_age_s=86400-due*1e-9,bytes=16384,reclaim_source_block=False))
+        due=round(args.maintenance_due_s*1e9) if args.maintenance_due_s is not None else active_ns//2//window_ns*window_ns
+        if due>=end_ns or due<0:raise ValueError('maintenance due outside experiment')
+        first_global=weight_input['selected_global_page_range'][0] if weight_input else 0
+        for offset in range(64):
+            page=first_global+offset
+            maintenance.append(dict(request_id=1000000+offset,stack=f'hbf{page%n}',
+                  stack_local_page=page//n,due_ns=due,deadline_ns=due+window_ns,
+                  initial_age_s=86400-due*1e-9,bytes=16384,reclaim_source_block=True,trigger_reason='RETENTION_AGE_DUE'))
     meminfo=dict(line.split(':',1) for line in Path('/proc/meminfo').read_text().splitlines())
     available=int(meminfo['MemAvailable'].split()[0])*1024
     free=shutil.disk_usage(output).free
@@ -91,6 +114,16 @@ def run(args):
                      ('requests-input.json',requests),('maintenance-input.json',maintenance),
                      ('energy-profile.json',coefficient),('policy-profile.json',asdict(policy_profile))]:
         write_json(output/name,obj)
+    if weight_input:
+        write_json(output/'weight-model-extent.json',weight)
+        write_json(output/'weight-workload.json',weight_input)
+        meta['weight_model']=args.weight_model
+        meta['capacity_model']=args.capacity_model
+        meta['scan_period_s']=args.scan_period_s
+        meta['requested_weight_bytes_per_s']=weight['tensor_payload_bytes']/args.scan_period_s if args.scan_period_s else None
+        meta['effective_page_scan_period_s']=weight['global_page_count']/args.total_hbf_rps
+        meta['read_only_weight_workload']=True
+        meta['weight_coverage']=weight_input['coverage']
     meta['executable_sha256']={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest() for p in (args.binary,args.thermal_binary)}
     meta['input_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.glob('*.json')}
     write_json(output/'manifest.json',meta)
@@ -141,6 +174,7 @@ def run(args):
               maintenance_enabled=args.maintenance,peak_k=max(max(r['temperature_range_k']) for r in result['timeline']['thermal']),
               energy_activity_j=energy.total_j,per_stack={s:dict(offered=sum(r['stack']==s for r in requests),
               completed=sum(r['stack']==s and r['state']=='COMPLETE' for r in result['requests'])) for s in stacks},
+              weight_model=args.weight_model,weight_coverage=weight_input['coverage'] if weight_input else 'NOT_MODEL_SIZED',
               token_per_s='UNAVAILABLE',external_gddr=cfg['external_gddr'],coefficient_evidence=coefficient['evidence'])
         write_json(output/'summary.json',summary)
         receipt=dict(execution_status='COMPLETED',capability_status='CONDITIONAL_ENGINEERING_LOOP',
@@ -163,4 +197,8 @@ if __name__=='__main__':
     p.add_argument('--total-hbf-rps',type=int,default=4000)
     p.add_argument('--active-s',type=float,default=.4);p.add_argument('--recovery-s',type=float,default=.2)
     p.add_argument('--maintenance',action='store_true')
+    p.add_argument('--maintenance-due-s',type=float,default=None)
+    p.add_argument('--weight-model',default=None)
+    p.add_argument('--capacity-model',default='Qwen/Qwen2.5-72B-Instruct')
+    p.add_argument('--scan-period-s',type=float,default=None)
     run(p.parse_args())

@@ -3,7 +3,7 @@ from energy_ledger import ActivityEnergyLedger
 
 class EnergyTests(unittest.TestCase):
     def ledger(self):
-        return ActivityEnergyLedger(dict(nand_media_w={'0':2.,'1':3.,'2':4.},nand_data_out_w=1.,
+        return ActivityEnergyLedger(dict(nand_media_w={'0':2.,'1':3.,'2':4.},nand_data_out_w=1.,nand_command_transfer_w=0.,
               hbm_array_j_per_byte=.1,fabric_endpoint_j_per_byte=.01,gpu_external_w=0.,evidence='FIXTURE'),
               {'dies_per_channel':2,'stacks':[{'id':'hbf0','channels':[0]}]},
               {'gpu','hbf0.die0','hbf0.die1','hbf0.base','hbm0.base','hbm0.die0','hbm0.die1'},
@@ -12,7 +12,7 @@ class EnergyTests(unittest.TestCase):
         return dict(command_id=1,phase=phase,time_ns=time,transactions=[dict(channel=0,chip=0,die=1,
                     type=0,bytes=16,transaction_id=1,external_request_id=1,stack='hbf0')])
     def test_media_cross_window_no_dispatch_heat(self):
-        x=self.ledger();x.native(self.event(0,0));self.assertEqual(x.flush(10),{'gpu':0.})
+        x=self.ledger();x.native(self.event(0,0));self.assertEqual(sum(x.flush(10).values()),0.)
         x.native(self.event(1,10));self.assertAlmostEqual(x.flush(20)['hbf0.die1'],2e-8)
         x.native(self.event(2,25));self.assertAlmostEqual(x.flush(30)['hbf0.die1'],1e-8)
         self.assertAlmostEqual(x.total_j,3e-8)
@@ -33,6 +33,12 @@ class EnergyTests(unittest.TestCase):
     def test_unknown_die_rejected_not_address_guessed(self):
         x=self.ledger();e=self.event(1,0);e['transactions'][0]['die']='UNKNOWN'
         with self.assertRaises(ValueError):x.native(e)
+    def test_command_transfer_is_base_energy_not_media(self):
+        x=self.ledger();x.profile['nand_command_transfer_w']=3.
+        x.native(self.event(0,0));x.native(self.event(1,10))
+        result=x.flush(20)
+        self.assertAlmostEqual(result['hbf0.base'],3e-8)
+        self.assertAlmostEqual(result['hbf0.die1'],2e-8)
     def test_end_without_begin_rejected(self):
         with self.assertRaises(ValueError):self.ledger().native(self.event(2,10))
 

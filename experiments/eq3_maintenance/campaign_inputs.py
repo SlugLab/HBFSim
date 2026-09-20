@@ -94,7 +94,7 @@ def workload(mode, kind, *, total_hbf_rps, active_ns, burst_period_ns=20000000,
 
 def energy_profile():
     return dict(schema_version='eq3-stage-energy-engineering-v1', evidence='SCENARIO_ASSUMPTION',
-                nand_media_w={'0':0.05, '1':0.05, '2':0.05}, nand_data_out_w=0.01,
+                nand_media_w={'0':0.05, '1':0.05, '2':0.05}, nand_data_out_w=0.01, nand_command_transfer_w=0.01,
                 hbm_array_j_per_byte=40e-12, fabric_endpoint_j_per_byte=2e-12,
                 gpu_external_w=200.0, standby_w=0.0,
                 standby_scope='NOT_MODELLED; zero increment is not measured zero device idle power',

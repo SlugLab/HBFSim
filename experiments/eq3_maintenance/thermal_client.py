@@ -95,8 +95,8 @@ class ThermalService:
         result=self.command(f'ADVANCE {end_ns}')
         self.now=end_ns
         temperatures,states=self._guard(result['entity_temperatures_k'],end_ns)
-        # A compute-die hard guard constrains every future request as well.
-        if states.get('gpu') in ('severe','shutdown'):
+        # The shared compute-die research guard constrains future package traffic.
+        if states.get('gpu') in ('light','severe','shutdown'):
             rank={'normal':0,'light':1,'severe':2,'shutdown':3}
             for stack in states:
                 if rank[states[stack]]<rank[states['gpu']]:states[stack]=states['gpu']

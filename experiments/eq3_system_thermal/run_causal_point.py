@@ -605,7 +605,7 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
                 gate_limited=(bool(backlog_jobs)
                               and receipt["endpoint_quota_remaining_scaled"][stack] == 0),
                 backend_busy_fraction=None, resource_busy=None,
-                retry_count=retry_window[stack])
+                retry_count=(retry_window[stack] if reliability_provider is None else None))
             decision = policies[stack].evaluate(WindowFacts(
                 start_ns=start, end_ns=stop, guard_state=observed_states[stack],
                 stacks=(facts,), current_budget_bytes={stack: budgets[stack]},

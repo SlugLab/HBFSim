@@ -54,3 +54,14 @@ Primary links: [MFIT](https://github.com/AlishKanani/MFIT),
 [H200](https://www.nvidia.com/en-us/data-center/h200/),
 [Sandisk fact sheet](https://documents.sandisk.com/content/dam/asset-library/en_us/assets/public/sandisk/collateral/company/Sandisk-HBF-Fact-Sheet.pdf),
 [Micron HBM4](https://www.micron.com/products/memory/hbm/hbm4).
+
+### HBF read-cost proxy source addition (2026-09-20)
+
+Park et al., *Reducing Solid-State Drive Read Latency by Optimizing Read-Retry*,
+ASPLOS2021, https://arxiv.org/html/2104.09611 (primary paper reviewed2026-09-20).
+Actual old48-layerTLC retry data constrains an explicitly assumed age/wear
+interpolant; it is not HBF calibration. HeatWatchEa1.04 retains the original
+cross-device proxy, with its temperature fit/extrapolation distinguished. OCP070
+§5.3.2 supports base-managed retry; §9 distinguishes HBF NAND endurance from HBM.
+No official numerical ECC latency/J/byte curve was inferred. Consumer, parameters,
+source discrepancy and transfer factors are documented in the isolated ECC README.

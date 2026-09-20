@@ -4,6 +4,7 @@ function(hbfsim_add_patched_mqsim target_name)
     set(mqsim_patches
         "${CMAKE_CURRENT_SOURCE_DIR}/patches/mqsim/0001-online-hbf-api.patch"
         "${CMAKE_CURRENT_SOURCE_DIR}/patches/mqsim/0002-qlc-support.patch"
+        "${CMAKE_CURRENT_SOURCE_DIR}/patches/mqsim/0003-hbf-command-observer.patch"
     )
 
     file(REMOVE_RECURSE "${mqsim_copy}")

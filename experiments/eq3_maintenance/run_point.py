@@ -44,15 +44,21 @@ def write_csv(path,rows):
 def run(args):
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     started=time.monotonic()
+    if args.campaign_lock and (args.campaign_lock.parent/"CAMPAIGN_PAUSE.json").exists():
+        write_json(output/"NOT_STARTED.json",dict(execution_status="NOT_STARTED",reason=json.loads((args.campaign_lock.parent/"CAMPAIGN_PAUSE.json").read_text())))
+        raise SystemExit(75)
     n=8 if args.mode=='all_hbf_direct' else 4
-    weight=weight_extent(args.weight_model,stacks=n) if args.weight_model else None
-    capacity_extent=weight_extent(args.capacity_model,stacks=n) if weight else None
-    pages_per_stack=max(32768,((capacity_extent['global_page_count']+n-1)//n+4095)//4096*4096) if weight else 65536
+    page_bytes=4096 if args.geometry=='ocp4k16bank' else 16384
+    alignment=65536 if args.geometry=='ocp4k16bank' else 4096
+    weight=weight_extent(args.weight_model,stacks=n,page_bytes=page_bytes) if args.weight_model else None
+    capacity_extent=weight_extent(args.capacity_model,stacks=n,page_bytes=page_bytes) if weight else None
+    pages_per_stack=max(alignment*8,((capacity_extent['global_page_count']+n-1)//n+alignment-1)//alignment*alignment) if weight else alignment*16
+    if args.capacity_scope=='full-product':pages_per_stack=512*1024**3//page_bytes
     if weight and weight['global_page_count']>pages_per_stack*n:raise ValueError('weight model exceeds fixed modeled capacity')
     if args.scan_period_s is not None:
         if not weight or args.scan_period_s<=0:raise ValueError('scan period requires model and positive seconds')
         args.total_hbf_rps=max(1,int(weight['global_page_count']/args.scan_period_s))
-    cfg=configuration(args.mode,pages_per_stack=pages_per_stack)
+    cfg=configuration(args.mode,pages_per_stack=pages_per_stack,geometry=args.geometry)
     active_ns=round(args.active_s*1e9);end_ns=active_ns+round(args.recovery_s*1e9)
     window_ns=20000000
     if active_ns%window_ns or end_ns%window_ns:
@@ -63,7 +69,7 @@ def run(args):
         region='model.layers.9' if args.workload=='W2' else None
         start_page=next(r['first_global_page'] for r in weight['regions'] if r['id'].startswith(region+'.')) if region else 0
         weight_input=generate_weight_requests(args.weight_model,args.total_hbf_rps*active_ns//1000000000,start_page,
-                     max(1,1000000000//args.total_hbf_rps),stacks=n,region=region)
+                     max(1,1000000000//args.total_hbf_rps),stacks=n,region=region,page_bytes=page_bytes)
         hbf=[]
         for row in weight_input['requests']:
             route='relay' if args.mode=='relay' or args.mode=='dash' and row['local_page']%2 else 'direct'
@@ -80,8 +86,8 @@ def run(args):
         if item['pair']:
             endpoint_caps[f'{stack}->{item["pair"]}:relay-link']=budget
     policy_profile=EngineeringProfile(profile_id='eq3-pilot-v1',enabled=True,strategy=args.policy,
-          window_ns=window_ns,target_bytes_per_s=max(1,args.total_hbf_rps//len(cfg['fabric']['hbf']))*16384,
-          target_latency_p95_ns=window_ns,step_bytes=16384,minimum_budget_bytes=16384,
+          window_ns=window_ns,target_bytes_per_s=max(1,args.total_hbf_rps//len(cfg['fabric']['hbf']))*page_bytes,
+          target_latency_p95_ns=window_ns,step_bytes=page_bytes,minimum_budget_bytes=page_bytes,
           maximum_budget_bytes=budget,severe_budget_bytes=0)
     maintenance=[]
     if args.maintenance:
@@ -92,11 +98,11 @@ def run(args):
             page=first_global+offset
             maintenance.append(dict(request_id=1000000+offset,stack=f'hbf{page%n}',
                   stack_local_page=page//n,due_ns=due,deadline_ns=due+window_ns,
-                  initial_age_s=86400-due*1e-9,bytes=16384,reclaim_source_block=True,trigger_reason='RETENTION_AGE_DUE'))
+                  initial_age_s=86400-due*1e-9,bytes=page_bytes,reclaim_source_block=True,trigger_reason='RETENTION_AGE_DUE'))
     meminfo=dict(line.split(':',1) for line in Path('/proc/meminfo').read_text().splitlines())
     available=int(meminfo['MemAvailable'].split()[0])*1024
     free=shutil.disk_usage(output).free
-    if available<32*1024**3 or free<100*1024**3:
+    if available<max(32,args.address_limit_gib+32)*1024**3 or free<100*1024**3:
         raise RuntimeError('host reserve insufficient; no backend started')
     source=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
     meta=dict(task='EQ3-ISOLATED-MAINTENANCE-CAMPAIGN-v1',kind='PILOT_CONDITIONAL_ENGINEERING_USE',
@@ -106,9 +112,9 @@ def run(args):
           total_hbf_rps=args.total_hbf_rps,request_count=len(requests),maintenance_count=len(maintenance),
           thermal_model_dir=str(args.model_dir.resolve()),binary=str(args.binary.resolve()),
           thermal_binary=str(args.thermal_binary.resolve()),observed_memory_available_bytes=available,
-          observed_disk_available_bytes=free,limits=dict(process_address_gib=12,cpu=1,gpu=0,
+          observed_disk_available_bytes=free,geometry=args.geometry,capacity_scope=args.capacity_scope,page_bytes=page_bytes,limits=dict(process_address_gib=args.address_limit_gib,cpu=1,gpu=0,
           wall_s=600,expected_output_gib=1,host_memory_reserve_gib=32,host_disk_reserve_gib=100),
-          resource_reason='First medium-event pilot; source tests and complete-model paired factorRSS<0.4GiB; two owned serial CPU processes plus coordinator.',
+          resource_reason=('Full logical capacity4K probe measured20.52GiB for4stacks; Q4 projected41.1GiB; thermal<0.4GiB, oneCPU per point.' if args.capacity_scope=='full-product' else 'Finite working region medium-event pilot; complete-model thermal factorRSS<0.4GiB; owned backend and thermal processes.'),
           scientific_scope='Finite working region, true16die MQSim topology, original complete2mm thermal model; no product throughput/capacity/energy calibration or token causality')
     if args.campaign_lock:
         lock=args.campaign_lock.resolve(strict=True)
@@ -132,7 +138,7 @@ def run(args):
     meta['executable_sha256']={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest() for p in (args.binary,args.thermal_binary)}
     meta['input_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.glob('*.json')}
     write_json(output/'manifest.json',meta)
-    resource.setrlimit(resource.RLIMIT_AS,(12*1024**3,12*1024**3))
+    resource.setrlimit(resource.RLIMIT_AS,(args.address_limit_gib*1024**3,args.address_limit_gib*1024**3))
     resource.setrlimit(resource.RLIMIT_CORE,(0,0))
     os.sched_setaffinity(0,{min(os.sched_getaffinity(0))})
     for key in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS'):
@@ -208,6 +214,9 @@ if __name__=='__main__':
     p.add_argument('--active-s',type=float,default=.4);p.add_argument('--recovery-s',type=float,default=.2)
     p.add_argument('--maintenance',action='store_true')
     p.add_argument('--maintenance-due-s',type=float,default=None)
+    p.add_argument('--geometry',choices=('legacy16k','ocp4k16bank'),default='legacy16k')
+    p.add_argument('--capacity-scope',choices=('working-region','full-product'),default='working-region')
+    p.add_argument('--address-limit-gib',type=int,default=12)
     p.add_argument('--campaign-lock',type=Path,default=None)
     p.add_argument('--weight-model',default=None)
     p.add_argument('--capacity-model',default='Qwen/Qwen2.5-72B-Instruct')

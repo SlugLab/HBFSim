@@ -54,7 +54,7 @@ class ActivityEnergyLedger:
 
     @staticmethod
     def _source(tr):
-        if tr.get('maintenance_id') not in (None,0,'UNKNOWN'):
+        if tr.get('maintenance_request_id',tr.get('maintenance_id')) not in (None,0,'UNKNOWN'):
             return 'HBF_MAINTENANCE'
         return 'FOREGROUND' if tr.get('external_request_id') not in (None,0,'UNKNOWN') else 'BACKEND_BACKGROUND'
 

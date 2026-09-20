@@ -12,18 +12,23 @@ from eq3_basic_system import engineering_fixture
 MODES = ('mixed_direct', 'relay', 'dash', 'all_hbf_direct')
 
 
-def configuration(mode, *, pages_per_stack=65536):
-    """16 real MQSim dies/stack; finite modeled address region, not product capacity."""
+def configuration(mode, *, pages_per_stack=65536, geometry="legacy16k"):
+    """16 real MQSim dies/stack; explicit legacy or OCP-sized logical geometry."""
     if mode not in MODES:
         raise ValueError('unsupported topology')
     n = 8 if mode == 'all_hbf_direct' else 4
-    page = 16384
-    if pages_per_stack % (16 * 256) or pages_per_stack < 16 * 256 * 8:
-        raise ValueError('working region must provide >=8 blocks/physical die')
-    profile = dict(name='EQ3_EXPERIMENTAL_16DIE_FINITE_WORKING_REGION',
+    if geometry not in ("legacy16k", "ocp4k16bank"):
+        raise ValueError("unknown NAND geometry profile")
+    page = 4096 if geometry == "ocp4k16bank" else 16384
+    channel_per_stack = 16 if geometry == "ocp4k16bank" else 1
+    die_per_channel = 1 if geometry == "ocp4k16bank" else 16
+    planes = 16 if geometry == "ocp4k16bank" else 1
+    if pages_per_stack % (16 * planes * 256) or pages_per_stack < 16 * planes * 256 * 8:
+        raise ValueError('working region must be block aligned and provide >=8 blocks/physical plane')
+    profile = dict(name=('EQ3_OCP4K_16BANK_FULL_CAPACITY' if geometry=='ocp4k16bank' and pages_per_stack*page==512*1024**3 else 'EQ3_EXPERIMENTAL_16DIE_FINITE_WORKING_REGION'),
                    capacity_bytes=n * pages_per_stack * page, page_bytes=page,
                    read_latency_ns=10000, program_latency_ns=100000,
-                   channels=n, dies_per_channel=16, planes_per_die=1,
+                   channels=n*channel_per_stack, dies_per_channel=die_per_channel, planes_per_die=planes,
                    pages_per_block=256, channel_width_bits=8,
                    channel_transfer_rate_mtps=1600, queue_depth=256,
                    aggregate_bandwidth_bytes_per_s=512000000000,
@@ -32,9 +37,9 @@ def configuration(mode, *, pages_per_stack=65536):
                    timing_tolerance_ns=10000)
     mapping = dict(schema_version=1, physical_kind='HBF', route='direct',
                    address_layout='GLOBAL_PAGE_STRIPE_V1', plane_allocation_scheme='CWDP',
-                   page_bytes=page, channels=n, dies_per_channel=16,
-                   evidence='ENGINEERING_16_DIE_WORKING_REGION_NOT_FULL_CAPACITY',
-                   stacks=[dict(id=f'hbf{i}', declared_dies=16, channels=[i]) for i in range(n)])
+                   page_bytes=page, channels=n*channel_per_stack, dies_per_channel=die_per_channel,
+                   evidence=('OCP512GiB_LOGICAL_CAPACITY_WITH_ENGINEERING_MAPPING' if pages_per_stack*page==512*1024**3 else 'ENGINEERING_16_DIE_FINITE_WORKING_REGION'),
+                   stacks=[dict(id=f'hbf{i}', declared_dies=16, channels=list(range(i*channel_per_stack,(i+1)*channel_per_stack))) for i in range(n)])
     basic = engineering_fixture(mode, page)
     basic.pop('requests')
     for item in basic['fabric']['hbf'].values():
@@ -52,9 +57,21 @@ def configuration(mode, *, pages_per_stack=65536):
             item['media_bandwidth_Bps'] = dict(read=2048000000000, write=2048000000000)
             # Energy is accounted once in the experimental phase ledger below.
     return dict(profile=profile, stack_map=mapping, fabric=basic['fabric'], hbm=basic['hbm'],
-                mode=mode, capacity_scope='FINITE_WORKING_REGION; product512GB/stack NOT_VALIDATED',
+                mode=mode, geometry_profile=geometry,
+                geometry_evidence=dict(page_bytes='OCP070_SPECIFIED' if page==4096 else 'LEGACY_ENGINEERING',
+                     host_channels_per_stack='OCP070_SPECIFIED16' if channel_per_stack==16 else 'ENGINEERING_AGGREGATION1',
+                     dies_per_channel='SCENARIO_PROJECTION_16_DIES_OVER16_CHANNELS' if die_per_channel==1 else 'ENGINEERING_AGGREGATION16',
+                     planes_per_die='BANK_TO_PLANE_1TO1_SCENARIO_ASSUMPTION' if planes==16 else 'ENGINEERING1',
+                     pages_per_block='SCENARIO_ASSUMPTION256; OCP070_5.7_R3_PRODUCT_DEFINED',
+                     product_stack_capacity_bytes=512*1024**3,product_stack_pages=512*1024**3//4096,
+                     product_average_pages_per_die=512*1024**3//4096//16,
+                     configured_stack_capacity_bytes=pages_per_stack*page,
+                     configured_pages_per_die=pages_per_stack//16,
+                     configured_blocks_per_plane=pages_per_stack//(16*planes*256),
+                     physical_spare='BACKEND_FINITE_ALLOCATOR; NOT_TARGET_PRODUCT_SPECIFIED'),
+                capacity_scope='FULL_OCP512GiB_LOGICAL_CAPACITY' if pages_per_stack*page==512*1024**3 else 'FINITE_WORKING_REGION; full product capacity not instantiated',
                 evidence='CONDITIONAL_ENGINEERING_USE',
-                media_geometry='16 MQSim dies per HBF stack; one channel and one plane/die engineering projection',
+                media_geometry=f'16 MQSim dies per HBF stack; {channel_per_stack} channels/stack, {die_per_channel} dies/channel, {planes} planes/die; existing CWDP',
                 hbm_geometry='12 physical thermal dies; parametric service die UNKNOWN',
                 fabric_parameter_scope='DASH buffer anchor; latency10ns assumption, BW target not calibrated',
                 external_gddr='UNAVAILABLE' if n == 8 else 'NOT_APPLICABLE')

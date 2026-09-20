@@ -197,7 +197,12 @@ class ReadRatePolicy:
                                                "THERMAL_HYSTERESIS", ("EXISTING_HYSTERESIS_CAP",)))
                 continue
 
-            enough_demand = observed.offered_bytes >= target
+            # New arrivals alone are not the demand population: after an input
+            # cutoff, previously offered requests can remain queued.  max()
+            # avoids adding overlapping offered and delivered/backlog views.
+            demand_bytes = max(observed.offered_bytes,
+                               observed.delivered_bytes + observed.backlog_bytes)
+            enough_demand = demand_bytes >= target
             latency_met = (self.profile.target_latency_p95_ns is None or
                            (observed.latency_p95_ns is not None and
                             observed.latency_p95_ns <= self.profile.target_latency_p95_ns))
@@ -207,7 +212,7 @@ class ReadRatePolicy:
             previous = self._previous.get(observed.stack_id)
             budget, action, outcome, reasons = current, "HOLD", "STABLE", []
             if not enough_demand:
-                outcome, reasons = "INSUFFICIENT_DEMAND", ["OFFERED_BELOW_TARGET"]
+                outcome, reasons = "INSUFFICIENT_DEMAND", ["DEMAND_BELOW_TARGET"]
             elif reliability_bad:
                 outcome, reasons = "UNMET_TARGET", ["OBSERVED_UECC"]
             elif met_rate:

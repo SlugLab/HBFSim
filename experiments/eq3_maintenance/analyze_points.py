@@ -566,12 +566,16 @@ def _markdown(results: list[dict[str, Any]]) -> str:
             f"{fmt(maximum('temperatures_k.gpu'))} / {fmt(maximum('temperatures_k.hbf_max'))} / "
             f"{fmt(maximum('temperatures_k.hbm_max'))} | "
             f"{fmt(maximum('cumulative_energy_relative_residual'))} |")
+    intervals = ", ".join(
+        f"{result['point_id']}: {result['scope']['active_ns']/1e9:g} s active + "
+        f"{(result['scope']['observation_end_ns']-result['scope']['active_ns'])/1e9:g} s recovery"
+        for result in results if result["scope"]["active_ns"] is not None)
     lines += [
         "",
         "## Interpretation boundary",
         "",
         "- `NOHOSTWRITE`: the current W1 input is read-only. It cannot support a host-write, write-amplification, or write-maintenance claim.",
-        "- Pilot02 contains 0.4 s of arrivals and a 0.2 s recovery interval. It is a functional closed-loop check, not a main research result.",
+        f"- Window scope: {intervals}. These are conditional engineering points; duration alone does not make a main research result.",
         "- Rate p05 uses effective `valid_weight_bytes` (defaulting to physical bytes) and the empirical nearest-rank quantile across fixed windows intersecting the active interval. Tail latency reports its raw completion sample count.",
         "- HBF and HBM final-delivery totals remain separate. Their sum is a combined delivered-byte diagnostic and is not labeled HBF goodput.",
         "- Temperature traces use GPU plus the maximum reported HBF and HBM stack owner temperatures per window; this intentionally avoids a redundant plot for every sensor.",

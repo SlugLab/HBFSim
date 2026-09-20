@@ -98,6 +98,21 @@ class ReadRatePolicyTests(unittest.TestCase):
                                                                backlog_bytes=0,gate_limited=False)))
         self.assertEqual((row.action,row.outcome),('HOLD','INSUFFICIENT_DEMAND'))
 
+    def test_recovery_backlog_remains_demand_without_new_arrivals(self):
+        row=self.decision(ReadRatePolicy(profile()),facts(stack(
+            offered_bytes=0,delivered_bytes=0,backlog_bytes=1200,gate_limited=True,
+            backend_busy_fraction=0.0,resource_busy=False)))
+        self.assertEqual((row.action,row.budget_bytes,row.outcome),('INCREASE',900,'UNMET_TARGET'))
+        self.assertIn('GATE_LIMITED_BACKEND_IDLE',row.reasons)
+
+    def test_no_arrival_and_no_carryover_remains_insufficient_demand(self):
+        row=self.decision(ReadRatePolicy(profile()),facts(stack(
+            offered_bytes=0,delivered_bytes=0,backlog_bytes=0,gate_limited=True,
+            backend_busy_fraction=0.0,resource_busy=False)))
+        self.assertEqual((row.action,row.budget_bytes,row.outcome),
+                         ('HOLD',800,'INSUFFICIENT_DEMAND'))
+        self.assertEqual(row.reasons,('DEMAND_BELOW_TARGET',))
+
     def test_target_met_holds_or_smooths_overdelivery(self):
         p=ReadRatePolicy(profile())
         stable=self.decision(p,facts(stack(delivered_bytes=970)))

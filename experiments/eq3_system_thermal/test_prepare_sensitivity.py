@@ -36,6 +36,8 @@ class SensitivityPreparationTest(unittest.TestCase):
             output = root / "prepared"
             index = prepare(output, manifest, binary, artifacts)
             self.assertEqual(index["point_count"], 54)
+            self.assertEqual(index["schema_version"], "eq3-system-sensitivity-index-v2")
+            self.assertTrue(index["runner"].endswith("run_endpoint_guard_point.py"))
             self.assertEqual(index["status"], "PENDING_DEPENDENCIES_BASE_MATRIX")
             self.assertEqual(index["resources"]["sensitivity_output_gib"], 27)
             self.assertEqual(index["resources"]["parent_combined_output_gib"], 80)

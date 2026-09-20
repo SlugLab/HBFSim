@@ -13,6 +13,7 @@ from prepare_stage import config as base_config
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+RUNNER = HERE / "run_endpoint_guard_point.py"
 
 
 STRATEGIES = ("guard_only", "read_rate_feedback_thermal_guard_v1")
@@ -208,13 +209,14 @@ def prepare(output: Path, model_manifest: Path, thermal_binary: Path,
         for directory in unique_models
     }
     runtime_sources = [
-        HERE / "run_system_point.py", HERE / "energy.py", HERE / "rate_workload.py",
+        RUNNER, HERE / "endpoint_policy.py", HERE / "run_system_point.py",
+        HERE / "energy.py", HERE / "rate_workload.py",
         HERE / "topology_service.py",
         ROOT / "experiments" / "eq3_maintenance" / "thermal_client.py",
         ROOT / "experiments" / "eq3_maintenance" / "read_rate_policy.py",
     ]
     index = {
-        "schema_version": "eq3-system-sensitivity-index-v1",
+        "schema_version": "eq3-system-sensitivity-index-v2",
         "status": "PENDING_DEPENDENCIES_BASE_MATRIX",
         "authorization": "USER_EXPLICIT_SEVEN_AXIS_BOUNDED_SENSITIVITY",
         "point_count": 54,
@@ -222,8 +224,11 @@ def prepare(output: Path, model_manifest: Path, thermal_binary: Path,
         "model_manifest": str(model_manifest.resolve()),
         "model_manifest_sha256": _digest(model_manifest),
         "model_locks_sha256": model_locks,
-        "runner": str((HERE / "run_system_point.py").resolve()),
-        "runner_sha256": _digest(HERE / "run_system_point.py"),
+        "runner": str(RUNNER.resolve()),
+        "runner_sha256": _digest(RUNNER),
+        "endpoint_policy_semantics": (
+            "HBF_LEGACY_READ_RATE_POLICY; HBM_SHARED_ENDPOINT_THERMAL_GUARD_"
+            "RESTORES_BASELINE_ON_NORMAL_WITHOUT_FOREGROUND_DEMAND_INFERENCE"),
         "runtime_source_locks_sha256": {
             str(path.resolve().relative_to(ROOT.resolve())): _digest(path)
             for path in runtime_sources

@@ -105,5 +105,47 @@ int main()
     CHECK(range_ten->logical_page == 10);
     CHECK(ranged.cancel_eviction(*range_ten));
     CHECK(ranged.resolve(10).value() == 0x5000);
+
+    // A frame handed out by resolve() can still be evicted before the GPU has
+    // finished reading it. This test MEASURES that window rather than closing
+    // it, because closing it needs a device-protocol change.
+    //
+    // What happens: resolve() sets a second-chance bit, and begin_eviction()
+    // scans up to frames_.size() * 2 entries, so it clears that bit on one
+    // pass and can evict the same frame on the next -- inside one call, with
+    // no wall-clock time in between. Completing that eviction reassigns the
+    // frame to a different logical page while the read is outstanding, which
+    // produces wrong bytes rather than a wrong number. That makes this the
+    // most severe item on the current defect list.
+    //
+    // Why a within-sweep reprieve does NOT fix it, having been tried and
+    // reverted: `referenced` is set both by publish() and by resolve(), so
+    // refusing to evict anything this sweep reprieved also breaks the ordinary
+    // case where every frame is referenced and the clock legitimately needs a
+    // second pass to find any victim at all. The test above at line 38 pins
+    // that case. Separating the two would need a marker set only by resolve()
+    // and cleared when the access retires -- and the protocol carries no
+    // retirement message: SharedCompletionSlot reports that the host finished
+    // serving a page, not that the GPU finished consuming it. A marker with
+    // nothing to clear it would pin every frame forever.
+    //
+    // So the fix is: add an access-retired message to the device protocol,
+    // then gate eviction on it. That is its own change. This test exists so
+    // the window is measured and discoverable, and so that whoever closes it
+    // has to come here and update the expectation.
+    {
+        hbfsim::runtime::HbmCache one_frame(std::vector<std::uint64_t>{0x9000});
+        CHECK(one_frame.publish(77, 0x9000));
+        // The GPU is told to read frame 0x9000 for logical page 77.
+        CHECK(one_frame.resolve(77).value() == 0x9000);
+        // While that read is still in flight, the host finds a victim -- and
+        // the victim is the very frame the GPU is reading.
+        const auto victim = one_frame.begin_eviction();
+        CHECK(victim.has_value());
+        CHECK(victim->logical_page == 77);
+        CHECK(victim->frame_address == 0x9000);
+        CHECK(one_frame.cancel_eviction(*victim));
+    }
+
     return 0;
 }

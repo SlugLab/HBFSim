@@ -296,5 +296,33 @@ int main()
                       "service time is the max, not the sum");
     }
 
+
+    // An access that starts inside a registered range but ends past it must be
+    // rejected on the load path, not only on the store path.
+    //
+    // Two external reviews both claimed the load path checks only the start
+    // address and so accepts a straddling access. Reading the call chain shows
+    // otherwise, and this test pins the chain so the claim does not come back:
+    //   __hbfsim_resolve            -> media_descriptor (hbf_device.cu:659)
+    //   __hbfsim_timing_future_issue_v1 -> media_descriptor (hbf_device.cu:1226)
+    //   media_descriptor            -> access_supported   (hbf_device.cuh:722)
+    //   access_supported            -> address + bytes > range.base + range.length
+    //                                                     (hbf_device.cuh:691)
+    // Both entry points go through the same predicate, so both reject.
+    {
+        using hbfsim::device::media_descriptor;
+        const SharedRangeRecord range{
+            .base = 0x1000, .length = 0x1000, .file_offset = 0,
+            .range_id = 1, .mode = 1, .permissions = 3, .page_bytes = 0x1000};
+        // Wholly inside: accepted.
+        CHECK(media_descriptor(range, 0x1000, 16, 0).valid);
+        CHECK(media_descriptor(range, 0x1ff8, 8, 0).valid);
+        // Starts inside, ends one byte past the range: rejected.
+        CHECK(!media_descriptor(range, 0x1ff8, 16, 0).valid);
+        CHECK(!media_descriptor(range, 0x1fff, 2, 0).valid);
+        // Starts before the range: rejected.
+        CHECK(!media_descriptor(range, 0x0ff8, 16, 0).valid);
+    }
+
     return 0;
 }

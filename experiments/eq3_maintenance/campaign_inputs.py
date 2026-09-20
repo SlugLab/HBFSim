@@ -27,7 +27,7 @@ def configuration(mode, *, pages_per_stack=65536, geometry="legacy16k"):
         raise ValueError('working region must be block aligned and provide >=8 blocks/physical plane')
     profile = dict(name=('EQ3_OCP4K_16BANK_FULL_CAPACITY' if geometry=='ocp4k16bank' and pages_per_stack*page==512*1024**3 else 'EQ3_EXPERIMENTAL_16DIE_FINITE_WORKING_REGION'),
                    capacity_bytes=n * pages_per_stack * page, page_bytes=page,
-                   read_latency_ns=10000, program_latency_ns=100000, nand_technology='slc',
+                   read_latency_ns=10000, program_latency_ns=100000, nand_technology='SLC',
                    channels=n*channel_per_stack, dies_per_channel=die_per_channel, planes_per_die=planes,
                    pages_per_block=256, channel_width_bits=8,
                    channel_transfer_rate_mtps=1600, queue_depth=256,

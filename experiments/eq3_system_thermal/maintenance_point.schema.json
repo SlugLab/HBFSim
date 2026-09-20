@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EQ3 aggregate maintenance point extension",
+  "type": "object",
+  "required": ["mode", "ea_ev", "refresh_trigger", "initial_equivalent_age_ns",
+    "initial_wall_age_ns", "initial_temperature_k", "block_bytes", "pages_per_block",
+    "aged_blocks_per_stack", "spares_per_channel", "max_blocks_per_cohort",
+    "program_energy_j_per_byte", "erase_energy_j_per_operation", "energy_evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "mode": {"enum": ["disabled", "shared", "ideal_independent"]},
+    "ea_ev": {"enum": [1.01, 1.04, 1.08]},
+    "refresh_trigger": {"enum": ["wall_only", "equivalent_age_or_wall"]},
+    "initial_equivalent_age_ns": {"type": "integer", "minimum": 0},
+    "initial_wall_age_ns": {"type": "integer", "minimum": 0},
+    "initial_temperature_k": {"type": "number", "exclusiveMinimum": 0},
+    "block_bytes": {"const": 1048576},
+    "pages_per_block": {"const": 256},
+    "aged_blocks_per_stack": {"const": 4096},
+    "spares_per_channel": {"const": 16},
+    "max_blocks_per_cohort": {"type": "integer", "minimum": 1, "maximum": 16},
+    "program_energy_j_per_byte": {"type": "number", "minimum": 0},
+    "erase_energy_j_per_operation": {"type": "number", "minimum": 0},
+    "energy_evidence": {
+      "type": "object", "required": ["program", "erase"],
+      "additionalProperties": false,
+      "properties": {"program": {"type": "string"}, "erase": {"type": "string"}}
+    }
+  }
+}

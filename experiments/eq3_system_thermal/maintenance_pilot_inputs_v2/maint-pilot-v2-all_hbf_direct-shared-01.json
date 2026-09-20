@@ -1,0 +1,382 @@
+{
+  "energy": {
+    "ecc_j_per_byte": 0.0,
+    "ecc_scope": "ZERO_INCREMENT_BASELINE_NOT_MEASURED_ZERO; scenario overrides explicit",
+    "erase_array_j_per_operation": 5e-05,
+    "evidence": {
+      "erase": "DERIVED_ENGINEERING_PROXY_0.05W_TIMES_NATIVE_FIXTURE_1MS_NOT_HBF_MEASUREMENT",
+      "program": "DERIVED_ENGINEERING_PROXY_OLD_0.05W_0.01W_100US_4KIB; NOT_HBF_CALIBRATION",
+      "read": "USER_CONFIRMED_40_ARRAY_10_BASE_PJ_PER_B",
+      "relay_hbm": "REUSED_EQ3_MAINTENANCE_ENERGY_PROFILE_SCENARIO"
+    },
+    "hbm_array_j_per_byte": 4e-11,
+    "hbm_base_j_per_byte": 2e-12,
+    "program_array_j_per_byte": 1.220703125e-09,
+    "program_base_j_per_byte": 2.4414062500000004e-10,
+    "read_array_j_per_byte": 4e-11,
+    "read_base_j_per_byte": 1e-11,
+    "relay_partner_receive_j_per_byte": 2e-12,
+    "relay_partner_send_j_per_byte": 2e-12
+  },
+  "gpu_external_w": 0,
+  "maintenance": {
+    "aged_blocks_per_stack": 4096,
+    "block_bytes": 1048576,
+    "ea_ev": 1.04,
+    "energy_evidence": {
+      "erase": "DERIVED_ENGINEERING_PROXY_0.05W_NATIVE_ADAPTER_1MS_NOT_HBF_CALIBRATION",
+      "program": "DERIVED_ENGINEERING_PROXY_0.05W_100US_NOT_HBF_CALIBRATION"
+    },
+    "erase_energy_j_per_operation": 5e-05,
+    "initial_equivalent_age_ns": 86398000000000,
+    "initial_temperature_k": 300.0,
+    "initial_wall_age_ns": 0,
+    "max_blocks_per_cohort": 16,
+    "mode": "shared",
+    "pages_per_block": 256,
+    "program_energy_j_per_byte": 1.220703125e-09,
+    "refresh_trigger": "equivalent_age_or_wall",
+    "spares_per_channel": 16
+  },
+  "maintenance_scope": {
+    "aged_subset_bytes_per_hbf_stack": 4294967296,
+    "aged_subset_semantics": "EXPLICIT_SUBSET_NOT_WHOLE_MODEL_OR_PRODUCT_CAPACITY",
+    "backend": "AGGREGATE_RATE_SERVICE_NOT_NATIVE_MQSIM",
+    "initial_age_fairness": "SHARED_PILOT_DAY_MINUS_2S_EQUIVALENT_AGE;NOT_24H_TIME_COMPRESSION;DISABLED_NOT_PART_OF_PILOT",
+    "spare_ownership": "16_PER_EACH_OF_16_CHANNELS_NO_CROSS_CHANNEL_MOVE",
+    "spares_per_stack": 256
+  },
+  "point_id": "maint-pilot-v2-all_hbf_direct-shared-01",
+  "recovery_ns": 4000000000,
+  "resource_limits": {
+    "address_space_gib": 8,
+    "watchdog_s": 600
+  },
+  "schema_version": "eq3-system-point-v1",
+  "scope": "CONDITIONAL_SIMULATED",
+  "service": {
+    "channels": {
+      "hbf0": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf1": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf2": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf3": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf4": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf5": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf6": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      },
+      "hbf7": {
+        "0": 96000000000,
+        "1": 96000000000,
+        "10": 96000000000,
+        "11": 96000000000,
+        "12": 96000000000,
+        "13": 96000000000,
+        "14": 96000000000,
+        "15": 96000000000,
+        "2": 96000000000,
+        "3": 96000000000,
+        "4": 96000000000,
+        "5": 96000000000,
+        "6": 96000000000,
+        "7": 96000000000,
+        "8": 96000000000,
+        "9": 96000000000
+      }
+    },
+    "dash_routes": {},
+    "evidence": "SCENARIO_ASSUMPTION",
+    "fabric": {
+      "evidence": "SCENARIO_ASSUMPTION",
+      "hbf": {
+        "hbf0": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf1": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf2": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf3": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf4": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf5": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf6": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        },
+        "hbf7": {
+          "bank_capacity_bytes": 8388608,
+          "bank_count": 2,
+          "direct_link": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "fill": {
+            "bandwidth_bytes_per_s": 2048000000000,
+            "latency_ns": 10
+          },
+          "pair": null,
+          "relay_link": null
+        }
+      },
+      "hbm": {}
+    },
+    "maintenance_guard_policy": "LIGHT_SEVERE_EXEMPT_SHUTDOWN_BLOCKED",
+    "operation_cost_evidence": "PROXY_16_PLANES_4KIB_100US_PROGRAM_1MS_ERASE_256PAGES_PER_BLOCK",
+    "operation_media_cost": {
+      "erase": {
+        "denominator": 8192,
+        "numerator": 46875
+      },
+      "migration": {
+        "denominator": 1,
+        "numerator": 1
+      },
+      "program": {
+        "denominator": 64,
+        "numerator": 9375
+      },
+      "read": {
+        "denominator": 1,
+        "numerator": 1
+      },
+      "refresh_read": {
+        "denominator": 1,
+        "numerator": 1
+      },
+      "retry": {
+        "denominator": 1,
+        "numerator": 1
+      }
+    },
+    "schema_version": "eq3-topology-fluid-config-v1",
+    "topology": "all_hbf_direct",
+    "window_ns": 20000000
+  },
+  "strategy": "read_rate_feedback_thermal_guard_v1",
+  "thermal_limits_k": {
+    "gpu": [
+      363.15,
+      373.15,
+      383.15
+    ],
+    "hbf": [
+      353.15,
+      363.15,
+      378.15
+    ],
+    "hbm": [
+      353.15,
+      363.15,
+      378.15
+    ]
+  },
+  "topology": "all_hbf_direct",
+  "unknown_idle_power": "EXCLUDED_NOT_ZERO_MEASUREMENT",
+  "workload": {
+    "active_ns": 8000000000,
+    "channel_distribution": "uniform",
+    "pattern": "continuous",
+    "per_stack_Bps": 384000000000
+  }
+}

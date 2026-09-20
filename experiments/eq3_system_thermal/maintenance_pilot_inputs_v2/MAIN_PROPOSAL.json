@@ -1,0 +1,33 @@
+{
+  "configuration_generation": "DEFERRED_UNTIL_PILOT_REVIEW",
+  "disabled_semantics": "FRESH_NO_MAINTENANCE_DIAGNOSTIC_NOT_AGE_MATCHED_CONTENTION_ARM",
+  "prerequisite": "maintenance_pilot_inputs_v2 all four shared points reviewed",
+  "proposed_arms": {
+    "contention_ablation": {
+      "comparison": "same enabled age/workload/control; only maintenance resource contention differs",
+      "modes": [
+        "shared",
+        "ideal_independent"
+      ],
+      "strategy": "read_rate_feedback_thermal_guard_v1",
+      "topology": "mixed_direct"
+    },
+    "strategy_matrix": {
+      "mode": "shared",
+      "strategies": [
+        "guard_only",
+        "thermal_hysteresis_guard",
+        "read_rate_feedback_thermal_guard_v1"
+      ],
+      "topologies": [
+        "mixed_direct",
+        "relay",
+        "dash",
+        "all_hbf_direct"
+      ]
+    }
+  },
+  "schema_version": "eq3-maintenance-main-proposal-v1",
+  "status": "WAITING_PILOT_AND_ROOT_REVIEW",
+  "status_reason": "Do not freeze or run main maintenance matrix before shared pilot evidence"
+}

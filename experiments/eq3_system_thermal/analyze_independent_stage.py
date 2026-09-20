@@ -23,9 +23,11 @@ def metrics(point):
 
 
 def compare(left, right, label):
-    if left['totals']['offered_effective_bytes'] != right['totals']['offered_effective_bytes']:
-        raise ValueError('paired total offered demand mismatch')
+    demand_delta = (right['totals']['offered_effective_bytes']
+                    - left['totals']['offered_effective_bytes'])
     return dict(comparison=label, left=left['point_id'], right=right['point_id'],
+                comparability='EXACT_TOTAL_DEMAND' if demand_delta == 0 else 'DESCRIPTIVE_ONLY_DEMAND_MISMATCH',
+                offered_byte_delta=demand_delta,
                 delta_right_minus_left={k:metrics(right)[k]-v for k,v in metrics(left).items()})
 
 

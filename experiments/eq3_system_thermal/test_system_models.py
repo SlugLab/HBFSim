@@ -224,6 +224,44 @@ class CausalTests(unittest.TestCase):
         next_read=executor.poll(100)[0]
         self.assertEqual(next_read['stack'],'hbf1')
 
+    def test_migration_commit_defers_source_erase_until_outstanding_source_read_finishes(self):
+        trace=self.small_trace()
+        trace['batches'][1]['arrival_ns']=11
+        executor=CausalExecutor(trace,{
+            'cache_mode':'disabled','cache_capacity_bytes':0,'coalescing_enabled':False,
+            'prefetch_wait_mode':'wait_at_consumption','stripe_unit_bytes':4096,
+            'migration_mode':'basic','migration_capacity_bytes':1048576,
+            'migration_access_threshold':1,
+            'stripe_targets':[{'stack':'hbf0','channel':'0','route':'direct'}],
+            'fast_stripe_targets':[{'stack':'hbf1','channel':'0','route':'direct'}]})
+        first=executor.poll(0)[0]
+        executor.complete(first['job_id'],10,first['bytes'])
+        migration_read=executor.offer_migrations(10)[0]
+        outstanding=executor.poll(11)[0]
+        self.assertEqual(outstanding['stack'],'hbf0')
+        executor.complete(migration_read['job_id'],20,migration_read['bytes'])
+        destination=executor.poll(20)[0]
+        executor.complete(destination['job_id'],30,destination['bytes'])
+        self.assertEqual(executor.tensor_tier['weight'],'fast')
+        self.assertFalse(any(job['operation']=='erase' for job in executor.poll(30)))
+        executor.complete(outstanding['job_id'],35,outstanding['bytes'])
+        erase=next(job for job in executor.poll(35) if job['operation']=='erase')
+        self.assertEqual(erase['stack'],'hbf0')
+        executor.complete(erase['job_id'],40,erase['bytes'])
+        self.assertEqual(executor.pending_migrations,{})
+
+        next_trace={'trace_origin':TRACE_ORIGIN,'batches':[{
+            'interval_id':2,'arrival_ns':50,'terminal_task_id':'c2','token_ids':['2'],
+            'tasks':[{'task_id':'r2','type':'storage',
+                      'tensor':{'tensor_id':'weight','bytes':4096},
+                      'issue_after':[],'consume_after':[],'consumer_count':1,
+                      'batch_interval_id':2},
+                     {'task_id':'c2','type':'compute','duration_ns':5,
+                      'depends_on':['r2']}]}]}
+        executor.append_trace(next_trace)
+        next_read=next(job for job in executor.poll(50) if job['operation']=='read')
+        self.assertEqual(next_read['stack'],'hbf1')
+
     def test_full_capacity_lru_serves_later_interval_without_external_reads(self):
         trace = build_architecture_trace({**self.config("Qwen/Qwen2.5-7B-Instruct"),
                                           "batch_intervals": 2,

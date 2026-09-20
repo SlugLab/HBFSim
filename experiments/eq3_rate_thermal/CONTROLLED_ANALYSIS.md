@@ -16,6 +16,15 @@ python3 -B experiments/eq3_rate_thermal/analyze_controlled_campaign.py \
 `--allow-partial` is intended for diagnostic or fixed-fixture analysis and does
 not label an incomplete campaign complete.
 
+When `CAMPAIGN_DIR/RUN_INDEX.json` exists, point discovery uses only its 39
+entries with `phase=main`. Every registered output must have a complete DONE
+point contract, a unique path, and matching topology/model/pattern/strategy,
+scan rate, duration, offered-byte total, and profile/workload/scenario hashes.
+Pilot entries, stage DONE receipts and derived diagnostic links are excluded.
+Without a RUN_INDEX, fake fixtures and isolated pilot bundles use recursive
+discovery only for directories containing all eight required point files; a
+standalone stage receipt therefore cannot become a point.
+
 The analysis rereads aligned `rates.jsonl`, `control.jsonl`, `energy.jsonl` and
 `thermal.jsonl` streams. It validates per-point byte conservation, 50 pJ/B
 served-energy accounting, component/window energy sums, the final thermal

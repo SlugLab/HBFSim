@@ -3,7 +3,15 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from analyze_controlled_campaign import analyze_campaign, analyze_point, write_outputs
+from analyze_controlled_campaign import (
+    EXPECTED_POINT_COUNT,
+    POINT_FILES,
+    _discover_point_dirs,
+    _validate_index_identity,
+    analyze_campaign,
+    analyze_point,
+    write_outputs,
+)
 
 
 def save(path, value):
@@ -133,6 +141,61 @@ class ControlledAnalysisTests(unittest.TestCase):
             jsonl(point / "rates.jsonl", rows)
             with self.assertRaisesRegex(ValueError, "byte conservation"):
                 analyze_point(point)
+
+    def test_run_index_whitelists_main_and_excludes_pilot_and_stage_done(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            save(root / "DONE.json", {"stage": "complete"})
+            pilot = root / "pilot"
+            pilot.mkdir()
+            for name in POINT_FILES:
+                (pilot / name).write_text("{}\n")
+            entries = [{"phase": "pilot", "output": str(pilot)}]
+            expected = []
+            for index in range(EXPECTED_POINT_COUNT):
+                point = root / f"main-{index:02d}"
+                point.mkdir()
+                for name in POINT_FILES:
+                    (point / name).write_text("{}\n")
+                expected.append(point.resolve())
+                entries.append({"phase": "main", "output": str(point)})
+            save(root / "RUN_INDEX.json", {
+                "main_count": EXPECTED_POINT_COUNT,
+                "pilot_count": 1,
+                "points": entries,
+            })
+            found, main_entries, mode = _discover_point_dirs(root)
+            self.assertEqual(found, expected)
+            self.assertEqual(len(main_entries), EXPECTED_POINT_COUNT)
+            self.assertEqual(mode, "RUN_INDEX_PHASE_MAIN_WHITELIST")
+            self.assertNotIn(pilot.resolve(), found)
+            (expected[-1] / "DONE.json").unlink()
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                _discover_point_dirs(root)
+
+    def test_run_index_identity_checks_point_inputs(self):
+        point_path = Path("/tmp/fixed-main-point")
+        point = {
+            "point_id": "RT-MAIN-fixed", "point_path": str(point_path),
+            "topology": "mixed_direct", "model_id": "Qwen/Qwen2.5-7B-Instruct",
+            "pattern": "continuous", "strategy": "guard_only", "full_scans_per_s": 16,
+            "active_ns": 20_000_000_000, "duration_ns": 30_000_000_000,
+            "totals": {"offered_bytes": 123},
+            "input_identity": {"profile.json": "profile-hash", "workload.json": "workload-hash",
+                               "scenario.json": "scenario-hash"},
+        }
+        entry = {
+            "phase": "main", "point_id": "RT-MAIN-fixed", "output": str(point_path),
+            "topology": "mixed_direct", "model": "7B", "pattern": "continuous",
+            "strategy": "guard_only", "full_scans_per_s": 16,
+            "active_s": 20, "recovery_s": 10, "expected_active_offered_bytes": 123,
+            "input_sha256": {"profile": "profile-hash", "workload": "workload-hash",
+                             "scenario": "scenario-hash"},
+        }
+        _validate_index_identity(entry, point)
+        entry["input_sha256"]["workload"] = "wrong"
+        with self.assertRaisesRegex(ValueError, "workload input identity"):
+            _validate_index_identity(entry, point)
 
 
 if __name__ == "__main__":

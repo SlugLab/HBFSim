@@ -22,6 +22,10 @@ PATTERNS = ("continuous", "burst_equal_mean")
 STATE_RANK = {"normal": 0, "light": 1, "severe": 2, "shutdown": 3}
 EXPECTED_POINT_COUNT = 39
 J_PER_BYTE = 50e-12
+POINT_FILES = (
+    "DONE.json", "manifest.json", "workload.json", "scenario.json",
+    "rates.jsonl", "control.jsonl", "energy.jsonl", "thermal.jsonl",
+)
 
 
 def _load(path: Path) -> dict:
@@ -459,9 +463,102 @@ def cross_topology_pressure_costs(points: list[dict]) -> list[dict]:
     return rows
 
 
+def _is_point_directory(path: Path) -> bool:
+    return all((path / name).is_file() for name in POINT_FILES)
+
+
+def _discover_point_dirs(campaign: Path) -> tuple[list[Path], list[dict] | None, str]:
+    """Discover only registered main points or validated standalone point dirs."""
+    run_index_path = campaign / "RUN_INDEX.json"
+    if run_index_path.is_file():
+        run_index = _load(run_index_path)
+        entries = run_index.get("points")
+        if not isinstance(entries, list):
+            raise ValueError("RUN_INDEX.points must be an array")
+        main_entries = [entry for entry in entries
+                        if isinstance(entry, dict) and entry.get("phase") == "main"]
+        if run_index.get("main_count") != EXPECTED_POINT_COUNT or len(main_entries) != EXPECTED_POINT_COUNT:
+            raise ValueError(
+                f"RUN_INDEX must declare exactly {EXPECTED_POINT_COUNT} phase=main points"
+            )
+        outputs = []
+        for index, entry in enumerate(main_entries):
+            raw_output = entry.get("output")
+            if not isinstance(raw_output, str) or not raw_output:
+                raise ValueError(f"RUN_INDEX main point {index} has no output path")
+            output = Path(raw_output)
+            if not output.is_absolute():
+                output = campaign / output
+            output = output.resolve()
+            if not _is_point_directory(output):
+                missing = [name for name in POINT_FILES if not (output / name).is_file()]
+                raise ValueError(f"RUN_INDEX main point {output} is incomplete; missing={missing}")
+            outputs.append(output)
+        if len(set(outputs)) != len(outputs):
+            raise ValueError("RUN_INDEX main point outputs must be unique")
+        return outputs, main_entries, "RUN_INDEX_PHASE_MAIN_WHITELIST"
+
+    # Standalone fake fixtures and pilot-only diagnostic bundles do not have a
+    # RUN_INDEX.  Require the complete point file contract so stage-level DONE
+    # receipts cannot be mistaken for experiment points.
+    outputs = sorted({path.parent.resolve() for path in campaign.rglob("DONE.json")
+                      if _is_point_directory(path.parent)})
+    if not outputs:
+        raise ValueError("no complete controlled-rate point directories found")
+    return outputs, None, "COMPLETE_POINT_FILE_DISCOVERY_WITHOUT_RUN_INDEX"
+
+
+def _index_model_label(model_id: str) -> str:
+    labels = {
+        "Qwen/Qwen2.5-7B-Instruct": "7B",
+        "Qwen/Qwen2.5-72B-Instruct": "72B",
+        "Qwen/Qwen3-235B-A22B": "235B",
+    }
+    if model_id not in labels:
+        raise ValueError(f"no RUN_INDEX model label for {model_id!r}")
+    return labels[model_id]
+
+
+def _validate_index_identity(entry: dict, point: dict) -> None:
+    checks = {
+        "point_id": point["point_id"],
+        "topology": point["topology"],
+        "model": _index_model_label(point["model_id"]),
+        "pattern": point["pattern"],
+        "strategy": point["strategy"],
+        "full_scans_per_s": point["full_scans_per_s"],
+        "expected_active_offered_bytes": point["totals"]["offered_bytes"],
+        "active_s": point["active_ns"] // 1_000_000_000,
+        "recovery_s": (point["duration_ns"] - point["active_ns"]) // 1_000_000_000,
+    }
+    for key, observed in checks.items():
+        if entry.get(key) != observed:
+            raise ValueError(
+                f"RUN_INDEX identity {key} differs for {point['point_id']}: "
+                f"index={entry.get(key)!r}, point={observed!r}"
+            )
+    output = Path(entry["output"]).resolve()
+    if output != Path(point["point_path"]).resolve():
+        raise ValueError(f"RUN_INDEX output path differs for {point['point_id']}")
+    expected_hashes = entry.get("input_sha256")
+    if not isinstance(expected_hashes, dict):
+        raise ValueError(f"RUN_INDEX input hashes missing for {point['point_id']}")
+    actual_hashes = point["input_identity"]
+    for index_key, manifest_key in (("profile", "profile.json"),
+                                    ("workload", "workload.json"),
+                                    ("scenario", "scenario.json")):
+        if expected_hashes.get(index_key) != actual_hashes.get(manifest_key):
+            raise ValueError(
+                f"RUN_INDEX {index_key} input identity differs for {point['point_id']}"
+            )
+
+
 def analyze_campaign(campaign: Path, *, require_complete: bool = True) -> dict:
-    point_dirs = sorted({path.parent for path in campaign.rglob("DONE.json")})
+    point_dirs, index_entries, discovery_mode = _discover_point_dirs(campaign)
     points = [analyze_point(path) for path in point_dirs]
+    if index_entries is not None:
+        for entry, point in zip(index_entries, points):
+            _validate_index_identity(entry, point)
     if require_complete:
         if len(points) != EXPECTED_POINT_COUNT:
             raise ValueError(f"expected {EXPECTED_POINT_COUNT} completed points, found {len(points)}")
@@ -477,6 +574,7 @@ def analyze_campaign(campaign: Path, *, require_complete: bool = True) -> dict:
     return {
         "schema_version": "eq3-controlled-campaign-analysis-v1",
         "campaign": str(campaign.resolve()),
+        "point_discovery": discovery_mode,
         "completed_point_count": len(points),
         "expected_point_count": EXPECTED_POINT_COUNT,
         "design_complete": len(points) == EXPECTED_POINT_COUNT,

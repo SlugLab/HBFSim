@@ -222,3 +222,42 @@ hashes are under
 `eq3_thermal/plans/isolated-maintenance-campaign-v1/points/GEOMETRY4K-FULLCAP01`.
 This verifies actual consumption of the configured geometry. It does not raise
 the bank-to-plane or 256-page/block assumptions above `SCENARIO_ASSUMPTION`.
+
+A bounded follow-up, `GEOMETRY4K-BOUNDARY01`, confirmed that the last legal
+stack-local page maps to global/backend logical page 536,870,911, reaches the
+expected channel/plane, and completes. A direct fixed test of
+`MqsimStackMapAdapter` rejected the next stack-local page as out of range and
+also rejected a 16 KiB request under the 4 KiB one-page contract.
+
+That follow-up deliberately retained a failed physical-block assertion. CWDP
+selects channel/chip/die/plane from the LPA, but an unmapped first-touch read
+then asks MQSim's allocator for the next free physical block/page in that
+plane. Consequently, a logical ordinal described as block-0/page-255 did not
+force physical block 0/page 255. The four reads instead occupied page 0 then
+page 1 in their selected planes. Logical namespace boundaries and physical
+allocator boundaries are distinct. At that point, a sequential physical
+page-255→page-0 block crossing remained `NOT_OBSERVED`; no unapproved retry was
+started after the failed assumption. The raw failure and diagnosis are under
+`eq3_thermal/plans/isolated-maintenance-campaign-v1/points/GEOMETRY4K-BOUNDARY01`.
+
+After that diagnosis, the separately authorized
+`GEOMETRY4K-PHYSICAL-BLOCK02` used 257 serial first-touch logical pages chosen
+to remain on one channel/die/plane. The first 256 real MQSim allocations
+occupied physical block 0 at pages 0 through 255; allocation 257 entered
+physical block 5 at page 0. The new block number was intentionally not assumed
+because the FTL reserves other work-front blocks. This confirms that
+`pages_per_block=256` has a real allocator consumer and that its physical block
+boundary is enforced.
+
+The two address layers must remain distinct in claims:
+
+- OCP's 4 KiB host/local addressing and R1/R2/R3/R4 block calculation define
+  the product-facing logical protocol, with R3 product-defined.
+- The current adapter validates the finite/full logical page namespace and
+  uses CWDP to select MQSim channel/die/plane. MQSim's page-level FTL then
+  assigns physical block/page locations dynamically.
+
+Consequently this experiment is an OCP-shaped page/capacity profile with a
+documented bank-to-plane projection. It does **not** implement the complete OCP
+zone/direct block-addressing protocol and must not be described as fully OCP
+compliant.

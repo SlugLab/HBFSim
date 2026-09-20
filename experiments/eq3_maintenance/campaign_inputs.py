@@ -27,7 +27,7 @@ def configuration(mode, *, pages_per_stack=65536, geometry="legacy16k"):
         raise ValueError('working region must be block aligned and provide >=8 blocks/physical plane')
     profile = dict(name=('EQ3_OCP4K_16BANK_FULL_CAPACITY' if geometry=='ocp4k16bank' and pages_per_stack*page==512*1024**3 else 'EQ3_EXPERIMENTAL_16DIE_FINITE_WORKING_REGION'),
                    capacity_bytes=n * pages_per_stack * page, page_bytes=page,
-                   read_latency_ns=10000, program_latency_ns=100000,
+                   read_latency_ns=10000, program_latency_ns=100000, nand_technology='slc',
                    channels=n*channel_per_stack, dies_per_channel=die_per_channel, planes_per_die=planes,
                    pages_per_block=256, channel_width_bits=8,
                    channel_transfer_rate_mtps=1600, queue_depth=256,
@@ -58,7 +58,7 @@ def configuration(mode, *, pages_per_stack=65536, geometry="legacy16k"):
             # Energy is accounted once in the experimental phase ledger below.
     return dict(profile=profile, stack_map=mapping, fabric=basic['fabric'], hbm=basic['hbm'],
                 mode=mode, geometry_profile=geometry,
-                geometry_evidence=dict(page_bytes='OCP070_SPECIFIED' if page==4096 else 'LEGACY_ENGINEERING',
+                geometry_evidence=dict(nand_cell_mode='EXPLICIT_SLC_SERVICE_PROXY_NOT_HBF_PRODUCT_CELL_MODE',page_bytes='OCP070_SPECIFIED' if page==4096 else 'LEGACY_ENGINEERING',
                      host_channels_per_stack='OCP070_SPECIFIED16' if channel_per_stack==16 else 'ENGINEERING_AGGREGATION1',
                      dies_per_channel='SCENARIO_PROJECTION_16_DIES_OVER16_CHANNELS' if die_per_channel==1 else 'ENGINEERING_AGGREGATION16',
                      planes_per_die='BANK_TO_PLANE_1TO1_SCENARIO_ASSUMPTION' if planes==16 else 'ENGINEERING1',

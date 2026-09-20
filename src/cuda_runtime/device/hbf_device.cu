@@ -335,11 +335,28 @@ __device__ CompletionResult wait_for_completion(
     const auto scaled = hbfsim::device::saturating_multiply(
         completion.modeled_ns, header->time_scale);
     const auto target = hbfsim::device::saturating_add(arrival_ns, scaled);
+    // The third of the three modeled-target waits, and the worst of them.
+    // bounded_sleep doubles a backoff that knows nothing about `target`, and
+    // wait.sleep_ns is a reference that the completion-ring loop above has
+    // already escalated -- by the time control reaches here it can sit at the
+    // 1,048,576 ns cap, so a 10,000 ns modeled delay could be served by a
+    // single ~1 ms nap. wait_sleep_ns never naps past half the remaining time,
+    // which the PTX ISA's [0, 2*t] guarantee on __nanosleep makes safe.
+    //
+    // The bounded_sleep call that remains, on the completion-ring wait, is
+    // correct and deliberately left alone: that loop waits on the host, whose
+    // finish time is not known, so exponential backoff is the right policy.
+    // What makes backoff wrong here is that the target IS known.
     while (gpu_time_ns() < target) {
-        if (gpu_time_ns() >= wait.deadline_ns) {
+        const auto now = gpu_time_ns();
+        if (now >= wait.deadline_ns) {
             return {.status = RequestStatus::Timeout};
         }
-        bounded_sleep(wait.sleep_ns);
+        const auto nap = hbfsim::device::wait_sleep_ns(
+            now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+        if (nap != 0) {
+            __nanosleep(nap);
+        }
     }
     return {.status = RequestStatus::Ready,
             .frame_address = completion.cache_frame_address};
@@ -631,6 +648,18 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto* range = find_range(ranges, count, address);
     if (range == nullptr || address < range->base ||
         address - range->base >= range->length) {
+        // find_range keys on the START address only. An access that begins
+        // below every registered range but whose span reaches into one would
+        // otherwise fall through to the bypass below and run at native speed
+        // on HBF-backed bytes, counted as bypass_bytes and never modeled.
+        // The mirror case -- starts inside, ends past the end -- is already
+        // rejected by media_descriptor/access_supported, and the store side
+        // already rejects any overlap in timing_future_native_store_span.
+        // This makes the load side agree with both.
+        if (hbfsim::device::span_touches_any_range(ranges, count, address,
+                                                   bytes)) {
+            return fail(address, RequestStatus::Unsupported);
+        }
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
         if (chain_experiment ==
@@ -1219,6 +1248,13 @@ __hbfsim_timing_future_issue_v1(std::uint64_t address,std::uint32_t bytes,
 #endif
     if (const auto live=future_liveness(h,f.control_generation,arrival)) return reject(live);
     if (!range || address<range->base || address-range->base>=range->length) {
+        // Same start-address-only lookup as __hbfsim_resolve; same fix. A span
+        // straddling into a range is not native, so it must not be counted as
+        // a native load.
+        if (hbfsim::device::span_touches_any_range(
+                ranges, system_acquire(&h->range_count), address, bytes)) {
+            return reject(tf::kUnsupported);
+        }
         f.state=tf::State::Native;f.status=tf::kReady;
         (void)system_fetch_add(&counters.native_loads,1);
         (void)system_fetch_add(&counters.native_bytes,bytes);return f;

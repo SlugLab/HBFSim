@@ -697,6 +697,55 @@ HBFSIM_HOST_DEVICE constexpr bool access_supported(
     return offset / range.page_bytes == last_offset / range.page_bytes;
 }
 
+// Does the access span [address, address + bytes) touch this range at all?
+//
+// access_supported() above answers a different and stricter question: is this
+// access wholly inside the range AND inside one page of it. An access that
+// merely overlaps is not serviceable, but it is also NOT safe to let through
+// to the native address, because part of it lands on HBF-backed memory that
+// the model never sees. The resolver used to classify by start address alone,
+// so an access starting just below a range and reaching into it was reported
+// as a plain bypass. The predicate here is the same one the store-side guard
+// timing_future_native_store_span() already uses, so both directions of a
+// straddling access are now classified the same way.
+HBFSIM_HOST_DEVICE constexpr bool range_overlaps(
+    const SharedRangeRecord& range, std::uint64_t address,
+    std::uint32_t bytes) noexcept
+{
+    if (bytes == 0 || range.length == 0 ||
+        range.base > UINT64_MAX - range.length ||
+        address > UINT64_MAX - bytes) {
+        return false;
+    }
+    return address < range.base + range.length &&
+           range.base < address + bytes;
+}
+
+// True when the span overlaps any registered range. The caller reaches this
+// only after the start-address lookup found nothing, so a true answer means
+// the access straddles a boundary and must be rejected rather than bypassed.
+//
+// This is O(1), not a scan: kRangeCapacity is 32,768 and this sits on the
+// bypass path of every access, so a linear walk would cost more than the
+// modeling it guards. Ranges are sorted by base -- find_range_index binary
+// searches them -- so the only range a span starting outside all of them can
+// reach into is the first one whose base sits above the start address.
+HBFSIM_HOST_DEVICE constexpr bool span_touches_any_range(
+    const SharedRangeRecord* ranges, std::uint32_t count,
+    std::uint64_t address, std::uint32_t bytes) noexcept
+{
+    if (ranges == nullptr || count == 0 || bytes == 0) {
+        return false;
+    }
+    const auto index = find_range_index(ranges, count, address);
+    if (index != count && range_overlaps(ranges[index], address, bytes)) {
+        return true;
+    }
+    const auto successor = index == count ? 0U : index + 1U;
+    return successor < count &&
+           range_overlaps(ranges[successor], address, bytes);
+}
+
 HBFSIM_HOST_DEVICE constexpr std::uint64_t resolved_address(
     const SharedRangeRecord& range, std::uint64_t original_address,
     std::uint64_t cache_frame_address) noexcept

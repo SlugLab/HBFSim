@@ -297,31 +297,93 @@ int main()
     }
 
 
-    // An access that starts inside a registered range but ends past it must be
-    // rejected on the load path, not only on the store path.
+    // Span classification, in BOTH directions. An earlier version of this test
+    // only checked one of them and recorded the other as "not a defect"; an
+    // independent review caught that, and the two directions are kept together
+    // here so the mistake cannot repeat.
     //
-    // Two external reviews both claimed the load path checks only the start
-    // address and so accepts a straddling access. Reading the call chain shows
-    // otherwise, and this test pins the chain so the claim does not come back:
-    //   __hbfsim_resolve            -> media_descriptor (hbf_device.cu:659)
+    // Direction one, already handled: the access starts inside a range and ends
+    // past it. media_descriptor rejects it, through the chain
+    //   __hbfsim_resolve                -> media_descriptor (hbf_device.cu:659)
     //   __hbfsim_timing_future_issue_v1 -> media_descriptor (hbf_device.cu:1226)
-    //   media_descriptor            -> access_supported   (hbf_device.cuh:722)
-    //   access_supported            -> address + bytes > range.base + range.length
-    //                                                     (hbf_device.cuh:691)
-    // Both entry points go through the same predicate, so both reject.
+    //   media_descriptor                -> access_supported (hbf_device.cuh:722)
+    //   access_supported                -> address + bytes > range.base + range.length
+    //                                                       (hbf_device.cuh:691)
     {
         using hbfsim::device::media_descriptor;
         const SharedRangeRecord range{
             .base = 0x1000, .length = 0x1000, .file_offset = 0,
             .range_id = 1, .mode = 1, .permissions = 3, .page_bytes = 0x1000};
-        // Wholly inside: accepted.
         CHECK(media_descriptor(range, 0x1000, 16, 0).valid);
         CHECK(media_descriptor(range, 0x1ff8, 8, 0).valid);
-        // Starts inside, ends one byte past the range: rejected.
         CHECK(!media_descriptor(range, 0x1ff8, 16, 0).valid);
         CHECK(!media_descriptor(range, 0x1fff, 2, 0).valid);
-        // Starts before the range: rejected.
-        CHECK(!media_descriptor(range, 0x0ff8, 16, 0).valid);
+    }
+
+    // Direction two, the one that was missed: the access STARTS OUTSIDE every
+    // range and its span reaches into one. The resolver looks up a range by
+    // start address only (hbf_device.cu:632), finds none, and returns
+    // RequestStatus::Ready at hbf_device.cu:657 -- which means "bypass, use the
+    // native address". The bytes that fall inside the registered range are then
+    // neither modeled nor rejected, and are counted as bypass_bytes.
+    //
+    // The store guard already treats any overlap as disqualifying:
+    //   timing_future_native_store_span (hbfsim/hbf_device.cuh:944)
+    //   (address < r.base + r.length && r.base < address + bytes) -> not native
+    // so the load path is the asymmetric one. range_overlaps below gives the
+    // load path the same predicate.
+    {
+        using hbfsim::device::range_overlaps;
+        const SharedRangeRecord range{
+            .base = 0x1000, .length = 0x1000, .file_offset = 0,
+            .range_id = 1, .mode = 1, .permissions = 3, .page_bytes = 0x1000};
+        // Ends one byte before the range: genuinely outside, bypass is correct.
+        CHECK(!range_overlaps(range, 0x0ff0, 16));
+        // Last byte of the access is the first byte of the range: overlaps.
+        CHECK(range_overlaps(range, 0x0ff8, 9));
+        // Straddles the lower boundary.
+        CHECK(range_overlaps(range, 0x0ff8, 16));
+        // Wholly inside.
+        CHECK(range_overlaps(range, 0x1800, 8));
+        // Straddles the upper boundary.
+        CHECK(range_overlaps(range, 0x1ff8, 16));
+        // Starts exactly at the end: outside.
+        CHECK(!range_overlaps(range, 0x2000, 8));
+        // Encloses the whole range.
+        CHECK(range_overlaps(range, 0x0800, 0x2000));
+        // Degenerate inputs must not report an overlap.
+        CHECK(!range_overlaps(range, 0x1800, 0));
+        CHECK(!range_overlaps(SharedRangeRecord{}, 0x1800, 8));
+    }
+
+    // The resolver calls span_touches_any_range, which must reach the same
+    // verdict in O(1) over a sorted range table rather than by scanning all
+    // kRangeCapacity == 32'768 entries. Sortedness is not an assumption added
+    // here: find_range_index already binary searches this table.
+    {
+        using hbfsim::device::span_touches_any_range;
+        const SharedRangeRecord table[3] = {
+            {.base = 0x1000, .length = 0x1000, .file_offset = 0,
+             .range_id = 1, .mode = 1, .permissions = 3, .page_bytes = 0x1000},
+            {.base = 0x4000, .length = 0x1000, .file_offset = 0,
+             .range_id = 2, .mode = 1, .permissions = 3, .page_bytes = 0x1000},
+            {.base = 0x9000, .length = 0x1000, .file_offset = 0,
+             .range_id = 3, .mode = 1, .permissions = 3, .page_bytes = 0x1000},
+        };
+        // Below every base, reaching into the first range.
+        CHECK(span_touches_any_range(table, 3, 0x0ff8, 16));
+        CHECK(!span_touches_any_range(table, 3, 0x0ff0, 16));
+        // In the hole between range 0 and range 1, reaching into range 1.
+        CHECK(span_touches_any_range(table, 3, 0x3ff8, 16));
+        CHECK(!span_touches_any_range(table, 3, 0x3000, 16));
+        // In the hole after the last range: nothing above it to reach.
+        CHECK(!span_touches_any_range(table, 3, 0xa000, 16));
+        // Reaching into the last range from the hole below it.
+        CHECK(span_touches_any_range(table, 3, 0x8ff8, 16));
+        // Degenerate inputs.
+        CHECK(!span_touches_any_range(table, 0, 0x0ff8, 16));
+        CHECK(!span_touches_any_range(nullptr, 3, 0x0ff8, 16));
+        CHECK(!span_touches_any_range(table, 3, 0x0ff8, 0));
     }
 
     return 0;

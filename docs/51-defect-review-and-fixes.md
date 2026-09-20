@@ -294,8 +294,10 @@ A third implementation deliberately still adds the first-byte latency and the tr
 difference is now documented where a reader will meet it. `scalar_prediction` in
 `scripts/tune_vmem_profile.py` is the naive parameter-sheet closed form that the calibration compares
 measurements against — the function exists in order to be compared with, not in order to be accurate.
-Comments were added in both places so that the next reader does not reconcile the two forms and
-destroy the comparison.
+`scalar_prediction` now carries a comment saying that it is deliberately a sum and must not be
+changed to match, and `hbfsim::fast_service_ns` in `src/hybrid/calibrator.cpp` carries the reverse
+reference, so that a reader arriving from either side does not reconcile the two forms and destroy
+the comparison.
 
 Two limits on the conclusion. The pinning test covers three shipped profiles and seven request sizes;
 a profile or a request size outside that set is not covered by the test, only by the shared source of

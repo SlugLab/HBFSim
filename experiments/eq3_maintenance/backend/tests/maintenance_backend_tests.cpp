@@ -140,5 +140,50 @@ int main(int argc,char** argv) {
     require(completion.size()==1&&completion.front().status==hbfsim::MqsimMaintenanceStatus::Committed,
       "16-die finite-workspace maintenance failed");
   }
+
+  // A thermal guard may hold a logically due job while the external clock
+  // continues.  Preserve its logical due/deadline, inject at the current
+  // clock, and let the native unit make the existing deadline decision.
+  { hbfsim::MqsimOnlineEngine engine(profile);
+    submit_read(engine,301,20,profile.page_bytes);
+    require(engine.run_next_completion().has_value(),"late-maintenance setup failed");
+    const auto due=engine.current_time_ns();
+    const auto future_deadline=due+1000000000ULL;
+    (void)engine.run_next_completion_until(due+1000);
+    const auto submit_time=engine.current_time_ns();
+    engine.submit_maintenance({.request_id=302,.parent_id=9302,
+      .due_ns=due,.deadline_ns=future_deadline,.logical_page=20,
+      .channel=0,.chip=0,.die=0,.plane=0,.plane_is_exact=true});
+    while(engine.pending_maintenance())
+      (void)engine.run_next_completion_until(engine.current_time_ns()+1000000000ULL);
+    auto late=engine.take_maintenance_completions();
+    auto late_events=engine.take_maintenance_events();
+    require(late.size()==1&&late.front().status==hbfsim::MqsimMaintenanceStatus::Committed&&
+      late.front().enqueue_ns>=submit_time&&late.front().transaction_ids.size()==2,
+      "late but unexpired maintenance did not execute exactly once");
+    require(!late_events.empty()&&late_events.front().time_ns>=submit_time,
+      "late maintenance registered an event in the past");
+
+    submit_read(engine,303,21,profile.page_bytes);
+    require(engine.run_next_completion().has_value(),"expired-maintenance setup failed");
+    const auto expired_due=engine.current_time_ns();
+    const auto expired_deadline=expired_due+100;
+    (void)engine.run_next_completion_until(expired_deadline+100);
+    engine.submit_maintenance({.request_id=304,.parent_id=9304,
+      .due_ns=expired_due,.deadline_ns=expired_deadline,.logical_page=21,
+      .channel=0,.chip=0,.die=0,.plane=0,.plane_is_exact=true});
+    while(engine.pending_maintenance())
+      (void)engine.run_next_completion_until(engine.current_time_ns()+1000000000ULL);
+    auto expired=engine.take_maintenance_completions();
+    auto expired_events=engine.take_maintenance_events();
+    require(expired.size()==1&&
+      expired.front().status==hbfsim::MqsimMaintenanceStatus::RejectedInvalidTarget&&
+      expired.front().transaction_ids.empty()&&!expired.front().mapping_committed,
+      "late expired maintenance did not reject once without media activity");
+    require(expired_events.size()==3&&
+      expired_events.front().state==hbfsim::MqsimMaintenanceState::Due&&
+      expired_events.back().state==hbfsim::MqsimMaintenanceState::Failed,
+      "late expired maintenance lifecycle was not unique and terminal");
+  }
   std::cout<<"PASS METADATA_VERSION_VALIDITY shared_TSU_PHY maintenance lifecycle\n";
 }

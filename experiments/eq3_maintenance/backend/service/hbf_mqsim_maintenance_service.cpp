@@ -435,7 +435,7 @@ int main(int argc, char** argv)
                 const auto parent=input.contains("parent_id") ? integer(input,"parent_id") : id;
                 const auto due=integer(input,"due_ns"), deadline=integer(input,"deadline_ns");
                 const auto local_page=integer(input,"stack_local_page");
-                if(!id||!parent||maintenance.accepted.contains(id)||due<engine.current_time_ns()||
+                if(!id||!parent||maintenance.accepted.contains(id)||
                    (deadline&&deadline<due)||!input.contains("stack")||!input.at("stack").is_string())
                     throw std::invalid_argument("invalid maintenance identity, time, or stack");
                 hbfsim::HbfRequest external{.request_id=id,.sequence=0,.arrival_ns=due,

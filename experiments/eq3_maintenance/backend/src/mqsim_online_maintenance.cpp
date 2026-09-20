@@ -545,7 +545,7 @@ namespace hbfsim
 
     void MqsimOnlineEngine::submit_maintenance(const MqsimMaintenanceRequest& request)
     {
-        if (!request.request_id || request.due_ns < current_time_ns() ||
+        if (!request.request_id ||
             (request.deadline_ns && request.deadline_ns < request.due_ns) ||
             request.channel >= impl_->profile.channels || request.chip != 0 ||
             request.die >= impl_->profile.dies_per_channel ||
@@ -554,7 +554,8 @@ namespace hbfsim
         if (request.logical_page >= impl_->profile.capacity_bytes / impl_->profile.page_bytes)
             throw std::out_of_range("MQSim maintenance logical page exceeds capacity");
         auto* submission = new Impl::MaintenanceSubmission{request};
-        Simulator->Register_sim_event(request.due_ns, impl_->maintenance_injector.get(), submission);
+        Simulator->Register_sim_event(std::max(request.due_ns, current_time_ns()),
+            impl_->maintenance_injector.get(), submission);
         ++impl_->pending_maintenance;
     }
 

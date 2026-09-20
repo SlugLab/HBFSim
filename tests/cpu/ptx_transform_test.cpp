@@ -237,19 +237,17 @@ int main()
     // lines. Measured before the fix: 0 rewritten and 0 unsupported. Measured
     // after: 3 unsupported.
     //
-    // Three, not four, and the difference is deliberate. The scan is
-    // line-oriented, so the line carrying both a load and a store is one
-    // statement and counts once. What this test fixes is silence, not
-    // arithmetic: every statement the rewriter could not consume is now
-    // reported. Counting the second access on that line needs the parser to
-    // work on logical statements rather than lines, which is a separate and
-    // much larger change. The assertion below pins the current guarantee so
-    // that a regression back to silence fails here.
+    // Four, one per access, not three per statement. The scan splits an
+    // accumulated statement on its semicolons before matching, so a line
+    // carrying both a load and a store reports both. Counting per access is
+    // what makes the coverage denominator mean something: a manifest that says
+    // "one unsupported instruction" when two accesses were skipped understates
+    // the gap by half.
     const auto fail_open = hbfsim::ptx::transform_ptx({
         .full_ptx = read_fixture("fail_open_global.ptx"),
         .to_patch_kernel = "fail_open_kernel",
     });
-    CHECK(fail_open.coverage.unsupported_instructions >= 3);
+    CHECK(fail_open.coverage.unsupported_instructions == 4);
     CHECK(!fail_open.modified);
 
     return 0;

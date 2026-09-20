@@ -351,10 +351,34 @@ TransformResult transform_ptx(const TransformRequest& request)
                 output << line << '\n';
                 continue;
             }
-            std::string opcode;
-            if (unsupported_memory_instruction(pending_statement, opcode)) {
-                ++result.coverage.unsupported_instructions;
-                result.coverage.unsupported_opcodes.push_back(opcode);
+            // Count per access, not per line. One physical line may carry
+            // several statements, and the scan's regex is anchored to the end
+            // of what it is given, so handing it the whole line matches once
+            // and swallows the rest. Splitting on semicolons first means a
+            // line holding both a load and a store reports both. A manifest
+            // that says "one unsupported instruction" when two accesses were
+            // skipped understates the coverage gap by half.
+            //
+            // A semicolon inside an inline-asm string would split wrongly, but
+            // the scan matches `asm\s*\(` as unsupported in its own right, so
+            // such a statement is still reported; only its opcode text would
+            // be truncated.
+            for (std::size_t begin = 0; begin < pending_statement.size();) {
+                const auto end = pending_statement.find(';', begin);
+                const auto stop = end == std::string::npos
+                                      ? pending_statement.size()
+                                      : end + 1;
+                const auto piece =
+                    pending_statement.substr(begin, stop - begin);
+                begin = stop;
+                if (piece.find_first_not_of(" \t") == std::string::npos) {
+                    continue;
+                }
+                std::string opcode;
+                if (unsupported_memory_instruction(piece, opcode)) {
+                    ++result.coverage.unsupported_instructions;
+                    result.coverage.unsupported_opcodes.push_back(opcode);
+                }
             }
             pending_statement.clear();
         }

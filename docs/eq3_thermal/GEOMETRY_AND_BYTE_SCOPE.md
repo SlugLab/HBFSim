@@ -42,7 +42,7 @@ physical NAND transferred a partial page.
 For a full scan of the registered original Qwen2.5 payloads, rounding each
 logical tensor group to a 4 KiB NAND-media page gives:
 
-| Model | Logical payload | Tensor groups | Physical media bytes after page rounding | Padding | Relative padding | 64/128 target effect |
+| Model | Logical payload | Tensor groups | Page-rounded `physical_payload_bytes` proxy | Padding | Relative padding | 64/128 target effect |
 |---|---:|---:|---:|---:|---:|---|
 | Qwen2.5-7B-Instruct | 15,231,233,024 B | 59 | 15,231,262,720 B | 29,696 B | 1.949678 ppm | Same padding for 64 and 128 targets; the current algorithm has one residual child per partial tensor group. |
 | Qwen2.5-72B-Instruct | 145,412,407,296 B | 163 | 145,412,407,296 B | 0 B | 0 | Same for 64 and 128 targets. |
@@ -50,6 +50,10 @@ logical tensor group to a 4 KiB NAND-media page gives:
 This calculation uses the full logical tensor groups in
 `qwen2_5_weight_models.json`. Selected-row embeddings and other sub-tensor
 accesses require their own request-level rounding calculation.
+`physical_payload_bytes` means only the 4 KiB-aligned payload proxy. Actual
+NAND page transfer, OOB/ECC bytes, protocol framing, internal movement, and
+wire bytes remain `UNKNOWN`; the calculation is not an observed physical NAND
+transaction count and does not establish full-capacity physical allocation.
 
 At 50 pJ/B (the user-confirmed 80 W at 1.6 TB/s read envelope), the 7B tail
 padding adds 1.4848 µJ to a 0.7615616512 J full scan. At 500 pJ/B it adds

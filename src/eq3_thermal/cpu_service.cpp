@@ -54,7 +54,8 @@ struct CpuService::Impl {
     observer(RuntimeMode::Shadow,thermal) {
     need(config.at("evidence")=="ENGINEERING_FIXTURE","physical service parameters not authorized");
     const std::string layout=config.at("topology");need(layout=="mixed_direct"||layout=="relay"||layout=="dash"||layout=="all_hbf_direct","unknown topology");
-    need(config.at("policy")=="none"||config.at("policy")=="hysteresis","unsupported policy");
+    need(config.at("policy")=="none"||config.at("policy")=="hysteresis"||
+      config.at("policy")=="hysteresis_escalation_priority_v2","unsupported policy");
     need(tick(config.at("thermal_step_ns"))>0&&tick(config.at("sample_ns"))>0,"positive clocks required");
     for(const auto& [key,value]:config.at("duration_ns").items())need(tick(value)>0,"zero service duration");
     for(const auto& [key,value]:config.at("power_w").items())(void)number(value);
@@ -231,15 +232,24 @@ struct CpuService::Impl {
       state["samples"].push_back({{"time_ns",now()},{"stack",id},{"temperature_k",t},{"source","SIMULATED"},{"suggested",level(desired)},{"applied",c.at("applied")}});
       if(config.at("policy")=="none")continue;
       if(desired==applied)c["pending"]=nullptr;
-      else if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired)) {
-        c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
+      else if(config.at("policy")=="hysteresis") {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
+      } else if(desired>applied) {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",now()+tick(p.at("action_delay_ns"))}};
+      } else {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
       }
     }
     state["next_sample"]=now()+tick(config.at("sample_ns"));
   }
   void apply_controls() {
     for(auto& [id,c]:state["control"].items())if(!c.at("pending").is_null()&&tick(c.at("pending").at("at_ns"))<=now()) {
-      log("control",{{"stack",id},{"from",c.at("applied")},{"to",c.at("pending").at("state")},{"reason","SIMULATED_STACK_HOTSPOT_HYSTERESIS"}});
+      const std::string reason=config.at("policy")=="hysteresis_escalation_priority_v2"?
+        "SIMULATED_STACK_HOTSPOT_HYSTERESIS_ESCALATION_PRIORITY_V2":"SIMULATED_STACK_HOTSPOT_HYSTERESIS";
+      log("control",{{"stack",id},{"from",c.at("applied")},{"to",c.at("pending").at("state")},{"reason",reason}});
       c["applied"]=c.at("pending").at("state");c["last_change"]=now();c["pending"]=nullptr;
     }
   }

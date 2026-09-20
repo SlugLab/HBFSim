@@ -177,6 +177,60 @@ void control_pending_contract() {
   }
   check(transitions==1,"stale pending action executed before escalation");
 }
+void escalation_priority_v2_contract() {
+  auto hot=[](const std::string& policy) {
+    auto c=fixture();c["policy"]=policy;c["control"]["hbf0"]["light_k"]=299.0;
+    c["control"]["hbf0"]["severe_k"]=299.1;c["control"]["hbf0"]["shutdown_k"]=299.2;
+    c["control"]["hbf0"]["action_delay_ns"]=20000000;c["control"]["hbf0"]["min_dwell_ns"]=100000000;
+    return c;
+  };
+  auto force_applied=[](CpuService& service,const std::string& applied,J pending=nullptr) {
+    auto snapshot=J::parse(service.checkpoint());auto& state=snapshot["state"]["control"]["hbf0"];
+    state["applied"]=applied;state["suggested"]=applied;state["last_change"]=0;state["pending"]=pending;
+    snapshot["state"]["next_sample"]=0;service.restore(snapshot.dump());
+  };
+
+  CpuService legacy(hot("hysteresis").dump());force_applied(legacy,"Light");legacy.advance_to(1);
+  auto r=J::parse(legacy.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Shutdown"&&r["control"]["hbf0"]["pending"]["at_ns"]==100000000,
+        "legacy hysteresis dwell contract changed");
+
+  const auto v2_config=hot("hysteresis_escalation_priority_v2");CpuService priority(v2_config.dump());
+  force_applied(priority,"Light");priority.advance_to(10000001);r=J::parse(priority.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Shutdown"&&r["control"]["hbf0"]["pending"]["at_ns"]==20000000,
+        "v2 escalation was delayed by recovery dwell or same-target resampling");
+  CpuService resumed(v2_config.dump());resumed.restore(priority.checkpoint());
+  priority.advance_to(20000001);resumed.advance_to(20000001);check(priority.report()==resumed.report(),"v2 pending checkpoint diverged");
+  r=J::parse(priority.report());check(r["control"]["hbf0"]["applied"]=="Shutdown","v2 escalation omitted action delay boundary");
+
+  auto cool=fixture();cool["policy"]="hysteresis_escalation_priority_v2";
+  cool["control"]["hbf0"]["action_delay_ns"]=20000000;cool["control"]["hbf0"]["min_dwell_ns"]=100000000;
+  CpuService recovery(cool.dump());force_applied(recovery,"Shutdown");recovery.advance_to(1);r=J::parse(recovery.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Normal"&&r["control"]["hbf0"]["pending"]["at_ns"]==100000000,
+        "v2 recovery bypassed hysteresis dwell");
+
+  auto held=cool;held["control"]["hbf0"]["light_k"]=299.0;held["control"]["hbf0"]["severe_k"]=299.1;
+  held["control"]["hbf0"]["shutdown_k"]=300.02;held["control"]["hbf0"]["hysteresis_k"]=.05;
+  CpuService hysteresis(held.dump());force_applied(hysteresis,"Shutdown");hysteresis.advance_to(1);r=J::parse(hysteresis.report());
+  check(r["control"]["hbf0"]["applied"]=="Shutdown"&&r["control"]["hbf0"]["pending"].is_null(),"v2 recovery ignored hysteresis");
+
+  CpuService replace(v2_config.dump());
+  force_applied(replace,"Severe",J{{"state","Normal"},{"at_ns",100000000}});replace.advance_to(1);r=J::parse(replace.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Shutdown"&&r["control"]["hbf0"]["pending"]["at_ns"]==20000000,
+        "v2 severe recommendation did not replace stale recovery");
+
+  auto light=fixture();light["policy"]="hysteresis_escalation_priority_v2";light["control"]["hbf0"]["light_k"]=299.0;
+  light["control"]["hbf0"]["severe_k"]=310.0;light["control"]["hbf0"]["shutdown_k"]=320.0;
+  CpuService retarget(light.dump());force_applied(retarget,"Normal",J{{"state","Shutdown"},{"at_ns",20000000}});
+  retarget.advance_to(1);r=J::parse(retarget.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Light","v2 retained an obsolete stronger pending target");
+
+  CpuService ordered(v2_config.dump());force_applied(ordered,"Light");auto q=request("v2-boundary");q["arrival_ns"]=20000000;
+  ordered.submit(q.dump());ordered.advance_to(20000001);r=J::parse(ordered.report());
+  check(r["control"]["hbf0"]["applied"]=="Shutdown"&&r["queue"].size()==1&&r["active"].empty()&&
+        r["admission_blocks"][0]["blocked_endpoints"][0]["reason"]=="SHUTDOWN",
+        "v2 same-timestamp sample/apply/admission ordering changed");
+}
 void resource_energy_topologies() {
   for(const auto& topology:{"mixed_direct","relay","dash","all_hbf_direct"}) {
     auto config=fixture(topology,std::string(topology)=="all_hbf_direct"?0:4);CpuService s(config.dump());
@@ -274,4 +328,4 @@ void actual_dispatcher() {
   std::cout<<"PASS actual RequestDispatcher Engine and shared completion consumer (CPU fixture, not live GPU)\n";
 #endif
 }
-int main(){try{path_endpoint_admission();control_pending_contract();resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS path endpoint admission/Light quotas; pending control contract; four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
+int main(){try{path_endpoint_admission();control_pending_contract();escalation_priority_v2_contract();resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS path endpoint admission/Light quotas; legacy/v2 pending control contracts; four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -73,3 +73,16 @@ MODEL_FREEZE。真实授权见工作区eq3_thermal/plans/p2-p3-p4-campaign-v1。
 
 本轮 EQ3-MINIMAL-REPAIR-v1 已授权已复现局部修复、语义透明且默认关闭的
 接口适配和固定 CPU 验证；不是重构、科学方法变更、GPU、push/merge 的授权。
+
+## EQ3-DECISION-EXECUTION-v2（当前明确阶段授权）
+
+用户已采纳任务书D1–D6并授权连续执行：验收v2与legacy_v1并列、原train完整
+1mm参考及现有后端数值验证、统一alpha域内分支、新可选升级优先策略与九点
+CPU矩阵、默认关闭只读phase接口及既有gate真实CPU消费者。见
+eq3_thermal/plans/decision-execution-v2/USER_TASKBOOK.md及user-source.md。
+最新补充：取消固定内存/时限/磁盘硬边界，按每点实际需求、机器余量与对其它
+服务影响合理评估并记录资源计划/停止条件；不再因原16/12GiB、3600/600s、
+4/40GiB阈值机械阻断。仍串行CPU求解/实验、OMP/BLAS1，编译协调不争抢。
+既有安全启动器须消费本阶段实际资源计划；保留系统余量和异常停止机制。
+这不是GPU/云/新物性/新求解器/ROM/ABI/调度/所有权/真实维护生命周期重构授权。
+已定范围不逐点请示；盲测依赖、原400K域、原结果及最小侵入确认规则仍生效。

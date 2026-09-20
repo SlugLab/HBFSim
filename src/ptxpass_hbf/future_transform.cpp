@@ -173,12 +173,21 @@ class Writer {
         declare_reg("pred",go);declare_reg("b32",status);declare_reg("b32",state);declare_reg("b64",returned);
         emit("and.pred "+go+", "+execution+", "+reg("valid",id));
         const auto skip=begin_guard(go);
+        // Widen the backing load's result here rather than at the issue site.
+        // This is the first instruction that reads it, so this is where the
+        // warp is supposed to stall. The value cannot simply be dropped: the
+        // wait helper takes it by parameter and hands it back, and that
+        // returned value is what finally writes the original destination
+        // register below. `go` is `exec && valid`, and valid is only set once
+        // the load has executed, so the read is always of a defined value.
+        const auto width=bits(p.type);
+        emit("mov.b"+std::to_string(width)+" "+reg("rawbits",id)+", "+reg("raw",id),go);
+        emit((width==64?"mov.b64 ":"cvt.u64.u"+std::to_string(width)+" ")+reg("nativebits",id)+", "+reg("rawbits",id),go);
         const auto result=call("__hbfsim_timing_future_wait_v1",{{64,reg("tokenptr",id)},{64,reg("metaptr",id)},{64,reg("nativebits",id)},{32,std::to_string(id)},{32,std::to_string(p.instruction->memory->bytes)},{32,std::to_string(kind)}},16,8,go);
         emit("ld.param.b64 "+returned+", ["+result+"]",go);
         emit("ld.param.b32 "+status+", ["+result+"+8]",go);
         emit("ld.param.b32 "+state+", ["+result+"+12]",go);
         verify(status,1,go);verify(state,4,go);
-        const auto width=bits(p.type);
         if(width==64)emit("mov.b64 "+p.destination+", "+returned,go);
         else {
             const auto narrow=reg("narrow",unique);declare_reg("b"+std::to_string(width),narrow);
@@ -276,10 +285,15 @@ FutureEmission emit_timing_futures(std::string_view source,std::string_view kern
             w.emit("or.pred "+ok+", "+native+", "+modeled,exec);w.emit("xor.pred "+bad+", "+ok+", 1",exec);
             const auto fault=symbol("issuefault",id);w.declarations<<"    .param .b32 "<<fault<<";\n";
             w.emit("st.param.b32 ["+fault+"], "+status,bad);w.emit("call __hbfsim_fault, ("+fault+")",bad);
+            // The backing load issues here and nothing reads it here. The
+            // widening into the 64-bit register the wait helper takes used to
+            // sit on the very next instruction, which made the scoreboard
+            // stall at the issue site and turned every backing load into a
+            // blocking load -- the opposite of what separating issue from
+            // consume is for. It now lives in wait(), at the first real
+            // consumer, so the load overlaps whatever the kernel does in
+            // between, exactly as it did before the transform.
             w.emit(i.opcode+" "+reg("raw",id)+", ["+address+"]",exec);
-            const auto width=bits(f.register_types.at(i.operands[0]));
-            w.emit("mov.b"+std::to_string(width)+" "+reg("rawbits",id)+", "+reg("raw",id),exec);
-            w.emit((width==64?"mov.b64 ":"cvt.u64.u"+std::to_string(width)+" ")+reg("nativebits",id)+", "+reg("rawbits",id),exec);
             w.emit("mov.pred "+reg("valid",id)+", 1",exec);
             w.end_guard(skip);
         } else if(i.memory && i.memory->kind==MemoryKind::Store) {

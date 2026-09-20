@@ -227,6 +227,46 @@ class EmitterTests(unittest.TestCase):
                 native=next(i for i,e in enumerate(machine.events) if e[1]=='native_load')
                 wait=next(i for i,e in enumerate(machine.events) if e[1]=='wait')
                 self.assertLess(issue,native);self.assertLess(native,wait)
+    def test_backing_load_is_not_consumed_at_the_issue_site(self):
+        # The whole point of splitting issue from consume is that the backing
+        # load runs while independent work proceeds, and only the first true
+        # consumer waits for it. The emitter used to defeat that: it widened
+        # the loaded value into the 64-bit register the wait call takes on the
+        # instruction immediately after the load, so the scoreboard stalled at
+        # the issue site and every backing load became a blocking load.
+        #
+        # Deleting the widening is not an option -- the wait helper takes the
+        # value by parameter and hands it back, which is how the original
+        # destination register is finally written. So the widening moves to
+        # the consumer instead, where the stall was supposed to be.
+        #
+        # mul.lo.u32 %r6,%r5,%r5 below is the kernel's own work, independent of
+        # the load. It is the overlap window, and it has to sit between the
+        # load and the first read of the loaded value.
+        body=('ld.global.u32 %r1,[%rd4]; '
+              'mov.u32 %r5,3; mul.lo.u32 %r6,%r5,%r5; add.u32 %r7,%r6,1; '
+              'add.u32 %r2,%r1,1;')
+        text=self.emit(program(body))
+        ops=statements(text)
+        load=next(i for i,s in enumerate(ops)
+                  if 'ld.global.u32' in s and '__tf_raw' in s)
+        raw=re.search(r'%__tf_raw[0-9]+',ops[load])[0]
+        readers=[i for i,s in enumerate(ops[load+1:],load+1) if raw in s]
+        self.assertTrue(readers,'the backing load result is never read')
+        first=readers[0]
+        self.assertGreater(first,load+1,
+            'the instruction right after the backing load reads it, so the '
+            'warp stalls at the issue site: '+ops[load+1])
+        window=[s for s in ops[load+1:first] if 'mul.lo.u32' in s]
+        self.assertTrue(window,
+            "the kernel's own independent work does not sit between the "
+            'backing load and its first reader')
+        # Moving the widening must not change what the kernel computes.
+        machine=Machine(text).run()
+        self.assertEqual(machine.reg[0]['%r2'],42)
+        self.assertEqual(machine.reg[0]['%r7'],10)
+        self.assertEqual(machine.count['consumed'],1)
+
     def test_predicate_combinations(self):
         for p in (0,1):
             for q in (0,1):

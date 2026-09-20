@@ -137,6 +137,39 @@ class TopologyServiceTests(unittest.TestCase):
         third = service.advance(2 * W, 3 * W, {}, budgets(config), normal)
         self.assertIn("maint:blocked", third["maintenance_completion_ids"])
 
+    def test_blocked_foreground_does_not_head_of_line_block_maintenance(self):
+        config = default_config("mixed_direct")
+        service = TopologyService(config)
+        severe = states(config)
+        severe["hbf0"] = "severe"
+        jobs = [
+            {"job_id": "fg", "stack": "hbf0", "channel": "0", "operation": "read",
+             "route": "direct", "bytes": 10, "arrival_ns": 0},
+            {"job_id": "maint", "maintenance_id": "maint:hol", "stack": "hbf0",
+             "channel": "0", "operation": "program", "bytes": 10, "arrival_ns": 0},
+        ]
+        result = service.advance(0, W, {}, budgets(config), severe, jobs)
+        progress = {row["job_id"]: row for row in result["job_progress"]}
+        self.assertEqual(progress["fg"]["admitted_this_window_bytes"], 0)
+        self.assertEqual(progress["maint"]["remaining_bytes"], 0)
+        self.assertIn("maint:hol", result["maintenance_completion_ids"])
+
+    def test_dash_blocked_relay_does_not_block_direct_same_channel(self):
+        config = default_config("dash")
+        service = TopologyService(config)
+        endpoint_states = states(config)
+        endpoint_states["hbm0"] = "shutdown"
+        jobs = [
+            {"job_id": "relay", "stack": "hbf0", "channel": "0", "operation": "read",
+             "route": "relay", "bytes": 10, "arrival_ns": 0},
+            {"job_id": "direct", "stack": "hbf0", "channel": "0", "operation": "read",
+             "route": "direct", "bytes": 10, "arrival_ns": 0},
+        ]
+        result = service.advance(0, W, {}, budgets(config), endpoint_states, jobs)
+        self.assertIn("direct", result["completion_ids"])
+        self.assertNotIn("relay", result["completion_ids"])
+        self.assertTrue(any(row["job_id"] == "relay" for row in result["blocked"]))
+
     def test_operation_media_cost_separates_payload_from_work(self):
         config = default_config("mixed_direct")
         config["channels"]["hbf0"]["0"] = 1_000

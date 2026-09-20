@@ -566,39 +566,52 @@ class TopologyService:
         blocked = []
         blocked_seen = set()
 
+        def scheduling_class(job: _Job) -> str:
+            maintenance = job.operation in MAINTENANCE_OPERATIONS or job.maintenance_id is not None
+            if maintenance:
+                return f"maintenance:{job.operation}"
+            return f"foreground:{job.route}"
+
         def candidate() -> list[Tuple[_Job, Dict[str, int]]]:
             result = []
             for key in sorted(self._queues):
                 queue = self._queues[key]
-                while queue and self._jobs[queue[0]].admission_remaining_bytes == 0:
-                    queue.popleft()
+                if queue:
+                    self._queues[key] = queue = deque(
+                        job_id for job_id in queue
+                        if self._jobs[job_id].admission_remaining_bytes > 0
+                    )
                 if not queue:
                     continue
-                job = self._jobs[queue[0]]
-                if job.arrival_ns >= end_ns:
-                    continue
-                endpoints = self._endpoints(job)
-                maintenance = job.operation in MAINTENANCE_OPERATIONS or job.maintenance_id is not None
-                states = {endpoint: endpoint_states[endpoint] for endpoint in endpoints}
-                reasons = []
-                if maintenance:
-                    reasons = [f"{endpoint}:shutdown" for endpoint, state in states.items()
-                               if state == "shutdown"]
-                else:
-                    reasons = [f"{endpoint}:{state}" for endpoint, state in states.items()
-                               if state in {"severe", "shutdown"}]
-                if reasons:
-                    if job.job_id not in blocked_seen:
-                        blocked.append({"job_id": job.job_id, "bytes": job.admission_remaining_bytes,
-                                        "reasons": reasons, "maintenance": maintenance})
-                        blocked_seen.add(job.job_id)
-                    continue
-                coefficients = {resource: coefficient for resource, _, coefficient
-                                in self._phase_resources(job)}
-                if not maintenance:
-                    for endpoint in endpoints:
-                        coefficients[f"endpoint:{endpoint}"] = scale
-                result.append((job, coefficients))
+                first_by_class = {}
+                for job_id in queue:
+                    job = self._jobs[job_id]
+                    first_by_class.setdefault(scheduling_class(job), job)
+                for job in sorted(first_by_class.values(), key=lambda row: row.sequence):
+                    if job.arrival_ns >= end_ns:
+                        continue
+                    endpoints = self._endpoints(job)
+                    maintenance = job.operation in MAINTENANCE_OPERATIONS or job.maintenance_id is not None
+                    states = {endpoint: endpoint_states[endpoint] for endpoint in endpoints}
+                    reasons = []
+                    if maintenance:
+                        reasons = [f"{endpoint}:shutdown" for endpoint, state in states.items()
+                                   if state == "shutdown"]
+                    else:
+                        reasons = [f"{endpoint}:{state}" for endpoint, state in states.items()
+                                   if state in {"severe", "shutdown"}]
+                    if reasons:
+                        if job.job_id not in blocked_seen:
+                            blocked.append({"job_id": job.job_id, "bytes": job.admission_remaining_bytes,
+                                            "reasons": reasons, "maintenance": maintenance})
+                            blocked_seen.add(job.job_id)
+                        continue
+                    coefficients = {resource: coefficient for resource, _, coefficient
+                                    in self._phase_resources(job)}
+                    if not maintenance:
+                        for endpoint in endpoints:
+                            coefficients[f"endpoint:{endpoint}"] = scale
+                    result.append((job, coefficients))
             return result
 
         while True:

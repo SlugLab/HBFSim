@@ -1,5 +1,15 @@
 # 四拓扑强制交付与设计冻结修订 v3
 
+## 2026-09-20 minimal repair update
+
+See [EQ3-MINIMAL-REPAIR-v1 report](MINIMAL_REPAIR_REPORT.md) for current three-axis
+status. Four CpuService CPU functional regressions pass after route-endpoint
+Shutdown/Light repair. Actual MQSim request-level optional gate and thermal
+cooling consumer pass CPU tests only; production host-service active control,
+NAND command facts and die maintenance remain unconnected/unsupported. P2 stays
+unfrozen and no live GPU result is claimed. External physical GDDR package
+temperature is UNAVAILABLE, not zero external energy/board effect.
+
 ## 当前增量状态（保留下面的历史v3设计，不改写冻结清单）
 
 四拓扑实际CPU资源/能量/完成路径现已有工程fixture测试，不再仅JSON生成。

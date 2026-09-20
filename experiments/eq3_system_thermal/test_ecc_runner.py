@@ -11,7 +11,7 @@ from test_run_causal_point import normalized, FakeThermal, trace, energy_profile
 PROFILE=json.loads((Path(__file__).parent/'ecc_proxy/profile_v1.json').read_text())
 
 class RunnerIntegrationTests(unittest.TestCase):
-    def run_case(self, strength):
+    def run_case(self, strength, *, history_probe=False, hot=False):
         service=default_config('mixed_direct')
         baseline={s:10**12 for s in service['channels']}
         p=deepcopy(PROFILE);p['transfer_strength']=strength
@@ -25,11 +25,26 @@ class RunnerIntegrationTests(unittest.TestCase):
                 'stripe_unit_bytes':4096,'migration_mode':'fixed','retry_count_per_source_read':0,
                 'stripe_targets':[{'stack':'hbf0','channel':'0','route':'direct'}]},
             'hbf_read_cost_proxy':{'mode':'conditional_nand_history_v1','profile':p,
-                'initial_by_stack':{s:{'equivalent_age_days_30c':90,'pe_cycles':1000,
+                'initial_by_stack':{s:{'equivalent_age_days_30c':(0 if history_probe else 90),'pe_cycles':(0 if history_probe else 1000),
                     'temperature_k':300} for s in service['fabric']['hbf']}}}
+        def history_trace(index):
+            result=trace(index)
+            result['batches'][0]['arrival_ns']=index*20_000_000
+            return result
+        class ProbeThermal(FakeThermal):
+            def advance(self,start,end,energy):
+                result=super().advance(start,end,energy)
+                if hot:
+                    for value in result['entity_temperatures_k'].values():
+                        value.update(hotspot_k=358.15,mean_k=358.15)
+                return result
+        factory=history_trace if history_probe else trace
+        if history_probe:
+            config['active_ns']=60_000_000;config['recovery_ns']=0
+            config['trace'].update(total_batches=3,batch_interval_ns=20_000_000)
         sink=io.StringIO()
-        result=execute(config,normalized(service),FakeThermal(sorted(baseline),baseline),sink,
-                       initial_trace=trace(0),trace_factory=trace)
+        result=execute(config,normalized(service),ProbeThermal(sorted(baseline),baseline),sink,
+                       initial_trace=factory(0),trace_factory=factory)
         return result,[json.loads(x) for x in sink.getvalue().splitlines()]
 
     def test_real_consumer_changes_physical_work_energy_not_useful_payload(self):
@@ -48,5 +63,16 @@ class RunnerIntegrationTests(unittest.TestCase):
                            brows[0]['service']['completions'][0]['completion_ns'])
         self.assertEqual(rows[-1]['hbf_read_cost_proxy']['state']['states']['hbf0']['last_ns'],40_000_000)
         self.assertEqual(rows[-1]['hbf_read_cost_proxy']['admission_cost_decisions'],[])
+
+    def test_previous_thermal_observation_changes_only_later_admission_effort(self):
+        _,cold=self.run_case(.1,history_probe=True)
+        _,hot=self.run_case(.1,history_probe=True,hot=True)
+        costs=lambda rows:[d['expected_retry_steps'] for row in rows
+                           for d in row['hbf_read_cost_proxy']['admission_cost_decisions']]
+        c,h=costs(cold),costs(hot)
+        self.assertEqual(len(c),3)
+        self.assertEqual(c[0],h[0])
+        self.assertEqual(c[1],h[1])  # same already-elapsed first-window temperature
+        self.assertGreater(h[2],c[2])
 
 if __name__=='__main__':unittest.main()

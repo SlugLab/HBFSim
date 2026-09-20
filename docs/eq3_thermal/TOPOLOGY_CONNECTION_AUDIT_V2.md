@@ -1,18 +1,20 @@
 # EQ3 topology connection audit v2
 
-Status: read-only audit, 2026-09-20. No route, scheduler, physical parameter,
-threshold, or solver was changed or run. The requested connection semantics are
-`USER_CONFIRMED`; code statements and retained results below are `DOC_DERIVED`.
-Any suggested physical interpretation beyond them is explicitly a gap.
+Status: updated from the original read-only audit after the authorized basic CPU
+implementation, 2026-09-20. The original `CpuService` findings remain below;
+the additive `BasicSystem` evidence is reported separately and does not rewrite
+old results. Connection semantics are `USER_CONFIRMED`; code statements and
+retained receipts are `DOC_DERIVED`. Physical interpretation beyond them is a
+gap.
 
 ## Result
 
 | Requested topology meaning | Current implementation | Verdict |
 | --- | --- | --- |
-| Eight standalone HBF stacks, each with a base-die SRAM buffer | `CpuService` requires eight HBF stacks for `all_hbf_direct`, gives every HBF an independent `die`, `base`, `upstream`, and `gpu-link` reservation, and requires an external physical GDDR identity. It has no SRAM/buffer object, capacity, occupancy, queue, hit/miss behavior, or buffer energy. The generic `base` resource serializes the whole fixture transaction and is not evidence of an SRAM buffer. | **PARTIAL: independent stack/base path exists; base SRAM buffer is NOT_IMPLEMENTED.** |
-| Side-by-side 4 HBM + 4 HBF, independent pins/buses, full parallel operation, with pin-budget tradeoff | The D4 fixture overrides the repository's default `mixed_direct_8` count from 2+6 to 4+4. Each stack gets uniquely named base/link resources. Retained D4 raw logs show all eight first requests starting at `t=0` with disjoint stack resources, so the fixture permits eight-way parallel starts. There is no pin count, bus width, shared package pin budget, bandwidth-derived service time, or pin-area/power tradeoff in `CpuService`. | **PARTIAL: fixture-level independent parallel resources are observed; physical pin/bus budget and tradeoff are UNAVAILABLE.** |
-| Cascaded HBF behind an HBM base; GPU connects directly only to HBM; HBM direct and HBF relay share the relay-facing path; HBF access is two hops | In `relay`, HBM accepts only `direct`; HBF rejects `direct` and accepts `relay`. A relay reserves the HBF die/base/upstream/relay-link plus its paired HBM base and HBM GPU link. Therefore an HBM direct request and its paired HBF relay contend for both the HBM base and HBM GPU link. Forwarding heat is charged to the HBM base, not an HBM DRAM die, and both HBF/HBM control endpoints gate admission. `link_bytes` is multiplied by two. The two hops are not two sequential link services: the fixture applies one transaction duration and holds all resources together. Each pair has a private `hbfN:relay-link`; no package-wide shared relay bus or bandwidth is represented. | **FUNCTIONAL FIXTURE MATCH for unique HBM/HBF pairs and shared paired-HBM contention; DESIGN_LIMITATION for sequential two-hop latency, link bandwidth/queues, and any cross-pair shared relay bus.** |
-| DASH dual-path read from the same HBF | The paper's HBF base die has independently accessible SRAM transfer regions/banks. Ready chunks may drain concurrently through the direct GPU-HBF path and the relay path; the HBM relay SRAM is also double-buffered. Current `CpuService` assigns both routes the same `hbfN:base` and `hbfN:upstream` resources, so a direct and relay request from the same HBF serialize before their distinct GPU-facing links matter. | **DESIGN_LIMITATION: current whole-base/upstream locking cannot represent the paper's same-HBF dual-path concurrency.** |
+| Eight standalone HBF stacks, each with a base-die SRAM buffer | Legacy `CpuService` still has only a generic base lock. The optional BasicSystem instead configures two bounded banks per HBF, reserves before MQSim submission, holds external work on bank exhaustion, and releases all owners after package delivery. The actual small fixture completed 24/24 HBF requests across eight stacks. | **BASIC CPU FIXTURE MATCH for bounded two-bank ownership and backpressure; capacity/energy are scenario inputs, not validated SRAM hardware. External GDDR service remains UNAVAILABLE.** |
+| Side-by-side 4 HBM + 4 HBF, independent pins/buses, full parallel operation, with pin-budget tradeoff | BasicSystem's mixed config explicitly sets every HBF `pair=null` and `relay_link=null`; four HBF stacks use actual MQSim channel partitions and four HBM stacks use independent parameterized media/GPU-link resources. Each stack completed 3 requests (24 total) with all owners released. No pin count, shared package pin budget, or calibrated link power exists. | **BASIC CPU FIXTURE MATCH for independent direct paths; physical pins, real HBM and pin-budget tradeoff remain UNAVAILABLE.** |
+| Cascaded HBF behind an HBM base; GPU connects directly only to HBM; HBM direct and HBF relay share the relay-facing path; HBF access is two hops | BasicSystem rejects HBF direct in relay mode. After actual MQSim HBF completion, BasicFabric runs a pair-private HBF→HBM relay stage and then the paired HBM GPU stage. Relay receive and parameterized HBM-local output use the same two HBM banks and GPU-link queue. The actual fixture completed 24/24 requests for four pairs with zero final owners. | **BASIC CPU FIXTURE MATCH for sequential pair-private relay and shared paired-HBM contention; physical timings/energy and any package-global relay bus remain unvalidated.** |
+| DASH dual-path read from the same HBF | Legacy `CpuService` retains its whole-base limitation. BasicSystem uses two HBF banks and independent direct/relay drain resources; relay additionally occupies the paired HBM bank/GPU link. The actual fixture alternated four direct/relay requests per HBF plus three local requests per HBM and completed 28/28 with four correct pairs and zero final owners. | **BASIC CPU FIXTURE MATCH for bounded dual-path arbitration; source fill timing, link rates, energy and thermal hotspots remain scenario/unconnected.** |
 
 ## Actual route/resource contract
 
@@ -30,6 +32,23 @@ all-HBF, and exactly four unique one-to-one HBF/HBM pairs for relay/DASH
 (`cpu_service.cpp:74-102`). Many-HBF-to-one-HBM and a shared relay bus across
 pairs are rejected by construction. Resource acquisition is atomic at
 admission, but the fixture has no channel count or byte-rate service tail.
+
+The opt-in BasicSystem contract is separate:
+
+| Request | Backend | Package resources and completion |
+| --- | --- | --- |
+| HBF direct | Persistent `stack_local_page` enters a topology-matched MQSim channel group; native request route remains `direct` | Reserve one of two HBF banks before submit; after raw MQSim completion equals reported completion, drain on the HBF direct link |
+| HBF relay | Same actual MQSim media path; package route is stored separately and relay topology rejects a package-direct request | Reserve HBF bank, then pair-private relay into a free paired-HBM bank, then serialize on that HBM GPU link |
+| HBM local | `PARAMETRIC_HBM_SCENARIO`, not MQSim and not a real DRAM backend | Reserve from the same two HBM banks used by relay receive, then serialize on the same HBM GPU link |
+
+`BasicSystem` retains external arrival/wait, backend media/reported completion,
+package completion, and final completion as separate fields. It advances the
+existing MQSim `until(horizon)` interface without host sleep. It rejects
+composition if MQSim's generic bandwidth bound makes reported completion differ
+from the raw callback, so the package fabric is not appended to an unidentified
+transfer term. `mark_source_ready` deliberately adds no second source fill.
+This consumer is default off and is not connected to the production host
+service or thermal solver.
 
 For DASH specifically, this shared-resource rule is stricter than the cited
 architecture. Sections IV-B and V-B describe independently accessible,
@@ -70,6 +89,14 @@ contention. Drawing the graph is therefore not proof of implemented service.
   request starting after the HBF relay releases shared HBM base/link resources.
   Endpoint tests also preserve Shutdown/Light admission across both traversed
   control domains.
+- The newer `basic-four-topology-actual` receipt uses one fresh actual MQSim
+  service process per topology and topology-matched derived maps: eight
+  one-channel/one-die HBF groups for all-HBF and four for each 4+4 case. Results
+  are 24/24 all-HBF, 24/24 mixed, 24/24 relay, and 28/28 DASH. Every configured
+  source has at least three requests, waits become nonzero under the two-bank
+  bound, and every final snapshot has null bank/link owners and no unfinished
+  request. This supersedes `NOT_IMPLEMENTED` only for the small CPU behavior
+  axis; it does not supersede the research/thermal gaps above.
 
 ## External GDDR scope discrepancy
 
@@ -86,27 +113,25 @@ explicitly expects that node. That artifact must not be cited as package-only
 all-HBF thermal evidence. This is an existing representation mismatch, not a
 request to remove or reinterpret retained evidence.
 
-## Minimal closure items (no implementation authorization inferred)
+## Remaining closure after the basic implementation
 
-1. Add explicit, default-off base-buffer descriptors for all-HBF if SRAM
-   capacity/queue/energy is required; a generic base lock must not be renamed
-   as a validated SRAM model.
+1. Replace the scenario two-bank capacity/timing/energy with sourced parameters
+   before treating the implemented bounded ownership as a validated SRAM model.
 2. Bind per-stack interface width/rate and a package pin-budget accounting
    layer before making the side-by-side pin-budget claim. Preserve the current
    disjoint-resource fixture as engineering evidence.
-3. For cascade timing claims, model GPU-HBM and HBM-HBF links as sequential
-   resources with explicit byte-rate/latency queues. Decide separately whether
-   the relay bus is private per pair or shared package-wide; current code is
-   private per pair.
-4. For DASH, represent the two HBF-side SRAM transfer banks/regions and the
-   shared-TSV fill constraint so direct and relay drains can overlap only when
-   different ready banks and both paths are available. Simply dropping the
-   existing base/upstream locks would overstate the paper's concurrency.
+3. BasicFabric now models sequential HBF-HBM and HBM-GPU stages with explicit
+   scenario rates/latencies and pair-private queues. Source/calibrate those
+   values and decide whether a future research topology instead has a
+   package-global relay bus.
+4. Basic DASH now has two bounded source banks and independent direct/relay
+   drain resources. Its source-ready point comes from completed MQSim data-out;
+   a separate calibrated shared-TSV fill/power model is still absent.
 5. Choose one external-GDDR thermal boundary for future generated artifacts.
    Package-only EQ3 should retain physical identity and external energy while
    keeping GDDR temperature unavailable, consistent with the current user
    decision.
 
-Items 1-4 affect scheduling, resource ownership, timing, or module
-responsibility and therefore require an approved minimal design before code
-changes under the active `AGENTS.md` gate.
+These remaining items are research parameterization, production integration,
+or further structural changes. The completed basic fixture does not authorize
+or validate them.

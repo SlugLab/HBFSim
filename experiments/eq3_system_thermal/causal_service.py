@@ -66,10 +66,27 @@ class CausalTopologyService:
     schema_version = "eq3-causal-topology-service-v2"
 
     def __init__(self, config: dict):
-        self._config = _normalize(config)
+        raw_config = copy.deepcopy(config)
+        self._channel_groups = raw_config.pop("causal_channel_groups", None)
+        self._config = _normalize(raw_config)
         # Reuse the reviewed route/resource/activity rules without sharing its
         # mutable rate-window state.
-        self._rules = TopologyService(config)
+        self._rules = TopologyService(raw_config)
+        if self._channel_groups is not None:
+            if set(self._channel_groups) != set(self._config["channels"]):
+                raise ValueError("causal_channel_groups must exactly cover stacks")
+            for stack, channels in self._config["channels"].items():
+                groups = self._channel_groups[stack]
+                if set(groups) != set(channels):
+                    raise ValueError("causal_channel_groups must exactly cover channels")
+                for channel, row in groups.items():
+                    if (not isinstance(row, dict) or set(row) != {
+                            "resource_id", "bandwidth_bytes_per_s"}):
+                        raise ValueError("invalid causal channel group row")
+                    if (not isinstance(row["resource_id"], str) or not row["resource_id"]
+                            or type(row["bandwidth_bytes_per_s"]) is not int
+                            or row["bandwidth_bytes_per_s"] <= 0):
+                        raise ValueError("invalid causal channel group identity/rate")
         self._now = 0
         self._window_start: Optional[int] = None
         self._window_end: Optional[int] = None
@@ -117,6 +134,7 @@ class CausalTopologyService:
             "migration_program": (
                 "HBF_PROGRAM_MEDIA_WORK_PLUS_REVERSE_DESTINATION_FABRIC_PATH_ENGINEERING_PROXY"
             ),
+            "causal_channel_groups": copy.deepcopy(self._channel_groups),
         }
 
     def begin_window(self, start_ns: int, end_ns: int,
@@ -163,15 +181,26 @@ class CausalTopologyService:
             proxy = copy.copy(job)
             proxy.operation = "read"
             proxy.route = "direct"
-            return self._rules._phase_resources(proxy)
-        if job.operation == "migration_program":
+            phases = self._rules._phase_resources(proxy)
+        elif job.operation == "migration_program":
             read_proxy = copy.copy(job)
             read_proxy.operation = "read"
             program_proxy = copy.copy(job)
             program_proxy.operation = "program"
             media = self._rules._phase_resources(program_proxy)[0]
-            return [media] + self._rules._phase_resources(read_proxy)[1:]
-        return self._rules._phase_resources(job)
+            phases = [media] + self._rules._phase_resources(read_proxy)[1:]
+        else:
+            phases = self._rules._phase_resources(job)
+        if self._channel_groups is not None:
+            group = self._channel_groups[job.stack][job.channel]
+            _, _, coefficient = phases[0]
+            phases[0] = (
+                group["resource_id"],
+                {"latency_ns": 0,
+                 "bandwidth_bytes_per_s": group["bandwidth_bytes_per_s"]},
+                coefficient,
+            )
+        return phases
 
     def _buffer_stacks(self, job: _CausalJob) -> Tuple[str, ...]:
         if job.operation not in READ_OPERATIONS and job.operation not in {

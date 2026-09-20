@@ -311,6 +311,35 @@ class CausalServiceTests(unittest.TestCase):
         })
         self.assertEqual(receipt["completion_ids"], ["move:program"])
 
+    def test_dash_route_children_share_one_explicit_media_group(self):
+        config = default_config("dash")
+        groups = {}
+        for stack in config["fabric"]["hbf"]:
+            config["channels"][stack] = {"direct": 1_000, "relay": 1_000}
+            config["dash_routes"][stack] = {"direct": "direct", "relay": "relay"}
+            row = {"resource_id": f"{stack}:uniform-media-group",
+                   "bandwidth_bytes_per_s": 1_000}
+            groups[stack] = {"direct": dict(row), "relay": dict(row)}
+        for stack in config["fabric"]["hbm"]:
+            config["channels"][stack] = {"local": 1_000}
+            groups[stack] = {"local": {
+                "resource_id": f"{stack}:uniform-media-group",
+                "bandwidth_bytes_per_s": 1_000}}
+        config["causal_channel_groups"] = groups
+        service = CausalTopologyService(config)
+        service.begin_window(0, W, budgets(config), states(config))
+        service.submit_jobs([
+            {"job_id": "direct", "stack": "hbf0", "channel": "direct",
+             "operation": "read", "route": "direct", "bytes": 100, "arrival_ns": 0},
+            {"job_id": "relay", "stack": "hbf0", "channel": "relay",
+             "operation": "read", "route": "relay", "bytes": 100, "arrival_ns": 0},
+        ])
+        receipt = service.advance_to(W)
+        progress = {row["job_id"]: row for row in receipt["job_progress"]}
+        transferred = sum(row["inflight_transferred_bytes"] for row in progress.values())
+        self.assertLessEqual(transferred, 20)
+        self.assertIn("hbf0:uniform-media-group", receipt["resource_work_units_scaled"])
+
 
 if __name__ == "__main__":
     unittest.main()

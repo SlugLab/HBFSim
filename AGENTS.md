@@ -86,3 +86,12 @@ eq3_thermal/plans/decision-execution-v2/USER_TASKBOOK.md及user-source.md。
 既有安全启动器须消费本阶段实际资源计划；保留系统余量和异常停止机制。
 这不是GPU/云/新物性/新求解器/ROM/ABI/调度/所有权/真实维护生命周期重构授权。
 已定范围不逐点请示；盲测依赖、原400K域、原结果及最小侵入确认规则仍生效。
+
+## 基础 CPU 全链路补充授权（2026-09-20）
+
+用户明确授权 HBM 时序、base SRAM 双缓冲和级联链路仲裁的基础简单实现，
+用于快速闭合四拓扑 CPU 链路；先实现正确分配、有限缓冲回压与共享链路互斥，
+不追求详细器件优化。默认关闭，复用实际 MQSim 提交/时间推进接口，后端完成
+与封装送达分开，不重复计算原延迟。参数未经标定须标工程假设。该授权不含
+原 MQSim 调度/事务所有权改造或真实 die 维护生命周期。授权原文见外层
+eq3_thermal/plans/decision-execution-v2/basic-system-user-source.md。

@@ -1,0 +1,792 @@
+#include <hbfsim/mqsim_online.hpp>
+
+#include <Engine.h>
+#include <Flash_Parameter_Set.h>
+#include <Host_Interface_HBF.h>
+#include <HBF_Maintenance_Unit.h>
+#include <FTL.h>
+#include <IO_Flow_Parameter_Set.h>
+#include <SSD_Device.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <deque>
+#include <functional>
+#include <fstream>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace hbfsim
+{
+    namespace
+    {
+
+        constexpr std::uint64_t kSectorBytes = 512;
+
+        Flash_Technology_Type to_mqsim_technology(NandTechnology technology)
+        {
+            switch (technology)
+            {
+            case NandTechnology::Slc:
+                return Flash_Technology_Type::SLC;
+            case NandTechnology::Mlc:
+                return Flash_Technology_Type::MLC;
+            case NandTechnology::Tlc:
+                return Flash_Technology_Type::TLC;
+            case NandTechnology::Qlc:
+                return Flash_Technology_Type::QLC;
+            }
+            throw std::invalid_argument("unknown NandTechnology");
+        }
+
+        SSD_Components::Flash_Plane_Allocation_Scheme_Type to_mqsim_scheme(
+            PlaneAllocationScheme scheme)
+        {
+            using Scheme = SSD_Components::Flash_Plane_Allocation_Scheme_Type;
+            switch (scheme)
+            {
+            case PlaneAllocationScheme::Cwdp:
+                return Scheme::CWDP;
+            case PlaneAllocationScheme::Cwpd:
+                return Scheme::CWPD;
+            case PlaneAllocationScheme::Cdwp:
+                return Scheme::CDWP;
+            case PlaneAllocationScheme::Cdpw:
+                return Scheme::CDPW;
+            case PlaneAllocationScheme::Cpwd:
+                return Scheme::CPWD;
+            case PlaneAllocationScheme::Cpdw:
+                return Scheme::CPDW;
+            case PlaneAllocationScheme::Wcdp:
+                return Scheme::WCDP;
+            case PlaneAllocationScheme::Wcpd:
+                return Scheme::WCPD;
+            case PlaneAllocationScheme::Wdcp:
+                return Scheme::WDCP;
+            case PlaneAllocationScheme::Wdpc:
+                return Scheme::WDPC;
+            case PlaneAllocationScheme::Wpcd:
+                return Scheme::WPCD;
+            case PlaneAllocationScheme::Wpdc:
+                return Scheme::WPDC;
+            case PlaneAllocationScheme::Dcwp:
+                return Scheme::DCWP;
+            case PlaneAllocationScheme::Dcpw:
+                return Scheme::DCPW;
+            case PlaneAllocationScheme::Dwcp:
+                return Scheme::DWCP;
+            case PlaneAllocationScheme::Dwpc:
+                return Scheme::DWPC;
+            case PlaneAllocationScheme::Dpcw:
+                return Scheme::DPCW;
+            case PlaneAllocationScheme::Dpwc:
+                return Scheme::DPWC;
+            case PlaneAllocationScheme::Pcwd:
+                return Scheme::PCWD;
+            case PlaneAllocationScheme::Pcdw:
+                return Scheme::PCDW;
+            case PlaneAllocationScheme::Pwcd:
+                return Scheme::PWCD;
+            case PlaneAllocationScheme::Pwdc:
+                return Scheme::PWDC;
+            case PlaneAllocationScheme::Pdcw:
+                return Scheme::PDCW;
+            case PlaneAllocationScheme::Pdwc:
+                return Scheme::PDWC;
+            }
+            throw std::invalid_argument("unknown PlaneAllocationScheme");
+        }
+
+        std::uint64_t checked_end(std::uint64_t start, std::uint64_t bytes)
+        {
+            if (bytes > std::numeric_limits<std::uint64_t>::max() - start)
+            {
+                throw std::invalid_argument("HBF request address range overflows");
+            }
+            return start + bytes;
+        }
+
+        void configure_mqsim(const Profile &profile)
+        {
+            Device_Parameter_Set::Seed = 123;
+            Device_Parameter_Set::Enabled_Preconditioning = false;
+            Device_Parameter_Set::Memory_Type = NVM::NVM_Type::FLASH;
+            Device_Parameter_Set::HostInterface_Type = HostInterface_Types::HBF;
+            Device_Parameter_Set::IO_Queue_Depth = static_cast<std::uint16_t>(
+                std::min<std::uint32_t>(profile.queue_depth,
+                                        std::numeric_limits<std::uint16_t>::max()));
+            Device_Parameter_Set::Caching_Mechanism =
+                SSD_Components::Caching_Mechanism::SIMPLE;
+            Device_Parameter_Set::Address_Mapping =
+                SSD_Components::Flash_Address_Mapping_Type::PAGE_LEVEL;
+            Device_Parameter_Set::Plane_Allocation_Scheme =
+                to_mqsim_scheme(profile.plane_allocation_scheme);
+            Device_Parameter_Set::Ideal_Mapping_Table = true;
+            Device_Parameter_Set::Overprovisioning_Ratio = 0.0;
+            Device_Parameter_Set::Flash_Channel_Count = profile.channels;
+            Device_Parameter_Set::Flash_Channel_Width = profile.channel_width_bits / 8;
+            Device_Parameter_Set::Channel_Transfer_Rate =
+                profile.channel_transfer_rate_mtps;
+            Device_Parameter_Set::Chip_No_Per_Channel = 1;
+            Device_Parameter_Set::Flash_Comm_Protocol =
+                SSD_Components::ONFI_Protocol::NVDDR2;
+
+            Flash_Parameter_Set::Flash_Technology = to_mqsim_technology(profile.nand_technology);
+            Flash_Parameter_Set::CMD_Suspension_Support =
+                NVM::FlashMemory::Command_Suspension_Mode::NONE;
+            Flash_Parameter_Set::Page_Read_Latency_LSB = profile.page_read_latency_lsb_ns;
+            Flash_Parameter_Set::Page_Read_Latency_CSB = profile.page_read_latency_csb_ns;
+            Flash_Parameter_Set::Page_Read_Latency_MSB = profile.page_read_latency_msb_ns;
+            Flash_Parameter_Set::Page_Read_Latency_TSB = profile.page_read_latency_tsb_ns;
+            Flash_Parameter_Set::Page_Program_Latency_LSB = profile.page_program_latency_lsb_ns;
+            Flash_Parameter_Set::Page_Program_Latency_CSB = profile.page_program_latency_csb_ns;
+            Flash_Parameter_Set::Page_Program_Latency_MSB = profile.page_program_latency_msb_ns;
+            Flash_Parameter_Set::Page_Program_Latency_TSB = profile.page_program_latency_tsb_ns;
+            Flash_Parameter_Set::Block_Erase_Latency = profile.program_latency_ns * 10;
+            Flash_Parameter_Set::Suspend_Erase_Time = 0;
+            Flash_Parameter_Set::Suspend_Program_Time = 0;
+            Flash_Parameter_Set::Die_No_Per_Chip = profile.dies_per_channel;
+            Flash_Parameter_Set::Plane_No_Per_Die = profile.planes_per_die;
+            Flash_Parameter_Set::Block_No_Per_Plane =
+                static_cast<unsigned int>(blocks_per_plane(profile));
+            Flash_Parameter_Set::Page_No_Per_Block = profile.pages_per_block;
+            Flash_Parameter_Set::Page_Capacity = profile.page_bytes;
+            Flash_Parameter_Set::Page_Metadat_Capacity = 0;
+        }
+
+    } // namespace
+
+    class ArrivalInjector final : public MQSimEngine::Sim_Object
+    {
+    public:
+        using Handler = std::function<void(MQSimEngine::Sim_Event *)>;
+
+        explicit ArrivalInjector(Handler handler, const char* name = "HBFSim.ArrivalInjector")
+            : Sim_Object(name), handler_(std::move(handler))
+        {
+        }
+
+        void Start_simulation() override {}
+        void Validate_simulation_config() override {}
+        void Execute_simulator_event(MQSimEngine::Sim_Event *event) override;
+
+    private:
+        Handler handler_;
+    };
+
+    class MqsimOnlineEngine::Impl
+    {
+    public:
+        struct Submission
+        {
+            HbfRequest descriptor;
+            SSD_Components::User_Request *mqsim_request;
+            bool readmitted{false};
+        };
+
+        struct MaintenanceSubmission
+        {
+            MqsimMaintenanceRequest descriptor;
+        };
+
+        explicit Impl(const Profile &requested_profile)
+            : profile(requested_profile),
+              queue_depth(std::max<std::size_t>(1, requested_profile.queue_depth))
+        {
+            validate_profile(profile);
+            if (profile.channel_width_bits % 8 != 0)
+            {
+                throw std::invalid_argument(
+                    "channel_width_bits must be divisible by eight for MQSim");
+            }
+            if (blocks_per_plane(profile) < 4)
+            {
+                throw std::invalid_argument(
+                    "MQSim requires at least four blocks per plane");
+            }
+
+            Simulator->Reset();
+            configure_mqsim(profile);
+
+            flow.Device_Level_Data_Caching_Mode =
+                SSD_Components::Caching_Mode::TURNED_OFF;
+            flow.Priority_Class = IO_Flow_Priority_Class::URGENT;
+            flow.Initial_Occupancy_Percentage = 0;
+            flows.push_back(&flow);
+            device = std::make_unique<SSD_Device>(&parameters, &flows);
+            host = dynamic_cast<SSD_Components::Host_Interface_HBF *>(
+                device->Host_interface);
+            if (host == nullptr)
+            {
+                throw std::runtime_error("MQSim did not construct the HBF interface");
+            }
+
+            auto* ftl = static_cast<SSD_Components::FTL*>(device->Firmware);
+            maintenance = std::make_unique<SSD_Components::HBF_Maintenance_Unit>(
+                device->ID() + ".EQ3Maintenance", ftl->Address_Mapping_Unit,
+                ftl->BlockManager, ftl->TSU, ftl->PHY, profile.page_bytes,
+                profile.channels, 1, profile.dies_per_channel,
+                profile.planes_per_die);
+            maintenance->Set_event_sink([this](const auto& event) {
+                const auto& source = event.source;
+                MqsimMaintenanceEvent value{
+                    .request_id = event.request_id,
+                    .parent_id = event.parent_id,
+                    .state = static_cast<MqsimMaintenanceState>(event.state),
+                    .time_ns = static_cast<std::uint64_t>(event.time),
+                    .transaction_id = event.transaction_observation_id,
+                    .source_channel = source.ChannelID, .source_chip = source.ChipID,
+                    .source_die = source.DieID, .source_plane = source.PlaneID,
+                    .source_block = source.BlockID, .source_page = source.PageID,
+                };
+                if (event.destination_known) {
+                    value.destination_channel = event.destination.ChannelID;
+                    value.destination_chip = event.destination.ChipID;
+                    value.destination_die = event.destination.DieID;
+                    value.destination_plane = event.destination.PlaneID;
+                    value.destination_block = event.destination.BlockID;
+                    value.destination_page = event.destination.PageID;
+                }
+                maintenance_events.push_back(std::move(value));
+            });
+            Simulator->AddObject(maintenance.get());
+
+            injector = std::make_unique<ArrivalInjector>(
+                [this](MQSimEngine::Sim_Event *event)
+                {
+                    submit_to_device(static_cast<Submission *>(event->Parameters));
+                });
+            Simulator->AddObject(injector.get());
+            maintenance_injector = std::make_unique<ArrivalInjector>(
+                [this](MQSimEngine::Sim_Event* event) {
+                    auto* submission = static_cast<MaintenanceSubmission*>(event->Parameters);
+                    submit_maintenance_to_device(submission->descriptor);
+                    delete submission;
+                }, "HBFSim.EQ3MaintenanceInjector");
+            Simulator->AddObject(maintenance_injector.get());
+        }
+
+        ~Impl()
+        {
+            flush_staged();
+            while ((pending_requests != 0 || pending_maintenance != 0) && Simulator->Run_next_event())
+            {
+            }
+            // Requests still waiting for a queue slot were never handed to
+            // MQSim, so this object still owns them.
+            for (auto *waiting : admission_queue)
+            {
+                delete waiting->mqsim_request;
+                delete waiting;
+            }
+            admission_queue.clear();
+            Simulator->Reset();
+            injector.reset();
+            clock_injector.reset();
+            maintenance_injector.reset();
+            maintenance.reset();
+            device.reset();
+        }
+
+        void submit_maintenance_to_device(const MqsimMaintenanceRequest& descriptor)
+        {
+            SSD_Components::HBF_Maintenance_Request request{
+                descriptor.request_id, descriptor.parent_id, 0,
+                descriptor.logical_page,
+                static_cast<flash_channel_ID_type>(descriptor.channel),
+                static_cast<flash_chip_ID_type>(descriptor.chip),
+                static_cast<flash_die_ID_type>(descriptor.die),
+                static_cast<flash_plane_ID_type>(descriptor.plane),
+                descriptor.plane_is_exact,
+                static_cast<sim_time_type>(descriptor.due_ns),
+                static_cast<sim_time_type>(descriptor.deadline_ns),
+                descriptor.reclaim_invalid_source_block,
+                static_cast<SSD_Components::HBF_Maintenance_Failure_Point>(descriptor.failure_point)};
+            maintenance->Submit(request, [this](const auto& completion) {
+                maintenance_completions.push_back(MqsimMaintenanceCompletion{
+                    completion.request_id, completion.parent_id,
+                    static_cast<MqsimMaintenanceStatus>(completion.status),
+                    static_cast<std::uint64_t>(completion.enqueue_time),
+                    static_cast<std::uint64_t>(completion.start_time),
+                    static_cast<std::uint64_t>(completion.end_time),
+                    completion.logical_page,
+                    static_cast<std::uint64_t>(completion.source_version),
+                    static_cast<std::uint64_t>(completion.committed_version),
+                    completion.mapping_committed, completion.source_retired,
+                    completion.erase_completed, completion.transaction_observation_ids});
+                --pending_maintenance;
+            });
+        }
+
+        void flush_staged()
+        {
+            std::sort(staged.begin(), staged.end(),
+                      [](const Submission *left, const Submission *right)
+                      {
+                          if (left->descriptor.arrival_ns !=
+                              right->descriptor.arrival_ns)
+                          {
+                              return left->descriptor.arrival_ns <
+                                     right->descriptor.arrival_ns;
+                          }
+                          return left->descriptor.sequence <
+                                 right->descriptor.sequence;
+                      });
+            for (auto *submission : staged)
+            {
+                Simulator->Register_sim_event(submission->descriptor.arrival_ns,
+                                              injector.get(), submission);
+            }
+            staged.clear();
+        }
+
+        // The device accepts at most queue_depth requests concurrently. A
+        // request whose arrival event fires while the device is full waits in
+        // admission_queue and is re-registered when a slot frees, so the wait
+        // shows up in the request's modeled latency. Without this bound the
+        // adapter handed MQSim every request the moment its arrival event
+        // fired, which models a device with unlimited outstanding requests.
+        void submit_to_device(Submission *submission)
+        {
+            if (submission->readmitted)
+            {
+                // release_admission_slots already took the slot for this
+                // request; taking a second one here would overcount.
+                submission->readmitted = false;
+                dispatch_to_device(submission);
+                return;
+            }
+            observe(MqsimEventKind::Arrival, submission->descriptor,
+                    static_cast<std::uint64_t>(Simulator->Time()));
+            if (in_device >= queue_depth)
+            {
+                admission_queue.push_back(submission);
+                return;
+            }
+            ++in_device;
+            dispatch_to_device(submission);
+        }
+
+        // The caller has already taken the slot in in_device.
+        void dispatch_to_device(Submission *submission)
+        {
+            observe(MqsimEventKind::Admission, submission->descriptor,
+                    static_cast<std::uint64_t>(Simulator->Time()));
+            host->Submit_hbf_request(
+                submission->mqsim_request,
+                [this, descriptor = submission->descriptor](
+                    SSD_Components::User_Request *, sim_time_type completion_ns)
+                {
+                    auto bounded_completion = static_cast<std::uint64_t>(completion_ns);
+                    const auto transfer_ns = static_cast<std::uint64_t>(
+                        (static_cast<unsigned __int128>(descriptor.bytes) *
+                             1000000000ULL +
+                         profile.aggregate_bandwidth_bytes_per_s - 1) /
+                        profile.aggregate_bandwidth_bytes_per_s);
+                    bandwidth_cursor_ns =
+                        std::max(bandwidth_cursor_ns, descriptor.arrival_ns) +
+                        transfer_ns;
+                    bounded_completion =
+                        std::max(bounded_completion, bandwidth_cursor_ns);
+                    completions.push_back(HbfCompletion{
+                        .request_id = descriptor.request_id,
+                        .modeled_completion_ns = bounded_completion,
+                        .modeled_ns = bounded_completion - descriptor.arrival_ns,
+                        .service_ns = 0,
+                        .cache_frame_address = 0,
+                        .page_generation = descriptor.page_generation,
+                        .status =
+                            static_cast<std::uint32_t>(RequestStatus::Ready),
+                        .checksum = 0,
+                        .reserved = 0,
+                    });
+                    --in_device;
+                    observe(MqsimEventKind::Completion, descriptor,
+                            static_cast<std::uint64_t>(completion_ns),
+                            bounded_completion);
+                    release_admission_slots();
+                });
+            delete submission;
+        }
+
+        // Called from inside a completion callback, which runs while MQSim is
+        // servicing an event. Handing the next request straight to
+        // Submit_hbf_request here would re-enter request segmentation from
+        // within request completion, so the waiting request is registered as a
+        // fresh arrival event at the current simulation time instead.
+        void release_admission_slots()
+        {
+            while (in_device < queue_depth && !admission_queue.empty())
+            {
+                auto *next = admission_queue.front();
+                admission_queue.pop_front();
+                next->readmitted = true;
+                ++in_device;
+                Simulator->Register_sim_event(Simulator->Time(),
+                                              injector.get(), next);
+            }
+        }
+
+        void observe(MqsimEventKind kind, const HbfRequest &request,
+                     std::uint64_t time_ns,
+                     std::uint64_t modeled_completion_ns = 0)
+        {
+            if (!observations_enabled)
+            {
+                return;
+            }
+            observations.push_back(MqsimObservation{
+                .kind = kind,
+                .request_id = request.request_id,
+                .arrival_ns = request.arrival_ns,
+                .time_ns = time_ns,
+                .modeled_completion_ns = modeled_completion_ns,
+                .bytes = request.bytes,
+                .device_outstanding = in_device,
+            });
+        }
+
+        Profile profile;
+        Device_Parameter_Set parameters;
+        IO_Flow_Parameter_Set flow;
+        std::vector<IO_Flow_Parameter_Set *> flows;
+        std::unique_ptr<SSD_Device> device;
+        std::unique_ptr<SSD_Components::HBF_Maintenance_Unit> maintenance;
+        SSD_Components::Host_Interface_HBF *host{nullptr};
+        std::unique_ptr<ArrivalInjector> injector;
+        std::unique_ptr<ArrivalInjector> clock_injector;
+        std::unique_ptr<ArrivalInjector> maintenance_injector;
+        bool horizon_reached{false};
+        bool ready_marker_reached{false};
+        std::vector<Submission *> staged;
+        std::deque<HbfCompletion> completions;
+        std::size_t pending_requests{0};
+        std::size_t pending_maintenance{0};
+        std::vector<MqsimMaintenanceEvent> maintenance_events;
+        std::vector<MqsimMaintenanceCompletion> maintenance_completions;
+        std::uint64_t bandwidth_cursor_ns{0};
+        // queue_depth is the profile's declared depth. in_device counts the
+        // requests holding one of those slots: handed to MQSim and not yet
+        // completed, plus any re-registered at the current time by
+        // release_admission_slots. admission_queue holds the requests that
+        // arrived while every slot was taken.
+        std::size_t queue_depth{1};
+        std::size_t in_device{0};
+        std::deque<Submission *> admission_queue;
+        bool has_submitted{false};
+        bool observations_enabled{false};
+        std::vector<MqsimObservation> observations;
+    };
+
+    void ArrivalInjector::Execute_simulator_event(MQSimEngine::Sim_Event *event)
+    {
+        handler_(event);
+    }
+
+    MqsimOnlineEngine::MqsimOnlineEngine(const Profile &profile)
+        : impl_(std::make_unique<Impl>(profile))
+    {
+    }
+
+    MqsimOnlineEngine::~MqsimOnlineEngine() = default;
+    MqsimOnlineEngine::MqsimOnlineEngine(MqsimOnlineEngine &&) noexcept = default;
+    MqsimOnlineEngine &MqsimOnlineEngine::operator=(MqsimOnlineEngine &&) noexcept =
+        default;
+
+    void MqsimOnlineEngine::submit(const HbfRequest &request)
+    {
+        if (request.bytes == 0 || request.bytes % kSectorBytes != 0 ||
+            request.logical_address % kSectorBytes != 0)
+        {
+            throw std::invalid_argument(
+                "MQSim requests must be non-empty and 512-byte aligned");
+        }
+        if (checked_end(request.logical_address, request.bytes) >
+            impl_->profile.capacity_bytes)
+        {
+            throw std::out_of_range("MQSim request exceeds profile capacity");
+        }
+        if (Simulator->Has_started() && request.arrival_ns < Simulator->Time())
+        {
+            throw std::invalid_argument(
+                "MQSim request arrival precedes current simulation time");
+        }
+
+        auto mqsim_request = std::make_unique<SSD_Components::User_Request>();
+        mqsim_request->Start_LBA = request.logical_address / kSectorBytes;
+        mqsim_request->Size_in_byte = request.bytes;
+        mqsim_request->SizeInSectors = request.bytes / kSectorBytes;
+        mqsim_request->Type = request.operation ==
+                                      static_cast<std::uint32_t>(
+                                          RequestOperation::Write)
+                                  ? SSD_Components::UserRequestType::WRITE
+                                  : SSD_Components::UserRequestType::READ;
+        mqsim_request->Stream_id = 0;
+        mqsim_request->Priority_class = IO_Flow_Priority_Class::URGENT;
+        mqsim_request->IO_command_info = nullptr;
+        mqsim_request->Data = nullptr;
+        // Patched MQSim carries this immutable identity into native transaction
+        // and command observations. It is not used by scheduling or completion.
+        mqsim_request->HBF_External_Request_ID = request.request_id;
+
+        auto submission = new Impl::Submission{
+            .descriptor = request,
+            .mqsim_request = mqsim_request.release(),
+        };
+        impl_->staged.push_back(submission);
+        impl_->has_submitted = true;
+        ++impl_->pending_requests;
+    }
+
+    void MqsimOnlineEngine::submit_maintenance(const MqsimMaintenanceRequest& request)
+    {
+        if (!request.request_id || request.due_ns < current_time_ns() ||
+            (request.deadline_ns && request.deadline_ns < request.due_ns) ||
+            request.channel >= impl_->profile.channels || request.chip != 0 ||
+            request.die >= impl_->profile.dies_per_channel ||
+            (request.plane_is_exact && request.plane >= impl_->profile.planes_per_die))
+            throw std::invalid_argument("invalid MQSim maintenance request");
+        if (request.logical_page >= impl_->profile.capacity_bytes / impl_->profile.page_bytes)
+            throw std::out_of_range("MQSim maintenance logical page exceeds capacity");
+        auto* submission = new Impl::MaintenanceSubmission{request};
+        Simulator->Register_sim_event(request.due_ns, impl_->maintenance_injector.get(), submission);
+        ++impl_->pending_maintenance;
+    }
+
+    std::optional<HbfCompletion> MqsimOnlineEngine::run_next_completion()
+    {
+        // Ignored clock markers stay in MQSim's event tree. Once a caller has
+        // opted into external-clock control, an empty legacy poll must not
+        // advance through those cancelled horizons. Legacy-only use is intact.
+        if (impl_->clock_injector && impl_->pending_requests == 0)
+            return std::nullopt;
+        impl_->flush_staged();
+        while (impl_->completions.empty() && Simulator->Run_next_event())
+        {
+        }
+        if (impl_->completions.empty())
+        {
+            return std::nullopt;
+        }
+
+        auto completion = impl_->completions.front();
+        impl_->completions.pop_front();
+        --impl_->pending_requests;
+        return completion;
+    }
+
+    std::optional<HbfCompletion> MqsimOnlineEngine::run_next_completion_until(
+        std::uint64_t deadline_ns)
+    {
+        if (deadline_ns < current_time_ns())
+            throw std::invalid_argument("MQSim horizon precedes current simulation time");
+        impl_->flush_staged();
+        if (!impl_->clock_injector)
+        {
+            impl_->clock_injector = std::make_unique<ArrivalInjector>(
+                [state = impl_.get()](MQSimEngine::Sim_Event* event)
+                {
+                    if (event->Type == 1) state->horizon_reached = true;
+                    else state->ready_marker_reached = true;
+                }, "HBFSim.ExternalClock");
+            Simulator->AddObject(impl_->clock_injector.get());
+        }
+        impl_->horizon_reached = false;
+        impl_->ready_marker_reached = false;
+        auto* horizon = Simulator->Register_sim_event(
+            deadline_ns, impl_->clock_injector.get(), nullptr, 1);
+        MQSimEngine::Sim_Event* ready_marker = nullptr;
+        const auto cancel_markers = [&]
+        {
+            if (!impl_->horizon_reached) Simulator->Ignore_sim_event(horizon);
+            if (ready_marker != nullptr && !impl_->ready_marker_reached)
+                Simulator->Ignore_sim_event(ready_marker);
+        };
+        try
+        {
+            while (true)
+            {
+                if (!impl_->completions.empty() &&
+                    impl_->completions.front().modeled_completion_ns <= current_time_ns())
+                {
+                    auto completion = impl_->completions.front();
+                    impl_->completions.pop_front();
+                    --impl_->pending_requests;
+                    cancel_markers();
+                    return completion;
+                }
+                if (impl_->horizon_reached)
+                {
+                    cancel_markers();
+                    return std::nullopt;
+                }
+                if (ready_marker == nullptr && !impl_->completions.empty() &&
+                    impl_->completions.front().modeled_completion_ns < deadline_ns)
+                {
+                    ready_marker = Simulator->Register_sim_event(
+                        impl_->completions.front().modeled_completion_ns,
+                        impl_->clock_injector.get(), nullptr, 2);
+                }
+                if (!Simulator->Run_next_event())
+                    throw std::runtime_error("MQSim stopped before external clock horizon");
+            }
+        }
+        catch (...)
+        {
+            cancel_markers();
+            throw;
+        }
+    }
+
+    std::size_t MqsimOnlineEngine::pending() const noexcept
+    {
+        return impl_->pending_requests;
+    }
+
+    std::size_t MqsimOnlineEngine::pending_maintenance() const noexcept
+    {
+        return impl_->pending_maintenance;
+    }
+
+    std::uint64_t MqsimOnlineEngine::current_time_ns() const noexcept
+    {
+        return Simulator->Has_started()
+                   ? static_cast<std::uint64_t>(Simulator->Time())
+                   : 0;
+    }
+
+    void MqsimOnlineEngine::enable_observations()
+    {
+        if (impl_->has_submitted)
+        {
+            throw std::logic_error("enable MQSim observations before submission");
+        }
+        impl_->observations_enabled = true;
+    }
+
+    std::vector<MqsimObservation> MqsimOnlineEngine::take_observations()
+    {
+        std::vector<MqsimObservation> result;
+        result.swap(impl_->observations);
+        return result;
+    }
+
+    std::vector<MqsimMaintenanceEvent> MqsimOnlineEngine::take_maintenance_events()
+    {
+        std::vector<MqsimMaintenanceEvent> result;
+        result.swap(impl_->maintenance_events);
+        return result;
+    }
+
+    std::vector<MqsimMaintenanceCompletion> MqsimOnlineEngine::take_maintenance_completions()
+    {
+        std::vector<MqsimMaintenanceCompletion> result;
+        result.swap(impl_->maintenance_completions);
+        return result;
+    }
+
+    std::vector<HbfCompletion> run_mqsim_trace(
+        const Profile &profile, const std::filesystem::path &trace_path)
+    {
+        std::ifstream trace(trace_path);
+        if (!trace)
+        {
+            throw std::runtime_error("failed to open MQSim trace: " +
+                                     trace_path.string());
+        }
+
+        MqsimOnlineEngine engine(profile);
+        std::string line;
+        std::uint64_t request_id = 1;
+        std::uint64_t previous_arrival = 0;
+        std::size_t line_number = 0;
+        while (std::getline(trace, line))
+        {
+            ++line_number;
+            if (line.empty())
+            {
+                continue;
+            }
+
+            std::uint64_t arrival_ns = 0;
+            std::uint64_t device = 0;
+            std::uint64_t start_sector = 0;
+            std::uint64_t sector_count = 0;
+            std::uint32_t operation = 0;
+            std::string trailing;
+            std::istringstream fields(line);
+            if (!(fields >> arrival_ns >> device >> start_sector >> sector_count >>
+                  operation) ||
+                (fields >> trailing))
+            {
+                throw std::invalid_argument("invalid MQSim trace line " +
+                                            std::to_string(line_number));
+            }
+            if (device != 0)
+            {
+                throw std::invalid_argument(
+                    "MQSim HBF trace device must be zero at line " +
+                    std::to_string(line_number));
+            }
+            if (request_id > 1 && arrival_ns < previous_arrival)
+            {
+                throw std::invalid_argument(
+                    "MQSim trace arrivals must be monotonic");
+            }
+            if (start_sector >
+                    std::numeric_limits<std::uint64_t>::max() / kSectorBytes ||
+                sector_count >
+                    std::numeric_limits<std::uint32_t>::max() / kSectorBytes)
+            {
+                throw std::overflow_error(
+                    "MQSim trace address or size overflows");
+            }
+            if (operation > 1)
+            {
+                throw std::invalid_argument(
+                    "MQSim trace operation must be 0 or 1 at line " +
+                    std::to_string(line_number));
+            }
+
+            engine.submit(HbfRequest{
+                .request_id = request_id,
+                .sequence = request_id,
+                .arrival_ns = arrival_ns,
+                .logical_address = start_sector * kSectorBytes,
+                .deadline_ns = 0,
+                .bytes = static_cast<std::uint32_t>(sector_count * kSectorBytes),
+                .range_id = 1,
+                .stream_id = 0,
+                .operation = operation == 0
+                                 ? static_cast<std::uint32_t>(
+                                       RequestOperation::Write)
+                                 : static_cast<std::uint32_t>(
+                                       RequestOperation::Read),
+                .page_generation = 1,
+                .flags = 0,
+            });
+            previous_arrival = arrival_ns;
+            ++request_id;
+        }
+
+        std::vector<HbfCompletion> completions;
+        completions.reserve(request_id - 1);
+        while (engine.pending() != 0)
+        {
+            auto completion = engine.run_next_completion();
+            if (!completion.has_value())
+            {
+                throw std::runtime_error(
+                    "MQSim trace ended with pending requests");
+            }
+            completions.push_back(*completion);
+        }
+        return completions;
+    }
+
+} // namespace hbfsim

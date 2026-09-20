@@ -1,0 +1,644 @@
+diff --git a/src/ssd/Address_Mapping_Unit_Base.h b/src/ssd/Address_Mapping_Unit_Base.h
+index b86812a..df40983 100644
+--- a/src/ssd/Address_Mapping_Unit_Base.h
++++ b/src/ssd/Address_Mapping_Unit_Base.h
+@@ -59,6 +59,14 @@ namespace SSD_Components
+ 		virtual void Get_data_mapping_info_for_gc(const stream_id_type stream_id, const LPA_type lpa, PPA_type& ppa, page_status_type& page_state) = 0;
+ 		virtual void Get_translation_mapping_info_for_gc(const stream_id_type stream_id, const MVPN_type mvpn, MPPN_type& mppa, sim_time_type& timestamp) = 0;
+ 		virtual void Allocate_new_page_for_gc(NVM_Transaction_Flash_WR* transaction, bool is_translation_page) = 0;
++		virtual bool Begin_hbf_maintenance(const stream_id_type stream_id,
++			const LPA_type lpa, PPA_type& source_ppa, page_status_type& page_state) = 0;
++		virtual void Allocate_new_page_for_hbf_maintenance(NVM_Transaction_Flash_WR* transaction) = 0;
++		virtual bool Commit_hbf_maintenance(const stream_id_type stream_id,
++			const LPA_type lpa, const PPA_type expected_source,
++			const PPA_type destination, const page_status_type page_state) = 0;
++		virtual void Abort_hbf_maintenance(const stream_id_type stream_id,
++			const LPA_type lpa, const NVM::FlashMemory::Physical_Page_Address* destination) = 0;
+ 		unsigned int Get_device_physical_pages_count();//Returns the number of physical pages in the device
+ 		CMT_Sharing_Mode Get_CMT_sharing_mode();
+ 		virtual NVM::FlashMemory::Physical_Page_Address Convert_ppa_to_address(const PPA_type ppa) = 0;
+diff --git a/src/ssd/Address_Mapping_Unit_Hybrid.h b/src/ssd/Address_Mapping_Unit_Hybrid.h
+index d656100..278422d 100644
+--- a/src/ssd/Address_Mapping_Unit_Hybrid.h
++++ b/src/ssd/Address_Mapping_Unit_Hybrid.h
+@@ -1,6 +1,8 @@
+ #ifndef ADDRESS_MAPPING_UNIT_HYBRID_H
+ #define ADDRESS_MAPPING_UNIT_HYBRID_H
+ 
++#include <stdexcept>
++
+ #include "Address_Mapping_Unit_Base.h"
+ 
+ namespace SSD_Components
+@@ -26,6 +28,10 @@ namespace SSD_Components
+ 		void Get_data_mapping_info_for_gc(const stream_id_type stream_id, const LPA_type lpa, PPA_type& ppa, page_status_type& page_state);
+ 		void Get_translation_mapping_info_for_gc(const stream_id_type stream_id, const MVPN_type mvpn, MPPN_type& mppa, sim_time_type& timestamp);
+ 		void Allocate_new_page_for_gc(NVM_Transaction_Flash_WR* transaction, bool is_translation_page);
++		bool Begin_hbf_maintenance(const stream_id_type, const LPA_type, PPA_type&, page_status_type&) { return false; }
++		void Allocate_new_page_for_hbf_maintenance(NVM_Transaction_Flash_WR*) { throw std::logic_error("HBF maintenance requires page-level mapping"); }
++		bool Commit_hbf_maintenance(const stream_id_type, const LPA_type, const PPA_type, const PPA_type, const page_status_type) { return false; }
++		void Abort_hbf_maintenance(const stream_id_type, const LPA_type, const NVM::FlashMemory::Physical_Page_Address*) {}
+ 
+ 		void Store_mapping_table_on_flash_at_start();
+ 		LPA_type Get_logical_pages_count(stream_id_type stream_id);
+diff --git a/src/ssd/Address_Mapping_Unit_Page_Level.cpp b/src/ssd/Address_Mapping_Unit_Page_Level.cpp
+index 1db2d45..e0d6c68 100644
+--- a/src/ssd/Address_Mapping_Unit_Page_Level.cpp
++++ b/src/ssd/Address_Mapping_Unit_Page_Level.cpp
+@@ -1379,6 +1379,12 @@ namespace SSD_Components
+ 		}
+ 
+ 		block_manager->Allocate_block_and_page_in_plane_for_user_write(stream_id, read_address);
++		// Online HBF creates metadata for a previously populated page on its
++		// first read.  No program command will follow this allocation, so close
++		// the synthetic program bookkeeping here; otherwise the source block is
++		// permanently reported as having an in-flight program and can never be
++		// safely reclaimed after experimental maintenance.
++		block_manager->Program_transaction_serviced(read_address);
+ 		PPA_type ppa = Convert_address_to_ppa(read_address);
+ 		domain->Update_mapping_info(ideal_mapping_table, stream_id, lpa, ppa, read_sectors_bitmap);
+ 
+@@ -1747,6 +1753,54 @@ namespace SSD_Components
+ 		return domains[stream_id]->Locked_MVPNs.find(mvpn) != domains[stream_id]->Locked_MVPNs.end();
+ 	}
+ 
++	bool Address_Mapping_Unit_Page_Level::Begin_hbf_maintenance(
++		const stream_id_type stream_id, const LPA_type lpa,
++		PPA_type& source_ppa, page_status_type& page_state)
++	{
++		if (stream_id >= no_of_input_streams ||
++			!domains[stream_id]->Mapping_entry_accessible(ideal_mapping_table, stream_id, lpa))
++			return false;
++		source_ppa = domains[stream_id]->Get_ppa(ideal_mapping_table, stream_id, lpa);
++		if (source_ppa == NO_PPA) return false;
++		page_state = domains[stream_id]->Get_page_status(ideal_mapping_table, stream_id, lpa);
++		Set_barrier_for_accessing_lpa(stream_id, lpa);
++		return true;
++	}
++
++	void Address_Mapping_Unit_Page_Level::Allocate_new_page_for_hbf_maintenance(
++		NVM_Transaction_Flash_WR* transaction)
++	{
++		block_manager->Allocate_block_and_page_in_plane_for_gc_write(
++			transaction->Stream_id, transaction->Address);
++		transaction->PPA = Convert_address_to_ppa(transaction->Address);
++		transaction->Physical_address_determined = true;
++	}
++
++	bool Address_Mapping_Unit_Page_Level::Commit_hbf_maintenance(
++		const stream_id_type stream_id, const LPA_type lpa,
++		const PPA_type expected_source, const PPA_type destination,
++		const page_status_type page_state)
++	{
++		AddressMappingDomain* domain = domains[stream_id];
++		if (domain->Get_ppa(ideal_mapping_table, stream_id, lpa) != expected_source)
++			return false;
++		NVM::FlashMemory::Physical_Page_Address old_address;
++		Convert_ppa_to_address(expected_source, old_address);
++		domain->Update_mapping_info(ideal_mapping_table, stream_id, lpa,
++			destination, page_state);
++		block_manager->Invalidate_page_in_block(stream_id, old_address);
++		return true;
++	}
++
++	void Address_Mapping_Unit_Page_Level::Abort_hbf_maintenance(
++		const stream_id_type stream_id, const LPA_type lpa,
++		const NVM::FlashMemory::Physical_Page_Address* destination)
++	{
++		if (destination != NULL)
++			block_manager->Invalidate_page_in_block(stream_id, *destination);
++		Remove_barrier_for_accessing_lpa(stream_id, lpa);
++	}
++
+ 	inline void Address_Mapping_Unit_Page_Level::Set_barrier_for_accessing_lpa(stream_id_type stream_id, LPA_type lpa)
+ 	{
+ 		auto itr = domains[stream_id]->Locked_LPAs.find(lpa);
+diff --git a/src/ssd/Address_Mapping_Unit_Page_Level.h b/src/ssd/Address_Mapping_Unit_Page_Level.h
+index de70aff..0f8e8c1 100644
+--- a/src/ssd/Address_Mapping_Unit_Page_Level.h
++++ b/src/ssd/Address_Mapping_Unit_Page_Level.h
+@@ -154,6 +154,14 @@ namespace SSD_Components
+ 		void Get_data_mapping_info_for_gc(const stream_id_type stream_id, const LPA_type lpa, PPA_type& ppa, page_status_type& page_state);
+ 		void Get_translation_mapping_info_for_gc(const stream_id_type stream_id, const MVPN_type mvpn, MPPN_type& mppa, sim_time_type& timestamp);
+ 		void Allocate_new_page_for_gc(NVM_Transaction_Flash_WR* transaction, bool is_translation_page);
++		bool Begin_hbf_maintenance(const stream_id_type stream_id, const LPA_type lpa,
++			PPA_type& source_ppa, page_status_type& page_state);
++		void Allocate_new_page_for_hbf_maintenance(NVM_Transaction_Flash_WR* transaction);
++		bool Commit_hbf_maintenance(const stream_id_type stream_id, const LPA_type lpa,
++			const PPA_type expected_source, const PPA_type destination,
++			const page_status_type page_state);
++		void Abort_hbf_maintenance(const stream_id_type stream_id, const LPA_type lpa,
++			const NVM::FlashMemory::Physical_Page_Address* destination);
+ 
+ 		void Store_mapping_table_on_flash_at_start();
+ 		LPA_type Get_logical_pages_count(stream_id_type stream_id);
+diff --git a/src/ssd/Flash_Block_Manager_Base.cpp b/src/ssd/Flash_Block_Manager_Base.cpp
+index 3abe320..3c422a0 100644
+--- a/src/ssd/Flash_Block_Manager_Base.cpp
++++ b/src/ssd/Flash_Block_Manager_Base.cpp
+@@ -241,4 +241,44 @@ namespace SSD_Components
+ 		}
+ 		return false;
+ 	}
++
++	bool Flash_Block_Manager_Base::Can_allocate_hbf_spare(
++		const stream_id_type stream_id,
++		const NVM::FlashMemory::Physical_Page_Address& plane_address) const
++	{
++		const PlaneBookKeepingType* plane = &plane_manager[plane_address.ChannelID]
++			[plane_address.ChipID][plane_address.DieID][plane_address.PlaneID];
++		const Block_Pool_Slot_Type* frontier = plane->GC_wf[stream_id];
++		return frontier->Current_page_write_index < pages_no_per_block ||
++			!plane->Free_block_pool.empty();
++	}
++
++	bool Flash_Block_Manager_Base::Begin_hbf_reclaim(
++		const NVM::FlashMemory::Physical_Page_Address& block_address)
++	{
++		PlaneBookKeepingType* plane = &plane_manager[block_address.ChannelID]
++			[block_address.ChipID][block_address.DieID][block_address.PlaneID];
++		Block_Pool_Slot_Type* block = &plane->Blocks[block_address.BlockID];
++		if (block->Current_page_write_index != block->Invalid_page_count ||
++			block->Has_ongoing_gc_wl || block->Ongoing_user_read_count != 0 ||
++			block->Ongoing_user_program_count != 0 ||
++			plane->Ongoing_erase_operations.count(block_address.BlockID) != 0)
++			return false;
++		for (unsigned int stream = 0; stream < total_concurrent_streams_no; ++stream)
++			if (plane->Data_wf[stream] == block || plane->GC_wf[stream] == block ||
++				plane->Translation_wf[stream] == block) return false;
++		block->Has_ongoing_gc_wl = true;
++		plane->Ongoing_erase_operations.insert(block_address.BlockID);
++		return true;
++	}
++
++	void Flash_Block_Manager_Base::Finish_hbf_reclaim(
++		const NVM::FlashMemory::Physical_Page_Address& block_address, bool erased)
++	{
++		PlaneBookKeepingType* plane = &plane_manager[block_address.ChannelID]
++			[block_address.ChipID][block_address.DieID][block_address.PlaneID];
++		plane->Ongoing_erase_operations.erase(block_address.BlockID);
++		if (erased) Add_erased_block_to_pool(block_address);
++		plane->Blocks[block_address.BlockID].Has_ongoing_gc_wl = false;
++	}
+ }
+diff --git a/src/ssd/Flash_Block_Manager_Base.h b/src/ssd/Flash_Block_Manager_Base.h
+index 8e09193..7739679 100644
+--- a/src/ssd/Flash_Block_Manager_Base.h
++++ b/src/ssd/Flash_Block_Manager_Base.h
+@@ -96,6 +96,11 @@ namespace SSD_Components
+ 		void Program_transaction_serviced(const NVM::FlashMemory::Physical_Page_Address& page_address);//Updates the block bookkeeping record
+ 		bool Is_having_ongoing_program(const NVM::FlashMemory::Physical_Page_Address& block_address);//Cheks if block has any ongoing program request
+ 		bool Is_page_valid(Block_Pool_Slot_Type* block, flash_page_ID_type page_id);//Make the page invalid in the block bookkeeping record
++		bool Can_allocate_hbf_spare(const stream_id_type stream_id,
++			const NVM::FlashMemory::Physical_Page_Address& plane_address) const;
++		bool Begin_hbf_reclaim(const NVM::FlashMemory::Physical_Page_Address& block_address);
++		void Finish_hbf_reclaim(const NVM::FlashMemory::Physical_Page_Address& block_address,
++			bool erased);
+ 	protected:
+ 		PlaneBookKeepingType ****plane_manager;//Keeps track of plane block usage information
+ 		GC_and_WL_Unit_Base *gc_and_wl_unit;
+diff --git a/src/ssd/GC_and_WL_Unit_Base.cpp b/src/ssd/GC_and_WL_Unit_Base.cpp
+index fef869d..749697b 100644
+--- a/src/ssd/GC_and_WL_Unit_Base.cpp
++++ b/src/ssd/GC_and_WL_Unit_Base.cpp
+@@ -41,6 +41,7 @@ namespace SSD_Components
+ 
+ 	void GC_and_WL_Unit_Base::handle_transaction_serviced_signal_from_PHY(NVM_Transaction_Flash* transaction)
+ 	{
++		if (transaction->Source == Transaction_Source_Type::HBF_MAINTENANCE) return;
+ 		PlaneBookKeepingType* pbke = &(_my_instance->block_manager->plane_manager[transaction->Address.ChannelID][transaction->Address.ChipID][transaction->Address.DieID][transaction->Address.PlaneID]);
+ 
+ 		switch (transaction->Source) {
+diff --git a/src/ssd/HBF_Maintenance_Unit.cpp b/src/ssd/HBF_Maintenance_Unit.cpp
+new file mode 100644
+index 0000000..048d905
+--- /dev/null
++++ b/src/ssd/HBF_Maintenance_Unit.cpp
+@@ -0,0 +1,189 @@
++#include "HBF_Maintenance_Unit.h"
++#include <stdexcept>
++#include "NVM_Transaction_Flash_RD.h"
++#include "NVM_Transaction_Flash_WR.h"
++#include "NVM_Transaction_Flash_ER.h"
++
++namespace SSD_Components {
++struct HBF_Maintenance_Unit::Context {
++    HBF_Maintenance_Request request;
++    HBF_Maintenance_Completion_Callback callback;
++    sim_time_type enqueue_time{0}, start_time{0};
++    PPA_type source_ppa{NO_PPA}, destination_ppa{NO_PPA};
++    page_status_type page_state{0};
++    NVM::FlashMemory::Physical_Page_Address source, destination;
++    bool destination_known{false}, mapping_committed{false}, source_retired{false};
++    std::vector<std::uint64_t> transaction_ids;
++};
++HBF_Maintenance_Unit* HBF_Maintenance_Unit::instance = nullptr;
++
++HBF_Maintenance_Unit::HBF_Maintenance_Unit(const sim_object_id_type& id,
++    Address_Mapping_Unit_Base* mapping, Flash_Block_Manager_Base* blocks,
++    TSU_Base* tsu, NVM_PHY_ONFI* phy, unsigned int page_size_bytes,
++    unsigned int channels, unsigned int chips, unsigned int dies, unsigned int planes)
++    : Sim_Object(id), mapping(mapping), blocks(blocks), tsu(tsu), phy(phy),
++      page_size_bytes(page_size_bytes), channels(channels), chips(chips), dies(dies), planes(planes)
++{
++    if (instance != nullptr) throw std::logic_error("only one experimental maintenance unit is supported");
++    instance = this;
++    phy->ConnectToTransactionServicedSignal(serviced);
++}
++HBF_Maintenance_Unit::~HBF_Maintenance_Unit() { if (instance == this) instance = nullptr; }
++
++bool HBF_Maintenance_Unit::target_matches(const HBF_Maintenance_Request& request,
++    const NVM::FlashMemory::Physical_Page_Address& address) const
++{
++    return address.ChannelID == request.channel && address.ChipID == request.chip &&
++        address.DieID == request.die && (!request.plane_is_exact || address.PlaneID == request.plane);
++}
++void HBF_Maintenance_Unit::emit(const Context& context, HBF_Maintenance_State state,
++    std::uint64_t transaction_id)
++{
++    if (!event_sink) return;
++    event_sink({context.request.request_id, context.request.parent_id, state,
++        Simulator->Time(), transaction_id, context.source, context.destination,
++        context.destination_known});
++}
++void HBF_Maintenance_Unit::Submit(const HBF_Maintenance_Request& request,
++    HBF_Maintenance_Completion_Callback callback)
++{
++    if (!request.request_id || !callback || contexts.count(request.request_id))
++        throw std::invalid_argument("invalid or duplicate HBF maintenance request");
++    if (request.channel >= channels || request.chip >= chips || request.die >= dies ||
++        (request.plane_is_exact && request.plane >= planes))
++        throw std::out_of_range("HBF maintenance physical target is out of range");
++    Context context{request, std::move(callback)};
++    context.enqueue_time = context.start_time = Simulator->Time();
++    auto inserted = contexts.emplace(request.request_id, std::move(context));
++    Context& stored = inserted.first->second;
++    emit(stored, HBF_Maintenance_State::DUE);
++    emit(stored, HBF_Maintenance_State::QUEUED);
++    if (request.deadline && Simulator->Time() > request.deadline) {
++        finish(stored, HBF_Maintenance_Status::REJECTED_INVALID_TARGET); return;
++    }
++    if (!mapping->Begin_hbf_maintenance(request.stream_id, request.logical_page,
++            stored.source_ppa, stored.page_state)) {
++        finish(stored, HBF_Maintenance_Status::REJECTED_UNMAPPED); return;
++    }
++    mapping->Convert_ppa_to_address(stored.source_ppa, stored.source);
++    if (!target_matches(request, stored.source)) {
++        mapping->Abort_hbf_maintenance(request.stream_id, request.logical_page, nullptr);
++        finish(stored, HBF_Maintenance_Status::REJECTED_INVALID_TARGET); return;
++    }
++    auto* write = new NVM_Transaction_Flash_WR(Transaction_Source_Type::HBF_MAINTENANCE,
++        request.stream_id, page_size_bytes, request.logical_page, NO_PPA, stored.source,
++        nullptr, 0, nullptr, stored.page_state, INVALID_TIME_STAMP);
++    auto* read = new NVM_Transaction_Flash_RD(Transaction_Source_Type::HBF_MAINTENANCE,
++        request.stream_id, page_size_bytes, request.logical_page, stored.source_ppa,
++        stored.source, nullptr, 0, write, stored.page_state, INVALID_TIME_STAMP);
++    read->HBF_Maintenance_ID = write->HBF_Maintenance_ID = request.request_id;
++    read->HBF_Maintenance_Parent_ID = write->HBF_Maintenance_Parent_ID = request.parent_id;
++    read->HBF_Force_Failure = request.failure_point == HBF_Maintenance_Failure_Point::READ;
++    write->HBF_Force_Failure = request.failure_point == HBF_Maintenance_Failure_Point::PROGRAM;
++    write->RelatedRead = read;
++    blocks->Read_transaction_issued(stored.source);
++    tsu->Prepare_for_transaction_submit(); tsu->Submit_transaction(read); tsu->Schedule();
++    emit(stored, HBF_Maintenance_State::READ, read->HBF_Observation_ID);
++}
++void HBF_Maintenance_Unit::serviced(NVM_Transaction_Flash* transaction)
++{
++    if (instance && transaction->Source == Transaction_Source_Type::HBF_MAINTENANCE)
++        instance->handle(transaction);
++}
++void HBF_Maintenance_Unit::handle(NVM_Transaction_Flash* transaction)
++{
++    auto found = contexts.find(transaction->HBF_Maintenance_ID);
++    if (found == contexts.end()) throw std::logic_error("orphan HBF maintenance transaction");
++    Context& context = found->second;
++    context.transaction_ids.push_back(transaction->HBF_Observation_ID);
++    if (transaction->Type == Transaction_Type::READ) {
++        blocks->Read_transaction_serviced(transaction->Address);
++        if (!transaction->HBF_Command_Succeeded) {
++            mapping->Abort_hbf_maintenance(context.request.stream_id,
++                context.request.logical_page, nullptr);
++            finish(context, HBF_Maintenance_Status::FAILED_READ); return;
++        }
++        if (!blocks->Can_allocate_hbf_spare(context.request.stream_id, context.source)) {
++            mapping->Abort_hbf_maintenance(context.request.stream_id,
++                context.request.logical_page, nullptr);
++            finish(context, HBF_Maintenance_Status::REJECTED_NO_SPARE); return;
++        }
++        auto* read = static_cast<NVM_Transaction_Flash_RD*>(transaction);
++        auto* write = read->RelatedWrite;
++        write->RelatedRead = nullptr;
++        write->write_sectors_bitmap = context.page_state;
++        mapping->Allocate_new_page_for_hbf_maintenance(write);
++        context.destination = write->Address;
++        context.destination_ppa = write->PPA;
++        context.destination_known = true;
++        tsu->Prepare_for_transaction_submit(); tsu->Submit_transaction(write); tsu->Schedule();
++        emit(context, HBF_Maintenance_State::PROGRAM_DEST, write->HBF_Observation_ID);
++        return;
++    }
++    if (transaction->Type == Transaction_Type::WRITE) {
++        if (!transaction->HBF_Command_Succeeded ||
++            context.request.failure_point == HBF_Maintenance_Failure_Point::STALE_COMMIT) {
++            mapping->Abort_hbf_maintenance(context.request.stream_id,
++                context.request.logical_page, &context.destination);
++            finish(context, transaction->HBF_Command_Succeeded ?
++                HBF_Maintenance_Status::FAILED_STALE_VERSION :
++                HBF_Maintenance_Status::FAILED_PROGRAM);
++            return;
++        }
++        emit(context, HBF_Maintenance_State::COMMIT, transaction->HBF_Observation_ID);
++        if (!mapping->Commit_hbf_maintenance(context.request.stream_id,
++                context.request.logical_page, context.source_ppa,
++                context.destination_ppa, context.page_state)) {
++            mapping->Abort_hbf_maintenance(context.request.stream_id,
++                context.request.logical_page, &context.destination);
++            finish(context, HBF_Maintenance_Status::FAILED_STALE_VERSION); return;
++        }
++        context.mapping_committed = context.source_retired = true;
++        mapping->Remove_barrier_for_accessing_lpa(context.request.stream_id,
++            context.request.logical_page);
++        emit(context, HBF_Maintenance_State::RETIRE_OLD, transaction->HBF_Observation_ID);
++        if (!context.request.reclaim_invalid_source_block ||
++            !blocks->Begin_hbf_reclaim(context.source)) {
++            finish(context, context.request.reclaim_invalid_source_block ?
++                HBF_Maintenance_Status::COMMITTED_RECLAIM_DEFERRED :
++                HBF_Maintenance_Status::COMMITTED);
++            return;
++        }
++        auto* erase = new NVM_Transaction_Flash_ER(Transaction_Source_Type::HBF_MAINTENANCE,
++            context.request.stream_id, context.source);
++        erase->HBF_Maintenance_ID = context.request.request_id;
++        erase->HBF_Maintenance_Parent_ID = context.request.parent_id;
++        erase->HBF_Force_Failure = context.request.failure_point == HBF_Maintenance_Failure_Point::ERASE;
++        tsu->Prepare_for_transaction_submit(); tsu->Submit_transaction(erase); tsu->Schedule();
++        emit(context, HBF_Maintenance_State::RECLAIM_ERASE, erase->HBF_Observation_ID);
++        return;
++    }
++    if (transaction->Type == Transaction_Type::ERASE) {
++        blocks->Finish_hbf_reclaim(context.source, transaction->HBF_Command_Succeeded);
++        finish(context, transaction->HBF_Command_Succeeded ?
++            HBF_Maintenance_Status::COMMITTED :
++            HBF_Maintenance_Status::FAILED_AFTER_COMMIT_NEEDS_RECONCILE);
++        return;
++    }
++    throw std::logic_error("unexpected HBF maintenance transaction type");
++}
++void HBF_Maintenance_Unit::finish(Context& context, HBF_Maintenance_Status status)
++{
++    HBF_Maintenance_Completion completion{context.request.request_id,
++        context.request.parent_id, status, context.enqueue_time, context.start_time,
++        Simulator->Time(), context.request.logical_page, context.source_ppa,
++        context.mapping_committed ? context.destination_ppa : context.source_ppa,
++        context.source, context.destination, context.destination_known,
++        context.mapping_committed, context.source_retired,
++        status == HBF_Maintenance_Status::COMMITTED &&
++            context.request.reclaim_invalid_source_block,
++        context.transaction_ids};
++    emit(context, status == HBF_Maintenance_Status::COMMITTED ||
++        status == HBF_Maintenance_Status::COMMITTED_RECLAIM_DEFERRED ?
++        HBF_Maintenance_State::DONE : HBF_Maintenance_State::FAILED);
++    auto callback = context.callback;
++    const auto id = context.request.request_id;
++    contexts.erase(id);
++    callback(completion);
++}
++}
+diff --git a/src/ssd/HBF_Maintenance_Unit.h b/src/ssd/HBF_Maintenance_Unit.h
+new file mode 100644
+index 0000000..3f5b575
+--- /dev/null
++++ b/src/ssd/HBF_Maintenance_Unit.h
+@@ -0,0 +1,91 @@
++#ifndef HBF_MAINTENANCE_UNIT_H
++#define HBF_MAINTENANCE_UNIT_H
++
++#include <cstdint>
++#include <functional>
++#include <map>
++#include <vector>
++#include "../sim/Sim_Object.h"
++#include "Address_Mapping_Unit_Base.h"
++#include "Flash_Block_Manager_Base.h"
++#include "TSU_Base.h"
++#include "NVM_PHY_ONFI.h"
++
++namespace SSD_Components {
++enum class HBF_Maintenance_State {
++    DUE, QUEUED, READ, PROGRAM_DEST, COMMIT, RETIRE_OLD, RECLAIM_ERASE, DONE, FAILED
++};
++enum class HBF_Maintenance_Status {
++    COMMITTED, COMMITTED_RECLAIM_DEFERRED, REJECTED_UNSUPPORTED,
++    REJECTED_INVALID_TARGET, REJECTED_UNMAPPED, REJECTED_NO_SPARE,
++    FAILED_READ, FAILED_PROGRAM, FAILED_STALE_VERSION,
++    FAILED_AFTER_COMMIT_NEEDS_RECONCILE
++};
++enum class HBF_Maintenance_Failure_Point { NONE, READ, PROGRAM, STALE_COMMIT, ERASE };
++
++struct HBF_Maintenance_Request {
++    std::uint64_t request_id{0}, parent_id{0};
++    stream_id_type stream_id{0};
++    LPA_type logical_page{0};
++    flash_channel_ID_type channel{0};
++    flash_chip_ID_type chip{0};
++    flash_die_ID_type die{0};
++    flash_plane_ID_type plane{0};
++    bool plane_is_exact{false};
++    sim_time_type due_time{0}, deadline{0};
++    bool reclaim_invalid_source_block{false};
++    HBF_Maintenance_Failure_Point failure_point{HBF_Maintenance_Failure_Point::NONE};
++};
++struct HBF_Maintenance_Event {
++    std::uint64_t request_id, parent_id;
++    HBF_Maintenance_State state;
++    sim_time_type time;
++    std::uint64_t transaction_observation_id;
++    NVM::FlashMemory::Physical_Page_Address source, destination;
++    bool destination_known;
++};
++struct HBF_Maintenance_Completion {
++    std::uint64_t request_id, parent_id;
++    HBF_Maintenance_Status status;
++    sim_time_type enqueue_time, start_time, end_time;
++    LPA_type logical_page;
++    PPA_type source_version, committed_version;
++    NVM::FlashMemory::Physical_Page_Address source, destination;
++    bool destination_known, mapping_committed, source_retired, erase_completed;
++    std::vector<std::uint64_t> transaction_observation_ids;
++};
++using HBF_Maintenance_Completion_Callback = std::function<void(const HBF_Maintenance_Completion&)>;
++using HBF_Maintenance_Event_Sink = std::function<void(const HBF_Maintenance_Event&)>;
++
++class HBF_Maintenance_Unit : public MQSimEngine::Sim_Object {
++public:
++    HBF_Maintenance_Unit(const sim_object_id_type& id,
++        Address_Mapping_Unit_Base* mapping, Flash_Block_Manager_Base* blocks,
++        TSU_Base* tsu, NVM_PHY_ONFI* phy, unsigned int page_size_bytes,
++        unsigned int channels, unsigned int chips, unsigned int dies, unsigned int planes);
++    ~HBF_Maintenance_Unit();
++    void Submit(const HBF_Maintenance_Request&, HBF_Maintenance_Completion_Callback);
++    void Set_event_sink(HBF_Maintenance_Event_Sink sink) { event_sink = std::move(sink); }
++    std::size_t Pending() const { return contexts.size(); }
++    void Start_simulation() override {}
++    void Validate_simulation_config() override {}
++    void Execute_simulator_event(MQSimEngine::Sim_Event*) override {}
++private:
++    struct Context;
++    static HBF_Maintenance_Unit* instance;
++    static void serviced(NVM_Transaction_Flash*);
++    void handle(NVM_Transaction_Flash*);
++    void finish(Context&, HBF_Maintenance_Status);
++    void emit(const Context&, HBF_Maintenance_State, std::uint64_t = 0);
++    bool target_matches(const HBF_Maintenance_Request&,
++        const NVM::FlashMemory::Physical_Page_Address&) const;
++    Address_Mapping_Unit_Base* mapping;
++    Flash_Block_Manager_Base* blocks;
++    TSU_Base* tsu;
++    NVM_PHY_ONFI* phy;
++    unsigned int page_size_bytes, channels, chips, dies, planes;
++    std::map<std::uint64_t, Context> contexts;
++    HBF_Maintenance_Event_Sink event_sink;
++};
++}
++#endif
+diff --git a/src/ssd/NVM_PHY_ONFI.cpp b/src/ssd/NVM_PHY_ONFI.cpp
+index a225dbe..266021f 100644
+--- a/src/ssd/NVM_PHY_ONFI.cpp
++++ b/src/ssd/NVM_PHY_ONFI.cpp
+@@ -15,6 +15,9 @@ namespace SSD_Components {
+ 	*/
+ 	void NVM_PHY_ONFI::broadcastTransactionServicedSignal(NVM_Transaction_Flash* transaction)
+ 	{
++		if (transaction->Source == Transaction_Source_Type::HBF_MAINTENANCE &&
++			transaction->HBF_Force_Failure)
++			transaction->HBF_Command_Succeeded = false;
+ 		for (std::vector<TransactionServicedHandlerType>::iterator it = connectedTransactionServicedHandlers.begin();
+ 			it != connectedTransactionServicedHandlers.end(); it++) {
+ 			(*it)(transaction);
+@@ -47,4 +50,4 @@ namespace SSD_Components {
+ 			(*it)(chip);
+ 		}
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+index 00114de..42a3c1d 100644
+--- a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
++++ b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+@@ -14,6 +14,7 @@ namespace SSD_Components {
+ 			if (tr->HBF_Observation_ID == 0) tr->HBF_Observation_ID = next_hbf_transaction_id++;
+ 			return {tr->HBF_Observation_ID,
+ 				tr->UserIORequest == NULL ? 0 : tr->UserIORequest->HBF_External_Request_ID,
++				tr->HBF_Maintenance_ID, tr->HBF_Maintenance_Parent_ID,
+ 				static_cast<unsigned int>(tr->Source), static_cast<unsigned int>(tr->Type),
+ 				tr->LPA, tr->LPA != NO_LPA, tr->Data_and_metadata_size_in_byte, tr->Address.ChannelID,
+ 				tr->Address.ChipID, tr->Address.DieID, tr->Address.PlaneID,
+diff --git a/src/ssd/NVM_PHY_ONFI_NVDDR2.h b/src/ssd/NVM_PHY_ONFI_NVDDR2.h
+index 1f72064..e20a249 100644
+--- a/src/ssd/NVM_PHY_ONFI_NVDDR2.h
++++ b/src/ssd/NVM_PHY_ONFI_NVDDR2.h
+@@ -18,6 +18,7 @@ namespace SSD_Components
+ 	enum class HBF_Command_Observation_Phase { COMMAND_ISSUED, MEDIA_BEGIN, MEDIA_END, DATA_OUT_BEGIN, DATA_OUT_END };
+ 	struct HBF_Transaction_Observation {
+ 		std::uint64_t transaction_id, external_request_id;
++		std::uint64_t maintenance_request_id, maintenance_parent_id;
+ 		unsigned int source, type;
+ 		std::uint64_t logical_page; bool logical_page_known;
+ 		std::uint32_t bytes;
+diff --git a/src/ssd/NVM_Transaction.h b/src/ssd/NVM_Transaction.h
+index 4cd5702..84e7a77 100644
+--- a/src/ssd/NVM_Transaction.h
++++ b/src/ssd/NVM_Transaction.h
+@@ -12,7 +12,7 @@ namespace SSD_Components
+ 	class User_Request;
+ 	
+ 	enum class Transaction_Type { READ, WRITE, ERASE, UNKOWN };
+-	enum class Transaction_Source_Type { USERIO, CACHE, GC_WL, MAPPING };
++	enum class Transaction_Source_Type { USERIO, CACHE, GC_WL, MAPPING, HBF_MAINTENANCE };
+ 
+ 	class NVM_Transaction
+ 	{
+diff --git a/src/ssd/NVM_Transaction_Flash.h b/src/ssd/NVM_Transaction_Flash.h
+index ccb8fd6..5dcb72c 100644
+--- a/src/ssd/NVM_Transaction_Flash.h
++++ b/src/ssd/NVM_Transaction_Flash.h
+@@ -34,6 +34,11 @@ namespace SSD_Components
+ 		bool Physical_address_determined;
+ 		sim_time_type Estimated_alone_waiting_time;//Used in scheduling methods, such as FLIN, where fairness and QoS is considered in scheduling
+ 		bool FLIN_Barrier;//Especially used in queue reordering in FLIN scheduler
++		// Experimental EQ3 maintenance identity. Zero means no maintenance parent.
++		std::uint64_t HBF_Maintenance_ID{0};
++		std::uint64_t HBF_Maintenance_Parent_ID{0};
++		bool HBF_Force_Failure{false};
++		bool HBF_Command_Succeeded{true};
+ 	private:
+ 
+ 	};
+diff --git a/src/ssd/TSU_FLIN.cpp b/src/ssd/TSU_FLIN.cpp
+index 383bb4f..1790313 100644
+--- a/src/ssd/TSU_FLIN.cpp
++++ b/src/ssd/TSU_FLIN.cpp
+@@ -250,6 +250,7 @@ namespace SSD_Components
+ 					MappingReadTRQueue[channel_id][chip_id].push_back(*it);
+ 					break;
+ 				case Transaction_Source_Type::GC_WL:
++				case Transaction_Source_Type::HBF_MAINTENANCE:
+ 					GCReadTRQueue[channel_id][chip_id].push_back(*it);
+ 					break;
+ 				default:
+@@ -298,6 +299,7 @@ namespace SSD_Components
+ 					MappingWriteTRQueue[channel_id][chip_id].push_back(*it);
+ 					break;
+ 				case Transaction_Source_Type::GC_WL:
++				case Transaction_Source_Type::HBF_MAINTENANCE:
+ 					GCWriteTRQueue[channel_id][chip_id].push_back(*it);
+ 					break;
+ 				default:
+@@ -589,4 +591,4 @@ namespace SSD_Components
+ 	void TSU_FLIN::Report_results_in_XML(std::string name_prefix, Utils::XmlWriter& xmlwriter) {}
+ 
+ }
+-*/
+\ No newline at end of file
++*/
+diff --git a/src/ssd/TSU_OutofOrder.cpp b/src/ssd/TSU_OutofOrder.cpp
+index e5cb545..ff65f58 100644
+--- a/src/ssd/TSU_OutofOrder.cpp
++++ b/src/ssd/TSU_OutofOrder.cpp
+@@ -174,6 +174,7 @@ void TSU_OutOfOrder::Schedule()
+ 				MappingReadTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+ 				break;
+ 			case Transaction_Source_Type::GC_WL:
++			case Transaction_Source_Type::HBF_MAINTENANCE:
+ 				GCReadTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+ 				break;
+ 			default:
+@@ -191,6 +192,7 @@ void TSU_OutOfOrder::Schedule()
+ 				MappingWriteTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+ 				break;
+ 			case Transaction_Source_Type::GC_WL:
++			case Transaction_Source_Type::HBF_MAINTENANCE:
+ 				GCWriteTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+ 				break;
+ 			default:
+diff --git a/src/ssd/TSU_Priority_OutOfOrder.cpp b/src/ssd/TSU_Priority_OutOfOrder.cpp
+index a6b29b7..1673097 100644
+--- a/src/ssd/TSU_Priority_OutOfOrder.cpp
++++ b/src/ssd/TSU_Priority_OutOfOrder.cpp
+@@ -235,6 +235,7 @@ void TSU_Priority_OutOfOrder::Schedule()
+                 MappingReadTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+                 break;
+             case Transaction_Source_Type::GC_WL:
++            case Transaction_Source_Type::HBF_MAINTENANCE:
+                 GCReadTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+                 break;
+             default:
+@@ -259,6 +260,7 @@ void TSU_Priority_OutOfOrder::Schedule()
+                 MappingWriteTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+                 break;
+             case Transaction_Source_Type::GC_WL:
++            case Transaction_Source_Type::HBF_MAINTENANCE:
+                 GCWriteTRQueue[(*it)->Address.ChannelID][(*it)->Address.ChipID].push_back((*it));
+                 break;
+             default:

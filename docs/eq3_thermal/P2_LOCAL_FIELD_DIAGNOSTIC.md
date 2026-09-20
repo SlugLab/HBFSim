@@ -55,7 +55,7 @@ localized temperature gradient carried from the active neighboring HBM2
 stack, although physical validation of that gradient remains outside this
 diagnostic.
 
-![Local field comparison](../../../../plans/decision-execution-v2/points/p2-local-field-figure/hbm3_base_15s_local_field.png)
+![Local field comparison](figures/hbm3_base_15s_local_field.png)
 
 The two temperature panels use one common color scale. Cyan plus signs show
 each grid's hotspot. The difference panel is `2 mm - volume-averaged 1 mm`;

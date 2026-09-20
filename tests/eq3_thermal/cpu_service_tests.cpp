@@ -45,6 +45,138 @@ J request(std::string id,std::string stack="hbf0",std::string route="direct",std
   return {{"id",id},{"stack",stack},{"route",route},{"op",op},{"die",die},{"arrival_ns",0},
     {"logical_bytes",64},{"physical_bytes",128},{"link_bytes",256},{"fail_fraction",0}};
 }
+void force_control(CpuService& service,const std::string& stack,const std::string& applied,
+                   std::uint64_t next_sample=1000000000ULL) {
+  auto snapshot=J::parse(service.checkpoint());
+  snapshot["state"]["control"][stack]["applied"]=applied;
+  snapshot["state"]["control"][stack]["suggested"]=applied;
+  snapshot["state"]["control"][stack]["pending"]=nullptr;
+  snapshot["state"]["next_sample"]=next_sample;
+  service.restore(snapshot.dump());
+}
+void path_endpoint_admission() {
+  // A relay traverses the paired HBM base control domain. Shutdown there must
+  // prevent start without reserving any resource or creating forwarding heat.
+  CpuService shutdown(fixture("relay").dump());force_control(shutdown,"hbm0","Shutdown");
+  shutdown.submit(request("blocked-relay","hbf0","relay").dump());shutdown.advance_to(10000000);
+  auto r=J::parse(shutdown.report());
+  check(r["active"].empty()&&r["done"].empty()&&r["queue"].size()==1,"relay bypassed paired HBM Shutdown");
+  check(r["resources"].empty(),"blocked relay leaked a partial reservation");
+  check(r["admission_blocks"].size()==1&&r["admission_blocks"][0]["blocked_endpoints"].size()==1&&
+        r["admission_blocks"][0]["blocked_endpoints"][0]["stack"]=="hbm0"&&
+        r["admission_blocks"][0]["blocked_endpoints"][0]["reason"]=="SHUTDOWN"&&
+        r["admission_blocks"][0]["blocked_endpoints"][0]["retry_at_ns"].is_null(),"Shutdown blocker diagnostics missing");
+  near(r["energy_j"]["hbf0_die0"],0);near(r["energy_j"]["hbf0_base"],0);near(r["energy_j"]["hbm0_base"],0);
+
+  // DASH direct does not traverse the paired HBM endpoint and remains legal.
+  CpuService dash(fixture("dash").dump());force_control(dash,"hbm0","Shutdown");
+  dash.submit(request("blocked-dash-relay","hbf0","relay").dump());
+  dash.submit(request("legal-dash-direct","hbf0","direct", "read",1).dump());dash.advance_to(100000000);
+  r=J::parse(dash.report());
+  check(r["done"].size()==1&&r["done"][0]["id"]=="legal-dash-direct"&&r["queue"].size()==1,
+        "unrelated paired endpoint blocked DASH direct or relay escaped");
+  near(r["energy_j"]["hbm0_base"],0);
+
+  // A successful foreground relay consumes the Light quota of each unique
+  // controlled endpoint, including its paired HBM base domain.
+  CpuService light(fixture("relay").dump());force_control(light,"hbf0","Light");force_control(light,"hbm0","Light");
+  light.submit(request("light-relay","hbf0","relay").dump());light.advance_to(1);
+  r=J::parse(light.report());
+  check(r["active"].size()==1,"two-endpoint Light relay was not admitted initially");
+  check(r["control"]["hbf0"]["next_admit"]==250000000&&r["control"]["hbm0"]["next_admit"]==250000000,
+        "successful relay did not update every endpoint Light quota");
+  auto hbm=request("light-hbm","hbm0");hbm["arrival_ns"]=1;light.submit(hbm.dump());light.advance_to(100000000);
+  r=J::parse(light.report());check(r["done"].size()==1&&r["queue"].size()==1,"paired Light quota was bypassed");
+  light.advance_to(350000000);r=J::parse(light.report());check(r["done"].size()==2&&r["queue"].empty(),"Light retry did not complete uniquely");
+
+  // Joint admission honors the latest quota among traversed endpoints.
+  CpuService staggered(fixture("relay").dump());
+  auto staggered_snapshot=J::parse(staggered.checkpoint());
+  for(const auto* endpoint:{"hbf0","hbm0"}) {
+    staggered_snapshot["state"]["control"][endpoint]["applied"]="Light";
+    staggered_snapshot["state"]["control"][endpoint]["suggested"]="Light";
+  }
+  staggered_snapshot["state"]["control"]["hbf0"]["next_admit"]=50000000;
+  staggered_snapshot["state"]["control"]["hbm0"]["next_admit"]=150000000;
+  staggered_snapshot["state"]["next_sample"]=1000000000ULL;staggered.restore(staggered_snapshot.dump());
+  staggered.submit(request("staggered-light","hbf0","relay").dump());staggered.advance_to(100000000);
+  r=J::parse(staggered.report());check(r["active"].empty()&&r["queue"].size()==1,"relay ignored the later endpoint Light quota");
+  staggered.advance_to(250000000);r=J::parse(staggered.report());
+  check(r["done"].size()==1&&r["done"][0]["start_ns"]==150000000,"relay did not retry at the joint Light boundary");
+
+  // The direct and relay DASH routes share the HBF upstream control endpoint.
+  CpuService shared(fixture("dash").dump());force_control(shared,"hbf0","Light");
+  shared.submit(request("shared-direct","hbf0","direct").dump());shared.submit(request("shared-relay","hbf0","relay", "read",1).dump());
+  shared.advance_to(200000000);r=J::parse(shared.report());
+  check(r["done"].size()==1&&r["done"][0]["id"]=="shared-direct"&&r["queue"].size()==1,
+        "DASH routes bypassed their shared HBF Light quota");
+  shared.advance_to(350000000);r=J::parse(shared.report());
+  check(r["done"].size()==2&&r["done"][1]["start_ns"]==250000000,"shared endpoint retry was not unique/deterministic");
+
+  // Recovery becomes effective before admission at the same timestamp. A
+  // checkpoint taken while blocked must preserve the retry and completion.
+  auto recovering_config=fixture("relay");recovering_config["policy"]="hysteresis";
+  CpuService recovering(recovering_config.dump());force_control(recovering,"hbm0","Shutdown",0);
+  recovering.submit(request("recovering-relay","hbf0","relay").dump());recovering.advance_to(20000000);
+  r=J::parse(recovering.report());check(r["queue"].size()==1&&r["active"].empty(),"relay started before endpoint recovery");
+  CpuService resumed(recovering_config.dump());resumed.restore(recovering.checkpoint());
+  recovering.advance_to(200000000);resumed.advance_to(200000000);check(recovering.report()==resumed.report(),"blocked endpoint checkpoint diverged");
+  r=J::parse(recovering.report());check(r["done"].size()==1&&r["done"][0]["start_ns"]==30000000,
+        "same-timestamp recovery/admission ordering changed");
+
+  // Control changes never revoke in-flight work; they only gate later starts.
+  CpuService draining(fixture("relay").dump());draining.submit(request("inflight","hbf0","relay").dump());draining.advance_to(10000000);
+  force_control(draining,"hbm0","Shutdown");auto later=request("later","hbf0","relay");later["arrival_ns"]=10000000;draining.submit(later.dump());
+  draining.advance_to(200000000);r=J::parse(draining.report());
+  check(r["done"].size()==1&&r["done"][0]["id"]=="inflight"&&r["queue"].size()==1&&r["resources"].empty(),
+        "endpoint gate changed drain semantics or leaked resources");
+
+  // Existing maintenance policy permits maintenance through Severe (but not
+  // Shutdown); adding endpoint checks must preserve that explicit distinction.
+  CpuService maintenance(fixture("relay").dump());
+  auto snapshot=J::parse(maintenance.checkpoint());snapshot["state"]["cohorts"]["hbf0:0"]["initial_age_ns"]=10000000000ULL;
+  snapshot["state"]["control"]["hbm0"]["applied"]="Severe";snapshot["state"]["control"]["hbm0"]["suggested"]="Severe";
+  snapshot["state"]["next_sample"]=1000000000ULL;maintenance.restore(snapshot.dump());maintenance.advance_to(1);
+  r=J::parse(maintenance.report());bool found=false;for(const auto& job:r["active"])
+    found|=job["maintenance"].get<bool>()&&job["stack"]=="hbf0"&&job["die"]==0;
+  check(found,"paired Severe endpoint changed maintenance exemption");
+  CpuService light_maintenance(fixture("relay").dump());snapshot=J::parse(light_maintenance.checkpoint());
+  snapshot["state"]["cohorts"]["hbf0:0"]["initial_age_ns"]=10000000000ULL;
+  snapshot["state"]["control"]["hbm0"]["applied"]="Light";snapshot["state"]["control"]["hbm0"]["suggested"]="Light";
+  snapshot["state"]["control"]["hbm0"]["next_admit"]=700000000ULL;snapshot["state"]["next_sample"]=1000000000ULL;
+  light_maintenance.restore(snapshot.dump());light_maintenance.advance_to(1);r=J::parse(light_maintenance.report());
+  found=false;for(const auto& job:r["active"])found|=job["maintenance"].get<bool>()&&job["stack"]=="hbf0"&&job["die"]==0;
+  check(found&&r["control"]["hbm0"]["next_admit"]==700000000ULL,"paired Light endpoint changed maintenance exemption/quota");
+  CpuService stopped_maintenance(fixture("relay").dump());snapshot=J::parse(stopped_maintenance.checkpoint());
+  snapshot["state"]["cohorts"]["hbf0:0"]["initial_age_ns"]=10000000000ULL;
+  snapshot["state"]["control"]["hbm0"]["applied"]="Shutdown";snapshot["state"]["control"]["hbm0"]["suggested"]="Shutdown";
+  snapshot["state"]["next_sample"]=1000000000ULL;stopped_maintenance.restore(snapshot.dump());stopped_maintenance.advance_to(1);
+  r=J::parse(stopped_maintenance.report());
+  found=false;for(const auto& job:r["queue"])found|=job["maintenance"].get<bool>()&&job["stack"]=="hbf0"&&job["die"]==0;
+  check(found&&r["active"].empty()&&r["resources"].empty(),"paired Shutdown endpoint admitted maintenance or leaked resources");
+}
+void control_pending_contract() {
+  auto c=fixture();c["policy"]="hysteresis";
+  CpuService cancel(c.dump());auto snapshot=J::parse(cancel.checkpoint());
+  snapshot["state"]["control"]["hbf0"]["pending"]={{"state","Light"},{"at_ns",20000000}};
+  cancel.restore(snapshot.dump());cancel.advance_to(1);auto r=J::parse(cancel.report());
+  check(r["control"]["hbf0"]["applied"]=="Normal"&&r["control"]["hbf0"]["pending"].is_null(),
+        "desired==applied did not cancel a stale pending action");
+
+  auto hot=fixture();hot["policy"]="hysteresis";
+  hot["control"]["hbf0"]["light_k"]=299.0;hot["control"]["hbf0"]["severe_k"]=299.1;hot["control"]["hbf0"]["shutdown_k"]=299.2;
+  CpuService escalate(hot.dump());snapshot=J::parse(escalate.checkpoint());
+  snapshot["state"]["control"]["hbf0"]["pending"]={{"state","Light"},{"at_ns",20000000}};
+  escalate.restore(snapshot.dump());escalate.advance_to(1);r=J::parse(escalate.report());
+  check(r["control"]["hbf0"]["pending"]["state"]=="Shutdown"&&r["control"]["hbf0"]["pending"]["at_ns"]==30000000,
+        "more severe sample did not replace stale pending action");
+  escalate.advance_to(30000001);r=J::parse(escalate.report());unsigned transitions=0;
+  for(const auto& row:r["log"])if(row["kind"]=="control"&&row["stack"]=="hbf0") {
+    ++transitions;check(row["from"]=="Normal"&&row["to"]=="Shutdown"&&row["time_ns"]==30000000,
+                        "sample/action timestamp ordering changed");
+  }
+  check(transitions==1,"stale pending action executed before escalation");
+}
 void resource_energy_topologies() {
   for(const auto& topology:{"mixed_direct","relay","dash","all_hbf_direct"}) {
     auto config=fixture(topology,std::string(topology)=="all_hbf_direct"?0:4);CpuService s(config.dump());
@@ -142,4 +274,4 @@ void actual_dispatcher() {
   std::cout<<"PASS actual RequestDispatcher Engine and shared completion consumer (CPU fixture, not live GPU)\n";
 #endif
 }
-int main(){try{resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
+int main(){try{path_endpoint_admission();control_pending_contract();resource_energy_topologies();maintenance_failures_restart();control_cooling();actual_dispatcher();std::cout<<"PASS path endpoint admission/Light quotas; pending control contract; four topology resources/energy; maintenance partial failure/commit/wear; checkpoint; per-stack control/drain/cooling\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -72,7 +72,7 @@ class ReliabilityCausalService(CausalTopologyService):
             'profile':self.provider.profile,'admission_sampling':'AT_FIRST_SERVICE_RESOURCE_ALLOCATION',
             'active_work':'FROZEN_PER_JOB_NO_RETROACTIVE_COST_OR_COMPLETION_CHANGE',
             'retry_path':'INTERNAL_MEDIA_PLUS_BASE_ECC;EXTERNAL_FABRIC_VALID_PAYLOAD_ONCE',
-            'scope':'FOREGROUND_HBF_READS_ONLY;HBM_AND_MAINTENANCE_DATA_AGE_NOT_INFERRED',
+            'scope':'FOREGROUND_HBF_READS_ONLY;HBM_AND_MAINTENANCE_OR_MIGRATED_DATA_IDENTITY_NOT_INFERRED',
             'decoder_capacity_bytes_per_s':self.decoder_capacity,
             'physical_byte_rounding':'FLOOR_WITH_PER_JOB_CARRY;LESS_THAN_ONE_RETRY_BYTE_PER_JOB',
             'discarded_fractional_retry_byte_milli':self.discarded_fractional_retry_byte_milli,

@@ -33,9 +33,14 @@ def freeze(stage,destination,configs,runner,*,point_wall_s=900,dependency=None):
     points=[]
     for path in configs:
         cfg=json.loads(path.read_text());row=deepcopy(templates[cfg['topology']])
-        if cfg.get('hbf_read_cost_proxy',{}).get('mode','disabled')!='disabled':
-            for name in ('ecc_cost_proxy.py','ecc_service_adapter.py'):
+        proxy_mode=cfg.get('hbf_read_cost_proxy',{}).get('mode','disabled')
+        if proxy_mode!='disabled':
+            names=['ecc_service_adapter.py', 'ecc_temperature_proxy.py' if proxy_mode=='conditional_temperature_retry_v1' else 'ecc_cost_proxy.py']
+            for name in names:
                 sources[str((HERE/name).relative_to(ROOT))]=digest(HERE/name)
+        if cfg.get('temperature_retry_feedback',{}).get('mode','disabled')!='disabled':
+            name='temperature_retry_policy.py'
+            sources[str((HERE/name).relative_to(ROOT))]=digest(HERE/name)
         row.update(point_id=cfg['point_id'],config=str(path.resolve()),config_sha256=digest(path),
                    output=str(destination/'points'/cfg['point_id']))
         points.append(row)

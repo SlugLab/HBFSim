@@ -388,19 +388,26 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
     reliability_provider = None
     if reliability_config["mode"] == "disabled":
         service = CausalTopologyService(config["service"])
-    elif reliability_config["mode"] == "conditional_nand_history_v1":
-        from ecc_cost_proxy import ReadCostProxy
+    elif reliability_config["mode"] in {"conditional_nand_history_v1",
+                                        "conditional_temperature_retry_v1"}:
         from ecc_service_adapter import ReliabilityCausalService
         if int(config["executor"].get("retry_count_per_source_read", 0)):
-            raise ValueError("static retry and history retry cannot be silently combined")
+            raise ValueError("static retry and conditional read-cost proxy cannot be silently combined")
         if config.get("maintenance", {"mode": "disabled"})["mode"] != "disabled":
-            raise ValueError("UNSUPPORTED_COMPOSITION: per-stack read age lacks refreshed-extent identity")
+            raise ValueError("UNSUPPORTED_COMPOSITION: read-cost proxy lacks refreshed-extent identity")
         if config["executor"].get("migration_mode", "fixed") != "fixed":
-            raise ValueError("UNSUPPORTED_COMPOSITION: per-stack read age lacks migrated-data identity")
+            raise ValueError("UNSUPPORTED_COMPOSITION: read-cost proxy lacks migrated-data identity")
         initial = reliability_config["initial_by_stack"]
         if set(initial) != set(config["service"]["fabric"]["hbf"]):
             raise ValueError("HBF reliability state must cover exactly the actual HBF stacks")
-        reliability_provider = ReadCostProxy(reliability_config["profile"], initial)
+        if reliability_config["mode"] == "conditional_nand_history_v1":
+            from ecc_cost_proxy import ReadCostProxy
+            reliability_provider = ReadCostProxy(reliability_config["profile"], initial)
+        else:
+            from ecc_temperature_proxy import TemperatureReadCostProxy
+            reliability_provider = TemperatureReadCostProxy(
+                reliability_config["profile"],
+                {stack: row["temperature_k"] for stack, row in initial.items()})
         service = ReliabilityCausalService(config["service"], reliability_provider)
     else:
         raise ValueError("unsupported HBF read-cost proxy mode")
@@ -432,6 +439,19 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
             maximum_budget_bytes=baseline[stack], severe_budget_bytes=0,
             light_fraction=float(config.get("light_fraction", .5)))
         policies[stack] = EndpointAwarePolicy(profile)
+    temperature_feedback_config = config.get("temperature_retry_feedback", {"mode": "disabled"})
+    temperature_feedback = {}
+    if temperature_feedback_config.get("mode") == "conditional_temperature_retry_feedback_v1":
+        if reliability_config["mode"] != "conditional_temperature_retry_v1":
+            raise ValueError("temperature retry feedback requires the temperature retry proxy")
+        if config["strategy"] != "guard_only":
+            raise ValueError("temperature retry feedback requires guard_only as its base policy")
+        from temperature_retry_policy import TemperatureRetryFeedbackPolicy
+        for stack in config["service"]["fabric"]["hbf"]:
+            temperature_feedback[stack] = TemperatureRetryFeedbackPolicy(
+                temperature_feedback_config, baseline[stack])
+    elif temperature_feedback_config.get("mode") != "disabled":
+        raise ValueError("unsupported temperature retry feedback mode")
     known_jobs = {}
     progress_signatures = {}
     cumulative_tokens = 0
@@ -564,9 +584,10 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
         total_energy += mapped["total_j"]
         heat = thermal.advance(start, stop, mapped["component_energy_j"])
         reliability_window = None
+        stack_temperatures = {}
         if reliability_provider is not None:
             channel_temperatures = _observed_channel_temperatures(heat, energy.hbf_channels)
-            # Conservative uniform-age stack proxy; not a claim about page history.
+            # Conservative uniform stack observation; not a claim about page history.
             stack_temperatures = {stack: max(values.values())
                                   for stack, values in channel_temperatures.items()}
             reliability_provider.observe(start, stop, stack_temperatures)
@@ -584,6 +605,12 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
             peak[owner] = max(peak.get(owner, value), value)
         observed_states = {stack: heat["stack_states"][stack] for stack in stacks}
         next_budgets, decisions, stack_facts = {}, {}, {}
+        temperature_feedback_decisions = {}
+        retry_bytes_by_stack = defaultdict(int)
+        for activity in activities:
+            if (activity.get("operation") == "retry_internal"
+                    and activity.get("phase") == "media_read"):
+                retry_bytes_by_stack[activity["stack"]] += int(activity["bytes"])
         for stack in stacks:
             backlog_jobs = [job for job in known_jobs.values()
                             if job["stack"] == stack and job["operation"] == "read"
@@ -613,7 +640,26 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
                 stacks=(facts,), current_budget_bytes={stack: budgets[stack]},
                 guard_states={stack: observed_states[stack]},
                 hysteresis_budget_bytes={stack: heat["hysteresis_budget_bytes"][stack]}))
-            next_budgets[stack] = decision.stack_decisions[0].budget_bytes
+            base_budget = decision.stack_decisions[0].budget_bytes
+            if stack in temperature_feedback:
+                from temperature_retry_policy import TemperatureRetryObservation
+                protected_budget = (base_budget
+                                    if observed_states[stack] in {"severe", "shutdown"}
+                                    or budgets[stack] == 0 else budgets[stack])
+                overlay = temperature_feedback[stack].evaluate(TemperatureRetryObservation(
+                    start_ns=start, end_ns=stop,
+                    temperature_k=stack_temperatures[stack],
+                    offered_bytes=offered_window[stack],
+                    delivered_bytes=delivered_window[stack],
+                    backlog_bytes=backlog,
+                    retry_bytes=retry_bytes_by_stack[stack],
+                    current_budget_bytes=budgets[stack],
+                    protected_budget_bytes=protected_budget,
+                    guard_state=observed_states[stack],
+                    gate_limited=facts.gate_limited))
+                base_budget = overlay["budget_bytes"]
+                temperature_feedback_decisions[stack] = overlay
+            next_budgets[stack] = base_budget
             decisions[stack] = asdict(decision)
             stack_facts[stack] = asdict(facts)
         grouped_output = granularity.get("mode") == "uniform_stack_group_16ch"
@@ -657,6 +703,8 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
         }
         if reliability_window is not None:
             row["hbf_read_cost_proxy"] = reliability_window
+        if temperature_feedback_decisions:
+            row["control"]["temperature_retry_feedback"] = temperature_feedback_decisions
         sink.write(json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n")
         budgets, states = next_budgets, observed_states
     final = executor.result(end_ns)
@@ -699,8 +747,15 @@ def main():
                                              "causal_workload.py", "endpoint_policy.py", "topology_service.py",
                                              "maintenance_driver.py", "reliability.py",
                                              "causal_maintenance_age.py", "tiny_cpu_trace.py")]
-        if config.get("hbf_read_cost_proxy", {}).get("mode", "disabled") != "disabled":
-            sources += [HERE / "ecc_cost_proxy.py", HERE / "ecc_service_adapter.py"]
+        proxy_mode = config.get("hbf_read_cost_proxy", {}).get("mode", "disabled")
+        if proxy_mode != "disabled":
+            sources += [HERE / "ecc_service_adapter.py"]
+        if proxy_mode == "conditional_nand_history_v1":
+            sources += [HERE / "ecc_cost_proxy.py"]
+        elif proxy_mode == "conditional_temperature_retry_v1":
+            sources += [HERE / "ecc_temperature_proxy.py"]
+        if config.get("temperature_retry_feedback", {}).get("mode", "disabled") != "disabled":
+            sources += [HERE / "temperature_retry_policy.py"]
         sources += [MAINTENANCE / "thermal_client.py", MAINTENANCE / "read_rate_policy.py"]
         sources += [ROOT / "tools" / "eq3_basic_fabric.py"]
         if config["trace"].get("dependency_mode") == "tiny_cpu_template":

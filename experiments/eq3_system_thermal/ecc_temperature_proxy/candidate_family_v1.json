@@ -1,0 +1,46 @@
+{
+  "schema": "eq3-hbf-temperature-retry-candidate-family-v1",
+  "classification": "CONDITIONAL_TEMPERATURE_RETRY_SCENARIO_NOT_MEASURED_HBF_RBER",
+  "formula": "p(T)=1-exp(log(1-p85)*exp(Ea/k*(1/358.15-1/T)))",
+  "expected_extra_attempts": "2*p(T)",
+  "temperature_reference_k": 358.15,
+  "temperature_domain_k": [300.0, 400.0],
+  "activation_energy_ev": 1.04,
+  "boltzmann_ev_per_k": 0.0000862,
+  "expected_extra_attempts_per_recoverable_read": 2.0,
+  "recoverable_read_probability_at_85c_candidates": [0.0, 0.01, 0.1],
+  "bounded_stronger_candidate_if_needed": 0.3,
+  "ecc_decoder_headroom_over_fresh_media": 2.0,
+  "evidence": {
+    "target_hardware_contract": {
+      "class": "SPECIFIED",
+      "source": "existing frozen OCP v0.7.0 Grade2 HBF configuration",
+      "scope": "channel count and bandwidth only; it supplies no numerical temperature-to-RBER, UBER, or retry curve"
+    },
+    "activation_energy_ev": {
+      "class": "PROXY",
+      "source": "existing project HeatWatch older-NAND transfer assumption",
+      "limitation": "not measured on the target HBF and not a target-device calibration"
+    },
+    "recoverable_read_probability_at_85c_candidates": {
+      "class": "SCENARIO_ASSUMPTION",
+      "source": "user-approved bounded exploration",
+      "limitation": "candidate strengths, not confidence bounds or measured HBF RBER"
+    },
+    "expected_extra_attempts_per_recoverable_read": {
+      "class": "SCENARIO_ASSUMPTION",
+      "source": "user-approved recoverable-read work proxy",
+      "limitation": "not a measured ECC decoder or retry distribution"
+    },
+    "temperature_domain_k": {
+      "class": "DOC_DERIVED",
+      "source": "existing coupled thermal solver validity guard",
+      "limitation": "a solver domain guard, not evidence that the retry equation is calibrated across the domain"
+    },
+    "uber": {
+      "class": "UNKNOWN_BLOCKING",
+      "source": "no target-device source available",
+      "limitation": "the proxy cannot support UBER, UECC, or data-loss claims"
+    }
+  }
+}

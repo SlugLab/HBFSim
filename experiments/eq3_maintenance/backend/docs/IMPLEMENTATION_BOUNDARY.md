@@ -34,17 +34,21 @@ The successful path is:
 `DUE -> QUEUED -> READ -> PROGRAM_DEST -> COMMIT -> RETIRE_OLD -> [RECLAIM_ERASE] -> DONE`
 
 The old mapping remains authoritative through read and destination program.
-After the real program callback, commit compares the current source PPA with
-the captured source PPA.  Only a match updates the mapping and invalidates the
-old page.  This is a PPA compare token, not a monotonic mapping generation;
-PPA ABA exclusion is not established.  A failed read leaves no destination.
-Failed program or injected stale compare
+Every logical page has a 64-bit monotonic mapping generation in the isolated
+page-mapping domain.  Every real mapping update increments it and fails closed
+before mutation at overflow.  Maintenance captures both source PPA and
+generation.  After the real program callback, commit requires both to match,
+then increments the generation, updates the mapping, and invalidates the old
+page.  A failed read leaves no destination.  Failed program or stale compare
 invalidates the allocated destination and retains the old source.  An erase
 failure happens after mapping commit, retains the new mapping, and reports
 `FAILED_AFTER_COMMIT_NEEDS_RECONCILE`.
 
 Destination pages come from the existing finite GC write frontier.  The source
-block is erased only when all written pages are invalid, it has no active
+block receives an explicit maintenance pin before the native read and holds it
+until terminal cleanup or an atomic transition to erase ownership.  Existing
+GC eligibility rejects pinned blocks.  The source block is erased only when all
+written pages are invalid, it has no active
 read/program/erase or GC reference, and it is not a data/GC/translation write
 frontier.  A requested erase that is not safe reports
 `COMMITTED_RECLAIM_DEFERRED`; it is not treated as free capacity.  Existing
@@ -108,31 +112,41 @@ one terminal completion per accepted maintenance ID.
 
 Fixed CPU evidence:
 
-- `backend-cpp-test-v7`: maintenance-off foreground completion equality;
-  native read/program/PPA-compare/retire/erase; distinct source/committed PPA;
+- `AB-PROCESS-GENERATION-02`: default backend A versus final generation/pin
+  backend B with maintenance off.  Both the 8x1 24-request fixture and Q1
+  4-channel x 16-die 12-request fixture matched request/status, media and
+  reported completion time, native command order, and placement at zero-ns
+  tolerance; both stderr logs were empty.
+- `backend-generation-cpp-test-v1`: maintenance-off foreground completion
+  equality; native read/program/generation-CAS/retire/erase; monotonic source
+  and committed generations; a real future-arrival foreground MQSim write
+  interleaved with maintenance and won exactly once while stale maintenance
+  discarded its destination; source/new mapping readability;
   read, program, stale-CAS, and post-commit erase failures; source/destination
   readability; unique parent completion; real transaction IDs; 1 GiB finite
   workspace with one channel and all 16 dies, including die 15.
-- `backend-service-test-v2`: frozen build-v11 process protocol, horizon
+- `backend-generation-service-test-v2`: final generation backend process protocol, horizon
   advancement, explicit
   stack placement to channel 0/die 15, parent/native IDs, lifecycle, age commit,
   trigger, one-page coverage, deadline result, and finish conservation.
-- `backend-build-v11`: isolated source recreation and binary build passed with
-  at most two compile threads.  Binary SHA-256 is
-  `cf2260d48e00d7b9f3fb81405223f593d4ee4cce44033c66f383a546d10ad7f6`.
+- `backend-generation-build-v1` plus the capability-only incremental
+  `backend-generation-build-v2`: isolated source recreation and binary build
+  passed with at most two compile threads.  Binary SHA-256 is
+  `c64610b0f281397975e649b32f44161b00240f12d6a49b9b4d4776b1f554c257`.
+- The prior v11 PPA-token source and binary remain immutable under
+  `points/BACKEND-V11-FROZEN`; they are historical evidence only.
 
 Payload validation, die-wide refresh, HBM refresh, ECC/RBER, read-disturb,
 wear-life prediction, zone-standard conformance, and cross-process checkpoint
 restore are `UNAVAILABLE`.  Run artifacts and transcripts are isolated and
 restartable, but engine state is not serialized; no checkpoint claim is made.
-The experimental service accepts foreground reads only.  A genuine concurrent
-host write is not exposed or tested.  The current maintenance lock uses MQSim's
-GC LPA barrier, whose upstream release path treats waiting writes as serviced
-without a real program; therefore injected `stale_commit` is test plumbing, not
-evidence of real concurrent-write CAS.  The source block also has no explicit
-maintenance pin after its read completes.  General mapping changes are caught
-by PPA comparison, but PPA reuse/ABA and a GC race are `UNVALIDATED`.  A narrow
-follow-up design is a per-LPA monotonic generation plus source-block maintenance
-pin and a real interleaved foreground-write test.
+The JSON experiment service intentionally accepts foreground reads only because
+the campaign workload is read-only weights; host write is not a campaign
+feature.  The lower-level engine does support writes, and the fixed safety test
+uses a real scheduled foreground write and real NAND program to validate stale
+generation rejection.  The maintenance path does not reuse MQSim's GC LPA
+barrier, whose upstream release path approximates waiting writes.  A source
+block pin prevents GC erase/reuse, and the generation prevents PPA ABA from
+being accepted as the captured logical version.
 The fixed 1 GiB/stack workspace and 16-die mapping are engineering geometry,
 not validation of 512 GiB/stack capacity or product throughput.

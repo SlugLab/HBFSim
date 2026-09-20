@@ -11,6 +11,11 @@ hbfsim::HbfRequest make_read(std::uint64_t id, std::uint64_t page, std::uint32_t
   return {.request_id=id,.sequence=id,.arrival_ns=0,.logical_address=page*bytes,
     .bytes=bytes,.operation=static_cast<std::uint32_t>(hbfsim::RequestOperation::Read)};
 }
+hbfsim::HbfRequest make_write(std::uint64_t id,std::uint64_t page,std::uint32_t bytes,
+    std::uint64_t arrival) {
+  return {.request_id=id,.sequence=id,.arrival_ns=arrival,.logical_address=page*bytes,
+    .bytes=bytes,.operation=static_cast<std::uint32_t>(hbfsim::RequestOperation::Write)};
+}
 void submit_read(hbfsim::MqsimOnlineEngine& engine,std::uint64_t id,
     std::uint64_t page,std::uint32_t bytes) {
   auto request=make_read(id,page,bytes);request.arrival_ns=engine.current_time_ns();
@@ -87,6 +92,38 @@ int main(int argc,char** argv) {
       erase_failed.mapping_committed&&erase_failed.source_retired&&!erase_failed.erase_completed,
       "erase failure did not preserve committed destination and reconciliation fact");
     submit_read(engine,11,4,profile.page_bytes);require(engine.run_next_completion().has_value(),"destination lost after erase failure");
+
+    // A real foreground write arrives while maintenance is reading the old
+    // source.  It executes through MQSim and advances the mapping generation;
+    // the later maintenance program must be discarded by the generation CAS.
+    submit_read(engine,12,6,profile.page_bytes);
+    require(engine.run_next_completion().has_value(),"concurrent-write setup failed");
+    const auto overlap_start=engine.current_time_ns();
+    engine.submit_maintenance({.request_id=106,.parent_id=9106,
+      .due_ns=overlap_start,.deadline_ns=overlap_start+1000000000ULL,
+      .logical_page=6,.channel=0,.chip=0,.die=0,.plane=0,.plane_is_exact=true});
+    engine.submit(make_write(13,6,profile.page_bytes,overlap_start+1));
+    std::vector<hbfsim::HbfCompletion> foreground;
+    while(engine.pending_maintenance()) {
+      auto value=engine.run_next_completion_until(engine.current_time_ns()+1000000000ULL);
+      if(value)foreground.push_back(*value);
+    }
+    while(engine.pending()) {
+      auto value=engine.run_next_completion();if(value)foreground.push_back(*value);
+    }
+    auto overlap=engine.take_maintenance_completions();
+    require(overlap.size()==1&&
+      overlap.front().status==hbfsim::MqsimMaintenanceStatus::FailedStaleVersion&&
+      !overlap.front().mapping_committed&&foreground.size()==1&&
+      foreground.front().request_id==13,
+      "real concurrent foreground write did not win generation CAS exactly once");
+    submit_read(engine,14,6,profile.page_bytes);
+    require(engine.run_next_completion().has_value(),"new foreground mapping lost after stale maintenance");
+    auto after_write=maintain(engine,107,6,hbfsim::MqsimMaintenanceFailurePoint::None);
+    require(after_write.status==hbfsim::MqsimMaintenanceStatus::Committed&&
+      after_write.source_version==overlap.front().source_version+1&&
+      after_write.committed_version==after_write.source_version+1,
+      "mapping generation was not monotonic across foreground write and maintenance commit");
   }
 
   // The campaign fixture uses one channel per HBF stack and all 16 declared

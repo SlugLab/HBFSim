@@ -102,6 +102,8 @@ const char* maintenance_status_name(hbfsim::MqsimMaintenanceStatus status)
     case S::FailedProgram:return "FAILED_PROGRAM";
     case S::FailedStaleVersion:return "FAILED_STALE_VERSION";
     case S::FailedAfterCommitNeedsReconcile:return "FAILED_AFTER_COMMIT_NEEDS_RECONCILE";
+    case S::RejectedSourceBusy:return "REJECTED_SOURCE_BUSY";
+    case S::FailedVersionOverflow:return "FAILED_VERSION_OVERFLOW";
     }
     throw std::logic_error("unknown maintenance status");
 }
@@ -326,6 +328,7 @@ int main(int argc, char** argv)
               {"native_command_observations",native_command_observations ? "ON" : "OFF"},
               {"maintenance_backend","EXPERIMENTAL_OUT_OF_PLACE_PAGE_MAINTENANCE"},
               {"maintenance_data_semantics","METADATA_VERSION_VALIDITY"},
+              {"maintenance_version_semantics","MONOTONIC_LPA_MAPPING_GENERATION_U64"},
               {"maintenance_payload_validation","UNAVAILABLE"},
               {"maintenance_requires_stack_map",true}},
              engine,native_command_observations ? &native_events : nullptr,

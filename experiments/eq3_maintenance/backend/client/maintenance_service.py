@@ -21,6 +21,8 @@ class MaintenanceMqsimService(MqsimService):
                 "EXPERIMENTAL_OUT_OF_PLACE_PAGE_MAINTENANCE"
                 or self.header.get("maintenance_data_semantics") !=
                 "METADATA_VERSION_VALIDITY"
+                or self.header.get("maintenance_version_semantics") !=
+                "MONOTONIC_LPA_MAPPING_GENERATION_U64"
                 or self.header.get("maintenance_payload_validation") != "UNAVAILABLE"):
             self.close()
             raise ValueError("isolated maintenance service capability mismatch")

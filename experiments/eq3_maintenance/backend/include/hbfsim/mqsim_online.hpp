@@ -32,7 +32,8 @@ enum class MqsimMaintenanceStatus : std::uint32_t {
     Committed, CommittedReclaimDeferred, RejectedUnsupported,
     RejectedInvalidTarget, RejectedUnmapped, RejectedNoSpare,
     FailedRead, FailedProgram, FailedStaleVersion,
-    FailedAfterCommitNeedsReconcile
+    FailedAfterCommitNeedsReconcile, RejectedSourceBusy,
+    FailedVersionOverflow
 };
 enum class MqsimMaintenanceFailurePoint : std::uint32_t {
     None, Read, Program, StaleCommit, Erase

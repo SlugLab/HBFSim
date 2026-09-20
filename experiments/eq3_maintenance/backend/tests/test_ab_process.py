@@ -81,23 +81,34 @@ def run_service(client_class, binary, profile, stack_map, directory, artifact_ro
 def link_provenance(root, default_binary, isolated_binary):
     default_link = default_binary.parent / "CMakeFiles/hbf_mqsim_service.dir/link.txt"
     isolated_ninja = isolated_binary.parents[1] / "build.ninja"
-    if not default_link.is_file() or not isolated_ninja.is_file():
+    isolated_make = isolated_binary.parents[1] / "CMakeFiles/hbf_mqsim_eq3_maint.dir/link.txt"
+    if not default_link.is_file() or not (isolated_ninja.is_file() or isolated_make.is_file()):
         raise ValueError("link provenance files are missing")
     default_command = default_link.read_text().strip()
     if default_command.split().count("libmqsim_hbf.a") != 1:
         raise AssertionError("default service must link exactly one default MQSim engine archive")
-    lines = isolated_ninja.read_text().splitlines()
-    marker = "build bin/hbf_mqsim_eq3_maint:"
-    index = next((i for i, line in enumerate(lines) if line.startswith(marker)), None)
-    if index is None:
-        raise AssertionError("isolated service target missing from build graph")
-    link_line = next((line.strip() for line in lines[index:index+20]
-                      if line.strip().startswith("LINK_LIBRARIES =")), None)
-    if link_line is None:
-        raise AssertionError("isolated service link libraries are missing")
-    libraries = link_line.split("=", 1)[1].split()
+    if isolated_ninja.is_file():
+        isolated_evidence = isolated_ninja
+        lines = isolated_ninja.read_text().splitlines()
+        marker = "build bin/hbf_mqsim_eq3_maint:"
+        index = next((i for i, line in enumerate(lines) if line.startswith(marker)), None)
+        if index is None:
+            raise AssertionError("isolated service target missing from build graph")
+        link_line = next((line.strip() for line in lines[index:index+20]
+                          if line.strip().startswith("LINK_LIBRARIES =")), None)
+        if link_line is None:
+            raise AssertionError("isolated service link libraries are missing")
+        libraries = link_line.split("=", 1)[1].split()
+    else:
+        isolated_evidence = isolated_make
+        libraries = [token for token in isolated_make.read_text().split()
+                     if token.endswith((".a", ".so"))]
     if libraries.count("lib/libmqsim_eq3_maint.a") != 1:
         raise AssertionError("isolated service must link exactly one isolated MQSim engine archive")
+    if any("mqsim_eq3_maint" in token for token in default_command.split()):
+        raise AssertionError("default service unexpectedly links the maintenance engine")
+    if any(Path(token).name == "libmqsim_hbf.a" for token in libraries):
+        raise AssertionError("isolated service unexpectedly links the default engine")
     default_diff = subprocess.run(
         ["git", "-C", str(root), "diff", "--exit-code", "HEAD", "--", *DEFAULT_ENGINE_PATHS],
         text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -112,7 +123,9 @@ def link_provenance(root, default_binary, isolated_binary):
         "default_link_command": default_command,
         "default_link_sha256": sha256(default_link),
         "isolated_link_libraries": libraries,
-        "isolated_build_ninja_sha256": sha256(isolated_ninja),
+        "isolated_build_ninja_sha256": sha256(isolated_ninja) if isolated_ninja.is_file() else None,
+        "isolated_link_evidence": str(isolated_evidence),
+        "isolated_link_evidence_sha256": sha256(isolated_evidence),
         "single_engine_archive_per_process": True,
         "default_engine_source_paths": list(DEFAULT_ENGINE_PATHS),
         "default_engine_sources_match_head": True,

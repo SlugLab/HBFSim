@@ -69,3 +69,33 @@ Dynamic test storage is below 7MiB; CUDA context/JIT overhead is additional.
 Tests use one GPU serially with a process watchdog. Upper timing-performance
 thresholds are intentionally absent on a shared GPU. Lower timing bounds,
 Pending observations, values, states and accounting are asserted.
+
+## Integrated thermal validation
+
+The clean merge retains upstream main and all local thermal commits. No production
+CUDA runtime, PTX transformer, or future ABI source differs from the live-tested
+main. The original MQSim submodule is unchanged; isolated maintenance has its own
+copied source, headers, archives and executable. The existing read-only command
+observer remains an optional adapter in the normal patched build.
+
+After integration, 94 main CTest cases pass again. Thermal C++3, system-thermal
+Python111, rate-thermal27, maintenance70, isolated-native backend1, persistent
+coupled-thermal5, and native codec/observer12 checks pass. The tools suite runs210
+checks with9 initial skips; the7 native-codec skips are covered by the explicit
+rebuilt native test, while2 checks requiring historical generated model inputs
+remain not exercised in this fresh worktree. No previous P2 failure is promoted
+to PASS by these software checks.
+
+Process-level A/B passes with12 requests and zero time tolerance: request/raw/
+reported completions, actual native phase order, physical addresses and existing
+service statistics are equal with maintenance disabled. Each executable links
+exactly one MQSim engine. The audit now accepts both Ninja and Makefile evidence
+for the isolated target, and rejects cross-linking either engine into the other.
+Actual maintenance JSON protocol checks cover successful commit, failed work
+without age reset, and expiry rejection.
+
+This integration does not complete the outstanding ECC/refresh data-identity
+mapping, all research ablations, physical calibration, GPU+GDDR inference, or
+application-level throughput validation. Historical thermal raw and failures stay
+in the external campaign directory; only source, small fixtures and compact
+software-verification receipts are published here.

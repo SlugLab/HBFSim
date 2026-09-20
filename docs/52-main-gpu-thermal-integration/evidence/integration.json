@@ -1,0 +1,59 @@
+{
+  "integration_commit": "6a9893b9bb58d1cd8311ac073fa8b586ca67aebf",
+  "upstream_main": "78125a5f30f8db8c958fc0f36de74057f7e84b9e",
+  "main_ctest": {
+    "tests": 94,
+    "failures": 0
+  },
+  "thermal_cpp": {
+    "tests": 3,
+    "failures": 0
+  },
+  "system_thermal_python": {
+    "tests": 111,
+    "failures": 0
+  },
+  "rate_thermal_python": {
+    "tests": 27,
+    "failures": 0
+  },
+  "maintenance_python": {
+    "tests": 70,
+    "failures": 0
+  },
+  "thermal_tools_python": {
+    "tests": 210,
+    "failures": 0,
+    "initial_skips": 9,
+    "native_codec_skips_closed_by_separate_test": 7,
+    "remaining_generated_historical_inputs_not_supplied": 2
+  },
+  "native_codec_and_observer": {
+    "tests": 12,
+    "failures": 0
+  },
+  "isolated_maintenance_cpp": {
+    "tests": 1,
+    "failures": 0
+  },
+  "persistent_coupled_thermal": {
+    "tests": 5,
+    "failures": 0
+  },
+  "native_maintenance_protocol": "PASS",
+  "native_default_isolated_ab": {
+    "status": "PASS",
+    "time_tolerance_ns": 0,
+    "request_count": 12,
+    "compared": [
+      "request_and_raw_and_reported_completion",
+      "native_phase_order",
+      "native_physical_address",
+      "existing_service_statistics"
+    ]
+  },
+  "gpu_helper_source_after_merge": "IDENTICAL_TO_LIVE_TESTED_MAIN; no production CUDA/PTX/future ABI changes",
+  "upstream_mqsim_submodule": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16_UNMODIFIED",
+  "gpu_after": "RTX5090 0% utilization30C; same vLLM pid16200 and27732MiB allocation; test exited",
+  "scope": "SOFTWARE_INTEGRATION_ONLY_NOT_P2_MODEL_FREEZE_OR_NEW_THERMAL_RESEARCH_RESULTS"
+}

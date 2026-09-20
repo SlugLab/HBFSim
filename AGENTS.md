@@ -95,3 +95,8 @@ eq3_thermal/plans/decision-execution-v2/USER_TASKBOOK.md及user-source.md。
 与封装送达分开，不重复计算原延迟。参数未经标定须标工程假设。该授权不含
 原 MQSim 调度/事务所有权改造或真实 die 维护生命周期。授权原文见外层
 eq3_thermal/plans/decision-execution-v2/basic-system-user-source.md。
+
+## EQ3-ISOLATED-MAINTENANCE-CAMPAIGN-v1（最新明确授权）
+
+用户采纳本阶段任务书并授权连续执行。温度模拟 MQSim 必须与原项目 MQSim 隔离：独立源码副本/补丁、构建、头文件、库、可执行与运行工件；原 third_party/mqsim、默认补丁/后端和生产 ABI/PTX/TMA/future/cache 不变。仅实验副本内批准任务书所列同一 engine/FTL/TSU/NAND 的窄维护身份、真实读写擦、有限目的分配、源版本保护、commit/fail 和逐页年龄计数；不批准完整重写调度/FTL/事件引擎。范围见外层 eq3_thermal/plans/isolated-maintenance-campaign-v1/USER_TASKBOOK.md。
+保留原物理假设采用 CONDITIONAL_ENGINEERING_USE，不再为0.25K细化P2；旧失败与盲测锁定不变。授权v3原raw重评分、默认关闭读取率反馈、完整耦合热闭环、先pilot冻结再四拓扑可行矩阵及有依据消融/敏感性。逐点留元信息，无需重复请示。资源按每次实际需求与主机余量有限分配，旧固定上限不机械恢复。GPU0、云0、不删除raw、不push/merge。超出窄结构范围才另行确认。

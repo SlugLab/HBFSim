@@ -69,3 +69,9 @@ For example, a1.9-attempt cost limits a1.536TB/s fresh supply to at most about
 0.808TB/s useful payload before other route/control/DAG bottlenecks. Gate quotas
 continue counting admitted payload; media work additionally enforces physical
 capacity. No old controller is silently retuned for amplification.
+
+Expected effort is deterministic and averaged over a cohort. It does not sample
+page-error distributions or predict ECC-induced p99 jitter. Reported queue/tail
+metrics belong to the conditional workload/resource/controller model. Applying
+one random retry count to an entire gigabyte cohort would invent correlated
+page errors; that shortcut is intentionally not used without evidence.

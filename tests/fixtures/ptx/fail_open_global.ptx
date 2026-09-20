@@ -1,0 +1,17 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+// 三条 global 访问,改写器都解析不了,所以一条都不会被改写。
+// 它们必须被计成 unsupported,不许既不改写也不报告。
+.visible .entry fail_open_kernel()
+{
+    // 一,地址寄存器不叫 %rd…(改写器的地址正则写死了 %rd 前缀)
+    ld.global.u32 %r1, [%r9];
+    // 二,同一行两条语句(改写器按物理行匹配,只看得到第一条)
+    ld.global.u32 %r2, [%r10]; st.global.u32 [%r11], %r2;
+    // 三,语句跨物理行(行内正则要求同一行里出现分号)
+    ld.global.u32 %r3,
+        [%r12];
+    ret;
+}

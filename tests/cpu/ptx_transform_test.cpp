@@ -226,5 +226,31 @@ int main()
     assert(!excluded.modified);
     assert(excluded.coverage.excluded_functions == 2);
 
+    // A global access the rewriter could not consume must be reported, never
+    // skipped in silence. Silence lets a kernel be marked instrumented while
+    // some of its HBF accesses ran at native speed, which makes any coverage
+    // number meaningless.
+    //
+    // The fixture holds three statements the rewriter cannot parse, carrying
+    // four accesses between them: an address register not named %rd, a line
+    // holding both a load and a store, and one statement split across physical
+    // lines. Measured before the fix: 0 rewritten and 0 unsupported. Measured
+    // after: 3 unsupported.
+    //
+    // Three, not four, and the difference is deliberate. The scan is
+    // line-oriented, so the line carrying both a load and a store is one
+    // statement and counts once. What this test fixes is silence, not
+    // arithmetic: every statement the rewriter could not consume is now
+    // reported. Counting the second access on that line needs the parser to
+    // work on logical statements rather than lines, which is a separate and
+    // much larger change. The assertion below pins the current guarantee so
+    // that a regression back to silence fails here.
+    const auto fail_open = hbfsim::ptx::transform_ptx({
+        .full_ptx = read_fixture("fail_open_global.ptx"),
+        .to_patch_kernel = "fail_open_kernel",
+    });
+    CHECK(fail_open.coverage.unsupported_instructions >= 3);
+    CHECK(!fail_open.modified);
+
     return 0;
 }

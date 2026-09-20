@@ -158,6 +158,13 @@ __device__ bool eval_chain_record(
 }
 #endif
 
+// Caps for the clamped wait sleeps. The backoff cap matches the ceiling the
+// old doubling schedule reached, and the PTX ISA caps one nanosleep at about
+// 1 ms anyway. Below the spin floor a nanosleep costs more than it saves, and
+// spinning the tail is what absorbs the ISA's [0, 2*t] approximation.
+constexpr std::uint32_t kWaitBackoffCapNs = 1048576U;
+constexpr std::uint32_t kWaitSpinFloorNs = 64U;
+
 __device__ void bounded_sleep(std::uint32_t& delay_ns)
 {
     __nanosleep(delay_ns);
@@ -455,7 +462,10 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         }
         const auto deadline = hbfsim::device::saturating_add(
             arrival, header->request_timeout_ns);
-        std::uint32_t sleep_ns = 64;
+        // Sleep only as far as the modeled target allows. The old schedule
+        // doubled from 64 ns without consulting the target and overshot it by
+        // 63 percent on a 10,000 ns target; wait_sleep_ns takes at most half
+        // the remaining time, which the PTX ISA's [0, 2*t] bound makes safe.
         while (gpu_time_ns() < target) {
             const auto now = gpu_time_ns();
             if (now >= deadline) {
@@ -465,7 +475,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
                 system_acquire(&header->fault) != 0) {
                 return {.status = RequestStatus::DaemonLost};
             }
-            bounded_sleep(sleep_ns);
+            const auto nap = hbfsim::device::wait_sleep_ns(
+                now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+            if (nap != 0) {
+                __nanosleep(nap);
+            }
         }
         (void)system_fetch_add(&header->fast_requests, 1);
         (void)system_fetch_add(&header->fast_modeled_ns,
@@ -504,7 +518,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
                                                           : transfer_target;
     const auto deadline = hbfsim::device::saturating_add(
         arrival, header->request_timeout_ns);
-    std::uint32_t sleep_ns = 64;
+    // Same clamp as the empirical path above: never sleep past `target`.
     while (gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= deadline) {
@@ -514,7 +528,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
             system_acquire(&header->fault) != 0) {
             return {.status = RequestStatus::DaemonLost};
         }
-        bounded_sleep(sleep_ns);
+        const auto nap = hbfsim::device::wait_sleep_ns(
+            now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+        if (nap != 0) {
+            __nanosleep(nap);
+        }
     }
     (void)system_fetch_add(&header->fast_requests, 1);
     (void)system_fetch_add(
@@ -1313,7 +1331,37 @@ __hbfsim_timing_future_wait_v1(hbfsim::timing_future::DeviceTimingFutureV1* f,
         h=future_header();const auto now=EvalDelayClock{}();
         const auto status=future_transition(*f,*metadata,instruction,bytes,h,now,
             future_liveness(h,f->control_generation,now,&watch),true,static_cast<tf::WaitKind>(wait_kind));
-        if (status==tf::kPending) continue;
+        if (status==tf::kPending) {
+            // Sleep out the bulk of the wait, spin only the tail.
+            //
+            // Why this is not a micro-optimisation. A real HBF scoreboard
+            // would make the consuming warp ineligible the moment it reaches
+            // the consumer. A software future cannot: the warp has to be
+            // selected at least once to check whether the value is ready. With
+            // a sleep that happens a handful of times; with the zero-backoff
+            // spin this loop used to run, it happens thousands of times across
+            // one modeled access, and each pass re-reads the shared control
+            // header over host-mapped memory -- the same region the host
+            // service daemon is writing completions into. The polling then
+            // costs issue slots and PCIe bandwidth that other warps needed to
+            // hide their own latency, so the measured end-to-end time carries
+            // both the injected delay and the cost of waiting for it, with no
+            // way to separate them.
+            //
+            // wait_sleep_ns never sleeps past f->ready_ns and never sleeps more
+            // than half of what is left, so the liveness, deadline and
+            // control-generation checks below still run at a bounded rate
+            // rather than being skipped for the whole wait. When ready_ns is
+            // unset or already past it returns 0 and this stays a spin, which
+            // is the correct behaviour while the reservation is still being
+            // published.
+            const auto nap = hbfsim::device::wait_sleep_ns(
+                now, f->ready_ns, kWaitBackoffCapNs, kWaitSpinFloorNs);
+            if (nap != 0) {
+                __nanosleep(nap);
+            }
+            continue;
+        }
         if (status!=tf::kReady) {
 #if defined(HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC

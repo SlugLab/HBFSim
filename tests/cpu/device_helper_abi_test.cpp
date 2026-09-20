@@ -68,9 +68,12 @@ int main()
     static_assert(hbfsim::device::hybrid_reference_sample(0, 4, 0, 7));
     static_assert(!hbfsim::device::hybrid_reference_sample(
         100, 4, 0, 7));
+    // Was 10'032, the sum of a 10,000 ns latency and a 32 ns transfer. That
+    // encoded the model the wait loop never used; see the fast_service_ns
+    // block near the end of this file.
     static_assert(hbfsim::device::fast_service_ns(10'000, 16'384,
                                                   512'000'000'000ULL) ==
-                  10'032);
+                  10'000);
     static_assert(offsetof(hbfsim::device::HbfRequest, logical_address) ==
                   offsetof(hbfsim::HbfRequest, logical_address));
     static_assert(offsetof(hbfsim::device::HbfCompletion, status) ==
@@ -215,5 +218,83 @@ int main()
     malformed_empirical = empirical;
     malformed_empirical.empirical_flags = 2;
     CHECK(!empirical_request_service(malformed_empirical, 0, 0, 0).valid);
+
+    // The wait loop must never sleep past the modeled completion target.
+    //
+    // Before this test existed, the backoff doubled blindly from 64 ns and
+    // ignored how much time was left: cumulative wake times are 64*(2^k - 1),
+    // so a 10,000 ns target was not reached at 8,128 ns, the loop slept 8,192
+    // ns more, and the thread woke at 16,320 ns. Every injected read came out
+    // 63 percent slow, and the shorter the target the larger the error: a
+    // 1,000 ns target woke at 1,984 ns, 98 percent over.
+    //
+    // The bound on a single sleep comes from the PTX ISA, which specifies
+    // nanosleep's duration as "approximated, but guaranteed to be in the
+    // interval [0, 2*t]". Asking for at most half the remaining time therefore
+    // cannot overshoot the target even when the hardware sleeps the full 2x.
+    {
+        using hbfsim::device::wait_sleep_ns;
+        constexpr std::uint32_t backoff = 1048576U;
+        constexpr std::uint32_t floor_ns = 64U;
+
+        // Walk a 10,000 ns target the way the device loop would, charging the
+        // worst case the ISA allows for every sleep.
+        std::uint64_t now = 0;
+        const std::uint64_t target = 10000;
+        unsigned iterations = 0;
+        while (now < target && iterations < 1000) {
+            const auto nap = wait_sleep_ns(now, target, backoff, floor_ns);
+            if (nap == 0) { ++now; }           // spin one nanosecond
+            else { now += std::uint64_t{nap} * 2; }  // worst case the ISA allows
+            ++iterations;
+        }
+        CHECK(now >= target);
+        CHECK(now <= target + floor_ns);       // lands on target, never 16,320
+
+        // Same for the short target the old schedule missed by 98 percent.
+        now = 0; iterations = 0;
+        const std::uint64_t short_target = 1000;
+        while (now < short_target && iterations < 1000) {
+            const auto nap = wait_sleep_ns(now, short_target, backoff, floor_ns);
+            if (nap == 0) { ++now; } else { now += std::uint64_t{nap} * 2; }
+            ++iterations;
+        }
+        CHECK(now >= short_target);
+        CHECK(now <= short_target + floor_ns);
+
+        // Already past the target: nothing to sleep.
+        CHECK(wait_sleep_ns(10000, 10000, backoff, floor_ns) == 0);
+        CHECK(wait_sleep_ns(10001, 10000, backoff, floor_ns) == 0);
+        // A single sleep never exceeds half of what is left.
+        CHECK(wait_sleep_ns(0, 10000, backoff, floor_ns) <= 5000);
+    }
+
+
+    // What the fast path records must be what the fast path waited.
+    //
+    // The wait target is max(arrival + latency, channel_tail + transfer): the
+    // latency overlaps the transfer, so a request is done when both are
+    // satisfied. The accounting used to add them instead, so it reported a
+    // service time the loop never enforced. On the shipped cd8p-vmem-p50
+    // profile -- 4,096-byte pages at 103,540,697 bytes/s, a 39,560 ns transfer
+    // against an 11,133 ns latency -- sum and max differ by 28 percent.
+    //
+    // read_latency_ns is a first-byte latency that overlaps the transfer. The
+    // calibration anchor settles it: that profile's read_latency_ns of 11,133
+    // ns is exactly the measured single-page P50, an end-to-end total, so
+    // adding a transfer on top would count the same time twice.
+    {
+        using hbfsim::device::fast_service_ns;
+        // Latency dominates: the synthetic profiles all look like this.
+        static_assert(fast_service_ns(10'000, 16'384, 512'000'000'000ULL) == 10'000,
+                      "latency dominates a 32 ns transfer");
+        // Transfer dominates: the empirical profile looks like this.
+        static_assert(fast_service_ns(11'133, 4'096, 103'540'697ULL) == 39'560,
+                      "transfer dominates an 11,133 ns latency");
+        // Never the sum of the two.
+        static_assert(fast_service_ns(11'133, 4'096, 103'540'697ULL) < 11'133 + 39'560,
+                      "service time is the max, not the sum");
+    }
+
     return 0;
 }

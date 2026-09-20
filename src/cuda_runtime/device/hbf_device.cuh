@@ -593,14 +593,64 @@ HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_transfer_ns(
            bandwidth_bytes_per_s;
 }
 
+// How long this iteration of a wait loop should sleep, in nanoseconds.
+// Returns 0 when the caller should spin instead.
+//
+// Two bounds decide the answer. The first is the modeled completion target:
+// the loop must not sleep past it, because the delay it injects is the thing
+// being measured. The second comes from the PTX ISA, which specifies
+// nanosleep's duration as "approximated, but guaranteed to be in the interval
+// [0, 2*t]". Asking for at most half of what is left therefore cannot overshoot
+// the target even when the hardware sleeps the full 2x, and the remaining time
+// halves on each pass, so the loop converges on the target instead of stepping
+// over it.
+//
+// `backoff_ns` caps a single sleep so a very distant target does not turn into
+// one enormous nanosleep; the ISA caps a single sleep at about 1 ms anyway.
+// `spin_floor_ns` is the point below which sleeping costs more than it saves:
+// under it the caller spins out the tail, which is also what absorbs the
+// approximation in the last sleep.
+//
+// Before this function existed the loop doubled a counter from 64 ns without
+// consulting the target, so a 10,000 ns target woke at 16,320 ns, 63 percent
+// late, and a 1,000 ns target woke at 1,984 ns, 98 percent late.
+HBFSIM_HOST_DEVICE constexpr std::uint32_t wait_sleep_ns(
+    std::uint64_t now, std::uint64_t target, std::uint32_t backoff_ns,
+    std::uint32_t spin_floor_ns) noexcept
+{
+    if (now >= target) {
+        return 0;
+    }
+    const std::uint64_t remaining = target - now;
+    std::uint64_t nap = remaining / 2;
+    if (nap > backoff_ns) {
+        nap = backoff_ns;
+    }
+    if (nap < spin_floor_ns) {
+        return 0;
+    }
+    return static_cast<std::uint32_t>(nap);
+}
+
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_service_ns(
     std::uint64_t base_latency_ns, std::uint32_t bytes,
     std::uint64_t bandwidth_bytes_per_s) noexcept
 {
+    // The modeled service time is the later of the two bounds, not their sum.
+    // read_latency_ns is a first-byte latency that overlaps the transfer, so a
+    // request is done once both the latency has elapsed and the bytes have
+    // moved. This is also what the wait loop enforces:
+    //   target = max(arrival + latency, channel_tail + transfer)
+    // Recording base_latency + transfer, as this used to, reported a service
+    // time the loop never waited for -- 28 percent high on the shipped
+    // cd8p-vmem-p50 profile.
+    //
+    // The calibration anchor settles which reading is right: that profile's
+    // read_latency_ns of 11,133 ns is exactly the measured single-page P50, an
+    // end-to-end total. Adding a transfer on top would count the same time
+    // twice.
     const auto transfer = fast_transfer_ns(bytes, bandwidth_bytes_per_s);
-    return transfer > UINT64_MAX - base_latency_ns
-               ? UINT64_MAX
-               : base_latency_ns + transfer;
+    return transfer > base_latency_ns ? transfer : base_latency_ns;
 }
 
 HBFSIM_HOST_DEVICE constexpr bool valid_ring_capacity(

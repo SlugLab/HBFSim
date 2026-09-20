@@ -72,11 +72,19 @@ bool unsupported_memory_instruction(const std::string& line,
         // excluding them left those instructions neither modeled nor reported
         // -- the exact fail-open hole this pattern exists to close, preserved
         // on the only branch that exists today. When
+        // A global load or store only reaches this scan when the rewriter
+        // could not consume it: every rewritten access takes the `continue`
+        // above. So `ld.global` and `st.global` must be matched here, not
+        // excluded. They used to carry a `(?!global)` lookahead, which made an
+        // unparsable global access invisible: it was neither rewritten nor
+        // counted, while the kernel was still reported as instrumented. A
+        // fixture with three such statements measured 0 rewritten and 0
+        // unsupported before this change.
         // feature/sm120-exact-stage1 merges, remove the three prefixes it
         // handles (cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
         // cp.async.bulk.prefetch.tensor.) from this pattern in the same
         // commit, so the coverage hole is never open in between.
-        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.(?!global)\S*|st\.(?!global)\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.\S*|st\.\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
     std::smatch match;
     if (!std::regex_match(line, match, expression)) {
         return false;

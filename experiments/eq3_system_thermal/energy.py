@@ -37,7 +37,7 @@ class EnergyMapper:
         self.channels = channel_map
         self.hbm_dies = defaultdict(list)
         for row in normalized["components"]:
-            if row.get("physical_type") == "HBM" and row.get("role") == "array_die":
+            if str(row.get("physical_type", "")).startswith("HBM") and row.get("role") == "array_die":
                 self.hbm_dies[row["device_id"]].append(row["id"])
         self.profile = profile
 

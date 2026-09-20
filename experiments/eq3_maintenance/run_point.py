@@ -91,6 +91,7 @@ def run(args):
                      ('requests-input.json',requests),('maintenance-input.json',maintenance),
                      ('energy-profile.json',coefficient),('policy-profile.json',asdict(policy_profile))]:
         write_json(output/name,obj)
+    meta['executable_sha256']={str(p.resolve()):hashlib.sha256(p.read_bytes()).hexdigest() for p in (args.binary,args.thermal_binary)}
     meta['input_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in output.glob('*.json')}
     write_json(output/'manifest.json',meta)
     resource.setrlimit(resource.RLIMIT_AS,(12*1024**3,12*1024**3))
@@ -147,6 +148,9 @@ def run(args):
                      max_child_rss_kib=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
         write_json(output/'DONE.json',receipt);print(json.dumps(dict(receipt,summary=summary)))
     except BaseException as exc:
+        if 'engine' in locals():
+            write_json(output/'unfinished-requests.json',list(engine._records.values()))
+            write_json(output/'unfinished-maintenance.json',list(engine._maintenance.values()))
         write_json(output/'FAILED.json',dict(execution_status='FAILED',error=repr(exc),wall_s=time.monotonic()-started))
         raise
 

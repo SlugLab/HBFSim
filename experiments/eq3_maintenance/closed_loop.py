@@ -351,8 +351,16 @@ class ClosedLoopCoordinator:
     def _submit_due_maintenance(self):
         for mid, row in sorted(self._maintenance.items(), key=lambda item: item[1]["sequence"]):
             ready_ns = row.get("target_ns", row["due_ns"])
-            if row["state"] not in {"NOT_DUE", "DEFERRED"} or ready_ns > self.now_ns or self.now_ns >= self.end_ns:
+            if row["state"] not in {"NOT_DUE", "DEFERRED", "THERMAL_WAIT"} or ready_ns > self.now_ns or self.now_ns >= self.end_ns:
                 continue
+            guard = self._last_guard_states[row["stack"]]
+            if guard in {"severe", "shutdown"}:
+                if row["state"] != "THERMAL_WAIT" or row.get("blocked_guard") != guard:
+                    row.update(state="THERMAL_WAIT", blocked_guard=guard)
+                    self._timeline["maintenance"].append(
+                        {"phase": "THERMAL_BLOCKED", **copy.deepcopy(row)})
+                continue
+            row.pop("blocked_guard", None)
             if not hasattr(self.mqsim, "maintain"):
                 row["state"] = "UNSUPPORTED_CAPABILITY"
                 self._timeline["maintenance"].append({"phase": row["state"], **copy.deepcopy(row)})

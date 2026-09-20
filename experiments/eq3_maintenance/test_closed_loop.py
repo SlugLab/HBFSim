@@ -196,6 +196,18 @@ class ClosedLoopTests(unittest.TestCase):
         self.assertEqual(result["summary"]["maintenance_committed"], 1)
         self.assertGreater(result["drain_end_ns"], 100)
 
+    def test_maintenance_waits_for_recovery_from_severe_guard(self):
+        system, _, _ = self.build(end=300, maintenance="ACCEPTED",
+                                  thermal_states=["severe", "normal", "normal"])
+        maintenance = [{"request_id": 1001, "stack": "hbf0", "stack_local_page": 0,
+                        "due_ns": 110, "initial_age_s": 86_400, "bytes": 64}]
+        result = system.run([], maintenance)
+        row = result["maintenance"][0]
+        self.assertEqual(row["state"], "COMMITTED")
+        self.assertEqual(row["submit_ns"], 200)
+        self.assertTrue(any(event["phase"] == "THERMAL_BLOCKED"
+                            for event in result["timeline"]["maintenance"]))
+
 
 if __name__ == "__main__":
     unittest.main()

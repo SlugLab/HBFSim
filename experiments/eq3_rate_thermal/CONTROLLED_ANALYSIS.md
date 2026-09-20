@@ -1,0 +1,43 @@
+# Controlled campaign analysis
+
+`analyze_controlled_campaign.py` consumes completed `run_controlled.py` point
+directories. By default it requires the frozen 39-point design:
+
+- 2 topologies × 3 model sizes × 2 demand patterns × 3 policies at 16 scans/s;
+- 3 additional all-HBF, 235B, continuous points at 32 scans/s.
+
+Run it after the campaign is complete:
+
+```sh
+python3 -B experiments/eq3_rate_thermal/analyze_controlled_campaign.py \
+  --campaign CAMPAIGN_DIR --output NEW_DERIVED_DIR
+```
+
+`--allow-partial` is intended for diagnostic or fixed-fixture analysis and does
+not label an incomplete campaign complete.
+
+The analysis rereads aligned `rates.jsonl`, `control.jsonl`, `energy.jsonl` and
+`thermal.jsonl` streams. It validates per-point byte conservation, 50 pJ/B
+served-energy accounting, component/window energy sums, the final thermal
+energy receipt, and the byte-weighted delay histograms recorded by the runner.
+It reports total and per-stack offered/delivered/backlog bytes, total-duration
+and active-window delivery rates, peak/final temperatures, state residence
+times, P95/P99 fluid delay, and incremental energy.
+
+Policy comparisons are paired within topology, model, pattern and scan rate.
+Every delta is `right - left`; no sign is named a benefit. The separate
+cross-topology table records:
+
+- 4-stack 16 scans/s versus 8-stack 16 scans/s as equal total offered demand;
+- 4-stack 16 scans/s versus 8-stack 32 scans/s as equal offered bytes per stack.
+
+Nonzero backlog is a saturation result, not an execution failure. Backend
+latency, token/s and maintenance remain unavailable because this campaign uses
+the modelled fluid FIFO rather than MQSim or fabric completion. Energy is only
+the user-confirmed incremental 50 pJ/B scenario; idle and GPU self-power remain
+unknown in this path.
+
+Outputs include a machine-readable JSON report, point and comparison CSVs, one
+temperature/rate/backlog trajectory plot per workload group, and a campaign
+summary figure. All figures are derived from the same checked in analysis and
+immutable point streams.

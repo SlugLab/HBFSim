@@ -18,6 +18,16 @@ def save(path,value):
 def make_config(point_id,topology,strategy,model_id,active_s,recovery_s,rate=1_536_000_000_000):
     base=base_config(point_id,topology,rate,strategy,active_s,recovery_s)
     service=base['service'];groups={};targets=[]
+    # The target remains HBM4. HBF Grade2 defaults must not silently determine
+    # HBM media supply in the actual cache consumer.
+    device_profile=json.loads((HERE.parents[1]/'configs/eq3_thermal/research/candidate_profile.json').read_text())
+    hbm_profile=device_profile['device_selection']['hbm']
+    for stack in service['fabric']['hbm']:
+        channels=service['channels'][stack]
+        rate_per_channel,remainder=divmod(hbm_profile['raw_bandwidth_Bps'],len(channels))
+        if remainder:raise ValueError('HBM4 aggregate ceiling must divide the explicit service groups')
+        service['channels'][stack]={channel:rate_per_channel for channel in channels}
+
     for stack in service['fabric']['hbf']:
         channels=['direct','relay'] if topology=='dash' else ['uniform']
         service['channels'][stack]={c:1_536_000_000_000//len(channels) for c in channels}
@@ -61,6 +71,10 @@ def make_config(point_id,topology,strategy,model_id,active_s,recovery_s,rate=1_5
         'read_pressure':'MODEL_REGENERATED_PAYLOAD_PER_BATCH_TIMES_EXOGENOUS_BATCH_ARRIVALS',
         'nominal_per_batch_read_bytes':read_bytes,'nominal_per_stack_input_Bps':rate,
         'hbm_policy_target':'NOMINAL_ENDPOINT_PROFILE_ONLY_NO_HBM_REQUEST_GENERATION',
+        'hbm_device':{'identity':hbm_profile['manufacturer_anchor'],'nominal_capacity_label':hbm_profile['nominal_capacity_label'],
+            'dies_per_stack':hbm_profile['dram_dies_per_stack'],'bus_bits':hbm_profile['bus_bits'],
+            'raw_bandwidth_Bps':hbm_profile['raw_bandwidth_Bps'],
+            'service_semantics':'RAW_CEILING_USED_AS_IDEAL_SERVICE_BOUND;PAYLOAD_EFFICIENCY_UNCALIBRATED;CACHE_IS_SUBALLOCATION'},
         'coalescing':'ACTUAL_PHYSICAL_DEMAND_MAY_BE_LOWER_THAN_NOMINAL_LOGICAL_DEMAND',
         'compute':'1US_PER_BUNDLE_EXPLICIT_MEMORY_BOUND_SCENARIO_NOT_GPU_CALIBRATION',
         'gpu_power':'UNKNOWN_SELF_HEAT_EXCLUDED_NOT_MEASURED_ZERO',

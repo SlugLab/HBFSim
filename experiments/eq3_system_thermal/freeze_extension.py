@@ -28,6 +28,8 @@ def freeze(stage,destination,configs,runner,*,point_wall_s=900,dependency=None):
     if runner.name=='run_causal_point.py':
         catalogue=ROOT/'experiments/eq3_maintenance/sources/qwen2_5_weight_models.json'
         sources[str(catalogue.relative_to(ROOT))]=digest(catalogue)
+        device_profile=ROOT/'configs/eq3_thermal/research/candidate_profile.json'
+        sources[str(device_profile.relative_to(ROOT))]=digest(device_profile)
     points=[]
     for path in configs:
         cfg=json.loads(path.read_text());row=deepcopy(templates[cfg['topology']])

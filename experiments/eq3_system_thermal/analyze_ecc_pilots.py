@@ -21,7 +21,7 @@ def analyze(point):
              for stack in provider.states}
     if any(not ids for ids in die_ids.values()):raise ValueError('missing actual array mapping')
     decisions=set();physical=defaultdict(int);retry=defaultdict(int);decode=defaultdict(int)
-    energy=0.;peaks={};rows=0
+    energy=0.;peaks={};rows=0;times=[];owner_series=defaultdict(list)
     for line in (point/'windows.jsonl').open():
         row=json.loads(line);rows+=1
         receipt=row['hbf_read_cost_proxy']
@@ -50,7 +50,9 @@ def analyze(point):
             observed=receipt['state']['states'][s]
             if not math.isclose(v['equivalent_age_ns'],observed['equivalent_age_ns'],rel_tol=1e-12):
                 raise ValueError('window age mismatch')
-        for s,v in row['thermal']['temperatures'].items():peaks[s]=max(peaks.get(s,v),v)
+        times.append(row['end_ns']/1e9)
+        for s,v in row['thermal']['temperatures'].items():
+            peaks[s]=max(peaks.get(s,v),v);owner_series[s].append(v)
     if dict(physical)!=dict(decode):raise ValueError('physical media/decoder activity byte mismatch')
     if not math.isclose(energy,sum(retry.values())*50e-12,rel_tol=1e-10,abs_tol=1e-12):
         raise ValueError('retry phase energy must match original50pJ/B once')
@@ -63,7 +65,25 @@ def analyze(point):
         'retry_energy_j':energy,'total_energy_j':summary['energy_j'],
         'useful_bytes':summary['delivered_useful_bytes_by_stack'],
         'completed_simulated_tokens':summary['completed_tokens'],'peak_k_by_owner':peaks,
-        'final_age_state':provider.snapshot()['states'],'scope':'CONDITIONAL_PROXY_NOT_HBF_MEASUREMENT_OR_POLICY_BENEFIT'}
+        'final_age_state':provider.snapshot()['states'],'temperature_series':{'time_s':times,'owners_k':dict(owner_series)},'scope':'CONDITIONAL_PROXY_NOT_HBF_MEASUREMENT_OR_POLICY_BENEFIT'}
+
+
+def owner_plot(result,path):
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+    fig,axes=plt.subplots(3,1,figsize=(10,8),sharex=True)
+    data=result['temperature_series']
+    for axis,prefix in zip(axes,('gpu','hbm','hbf')):
+        count=0
+        for owner,values in data['owners_k'].items():
+            if owner.startswith(prefix):axis.plot(data['time_s'],values,label=owner);count+=1
+        axis.set_ylabel(prefix.upper()+' hotspot K');axis.grid(alpha=.2)
+        if count:axis.legend(ncol=4,fontsize=8)
+        else:axis.text(.1,.5,'UNAVAILABLE / NOT PRESENT',transform=axis.transAxes)
+    axes[-1].set_xlabel('Simulation time (s)')
+    fig.suptitle(result['point_id']+' — conditional proxy')
+    fig.tight_layout();fig.savefig(path,dpi=140);plt.close(fig)
 
 
 def main():
@@ -74,6 +94,7 @@ def main():
         path=Path(p['output']);generic,result=analyze(path)
         (a.output/(p['point_id']+'.json')).write_text(json.dumps(result,indent=2)+'\n')
         plot_panels(generic,a.output/(p['point_id']+'.png'))
+        owner_plot(result,a.output/(p['point_id']+'-owners.png'))
         results.append(result);pairs[result['topology']][result['strength']]=result
     comparisons=[]
     for topology,pair in pairs.items():

@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -13,9 +14,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/tune_vmem_profile.py"
-SOURCE_CSV = pathlib.Path(
+SOURCE_CSV = pathlib.Path(os.environ.get("HBFSIM_VMEM_SOURCE_CSV",
     "/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/"
-    "2026-07-30-vmem-sw-performance.csv")
+    "2026-07-30-vmem-sw-performance.csv"))
 SOURCE_SHA256 = (
     "4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f")
 COMMITTED_PROFILE = ROOT / "configs/profiles/cd8p-vmem-p50.json"
@@ -161,14 +162,9 @@ class VmemTuningTest(unittest.TestCase):
             self.assertFalse((root / "profile.json").exists())
             self.assertFalse((root / "report.json").exists())
 
-    def test_committed_cd8p_artifacts_match_reviewed_source(self):
+    def test_committed_cd8p_artifact_contract(self):
         self.assertTrue(COMMITTED_PROFILE.is_file())
         self.assertTrue(COMMITTED_REPORT.is_file())
-        self.assertTrue(SOURCE_CSV.is_file())
-        self.assertEqual(
-            hashlib.sha256(SOURCE_CSV.read_bytes()).hexdigest(),
-            SOURCE_SHA256)
-
         profile = json.loads(COMMITTED_PROFILE.read_text())
         report = json.loads(COMMITTED_REPORT.read_text())
         self.assertEqual(profile["capacity_bytes"], 1919850381312)
@@ -189,6 +185,11 @@ class VmemTuningTest(unittest.TestCase):
             comparison["empirical_relative_error"] == 0.0
             for comparison in report["comparisons"]))
 
+    def test_reviewed_external_source_reproduces_committed_artifacts(self):
+        if not SOURCE_CSV.is_file() and "HBFSIM_VMEM_SOURCE_CSV" not in os.environ:
+            self.skipTest("external calibration raw unavailable; set HBFSIM_VMEM_SOURCE_CSV to verify provenance")
+        self.assertTrue(SOURCE_CSV.is_file(), "explicit source path must exist")
+        self.assertEqual(hashlib.sha256(SOURCE_CSV.read_bytes()).hexdigest(), SOURCE_SHA256)
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             fresh_profile = root / "cd8p-vmem-p50.json"

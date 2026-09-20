@@ -1,0 +1,30 @@
+{
+  "schema_version": "eq3-hbf-reliability-cost-proxy-v1",
+  "classification": "CONDITIONAL_NAND_BEHAVIOR_PROXY_NOT_HBF_RBER",
+  "temperature_reference_k": 303.15,
+  "activation_energy_ev": 1.04,
+  "boltzmann_ev_per_k": 0.0000862,
+  "retention_age_days_domain": [0, 365],
+  "initial_pe_cycles_domain": [0, 2000],
+  "mean_retry_anchor_age_days": 90,
+  "fresh_pe_retry_per_1000_cycles": 2.0,
+  "retention_retry_coefficient_at_zero_pe": 3.5,
+  "retention_retry_coefficient_per_1000_pe": 3.5,
+  "mean_retry_anchor_at_365_days_2000_pe": 19.9,
+  "transfer_strength": 0.1,
+  "ecc_decoder_headroom_over_fresh_media": 2.0,
+  "normal_base_energy_scope": "EXISTING_10_PJ_PER_PHYSICAL_READ_ATTEMPT_INCLUDES_ENGINEERING_ECC_BASE_WORK;NO_ADDITIONAL_DUPLICATE_ECC_JOULES",
+  "instant_read_temperature_effect": "NOT_INFERRED;TEMP_HISTORY_AFFECTS_RETENTION_ONLY",
+  "failure_probability": "UNKNOWN_NOT_PREDICTED",
+  "source_ecc_capability_context": {"bits_per_1kib":72,"consumer":"PROVENANCE_ONLY_NOT_A_TARGET_HBF_CODE_OR_SCANNABLE_STRENGTH"},
+  "evidence": {
+    "source": "https://arxiv.org/html/2104.09611",
+    "device": "160_48_LAYER_3D_TLC_NAND_CHIPS_NOT_HBF",
+    "measured_anchor": "19.9_mean_retry_steps_at_365_days_30C_and_2000_PE;fresh_zero_PE_zero_age_no_retry",
+    "source_bounds": "zero_PE_90_days_more_than3;1000_PE_90_days_atleast8;zero_PE_180_days_54.4percent_atleast7",
+    "interpolant": "SCENARIO_ASSUMPTION_POWER_LAW_CONSTRAINED_BY_PUBLISHED_SUMMARY_ANCHOR_AND_BOUNDS_NOT_DIGITIZED_MEASUREMENTS",
+    "transfer_strength": "SCENARIO_ASSUMPTION;0_NULL,0.1_WEAK_TRANSFER,1_FULL_OLD_NAND_PROXY_NOT_HBF_CONFIDENCE_INTERVAL",
+    "decoder_capacity": "SCENARIO_ASSUMPTION_TWO_TIMES_FRESH_MEDIA_CAPACITY_NOT_OFFICIAL_ECC_THROUGHPUT",
+    "Ea": "HEATWATCH_OLD_3D_MLC_PROXY_20_TO70C_FIT;EXTRAPOLATION_RECORDED"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "comparison_scope": "FOUR_TOPOLOGY_SHARED_FEASIBILITY_PILOT_NO_DISABLED_OR_IDEAL_ARMS",
+  "duration": {
+    "active_ns": 8000000000,
+    "recovery_ns": 4000000000,
+    "windows": 600
+  },
+  "point_count": 4,
+  "points": [
+    {
+      "config": "maint-pilot-v2-mixed_direct-shared-01.json",
+      "mode": "shared",
+      "point_id": "maint-pilot-v2-mixed_direct-shared-01",
+      "sha256": "05beecb5a62069a7c7d45c04f293340e82aba62bc1101308874310ffded1775b",
+      "status": "PREPARED_NOT_RUN",
+      "strategy": "read_rate_feedback_thermal_guard_v1",
+      "topology": "mixed_direct"
+    },
+    {
+      "config": "maint-pilot-v2-relay-shared-01.json",
+      "mode": "shared",
+      "point_id": "maint-pilot-v2-relay-shared-01",
+      "sha256": "481cf19be4934744f5676829a3867814f1188447c4edd55833a6546f67c7e22b",
+      "status": "PREPARED_NOT_RUN",
+      "strategy": "read_rate_feedback_thermal_guard_v1",
+      "topology": "relay"
+    },
+    {
+      "config": "maint-pilot-v2-dash-shared-01.json",
+      "mode": "shared",
+      "point_id": "maint-pilot-v2-dash-shared-01",
+      "sha256": "c3408dc9ed450d7f47256608397c8e9562acdc08f52d0810b7802928fd7a9caf",
+      "status": "PREPARED_NOT_RUN",
+      "strategy": "read_rate_feedback_thermal_guard_v1",
+      "topology": "dash"
+    },
+    {
+      "config": "maint-pilot-v2-all_hbf_direct-shared-01.json",
+      "mode": "shared",
+      "point_id": "maint-pilot-v2-all_hbf_direct-shared-01",
+      "sha256": "bb0e9a6fd4ca6e0ab347195e13f94c27b03d1f164c7fbdbd7a8bbea46d3151d5",
+      "status": "PREPARED_NOT_RUN",
+      "strategy": "read_rate_feedback_thermal_guard_v1",
+      "topology": "all_hbf_direct"
+    }
+  ],
+  "run_authorization": "ROOT_SCHEDULES_AFTER_ACTIVE_BASE_AND_REVIEW",
+  "schema_version": "eq3-maintenance-four-topology-shared-pilot-v2",
+  "science_scope": "CONDITIONAL_AGGREGATE_RATE_SERVICE_MAINTENANCE_NOT_NATIVE_MQSIM",
+  "status": "PREPARED_NOT_RUN"
+}

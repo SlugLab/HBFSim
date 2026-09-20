@@ -1,0 +1,72 @@
+{
+  "schema_version": "eq3-weight-model-sources-v1",
+  "accessed_utc": "2026-09-20",
+  "models": {
+    "Qwen/Qwen2.5-7B-Instruct": {
+      "revision": "main",
+      "resolved_commit": "UNKNOWN",
+      "revision_note": "mutable official repository ref; no commit was inferred",
+      "dtype": "bfloat16",
+      "bytes_per_tensor_element": 2,
+      "tensor_payload_bytes": 15231233024,
+      "parameter_label": "7.61B",
+      "non_embedding_parameter_label": "6.53B",
+      "architecture": {
+        "hidden_size": 3584,
+        "intermediate_size": 18944,
+        "num_hidden_layers": 28,
+        "num_attention_heads": 28,
+        "num_key_value_heads": 4,
+        "vocab_size": 152064,
+        "tie_word_embeddings": false,
+        "attention_qkv_bias": true
+      },
+      "sources": {
+        "config": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/raw/main/config.json",
+        "tensor_index": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/model.safetensors.index.json",
+        "model_card": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct"
+      },
+      "source_fields": {
+        "tensor_payload_bytes": "model.safetensors.index.json metadata.total_size",
+        "architecture_and_dtype": "config.json",
+        "parameter_labels": "official model card"
+      }
+    },
+    "Qwen/Qwen2.5-72B-Instruct": {
+      "revision": "main",
+      "resolved_commit": "UNKNOWN",
+      "revision_note": "mutable official repository ref; no commit was inferred",
+      "dtype": "bfloat16",
+      "bytes_per_tensor_element": 2,
+      "tensor_payload_bytes": 145412407296,
+      "parameter_label": "72.7B",
+      "non_embedding_parameter_label": "70.0B",
+      "architecture": {
+        "hidden_size": 8192,
+        "intermediate_size": 29568,
+        "num_hidden_layers": 80,
+        "num_attention_heads": 64,
+        "num_key_value_heads": 8,
+        "vocab_size": 152064,
+        "tie_word_embeddings": false,
+        "attention_qkv_bias": true
+      },
+      "sources": {
+        "config": "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/raw/main/config.json",
+        "tensor_index": "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/model.safetensors.index.json",
+        "model_card": "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct"
+      },
+      "source_fields": {
+        "tensor_payload_bytes": "model.safetensors.index.json metadata.total_size",
+        "architecture_and_dtype": "config.json",
+        "parameter_labels": "official model card"
+      }
+    }
+  },
+  "limits": [
+    "tensor payload bytes do not include filesystem/container overhead",
+    "logical region packing is derived from the documented architecture and is not a safetensors file-offset claim",
+    "token rate, cache traffic, activation traffic, and inference-stage causality are UNAVAILABLE",
+    "no weight tensors were downloaded"
+  ]
+}

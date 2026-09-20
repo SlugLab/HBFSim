@@ -42,3 +42,19 @@ JEDEC官方HBM4页面此次未能取得；Samsung封装网页定向请求40s超�
 P3需要最小因果活动接口及能量去重，P4维护要有真实模拟资源、失败/在途语义、
 完成后年龄更新、耗能与磨损反馈。不得通过改变核心ABI/PTX/TMA/future/cache来
 掩盖这些缺口；不能只加一个刷新计数器。非热核心消融逐项NOT_IMPLEMENTED。
+
+### 2026-09-20 HBF ECC conditional-proxy update
+
+USER_CONFIRMED: the device is **HBF**, not HBM; NAND/OCP/SanDisk conditional
+proxies are permitted. Target HBF RBER, code strength, UECC probability and decoder
+throughput remain unknown. The historical NOT_IMPLEMENTED entry above is retained
+as history; an optional actual read-cost consumer now exists under
+`experiments/eq3_system_thermal/ecc_proxy/README.md`.
+
+`run_causal_point` consumes temperature-history age and a source-constrained but
+assumed retry-effort interpolant through shared media/decoder resources and
+activity energy. Fixed integration tests passed; thermal acceptance is separate.
+It predicts conditional successful-read effort, not error probability. Initial
+wear is a scenario. Per-stack age is not yet linked to maintained tensor extents,
+so combined refresh→ECC improvement remains UNSUPPORTED_COMPOSITION. HBM is excluded.
+No instantaneous temperature penalty or compulsory positive throttling benefit.

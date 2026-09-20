@@ -20,11 +20,13 @@ ROOT=Path(__file__).resolve().parents[2]
 class MqsimService:
     source='MQSIM_SIMULATED'
 
-    def __init__(self, binary, profile, directory, *, timeout=30, parallel_units=None):
+    def __init__(self, binary, profile, directory, *, timeout=30, parallel_units=None,
+                 artifact_root=None, stack_map=None, native_observations=False):
         self.binary=Path(binary).resolve(strict=True)
         self.profile=Path(profile).resolve(strict=True)
         self.directory=Path(directory).resolve()
-        if not self.binary.is_relative_to(ROOT) or not self.directory.is_relative_to(ROOT):
+        artifact_root = Path(artifact_root).resolve() if artifact_root is not None else ROOT
+        if not self.binary.is_relative_to(artifact_root) or not self.directory.is_relative_to(artifact_root):
             raise ValueError('service binary and artifacts must remain in experiment checkout')
         if not math.isfinite(timeout) or timeout<=0:
             raise ValueError('service timeout must be positive')
@@ -34,6 +36,7 @@ class MqsimService:
         self.requests={}
         self.completions={}
         self.observations=[]
+        self.native_observations=[]
         self.finished=False
         self.process=None
         self.directory.mkdir(parents=True,exist_ok=False)
@@ -42,6 +45,10 @@ class MqsimService:
         self.argv=[str(self.binary),'--profile',str(self.profile)]
         if parallel_units is not None:
             self.argv+=['--parallel-units',str(parallel_units)]
+        if stack_map is not None:
+            self.argv+=['--stack-map',str(Path(stack_map).resolve(strict=True))]
+        if native_observations:
+            self.argv+=['--native-command-observations','on']
         try:
             self.process=subprocess.Popen(self.argv,stdin=subprocess.PIPE,stdout=subprocess.PIPE,
                                           stderr=self.stderr,bufsize=0)
@@ -80,6 +87,7 @@ class MqsimService:
             raise ValueError('native service clock moved backward')
         self.now=current
         self.observations.extend(response['events'])
+        self.native_observations.extend(response.get('native_command_events', []))
         return response
 
     def command(self, command):
@@ -103,6 +111,18 @@ class MqsimService:
         if response.get('accepted')!=1:
             raise ValueError('native service did not accept one request')
         self.requests[rid]=dict(request)
+
+    def try_submit(self, request):
+        """Use the existing optional gate; the caller owns deferred requests."""
+        rid=request['request_id']
+        if rid in self.requests:
+            raise ValueError('duplicate service request ID')
+        decision=self.command(dict(command='try_submit',request=request))['gate']
+        if decision['submitted']:
+            accepted=dict(request)
+            accepted['issue_ns']=decision['backend_arrival_ns']
+            self.requests[rid]=accepted
+        return decision
 
     def until(self, horizon):
         response=self.command(dict(command='until',deadline_ns=horizon))

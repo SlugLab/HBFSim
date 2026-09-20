@@ -1,0 +1,747 @@
+{
+  "schema_version": "eq3-acceptance-v2-method-v1",
+  "method_id": "eq3-d2-train100s-v1",
+  "temperature_unit": "K",
+  "sensor_ids": [
+    "component:gpu:hotspot",
+    "component:gpu:mean",
+    "component:hbf0.base:hotspot",
+    "component:hbf0.base:mean",
+    "component:hbf0.die0:hotspot",
+    "component:hbf0.die0:mean",
+    "component:hbf0.die10:hotspot",
+    "component:hbf0.die10:mean",
+    "component:hbf0.die11:hotspot",
+    "component:hbf0.die11:mean",
+    "component:hbf0.die12:hotspot",
+    "component:hbf0.die12:mean",
+    "component:hbf0.die13:hotspot",
+    "component:hbf0.die13:mean",
+    "component:hbf0.die14:hotspot",
+    "component:hbf0.die14:mean",
+    "component:hbf0.die15:hotspot",
+    "component:hbf0.die15:mean",
+    "component:hbf0.die1:hotspot",
+    "component:hbf0.die1:mean",
+    "component:hbf0.die2:hotspot",
+    "component:hbf0.die2:mean",
+    "component:hbf0.die3:hotspot",
+    "component:hbf0.die3:mean",
+    "component:hbf0.die4:hotspot",
+    "component:hbf0.die4:mean",
+    "component:hbf0.die5:hotspot",
+    "component:hbf0.die5:mean",
+    "component:hbf0.die6:hotspot",
+    "component:hbf0.die6:mean",
+    "component:hbf0.die7:hotspot",
+    "component:hbf0.die7:mean",
+    "component:hbf0.die8:hotspot",
+    "component:hbf0.die8:mean",
+    "component:hbf0.die9:hotspot",
+    "component:hbf0.die9:mean",
+    "component:hbf1.base:hotspot",
+    "component:hbf1.base:mean",
+    "component:hbf1.die0:hotspot",
+    "component:hbf1.die0:mean",
+    "component:hbf1.die10:hotspot",
+    "component:hbf1.die10:mean",
+    "component:hbf1.die11:hotspot",
+    "component:hbf1.die11:mean",
+    "component:hbf1.die12:hotspot",
+    "component:hbf1.die12:mean",
+    "component:hbf1.die13:hotspot",
+    "component:hbf1.die13:mean",
+    "component:hbf1.die14:hotspot",
+    "component:hbf1.die14:mean",
+    "component:hbf1.die15:hotspot",
+    "component:hbf1.die15:mean",
+    "component:hbf1.die1:hotspot",
+    "component:hbf1.die1:mean",
+    "component:hbf1.die2:hotspot",
+    "component:hbf1.die2:mean",
+    "component:hbf1.die3:hotspot",
+    "component:hbf1.die3:mean",
+    "component:hbf1.die4:hotspot",
+    "component:hbf1.die4:mean",
+    "component:hbf1.die5:hotspot",
+    "component:hbf1.die5:mean",
+    "component:hbf1.die6:hotspot",
+    "component:hbf1.die6:mean",
+    "component:hbf1.die7:hotspot",
+    "component:hbf1.die7:mean",
+    "component:hbf1.die8:hotspot",
+    "component:hbf1.die8:mean",
+    "component:hbf1.die9:hotspot",
+    "component:hbf1.die9:mean",
+    "component:hbf2.base:hotspot",
+    "component:hbf2.base:mean",
+    "component:hbf2.die0:hotspot",
+    "component:hbf2.die0:mean",
+    "component:hbf2.die10:hotspot",
+    "component:hbf2.die10:mean",
+    "component:hbf2.die11:hotspot",
+    "component:hbf2.die11:mean",
+    "component:hbf2.die12:hotspot",
+    "component:hbf2.die12:mean",
+    "component:hbf2.die13:hotspot",
+    "component:hbf2.die13:mean",
+    "component:hbf2.die14:hotspot",
+    "component:hbf2.die14:mean",
+    "component:hbf2.die15:hotspot",
+    "component:hbf2.die15:mean",
+    "component:hbf2.die1:hotspot",
+    "component:hbf2.die1:mean",
+    "component:hbf2.die2:hotspot",
+    "component:hbf2.die2:mean",
+    "component:hbf2.die3:hotspot",
+    "component:hbf2.die3:mean",
+    "component:hbf2.die4:hotspot",
+    "component:hbf2.die4:mean",
+    "component:hbf2.die5:hotspot",
+    "component:hbf2.die5:mean",
+    "component:hbf2.die6:hotspot",
+    "component:hbf2.die6:mean",
+    "component:hbf2.die7:hotspot",
+    "component:hbf2.die7:mean",
+    "component:hbf2.die8:hotspot",
+    "component:hbf2.die8:mean",
+    "component:hbf2.die9:hotspot",
+    "component:hbf2.die9:mean",
+    "component:hbf3.base:hotspot",
+    "component:hbf3.base:mean",
+    "component:hbf3.die0:hotspot",
+    "component:hbf3.die0:mean",
+    "component:hbf3.die10:hotspot",
+    "component:hbf3.die10:mean",
+    "component:hbf3.die11:hotspot",
+    "component:hbf3.die11:mean",
+    "component:hbf3.die12:hotspot",
+    "component:hbf3.die12:mean",
+    "component:hbf3.die13:hotspot",
+    "component:hbf3.die13:mean",
+    "component:hbf3.die14:hotspot",
+    "component:hbf3.die14:mean",
+    "component:hbf3.die15:hotspot",
+    "component:hbf3.die15:mean",
+    "component:hbf3.die1:hotspot",
+    "component:hbf3.die1:mean",
+    "component:hbf3.die2:hotspot",
+    "component:hbf3.die2:mean",
+    "component:hbf3.die3:hotspot",
+    "component:hbf3.die3:mean",
+    "component:hbf3.die4:hotspot",
+    "component:hbf3.die4:mean",
+    "component:hbf3.die5:hotspot",
+    "component:hbf3.die5:mean",
+    "component:hbf3.die6:hotspot",
+    "component:hbf3.die6:mean",
+    "component:hbf3.die7:hotspot",
+    "component:hbf3.die7:mean",
+    "component:hbf3.die8:hotspot",
+    "component:hbf3.die8:mean",
+    "component:hbf3.die9:hotspot",
+    "component:hbf3.die9:mean",
+    "component:hbm0.base:hotspot",
+    "component:hbm0.base:mean",
+    "component:hbm0.die0:hotspot",
+    "component:hbm0.die0:mean",
+    "component:hbm0.die10:hotspot",
+    "component:hbm0.die10:mean",
+    "component:hbm0.die11:hotspot",
+    "component:hbm0.die11:mean",
+    "component:hbm0.die1:hotspot",
+    "component:hbm0.die1:mean",
+    "component:hbm0.die2:hotspot",
+    "component:hbm0.die2:mean",
+    "component:hbm0.die3:hotspot",
+    "component:hbm0.die3:mean",
+    "component:hbm0.die4:hotspot",
+    "component:hbm0.die4:mean",
+    "component:hbm0.die5:hotspot",
+    "component:hbm0.die5:mean",
+    "component:hbm0.die6:hotspot",
+    "component:hbm0.die6:mean",
+    "component:hbm0.die7:hotspot",
+    "component:hbm0.die7:mean",
+    "component:hbm0.die8:hotspot",
+    "component:hbm0.die8:mean",
+    "component:hbm0.die9:hotspot",
+    "component:hbm0.die9:mean",
+    "component:hbm1.base:hotspot",
+    "component:hbm1.base:mean",
+    "component:hbm1.die0:hotspot",
+    "component:hbm1.die0:mean",
+    "component:hbm1.die10:hotspot",
+    "component:hbm1.die10:mean",
+    "component:hbm1.die11:hotspot",
+    "component:hbm1.die11:mean",
+    "component:hbm1.die1:hotspot",
+    "component:hbm1.die1:mean",
+    "component:hbm1.die2:hotspot",
+    "component:hbm1.die2:mean",
+    "component:hbm1.die3:hotspot",
+    "component:hbm1.die3:mean",
+    "component:hbm1.die4:hotspot",
+    "component:hbm1.die4:mean",
+    "component:hbm1.die5:hotspot",
+    "component:hbm1.die5:mean",
+    "component:hbm1.die6:hotspot",
+    "component:hbm1.die6:mean",
+    "component:hbm1.die7:hotspot",
+    "component:hbm1.die7:mean",
+    "component:hbm1.die8:hotspot",
+    "component:hbm1.die8:mean",
+    "component:hbm1.die9:hotspot",
+    "component:hbm1.die9:mean",
+    "component:hbm2.base:hotspot",
+    "component:hbm2.base:mean",
+    "component:hbm2.die0:hotspot",
+    "component:hbm2.die0:mean",
+    "component:hbm2.die10:hotspot",
+    "component:hbm2.die10:mean",
+    "component:hbm2.die11:hotspot",
+    "component:hbm2.die11:mean",
+    "component:hbm2.die1:hotspot",
+    "component:hbm2.die1:mean",
+    "component:hbm2.die2:hotspot",
+    "component:hbm2.die2:mean",
+    "component:hbm2.die3:hotspot",
+    "component:hbm2.die3:mean",
+    "component:hbm2.die4:hotspot",
+    "component:hbm2.die4:mean",
+    "component:hbm2.die5:hotspot",
+    "component:hbm2.die5:mean",
+    "component:hbm2.die6:hotspot",
+    "component:hbm2.die6:mean",
+    "component:hbm2.die7:hotspot",
+    "component:hbm2.die7:mean",
+    "component:hbm2.die8:hotspot",
+    "component:hbm2.die8:mean",
+    "component:hbm2.die9:hotspot",
+    "component:hbm2.die9:mean",
+    "component:hbm3.base:hotspot",
+    "component:hbm3.base:mean",
+    "component:hbm3.die0:hotspot",
+    "component:hbm3.die0:mean",
+    "component:hbm3.die10:hotspot",
+    "component:hbm3.die10:mean",
+    "component:hbm3.die11:hotspot",
+    "component:hbm3.die11:mean",
+    "component:hbm3.die1:hotspot",
+    "component:hbm3.die1:mean",
+    "component:hbm3.die2:hotspot",
+    "component:hbm3.die2:mean",
+    "component:hbm3.die3:hotspot",
+    "component:hbm3.die3:mean",
+    "component:hbm3.die4:hotspot",
+    "component:hbm3.die4:mean",
+    "component:hbm3.die5:hotspot",
+    "component:hbm3.die5:mean",
+    "component:hbm3.die6:hotspot",
+    "component:hbm3.die6:mean",
+    "component:hbm3.die7:hotspot",
+    "component:hbm3.die7:mean",
+    "component:hbm3.die8:hotspot",
+    "component:hbm3.die8:mean",
+    "component:hbm3.die9:hotspot",
+    "component:hbm3.die9:mean",
+    "package:powered_hotspot",
+    "stack:hbf0:array_hotspot",
+    "stack:hbf0:array_mean",
+    "stack:hbf0:hotspot",
+    "stack:hbf0:mean",
+    "stack:hbf1:array_hotspot",
+    "stack:hbf1:array_mean",
+    "stack:hbf1:hotspot",
+    "stack:hbf1:mean",
+    "stack:hbf2:array_hotspot",
+    "stack:hbf2:array_mean",
+    "stack:hbf2:hotspot",
+    "stack:hbf2:mean",
+    "stack:hbf3:array_hotspot",
+    "stack:hbf3:array_mean",
+    "stack:hbf3:hotspot",
+    "stack:hbf3:mean",
+    "stack:hbm0:array_hotspot",
+    "stack:hbm0:array_mean",
+    "stack:hbm0:hotspot",
+    "stack:hbm0:mean",
+    "stack:hbm1:array_hotspot",
+    "stack:hbm1:array_mean",
+    "stack:hbm1:hotspot",
+    "stack:hbm1:mean",
+    "stack:hbm2:array_hotspot",
+    "stack:hbm2:array_mean",
+    "stack:hbm2:hotspot",
+    "stack:hbm2:mean",
+    "stack:hbm3:array_hotspot",
+    "stack:hbm3:array_mean",
+    "stack:hbm3:hotspot",
+    "stack:hbm3:mean"
+  ],
+  "initial_time_s": 0.0,
+  "initial_temperature_k": 300.0,
+  "windows": [
+    {
+      "id": "full",
+      "kind": "full",
+      "start_s": 0.0,
+      "end_s": 100.0
+    },
+    {
+      "id": "excitation-01",
+      "kind": "excitation",
+      "start_s": 0.5,
+      "end_s": 1.0
+    },
+    {
+      "id": "excitation-02",
+      "kind": "excitation",
+      "start_s": 1.5,
+      "end_s": 3.0
+    },
+    {
+      "id": "excitation-03",
+      "kind": "excitation",
+      "start_s": 4.5,
+      "end_s": 5.0
+    },
+    {
+      "id": "excitation-04",
+      "kind": "excitation",
+      "start_s": 5.5,
+      "end_s": 7.0
+    },
+    {
+      "id": "excitation-05",
+      "kind": "excitation",
+      "start_s": 8.5,
+      "end_s": 9.0
+    },
+    {
+      "id": "excitation-06",
+      "kind": "excitation",
+      "start_s": 9.5,
+      "end_s": 11.0
+    },
+    {
+      "id": "excitation-07",
+      "kind": "excitation",
+      "start_s": 12.5,
+      "end_s": 13.0
+    },
+    {
+      "id": "excitation-08",
+      "kind": "excitation",
+      "start_s": 13.5,
+      "end_s": 15.0
+    },
+    {
+      "id": "excitation-09",
+      "kind": "excitation",
+      "start_s": 16.5,
+      "end_s": 17.0
+    },
+    {
+      "id": "excitation-10",
+      "kind": "excitation",
+      "start_s": 17.5,
+      "end_s": 19.0
+    },
+    {
+      "id": "excitation-11",
+      "kind": "excitation",
+      "start_s": 20.5,
+      "end_s": 21.0
+    },
+    {
+      "id": "excitation-12",
+      "kind": "excitation",
+      "start_s": 21.5,
+      "end_s": 23.0
+    },
+    {
+      "id": "excitation-13",
+      "kind": "excitation",
+      "start_s": 24.5,
+      "end_s": 25.0
+    },
+    {
+      "id": "excitation-14",
+      "kind": "excitation",
+      "start_s": 25.5,
+      "end_s": 27.0
+    },
+    {
+      "id": "excitation-15",
+      "kind": "excitation",
+      "start_s": 28.5,
+      "end_s": 29.0
+    },
+    {
+      "id": "excitation-16",
+      "kind": "excitation",
+      "start_s": 29.5,
+      "end_s": 31.0
+    },
+    {
+      "id": "excitation-17",
+      "kind": "excitation",
+      "start_s": 32.5,
+      "end_s": 33.0
+    },
+    {
+      "id": "excitation-18",
+      "kind": "excitation",
+      "start_s": 33.5,
+      "end_s": 35.0
+    },
+    {
+      "id": "excitation-19",
+      "kind": "excitation",
+      "start_s": 36.5,
+      "end_s": 37.0
+    },
+    {
+      "id": "excitation-20",
+      "kind": "excitation",
+      "start_s": 37.5,
+      "end_s": 39.0
+    },
+    {
+      "id": "excitation-21",
+      "kind": "excitation",
+      "start_s": 40.5,
+      "end_s": 41.0
+    },
+    {
+      "id": "excitation-22",
+      "kind": "excitation",
+      "start_s": 41.5,
+      "end_s": 43.0
+    },
+    {
+      "id": "excitation-23",
+      "kind": "excitation",
+      "start_s": 44.5,
+      "end_s": 45.0
+    },
+    {
+      "id": "excitation-24",
+      "kind": "excitation",
+      "start_s": 45.5,
+      "end_s": 47.0
+    },
+    {
+      "id": "excitation-25",
+      "kind": "excitation",
+      "start_s": 48.5,
+      "end_s": 49.0
+    },
+    {
+      "id": "excitation-26",
+      "kind": "excitation",
+      "start_s": 49.5,
+      "end_s": 51.0
+    },
+    {
+      "id": "excitation-27",
+      "kind": "excitation",
+      "start_s": 52.5,
+      "end_s": 53.0
+    },
+    {
+      "id": "excitation-28",
+      "kind": "excitation",
+      "start_s": 53.5,
+      "end_s": 55.0
+    },
+    {
+      "id": "excitation-29",
+      "kind": "excitation",
+      "start_s": 56.5,
+      "end_s": 57.0
+    },
+    {
+      "id": "excitation-30",
+      "kind": "excitation",
+      "start_s": 57.5,
+      "end_s": 59.0
+    },
+    {
+      "id": "excitation-31",
+      "kind": "excitation",
+      "start_s": 60.5,
+      "end_s": 61.0
+    },
+    {
+      "id": "excitation-32",
+      "kind": "excitation",
+      "start_s": 61.5,
+      "end_s": 63.0
+    },
+    {
+      "id": "excitation-33",
+      "kind": "excitation",
+      "start_s": 64.5,
+      "end_s": 65.0
+    },
+    {
+      "id": "excitation-34",
+      "kind": "excitation",
+      "start_s": 65.5,
+      "end_s": 67.0
+    },
+    {
+      "id": "cooling-01",
+      "kind": "cooling",
+      "start_s": 0.0,
+      "end_s": 0.5
+    },
+    {
+      "id": "cooling-02",
+      "kind": "cooling",
+      "start_s": 1.0,
+      "end_s": 1.5
+    },
+    {
+      "id": "cooling-03",
+      "kind": "cooling",
+      "start_s": 3.0,
+      "end_s": 4.5
+    },
+    {
+      "id": "cooling-04",
+      "kind": "cooling",
+      "start_s": 5.0,
+      "end_s": 5.5
+    },
+    {
+      "id": "cooling-05",
+      "kind": "cooling",
+      "start_s": 7.0,
+      "end_s": 8.5
+    },
+    {
+      "id": "cooling-06",
+      "kind": "cooling",
+      "start_s": 9.0,
+      "end_s": 9.5
+    },
+    {
+      "id": "cooling-07",
+      "kind": "cooling",
+      "start_s": 11.0,
+      "end_s": 12.5
+    },
+    {
+      "id": "cooling-08",
+      "kind": "cooling",
+      "start_s": 13.0,
+      "end_s": 13.5
+    },
+    {
+      "id": "cooling-09",
+      "kind": "cooling",
+      "start_s": 15.0,
+      "end_s": 16.5
+    },
+    {
+      "id": "cooling-10",
+      "kind": "cooling",
+      "start_s": 17.0,
+      "end_s": 17.5
+    },
+    {
+      "id": "cooling-11",
+      "kind": "cooling",
+      "start_s": 19.0,
+      "end_s": 20.5
+    },
+    {
+      "id": "cooling-12",
+      "kind": "cooling",
+      "start_s": 21.0,
+      "end_s": 21.5
+    },
+    {
+      "id": "cooling-13",
+      "kind": "cooling",
+      "start_s": 23.0,
+      "end_s": 24.5
+    },
+    {
+      "id": "cooling-14",
+      "kind": "cooling",
+      "start_s": 25.0,
+      "end_s": 25.5
+    },
+    {
+      "id": "cooling-15",
+      "kind": "cooling",
+      "start_s": 27.0,
+      "end_s": 28.5
+    },
+    {
+      "id": "cooling-16",
+      "kind": "cooling",
+      "start_s": 29.0,
+      "end_s": 29.5
+    },
+    {
+      "id": "cooling-17",
+      "kind": "cooling",
+      "start_s": 31.0,
+      "end_s": 32.5
+    },
+    {
+      "id": "cooling-18",
+      "kind": "cooling",
+      "start_s": 33.0,
+      "end_s": 33.5
+    },
+    {
+      "id": "cooling-19",
+      "kind": "cooling",
+      "start_s": 35.0,
+      "end_s": 36.5
+    },
+    {
+      "id": "cooling-20",
+      "kind": "cooling",
+      "start_s": 37.0,
+      "end_s": 37.5
+    },
+    {
+      "id": "cooling-21",
+      "kind": "cooling",
+      "start_s": 39.0,
+      "end_s": 40.5
+    },
+    {
+      "id": "cooling-22",
+      "kind": "cooling",
+      "start_s": 41.0,
+      "end_s": 41.5
+    },
+    {
+      "id": "cooling-23",
+      "kind": "cooling",
+      "start_s": 43.0,
+      "end_s": 44.5
+    },
+    {
+      "id": "cooling-24",
+      "kind": "cooling",
+      "start_s": 45.0,
+      "end_s": 45.5
+    },
+    {
+      "id": "cooling-25",
+      "kind": "cooling",
+      "start_s": 47.0,
+      "end_s": 48.5
+    },
+    {
+      "id": "cooling-26",
+      "kind": "cooling",
+      "start_s": 49.0,
+      "end_s": 49.5
+    },
+    {
+      "id": "cooling-27",
+      "kind": "cooling",
+      "start_s": 51.0,
+      "end_s": 52.5
+    },
+    {
+      "id": "cooling-28",
+      "kind": "cooling",
+      "start_s": 53.0,
+      "end_s": 53.5
+    },
+    {
+      "id": "cooling-29",
+      "kind": "cooling",
+      "start_s": 55.0,
+      "end_s": 56.5
+    },
+    {
+      "id": "cooling-30",
+      "kind": "cooling",
+      "start_s": 57.0,
+      "end_s": 57.5
+    },
+    {
+      "id": "cooling-31",
+      "kind": "cooling",
+      "start_s": 59.0,
+      "end_s": 60.5
+    },
+    {
+      "id": "cooling-32",
+      "kind": "cooling",
+      "start_s": 61.0,
+      "end_s": 61.5
+    },
+    {
+      "id": "cooling-33",
+      "kind": "cooling",
+      "start_s": 63.0,
+      "end_s": 64.5
+    },
+    {
+      "id": "cooling-34",
+      "kind": "cooling",
+      "start_s": 65.0,
+      "end_s": 65.5
+    },
+    {
+      "id": "cooling-35",
+      "kind": "cooling",
+      "start_s": 67.0,
+      "end_s": 100.0
+    }
+  ],
+  "hotspot_sensor_ids": [
+    "package:powered_hotspot"
+  ],
+  "control_sensor_ids": [],
+  "crossing_thresholds_k": [
+    301.0,
+    330.0
+  ],
+  "crossing_thresholds_semantics": "legacy_v1 diagnostic probes retained for comparison; not device limits",
+  "crossing_min_time_s": 0.2,
+  "crossing_fraction": 0.05,
+  "window_derivation": {
+    "basis": "union of source activity [start_s,end_s] before output inspection; cooling is complement in full interval",
+    "event_count": 484,
+    "unique_source_intervals": 68,
+    "merged_excitation_intervals": 34,
+    "cooling_intervals": 35
+  },
+  "sensor_role_derivation": {
+    "grid_hotspot": "package:powered_hotspot has reduction=max over all powered components",
+    "control": "no active P2 CSV consumer; stack:<id>:hotspot is a readonly semantic candidate matching CpuService max-over-stack only"
+  },
+  "source_contract": {
+    "generated_case": "campaign-R03-train-1mm-20ms",
+    "events_sha256": "b1674c3ef83b7373d98eb55317d8109d3e55b00bbb057eefc1cf7b6614cf980e",
+    "reference_sensors_sha256": "38b3c02cec9c0f5842e8133fa17c2590e2fbb2c1b55d2a066be11943c67e96b2",
+    "sensor_count": 275,
+    "all_hotspot_reductions_are_max": true,
+    "new_output_inspected_for_window_selection": false
+  },
+  "candidate_control_sensor_ids": [
+    "stack:hbf0:hotspot",
+    "stack:hbf1:hotspot",
+    "stack:hbf2:hotspot",
+    "stack:hbf3:hotspot",
+    "stack:hbm0:hotspot",
+    "stack:hbm1:hotspot",
+    "stack:hbm2:hotspot",
+    "stack:hbm3:hotspot"
+  ],
+  "candidate_control_sensor_status": "DECLARED_READONLY_CANDIDATE_NOT_ACTIVE"
+}

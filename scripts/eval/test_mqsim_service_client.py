@@ -9,6 +9,7 @@ from mqsim_service import MqsimService
 
 ROOT=Path(__file__).resolve().parents[2]
 BINARY=Path(os.environ.get('HBFSIM_MQSIM_SERVICE_BINARY',ROOT/'build-eval-implementation/hbf_mqsim_service'))
+ARTIFACT_ROOT=Path(os.environ.get('EQ3_TEST_ARTIFACT_ROOT',ROOT)).resolve()
 
 
 class ClientTests(unittest.TestCase):
@@ -22,7 +23,8 @@ class ClientTests(unittest.TestCase):
         self.profile.write_text(json.dumps(profile))
 
     def test_live_native_clock_and_finish_receipt(self):
-        with MqsimService(BINARY, self.profile, self.directory/'attempt', timeout=20) as service:
+        with MqsimService(BINARY, self.profile, self.directory/'attempt', timeout=20,
+                          artifact_root=ARTIFACT_ROOT) as service:
             service.submit(dict(request_id=1,issue_ns=0,logical_address=0,bytes=16384,operation='read'))
             self.assertIsNone(service.until(1000))
             self.assertEqual(service.now,1000)
@@ -35,15 +37,18 @@ class ClientTests(unittest.TestCase):
         self.assertTrue((self.directory/'attempt/service-transcript.jsonl').is_file())
 
     def test_invalid_request_retains_failure_transcript_and_owns_cleanup(self):
+        service=MqsimService(BINARY, self.profile, self.directory/'failure', timeout=20,
+                             artifact_root=ARTIFACT_ROOT)
         with self.assertRaises(ValueError):
-            with MqsimService(BINARY, self.profile, self.directory/'failure', timeout=20) as service:
+            with service:
                 service.submit(dict(request_id=1,issue_ns=0,logical_address=0,bytes=1,operation='read'))
         self.assertIsNotNone(service.process.returncode)
         self.assertNotEqual(service.process.returncode,0)
         self.assertTrue((self.directory/'failure/service-stderr.log').read_text())
 
     def test_empty_fully_resident_service_can_finish(self):
-        with MqsimService(BINARY,self.profile,self.directory/'empty',timeout=20) as service:
+        with MqsimService(BINARY,self.profile,self.directory/'empty',timeout=20,
+                          artifact_root=ARTIFACT_ROOT) as service:
             self.assertIsNone(service.until(2500))
             self.assertEqual(service.finish()['issued'],0)
 

@@ -1,0 +1,18 @@
+{
+  "classification": "FIXED_STRUCTURAL_CPU_TRACE_NOT_EXPERIMENT",
+  "command": "OMP/OPENBLAS/MKL/BLIS/VECLIB/NUMEXPR=1 python3 tiny_cpu_trace.py --config .../config.json --output .../trace.json",
+  "config_file_sha256": "24ae28153b10a8fb36492a1f4a641ff0664941307f2d1c812162f7c17a141bed",
+  "cpu_threads_requested": 1,
+  "limitations": [
+    "RANDOM_TINY_WEIGHTS",
+    "NO_PRETRAINED_QUALITY",
+    "NO_GPU_TIMING",
+    "NO_TOKEN_PERFORMANCE_CALIBRATION"
+  ],
+  "max_rss_kib": 46460,
+  "schema_version": "eq3-tiny-qwen2-cpu-trace-run-receipt-v1",
+  "status": "PASS",
+  "trace_file_sha256": "c3019ec27d1f35ca74b7844451fef9b4f8f97094ef14f673ddabed9dbdbe0592",
+  "trace_internal_sha256": "feea4657abc5e7b981208b23b8d2fff9836194694c5c3dec69c6bf59bbe627a7",
+  "wall_seconds": 0.11
+}

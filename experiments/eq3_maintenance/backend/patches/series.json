@@ -1,0 +1,22 @@
+{
+  "schema_version": "eq3-isolated-mqsim-patch-series-v1",
+  "upstream_revision": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16",
+  "patches": [
+    {
+      "path": "../../../../patches/mqsim/0001-online-hbf-api.patch",
+      "sha256": "e145f8fae5faf55dca89b4b987dc73e010dbe0d8dc06906d89edd61e7a19e167"
+    },
+    {
+      "path": "../../../../patches/mqsim/0002-qlc-support.patch",
+      "sha256": "246669fd8d347f695565987d3d0428a7fe28cf382baf5cf1c3f219bcd2b07f8f"
+    },
+    {
+      "path": "../../../../patches/mqsim/0003-hbf-command-observer.patch",
+      "sha256": "05fcd2a90e9defce5d21258b0c18b0271dd2285b7e76c4e9e7973ca5257a8724"
+    },
+    {
+      "path": "0004-eq3-maintenance.patch",
+      "sha256": "4985a1afc3da2112d3baccb373accf545ca8ed8bfe30c37038e91802522347d5"
+    }
+  ]
+}

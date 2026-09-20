@@ -1,17 +1,31 @@
 # 四拓扑强制交付与设计冻结修订 v3
 
+## 2026-09-20 minimal repair update
+
+See [EQ3-MINIMAL-REPAIR-v1 report](MINIMAL_REPAIR_REPORT.md) for current three-axis
+status. Four CpuService CPU functional regressions pass after route-endpoint
+Shutdown/Light repair. Actual MQSim request-level optional gate and thermal
+cooling consumer pass CPU tests only. Native MQSim command facts and persistent
+channel-group placement now pass fixed CPU tests; production host-service active
+control remains unconnected and die maintenance remains unsupported. P2 stays
+unfrozen and no live GPU result is claimed. External physical GDDR package
+temperature is UNAVAILABLE, not zero external energy/board effect.
+
 ## 当前增量状态（保留下面的历史v3设计，不改写冻结清单）
 
-四拓扑实际CPU资源/能量/完成路径现已有工程fixture测试，不再仅JSON生成。
-mixed-direct主线另有六个因果工程pilot；relay伙伴base与HBM直连共享、DASH单一
-上游、8HBF外部物理GDDR服务均已测试。它们不是四种研究封装热/性能全验收。
-P2参考/模型仍未冻结；物理能量、可靠性与live GPU缺口仍保留。
+四拓扑现有一条实际 MQSim CPU 工程链，不再仅靠 JSON 或 `CpuService`：HBF 请求
+经显式 stack/channel map 进入真实 MQSim 命令路径，HBM 使用参数化场景后端，
+package direct/relay/DASH 使用有界双 bank 与独立/共享链路。四个小用例均通过，
+且保存逐栈计数、唯一完成和零资源泄漏证据。它们不是四种研究封装热/性能全验收。
+P2参考/模型仍未冻结；物理能量、可靠性、生产 host 和 live GPU 缺口仍保留。
 三轴完整状态和原始证据入口见[P2/P3/P4实际结果](P2_P3_P4_CAMPAIGN_RESULT.md)。
 
 实施续接修订：用户明确8HBF时GDDR位于封装外，本轮不模拟GDDR温度/板域。
 下表原v3板级热模型要求已被此决定覆盖；外部物理身份与系统依赖仍保留。
 通用转换器现有固定四拓扑/数量/层数/功率映射测试，首例双后端已静态生成；
-热模型仍NOT_VALIDATED、系统行为仍NOT_IMPLEMENTED。具体证据见CONVERTER_VALIDATION.md。
+热模型仍 NOT_VALIDATED；系统行为仅提升为小型 CPU 工程fixture通过，不能写成
+研究拓扑、生产系统或 live GPU 通过。具体证据见 CONVERTER_VALIDATION.md 及
+`decision-execution-v2/points/basic-four-topology-actual`。
 
 USER_CONFIRMED（2026-09-19）：4HBM4+4HBF mixed-direct 是首个逐层研究封装和
 转换器验证实例；接受已明确分类的厂商规格、代理和研究假设，不代表全部参数
@@ -25,19 +39,19 @@ fixture；几何/功率缺口必须显式失败，不能借用其它拓扑填空
 
 | 必交拓扑 | 器件、几何与连接路径 | 共享资源、功耗归属 | 传感器和模型验证域 | 当前消费者、关键缺口 | 验收条件 |
 |---|---|---|---|---|---|
-| 8HBF direct + 物理 GDDR 快存 | 8 个 HBF 含各自 base/array；GPU↔HBF直连；外部GDDR按用户要求排除本轮封装热域 | 封装内各HBF及GPU能量；外部GDDR服务/能量不伪造，不借HBM base代替 | GPU、每HBF base/die/stack；不输出GDDR/PCB温度或声称板级耦合已验证 | 通用转换器fixture保留外部physical GDDR且无热实体；8HBF研究几何/外存服务仍缺 | 封装内能量守恒与热参考验收；系统请求/共享资源与外存行为独立验收，不要求本轮GDDR板级热模拟 |
-| mixed-direct，HBM+HBF 总数 8 | 两类存储各自直连 GPU；混合域 nHBM=1..7，nHBF=8−nHBM；4+4 为首例，端点按单独全同类 profile 验证，不静默套用 | 各 array/base/TSV/链路与 GPU 端资源；是否共享 GPU fabric 及上限须声明；无 relay 能量 | GPU、每 base/die/stack；当前仅 4HBM12H+4HBF16die 条件研究几何，非全部数量/层数域 | P1 默认是 2+6 fixture；新 4+4 JSON 仅静态检查，逐层转换器未实现；真实活动→功率未闭合 | 非 4+4、不同 die 数、重排 ID 的配置测试；逐物理源守恒；参考与 RC 独立通过；直连服务路径验收 |
-| 4HBM + 4HBF relay | 显式四配对：GPU↔HBM base↔HBF；需研究型 base 转发能力，不能称常规 HBM4 已支持 | HBM base 转发/PHY、HBM GPU 链路、HBF TSV/array 和仲裁竞争；转发不等于访问 HBM array；接收/发送能量分端归属 | 同上，额外 base 转发热源；热几何相同也不能继承路由/功耗验证 | P1 daisy 图和合成 base 激励；无真实 relay 仲裁；P1 HBF8die，与候选 HBF16die 不同；延迟/带宽/能量缺口 | 显式配对和合法 base 能力；争用/队列/因果完成、无伪 DRAM 访问、base 能量不漏不重；本拓扑热域验收 |
-| 四对 DASH | USER_CONFIRMED DSAH→DASH；每对 HBF 同时具有 direct/relay 路径，配对及选择规则显式化 | 两路径共享同一 HBF array/TSV 供给；relay 再占 HBM base/链路；选择、分流、切换、回压及端点 PHY 能量单列；不可双算容量 | 同上；需双路径热点、base/array 非均匀功率域验证 | P1 dual 声明图；当前 HBM16H fixture 不是主线12H；真实选择与共享仲裁未实现 | 两路径独立及并发服务测试、共享瓶颈守恒、不重复完成/计能、四配对正确；本域参考/RC 验收 |
+| 8HBF direct + 物理 GDDR 快存 | 8 个 HBF 含各自 base/array；GPU↔HBF直连；外部GDDR按用户要求排除本轮封装热域 | 封装内各HBF及GPU能量；外部GDDR服务/能量不伪造，不借HBM base代替 | GPU、每HBF base/die/stack；不输出GDDR/PCB温度或声称板级耦合已验证 | BasicSystem 实际fixture：8个单channel/单die HBF各3请求，MQSim完成24/24，双bank回压和零泄漏；外部physical GDDR身份保留，但service/temperature均UNAVAILABLE | 封装内能量守恒与热参考仍待验收；GDDR系统服务仍缺，不要求本轮GDDR板级热模拟 |
+| mixed-direct，HBM+HBF 总数 8 | 两类存储各自直连 GPU；混合域 nHBM=1..7,nHBF=8−nHBM；4+4 为首例 | 各 array/base/TSV/链路与 GPU 端资源；无 relay 能量 | GPU、每 base/die/stack；当前仅 4HBM12H+4HBF16die 条件研究几何，非全部数量/层数域 | BasicSystem 4+4 actual fixture：每栈3请求，共24个唯一完成；HBF走MQSim，HBM为PARAMETRIC场景，配置中pair/relay为空，最终bank/link全释放 | 非4+4与研究几何/容量/吞吐、真实HBM、逐物理源能量和热参考仍待验收 |
+| 4HBM + 4HBF relay | 显式四配对：GPU↔HBM base↔HBF；基础实现不代表常规HBM4产品已有该能力 | HBF source bank→pair-private relay→共享的配对HBM bank/GPU link；不访问HBM array | 同上，额外 base 转发热源仍未接热模型 | BasicSystem actual fixture：4对、每栈3请求、24个唯一完成；HBM local与relay共享有界bank/GPU link，顺序两段fabric完成，零泄漏 | 链路/银行时序仅SCENARIO_ASSUMPTION；真实PHY、能量、热源映射和研究几何仍待验收 |
+| 四对 DASH | 每对HBF同时有direct/relay，package route与MQSim native direct placement分账 | 两条drain路径使用独立link；relay占配对HBM bank/GPU link；两bank产生真实外部回压 | 双路径热点、base/array非均匀功率域仍未验证 | BasicSystem actual fixture：每HBF四个交替direct/relay、每HBM三个local，共28个唯一完成；四对映射、共享资源和最终零泄漏通过 | 基础仲裁通过不等于校准带宽/能量、研究封装热验证、生产策略或live GPU通过 |
 
 ## 三条独立验收轴
 
 | 拓扑 | 配置覆盖 | 热模型验证 | 系统拓扑行为验证 |
 |---|---|---|---|
-| 8HBF + GDDR | 通用双导出fixture PASS；研究profile INCOMPLETE，GDDR热域排除 | NOT_VALIDATED | NOT_IMPLEMENTED |
-| mixed-direct | 非4+4 fixture PASS；4+4研究首例双导出/原生parse-only PASS | NOT_VALIDATED | NOT_IMPLEMENTED |
-| relay 4+4 | 通用配对/双导出fixture PASS；研究profile INCOMPLETE | NOT_VALIDATED | NOT_IMPLEMENTED |
-| DASH 四对 | 通用配对/双导出fixture PASS；研究profile INCOMPLETE | NOT_VALIDATED | NOT_IMPLEMENTED |
+| 8HBF + GDDR | 工程8HBF派生profile/map PASS；研究profile INCOMPLETE，GDDR热域排除 | NOT_VALIDATED | `BASIC_CPU_HBF_PATH_PASS`；GDDR service/temperature UNAVAILABLE，生产host/live GPU未接 |
+| mixed-direct | 工程4+4派生profile/map与实际CPU链 PASS；研究首例配置覆盖保留 | NOT_VALIDATED | `BASIC_CPU_FIXTURE_PASS`；真实HBM、生产host/live GPU未接 |
+| relay 4+4 | 工程四配对配置与实际CPU链 PASS；研究profile INCOMPLETE | NOT_VALIDATED | `BASIC_CPU_FIXTURE_PASS`；参数化HBM/链路，不是产品能力验证 |
+| DASH 四对 | 工程四配对双路径配置与实际CPU链 PASS；研究profile INCOMPLETE | NOT_VALIDATED | `BASIC_CPU_FIXTURE_PASS`；未校准、未热耦合、非生产策略 |
 
 任何一轴通过不提升其它轴；主线标定通过也不提升其它拓扑。旧 RC 仍 FAILED；
 旧 40mm 案例只作测试。完成标准是四行各自完成适用的三轴证据，不是四个 JSON 存在。

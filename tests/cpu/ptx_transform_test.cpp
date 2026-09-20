@@ -1,7 +1,8 @@
 #include "ptx_memory_op.hpp"
 #include "transform.hpp"
 
-#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 #include <fstream>
 #include <sstream>
@@ -17,7 +18,8 @@
 #define CHECK(condition)                                                       \
     do {                                                                       \
         if (!(condition)) {                                                    \
-            return __LINE__;                                                   \
+            std::fprintf(stderr, "CHECK failed at line %d: %s\n", __LINE__, #condition); \
+            std::exit(1);                                                       \
         }                                                                      \
     } while (false)
 
@@ -39,7 +41,7 @@ std::string configured_ptx(std::string ptx)
 std::string read_fixture(const std::string& name)
 {
     std::ifstream input("tests/fixtures/ptx/" + name);
-    assert(input);
+    CHECK(input);
     return configured_ptx(std::string{
         std::istreambuf_iterator<char>{input},
         std::istreambuf_iterator<char>{},
@@ -52,40 +54,40 @@ int main()
 {
     const auto op = hbfsim::ptx::parse_memory_op(
         "@%p1 ld.global.v2.u32 {%r4,%r5}, [%rd8+16];");
-    assert(op.has_value());
-    assert(op->predicate == "@%p1");
-    assert(op->kind == hbfsim::ptx::AccessKind::Read);
-    assert(op->bytes == 8);
-    assert(op->base_register == "%rd8");
-    assert(op->offset == 16);
+    CHECK(op.has_value());
+    CHECK(op->predicate == "@%p1");
+    CHECK(op->kind == hbfsim::ptx::AccessKind::Read);
+    CHECK(op->bytes == 8);
+    CHECK(op->base_register == "%rd8");
+    CHECK(op->offset == 16);
 
     const auto store = hbfsim::ptx::parse_memory_op(
         "st.global.release.gpu.u64 [%rd2-0x20], %rd3; // payload");
-    assert(store.has_value());
-    assert(store->kind == hbfsim::ptx::AccessKind::Write);
-    assert(store->bytes == 8);
-    assert(store->offset == -32);
+    CHECK(store.has_value());
+    CHECK(store->kind == hbfsim::ptx::AccessKind::Write);
+    CHECK(store->bytes == 8);
+    CHECK(store->offset == -32);
 
     const auto nc = hbfsim::ptx::parse_memory_op(
         "ld.global.nc.L2::128B.v4.b32 {%r0,%r1,%r2,%r3}, [%rd4];");
-    assert(nc.has_value());
-    assert(nc->bytes == 16);
+    CHECK(nc.has_value());
+    CHECK(nc->bytes == 16);
 
     const auto volatile_load = hbfsim::ptx::parse_memory_op(
         "ld.volatile.global.u8 %rd7, [%rd8+4096];");
-    assert(volatile_load.has_value());
-    assert(volatile_load->kind == hbfsim::ptx::AccessKind::Read);
-    assert(volatile_load->bytes == 1);
-    assert(volatile_load->base_register == "%rd8");
-    assert(volatile_load->offset == 4096);
+    CHECK(volatile_load.has_value());
+    CHECK(volatile_load->kind == hbfsim::ptx::AccessKind::Read);
+    CHECK(volatile_load->bytes == 1);
+    CHECK(volatile_load->base_register == "%rd8");
+    CHECK(volatile_load->offset == 4096);
     const auto volatile_negative = hbfsim::ptx::parse_memory_op(
         "ld.volatile.global.u8 %rd7, [%rd8+-32768];");
-    assert(volatile_negative.has_value());
-    assert(volatile_negative->offset == -32768);
+    CHECK(volatile_negative.has_value());
+    CHECK(volatile_negative->offset == -32768);
 
-    assert(!hbfsim::ptx::parse_memory_op("atom.global.add.u32 %r1, [%rd2], 1;"));
-    assert(!hbfsim::ptx::parse_memory_op("ld.u32 %r1, [%rd2];"));
-    assert(!hbfsim::ptx::parse_memory_op("ld.global.u32 %r1, [%r2+%r3];"));
+    CHECK(!hbfsim::ptx::parse_memory_op("atom.global.add.u32 %r1, [%rd2], 1;"));
+    CHECK(!hbfsim::ptx::parse_memory_op("ld.u32 %r1, [%rd2];"));
+    CHECK(!hbfsim::ptx::parse_memory_op("ld.global.u32 %r1, [%r2+%r3];"));
 
     const std::string spoofed_helper = configured_ptx(R"ptx(.version 8.7
 .target sm_120
@@ -125,13 +127,13 @@ int main()
         .full_ptx = read_fixture("supported.ptx"),
         .to_patch_kernel = "kernel",
     });
-    assert(result.modified);
-    assert(result.coverage.rewritten_instructions == 3);
-    assert(result.output_ptx.find("__hbfsim_resolve") != std::string::npos);
-    assert(result.output_ptx.find("__hbfsim_fault") != std::string::npos);
-    assert(result.output_ptx.find("@!%p1 bra $L__hbfsim_skip_") !=
+    CHECK(result.modified);
+    CHECK(result.coverage.rewritten_instructions == 3);
+    CHECK(result.output_ptx.find("__hbfsim_resolve") != std::string::npos);
+    CHECK(result.output_ptx.find("__hbfsim_fault") != std::string::npos);
+    CHECK(result.output_ptx.find("@!%p1 bra $L__hbfsim_skip_") !=
            std::string::npos);
-    assert(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
+    CHECK(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
 
     // The unsupported scan lists inline asm because the transform cannot see
     // through it. The pattern used to be `asm\s*\(`, which does not match
@@ -178,7 +180,12 @@ int main()
     });
     CHECK(mixed.modified);
     CHECK(mixed.coverage.rewritten_instructions == 1);
-    CHECK(mixed.coverage.unsupported_instructions == 1);
+    // transform_ptx reports all unsupported instructions, including ld.param.
+    // Only the plugin filters non-global opcodes when deciding admission.
+    CHECK(mixed.coverage.unsupported_instructions == 2);
+    CHECK(mixed.coverage.unsupported_opcodes.size() == 2);
+    CHECK(mixed.coverage.unsupported_opcodes[0] == "ld.param.u64");
+    CHECK(mixed.coverage.unsupported_opcodes[1] == "ld.global.u32");
     bool mixed_reports_global = false;
     for (const auto& opcode : mixed.coverage.unsupported_opcodes) {
         if (opcode.starts_with("ld.global")) { mixed_reports_global = true; }
@@ -268,15 +275,15 @@ int main()
         .full_ptx = read_fixture("unsupported.ptx"),
         .to_patch_kernel = "unsupported_kernel",
     });
-    assert(!rejected.modified);
-    assert(rejected.coverage.unsupported_instructions == 5);
+    CHECK(!rejected.modified);
+    CHECK(rejected.coverage.unsupported_instructions == 5);
 
     const auto excluded = hbfsim::ptx::transform_ptx({
         .full_ptx = read_fixture("helper_exclusion.ptx"),
         .to_patch_kernel = "",
     });
-    assert(!excluded.modified);
-    assert(excluded.coverage.excluded_functions == 2);
+    CHECK(!excluded.modified);
+    CHECK(excluded.coverage.excluded_functions == 2);
 
     // A global access the rewriter could not consume must be reported, never
     // skipped in silence. Silence lets a kernel be marked instrumented while

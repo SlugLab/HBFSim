@@ -1,0 +1,254 @@
+diff --git a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+index 0b659d9..2715a50 100644
+--- a/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
++++ b/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp
+@@ -1,9 +1,62 @@
+ #include <stdexcept>
++#include <utility>
+ #include "../sim/Engine.h"
+ #include "NVM_PHY_ONFI_NVDDR2.h"
+ #include "Stats.h"
+ 
+ namespace SSD_Components {
++	namespace {
++		HBF_Command_Observation_Sink hbf_command_observation_sink;
++		bool hbf_command_observation_failed = false;
++		std::uint64_t next_hbf_command_id = 1, next_hbf_transaction_id = 1;
++		HBF_Transaction_Observation transaction_observation(NVM_Transaction_Flash* tr)
++		{
++			if (tr->HBF_Observation_ID == 0) tr->HBF_Observation_ID = next_hbf_transaction_id++;
++			return {tr->HBF_Observation_ID,
++				tr->UserIORequest == NULL ? 0 : tr->UserIORequest->HBF_External_Request_ID,
++				static_cast<unsigned int>(tr->Source), static_cast<unsigned int>(tr->Type),
++				tr->LPA, tr->LPA != NO_LPA, tr->Data_and_metadata_size_in_byte, tr->Address.ChannelID,
++				tr->Address.ChipID, tr->Address.DieID, tr->Address.PlaneID,
++				tr->Address.BlockID, tr->Address.PageID};
++		}
++	}
++
++	void NVM_PHY_ONFI_NVDDR2::Set_hbf_command_observation_sink(HBF_Command_Observation_Sink sink)
++	{
++		hbf_command_observation_sink = std::move(sink);
++		hbf_command_observation_failed = false;
++		next_hbf_command_id = next_hbf_transaction_id = 1;
++	}
++	void NVM_PHY_ONFI_NVDDR2::Clear_hbf_command_observation_sink()
++	{
++		hbf_command_observation_sink = {};
++		hbf_command_observation_failed = false;
++	}
++	bool NVM_PHY_ONFI_NVDDR2::Hbf_command_observation_failed()
++	{
++		return hbf_command_observation_failed;
++	}
++	void NVM_PHY_ONFI_NVDDR2::observe_command(DieBookKeepingEntry* die,
++		HBF_Command_Observation_Phase phase)
++	{
++		if (!hbf_command_observation_sink) return;
++		if (die->HBF_Observation_Command_ID == 0) die->HBF_Observation_Command_ID = next_hbf_command_id++;
++		HBF_Command_Observation value{die->HBF_Observation_Command_ID, phase,
++			Simulator->Time(), die->ActiveCommand->CommandCode, {}};
++		for (auto* tr : die->ActiveTransactions) value.transactions.push_back(transaction_observation(tr));
++		try { hbf_command_observation_sink(value); }
++		catch (...) { hbf_command_observation_failed = true; }
++	}
++	void NVM_PHY_ONFI_NVDDR2::observe_transfer(DieBookKeepingEntry* die,
++		NVM_Transaction_Flash* tr, HBF_Command_Observation_Phase phase)
++	{
++		if (!hbf_command_observation_sink) return;
++		HBF_Command_Observation value{die->HBF_Observation_Command_ID, phase,
++			Simulator->Time(), die->ActiveCommand->CommandCode, {transaction_observation(tr)}};
++		try { hbf_command_observation_sink(value); }
++		catch (...) { hbf_command_observation_failed = true; }
++	}
++
+ 	/*hack: using this style to emulate event/delegate*/
+ 	NVM_PHY_ONFI_NVDDR2* NVM_PHY_ONFI_NVDDR2::_my_instance;
+ 
+@@ -314,6 +367,7 @@ namespace SSD_Components {
+ 				throw std::invalid_argument("NVM_PHY_ONFI_NVDDR2: Unhandled event specified!");
+ 		}
+ 
++		observe_command(dieBKE, HBF_Command_Observation_Phase::COMMAND_ISSUED);
+ 		target_channel->SetStatus(BusChannelStatus::BUSY, targetChip);
+ 	}
+ 
+@@ -346,6 +400,7 @@ namespace SSD_Components {
+ 		switch ((NVDDR2_SimEventType)ev->Type) {
+ 			case NVDDR2_SimEventType::READ_CMD_ADDR_TRANSFERRED:
+ 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": READ_CMD_ADDR_TRANSFERRED ")
++				observe_command(dieBKE, HBF_Command_Observation_Phase::MEDIA_BEGIN);
+ 				targetChip->EndCMDXfer(dieBKE->ActiveCommand);
+ 				for (auto tr : dieBKE->ActiveTransactions) {
+ 					tr->STAT_execution_time = dieBKE->Expected_finish_time - Simulator->Time();
+@@ -362,6 +417,7 @@ namespace SSD_Components {
+ 				break;
+ 			case NVDDR2_SimEventType::ERASE_SETUP_COMPLETED:
+ 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": ERASE_SETUP_COMPLETED ")
++				observe_command(dieBKE, HBF_Command_Observation_Phase::MEDIA_BEGIN);
+ 				targetChip->EndCMDXfer(dieBKE->ActiveCommand);
+ 				for (auto &tr : dieBKE->ActiveTransactions) {
+ 					tr->STAT_execution_time = dieBKE->Expected_finish_time - Simulator->Time();
+@@ -379,6 +435,7 @@ namespace SSD_Components {
+ 			case NVDDR2_SimEventType::PROGRAM_CMD_ADDR_DATA_TRANSFERRED:
+ 			case NVDDR2_SimEventType::PROGRAM_COPYBACK_CMD_ADDR_TRANSFERRED:
+ 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID <<  ": PROGRAM_CMD_ADDR_DATA_TRANSFERRED " )
++				observe_command(dieBKE, HBF_Command_Observation_Phase::MEDIA_BEGIN);
+ 				targetChip->EndCMDDataInXfer(dieBKE->ActiveCommand);
+ 				for (auto &tr : dieBKE->ActiveTransactions) {
+ 					tr->STAT_execution_time = dieBKE->Expected_finish_time - Simulator->Time();
+@@ -396,6 +453,8 @@ namespace SSD_Components {
+ 				break;
+ 			case NVDDR2_SimEventType::READ_DATA_TRANSFERRED:
+ 				//DEBUG2("Chip " << targetChip->ChannelID << ", " << targetChip->ChipID << ", " << dieBKE->ActiveTransactions.front()->Address.DieID << ": READ_DATA_TRANSFERRED ")
++				observe_transfer(dieBKE, dieBKE->ActiveTransfer,
++					HBF_Command_Observation_Phase::DATA_OUT_END);
+ 				targetChip->EndDataOutXfer(dieBKE->ActiveCommand);
+ 				copy_read_data_to_transaction((NVM_Transaction_Flash_RD*)dieBKE->ActiveTransfer, dieBKE->ActiveCommand);
+ 	#if 0
+@@ -452,6 +511,8 @@ namespace SSD_Components {
+ 			Simulator->Register_sim_event(Simulator->Time() + this->channels[channel_id]->ProgramCommandTime[waitingBKE->ActiveTransactions.size()],
+ 				this, waitingBKE, (int)NVDDR2_SimEventType::PROGRAM_COPYBACK_CMD_ADDR_TRANSFERRED);
+ 			waitingChipBKE->OngoingDieCMDTransfers.push(waitingBKE);
++			waitingBKE->HBF_Observation_Command_ID = 0;
++			observe_command(waitingBKE, HBF_Command_Observation_Phase::COMMAND_ISSUED);
+ 
+ 			waitingBKE->Expected_finish_time = Simulator->Time() + this->channels[channel_id]->ProgramCommandTime[waitingBKE->ActiveTransactions.size()]
+ 				+ targetChip->Get_command_execution_latency(waitingBKE->ActiveCommand->CommandCode, waitingBKE->ActiveCommand->Address[0].PageID);
+@@ -493,6 +554,7 @@ namespace SSD_Components {
+ 	{
+ 		ChipBookKeepingEntry *chipBKE = &_my_instance->bookKeepingTable[chip->ChannelID][chip->ChipID];
+ 		DieBookKeepingEntry *dieBKE = &(chipBKE->Die_book_keeping_records[command->Address[0].DieID]);
++		_my_instance->observe_command(dieBKE, HBF_Command_Observation_Phase::MEDIA_END);
+ 
+ 		switch (command->CommandCode)
+ 		{
+@@ -555,6 +617,9 @@ namespace SSD_Components {
+ 				Simulator->Register_sim_event(Simulator->Time() + _my_instance->channels[chip->ChannelID]->ProgramCommandTime[dieBKE->ActiveTransactions.size()],
+ 					_my_instance, dieBKE, (int)NVDDR2_SimEventType::PROGRAM_COPYBACK_CMD_ADDR_TRANSFERRED);
+ 				chipBKE->OngoingDieCMDTransfers.push(dieBKE);
++				dieBKE->HBF_Observation_Command_ID = 0;
++				_my_instance->observe_command(dieBKE,
++					HBF_Command_Observation_Phase::COMMAND_ISSUED);
+ 				_my_instance->channels[chip->ChannelID]->SetStatus(BusChannelStatus::BUSY, chip);
+ 
+ 				dieBKE->Expected_finish_time = Simulator->Time() + _my_instance->channels[chip->ChannelID]->ProgramCommandTime[dieBKE->ActiveTransactions.size()]
+@@ -626,6 +691,7 @@ namespace SSD_Components {
+ 	{
+ 		//DEBUG2("Chip " << tr->Address.ChannelID << ", " << tr->Address.ChipID << ": transfer read data started for LPA: " << tr->LPA)
+ 		dieBKE->ActiveTransfer = tr;
++		observe_transfer(dieBKE, tr, HBF_Command_Observation_Phase::DATA_OUT_BEGIN);
+ 		channels[tr->Address.ChannelID]->Chips[tr->Address.ChipID]->StartDataOutXfer();
+ 		chipBKE->Status = ChipStatus::DATA_OUT;
+ 		Simulator->Register_sim_event(Simulator->Time() + NVDDR2DataOutTransferTime(tr->Data_and_metadata_size_in_byte, channels[tr->Address.ChannelID]),
+diff --git a/src/ssd/NVM_PHY_ONFI_NVDDR2.h b/src/ssd/NVM_PHY_ONFI_NVDDR2.h
+index be51ac2..197b160 100644
+--- a/src/ssd/NVM_PHY_ONFI_NVDDR2.h
++++ b/src/ssd/NVM_PHY_ONFI_NVDDR2.h
+@@ -3,6 +3,9 @@
+ 
+ #include <queue>
+ #include <list>
++#include <cstdint>
++#include <functional>
++#include <vector>
+ #include "../sim/Sim_Defs.h"
+ #include "../nvm_chip/flash_memory/FlashTypes.h"
+ #include "../nvm_chip/flash_memory/Flash_Command.h"
+@@ -12,6 +15,27 @@
+ 
+ namespace SSD_Components
+ {
++	enum class HBF_Command_Observation_Phase { COMMAND_ISSUED, MEDIA_BEGIN, MEDIA_END, DATA_OUT_BEGIN, DATA_OUT_END };
++	struct HBF_Transaction_Observation {
++		std::uint64_t transaction_id, external_request_id;
++		unsigned int source, type;
++		std::uint64_t logical_page; bool logical_page_known;
++		std::uint32_t bytes;
++		flash_channel_ID_type channel;
++		flash_chip_ID_type chip;
++		flash_die_ID_type die;
++		flash_plane_ID_type plane;
++		flash_block_ID_type block;
++		flash_page_ID_type page;
++	};
++	struct HBF_Command_Observation {
++		std::uint64_t command_id;
++		HBF_Command_Observation_Phase phase;
++		sim_time_type time;
++		command_code_type command_code;
++		std::vector<HBF_Transaction_Observation> transactions;
++	};
++	using HBF_Command_Observation_Sink = std::function<void(const HBF_Command_Observation&)>;
+ 	enum class NVDDR2_SimEventType
+ 	{
+ 		READ_DATA_TRANSFERRED, READ_CMD_ADDR_TRANSFERRED,
+@@ -37,6 +61,7 @@ namespace SSD_Components
+ 		sim_time_type Expected_finish_time;
+ 		sim_time_type RemainingExecTime;
+ 		sim_time_type DieInterleavedTime;//If the command transfer is done in die-interleaved mode, the transfer time is recorded in this temporary variable
++		std::uint64_t HBF_Observation_Command_ID{0};
+ 
+ 		void PrepareSuspend()
+ 		{
+@@ -65,6 +90,7 @@ namespace SSD_Components
+ 			delete ActiveCommand;
+ 			ActiveCommand = NULL;
+ 			ActiveTransactions.clear();
++			HBF_Observation_Command_ID = 0;
+ 			Free = true;
+ 		}
+ 	};
+@@ -108,7 +134,12 @@ namespace SSD_Components
+ 		NVM_Transaction_Flash* Is_chip_busy_with_stream(NVM_Transaction_Flash* transaction);
+ 		bool Is_chip_busy(NVM_Transaction_Flash* transaction);
+ 		void Change_memory_status_preconditioning(const NVM::NVM_Memory_Address* address, const void* status_info);
++		static void Set_hbf_command_observation_sink(HBF_Command_Observation_Sink sink);
++		static void Clear_hbf_command_observation_sink();
++		static bool Hbf_command_observation_failed();
+ 	private:
++		static void observe_command(DieBookKeepingEntry*, HBF_Command_Observation_Phase);
++		static void observe_transfer(DieBookKeepingEntry*, NVM_Transaction_Flash*, HBF_Command_Observation_Phase);
+ 		void transfer_read_data_from_chip(ChipBookKeepingEntry* chipBKE, DieBookKeepingEntry* dieBKE, NVM_Transaction_Flash* tr);
+ 		void perform_interleaved_cmd_data_transfer(NVM::FlashMemory::Flash_Chip* chip, DieBookKeepingEntry* bookKeepingEntry);
+ 		void send_resume_command_to_chip(NVM::FlashMemory::Flash_Chip* chip, ChipBookKeepingEntry* chipBKE);
+diff --git a/src/ssd/NVM_Transaction.h b/src/ssd/NVM_Transaction.h
+index 6a86e55..4cd5702 100644
+--- a/src/ssd/NVM_Transaction.h
++++ b/src/ssd/NVM_Transaction.h
+@@ -2,6 +2,7 @@
+ #define NVM_TRANSACTION_H
+ 
+ #include <list>
++#include <cstdint>
+ #include "../sim/Sim_Defs.h"
+ #include "../sim/Engine.h"
+ #include "User_Request.h"
+@@ -29,6 +30,7 @@ namespace SSD_Components
+ 		/* Used to calculate service time and transfer time for a normal read/program operation used to respond to the host IORequests.
+ 		In other words, these variables are not important if FlashTransactions is used for garbage collection.*/
+ 		sim_time_type STAT_execution_time, STAT_transfer_time;
++		std::uint64_t HBF_Observation_ID{0};
+ 	};
+ }
+ 
+diff --git a/src/ssd/User_Request.h b/src/ssd/User_Request.h
+index e3711c9..f5811c9 100644
+--- a/src/ssd/User_Request.h
++++ b/src/ssd/User_Request.h
+@@ -3,6 +3,7 @@
+ 
+ #include <string>
+ #include <list>
++#include <cstdint>
+ #include "SSD_Defs.h"
+ #include "../sim/Sim_Defs.h"
+ #include "Host_Interface_Defs.h"
+@@ -32,6 +33,7 @@ namespace SSD_Components
+ 		bool ToBeIgnored;
+ 		void* IO_command_info;//used to store host I/O command info
+ 		void* Data;
++		std::uint64_t HBF_External_Request_ID{0};
+ 	private:
+ 		static unsigned int lastId;
+ 	};

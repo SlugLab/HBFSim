@@ -1,3 +1,30 @@
+# Current decision status — EQ3-DECISION-EXECUTION-v2
+
+The historical requests below are preserved, but the following are superseded:
+full1mm reference executed; D2 v2 adopted and implemented; D3 uniform-alpha domain
+approved and executed; opt-in escalation priority implemented/tested; default-off
+native command facts and CPU service consumer implemented/validated. The user
+removed invariant numerical resource caps and permits reasonable per-experiment
+allocation. Current model is adopted for conditional engineering use under the
+unchanged original assumptions; old .25K FAIL remains a reported result, not a
+prerequisite blocking that engineering work.
+
+The one remaining requested structural decision is true MQSim die maintenance.
+A concrete reviewable design now exists in
+[MQSIM_DIE_MAINTENANCE_NARROW_DESIGN.md](MQSIM_DIE_MAINTENANCE_NARROW_DESIGN.md):
+backend-owned cohort/child identity, shared TSU arbitration, read/program/erase,
+allocation/commit/failure reconciliation and unique completion. Implementation is
+not authorized. Keep UNSUPPORTED_CAPABILITY until explicitly approved. Optional
+nonuniform mesh/ROM remain separate future scopes, not needed to continue the
+adopted engineering path. No live GPU/production or calibrated-device claim.
+
+The sustained read-rate objective and source-backed proxy permission are now
+USER_CONFIRMED. Sources and a minimal external feedback proposal are documented
+in READ_RATE_CONTROL_SOURCE_BASIS.md; the actual controller still uses the
+implemented thermal-state gate. No invented temperature-to-ECC law was added.
+
+---
+
 # EQ3-MINIMAL-REPAIR-v1: decisions required beyond local repair
 
 All options below are proposals, not approvals. USER_CONFIRMED: local repairs and

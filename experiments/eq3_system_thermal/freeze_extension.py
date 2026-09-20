@@ -31,6 +31,9 @@ def freeze(stage,destination,configs,runner,*,point_wall_s=900,dependency=None):
         row.update(point_id=cfg['point_id'],config=str(path.resolve()),config_sha256=digest(path),
                    output=str(destination/'points'/cfg['point_id']))
         points.append(row)
+        if cfg.get('trace',{}).get('dependency_mode')=='tiny_cpu_template':
+            trace_path=ROOT/cfg['trace']['tiny_trace_path']
+            sources[str(trace_path.relative_to(ROOT))]=digest(trace_path)
     locks={m:{n:digest(Path(m)/n) for n in ('model.txt','normalized.json','rc_grid.json','rc_sensors.json')}
            for m in sorted({r['model_dir'] for r in points})}
     result={'schema_version':'eq3-extension-frozen-index-v1','status':'PENDING_DEPENDENCIES_BASE_MATRIX',

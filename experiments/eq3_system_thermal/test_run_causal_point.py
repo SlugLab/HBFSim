@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from causal_service import CausalTopologyService
 from causal_workload import TRACE_ORIGIN
-from run_causal_point import CausalEnergyAdapter, execute
+from run_causal_point import CausalEnergyAdapter, execute, _useful_backlog
 from topology_service import default_config
 
 
@@ -77,6 +77,12 @@ def energy_profile():
 
 
 class RunnerTests(unittest.TestCase):
+    def test_effective_backlog_keeps_finished_sibling_until_group_retry_completes(self):
+        self.assertEqual(_useful_backlog(8192, 0, 4096), 12288)
+        self.assertEqual(_useful_backlog(8192, 8192, 4096), 4096)
+        with self.assertRaises(AssertionError):
+            _useful_backlog(4096, 8192, 0)
+
     def test_two_batches_close_exact_service_compute_energy_and_control_loop(self):
         service = default_config("all_hbf_direct")
         baseline = {stack: sum(channels.values()) * 20_000_000 // 10**9

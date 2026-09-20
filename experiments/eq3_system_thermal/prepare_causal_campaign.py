@@ -26,11 +26,22 @@ def make_config(point_id,topology,strategy,model_id,active_s,recovery_s,rate=1_5
         for c in channels:
             route=c if topology=='dash' else ('relay' if topology=='relay' else 'direct')
             targets.append({'stack':stack,'channel':c,'route':route})
+    if topology=='dash':
+        service['dash_routes']={s:{'direct':'direct','relay':'relay'} for s in service['fabric']['hbf']}
+    for stack, channels in service['channels'].items():
+        if stack not in groups:
+            groups[stack]={c:{'resource_id':stack+':ch'+c,
+                              'bandwidth_bytes_per_s':rate} for c,rate in channels.items()}
     service['causal_channel_groups']=groups
     trace={'model_id':model_id,'batch_intervals':1,'batch_size':1,'batch_interval_ns':1,
            'prefetch_layers':0,'attention_compute_ns_per_token':1000,
            'mlp_compute_ns_per_token':1000,'output_compute_ns_per_token':1000,
            'embedding_access':'selected_token_rows','max_active_batches':4}
+    trace_path=HERE/'stage/traces/tiny_qwen2_cpu_trace_v1/trace.json'
+    trace.update(dependency_mode='tiny_cpu_template',
+                 tiny_trace_path=str(trace_path.relative_to(HERE.parents[1])),
+                 tiny_trace_sha256=json.loads(trace_path.read_text())['trace_sha256'],
+                 projection_context_tokens=4096)
     probe=build_architecture_trace(trace)
     read_bytes=sum(t['tensor']['bytes'] for t in probe['batches'][0]['tasks'] if t['type']=='storage')
     n=len(service['fabric']['hbf'])

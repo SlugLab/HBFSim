@@ -298,6 +298,15 @@ def _pending_trace_bytes_by_stack(trace, executor_config):
     return dict(result)
 
 
+def _useful_backlog(offered_total, delivered_total, pending_bytes):
+    # A dependency's payload is useful only when all children/retries finish.
+    # Include already-finished siblings until that unique useful completion.
+    result = offered_total - delivered_total + pending_bytes
+    if result < 0:
+        raise AssertionError("effective delivery exceeds offered payload")
+    return result
+
+
 def _build_maintenance(config, hbf_channels):
     raw = config.get("maintenance", {"mode": "disabled"})
     if raw.get("mode") == "disabled":
@@ -527,6 +536,7 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
         cumulative_tokens += newly_retired
         compute_ns = sum(max(0, min(stop, end) - max(start, begin))
                          for begin, end in compute_intervals)
+        compute_intervals = [(begin, end) for begin, end in compute_intervals if end > stop]
         mapped = energy.map(
             activities,
             gpu_compute_j=float(config.get("gpu_compute_w", 0)) * compute_ns / 1e9,
@@ -548,7 +558,7 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
                             and "maintenance_id" not in job]
             pending_bytes = sum(_pending_trace_bytes_by_stack(item, config["executor"]).get(stack, 0)
                                 for item in pending_traces)
-            backlog = sum(job["bytes"] for job in backlog_jobs) + pending_bytes
+            backlog = _useful_backlog(offered_total[stack], delivered_total[stack], pending_bytes)
             oldest = max(
                 [stop - job.get("metadata", {}).get("logical_issue_ns", job["arrival_ns"])
                  for job in backlog_jobs]
@@ -610,12 +620,15 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
             "control": {"budgets": budgets, "next_budgets": next_budgets,
                         "observed_states": observed_states, "decisions": decisions,
                         "stack_facts": stack_facts,
-                        "backend_latency": "UNKNOWN_FLUID_MODEL"},
+                        "backend_latency": "UNKNOWN_FLUID_MODEL",
+                        "backlog_semantics": "SUBMITTED_MINUS_FINAL_USEFUL_DELIVERY_PLUS_ARRIVED_UNINSTANTIATED_PAYLOAD;ACTIVE_FUTURE_UNISSUED_TASKS_EXCLUDED"},
         }
         sink.write(json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n")
         budgets, states = next_budgets, observed_states
     final = executor.result(end_ns)
     return {
+        "trace_origin": seed["trace_origin"],
+        "structure_provenance": seed.get("structure_provenance", "SYNTHETIC_METADATA_ONLY"),
         "completed_tokens": cumulative_tokens,
         "incomplete_active_tokens": sum(not token["complete"] for token in final["tokens"]),
         "uninstantiated_batches": len(pending_traces) + total_batches - next_batch,
@@ -648,8 +661,13 @@ def main():
         config = json.loads(args.config.read_text())
         save(args.output / "config.json", config)
         sources = [HERE / name for name in ("run_causal_point.py", "causal_service.py",
-                                             "causal_workload.py")]
+                                             "causal_workload.py", "endpoint_policy.py", "topology_service.py",
+                                             "maintenance_driver.py", "reliability.py",
+                                             "causal_maintenance_age.py", "tiny_cpu_trace.py")]
         sources += [MAINTENANCE / "thermal_client.py", MAINTENANCE / "read_rate_policy.py"]
+        sources += [ROOT / "tools" / "eq3_basic_fabric.py"]
+        if config["trace"].get("dependency_mode") == "tiny_cpu_template":
+            sources += [ROOT / config["trace"]["tiny_trace_path"]]
         manifest = {
             "started_utc": datetime.now(timezone.utc).isoformat(),
             "environment_id": "eq3-thermal-cpu-v1", "python": sys.version,

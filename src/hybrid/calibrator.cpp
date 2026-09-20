@@ -43,10 +43,19 @@ std::uint64_t fast_service_ns(const FastModelProfile& profile,
         (static_cast<unsigned __int128>(request.bytes) * 1'000'000'000ULL +
          profile.aggregate_bandwidth_bytes_per_s - 1) /
         profile.aggregate_bandwidth_bytes_per_s;
-    if (transfer > std::numeric_limits<std::uint64_t>::max() - base) {
-        return std::numeric_limits<std::uint64_t>::max();
-    }
-    return base + static_cast<std::uint64_t>(transfer);
+    // The later of the two bounds, not their sum, matching
+    // hbfsim::device::fast_service_ns. read_latency_ns is a first-byte latency
+    // that overlaps the transfer, so a request is done once both the latency
+    // has elapsed and the bytes have moved; the device wait loop enforces
+    // max(arrival + latency, channel_tail + transfer). An earlier round
+    // changed the device side and left this host mirror adding, so the same
+    // profile and request gave two different service times depending on which
+    // side asked. calibrator_test.cpp now pins the two together.
+    //
+    // No overflow guard is needed any more: taking the larger of two values
+    // cannot overflow, unlike the sum this replaces.
+    const auto widened = static_cast<std::uint64_t>(transfer);
+    return widened > base ? widened : base;
 }
 
 HybridSampler::HybridSampler(std::uint32_t warmup_requests,

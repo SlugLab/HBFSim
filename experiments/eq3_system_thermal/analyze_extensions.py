@@ -291,7 +291,8 @@ def analyze_point(point: Path) -> dict:
         refresh_bytes = sum(item["bytes"] for item in activities
                             if item.get("operation") in {"refresh_read", "program", "erase"})
         retry_bytes = sum(item["bytes"] for item in activities
-                          if item.get("operation") == "retry")
+                          if item.get("operation") in {"retry", "retry_internal"}
+                          and item.get("phase") == "media_read")
         migration_bytes = sum(item["bytes"] for item in activities
                               if item.get("operation") in {"migration", "migration_program"})
         refresh.append(refresh_bytes * 1e9 / duration)

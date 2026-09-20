@@ -384,7 +384,24 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
     seed = initial_trace or trace_factory(0)
     executor = CausalExecutor(seed, config["executor"])
     next_batch = 1
-    service = CausalTopologyService(config["service"])
+    reliability_config = config.get("hbf_read_cost_proxy", {"mode": "disabled"})
+    reliability_provider = None
+    if reliability_config["mode"] == "disabled":
+        service = CausalTopologyService(config["service"])
+    elif reliability_config["mode"] == "conditional_nand_history_v1":
+        from ecc_cost_proxy import ReadCostProxy
+        from ecc_service_adapter import ReliabilityCausalService
+        if int(config["executor"].get("retry_count_per_source_read", 0)):
+            raise ValueError("static retry and history retry cannot be silently combined")
+        if config.get("maintenance", {"mode": "disabled"})["mode"] != "disabled":
+            raise ValueError("UNSUPPORTED_COMPOSITION: per-stack read age lacks refreshed-extent identity")
+        initial = reliability_config["initial_by_stack"]
+        if set(initial) != set(config["service"]["fabric"]["hbf"]):
+            raise ValueError("HBF reliability state must cover exactly the actual HBF stacks")
+        reliability_provider = ReadCostProxy(reliability_config["profile"], initial)
+        service = ReliabilityCausalService(config["service"], reliability_provider)
+    else:
+        raise ValueError("unsupported HBF read-cost proxy mode")
     granularity = config.get("causal_channel_granularity", {"mode": "physical_channels"})
     energy = CausalEnergyAdapter(normalized, config["service"],
                                  _default_energy_profile(config.get("energy", {})),
@@ -544,6 +561,19 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
         )
         total_energy += mapped["total_j"]
         heat = thermal.advance(start, stop, mapped["component_energy_j"])
+        reliability_window = None
+        if reliability_provider is not None:
+            channel_temperatures = _observed_channel_temperatures(heat, energy.hbf_channels)
+            # Conservative uniform-age stack proxy; not a claim about page history.
+            stack_temperatures = {stack: max(values.values())
+                                  for stack, values in channel_temperatures.items()}
+            reliability_provider.observe(start, stop, stack_temperatures)
+            reliability_window = {
+                "mode": reliability_config["mode"],
+                "temperature_mapping": "HOTTEST_ARRAY_DIE_PER_STACK_CONSERVATIVE_UNIFORM_AGE_PROXY",
+                "state": reliability_provider.snapshot(),
+                "admission_cost_decisions": service.drain_cost_decisions(),
+            }
         maintenance_finish = None
         if maintenance_age is not None:
             maintenance_finish = maintenance_age.finish_window(
@@ -623,10 +653,13 @@ def execute(config, normalized, thermal, sink, *, initial_trace=None, trace_fact
                         "backend_latency": "UNKNOWN_FLUID_MODEL",
                         "backlog_semantics": "SUBMITTED_MINUS_FINAL_USEFUL_DELIVERY_PLUS_ARRIVED_UNINSTANTIATED_PAYLOAD;ACTIVE_FUTURE_UNISSUED_TASKS_EXCLUDED"},
         }
+        if reliability_window is not None:
+            row["hbf_read_cost_proxy"] = reliability_window
         sink.write(json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n")
         budgets, states = next_budgets, observed_states
     final = executor.result(end_ns)
     return {
+        "hbf_read_cost_proxy": (None if reliability_provider is None else reliability_provider.snapshot()),
         "trace_origin": seed["trace_origin"],
         "structure_provenance": seed.get("structure_provenance", "SYNTHETIC_METADATA_ONLY"),
         "completed_tokens": cumulative_tokens,
@@ -664,6 +697,8 @@ def main():
                                              "causal_workload.py", "endpoint_policy.py", "topology_service.py",
                                              "maintenance_driver.py", "reliability.py",
                                              "causal_maintenance_age.py", "tiny_cpu_trace.py")]
+        if config.get("hbf_read_cost_proxy", {}).get("mode", "disabled") != "disabled":
+            sources += [HERE / "ecc_cost_proxy.py", HERE / "ecc_service_adapter.py"]
         sources += [MAINTENANCE / "thermal_client.py", MAINTENANCE / "read_rate_policy.py"]
         sources += [ROOT / "tools" / "eq3_basic_fabric.py"]
         if config["trace"].get("dependency_mode") == "tiny_cpu_template":

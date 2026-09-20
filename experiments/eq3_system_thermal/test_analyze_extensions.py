@@ -165,6 +165,17 @@ class AnalyzeExtensionTests(unittest.TestCase):
         plot_panels(result, output)
         self.assertGreater(output.stat().st_size, 0)
 
+    def test_expected_retry_proxy_does_not_claim_integer_count(self):
+        point = self.causal_point()
+        config = json.loads((point / "config.json").read_text())
+        config["hbf_read_cost_proxy"] = {"mode": "conditional_nand_history_v1"}
+        identity(point, config)
+        result = analyze_point(point)
+        retry = result["causal_consumers"]["retry"]
+        self.assertIsNone(retry["observed_retry_count"])
+        self.assertEqual(retry["count_semantics"],
+                         "UNKNOWN_INTEGER_COUNT_EXPECTED_WORK_PROXY")
+
     def test_failed_run_is_preserved_without_claim(self):
         point = self.root / "failed"
         point.mkdir()

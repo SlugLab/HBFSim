@@ -450,7 +450,16 @@ def analyze_point(point: Path) -> dict:
                          if key.startswith("prefetch_")},
             "migration": {key: causal_events[key] for key in sorted(causal_events)
                           if key.startswith("migration_")},
-            "retry": {"observed_retry_count": causal_retry_count},
+            "retry": {
+                "observed_retry_count": (
+                    None if config.get("hbf_read_cost_proxy", {}).get("mode")
+                    == "conditional_nand_history_v1" else causal_retry_count),
+                "count_semantics": (
+                    "UNKNOWN_INTEGER_COUNT_EXPECTED_WORK_PROXY"
+                    if config.get("hbf_read_cost_proxy", {}).get("mode")
+                    == "conditional_nand_history_v1"
+                    else "RECORDED_EXECUTOR_RETRY_EVENTS"),
+            },
             "semantics": "ACTUAL_RECORDED_CONSUMER_EVENTS_ZERO_MEANS_NOT_OBSERVED_IN_POINT",
         }
     return {

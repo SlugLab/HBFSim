@@ -52,3 +52,10 @@ may mostly measure throttling cost, even with a correctly connected proxy.
 Null/weak/full transfer comparisons and both fresh/aged states must remain
 separate. No acceptance criterion requires positive policy benefit. Actual
 thermal jobs require frozen inputs and the existing serial CPU/resource gate.
+
+Cross-source transfer is explicit: the ASPLOS paper's example converts roughly
+13 hours at85°C toone year at30°C, whereas retained Ea=1.04eV converts about19.4
+hours. The implementation keeps the original HeatWatch-based Ea consistently
+for age integration; it does not pretend these different devices share a fitted
+law. This discrepancy and the assumed early-age interpolant are reasons for
+sensitivity analysis, not reasons to change Ea until a controller wins.

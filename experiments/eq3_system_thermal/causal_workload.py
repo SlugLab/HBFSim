@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -16,6 +17,9 @@ from typing import Any, Callable
 
 CATALOG = Path(__file__).parents[1] / "eq3_maintenance" / "sources" / "qwen2_5_weight_models.json"
 TRACE_ORIGIN = "SYNTHETIC_ARCHITECTURE_DEPENDENCY_FROM_OFFICIAL_METADATA"
+TINY_TRACE_ORIGIN = "TRACE_DERIVED_TINY_CPU_FORWARD_TEMPLATE"
+DEPENDENCY_MODES = {"synthetic_metadata_dag", "tiny_cpu_template"}
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_architecture(model_id: str) -> dict[str, Any]:
@@ -60,10 +64,206 @@ def _tensor_groups(meta: dict[str, Any]) -> list[dict[str, Any]]:
     return groups
 
 
+def _canonical(value: Any) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                      allow_nan=False).encode("utf-8")
+
+
+def _target_projection(meta: dict[str, Any], context_tokens: int) -> dict[str, Any]:
+    """Regenerate target shapes, addresses and analytical cost from metadata."""
+    if isinstance(context_tokens, bool) or not isinstance(context_tokens, int) \
+            or context_tokens <= 0:
+        raise ValueError("projection_context_tokens must be a positive integer")
+    a = meta["architecture"]
+    h, inter = a["hidden_size"], a["intermediate_size"]
+    heads, kv, layers = (a["num_attention_heads"], a["num_key_value_heads"],
+                         a["num_hidden_layers"])
+    if h % heads:
+        raise ValueError("hidden size is not divisible by attention heads")
+    hd = h // heads
+    groups = _tensor_groups(meta)
+    projected = []
+    for group in groups:
+        row = deepcopy(group)
+        if row["kind"] == "embedding":
+            row["weight_shapes"] = [[a["vocab_size"], h]]
+            row["analytical_macs_per_token"] = 0
+        elif row["kind"] == "attention":
+            row["weight_shapes"] = [[h], [h, h], [h], [kv * hd, h], [kv * hd],
+                                    [kv * hd, h], [kv * hd], [h, h]]
+            row["analytical_macs_per_token"] = (
+                2 * h * h + 2 * h * kv * hd + 2 * h * context_tokens)
+        elif row["kind"] == "mlp":
+            row["weight_shapes"] = [[h], [inter, h], [inter, h], [h, inter]]
+            row["analytical_macs_per_token"] = 3 * h * inter
+        elif row["kind"] == "final_norm":
+            row["weight_shapes"] = [[h]]
+            row["analytical_macs_per_token"] = 0
+        else:
+            row["weight_shapes"] = [[a["vocab_size"], h]]
+            row["analytical_macs_per_token"] = a["vocab_size"] * h
+        projected.append(row)
+    transformer_macs = sum(row["analytical_macs_per_token"] for row in projected
+                           if row["kind"] in {"attention", "mlp"})
+    head_macs = next(row["analytical_macs_per_token"] for row in projected
+                     if row["kind"] == "output_embedding")
+    return {
+        "layer_count": layers, "hidden_size": h, "head_dim": hd,
+        "num_attention_heads": heads, "num_key_value_heads": kv,
+        "intermediate_size": inter, "context_tokens": context_tokens,
+        "logical_regions": projected,
+        "tensor_payload_bytes": meta["tensor_payload_bytes"],
+        "analytical_macs_per_token_at_context": transformer_macs,
+        "analytical_output_head_macs_per_token": head_macs,
+        "analytical_total_macs_per_token_at_context": transformer_macs + head_macs,
+        "compute_cost_semantics": (
+            "ANALYTICAL_DENSE_MAC_COUNT_EXCLUDES_NORMS_ROPE_SOFTMAX_AND_RUNTIME"
+        ),
+        "address_semantics": "DERIVED_1MIB_ALIGNED_SCENARIO_NOT_SAFETENSORS_FILE_OFFSETS",
+    }
+
+
+def _resolve_trace_path(value: Any) -> tuple[Path, str]:
+    if not isinstance(value, str) or not value:
+        raise ValueError("tiny_trace_path must be a nonempty path string")
+    path = Path(value)
+    resolved = path.resolve() if path.is_absolute() else (REPO_ROOT / path).resolve()
+    if not resolved.is_file():
+        raise ValueError("tiny trace artifact does not exist")
+    try:
+        portable = str(resolved.relative_to(REPO_ROOT))
+    except ValueError:
+        portable = "EXTERNAL_FIXED_TEST_ARTIFACT"
+    return resolved, portable
+
+
+def _validate_tiny_template(config: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
+    path, portable = _resolve_trace_path(config.get("tiny_trace_path"))
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if document.get("schema_version") != "eq3-tiny-qwen2-cpu-trace-v1" \
+            or document.get("classification") != "TRACE_DERIVED_TINY_RANDOM_WEIGHT_CPU_FORWARD":
+        raise ValueError("tiny trace has unsupported schema or classification")
+    stored = document.get("trace_sha256")
+    payload = dict(document)
+    payload.pop("trace_sha256", None)
+    actual = hashlib.sha256(_canonical(payload)).hexdigest()
+    expected = config.get("tiny_trace_sha256")
+    if not isinstance(expected, str) or expected != stored or actual != stored:
+        raise ValueError("tiny trace checksum/provenance mismatch")
+    operations = document.get("operations")
+    accesses = document.get("weight_accesses")
+    if not isinstance(operations, list) or not operations or not isinstance(accesses, list) \
+            or not accesses:
+        raise ValueError("tiny trace lacks captured operations or weight accesses")
+    by_id = {}
+    for sequence, row in enumerate(operations):
+        if row.get("sequence") != sequence or row.get("op_id") in by_id:
+            raise ValueError("tiny operation order or identity is invalid")
+        for dependency in row.get("depends_on", []):
+            if dependency != "token_ids" and dependency not in by_id:
+                raise ValueError("tiny operation dependency is absent or not causal")
+        by_id[row["op_id"]] = row
+    access_by_op = {}
+    for sequence, row in enumerate(accesses):
+        if row.get("sequence") != sequence or row.get("op_id") not in by_id:
+            raise ValueError("tiny weight access order or owner is invalid")
+        shape = row.get("access_shape")
+        storage_shape = row.get("storage_shape")
+        if not isinstance(shape, list) or not shape or any(type(x) is not int or x <= 0 for x in shape) \
+                or not isinstance(storage_shape, list) or not storage_shape \
+                or any(type(x) is not int or x <= 0 for x in storage_shape):
+            raise ValueError("tiny weight access shape is invalid")
+        count = 1
+        for dimension in shape:
+            count *= dimension
+        if row.get("storage_dtype") != "float32" or row.get("access_bytes") != count * 4:
+            raise ValueError("tiny weight access byte count is not the captured float32 array")
+        access_by_op.setdefault(row["op_id"], []).append(row["weight_name"])
+    prefill = [row for row in operations if row.get("forward_id") == "prefill"]
+    layer_count = document.get("config", {}).get("layers")
+    tiny_config = document.get("config", {})
+    if type(layer_count) is not int or layer_count <= 0:
+        raise ValueError("tiny trace layer count is invalid")
+    tiny_heads = tiny_config.get("num_attention_heads")
+    tiny_kv = tiny_config.get("num_key_value_heads")
+    tiny_hd = tiny_config.get("head_dim")
+    if any(type(value) is not int or value <= 0 for value in (tiny_heads, tiny_kv, tiny_hd)) \
+            or tiny_heads % tiny_kv:
+        raise ValueError("tiny trace GQA geometry is invalid")
+    layers = []
+    prior = next((row for row in prefill if row["name"] == "embedding_lookup"), None)
+    if prior is None:
+        raise ValueError("tiny trace lacks embedding root")
+    for layer in range(layer_count):
+        names = {
+            role: next((row for row in prefill if row["name"] == f"layer{layer}.{suffix}"), None)
+            for role, suffix in (
+                ("input_norm", "input_rmsnorm"), ("q", "q_projection"),
+                ("k", "k_projection"), ("v", "v_projection"),
+                ("attention", "rope_gqa_causal_attention"), ("o", "o_projection"),
+                ("post_norm", "post_attention_rmsnorm"), ("gate", "gate_projection"),
+                ("up", "up_projection"), ("mlp", "swiglu_down_projection"))}
+        if any(row is None for row in names.values()):
+            raise ValueError("tiny trace layer structure is incomplete")
+        if names["input_norm"]["depends_on"] != [prior["op_id"]] \
+                or set(names["attention"]["depends_on"]) != {
+                    names["q"]["op_id"], names["k"]["op_id"], names["v"]["op_id"]} \
+                or names["o"]["depends_on"] != [names["attention"]["op_id"]] \
+                or names["post_norm"]["depends_on"] != [names["o"]["op_id"]] \
+                or set(names["mlp"]["depends_on"]) != {
+                    names["gate"]["op_id"], names["up"]["op_id"]}:
+            raise ValueError("tiny trace attention-to-MLP dependency structure is invalid")
+        expected_access_roles = ("input_norm", "q", "k", "v", "o", "post_norm",
+                                 "gate", "up", "mlp")
+        if any(not access_by_op.get(names[role]["op_id"]) for role in expected_access_roles):
+            raise ValueError("tiny trace layer operation lacks an actual weight access")
+        details = names["attention"].get("details", {})
+        if details.get("q_shape", [None, None, None])[-2:] != [tiny_heads, tiny_hd] \
+                or details.get("kv_shape", [None, None, None])[-2:] != [tiny_kv, tiny_hd] \
+                or details.get("kv_repeat_groups") != tiny_heads // tiny_kv:
+            raise ValueError("tiny trace observed GQA shapes disagree with its config")
+        layers.append({"template_layer": layer,
+                       "attention_op_ids": [names[x]["op_id"] for x in (
+                           "input_norm", "q", "k", "v", "attention", "o")],
+                       "mlp_op_ids": [names[x]["op_id"] for x in (
+                           "post_norm", "gate", "up", "mlp")]})
+        prior = names["mlp"]
+    final_norm = next((row for row in prefill if row["name"] == "final_rmsnorm"), None)
+    head = next((row for row in prefill if row["name"] == "lm_head"), None)
+    if final_norm is None or head is None or final_norm["depends_on"] != [prior["op_id"]] \
+            or head["depends_on"] != [final_norm["op_id"]] \
+            or not access_by_op.get(final_norm["op_id"]) or not access_by_op.get(head["op_id"]):
+        raise ValueError("tiny trace final-norm/head dependency structure is invalid")
+    context = int(config.get("projection_context_tokens", 0))
+    target = _target_projection(meta, context)
+    recorded = document.get("target_projection", {}).get(meta["model_id"])
+    compact = [{"name": row["tensor_id"], "logical_address_bytes": row["logical_address_bytes"],
+                "payload_bytes": row["bytes"]} for row in target["logical_regions"]]
+    if not isinstance(recorded, dict) or recorded.get("tensor_payload_bytes") != target[
+            "tensor_payload_bytes"] or recorded.get("logical_regions") != compact \
+            or recorded.get("analytical_macs_per_token_at_context") != target[
+                "analytical_macs_per_token_at_context"] \
+            or recorded.get("context_tokens") != context:
+        raise ValueError("tiny artifact target projection disagrees with regenerated metadata")
+    return {
+        "trace_origin": TINY_TRACE_ORIGIN, "artifact_path": portable,
+        "trace_sha256": stored, "trace_file_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "source_sha256": document["source_sha256"], "config_sha256": document["config_sha256"],
+        "tiny_layer_count": layer_count, "template_layers": layers,
+        "final_op_ids": [final_norm["op_id"], head["op_id"]],
+        "target_projection": target,
+        "validation": "DEPENDENCIES_ACCESS_ORDER_SHAPES_BYTES_AND_TARGET_PROJECTION_VALIDATED",
+        "scope": "ARCHITECTURE_ORDERING_ONLY_COMPUTE_TIMING_REMAINS_EXPLICIT_SCENARIO",
+    }
+
+
 def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
     """Build a compact dependency DAG; it is not a captured framework trace."""
     model_id = config["model_id"]
     meta = load_architecture(model_id)
+    dependency_mode = config.get("dependency_mode", "synthetic_metadata_dag")
+    if dependency_mode not in DEPENDENCY_MODES:
+        raise ValueError("unsupported dependency_mode")
     required = ("batch_intervals", "batch_size", "batch_interval_ns", "prefetch_layers",
                 "attention_compute_ns_per_token", "mlp_compute_ns_per_token",
                 "output_compute_ns_per_token", "embedding_access")
@@ -83,7 +283,12 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
     if min(intervals, batch_size, attention_compute_ns, mlp_compute_ns,
            output_compute_ns) <= 0 or interval_ns < 0 or prefetch < 0:
         raise ValueError("trace counts/durations must be positive; interval/prefetch non-negative")
-    groups = _tensor_groups(meta)
+    provenance = None
+    if dependency_mode == "tiny_cpu_template":
+        provenance = _validate_tiny_template(config, meta)
+        groups = provenance["target_projection"]["logical_regions"]
+    else:
+        groups = _tensor_groups(meta)
     by_id = {x["tensor_id"]: x for x in groups}
     layers = meta["architecture"]["num_hidden_layers"]
     batches = []
@@ -109,6 +314,8 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
         previous = prefix + ":embed_read"
         layer_compute_ids: list[str] = []
         for layer in range(layers):
+            template = (None if provenance is None else
+                        provenance["template_layers"][layer % provenance["tiny_layer_count"]])
             issue_parent_index = layer - prefetch - 1
             issue_parent = ([layer_compute_ids[issue_parent_index]]
                             if issue_parent_index >= 0 else [])
@@ -120,17 +327,23 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
                 {"task_id": attn_read, "type": "storage",
                  "tensor": by_id[f"model.layers.{layer}.attention_bundle"],
                  "issue_after": issue_parent, "consume_after": [previous],
-                 "consumer_count": batch_size},
+                 "consumer_count": batch_size,
+                 "structure_template_op_ids": (
+                     None if template is None else template["attention_op_ids"])},
                 {"task_id": attn_compute, "type": "compute",
                  "duration_ns": attention_compute_ns * batch_size,
-                 "depends_on": [previous, attn_read]},
+                 "depends_on": [previous, attn_read],
+                 "structure_role": "ATTENTION_AFTER_INPUT_AND_WEIGHT_READ"},
                 {"task_id": mlp_read, "type": "storage",
                  "tensor": by_id[f"model.layers.{layer}.mlp_bundle"],
                  "issue_after": [previous], "consume_after": [attn_compute],
-                 "consumer_count": batch_size},
+                 "consumer_count": batch_size,
+                 "structure_template_op_ids": (
+                     None if template is None else template["mlp_op_ids"])},
                 {"task_id": mlp_compute, "type": "compute",
                  "duration_ns": mlp_compute_ns * batch_size,
-                 "depends_on": [attn_compute, mlp_read]},
+                 "depends_on": [attn_compute, mlp_read],
+                 "structure_role": "MLP_AFTER_ATTENTION_AND_WEIGHT_READ"},
             ])
             previous = mlp_compute
             layer_compute_ids.append(mlp_compute)
@@ -138,7 +351,10 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
             task_id = prefix + ":" + suffix
             tasks.append({"task_id": task_id, "type": "storage", "tensor": by_id[tensor_id],
                           "issue_after": [previous], "consume_after": [previous],
-                          "consumer_count": batch_size})
+                          "consumer_count": batch_size,
+                          "structure_template_op_ids": (
+                              None if provenance is None else [provenance["final_op_ids"][
+                                  0 if suffix == "norm_read" else 1]])})
             previous = task_id
         final = prefix + ":token_complete"
         tasks.append({"task_id": final, "type": "compute",
@@ -146,18 +362,23 @@ def build_architecture_trace(config: dict[str, Any]) -> dict[str, Any]:
                       "depends_on": [previous], "is_token_terminal": True})
         for task in tasks:
             task["batch_interval_id"] = interval
+            if provenance is None:
+                task.pop("structure_template_op_ids", None)
+                task.pop("structure_role", None)
         batches.append({"interval_id": interval, "arrival_ns": interval * interval_ns,
                         "batch_size": batch_size, "token_ids": [
                             f"{prefix}:token{i}" for i in range(batch_size)], "tasks": tasks,
                         "terminal_task_id": final})
     return {
         "schema_version": "eq3-causal-architecture-trace-v1",
-        "trace_origin": TRACE_ORIGIN, "model_id": model_id,
+        "trace_origin": (TRACE_ORIGIN if provenance is None else TINY_TRACE_ORIGIN),
+        "dependency_mode": dependency_mode, "model_id": model_id,
         "embedding_access": embedding_access,
         "compute_cost_evidence": "EXPLICIT_SCENARIO_INPUT_NOT_RUNTIME_TRACE",
         "official_metadata": {k: meta[k] for k in (
             "revision", "resolved_commit", "tensor_payload_bytes", "architecture", "sources")},
         "prefetch_layers": prefetch, "batches": batches,
+        "structure_provenance": provenance,
         "limitations": ["not a PyTorch or hardware runtime trace", "no NAND timing model",
                         "activation and KV-cache traffic unavailable"],
     }
@@ -168,7 +389,7 @@ class CausalExecutor:
 
     def __init__(self, trace: dict[str, Any], config: dict[str, Any],
                  placement_provider: Callable[[dict[str, Any], str, int], dict[str, Any]] | None = None):
-        if trace.get("trace_origin") != TRACE_ORIGIN:
+        if trace.get("trace_origin") not in {TRACE_ORIGIN, TINY_TRACE_ORIGIN}:
             raise ValueError("unclassified causal trace")
         self.trace = deepcopy(trace)
         self.cache_capacity = int(config.get("cache_capacity_bytes", 0))
@@ -241,9 +462,13 @@ class CausalExecutor:
 
     def append_trace(self, trace):
         """Append an arrived batch; callers retain uninstantiated arrival backlog."""
-        for key in ('trace_origin','model_id','embedding_access','prefetch_layers'):
+        for key in ('trace_origin','dependency_mode','model_id','embedding_access','prefetch_layers'):
             if trace.get(key) != self.trace.get(key):
                 raise ValueError('streaming trace scientific identity changed')
+        left = (self.trace.get("structure_provenance") or {}).get("trace_sha256")
+        right = (trace.get("structure_provenance") or {}).get("trace_sha256")
+        if left != right:
+            raise ValueError("streaming structure provenance changed")
         for batch in trace['batches']:
             if batch['interval_id'] in self.known_batch_ids:
                 raise ValueError('duplicate streaming batch')

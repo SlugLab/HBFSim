@@ -1384,15 +1384,26 @@ __hbfsim_timing_future_wait_v1(hbfsim::timing_future::DeviceTimingFutureV1* f,
             // both the injected delay and the cost of waiting for it, with no
             // way to separate them.
             //
-            // wait_sleep_ns never sleeps past f->ready_ns and never sleeps more
-            // than half of what is left, so the liveness, deadline and
+            // wait_sleep_ns never sleeps past the target and never sleeps
+            // more than half of what is left, so the liveness, deadline and
             // control-generation checks below still run at a bounded rate
-            // rather than being skipped for the whole wait. When ready_ns is
+            // rather than being skipped for the whole wait. When the target is
             // unset or already past it returns 0 and this stays a spin, which
             // is the correct behaviour while the reservation is still being
             // published.
+            //
+            // The target is the earlier of ready_ns and deadline_ns, not
+            // ready_ns alone. ready_ns is a modeled completion time and
+            // nothing clamps it to the deadline, so sleeping toward it could
+            // push the timeout check below past the deadline by as much as a
+            // whole nap -- the ISA caps one sleep at 1 ms. Waiting on the
+            // earlier of the two keeps the timeout as prompt as it was before
+            // this loop slept at all, which the zero-backoff spin it replaced
+            // got right by accident.
+            const auto limit = f->ready_ns < f->deadline_ns ? f->ready_ns
+                                                            : f->deadline_ns;
             const auto nap = hbfsim::device::wait_sleep_ns(
-                now, f->ready_ns, kWaitBackoffCapNs, kWaitSpinFloorNs);
+                now, limit, kWaitBackoffCapNs, kWaitSpinFloorNs);
             if (nap != 0) {
                 __nanosleep(nap);
             }

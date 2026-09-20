@@ -133,6 +133,58 @@ int main()
            std::string::npos);
     assert(result.output_ptx.find("[%hbfsim_addr_") != std::string::npos);
 
+    // The unsupported scan lists inline asm because the transform cannot see
+    // through it. The pattern used to be `asm\s*\(`, which does not match
+    // `asm volatile (` -- the form almost everything actually writes. A
+    // comment added alongside the per-access counting claimed the scan caught
+    // inline asm "in its own right" and therefore that a semicolon inside an
+    // asm string was harmless; an independent review measured that claim and
+    // found it false. The pattern now accepts the volatile form, which makes
+    // the comment true rather than the comment being softened to match a gap.
+    {
+        const auto inline_asm = configured_ptx(R"ptx(.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry asm_kernel()
+{
+    .reg .b32 %r<4>;
+    asm volatile ("mov.u32 %0, %%laneid;" : "=r"(%r1));
+    ret;
+}
+)ptx");
+        const auto scanned = hbfsim::ptx::transform_ptx({
+            .full_ptx = inline_asm,
+            .to_patch_kernel = "asm_kernel",
+        });
+        CHECK(!scanned.modified);
+        CHECK(scanned.coverage.unsupported_instructions >= 1);
+    }
+
+    // fail_open_global.ptx above cannot reach the case the fix is really for.
+    // Every access in it is unparseable, so `modified` is false, and
+    // plugin.cpp computes `instrumented = modified && relevant_unsupported
+    // .empty()` -- false either way, fixed or not. An independent review built
+    // the missing case and measured it: one rewritable access plus one that is
+    // not. Before the fix that reported 1 rewritten and 1 unsupported, and the
+    // single unsupported opcode was `ld.param.u64`, which plugin.cpp filters
+    // out as irrelevant -- so `relevant_unsupported` was empty, `instrumented`
+    // was true, and the second global access ran at native speed inside a
+    // kernel reported as fully instrumented. After the fix `ld.global.u32`
+    // joins the list, which is what makes `instrumented` false.
+    const auto mixed = hbfsim::ptx::transform_ptx({
+        .full_ptx = read_fixture("mixed_rewrite_and_fail.ptx"),
+        .to_patch_kernel = "mixed_kernel",
+    });
+    CHECK(mixed.modified);
+    CHECK(mixed.coverage.rewritten_instructions == 1);
+    CHECK(mixed.coverage.unsupported_instructions == 1);
+    bool mixed_reports_global = false;
+    for (const auto& opcode : mixed.coverage.unsupported_opcodes) {
+        if (opcode.starts_with("ld.global")) { mixed_reports_global = true; }
+    }
+    CHECK(mixed_reports_global);
+
     const std::string production_ptx = configured_ptx(R"ptx(.version 8.7
 .target sm_120
 .address_size 64

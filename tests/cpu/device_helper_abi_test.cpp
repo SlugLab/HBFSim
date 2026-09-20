@@ -248,8 +248,7 @@ int main()
             else { now += std::uint64_t{nap} * 2; }  // worst case the ISA allows
             ++iterations;
         }
-        CHECK(now >= target);
-        CHECK(now <= target + floor_ns);       // lands on target, never 16,320
+        CHECK(now == target);                  // lands on target, never 16,320
 
         // Same for the short target the old schedule missed by 98 percent.
         now = 0; iterations = 0;
@@ -259,8 +258,63 @@ int main()
             if (nap == 0) { ++now; } else { now += std::uint64_t{nap} * 2; }
             ++iterations;
         }
-        CHECK(now >= short_target);
-        CHECK(now <= short_target + floor_ns);
+        CHECK(now == short_target);
+
+        // The walks above were too loose to be worth much. An independent
+        // review built an implementation that does overshoot and found that
+        // every assertion here passed it, because `<= target + floor_ns` gave
+        // away 64 ns of slack and the walk never checked the per-call bound.
+        //
+        // The guarantee is one inequality, so assert that instead: the ISA
+        // may sleep twice what is asked, so twice the requested nap must fit
+        // in what is left. Anything that overshoots violates this for some
+        // input, whatever its shape.
+        constexpr std::uint64_t probes[] = {
+            1, 2, 3, 63, 64, 65, 127, 128, 129, 255, 1000, 1001, 9999, 10000,
+            65535, 1048575, 1048576, 1048577, 2097151, 2097152, 2097153,
+            20254374, UINT64_MAX / 2, UINT64_MAX - 1, UINT64_MAX};
+        for (const auto remaining : probes) {
+            const auto nap = wait_sleep_ns(0, remaining, backoff, floor_ns);
+            CHECK(std::uint64_t{nap} * 2 <= remaining);
+            CHECK(nap == 0 || nap >= floor_ns);
+        }
+
+        // And prove the inequality above actually discriminates: this is the
+        // shape of implementation the review used, sleeping the whole of what
+        // is left rather than half, which the ISA's 2x may then double.
+        const auto overshooting = [](std::uint64_t n, std::uint64_t t,
+                                     std::uint32_t cap) -> std::uint32_t {
+            if (n >= t) { return 0; }
+            const auto remaining = t - n;
+            return static_cast<std::uint32_t>(
+                remaining > cap ? cap : remaining);
+        };
+        bool mutant_rejected = false;
+        for (const auto remaining : probes) {
+            const auto nap = overshooting(0, remaining, backoff);
+            if (std::uint64_t{nap} * 2 > remaining) { mutant_rejected = true; }
+        }
+        CHECK(mutant_rejected);
+
+        // Nominal hardware, sleeping exactly what was asked, also lands on
+        // the target rather than short of it.
+        now = 0; iterations = 0;
+        while (now < target && iterations < 100000) {
+            const auto nap = wait_sleep_ns(now, target, backoff, floor_ns);
+            if (nap == 0) { ++now; } else { now += nap; }
+            ++iterations;
+        }
+        CHECK(now == target);
+
+        // Hardware that sleeps zero every time -- the ISA permits it -- still
+        // terminates, because the loop reads a clock that advances anyway.
+        now = 0; iterations = 0;
+        while (now < target && iterations < 100000) {
+            (void)wait_sleep_ns(now, target, backoff, floor_ns);
+            ++now;
+            ++iterations;
+        }
+        CHECK(now == target);
 
         // Already past the target: nothing to sleep.
         CHECK(wait_sleep_ns(10000, 10000, backoff, floor_ns) == 0);

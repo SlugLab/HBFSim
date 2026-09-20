@@ -1,0 +1,23 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+// 一条能改写的 global 访问 + 一条改写不了的。这是 fail-open 真正危险的形态:
+// fail_open_global.ptx 里一条都改写不成,modified 是 0,于是无论修没修,
+// plugin.cpp 的 instrumented 都是 false —— 那个 fixture 复现不了它要防的场景。
+// 这里 modified 是 1,所以 instrumented 完全取决于 unsupported 有没有被报出来:
+// 修之前 global 的 ld/st 被排除在扫描之外,unsupported 为空,内核自称已完整插桩,
+// 而第二条访问在按原生速度跑。
+.visible .entry mixed_kernel(
+    .param .u64 mixed_ptr
+)
+{
+    .reg .b32 %r<12>;
+    .reg .b64 %rd<8>;
+    ld.param.u64 %rd1, [mixed_ptr];
+    // 能改写:地址寄存器是 %rd,偏移是常量。
+    ld.global.u32 %r1, [%rd1+64];
+    // 改写不了:地址寄存器不叫 %rd…,地址正则写死了 %rd 前缀。
+    ld.global.u32 %r2, [%r9];
+    ret;
+}

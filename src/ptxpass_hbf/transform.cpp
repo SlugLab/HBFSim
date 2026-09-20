@@ -84,7 +84,7 @@ bool unsupported_memory_instruction(const std::string& line,
         // handles (cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
         // cp.async.bulk.prefetch.tensor.) from this pattern in the same
         // commit, so the coverage hole is never open in between.
-        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.\S*|st\.\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm\s*\().*;\s*(?://.*)?$)");
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.\S*|st\.\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm(?:\s+volatile)?\s*\().*;\s*(?://.*)?$)");
     std::smatch match;
     if (!std::regex_match(line, match, expression)) {
         return false;
@@ -360,7 +360,7 @@ TransformResult transform_ptx(const TransformRequest& request)
             // skipped understates the coverage gap by half.
             //
             // A semicolon inside an inline-asm string would split wrongly, but
-            // the scan matches `asm\s*\(` as unsupported in its own right, so
+            // the scan matches inline asm as unsupported in its own right, so
             // such a statement is still reported; only its opcode text would
             // be truncated.
             for (std::size_t begin = 0; begin < pending_statement.size();) {

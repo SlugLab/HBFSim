@@ -133,8 +133,79 @@ Fixed CPU evidence:
   `backend-generation-build-v2`: isolated source recreation and binary build
   passed with at most two compile threads.  Binary SHA-256 is
   `c64610b0f281397975e649b32f44161b00240f12d6a49b9b4d4776b1f554c257`.
+- `BACKEND-INDEPENDENT-REBUILD01`: a fresh, separate build directory recreated
+  all 179 patched source files byte-for-byte, linked exactly one isolated MQSim
+  archive and no default archive, and completed configuration/build.  Its ELF
+  hash differs only because absolute source/build paths change the build ID.
+  `AB-PROCESS-INDEPENDENT-REBUILD01` then passed the same maintenance-off 8x1
+  and 4x16 process comparisons at zero-ns tolerance.
+- `Q1-WEIGHT-MAINT-PILOT03`: the legacy 16 KiB finite-region profile completed
+  3,712 HBF foreground reads, 320 parametric-HBM reads and 64 committed
+  maintenance jobs through the actual 10 s coordinator/thermal loop.
+- `OCP4K-LOOP-PILOT01`: the 4 KiB/full-logical-capacity profile completed
+  7,100 HBF reads, 160 parametric-HBM reads and 64 committed maintenance jobs
+  through the actual 6 s loop.  All 7,260 foreground requests completed once;
+  the engine finished with no foreground or maintenance work pending.
+- `A2-PILOT03-LOOP01`: real foreground MQSim completed the frozen 4,032
+  PILOT03 requests, while the counterfactual wrapper replayed the fixed 64-job
+  maintenance bundle on ideal independent resources.  The actual backend
+  issued and committed zero maintenance jobs and its current mapping was not
+  mutated.  Ten foreground requests completed 620 ns earlier than the actual
+  shared-maintenance PILOT03 baseline; completion count, censoring, P95
+  latency, peak temperature and energy were unchanged.  This is executed
+  counterfactual evidence, not an additional backend capability.
 - The prior v11 PPA-token source and binary remain immutable under
   `points/BACKEND-V11-FROZEN`; they are historical evidence only.
+
+## Geometry and capacity boundary
+
+The two executed profiles are not interchangeable:
+
+- The historical 16 KiB profile has one channel per HBF stack, 16 MQSim dies
+  per channel, one plane per die, and a finite 1 GiB/stack allocator region.
+- The OCP study profile has 4 KiB pages and instantiates four logical
+  512 GiB stacks.  Each stack has 16 channels, one MQSim die per channel,
+  16 planes per die, 256 pages/block and 2,048 blocks/plane.  The actual
+  service therefore creates 1,024 parallel channel/plane units across four
+  stacks.  The full-capacity probe covered all 1,024 configured
+  `(stack, thermal-die, projected-plane)` tuples and completed real
+  read/program/commit maintenance.
+
+The OCP 16-bank value is represented as
+`BANK_AS_MQSIM_PLANE_V1_SCENARIO_PROJECTION_NOT_PRODUCT_IDENTITY`.  A channel's
+position within its configured stack supplies thermal `die0..die15`; the
+native MQSim die field remains zero because there is one die per channel.
+This projection is explicit configuration, not an observation that an OCP bank
+is universally a NAND plane.
+
+CWDP selects channel/die/plane from the backend logical page.  MQSim's
+page-level FTL then allocates a physical block and page from its own write
+frontier.  `GEOMETRY4K-PHYSICAL-BLOCK02` observed 256 serial first touches in
+one plane occupy physical block 0 pages 0..255, followed by block 5 page 0;
+block 5 was observed rather than prescribed because MQSim reserves other
+frontiers.  This consumes the configured pages/block value, but it is not the
+complete OCP zone/direct block-addressing protocol.
+
+The 512 GiB/stack figure is a full *logical namespace* instantiation.  MQSim
+has a finite allocator and spare destinations inside that instantiated
+geometry, but neither OCP material nor this run establishes target-device
+physical spare, bad-block reserve or overprovisioning.  The 256 pages/block
+value and bank-to-plane projection remain scenario assumptions.
+
+## Downstream identity and energy boundary
+
+The service emits `maintenance_request_id` on real maintenance child
+transactions.  The downstream `ActivityEnergyLedger._source` now consumes
+that actual field first and retains `maintenance_id` only as a legacy
+fallback.  Fixed source-classification tests pass, and the OCP4K loop records
+320 maintenance activity rows as `HBF_MAINTENANCE`.
+
+PILOT03 was produced before that downstream repair, so its 260 maintenance and
+other backend-background rows remain immutably labelled
+`BACKEND_BACKGROUND`.  The repair changes only source classification:
+PILOT03's per-window component joules are unchanged, which is why its A3
+full-2 mm paired replay remains comparable.  Energy coefficients are still
+engineering assumptions.
 
 Payload validation, die-wide refresh, HBM refresh, ECC/RBER, read-disturb,
 wear-life prediction, zone-standard conformance, and cross-process checkpoint
@@ -148,5 +219,17 @@ generation rejection.  The maintenance path does not reuse MQSim's GC LPA
 barrier, whose upstream release path approximates waiting writes.  A source
 block pin prevents GC erase/reuse, and the generation prevents PPA ABA from
 being accepted as the captured logical version.
-The fixed 1 GiB/stack workspace and 16-die mapping are engineering geometry,
-not validation of 512 GiB/stack capacity or product throughput.
+Neither successful logical-capacity instantiation nor the completed loops
+validate product throughput, calibrated maintenance energy, physical spare, or
+payload preservation.
+
+The actual maintenance path and the A2 replay must remain distinct.  In
+`Q1-WEIGHT-MAINT-PILOT03` and `OCP4K-LOOP-PILOT01`, the isolated engine
+receives maintenance commands, schedules native reads and destination programs,
+commits mapping generations, and returns `age_reset_ns` only after commit.
+In `A2-PILOT03-LOOP01`, foreground still uses that real engine, but
+maintenance is disabled at the service wrapper.  Fixed source phases, energy,
+terminal facts and virtual age facts are replayed without native commands,
+resource ownership or mapping mutation; their mapping/age semantics are
+`UNKNOWN_REPLAY`.  A2 therefore measures one bounded ideal-resource
+counterfactual and does not implement or validate an independent scheduler.

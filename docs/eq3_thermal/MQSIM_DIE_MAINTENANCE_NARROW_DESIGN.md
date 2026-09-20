@@ -1,6 +1,14 @@
 # MQSim die-maintenance narrow design
 
-Status: `AWAITING_EXPLICIT_REFACTOR_APPROVAL`
+Current clarification (2026-09-20): the user subsequently approved a narrow
+**isolated experimental copy** in EQ3-ISOLATED-MAINTENANCE-CAMPAIGN-v1.
+That implementation and actual evidence are in `ISOLATED_INTERFACE_STATUS.md`
+and `experiments/eq3_maintenance/backend/docs/IMPLEMENTATION_BOUNDARY.md`.
+The default production backend remains unchanged and unsupported. The design
+below is preserved as the pre-authorization record; it is not a current block
+on the already authorized isolated implementation.
+
+Historical status: `AWAITING_EXPLICIT_REFACTOR_APPROVAL`
 
 This is a design record, not an implementation approval. The current
 `MqsimOnlineEngine` capability remains `UNSUPPORTED_CAPABILITY` for die-level

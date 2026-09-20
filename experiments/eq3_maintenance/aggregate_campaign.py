@@ -10,6 +10,8 @@ import math
 from pathlib import Path
 from typing import Any
 
+from native_operation_summary import summarize_commands_csv
+
 from analyze_points import (_boolean, _cell, _integer, _json, _number, _quantile,
                             _rows, analyze_point)
 
@@ -69,16 +71,32 @@ def _native_coverage(point: Path) -> dict[str, list[int]] | None:
     rows = _rows(point / "native.csv")
     if not rows:
         return None
+    # Native die is channel-local. Use the frozen physical channel ownership,
+    # exactly as the energy producer does; never infer die from logical pages.
+    mapping = _json(point / "stack-map.json")
+    per_channel = _integer(mapping.get("dies_per_channel"))
+    if per_channel is None or per_channel <= 0:
+        return None
+    channels = {channel: (group["id"], offset * per_channel)
+                for group in mapping.get("stacks", [])
+                for offset, channel in enumerate(group["channels"])}
     coverage: dict[str, set[int]] = {}
     for row in rows:
         transactions = _cell(row.get("transactions"))
         if not isinstance(transactions, list):
             continue
         for tx in transactions:
-            if isinstance(tx, dict) and str(tx.get("stack", "")).startswith("hbf"):
-                die = _integer(tx.get("die"))
-                if die is not None:
-                    coverage.setdefault(str(tx["stack"]), set()).add(die)
+            if not isinstance(tx, dict):
+                continue
+            channel = _integer(tx.get("channel"))
+            die = _integer(tx.get("die"))
+            chip = _integer(tx.get("chip"))
+            if channel not in channels or die is None or chip != 0 or not 0 <= die < per_channel:
+                continue
+            stack, offset = channels[channel]
+            if tx.get("stack") not in (None, "UNKNOWN", stack):
+                raise ValueError("native transaction stack/channel ownership mismatch")
+            coverage.setdefault(stack, set()).add(offset + die)
     return {stack: sorted(dies) for stack, dies in sorted(coverage.items())}
 
 
@@ -152,6 +170,56 @@ def _control_stats(point: Path) -> dict[str, Any]:
             "first_increase_ns": first_increase, "zero_budget_windows": zero_budget_windows}
 
 
+def _cost_metrics(point: Path, end_ns: int) -> dict[str, Any]:
+    final = [r for r in _rows(point / "requests.csv") if r.get("phase") == "FINAL_COMPLETE"]
+    metrics = {}
+    for kind in ("hbf", "hbm"):
+        selected = [r for r in final if r.get("stack", "").startswith(kind)]
+        for column in ("external_wait_ns", "backend_latency_ns", "fabric_latency_ns"):
+            values = [_integer(r.get(column)) for r in selected]
+            metrics[kind + "_" + column + "_p95"] = _quantile([v for v in values if v is not None], .95)
+    latest = {}
+    for row in _rows(point / "maintenance.csv"):
+        if row.get("request_id"):
+            latest[row["request_id"]] = row
+    missed, unknown, rejected, expired, unfulfilled, delay, maximum_age = 0, 0, 0, 0, 0, [], []
+    for row in latest.values():
+        completion = _cell(row.get("completion"))
+        completion = completion if isinstance(completion, dict) else {}
+        reset = _integer(row.get("age_reset_ns"))
+        if reset is None: reset = _integer(completion.get("age_reset_ns"))
+        committed = _boolean(row.get("mapping_committed"))
+        if committed is None: committed = _boolean(completion.get("mapping_committed"))
+        deadline, due = _integer(row.get("deadline_ns")), _integer(row.get("due_ns"))
+        if committed is not True: reset = None
+        status = str(row.get("backend_status") or completion.get("status") or "")
+        is_rejected = status.startswith("REJECTED_")
+        rejected += int(is_rejected)
+        submitted = _integer(row.get("submit_ns"))
+        # Derived from the recorded actual submit time and original deadline;
+        # do not relabel every INVALID_TARGET as an expiry.
+        expired += int(is_rejected and deadline is not None and submitted is not None
+                       and submitted > deadline)
+        if deadline is None:
+            unknown += 1
+        elif deadline < end_ns and (reset is None or reset > deadline):
+            unfulfilled += 1
+            if not is_rejected: missed += 1
+        if reset is not None and due is not None: delay.append(max(0, reset-due))
+        initial = _number(row.get("initial_age_s"))
+        if initial is not None:
+            before = min(reset, end_ns) if reset is not None else end_ns
+            maximum_age.append(max(initial + before/1e9, (end_ns-reset)/1e9 if reset is not None else 0))
+    metrics.update(maintenance_deadline_missed_by_end=missed,
+                   maintenance_rejected_without_service=rejected,
+                   maintenance_rejected_after_deadline=expired,
+                   maintenance_declared_unfulfilled_by_deadline=unfulfilled,
+                   maintenance_deadline_unknown=unknown,
+                   maintenance_due_to_commit_max_ns=max(delay, default=None),
+                   maintenance_declared_age_peak_s=max(maximum_age, default=None))
+    return metrics
+
+
 def derive_completed(point: Path, spec: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     derived = analyze_point(point)
     manifest = _json(point / "manifest.json"); done = _json(point / "DONE.json")
@@ -192,6 +260,9 @@ def derive_completed(point: Path, spec: dict[str, Any]) -> tuple[dict[str, Any],
         "scene": spec.get("scene"), "policy": spec.get("policy"),
         "weight_model": (spec.get("config") or {}).get("weight_model"),
         "source_head": manifest.get("source_head"), "page_bytes": profile.get("page_bytes"),
+        "run_wall_s": done.get("wall_s"), "child_peak_rss_kib": done.get("max_child_rss_kib"),
+        "model_payload_coverage_fraction": summary.get("weight_coverage", {}).get("model_payload_fraction"),
+        "per_stack_offered_completed": _canonical(summary.get("per_stack", {})),
         "active_s": active_ns / 1e9,
         "observation_s": derived["scope"]["observation_end_ns"] / 1e9,
         "execution_state": done.get("execution_status", "UNKNOWN"),
@@ -239,6 +310,24 @@ def derive_completed(point: Path, spec: dict[str, Any]) -> tuple[dict[str, Any],
                      if spec.get("mode") == "all_hbf_direct" else None),
         "pair_status": "PENDING_GROUP_REVIEW",
     }
+    hbf_delivered=row['hbf_observation_effective_delivered_bytes']
+    row['package_total_J_per_effective_HBF_GB'] = energy_total/(hbf_delivered/1e9) if energy_total is not None and hbf_delivered else None
+    row['non_GPU_package_J_per_effective_HBF_GB'] = (energy_total-gpu_energy)/(hbf_delivered/1e9) if energy_total is not None and gpu_energy is not None and hbf_delivered else None
+    row['energy_per_byte_scope'] = 'PACKAGE numerator includes HBM and fabric; NOT isolated HBF efficiency'
+    row.update(_cost_metrics(point, derived["scope"]["observation_end_ns"]))
+    native = summarize_commands_csv(point / "commands.csv")
+    for operation in ("READ", "PROGRAM", "ERASE"):
+        for fact in ("media_command_starts", "media_command_ends", "child_transactions"):
+            row["native_" + operation.lower() + "_" + fact] = native["operations"][operation][fact]
+    row["native_actual_channel_die_plane_tuple_count"] = native["actual_channel_die_plane_tuple_count"]
+    row["native_media_end_semantics"] = "NOT_MAPPING_COMMIT_SUCCESS_OR_LIFETIME_PE_CYCLES"
+    row["maintenance_due_uncommitted_at_end_including_rejections"] = derived["maintenance"].get("backlog_at_observation_end")
+    row["maintenance_age_end_max_s"] = derived["maintenance"].get("declared_age_at_observation_max_s")
+    hbf_rates = [r["effective_delivered_hbf_bytes_per_s"] for r in active if r["effective_delivered_hbf_bytes_per_s"] is not None]
+    row["hbf_active_rate_p05_Bps"] = _quantile(hbf_rates, .05)
+    hbf_mean = sum(hbf_rates)/len(hbf_rates) if hbf_rates else None
+    row["hbf_active_rate_mean_Bps"] = hbf_mean
+    row["hbf_active_rate_cv"] = math.sqrt(sum((v-hbf_mean)**2 for v in hbf_rates)/len(hbf_rates))/hbf_mean if hbf_mean else None
     representative = {"point_id": spec["id"], "mode": spec.get("mode"),
                       "active_ns": active_ns, "rates": derived["time_series"],
                       "thermal": transitions["series"], "identity": identity}
@@ -263,23 +352,27 @@ def aggregate(queue: dict[str, Any], points_root: Path,
     rows, representatives = [], []
     launcher_by_id = {row.get("id"): row for row in (launcher_status or {}).get("points", [])}
     for spec in queue.get("points", []):
-        point = points_root / spec["id"]
+        # A retrospective union may reference immutable points from distinct
+        # execution versions without copying or replacing their raw data.
+        point = Path(spec.get("artifact_path", points_root / spec["id"]))
         if (point / "DONE.json").exists():
             row, representative = derive_completed(point, spec)
             launcher = launcher_by_id.get(spec["id"], {})
             row.update(launcher_status=launcher.get("status"),
-                       launcher_exit_code=launcher.get("exit_code"), not_started_reason=None)
+                       launcher_exit_code=launcher.get("exit_code"), not_started_reason=None,
+                       artifact_path=str(point.resolve()))
             rows.append(row); representatives.append(representative)
         elif (point / "NOT_STARTED.json").exists():
             receipt = _json(point / "NOT_STARTED.json")
-            rows.append(pending_row(spec, "NOT_STARTED_SUPERSEDED_V1",
+            rows.append(pending_row(spec, receipt.get("execution_status", "NOT_STARTED"),
                                     reason=receipt.get("reason"),
                                     launcher=launcher_by_id.get(spec["id"])))
         elif (point / "FAILED.json").exists():
             rows.append(pending_row(spec, "FAILED", launcher=launcher_by_id.get(spec["id"])))
         else:
-            rows.append(pending_row(spec, "PENDING_SUPERSEDED_V1",
-                                    reason="V1_PROFILE_REVISED_BEFORE_START",
+            launcher = launcher_by_id.get(spec["id"], {})
+            rows.append(pending_row(spec, launcher.get("status", "NOT_OBSERVED"),
+                                    reason="NO_TERMINAL_POINT_RECEIPT",
                                     launcher=launcher_by_id.get(spec["id"])))
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
@@ -287,8 +380,9 @@ def aggregate(queue: dict[str, Any], points_root: Path,
     for group in groups.values():
         completed = [row for row in group if row["execution_state"] == "COMPLETED"]
         identities = {row.get("pair_identity_sha256") for row in completed}
-        status = ("PAIR_READY" if len(completed) == 3 and len(identities) == 1 and None not in identities
+        status = ("PAIR_READY" if len(completed) >= 2 and len(completed) == len(group) and len(identities) == 1 and None not in identities
                   else "PAIR_IDENTITY_MISMATCH" if len(completed) >= 2 and len(identities) > 1
+                  else "SINGLE_ARM_MATCH_BASELINE_SEPARATELY" if len(group) == len(completed) == 1
                   else "INCOMPLETE")
         for row in group:
             row["pair_status"] = status
@@ -336,7 +430,10 @@ def plot_representatives(representatives: list[dict[str, Any]], path: Path) -> N
     import matplotlib.pyplot as plt
     selected = []
     for mode in ("mixed_direct", "relay", "dash", "all_hbf_direct"):
-        candidate = next((row for row in representatives if row["mode"] == mode), None)
+        candidate = next((row for row in representatives if row["mode"] == mode
+                          and "W1-" in row["point_id"] and "Stress-thermal-P2" in row["point_id"]), None)
+        if candidate is None:
+            candidate = next((row for row in representatives if row["mode"] == mode), None)
         if candidate: selected.append(candidate)
     fig, axes = plt.subplots(max(1, len(selected)), 1, figsize=(10, 2.6*max(1, len(selected))),
                              squeeze=False, constrained_layout=True)

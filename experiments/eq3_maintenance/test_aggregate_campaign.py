@@ -1,12 +1,52 @@
 import unittest
+import csv
 import json
 import tempfile
 from pathlib import Path
 
-from aggregate_campaign import aggregate, pair_identity, scenario_key
+from aggregate_campaign import aggregate, pair_identity, scenario_key, _native_coverage, _cost_metrics
 
 
 class AggregateCampaignTests(unittest.TestCase):
+    def test_native_die_is_channel_local_in_both_geometry_profiles(self):
+        for channels, count, transactions, expected in [
+            ([8], 16, [(8, 0), (8, 15)], [0, 15]),
+            ([16, 17], 1, [(16, 0), (17, 0)], [0, 1]),
+        ]:
+            with self.subTest(channels=channels), tempfile.TemporaryDirectory() as directory:
+                point = Path(directory)
+                (point / "stack-map.json").write_text(json.dumps({
+                    "dies_per_channel": count, "stacks": [{"id": "hbf1", "channels": channels}]}))
+                with (point / "native.csv").open("w") as stream:
+                    writer = csv.DictWriter(stream, fieldnames=["transactions"])
+                    writer.writeheader()
+                    writer.writerow({"transactions": json.dumps([
+                        dict(stack="hbf1", channel=c, chip=0, die=d) for c, d in transactions])})
+                self.assertEqual(_native_coverage(point), {"hbf1": expected})
+
+    def test_deadline_miss_uses_commit_and_preserves_unreset_age(self):
+        with tempfile.TemporaryDirectory() as directory:
+            point = Path(directory)
+            (point / "requests.csv").write_text("phase,stack,external_wait_ns,backend_latency_ns,fabric_latency_ns\nFINAL_COMPLETE,hbf0,10,20,3\n")
+            with (point / "maintenance.csv").open("w") as stream:
+                fields = ["request_id", "deadline_ns", "due_ns", "submit_ns", "mapping_committed", "age_reset_ns", "initial_age_s", "backend_status"]
+                writer = csv.DictWriter(stream, fieldnames=fields); writer.writeheader()
+                writer.writerows([
+                    dict(request_id=1, deadline_ns=100, due_ns=50, mapping_committed=True, age_reset_ns=90, initial_age_s=20),
+                    dict(request_id=2, deadline_ns=100, due_ns=50, mapping_committed=True, age_reset_ns=120, initial_age_s=20),
+                    dict(request_id=3, deadline_ns=100, due_ns=50, mapping_committed=False, initial_age_s=30),
+                    dict(request_id=4, deadline_ns=100, due_ns=50, mapping_committed=False, initial_age_s=20, backend_status="REJECTED_UNMAPPED"),
+                    dict(request_id=5, deadline_ns=100, due_ns=50, submit_ns=150, mapping_committed=False, initial_age_s=20, backend_status="REJECTED_INVALID_TARGET"),
+                ])
+            actual = _cost_metrics(point, 200)
+            self.assertEqual(actual["maintenance_deadline_missed_by_end"], 2)
+            self.assertEqual(actual["maintenance_rejected_without_service"], 2)
+            self.assertEqual(actual["maintenance_rejected_after_deadline"], 1)
+            self.assertEqual(actual["maintenance_declared_unfulfilled_by_deadline"], 4)
+            self.assertEqual(actual["maintenance_due_to_commit_max_ns"], 70)
+            self.assertAlmostEqual(actual["maintenance_declared_age_peak_s"], 30.0000002)
+            self.assertEqual(actual["hbf_backend_latency_ns_p95"], 20)
+
     def test_pair_identity_ignores_policy_profile_but_not_workload(self):
         base = {"mode": "mixed_direct", "workload": "W1", "active_ns": 10, "end_ns": 20,
                 "weight_model": "model", "thermal_model_dir": "/model",
@@ -38,7 +78,7 @@ class AggregateCampaignTests(unittest.TestCase):
                 "execution_status":"NOT_STARTED","reason":{"reason":"PROFILE_REVISED"}}))
             rows,_=aggregate({"points":[spec]},Path(directory),{
                 "points":[{"id":"point","status":"FAILED","exit_code":75}]})
-            self.assertEqual(rows[0]["execution_state"],"NOT_STARTED_SUPERSEDED_V1")
+            self.assertEqual(rows[0]["execution_state"],"NOT_STARTED")
             self.assertEqual(rows[0]["launcher_exit_code"],75)
             self.assertEqual(rows[0]["functional_state"],"NOT_EVALUATED")
 

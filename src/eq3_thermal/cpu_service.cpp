@@ -54,7 +54,8 @@ struct CpuService::Impl {
     observer(RuntimeMode::Shadow,thermal) {
     need(config.at("evidence")=="ENGINEERING_FIXTURE","physical service parameters not authorized");
     const std::string layout=config.at("topology");need(layout=="mixed_direct"||layout=="relay"||layout=="dash"||layout=="all_hbf_direct","unknown topology");
-    need(config.at("policy")=="none"||config.at("policy")=="hysteresis","unsupported policy");
+    need(config.at("policy")=="none"||config.at("policy")=="hysteresis"||
+      config.at("policy")=="hysteresis_escalation_priority_v2","unsupported policy");
     need(tick(config.at("thermal_step_ns"))>0&&tick(config.at("sample_ns"))>0,"positive clocks required");
     for(const auto& [key,value]:config.at("duration_ns").items())need(tick(value)>0,"zero service duration");
     for(const auto& [key,value]:config.at("power_w").items())(void)number(value);
@@ -108,8 +109,10 @@ struct CpuService::Impl {
   J route(const J& job)const {
     const std::string stack=job.at("stack"),op=job.at("op"),path=job.at("route");
     const std::string physical=kind(stack);const auto die=tick(job.at("die"));
-    J result={{"resources",J::array()},{"power",J::object()},{"external_power_w",0.0},{"link_hops",1}};
+    J result={{"resources",J::array()},{"control_endpoints",J::array()},{"power",J::object()},{"external_power_w",0.0},{"link_hops",1}};
     auto add=[&](const std::string& r){result["resources"].push_back(r);};
+    std::set<std::string> controlled;
+    auto control=[&](const std::string& id){if(controlled.insert(id).second)result["control_endpoints"].push_back(id);};
     const auto& power=config.at("power_w");
     if(physical=="GDDR") {
       need(config.at("topology")=="all_hbf_direct"&&path=="direct"&&(op=="read"||op=="write"),"invalid external GDDR operation");
@@ -118,7 +121,7 @@ struct CpuService::Impl {
     need(die<tick(stacks.at(stack).at("die_count")),"invalid explicit die mapping");
     need(op=="read"||op=="write"||op=="program"||op=="erase"||op=="dram_refresh","unknown operation");
     need(physical=="HBF"?(op=="read"||op=="program"||op=="erase"):(op=="read"||op=="write"||op=="dram_refresh"),"NAND and DRAM maintenance operations conflated");
-    add(stack+":die:"+std::to_string(die));add(stack+":base");
+    control(stack);add(stack+":die:"+std::to_string(die));add(stack+":base");
     const std::string key=op=="dram_refresh"?"refresh_array":op+"_array";
     result["power"][stack+"_die"+std::to_string(die)]=power.at(key);result["power"][stack+"_base"]=power.at("base");
     result["power"]["gpu"]=power.at("gpu_phy");
@@ -130,6 +133,7 @@ struct CpuService::Impl {
       else if(path=="relay") {
         need(topology=="relay"||topology=="dash","no relay path declared");
         const std::string pair=stacks.at(stack).at("pair");
+        control(pair);
         add(stack+":relay-link");add(pair+":base");add(pair+":gpu-link");
         result["power"][pair+"_base"]=power.at("relay_base");result["link_hops"]=2;
       } else throw std::invalid_argument("unknown route; no fallback");
@@ -228,15 +232,24 @@ struct CpuService::Impl {
       state["samples"].push_back({{"time_ns",now()},{"stack",id},{"temperature_k",t},{"source","SIMULATED"},{"suggested",level(desired)},{"applied",c.at("applied")}});
       if(config.at("policy")=="none")continue;
       if(desired==applied)c["pending"]=nullptr;
-      else if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired)) {
-        c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
+      else if(config.at("policy")=="hysteresis") {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
+      } else if(desired>applied) {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",now()+tick(p.at("action_delay_ns"))}};
+      } else {
+        if(c.at("pending").is_null()||c.at("pending").at("state")!=level(desired))
+          c["pending"]={{"state",level(desired)},{"at_ns",std::max(now()+tick(p.at("action_delay_ns")),tick(c.at("last_change"))+tick(p.at("min_dwell_ns")))}};
       }
     }
     state["next_sample"]=now()+tick(config.at("sample_ns"));
   }
   void apply_controls() {
     for(auto& [id,c]:state["control"].items())if(!c.at("pending").is_null()&&tick(c.at("pending").at("at_ns"))<=now()) {
-      log("control",{{"stack",id},{"from",c.at("applied")},{"to",c.at("pending").at("state")},{"reason","SIMULATED_STACK_HOTSPOT_HYSTERESIS"}});
+      const std::string reason=config.at("policy")=="hysteresis_escalation_priority_v2"?
+        "SIMULATED_STACK_HOTSPOT_HYSTERESIS_ESCALATION_PRIORITY_V2":"SIMULATED_STACK_HOTSPOT_HYSTERESIS";
+      log("control",{{"stack",id},{"from",c.at("applied")},{"to",c.at("pending").at("state")},{"reason",reason}});
       c["applied"]=c.at("pending").at("state");c["last_change"]=now();c["pending"]=nullptr;
     }
   }
@@ -244,11 +257,11 @@ struct CpuService::Impl {
     J waiting=J::array();
     for(auto job:state["queue"]) {
       bool blocked=tick(job.at("arrival_ns"))>now();const std::string stack=job.at("stack");
-      if(stack!="gddr") {
-        const auto& c=state.at("control").at(stack);const int s=severity(c.at("applied"));
+      const auto mapping=route(job);
+      for(const auto& endpoint:mapping.at("control_endpoints")) {
+        const auto& c=state.at("control").at(endpoint.get<std::string>());const int s=severity(c.at("applied"));
         blocked|=s==3||(!job.at("maintenance").get<bool>()&&(s>=2||(s==1&&now()<tick(c.at("next_admit")))));
       }
-      const auto mapping=route(job);
       for(const auto& r:mapping.at("resources"))blocked|=state["resources"].contains(r.get<std::string>());
       if(blocked){waiting.push_back(job);continue;}
       const auto duration=tick(config.at("duration_ns").at(job.at("op").get<std::string>()));
@@ -260,7 +273,10 @@ struct CpuService::Impl {
       if(stack!="gddr") {
         const std::string op=job.at("op");auto& cohort=state["cohorts"][cohort_id(stack,tick(job.at("die")))];
         if(op=="program"||op=="erase"){const auto key=op=="program"?"program_attempts":"erase_attempts";cohort[key]=tick(cohort.at(key))+1;}
-        auto& c=state["control"][stack];if(!job.at("maintenance").get<bool>()&&c.at("applied")=="Light")c["next_admit"]=now()+tick(config.at("control").at(stack).at("light_gap_ns"));
+        if(!job.at("maintenance").get<bool>())for(const auto& endpoint:mapping.at("control_endpoints")) {
+          const std::string id=endpoint;auto& c=state["control"][id];
+          if(c.at("applied")=="Light")c["next_admit"]=now()+tick(config.at("control").at(id).at("light_gap_ns"));
+        }
       }
       observer.submit(activity(job,Phase::Issue));observer.submit(activity(job,Phase::Start));state["active"].push_back(job);
       log("start",{{"id",job.at("id")},{"resources",job.at("resources")},{"end_ns",job.at("end_ns")}});
@@ -295,6 +311,31 @@ struct CpuService::Impl {
   J report()const {
     J result=state;result["evidence"]="ENGINEERING_FIXTURE";result["topology"]=config.at("topology");result["policy"]=config.at("policy");
     result["temperature_source"]="SIMULATED";result["token_throughput"]="UNAVAILABLE";
+    result["admission_blocks"]=J::array();
+    for(const auto& job:state.at("queue")) {
+      const auto mapping=route(job);J row={{"id",job.at("id")},{"arrival_ns",job.at("arrival_ns")},
+        {"blocked_endpoints",J::array()},{"busy_resources",J::array()}};
+      for(const auto& endpoint:mapping.at("control_endpoints")) {
+        const std::string id=endpoint;const auto& c=state.at("control").at(id);const int s=severity(c.at("applied"));
+        std::string reason;J retry=nullptr;
+        if(s==3)reason="SHUTDOWN";
+        else if(!job.at("maintenance").get<bool>()&&s>=2)reason="SEVERE";
+        else if(!job.at("maintenance").get<bool>()&&s==1&&now()<tick(c.at("next_admit"))) {
+          reason="LIGHT_QUOTA";retry=c.at("next_admit");
+        }
+        if(!reason.empty()) {
+          J blocked={{"stack",id},{"state",c.at("applied")},{"reason",reason},{"retry_at_ns",retry},
+            {"recovery_condition",retry.is_null()?"CONTROL_STATE_CHANGE":"SIMULATION_TIME"}};
+          blocked["pending_transition_at_ns"]=c.at("pending").is_null()?J(nullptr):c.at("pending").at("at_ns");
+          row["blocked_endpoints"].push_back(blocked);
+        }
+      }
+      for(const auto& resource:mapping.at("resources"))if(state.at("resources").contains(resource.get<std::string>()))
+        row["busy_resources"].push_back(resource);
+      if(tick(job.at("arrival_ns"))>now())row["not_before_arrival_ns"]=job.at("arrival_ns");
+      if(!row.at("blocked_endpoints").empty()||!row.at("busy_resources").empty()||row.contains("not_before_arrival_ns"))
+        result["admission_blocks"].push_back(row);
+    }
     result["energy_j"]=observer.energy_j();result["external_energy_j"]=observer.external_energy_j();
     result["external_gddr_temperature"]="UNAVAILABLE_OUTSIDE_PACKAGE";
     result["temperature_k"]=J::object();for(const auto& [id,i]:nodes)result["temperature_k"][id]=observer.model()->temperatures_k()[i];

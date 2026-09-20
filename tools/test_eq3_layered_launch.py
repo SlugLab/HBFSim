@@ -277,6 +277,18 @@ class LayeredLaunchTests(unittest.TestCase):
         result = self.validate(manifest=manifest, approval=approval, launch=launch)
         self.assertEqual(result["status"], "READY_TO_LAUNCH")
 
+    def test_explicit_stage_resource_policy_uses_bound_scope_limits(self):
+        launch=copy.deepcopy(self.launch);launch['limits'].update(ram_gib=16,watchdog_seconds=3600)
+        launch['output']['max_new_gib']=8;manifest,approval=self.rebuild_binding(launch)
+        manifest['resource_budget']['requested'].update(ram_gib=16,disk_gib=8)
+        stage={'status':'READY_FOR_SUBMISSION','experiment_id':manifest['experiment_id'],'version':manifest['version'],
+          'resource_policy':'PER_EXPERIMENT_USER_CONFIRMED','resource_limits':{'task_ram_gib':20,'process_ram_gib':16,
+            'threads':1,'watchdog_s':3600,'point_disk_gib':8,'task_disk_gib':40,'min_free_disk_gib':10,'gpu':0,'cloud':0}}
+        with mock.patch('eq3_layered_launch.validate_gate',return_value=stage):
+            self.assertEqual(self.validate(manifest=manifest,approval=approval,launch=launch)['status'],'READY_TO_LAUNCH')
+            launch['limits']['watchdog_seconds']=3599
+            self.assert_refused('LAUNCH_LIMIT_EXCEEDED',manifest=manifest,approval=approval,launch=launch)
+
     def test_each_hard_safety_ceiling_is_refused(self):
         changes = (
             ("limits", "threads", 2),

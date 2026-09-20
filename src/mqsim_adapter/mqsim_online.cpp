@@ -449,6 +449,9 @@ namespace hbfsim
         mqsim_request->Priority_class = IO_Flow_Priority_Class::URGENT;
         mqsim_request->IO_command_info = nullptr;
         mqsim_request->Data = nullptr;
+        // Patched MQSim carries this immutable identity into native transaction
+        // and command observations. It is not used by scheduling or completion.
+        mqsim_request->HBF_External_Request_ID = request.request_id;
 
         auto submission = new Impl::Submission{
             .descriptor = request,

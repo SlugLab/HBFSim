@@ -1,0 +1,16 @@
+{
+  "schema_version": "eq3-system-thermal-topology-map-v1",
+  "fast_thermal_rom": "UNAVAILABLE_FOR_CURRENT_GEOMETRY",
+  "layouts": {
+    "mixed_full_2mm": {
+      "source_model_dir_argument": "MIXED_FULL_2MM_MODEL_DIR",
+      "topologies": ["Q1_mixed_direct", "Q2_4plus4_relay", "Q3_four_pair_DASH"],
+      "note": "same physical layout; route-specific power facts remain a separate runtime input"
+    },
+    "all_hbf_full_2mm": {
+      "source_model_dir_argument": "ALL_HBF_FULL_2MM_MODEL_DIR",
+      "topologies": ["Q4_8HBF_direct_external_GDDR"],
+      "note": "external GDDR identity retained outside the package thermal domain"
+    }
+  }
+}

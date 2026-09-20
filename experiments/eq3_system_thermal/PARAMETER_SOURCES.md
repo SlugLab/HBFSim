@@ -1,0 +1,27 @@
+# EQ3 system/thermal causal and reliability parameter sources
+
+This table records source scope before the new modules are used.  Every output
+is conditional; none of these entries calibrates target-HBF RBER or lifetime.
+
+| Parameter | Value used or allowed | Evidence class and source | Consumer and boundary |
+|---|---:|---|---|
+| Arrhenius activation energy | 1.01, 1.04, 1.08 eV | `PROXY`: HeatWatch reports nominal 1.04 eV and 95% CI 1.01–1.08 for old 30–40-layer 3D charge-trap MLC. Registered audit: `docs/eq3_thermal/PARAMETER_SOURCE_AUDIT.md` lines 219–260; original `docs/ref_article/luo2018-heatwatch-nand-temperature.pdf`. | `ReliabilityLedger`; conditional equivalent age only. HeatWatch fit domain was 20–70 °C and 1k–10k P/E, so extrapolation and target-HBF transfer are not physical validation. |
+| Reference temperature | 358.15 K (85 °C) | `USER_CONFIRMED_SCENARIO_REFERENCE`; OCP fixed retention condition is powered-on 85 °C/24 h, recorded in `PARAMETER_SOURCE_AUDIT.md` line 38 and `ocp-verification.md` line 13. | Arrhenius reference rate is one at 358.15 K. This reference choice is not claimed to be HeatWatch's fitted reference. |
+| Maintenance period | 24 h wall clock | `SCENARIO_ASSUMPTION_USER_CONFIRMED`; OCP says refresh is typically every 24–48 h and product-specific (`PARAMETER_SOURCE_AUDIT.md` line 41). | `wall_only` schedules by wall cadence. `equivalent_age_or_wall` also schedules conservatively when conditional reference-age reaches 24 h, giving Ea an actual policy consumer. Neither trigger is a failure, RBER, ECC, endurance, or throttle threshold. Equivalent initial age does not shorten the wall cadence. |
+| Initial age | caller-supplied equivalent ns | `SCENARIO_ASSUMPTION`; no product initial-age distribution exists. | Literal fair initial pressure shared by arms; never divided by Arrhenius rate and never used to compress the 24 h cadence. |
+| Program/erase wear | observed phase starts and successful completions, per physical block | `ACTUAL_EVENT_FACT` when supplied by the isolated maintenance backend. Its lifecycle is documented in `experiments/eq3_maintenance/backend/docs/IMPLEMENTATION_BOUNDARY.md`. | Program and erase counters remain separate. A failed operation after phase start remains an exposure fact but not a successful completion; no damage severity or P/E limit is inferred. |
+| Age reset | successful refresh mapping commit only | `ACTUAL_EVENT_FACT`; narrow lifecycle in `docs/eq3_thermal/MQSIM_DIE_MAINTENANCE_NARROW_DESIGN.md`. | Failed read/program/CAS/erase-before-commit retains age. A post-commit erase failure does not undo the already committed refresh. |
+| Retry/ECC | caller-supplied count, latency, energy | `SCENARIO_ASSUMPTION_NO_RBER_CLAIM`. OCP leaves ECC strength, retry cost and RBER unavailable (`PARAMETER_SOURCE_AUDIT.md` line 38). | Stored independently and never generated from temperature/age. |
+| Maintenance read/program timing | 10 us / 100 us, 4096 B | `ENGINEERING_PROXY`: `experiments/eq3_maintenance/campaign_inputs.py::configuration`. | Existing isolated backend scenario only, not causal executor timing and not calibrated HBF. |
+| Maintenance program energy | 0.05 W × 100 us / 4096 B = 1.220703125 nJ/B | `DERIVED_ENGINEERING_PROXY`: media power and timing in `campaign_inputs.py::energy_profile/configuration`; the 0.05 W anchor is explicitly old-device/order-of-magnitude. | May classify actual program intervals. It must not be replaced by the read-rate 50 pJ/B scenario or called target-HBF program energy. |
+| Program service work | 16 planes/channel × 4096 B / 100 us = 655,360,000 B/s/channel; read-equivalent work ratio at 96 GB/s is 9375/64 | `DERIVED_ENGINEERING_PROXY` from explicit OCP projection and maintenance timing. | Topology-service `operation_media_cost.program`; a scheduling cost, not achieved product program bandwidth. |
+| Erase latency/energy | native experimental adapter latency = 10 × 100 us = 1 ms; 0.05 W × 1 ms = 50 µJ/erase | `DERIVED_ENGINEERING_PROXY`: `backend/src/mqsim_online_maintenance.cpp` line 150 plus registered 0.05 W media-power scenario. | Count-based maintenance-driver energy only; not calibrated HBF erase energy. Failed-after-service energy remains. |
+| Read-rate thermal energy | array 40 pJ/B; base 10 pJ/B | `SCENARIO_ASSUMPTION_USER_CONFIRMED`, implemented separately in `experiments/eq3_rate_thermal`. | Default HBF read increment is 50 pJ/B total. Relay adds 2 pJ/B partner receive plus 2 pJ/B partner send; it does not add HBM-array energy. Not program energy or backend throughput. |
+| Fabric relay partner energy | 2 pJ/B receive + 2 pJ/B send | `SCENARIO_ASSUMPTION` in the system energy profile. | Relay partner base/link increments only; counted once and kept distinct from HBF array/base energy. |
+| Qwen2.5 structure/payload | 7B: 15,231,233,024 B, 28 layers; 72B: 145,412,407,296 B, 80 layers | `DOC_DERIVED` official config and safetensors-index metadata registered in `experiments/eq3_maintenance/sources/qwen2_5_weight_models.json`. | Tensor sizes and architecture dependency identities. The produced trace is synthetic architecture-derived, not a PyTorch/runtime capture. |
+
+Native backend program/erase facts and aggregate rate-service modelled wear facts
+must remain separately labelled.  Unavailable by design: target-HBF RBER, ECC
+strength, retry probability, failure probability, lifetime, calibrated
+program/erase energy, and calibrated product token/s.  Synthetic causal-token
+completion is available only after an exact subwindow service is connected.

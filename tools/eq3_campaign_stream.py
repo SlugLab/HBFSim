@@ -141,8 +141,9 @@ def replay(source, destination, nx, ny, frames):
 
 
 def run_stream(argv, directory, layers, frames, nx, ny, watchdog=600,
-               max_bytes=4 * 1024**3, policy='gzip', codec_library=None):
-    if min(layers, frames, nx, ny) < 1 or not 0 < watchdog <= 600:
+               max_bytes=4 * 1024**3, policy='gzip', codec_library=None,
+               process_ram_gib=12):
+    if min(layers, frames, nx, ny) < 1 or watchdog <= 0 or process_ram_gib <= 0:
         raise ValueError('invalid dimensions or watchdog')
     if policy not in ('gzip', 'lossless_EQ3TMK1'):
         raise ValueError('unknown output policy')
@@ -161,7 +162,7 @@ def run_stream(argv, directory, layers, frames, nx, ny, watchdog=600,
     process = None
     status, error, records = 'FAILED', None, []
     def child_limits():
-        resource.setrlimit(resource.RLIMIT_AS, (12 * 1024**3, 12 * 1024**3))
+        limit=int(process_ram_gib * 1024**3);resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
     try:
         for z in range(layers):
             pipe = directory / f'field_{z}.txt'
@@ -243,14 +244,17 @@ def main():
     for flag in ('layers', 'frames', 'nx', 'ny'):
         p.add_argument('--' + flag, type=int, required=True)
     p.add_argument('--watchdog', type=float, default=600)
+    p.add_argument('--process-ram-gib', type=float, default=12)
+    p.add_argument('--max-output-gib', type=float, default=4)
     p.add_argument('--policy', choices=('gzip','lossless_EQ3TMK1'), default='gzip')
     p.add_argument('--codec-library')
     a = p.parse_args()
     # A low soft ceiling for this bridge must not propagate to the solver.
     hard = resource.getrlimit(resource.RLIMIT_AS)[1]
-    if hard != resource.RLIM_INFINITY and hard < 12 * 1024**3:
+    approved_bytes=int(a.process_ram_gib * 1024**3)
+    if a.process_ram_gib <= 0 or a.max_output_gib <= 0 or hard != resource.RLIM_INFINITY and hard < approved_bytes:
         raise ValueError('outer hard AS limit cannot accommodate approved solver ceiling')
-    resource.setrlimit(resource.RLIMIT_AS, (512 * 1024**2, 12 * 1024**3))
+    resource.setrlimit(resource.RLIMIT_AS, (512 * 1024**2, approved_bytes))
     os.sched_setaffinity(0, {min(os.sched_getaffinity(0))})
     backend = Path(a.backend)
     if not backend.is_absolute():
@@ -260,7 +264,7 @@ def main():
         codec_library = Path(os.environ.get('EQ3_ARTIFACT_ROOT', str(Path.cwd()))) / codec_library
     run_stream([str(backend.resolve()), a.stack], Path.cwd(),
                a.layers, a.frames, a.nx, a.ny, a.watchdog,
-               policy=a.policy, codec_library=codec_library)
+               max_bytes=int(a.max_output_gib*1024**3),policy=a.policy, codec_library=codec_library,process_ram_gib=a.process_ram_gib)
 
 
 if __name__ == '__main__':

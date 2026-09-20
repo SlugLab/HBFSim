@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:hbfsim:eq3:maintenance:persistent-thermal-client:v1",
+  "title": "EQ3 persistent thermal ADVANCE response",
+  "type": "object",
+  "required": [
+    "type", "from_ns", "time_ns", "steps", "entity_temperatures_k",
+    "sensor_temperatures_k", "temperature_range_k", "energy_j", "timing",
+    "factorization_count"
+  ],
+  "properties": {
+    "type": {"const": "ADVANCE"},
+    "from_ns": {"type": "integer", "minimum": 0},
+    "time_ns": {"type": "integer", "minimum": 1},
+    "steps": {"type": "integer", "minimum": 1},
+    "entity_temperatures_k": {
+      "type": "object",
+      "description": "Keys are locked non-background component IDs; the production lock has 255.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["mean_k", "hotspot_k"],
+        "properties": {
+          "mean_k": {"type": "number", "exclusiveMinimum": 0},
+          "hotspot_k": {"type": "number", "exclusiveMinimum": 0}
+        },
+        "additionalProperties": false
+      }
+    },
+    "sensor_temperatures_k": {
+      "type": "object",
+      "description": "Keys are the locked sensor IDs; the production lock has 275.",
+      "additionalProperties": {"type": "number", "exclusiveMinimum": 0}
+    },
+    "temperature_range_k": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {"type": "number", "exclusiveMinimum": 0}
+    },
+    "energy_j": {
+      "type": "object",
+      "required": ["window", "cumulative", "accepted_activity",
+                   "accepted_not_yet_applied_activity"],
+      "properties": {
+        "window": {"$ref": "#/$defs/energyBalance"},
+        "cumulative": {"$ref": "#/$defs/energyBalance"},
+        "accepted_activity": {"type": "number", "minimum": 0},
+        "accepted_not_yet_applied_activity": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "timing": {
+      "type": "object",
+      "required": ["advance_seconds", "observation_seconds",
+                   "serialization_probe_seconds", "previous_stdout_write_seconds",
+                   "input_parse_seconds"],
+      "properties": {
+        "advance_seconds": {"type": "number", "minimum": 0},
+        "observation_seconds": {"type": "number", "minimum": 0},
+        "serialization_probe_seconds": {"type": "number", "minimum": 0},
+        "previous_stdout_write_seconds": {"type": "number", "minimum": 0},
+        "input_parse_seconds": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "factorization_count": {"const": 1}
+  },
+  "$defs": {
+    "energyBalance": {
+      "type": "object",
+      "required": [
+        "activity_input_j", "static_input_j", "total_input_j",
+        "stored_energy_change_j", "boundary_loss_j", "energy_residual_j",
+        "node_mapped_activity_input_j", "component_mapping_error_j"
+      ],
+      "properties": {
+        "activity_input_j": {"type": "number", "minimum": 0},
+        "static_input_j": {"type": "number", "minimum": 0},
+        "total_input_j": {"type": "number", "minimum": 0},
+        "stored_energy_change_j": {"type": "number"},
+        "boundary_loss_j": {"type": "number"},
+        "energy_residual_j": {"type": "number"},
+        "node_mapped_activity_input_j": {"type": "number", "minimum": 0},
+        "component_mapping_error_j": {"type": "number"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

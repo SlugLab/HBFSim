@@ -248,7 +248,13 @@ def validate_launch(manifest, approval, launch, launch_path, root, approval_path
     ram_gib = _number(launch["limits"]["ram_gib"], "limits.ram_gib")
     watchdog = _number(launch["limits"]["watchdog_seconds"], "limits.watchdog_seconds")
     gpu_minutes = _number(launch["limits"]["gpu_compute_minutes"], "limits.gpu_compute_minutes")
-    if (threads != MAX_THREADS or not 0 < ram_gib <= MAX_RAM_GIB or
+    if gate.get("resource_policy") == "PER_EXPERIMENT_USER_CONFIRMED":
+        limits=gate["resource_limits"]
+        if (threads != limits["threads"] or ram_gib != limits["process_ram_gib"] or
+                watchdog != limits["watchdog_s"] or output_gib != limits["point_disk_gib"] or
+                gpu_minutes != 0):
+            _fail("LAUNCH_LIMIT_EXCEEDED", "launch limits differ from the bound per-experiment stage scope")
+    elif (threads != MAX_THREADS or not 0 < ram_gib <= MAX_RAM_GIB or
             not 0 < watchdog <= MAX_WATCHDOG_SECONDS or gpu_minutes != 0 or
             not 0 < output_gib <= MAX_OUTPUT_GIB):
         _fail("LAUNCH_LIMIT_EXCEEDED", "launch exceeds 1 thread, 12 GiB RAM, 600 s, 4 GiB, or zero-GPU limits")
@@ -258,8 +264,11 @@ def validate_launch(manifest, approval, launch, launch_path, root, approval_path
             requested["cpu_configurations"] != 1 or requested["executions_per_configuration"] != 1):
         _fail("LAUNCH_LIMIT_EXCEEDED", "scientific resource request is not covered by this single-run envelope")
 
-    return {"status": "READY_TO_LAUNCH", "experiment_id": gate["experiment_id"],
+    result={"status": "READY_TO_LAUNCH", "experiment_id": gate["experiment_id"],
             "version": gate["version"], "run_id": run_id, "launch_performed": False}
+    if gate.get("resource_policy") == "PER_EXPERIMENT_USER_CONFIRMED":
+        result.update(resource_policy=gate["resource_policy"],resource_limits=gate["resource_limits"])
+    return result
 
 
 def _output_bytes(path):
@@ -420,6 +429,12 @@ def execute_launch(manifest, approval, launch, launch_path, root, approval_path=
     backend = _relative(root, launch["backend"]["path"], "backend.path", must_be_file=True)
     input_directory = _relative(root, launch["command"]["cwd"], "command.cwd", must_be_dir=True)
     output = _relative(root, launch["output"]["path"], "output.path")
+    if result.get("resource_policy") == "PER_EXPERIMENT_USER_CONFIRMED":
+        limits=result["resource_limits"];task_root=root/"eq3_thermal" if (root/"eq3_thermal").is_dir() else root
+        point_bytes=int(limits["point_disk_gib"]*1024**3)
+        if (_output_bytes(task_root)+point_bytes>limits["task_disk_gib"]*1024**3 or
+                shutil.disk_usage(root).free<point_bytes+limits["min_free_disk_gib"]*1024**3):
+            _fail("LAUNCH_LIMIT_EXCEEDED", "bound task disk or free-space reserve cannot cover this point")
     if _hash(backend) != launch["backend"]["sha256"]:
         _fail("BACKEND_HASH_MISMATCH", "backend changed between validation and launch")
     output.mkdir(mode=0o750)

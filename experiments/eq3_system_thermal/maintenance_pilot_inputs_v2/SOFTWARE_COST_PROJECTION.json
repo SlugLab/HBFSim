@@ -1,0 +1,42 @@
+{
+  "schema_version": "eq3-maintenance-fixed-software-cost-v1",
+  "classification": "FIXED_SOFTWARE_VALIDATION_NOT_THERMAL_OR_SCIENTIFIC_EXPERIMENT",
+  "input": {
+    "topology": "all_hbf_direct",
+    "hbf_stacks": 8,
+    "channels_per_stack": 16,
+    "aged_blocks_per_stack": 4096,
+    "total_aged_blocks": 32768,
+    "aged_subset_bytes_per_stack": 4294967296,
+    "windows_measured": 10,
+    "windows_projected": 600,
+    "forced_due_at_start_for_stress": true,
+    "thermal": "FIXED_FAKE_300K_NO_SOLVER",
+    "output_sink": "COUNTING_NULL_SINK"
+  },
+  "root_cause": {
+    "classification": "CONFIRMED_BUG",
+    "location": "maintenance_driver.py::register_extents",
+    "before": "reconstructed all mapped source IDs for every inserted extent (quadratic)",
+    "fix": "construct once and update incrementally",
+    "pre_fix_10_window_wall_s": 23.379321462998632,
+    "post_fix_10_window_wall_s": 1.3981969419983216
+  },
+  "post_fix_observed": {
+    "max_rss_kib": 90804,
+    "serialized_bytes": 6578487,
+    "retained_driver_delta_rows_at_final": 0,
+    "terminal_operations": 256,
+    "terminal_extents": 4096
+  },
+  "linear_projection_diagnostic": {
+    "wall_s_600_windows": 83.8918165198993,
+    "serialized_bytes_600_windows": 394709220,
+    "warning": "Linear fixed-software projection only; thermal solver and workload-dependent maintenance timing are excluded."
+  },
+  "limits": [
+    "No heat solve was run.",
+    "No native MQSim backend was run.",
+    "The forced-due stress case is not the frozen day-minus-2s pilot scenario."
+  ]
+}

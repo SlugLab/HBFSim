@@ -1052,7 +1052,7 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
     endif()
     if(HBFSIM_ENABLE_MQSIM)
         add_executable(hbf_mqsim_service benchmarks/replay/hbf_mqsim_service.cpp)
-        target_link_libraries(hbf_mqsim_service PRIVATE hbfsim_core)
+        target_link_libraries(hbf_mqsim_service PRIVATE hbfsim_core mqsim_hbf)
         target_include_directories(hbf_mqsim_service PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
         if(BUILD_TESTING)

@@ -30,6 +30,29 @@ class StageGateTests(unittest.TestCase):
     def test_reject_ram16_per_process(self):
         self.m['resource_budget']['requested']['ram_gib']=16
         with self.assertRaises(GateError):self.check()
+    def enable_per_experiment_resources(self):
+        self.scope['resource_policy']='PER_EXPERIMENT_USER_CONFIRMED'
+        self.scope['limits']={'task_ram_gib':24,'process_ram_gib':16,'threads':1,'watchdog_s':3600,
+          'point_disk_gib':6,'task_disk_gib':40,'min_free_disk_gib':10,'gpu':0,'cloud':0}
+        self.c['limits']=self.scope['limits'];self.m['resource_budget']['requested'].update(ram_gib=16,disk_gib=6)
+        self.write('scope.json',json.dumps(self.scope));self.a['scope_sha256']=sha(self.root/'scope.json');self.write('child.json',json.dumps(self.c))
+    def test_explicit_per_experiment_resources_replace_legacy_caps(self):
+        self.enable_per_experiment_resources();result=self.check()
+        self.assertEqual(result['resource_policy'],'PER_EXPERIMENT_USER_CONFIRMED')
+        self.assertEqual(result['resource_limits']['watchdog_s'],3600)
+    def test_per_experiment_child_must_bind_exact_scope_limits(self):
+        self.enable_per_experiment_resources();self.c['limits']['watchdog_s']=3599;self.write('child.json',json.dumps(self.c))
+        with self.assertRaises(GateError):self.check()
+    def test_per_experiment_resources_reject_nonfinite(self):
+        self.enable_per_experiment_resources();self.scope['limits']['watchdog_s']=float('inf');self.c['limits']=self.scope['limits']
+        self.write('scope.json',json.dumps(self.scope));self.a['scope_sha256']=sha(self.root/'scope.json');self.write('child.json',json.dumps(self.c))
+        with self.assertRaises(GateError):self.check()
+    def test_resource_values_without_explicit_policy_keep_legacy_caps(self):
+        self.scope['limits']={'task_ram_gib':24,'process_ram_gib':16,'threads':1,'watchdog_s':3600,
+          'point_disk_gib':6,'task_disk_gib':40,'min_free_disk_gib':10,'gpu':0,'cloud':0}
+        self.c['limits']=self.scope['limits'];self.m['resource_budget']['requested']['ram_gib']=16
+        self.write('scope.json',json.dumps(self.scope));self.a['scope_sha256']=sha(self.root/'scope.json');self.write('child.json',json.dumps(self.c))
+        with self.assertRaises(GateError):self.check()
     def test_reject_outside_family(self):
         self.c['family']='GPU';self.write('child.json',json.dumps(self.c))
         with self.assertRaises(GateError):self.check()

@@ -1,0 +1,56 @@
+{
+  "compute_timing_semantics": "EXPLICIT_SCENARIO_NS_NOT_TINY_CPU_RUNTIME",
+  "consumer": "causal_workload.build_architecture_trace(dependency_mode=tiny_cpu_template)",
+  "fixed_tests": {
+    "count": 24,
+    "result": "PASS",
+    "thermal_or_native_runs": 0
+  },
+  "limitations": [
+    "STRUCTURE_AND_WEIGHT_ACCESS_ORDER_TEMPLATE_ONLY",
+    "SYNTHETIC_MODE_REMAINS_AVAILABLE",
+    "NO_PRETRAINED_QUALITY",
+    "NO_GPU_TIMING",
+    "NO_TOKEN_PERFORMANCE_CALIBRATION"
+  ],
+  "models": {
+    "Qwen/Qwen2.5-72B-Instruct": {
+      "analytical_output_head_macs_per_token": 1245708288,
+      "analytical_total_macs_per_token_at_context": 76827066368,
+      "analytical_transformer_macs_per_token_at_context": 75581358080,
+      "first_attention_template_op_ids": [
+        "prefill:op1:layer0.input_rmsnorm",
+        "prefill:op2:layer0.q_projection",
+        "prefill:op3:layer0.k_projection",
+        "prefill:op4:layer0.v_projection",
+        "prefill:op5:layer0.rope_gqa_causal_attention",
+        "prefill:op6:layer0.o_projection"
+      ],
+      "layer_count": 80,
+      "logical_region_count": 163,
+      "task_count_per_batch": 324,
+      "tensor_payload_bytes": 145412407296
+    },
+    "Qwen/Qwen2.5-7B-Instruct": {
+      "analytical_output_head_macs_per_token": 544997376,
+      "analytical_total_macs_per_token_at_context": 7892369408,
+      "analytical_transformer_macs_per_token_at_context": 7347372032,
+      "first_attention_template_op_ids": [
+        "prefill:op1:layer0.input_rmsnorm",
+        "prefill:op2:layer0.q_projection",
+        "prefill:op3:layer0.k_projection",
+        "prefill:op4:layer0.v_projection",
+        "prefill:op5:layer0.rope_gqa_causal_attention",
+        "prefill:op6:layer0.o_projection"
+      ],
+      "layer_count": 28,
+      "logical_region_count": 59,
+      "task_count_per_batch": 116,
+      "tensor_payload_bytes": 15231233024
+    }
+  },
+  "projection_context_tokens": 4096,
+  "schema_version": "eq3-tiny-trace-causal-consumer-evidence-v1",
+  "status": "FIXED_TEST_PASS",
+  "tiny_trace_sha256": "feea4657abc5e7b981208b23b8d2fff9836194694c5c3dec69c6bf59bbe627a7"
+}

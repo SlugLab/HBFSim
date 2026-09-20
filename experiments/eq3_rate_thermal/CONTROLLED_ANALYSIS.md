@@ -55,6 +55,10 @@ the user-confirmed incremental 50 pJ/B scenario; idle and GPU self-power remain
 unknown in this path.
 
 Outputs include a machine-readable JSON report, point and comparison CSVs, one
-temperature/rate/backlog trajectory plot per workload group, and a campaign
-summary figure. All figures are derived from the same checked in analysis and
-immutable point streams.
+maximum-temperature/rate/backlog trajectory plot per workload group, one
+three-policy per-stack-temperature panel figure per workload group, and a
+campaign summary figure. Rate trajectories show offered demand as a dashed
+line beside delivered service, and all trajectory panels mark the fixed active
+cutoff. The complete 39-point design therefore produces 13 grouped per-stack
+figures rather than 39 separate large figures. All figures are derived from the
+same checked in analysis and immutable point streams.

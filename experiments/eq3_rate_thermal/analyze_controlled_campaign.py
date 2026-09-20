@@ -179,7 +179,9 @@ def analyze_point(point: Path) -> dict:
     totals = {"offered_bytes": 0, "delivered_bytes": 0, "active_delivered_bytes": 0,
               "energy_j": 0.0}
     any_stack_state_time_ns = {state: 0 for state in STATE_RANK}
-    trace = {"start_ns": [], "end_ns": [], "max_temperature_k": [], "delivered_Bps": [],
+    trace = {"start_ns": [], "end_ns": [], "max_temperature_k": [],
+             "temperature_k_by_stack": {stack: [] for stack in stacks},
+             "offered_Bps": [], "delivered_Bps": [],
              "delivered_Bps_by_stack": {stack: [] for stack in stacks}, "backlog_bytes": []}
     expected_start = 0
     final_thermal = None
@@ -266,6 +268,9 @@ def analyze_point(point: Path) -> dict:
         trace["start_ns"].append(interval[0])
         trace["end_ns"].append(interval[1])
         trace["max_temperature_k"].append(max(float(temperatures[stack]) for stack in stacks))
+        for stack in stacks:
+            trace["temperature_k_by_stack"][stack].append(float(temperatures[stack]))
+        trace["offered_Bps"].append(window_offered * 1_000_000_000 / duration_ns)
         trace["delivered_Bps"].append(window_delivered * 1_000_000_000 / duration_ns)
         for stack in stacks:
             trace["delivered_Bps_by_stack"][stack].append(
@@ -616,18 +621,28 @@ def write_plots(analysis: dict, output: Path) -> list[str]:
                             point["full_scans_per_s"]), []).append(point)
     for key, points in sorted(grouped.items()):
         fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True, constrained_layout=True)
-        for point in sorted(points, key=lambda row: STRATEGIES.index(row["strategy"])):
+        ordered_points = sorted(points, key=lambda row: STRATEGIES.index(row["strategy"]))
+        for point_index, point in enumerate(ordered_points):
             trace = point["_trace"]
             x = [value / 1e9 for value in trace["end_ns"]]
             label = point["strategy"]
             axes[0].plot(x, trace["max_temperature_k"], label=label)
             axes[1].plot(x, [value / 1e12 for value in trace["delivered_Bps"]], label=label)
             axes[2].plot(x, [value / 1e12 for value in trace["backlog_bytes"]], label=label)
+            if point_index == 0:
+                axes[1].plot(x, [value / 1e12 for value in trace["offered_Bps"]],
+                             color="black", linestyle="--", linewidth=1.2,
+                             label="offered demand")
+        active_end_s = ordered_points[0]["active_ns"] / 1e9
+        for axis in axes:
+            axis.axvline(active_end_s, color="gray", linestyle=":", linewidth=1,
+                         label="active end" if axis is axes[0] else None)
         axes[0].set_ylabel("Max HBF K")
-        axes[1].set_ylabel("Delivered TB/s")
+        axes[1].set_ylabel("Rate (TB/s)")
         axes[2].set_ylabel("Backlog TB")
         axes[2].set_xlabel("Time (s)")
         axes[0].legend(fontsize=8)
+        axes[1].legend(fontsize=8)
         for axis in axes:
             axis.grid(alpha=.2)
         fig.suptitle(f"{key[0]} | {key[1]} | {key[2]} | {key[3]} scans/s\n"
@@ -636,6 +651,40 @@ def write_plots(analysis: dict, output: Path) -> list[str]:
         fig.savefig(path, dpi=150)
         plt.close(fig)
         paths.append(str(path))
+
+        # One compact figure per workload group: strategy panels, stack lines.
+        stack_fig, stack_axes = plt.subplots(
+            len(STRATEGIES), 1, figsize=(10, 8), sharex=True, sharey=True,
+            constrained_layout=True,
+        )
+        by_strategy = {point["strategy"]: point for point in points}
+        for axis, strategy in zip(stack_axes, STRATEGIES):
+            point = by_strategy.get(strategy)
+            if point is None:
+                axis.text(.5, .5, "point unavailable", ha="center", va="center",
+                          transform=axis.transAxes)
+                axis.set_title(strategy)
+                axis.axvline(active_end_s, color="gray", linestyle=":", linewidth=1)
+                continue
+            trace = point["_trace"]
+            x = [value / 1e9 for value in trace["end_ns"]]
+            for stack, temperatures in sorted(trace["temperature_k_by_stack"].items()):
+                axis.plot(x, temperatures, linewidth=1, label=stack)
+            axis.axvline(point["active_ns"] / 1e9, color="gray", linestyle=":", linewidth=1)
+            axis.set_title(strategy)
+            axis.set_ylabel("HBF K")
+            axis.grid(alpha=.2)
+            axis.legend(ncol=4, fontsize=7, frameon=False)
+        stack_axes[-1].set_xlabel("Time (s)")
+        stack_fig.suptitle(
+            f"Per-stack temperature | {key[0]} | {key[1]} | {key[2]} | {key[3]} scans/s"
+        )
+        stack_path = output / (
+            f"stack-temperatures-{_slug(key[0])}-{_slug(key[1])}-{_slug(key[2])}-{key[3]}sps.png"
+        )
+        stack_fig.savefig(stack_path, dpi=150)
+        plt.close(stack_fig)
+        paths.append(str(stack_path))
 
     points = sorted(analysis["points"], key=lambda p: (p["topology"], p["model_id"], p["pattern"],
                                                          p["full_scans_per_s"],

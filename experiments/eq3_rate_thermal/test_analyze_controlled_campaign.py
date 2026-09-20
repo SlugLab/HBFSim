@@ -103,6 +103,10 @@ class ControlledAnalysisTests(unittest.TestCase):
             self.assertEqual(result["per_stack"]["hbf0"]["state_time_ns"]["normal"], 40)
             self.assertAlmostEqual(result["totals"]["energy_j"], 80 * 50e-12)
             self.assertEqual(result["limitations"]["token_per_s"], "UNKNOWN")
+            trace = result["_trace"]
+            self.assertEqual(trace["offered_Bps"], [5e9, 0.0])
+            self.assertEqual(trace["temperature_k_by_stack"]["hbf0"], [350.0, 349.0])
+            self.assertEqual(len(trace["temperature_k_by_stack"]["hbf1"]), len(trace["end_ns"]))
             active = result["service_rate_stability"]["active_full"]["total"]
             self.assertEqual(active["window_count"], 2)
             self.assertAlmostEqual(active["population_cv"], 0.5)
@@ -132,6 +136,7 @@ class ControlledAnalysisTests(unittest.TestCase):
             self.assertTrue((output / "pairwise-policy-costs.csv").is_file())
             self.assertTrue((output / "controlled-campaign-summary.png").is_file())
             self.assertEqual(len(list(output.glob("trajectory-*.png"))), 1)
+            self.assertEqual(len(list(output.glob("stack-temperatures-*.png"))), 1)
 
     def test_detects_byte_conservation_failure(self):
         with tempfile.TemporaryDirectory() as directory:

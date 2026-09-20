@@ -191,6 +191,21 @@ class TopologyServiceTests(unittest.TestCase):
                              resource["capacity_work_units_scaled"])
         self.assertTrue(any(row["phase"] == "media_program" for row in result["activities"]))
 
+    def test_retry_consumes_physical_resources_but_not_useful_delivery(self):
+        config = default_config("mixed_direct")
+        service = TopologyService(config)
+        retry = {"job_id": "retry", "stack": "hbf0", "channel": "0",
+                 "operation": "retry", "route": "direct", "bytes": 4096,
+                 "arrival_ns": 0}
+        result = service.advance(0, W, {}, budgets(config), states(config), [retry])
+        self.assertIn("retry", result["completion_ids"])
+        self.assertEqual(result["served_by_stack_channel"]["hbf0"]["0"], 0)
+        self.assertEqual(result["stacks"]["hbf0"]["delivered_effective_bytes"], 0)
+        self.assertTrue(any(row["operation"] == "retry" and row["phase"] == "media_read"
+                            for row in result["activities"]))
+        self.assertTrue(any(row["operation"] == "retry" and row["phase"] == "direct_gpu_link"
+                            for row in result["activities"]))
+
     def test_program_proxy_ratio_and_single_chunk_basic_fabric_crosscheck(self):
         self.assertEqual(
             media_cost_from_service_rate(96_000_000_000, 16 * 40_960_000),

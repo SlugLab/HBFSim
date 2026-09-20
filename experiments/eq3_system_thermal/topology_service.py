@@ -529,7 +529,10 @@ class TopologyService:
             operation = raw["operation"]
             route = raw.get("route", self._default_route(raw["stack"], raw["channel"]))
             maintenance_id = raw.get("maintenance_id")
-            foreground = operation in READ_OPERATIONS and maintenance_id is None
+            # Retry traffic consumes the same media/link resources but is not
+            # a new useful byte delivery.  A later identified successful read
+            # must carry the useful completion explicitly.
+            foreground = operation == "read" and maintenance_id is None
             byte_count = _integer(raw["bytes"], "extra_job.bytes", positive=True)
             self._add_job(
                 job_id=raw["job_id"], stack=raw["stack"], channel=raw["channel"],

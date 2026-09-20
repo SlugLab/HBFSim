@@ -54,6 +54,12 @@ std::uint64_t fast_service_ns(const FastModelProfile& profile,
     //
     // No overflow guard is needed any more: taking the larger of two values
     // cannot overflow, unlike the sum this replaces.
+    //
+    // One place in this repository still adds the two, and that is intended:
+    // scalar_prediction in scripts/tune_vmem_profile.py. It is the naive
+    // parameter-sheet closed-form the calibration table compares measurements
+    // against, not a second opinion about what this function should return.
+    // Do not reconcile them.
     const auto widened = static_cast<std::uint64_t>(transfer);
     return widened > base ? widened : base;
 }

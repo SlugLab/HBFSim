@@ -27,6 +27,9 @@ this file says where each kind of document lives.
   (`plans/`) that the components were built against.
 - [`49-eval-audit/`](49-eval-audit/) and the `49-`/`50-` documents — the audit trail of the current
   measurement campaign: claim gates, capability audits, blockers, run status.
+- [`51-defect-review-and-fixes.md`](51-defect-review-and-fixes.md) — defects found in the code by
+  two independent reviews, what was changed in response, and the limits that still stand. Each
+  entry states what goes wrong concretely if the defect is not fixed.
 - [`eq3_thermal/`](eq3_thermal/) — the thermal and reliability model: design, verification against
   the specification, and its current status.
 - [`reference/`](reference/) — reference notes, including the CUDA architecture compatibility audit.

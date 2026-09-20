@@ -103,6 +103,28 @@ def align_capacity(capacity: int, page_bytes: int, channels: int,
 
 
 def scalar_prediction(base: dict[str, object], transfer_bytes: int) -> int:
+    """Predict a request's cost the way a parameter sheet would: latency plus
+    transfer.
+
+    This is deliberately a sum, and it is deliberately NOT the model the
+    simulator itself uses. It exists to be compared against, not to be
+    accurate: it is the naive closed-form a reader would write down from a
+    vendor's latency and bandwidth figures, and the calibration table's whole
+    point is how far that closed-form drifts from measurement as a request
+    grows.
+
+    The simulator's own service time is hbfsim::fast_service_ns, in
+    src/cuda_runtime/device/hbf_device.cuh and mirrored in
+    src/hybrid/calibrator.cpp. Those take the LARGER of the two bounds,
+    because read_latency_ns is a first-byte latency that overlaps the
+    transfer rather than preceding it. The two functions disagreeing is the
+    intended state; a review flagged the disagreement as a defect precisely
+    because nothing said so here.
+
+    Do not "fix" this to match fast_service_ns. Changing it changes what the
+    calibration table reports the analytical model predicts, which is a claim
+    in the paper, not an implementation detail.
+    """
     latency = int(base["read_latency_ns"])
     bandwidth = int(base["aggregate_bandwidth_bytes_per_s"])
     if transfer_bytes <= 0 or bandwidth <= 0:

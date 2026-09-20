@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from endpoint_policy import EndpointAwarePolicy
@@ -28,6 +32,16 @@ def facts(stack, state, budget, *, offered=0, delivered=0, backlog=0):
 
 
 class EndpointPolicyTests(unittest.TestCase):
+    def test_isolated_entrypoint_does_not_require_pythonpath(self):
+        entry = Path(__file__).with_name("run_endpoint_guard_point.py")
+        environment = dict(os.environ)
+        environment.pop("PYTHONPATH", None)
+        result = subprocess.run(
+            [sys.executable, str(entry), "--help"], cwd="/tmp", env=environment,
+            text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--thermal-binary", result.stdout)
+
     def test_reproduces_legacy_hbm_half_cap_hold_without_local_demand(self):
         policy = ReadRatePolicy(profile("hbm0"))
         decision = policy.evaluate(facts("hbm0", "normal", BASELINE // 2))

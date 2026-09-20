@@ -8,6 +8,13 @@ import json
 from pathlib import Path
 import sys
 
+# This entry point must be executable directly by the serial launcher.  Import
+# the existing maintenance policy from its repository location before loading
+# the endpoint adapter; do not rely on a caller-provided PYTHONPATH.
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+sys.path.insert(0, str(ROOT / "experiments" / "eq3_maintenance"))
+
 import endpoint_policy
 import run_system_point
 

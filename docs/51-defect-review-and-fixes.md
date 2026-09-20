@@ -290,7 +290,7 @@ and the ordering between profiles holds under either definition. A test that com
 each other is blind to a change that moves both inputs the same way. Only pinning one implementation
 to the other implementation detects the drift.
 
-A third implementation deliberately still adds the first-byte latency and the transfer time, and the
+Two further implementations deliberately still add the first-byte latency and the transfer time, and the
 difference is now documented where a reader will meet it. `scalar_prediction` in
 `scripts/tune_vmem_profile.py` is the naive parameter-sheet closed form that the calibration compares
 measurements against — the function exists in order to be compared with, not in order to be accurate.
@@ -298,6 +298,17 @@ measurements against — the function exists in order to be compared with, not i
 changed to match, and `hbfsim::fast_service_ns` in `src/hybrid/calibrator.cpp` carries the reverse
 reference, so that a reader arriving from either side does not reconcile the two forms and destroy
 the comparison.
+
+The fourth site is `adapters/vllm_capacity/trace_replay.py:351-353`, in the replay adapter's
+`analytic` timing mode. It writes its result to `modeled_device_time_ns`, which is the same key the
+external timing modes fill from `hbf_trace_timing` — so one key carries two different models
+depending on the mode. That sounds like the same hazard again and is not, because this site already
+labels itself in its own output: it sets `simulator_mode` to `analytic-profile-serial-upper-bound`
+and writes a `modeled_time_semantics` field reading, verbatim, `sum of nominal read latency plus
+aggregate-bandwidth transfer; conservative serialized analytic bound, not HBFSim fast/hybrid or
+MQSim device execution`. A reader of the artifact is told which model produced the number. Of the
+four implementations this is the one that needed no repair, and it is worth naming here only because
+a count of three would send the next reader looking for three.
 
 Two limits on the conclusion. The pinning test covers three shipped profiles and seven request sizes;
 a profile or a request size outside that set is not covered by the test, only by the shared source of

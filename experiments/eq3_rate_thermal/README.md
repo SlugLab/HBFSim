@@ -99,3 +99,35 @@ The energy anchor remains80W at1.6TB/s,40pJ/B array+10pJ/B base. Thus full OCP G
 `run_rate_thermal.py` consumes explicit profile/schedule/model/binary paths and writes energy windows, complete thermal entity frames, stack temperature CSV and DONE/FAILED receipts. It uses existing ThermalService ENERGY/ADVANCE on the unchanged full coupled network. No MQSim process is created. `plot_rate_thermal.py POINT` reproduces the rate/power/incremental-temperature figure. Initial300K is the model reference; without an idle/GPU background the output is incremental heating, not the product's absolute operating temperature. Existing 300..400K domain checks remain; failure evidence is retained.
 
 Input time segments are integrated exactly across20ms windows. Sources are per actual discovered die and base; temperature uses the existing2mm lateral grid and layered geometry. Unaccessed dies have no incremental read power but remain thermally coupled. Per-page/block/plane heat-source geometry, channel activation/static energy, UCIe scheduling and actual device throughput are not represented.
+
+## Fluid feedback runner
+
+`run_controlled.py` is a separate, default-disconnected closed-loop path. Each
+20 ms window enqueues integer offered bytes, serves the persistent per-channel
+FIFO under the budget chosen from the preceding completed thermal window, maps
+only served bytes to 40/10 pJ/B array/base energy, and advances the unchanged
+coupled thermal network. The resulting control decision applies to the next
+window. Recovery windows admit zero new bytes while retaining and serving old
+backlog.
+
+```sh
+python3 experiments/eq3_rate_thermal/run_controlled.py \
+  --profile PROFILE.json --model-dir MODEL_DIR --workload WORKLOAD.json \
+  --scenario SCENARIO.json --thermal-binary THERMAL_SERVICE \
+  --artifact-root ARTIFACT_ROOT --output NEW_OUTPUT \
+  --strategy read_rate_feedback_thermal_guard_v1 --address-limit-gib 4
+```
+
+The scenario schema is `controlled_scenario.schema.json`. Its explicit target
+must equal `min(mean active offered B/s per stack, 0.8 * 1.536 TB/s)`. The
+initial and maximum budget is the physical 1.536 TB/s window capacity; minimum
+and step are 0.10 and 0.05 of that budget. Existing 20 ms action delay, 100 ms
+recovery dwell, 2 K hysteresis and thermal thresholds are reused unchanged.
+
+All delivery, queue and delay facts are labelled `MODELLED_FLUID`. The reported
+byte-weighted delay is quantized to thermal-window ends; backend latency remains
+`UNKNOWN`. This path creates no MQSim request or fabric completion, has no
+maintenance or endpoint-group arbitration, and does not infer retry, ECC, age,
+retention, idle power, or GPU self power. It therefore supports only the
+mixed-direct and all-HBF thermal studies; relay and DASH behavior remains a
+separate capability gap.

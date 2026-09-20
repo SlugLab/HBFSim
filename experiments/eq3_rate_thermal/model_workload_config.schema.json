@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eq3-rate-model-workload-config-v1",
+  "title": "EQ3 model-size offered-byte workload configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "model_id",
+    "full_scans_per_s",
+    "pattern",
+    "stack_count",
+    "channels_per_stack",
+    "step_ns",
+    "active_ns",
+    "recovery_ns"
+  ],
+  "properties": {
+    "schema_version": {"const": "eq3-rate-model-workload-config-v1"},
+    "model_id": {
+      "enum": [
+        "Qwen/Qwen2.5-7B-Instruct",
+        "Qwen/Qwen2.5-72B-Instruct",
+        "Qwen/Qwen3-235B-A22B"
+      ]
+    },
+    "full_scans_per_s": {"enum": [16, 32]},
+    "pattern": {"enum": ["continuous", "burst_equal_mean"]},
+    "stack_count": {"enum": [4, 8]},
+    "channels_per_stack": {"const": 16},
+    "step_ns": {"const": 20000000},
+    "active_ns": {"type": "integer", "minimum": 1, "multipleOf": 500000000},
+    "recovery_ns": {"type": "integer", "minimum": 0, "multipleOf": 20000000},
+    "burst_period_ns": {"const": 200000000},
+    "burst_on_ns": {"const": 100000000}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"pattern": {"const": "burst_equal_mean"}}},
+      "then": {
+        "required": ["burst_period_ns", "burst_on_ns"],
+        "properties": {"active_ns": {"multipleOf": 1000000000}}
+      },
+      "else": {"not": {"anyOf": [
+        {"required": ["burst_period_ns"]},
+        {"required": ["burst_on_ns"]}
+      ]}}
+    }
+  ]
+}

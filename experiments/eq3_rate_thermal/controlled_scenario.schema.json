@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eq3-rate-controlled-scenario-v1",
+  "title": "EQ3 fluid rate/thermal control scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "topology",
+    "window_ns",
+    "target_read_Bps_per_stack"
+  ],
+  "properties": {
+    "schema_version": {"const": "eq3-rate-controlled-scenario-v1"},
+    "scenario_id": {"type": "string", "minLength": 1},
+    "topology": {"enum": ["mixed_direct", "all_hbf_direct"]},
+    "window_ns": {"const": 20000000},
+    "target_read_Bps_per_stack": {"type": "integer", "minimum": 1}
+  }
+}

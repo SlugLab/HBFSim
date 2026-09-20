@@ -177,6 +177,9 @@ class CausalExecutor:
         self.cache_mode = config.get("cache_mode")
         self.coalescing_enabled = config.get("coalescing_enabled")
         self.prefetch_wait_mode = config.get("prefetch_wait_mode")
+        self.retry_count = config.get('retry_count_per_source_read', 0)
+        if type(self.retry_count) is not int or self.retry_count not in (0,1,4):
+            raise ValueError('retry count must be explicit conditional scenario 0, 1 or 4')
         if self.cache_capacity < 0 or self.migration_mode not in {"fixed", "basic"}:
             raise ValueError("invalid cache or migration mode")
         self.migration_capacity_bytes = int(config.get('migration_capacity_bytes', 0))
@@ -472,6 +475,8 @@ class CausalExecutor:
                                      "completion_ns": issue_ns, "tensor_id": tensor,
                                      "tensor_bytes": task["tensor"]["bytes"],
                                      "child_count":len(parts),
+                                     "retry_remaining":0 if external_hit else self.retry_count,
+                                     "retry_sequence":0,"retry_parts":[],
                                      "operation": "read",
                                      "cache_hit": external_hit,
                                      "tier": tier,
@@ -492,6 +497,7 @@ class CausalExecutor:
                                     "batch_consumer_count": task["consumer_count"],
                                     "batch_interval_id": task["batch_interval_id"]}}
                 self.groups[group_id]["pending"].add(job_id)
+                self.groups[group_id]['retry_parts'].append((partition,child_bytes,deepcopy(place)))
                 self.job_group[job_id] = group_id
                 self.job_bytes[job_id] = child_bytes
                 self.job_arrival[job_id] = issue_ns
@@ -518,6 +524,18 @@ class CausalExecutor:
                             "group_id": group_id, "completion_ns": completion_ns,
                             "completed_bytes": completed_bytes})
         if group["pending"]:
+            return
+        if group['operation']=='read' and group['retry_remaining']:
+            group['retry_remaining']-=1;group['retry_sequence']+=1
+            for partition,size,place in group['retry_parts']:
+                retry_id=f"{group_id}:retry{group['retry_sequence']}:part{partition}"
+                job={'job_id':retry_id,'operation':'retry','bytes':size,'arrival_ns':completion_ns,**place,
+                     'metadata':{'parent_group_id':group_id,'tensor_id':group['tensor_id'],
+                                 'retry_sequence':group['retry_sequence'],
+                                 'evidence':'SSD_INSPIRED_FIXED_RETRY_COST_SCENARIO_NOT_HBF_RBER'}}
+                group['pending'].add(retry_id);self.job_group[retry_id]=group_id
+                self.job_bytes[retry_id]=size;self.job_arrival[retry_id]=completion_ns
+                self.jobs.append(deepcopy(job));self.deferred_jobs.append(job)
             return
         if group['operation'].startswith('migration_'):
             self._complete_migration_phase(group_id, group, completion_ns)
@@ -558,6 +576,7 @@ class CausalExecutor:
         self.events.append({"kind": "storage_complete", "group_id": group_id,
                             "tensor_id": tensor, "completion_ns": completion_ns,
                             "completed_bytes": group["tensor_bytes"],
+                            "retry_count":group['retry_sequence'],
                             "child_count": group['child_count'],
                             "task_ids": list(tasks)})
         self.groups.pop(group_id)

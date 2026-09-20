@@ -40,7 +40,7 @@ class ReliabilityTests(unittest.TestCase):
     def test_retry_is_explicit_scenario_not_rber(self):
         ledger = ReliabilityLedger({"ea_ev": 1.01})
         ledger.record_retry_scenario("b0", 0, 2, 17, 1e-9, "fixed-ecc-arm")
-        row = ledger.snapshot()["events"][-1]
+        row = ledger.drain_events()[-1]
         self.assertEqual(row["evidence_class"], "SCENARIO_ASSUMPTION_NO_RBER_CLAIM")
 
 
@@ -75,6 +75,20 @@ class CausalTests(unittest.TestCase):
         self.assertNotIn('c1',executor.done)
         executor.poll(115)
         self.assertEqual(executor.done['c1'],115)
+
+    def test_retry_consumes_work_before_unique_logical_success(self):
+        x=CausalExecutor(self.small_trace(),{'cache_mode':'disabled','cache_capacity_bytes':0,
+            'coalescing_enabled':True,'prefetch_wait_mode':'wait_at_consumption','stripe_unit_bytes':4096,
+            'retry_count_per_source_read':1,
+            'stripe_targets':[{'stack':'hbf0','channel':'0','route':'direct'}]})
+        read=x.poll(0)[0];x.complete(read['job_id'],10,4096)
+        self.assertNotIn('r0',x.done)
+        retry=x.poll(10)[0];self.assertEqual(retry['operation'],'retry')
+        x.complete(retry['job_id'],20,4096)
+        self.assertEqual(x.done['r0'],20)
+        success=[r for r in x.events if r['kind']=='storage_complete']
+        self.assertEqual(len(success),1)
+        self.assertEqual(success[0]['retry_count'],1)
 
     def test_compute_is_a_shared_resource(self):
         trace=self.small_trace();trace['batches'][1]['arrival_ns']=0

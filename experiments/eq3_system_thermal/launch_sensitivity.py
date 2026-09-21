@@ -20,6 +20,14 @@ GIB = 1024**3
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def deadline_reached(elapsed, limit):
+    return limit is not None and elapsed >= limit
+
+
+def safety_wait(elapsed, limit):
+    return 15 if limit is None else min(15, max(.1, limit - elapsed))
+
+
 def save(path: Path, value: dict) -> None:
     temp = path.with_suffix(path.suffix + ".tmp")
     temp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
@@ -100,7 +108,7 @@ def main() -> int:
             raise RuntimeError("sensitivity retained-output budget")
         if size(parent_stage) > resources["parent_combined_output_gib"] * GIB:
             raise RuntimeError("parent combined retained-output budget")
-        if time.monotonic() - started > resources["stage_wall_s"]:
+        if deadline_reached(time.monotonic() - started, resources["stage_wall_s"]):
             raise RuntimeError("sensitivity stage watchdog")
 
         launch = stage / "launch" / row["point_id"]
@@ -108,6 +116,14 @@ def main() -> int:
         command = [sys.executable, "-B", str(runner)]
         for key in ("config", "model_dir", "thermal_binary", "artifact_root", "output"):
             command += ["--" + key.replace("_", "-"), row[key]]
+        if resources.get('diagnostic_stack_interval_s'):
+            # Read-only wall-time diagnostics; no simulated-time or scheduling change.
+            interval = int(resources['diagnostic_stack_interval_s'])
+            command = [sys.executable, '-B', '-c',
+                'import faulthandler,runpy,sys; '
+                f'faulthandler.dump_traceback_later({interval},repeat=True); '
+                'sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name="__main__")',
+                *command[2:]]
         save(launch / "launch.json", {"command": command, "point": row,
                                       "resources": resources})
         save(stage / "STATUS.json", {"status": "RUNNING", "active": row["point_id"],
@@ -118,13 +134,12 @@ def main() -> int:
                                      start_new_session=True)
             while True:
                 try:
-                    code = child.wait(timeout=min(15, max(.1, resources["point_wall_s"] -
-                                                          (time.monotonic() - wall))))
+                    code = child.wait(timeout=safety_wait(time.monotonic() - wall, resources["point_wall_s"]))
                     break
                 except subprocess.TimeoutExpired:
-                    if time.monotonic() - wall >= resources["point_wall_s"]:
+                    if deadline_reached(time.monotonic() - wall, resources["point_wall_s"]):
                         reason = "POINT_WATCHDOG"
-                    elif time.monotonic() - started >= resources["stage_wall_s"]:
+                    elif deadline_reached(time.monotonic() - started, resources["stage_wall_s"]):
                         reason = "STAGE_WATCHDOG"
                     elif size(output) > resources["point_output_gib"] * GIB:
                         reason = "POINT_OUTPUT_BUDGET"

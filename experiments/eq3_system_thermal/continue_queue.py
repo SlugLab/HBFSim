@@ -51,14 +51,15 @@ def run(manifest_path):
             raise FileExistsError('preserve previous queue status; new attempt needs a new directory')
         verify_locks(manifest['locks'])
         prerequisite = Path(manifest['wait_for_stage'])
-        deadline = time.monotonic() + manifest['wait_timeout_s']
+        wait_limit = manifest['wait_timeout_s']
+        deadline = None if wait_limit is None else time.monotonic() + wait_limit
         save(root / 'QUEUE_STATUS.json', {'status': 'WAITING_FOR_EXISTING_STAGE',
             'pid': os.getpid(), 'ai_wakeup': 'UNAVAILABLE', 'stage': str(prerequisite)})
         while True:
             terminal = any((prerequisite / n).exists() for n in ('DONE.json', 'FAILED.json'))
             if terminal and not live_campaign_processes(manifest['source_root']):
                 break
-            if time.monotonic() >= deadline:
+            if deadline is not None and time.monotonic() >= deadline:
                 raise TimeoutError('predecessor completion/CPU release was not observed')
             time.sleep(manifest['check_interval_s'])
         results = []

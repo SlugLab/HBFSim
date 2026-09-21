@@ -120,9 +120,10 @@ def main() -> int:
             # Read-only wall-time diagnostics; no simulated-time or scheduling change.
             interval = int(resources['diagnostic_stack_interval_s'])
             command = [sys.executable, '-B', '-c',
-                'import faulthandler,runpy,sys; '
+                'import faulthandler,runpy,sys,os; '
                 f'faulthandler.dump_traceback_later({interval},repeat=True); '
-                'sys.argv=sys.argv[1:]; runpy.run_path(sys.argv[0],run_name="__main__")',
+                'sys.argv=sys.argv[1:]; sys.path.insert(0,os.path.dirname(sys.argv[0])); '
+                'runpy.run_path(sys.argv[0],run_name="__main__")',
                 *command[2:]]
         save(launch / "launch.json", {"command": command, "point": row,
                                       "resources": resources})

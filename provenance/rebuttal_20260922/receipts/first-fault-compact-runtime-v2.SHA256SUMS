@@ -1,0 +1,17 @@
+af9b1f2291fb210c385763e3de7513f222e3afe78c8656d731d2ca19c0756fbb  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/audit_compact_v2.py
+b0f2036cf3c92e2d245f464e35b9c95f2f36443bca668eea72d9a0431730cb71  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/COMPACT_CPU_PTX_AUDIT.txt
+6d0acc7ba5757bb9989a38de58314ea0b3b2a70301c047b32fadf7af2217188c  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/CPU_RECEIPT.txt
+7a7c41ae64e3ac8252febca39a86250a10ef03b683ac4d2f7ae96049f9872989  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/FIRST_FAULT_EXPORTS.txt
+01df14763d7df25ca0f03a375e8f991e4f158ad61f9c2a3f8881d4792c5d4e56  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbf_device.ptx
+823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsim_bpftime_attach_loader
+b1a3c30dd91e4a3804bd67780bbc59209fb38f74a6f30282ab3ebf7eea5850e5  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsimd
+4f89408f4a825d82e9f8d065c2f83c51a948c9fce19927a30c1a470346f9c153  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/host_api_cpu_test.py
+c33cf92314fdf26221c8e702850d471b7a7da405185ad244ee019139fe511bba  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/HOST_API_CPU_TEST.txt
+147f6809e96425da01921d95dfb2278e55b0f9738f7f10a986e2c20e049c9261  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/ldd-gate.txt
+d41509ef4922e1dd99880bb88c3a840f850ea0418e445874d56fe8a46e802ef0  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim_launch_gate.so
+a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim.so.0.1.0
+3697042d627105028b4d84cdf351da1d39b6d94ea067f24b4ccb4ad1a327b794  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim_vllm_extension.so
+0ab365ca22940995a568cce6d8962f034709b6090d7074c417068379efb09a58  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libptxpass_hbf.so
+b9fe258e7837568fcbf2d5d644c6311c4d727b3e9d83e38b12c1bb0a9aca24ec  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/SOURCE_SHA256
+4061f4d7f161bcd0ac654ef473fbccbb757f6614f70e10f9efd31bb620936e21  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/VERSIONED_RUNTIME_EXPORTS.txt
+11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5  /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/vllm_fused_moe_probe.bpf.o

@@ -9,6 +9,7 @@
 #include <dlfcn.h>
 
 #include <atomic>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -22,6 +23,7 @@
 #include <sstream>
 #include <set>
 #include <utility>
+#include <vector>
 
 #ifdef cuGetProcAddress
 #undef cuGetProcAddress
@@ -329,6 +331,593 @@ std::optional<CudaDomain> current_cuda_domain()
                       .device = static_cast<int>(device)};
 }
 
+// Request-scoped, module-local counters used only by the rebuttal harness.
+// They deliberately do not extend the production control ABI.
+constexpr std::uint64_t kAccessAccountingMagic = 0x4842464143435431ULL;
+constexpr std::uint32_t kAccessAccountingVersion = 2;
+struct AccessAccountingConfig {
+    std::uint64_t magic;
+    std::uint32_t version;
+    std::uint32_t struct_bytes;
+    std::uint64_t enabled;
+    std::uint64_t request_epoch;
+};
+struct AccessAccountingCounters {
+    std::uint64_t supported_accesses, supported_bytes;
+    std::uint64_t in_range_accesses, in_range_intersection_bytes;
+    std::uint64_t native_out_of_range_accesses, native_out_of_range_bytes;
+    std::uint64_t modeled_admitted_accesses, modeled_admitted_bytes;
+    std::uint64_t service_completed_accesses, service_completed_bytes;
+    std::uint64_t failed_after_issue_accesses, failed_after_issue_bytes;
+    std::uint64_t unsupported_preissue_accesses, unsupported_preissue_bytes;
+    std::uint64_t failed_preissue_accesses, failed_preissue_bytes;
+    std::uint64_t translation_failed_accesses, translation_failed_bytes;
+    std::uint64_t service_requests;
+    std::uint64_t unclassified_accesses, unclassified_bytes;
+    std::uint64_t counter_overflow;
+};
+static_assert(sizeof(AccessAccountingConfig) == 32);
+static_assert(sizeof(AccessAccountingCounters) == 176);
+
+constexpr std::uint64_t kEvalDelayMagic = 0x4556414c444c5931ULL;
+struct EvalDelayConfig {
+    std::uint64_t magic, delay_ns, trace_address, trace_capacity;
+};
+struct EvalDelayCounters {
+    std::uint64_t covered_accesses, covered_bytes, bypass_accesses,
+        bypass_bytes, rejected_accesses, trace_overflow;
+};
+struct EvalDelayTrace {
+    std::uint64_t thread_id, address, wait_enter_ns, wait_exit_ns, delay_ns;
+};
+static_assert(sizeof(EvalDelayConfig) == 32);
+static_assert(sizeof(EvalDelayCounters) == 48);
+static_assert(sizeof(EvalDelayTrace) == 40);
+
+struct AccessTrackedModule {
+    CUmodule module{};
+    std::uintptr_t context{};
+    int device{-1};
+    std::string identity;
+};
+struct AccessBoundModule {
+    AccessTrackedModule tracked;
+    CUdeviceptr config_address{};
+    CUdeviceptr counters_address{};
+    bool unloaded{false};
+};
+struct AccessSession {
+    bool active{false};
+    CudaDomain domain{};
+    std::uint64_t epoch{};
+    std::vector<AccessBoundModule> modules;
+    std::vector<AccessTrackedModule> late_modules;
+    std::string cached_json;
+};
+
+std::mutex access_accounting_mutex;
+std::map<CUmodule, AccessTrackedModule> access_tracked_modules;
+AccessSession access_session;
+
+struct EvalBoundModule {
+    AccessTrackedModule tracked;
+    CUdeviceptr config_address{}, counters_address{}, trace_address{};
+    std::uint64_t trace_capacity{};
+    bool unloaded{false};
+};
+struct EvalSession {
+    bool active{false};
+    CudaDomain domain{};
+    std::uint64_t epoch{}, delay_ns{};
+    std::vector<EvalBoundModule> modules;
+    std::vector<AccessTrackedModule> late_modules;
+    std::string cached_json;
+};
+EvalSession eval_session;
+
+using module_global_type =
+    CUresult (*)(CUdeviceptr*, std::size_t*, CUmodule, const char*);
+using copy_htod_type = CUresult (*)(CUdeviceptr, const void*, std::size_t);
+using copy_dtoh_type = CUresult (*)(void*, CUdeviceptr, std::size_t);
+using context_sync_type = CUresult (*)();
+using mem_alloc_type = CUresult (*)(CUdeviceptr*, std::size_t);
+using mem_free_type = CUresult (*)(CUdeviceptr);
+
+std::string json_escape(std::string_view value)
+{
+    std::ostringstream out;
+    for (const unsigned char ch : value) {
+        switch (ch) {
+        case '"': out << "\\\""; break;
+        case '\\': out << "\\\\"; break;
+        case '\b': out << "\\b"; break;
+        case '\f': out << "\\f"; break;
+        case '\n': out << "\\n"; break;
+        case '\r': out << "\\r"; break;
+        case '\t': out << "\\t"; break;
+        default:
+            if (ch < 0x20) {
+                out << "\\u" << std::hex << std::setw(4)
+                    << std::setfill('0') << static_cast<unsigned>(ch)
+                    << std::dec;
+            } else {
+                out << static_cast<char>(ch);
+            }
+        }
+    }
+    return out.str();
+}
+
+void access_track_module(CUmodule module, const hbfsim::ModuleIdentity& identity,
+                         const CudaDomain& domain)
+{
+    std::lock_guard lock(access_accounting_mutex);
+    AccessTrackedModule tracked{module, domain.context, domain.device,
+        hbfsim::module_id_from_identity(identity)};
+    access_tracked_modules.insert_or_assign(module, tracked);
+    if (access_session.active && access_session.domain.context == domain.context &&
+        access_session.domain.device == domain.device) {
+        access_session.late_modules.push_back(std::move(tracked));
+    }
+    if (eval_session.active && eval_session.domain.context == domain.context &&
+        eval_session.domain.device == domain.device)
+        eval_session.late_modules.push_back(access_tracked_modules.at(module));
+}
+
+void access_untrack_module(CUmodule module)
+{
+    std::lock_guard lock(access_accounting_mutex);
+    access_tracked_modules.erase(module);
+    if (!access_session.active) return;
+    for (auto& bound : access_session.modules)
+        if (bound.tracked.module == module) bound.unloaded = true;
+    for (auto& bound : eval_session.modules)
+        if (bound.tracked.module == module) bound.unloaded = true;
+}
+
+void access_erase_context(std::uintptr_t context)
+{
+    std::lock_guard lock(access_accounting_mutex);
+    for (auto item = access_tracked_modules.begin();
+         item != access_tracked_modules.end();) {
+        if (item->second.context == context) item = access_tracked_modules.erase(item);
+        else ++item;
+    }
+    if (access_session.active && access_session.domain.context == context)
+        for (auto& bound : access_session.modules) bound.unloaded = true;
+    if (eval_session.active && eval_session.domain.context == context)
+        for (auto& bound : eval_session.modules) bound.unloaded = true;
+}
+
+void access_erase_device(int device)
+{
+    std::lock_guard lock(access_accounting_mutex);
+    for (auto item = access_tracked_modules.begin();
+         item != access_tracked_modules.end();) {
+        if (item->second.device == device) item = access_tracked_modules.erase(item);
+        else ++item;
+    }
+    if (access_session.active && access_session.domain.device == device)
+        for (auto& bound : access_session.modules) bound.unloaded = true;
+    if (eval_session.active && eval_session.domain.device == device)
+        for (auto& bound : eval_session.modules) bound.unloaded = true;
+}
+
+bool access_disable(const std::vector<AccessBoundModule>& modules,
+                    copy_htod_type put) noexcept
+{
+    bool complete = put != nullptr;
+    const std::uint64_t disabled = 0;
+    if (put != nullptr) {
+        for (const auto& bound : modules) {
+            if (bound.unloaded || bound.config_address == 0 ||
+                put(bound.config_address + offsetof(AccessAccountingConfig, enabled),
+                    &disabled, sizeof(disabled)) != CUDA_SUCCESS)
+                complete = false;
+        }
+    }
+    return complete;
+}
+
+int access_begin(std::uint64_t request_epoch) noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (request_epoch == 0 || access_session.active || eval_session.active) return -1;
+        access_session.cached_json.clear();
+        const auto domain = current_cuda_domain();
+        auto get = reinterpret_cast<module_global_type>(driver_symbol("cuModuleGetGlobal_v2"));
+        auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+        auto read = reinterpret_cast<copy_dtoh_type>(driver_symbol("cuMemcpyDtoH_v2"));
+        auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+        if (!domain || !get || !put || !read || !sync ||
+            sync() != CUDA_SUCCESS) return -2;
+        std::vector<AccessBoundModule> resolved;
+        for (const auto& [module, tracked] : access_tracked_modules) {
+            if (tracked.context != domain->context || tracked.device != domain->device)
+                continue;
+            CUdeviceptr config_address = 0, counters_address = 0;
+            std::size_t config_bytes = 0, counters_bytes = 0;
+            if (get(&config_address, &config_bytes, module,
+                    "__hbfsim_access_accounting_config") != CUDA_SUCCESS ||
+                config_address == 0 || config_bytes != sizeof(AccessAccountingConfig) ||
+                get(&counters_address, &counters_bytes, module,
+                    "__hbfsim_access_accounting_counters") != CUDA_SUCCESS ||
+                counters_address == 0 || counters_bytes != sizeof(AccessAccountingCounters)) {
+                (void)access_disable(resolved, put);
+                (void)sync();
+                return -3;
+            }
+            resolved.push_back({tracked, config_address, counters_address, false});
+        }
+        if (resolved.empty()) return -4;
+        AccessAccountingCounters zero{};
+        AccessAccountingConfig disabled{kAccessAccountingMagic,
+            kAccessAccountingVersion, sizeof(AccessAccountingConfig), 0,
+            request_epoch};
+        AccessAccountingConfig observed{};
+        for (const auto& bound : resolved) {
+            if (put(bound.config_address, &disabled, sizeof(disabled)) != CUDA_SUCCESS ||
+                put(bound.counters_address, &zero, sizeof(zero)) != CUDA_SUCCESS ||
+                read(&observed, bound.config_address, sizeof(observed)) != CUDA_SUCCESS ||
+                std::memcmp(&observed, &disabled, sizeof(observed)) != 0) {
+                (void)access_disable(resolved, put);
+                (void)sync();
+                return -5;
+            }
+        }
+        auto enabled = disabled;
+        enabled.enabled = 1;
+        for (const auto& bound : resolved) {
+            if (put(bound.config_address, &enabled, sizeof(enabled)) != CUDA_SUCCESS ||
+                read(&observed, bound.config_address, sizeof(observed)) != CUDA_SUCCESS ||
+                std::memcmp(&observed, &enabled, sizeof(observed)) != 0) {
+                (void)access_disable(resolved, put);
+                (void)sync();
+                return -6;
+            }
+        }
+        access_session.active = true;
+        access_session.domain = *domain;
+        access_session.epoch = request_epoch;
+        access_session.modules = std::move(resolved);
+        access_session.late_modules.clear();
+        return 0;
+    } catch (...) {
+        return -9;
+    }
+}
+
+constexpr std::array<const char*, 22> access_counter_names{{
+    "supported_accesses", "supported_bytes", "in_range_accesses",
+    "in_range_intersection_bytes", "native_out_of_range_accesses",
+    "native_out_of_range_bytes", "modeled_admitted_accesses",
+    "modeled_admitted_bytes", "service_completed_accesses",
+    "service_completed_bytes", "failed_after_issue_accesses",
+    "failed_after_issue_bytes", "unsupported_preissue_accesses",
+    "unsupported_preissue_bytes", "failed_preissue_accesses",
+    "failed_preissue_bytes", "translation_failed_accesses",
+    "translation_failed_bytes", "service_requests", "unclassified_accesses",
+    "unclassified_bytes", "counter_overflow"}};
+
+std::string access_snapshot_json(bool initial_sync_ok,
+                                 const std::vector<std::optional<AccessAccountingCounters>>& values,
+                                 const std::vector<std::string>& errors,
+                                 bool disable_ok, bool final_sync_ok)
+{
+    bool complete = initial_sync_ok && disable_ok && final_sync_ok &&
+                    access_session.late_modules.empty();
+    AccessAccountingCounters aggregate{};
+    auto* aggregate_values = reinterpret_cast<std::uint64_t*>(&aggregate);
+    std::ostringstream modules;
+    for (std::size_t i = 0; i < access_session.modules.size(); ++i) {
+        if (i) modules << ',';
+        const auto& bound = access_session.modules[i];
+        modules << "{\"identity\":\"" << json_escape(bound.tracked.identity) << "\"";
+        if (!values[i]) {
+            complete = false;
+            modules << ",\"status\":\"INCOMPLETE\",\"error\":\""
+                    << json_escape(errors[i]) << "\"}";
+            continue;
+        }
+        modules << ",\"status\":\"COMPLETE\",\"counters\":{";
+        const auto* counters = reinterpret_cast<const std::uint64_t*>(&*values[i]);
+        for (std::size_t field = 0; field < access_counter_names.size(); ++field) {
+            if (field) modules << ',';
+            modules << '\"' << access_counter_names[field] << "\":" << counters[field];
+            const auto before = aggregate_values[field];
+            aggregate_values[field] += counters[field];
+            if (aggregate_values[field] < before) complete = false;
+        }
+        modules << "}}";
+    }
+    for (const auto& late : access_session.late_modules) {
+        if (!access_session.modules.empty() || &late != &access_session.late_modules.front())
+            modules << ',';
+        modules << "{\"identity\":\"" << json_escape(late.identity)
+                << "\",\"status\":\"INCOMPLETE\",\"error\":\"late_module_after_begin\"}";
+    }
+    std::ostringstream out;
+    out << "{\"status\":\"" << (complete ? "COMPLETE" : "INCOMPLETE")
+        << "\",\"epoch\":" << access_session.epoch
+        << ",\"module_count\":"
+        << access_session.modules.size() + access_session.late_modules.size()
+        << ",\"per_module\":[" << modules.str() << "],\"aggregate\":{";
+    for (std::size_t field = 0; field < access_counter_names.size(); ++field) {
+        if (field) out << ',';
+        out << '\"' << access_counter_names[field] << "\":" << aggregate_values[field];
+    }
+    out << "},\"synchronization\":{\"before_snapshot\":"
+        << (initial_sync_ok ? "true" : "false")
+        << ",\"after_disable\":" << (final_sync_ok ? "true" : "false")
+        << "},\"disable_complete\":" << (disable_ok ? "true" : "false") << '}';
+    return out.str();
+}
+
+long long access_snapshot(char* out_json, std::size_t capacity) noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (access_session.cached_json.empty()) {
+            if (!access_session.active) return -1;
+            auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+            auto read = reinterpret_cast<copy_dtoh_type>(driver_symbol("cuMemcpyDtoH_v2"));
+            auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+            const bool initial_sync_ok = sync != nullptr && sync() == CUDA_SUCCESS;
+            std::vector<std::optional<AccessAccountingCounters>> values(
+                access_session.modules.size());
+            std::vector<std::string> errors(access_session.modules.size());
+            for (std::size_t i = 0; i < access_session.modules.size(); ++i) {
+                const auto& bound = access_session.modules[i];
+                if (bound.unloaded) errors[i] = "module_unloaded_during_request";
+                else if (!initial_sync_ok) errors[i] = "pre_snapshot_synchronize_failed";
+                else {
+                    AccessAccountingCounters counters{};
+                    if (read != nullptr &&
+                        read(&counters, bound.counters_address, sizeof(counters)) == CUDA_SUCCESS)
+                        values[i] = counters;
+                    else errors[i] = "counter_read_failed";
+                }
+            }
+            const bool disable_ok = access_disable(access_session.modules, put);
+            const bool final_sync_ok = sync != nullptr && sync() == CUDA_SUCCESS;
+            access_session.cached_json = access_snapshot_json(
+                initial_sync_ok, values, errors, disable_ok, final_sync_ok);
+            access_session.active = false;
+        }
+        const auto required = access_session.cached_json.size() + 1;
+        if (out_json != nullptr && capacity >= required)
+            std::memcpy(out_json, access_session.cached_json.c_str(), required);
+        return static_cast<long long>(required);
+    } catch (...) {
+        return -9;
+    }
+}
+
+int access_abort() noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (!access_session.active) return 0;
+        auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+        auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+        const bool disabled = access_disable(access_session.modules, put);
+        const bool synchronized = sync != nullptr && sync() == CUDA_SUCCESS;
+        access_session = {};
+        return disabled && synchronized ? 0 : -1;
+    } catch (...) {
+        return -9;
+    }
+}
+
+bool eval_disable(std::vector<EvalBoundModule>& modules,
+                  copy_htod_type put) noexcept
+{
+    bool complete = put != nullptr;
+    const EvalDelayConfig disabled{};
+    for (auto& bound : modules) {
+        if (bound.unloaded || !put ||
+            put(bound.config_address, &disabled, sizeof(disabled)) != CUDA_SUCCESS)
+            complete = false;
+    }
+    return complete;
+}
+
+bool eval_free(std::vector<EvalBoundModule>& modules,
+               mem_free_type free_memory) noexcept
+{
+    bool complete = free_memory != nullptr;
+    for (auto& bound : modules) {
+        if (!bound.trace_address) continue;
+        if (!free_memory || free_memory(bound.trace_address) != CUDA_SUCCESS)
+            complete = false;
+        else bound.trace_address = 0;
+    }
+    return complete;
+}
+
+int eval_begin(std::uint64_t delay_ns, std::uint64_t request_epoch,
+               std::uint64_t trace_capacity) noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (request_epoch == 0 || trace_capacity == 0 || delay_ns > 20'000 ||
+            eval_session.active || access_session.active ||
+            trace_capacity > SIZE_MAX / sizeof(EvalDelayTrace))
+            return -1;
+        eval_session.cached_json.clear();
+        const auto domain = current_cuda_domain();
+        auto get = reinterpret_cast<module_global_type>(driver_symbol("cuModuleGetGlobal_v2"));
+        auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+        auto read = reinterpret_cast<copy_dtoh_type>(driver_symbol("cuMemcpyDtoH_v2"));
+        auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+        auto allocate = reinterpret_cast<mem_alloc_type>(driver_symbol("cuMemAlloc_v2"));
+        auto free_memory = reinterpret_cast<mem_free_type>(driver_symbol("cuMemFree_v2"));
+        if (!domain || !get || !put || !read || !sync || !allocate ||
+            !free_memory || sync() != CUDA_SUCCESS) return -2;
+        std::vector<EvalBoundModule> resolved;
+        for (const auto& [module, tracked] : access_tracked_modules) {
+            if (tracked.context != domain->context || tracked.device != domain->device)
+                continue;
+            CUdeviceptr config = 0, counters = 0, trace = 0;
+            std::size_t config_bytes = 0, counter_bytes = 0;
+            if (get(&config, &config_bytes, module, "__hbfsim_eval_delay_config") != CUDA_SUCCESS ||
+                !config || config_bytes != sizeof(EvalDelayConfig) ||
+                get(&counters, &counter_bytes, module, "__hbfsim_eval_delay_counters") != CUDA_SUCCESS ||
+                !counters || counter_bytes != sizeof(EvalDelayCounters) ||
+                allocate(&trace, trace_capacity * sizeof(EvalDelayTrace)) != CUDA_SUCCESS || !trace) {
+                (void)eval_disable(resolved, put);
+                (void)sync();
+                (void)eval_free(resolved, free_memory);
+                return -3;
+            }
+            resolved.push_back({tracked, config, counters, trace, trace_capacity, false});
+        }
+        if (resolved.empty()) return -4;
+        const EvalDelayCounters zero{};
+        EvalDelayConfig config{kEvalDelayMagic, delay_ns, 0, trace_capacity}, observed{};
+        for (auto& bound : resolved) {
+            config.trace_address = bound.trace_address;
+            if (put(bound.counters_address, &zero, sizeof(zero)) != CUDA_SUCCESS ||
+                put(bound.config_address, &config, sizeof(config)) != CUDA_SUCCESS ||
+                read(&observed, bound.config_address, sizeof(observed)) != CUDA_SUCCESS ||
+                std::memcmp(&observed, &config, sizeof(config)) != 0) {
+                (void)eval_disable(resolved, put);
+                (void)sync();
+                (void)eval_free(resolved, free_memory);
+                return -5;
+            }
+        }
+        eval_session.active = true;
+        eval_session.domain = *domain;
+        eval_session.epoch = request_epoch;
+        eval_session.delay_ns = delay_ns;
+        eval_session.modules = std::move(resolved);
+        eval_session.late_modules.clear();
+        return 0;
+    } catch (...) { return -9; }
+}
+
+long long eval_snapshot(char* out_json, std::size_t capacity) noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (eval_session.cached_json.empty()) {
+            if (!eval_session.active) return -1;
+            auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+            auto read = reinterpret_cast<copy_dtoh_type>(driver_symbol("cuMemcpyDtoH_v2"));
+            auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+            auto free_memory = reinterpret_cast<mem_free_type>(driver_symbol("cuMemFree_v2"));
+            const bool initial_sync = sync && sync() == CUDA_SUCCESS;
+            bool complete = initial_sync && eval_session.late_modules.empty();
+            EvalDelayCounters aggregate{};
+            auto* aggregate_fields = reinterpret_cast<std::uint64_t*>(&aggregate);
+            std::ostringstream per_module;
+            for (std::size_t index = 0; index < eval_session.modules.size(); ++index) {
+                auto& bound = eval_session.modules[index];
+                if (index) per_module << ',';
+                per_module << "{\"identity\":\"" << json_escape(bound.tracked.identity) << "\"";
+                EvalDelayCounters counters{};
+                std::string error;
+                if (bound.unloaded) error = "module_unloaded_during_request";
+                else if (!initial_sync)
+                    error = "pre_snapshot_synchronize_failed";
+                else if (!read || read(&counters, bound.counters_address, sizeof(counters)) != CUDA_SUCCESS)
+                    error = "counter_read_failed";
+                std::vector<EvalDelayTrace> traces;
+                if (error.empty()) {
+                    const auto count = std::min(counters.covered_accesses,
+                                                bound.trace_capacity);
+                    traces.resize(static_cast<std::size_t>(count));
+                    if (count && read(traces.data(), bound.trace_address,
+                                      count * sizeof(EvalDelayTrace)) != CUDA_SUCCESS)
+                        error = "trace_read_failed";
+                    if (counters.trace_overflow != 0) {
+                        complete = false;
+                        if (error.empty()) error = "trace_overflow";
+                    }
+                }
+                if (!error.empty()) {
+                    complete = false;
+                    per_module << ",\"status\":\"INCOMPLETE\",\"error\":\""
+                               << error << "\"}";
+                    continue;
+                }
+                const auto* fields = reinterpret_cast<const std::uint64_t*>(&counters);
+                static constexpr std::array<const char*, 6> names{{
+                    "covered_accesses", "covered_bytes", "bypass_accesses",
+                    "bypass_bytes", "rejected_accesses", "trace_overflow"}};
+                per_module << ",\"status\":\"COMPLETE\",\"counters\":{";
+                for (std::size_t field = 0; field < names.size(); ++field) {
+                    if (field) per_module << ',';
+                    per_module << '\"' << names[field] << "\":" << fields[field];
+                    aggregate_fields[field] += fields[field];
+                }
+                per_module << "},\"trace_drop\":null,\"traces\":[";
+                for (std::size_t trace_index = 0; trace_index < traces.size(); ++trace_index) {
+                    if (trace_index) per_module << ',';
+                    const auto& trace = traces[trace_index];
+                    per_module << "{\"thread_id\":" << trace.thread_id
+                        << ",\"address\":" << trace.address
+                        << ",\"wait_enter_ns\":" << trace.wait_enter_ns
+                        << ",\"wait_exit_ns\":" << trace.wait_exit_ns
+                        << ",\"delay_ns\":" << trace.delay_ns << '}';
+                }
+                per_module << "]}";
+            }
+            for (const auto& late : eval_session.late_modules) {
+                if (!eval_session.modules.empty() || &late != &eval_session.late_modules.front())
+                    per_module << ',';
+                per_module << "{\"identity\":\"" << json_escape(late.identity)
+                           << "\",\"status\":\"INCOMPLETE\",\"error\":\"late_module_after_begin\"}";
+            }
+            const bool disabled = eval_disable(eval_session.modules, put);
+            const bool final_sync = sync && sync() == CUDA_SUCCESS;
+            const bool freed = eval_free(eval_session.modules, free_memory);
+            complete = complete && disabled && final_sync && freed;
+            static constexpr std::array<const char*, 6> names{{
+                "covered_accesses", "covered_bytes", "bypass_accesses",
+                "bypass_bytes", "rejected_accesses", "trace_overflow"}};
+            std::ostringstream out;
+            out << "{\"status\":\"" << (complete ? "COMPLETE" : "INCOMPLETE")
+                << "\",\"epoch\":" << eval_session.epoch
+                << ",\"delay_ns\":" << eval_session.delay_ns
+                << ",\"module_count\":"
+                << eval_session.modules.size() + eval_session.late_modules.size()
+                << ",\"per_module\":[" << per_module.str() << "],\"aggregate\":{";
+            for (std::size_t field = 0; field < names.size(); ++field) {
+                if (field) out << ',';
+                out << '\"' << names[field] << "\":" << aggregate_fields[field];
+            }
+            out << "},\"trace_drop\":null,\"disable_complete\":" << (disabled ? "true" : "false")
+                << ",\"free_complete\":" << (freed ? "true" : "false")
+                << ",\"final_sync\":" << (final_sync ? "true" : "false") << '}';
+            eval_session.cached_json = out.str();
+            eval_session.active = false;
+        }
+        const auto required = eval_session.cached_json.size() + 1;
+        if (out_json && capacity >= required)
+            std::memcpy(out_json, eval_session.cached_json.c_str(), required);
+        return static_cast<long long>(required);
+    } catch (...) { return -9; }
+}
+
+int eval_abort() noexcept
+{
+    try {
+        std::lock_guard lock(access_accounting_mutex);
+        if (!eval_session.active) return 0;
+        auto put = reinterpret_cast<copy_htod_type>(driver_symbol("cuMemcpyHtoD_v2"));
+        auto sync = reinterpret_cast<context_sync_type>(driver_symbol("cuCtxSynchronize"));
+        auto free_memory = reinterpret_cast<mem_free_type>(driver_symbol("cuMemFree_v2"));
+        const bool disabled = eval_disable(eval_session.modules, put);
+        const bool synchronized = sync && sync() == CUDA_SUCCESS;
+        const bool freed = eval_free(eval_session.modules, free_memory);
+        eval_session = {};
+        return disabled && synchronized && freed ? 0 : -1;
+    } catch (...) { return -9; }
+}
+
 bool initialize_module_control(hbfsim::ModuleHandle raw_module,
                                std::uintptr_t control_alias,
                                std::uint64_t generation, void*) noexcept
@@ -539,12 +1128,14 @@ hbfsim::FutureInitialization initialize_future_control(hbfsim::ModuleHandle raw_
 
 void erase_context_state(std::uintptr_t cuda_context) noexcept
 {
+    access_erase_context(cuda_context);
     timing_bindings().erase_context(cuda_context, erase_module_identity,
                                     nullptr);
 }
 
 void erase_unbound_device_state(int device_ordinal) noexcept
 {
+    access_erase_device(device_ordinal);
     timing_bindings().erase_unbound_device(
         device_ordinal, erase_module_identity, nullptr);
 }
@@ -1111,6 +1702,41 @@ cudaError_t kernel_launch(const char* symbol, cudaKernel_t kernel, dim3 grid,
 
 }  // namespace
 
+extern "C" int
+hbfsim_access_accounting_begin_v2(std::uint64_t request_epoch) noexcept
+{
+    return access_begin(request_epoch);
+}
+
+extern "C" long long hbfsim_access_accounting_snapshot_v2(
+    char* out_json, std::size_t capacity) noexcept
+{
+    return access_snapshot(out_json, capacity);
+}
+
+extern "C" int hbfsim_access_accounting_abort_v2() noexcept
+{
+    return access_abort();
+}
+
+extern "C" int hbfsim_eval_delay_begin_v1(
+    std::uint64_t delay_ns, std::uint64_t request_epoch,
+    std::uint64_t trace_capacity_per_module) noexcept
+{
+    return eval_begin(delay_ns, request_epoch, trace_capacity_per_module);
+}
+
+extern "C" long long hbfsim_eval_delay_snapshot_v1(
+    char* out_json, std::size_t capacity) noexcept
+{
+    return eval_snapshot(out_json, capacity);
+}
+
+extern "C" int hbfsim_eval_delay_abort_v1() noexcept
+{
+    return eval_abort();
+}
+
 #if defined(HBFSIM_ENABLE_TEST_HOOKS)
 extern "C" void hbfsim_test_arm_activation_attempt() noexcept
 {
@@ -1479,6 +2105,7 @@ extern "C" CUresult cuModuleLoadDataEx(CUmodule* module, const void* image,
                     domain->context,domain->device,initialize_module_control,nullptr);
             }
             (void)module_identities().associate(module_handle(*module),*identity);
+            access_track_module(*module, *identity, *domain);
         }
     }
     return result;
@@ -1511,6 +2138,7 @@ extern "C" CUresult cuModuleUnload(CUmodule module)
     }
     const auto result = original(module);
     if (result == CUDA_SUCCESS) {
+        access_untrack_module(module);
         module_identities().erase(module_handle(module));
         timing_bindings().erase(module_handle(module));
     }

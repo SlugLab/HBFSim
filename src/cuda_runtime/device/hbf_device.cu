@@ -9,6 +9,10 @@ extern "C" __device__ hbfsim::device::EvalDelayConfig
     __hbfsim_eval_delay_config = {};
 extern "C" __device__ hbfsim::device::EvalDelayCounters
     __hbfsim_eval_delay_counters = {};
+extern "C" __device__ hbfsim::device::AccessAccountingConfig
+    __hbfsim_access_accounting_config = {};
+extern "C" __device__ hbfsim::device::AccessAccountingCounters
+    __hbfsim_access_accounting_counters = {};
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
 extern "C" __device__ hbfsim::device::EvalChainDiagnosticConfig
@@ -205,7 +209,48 @@ struct WaitState {
 struct CompletionResult {
     RequestStatus status{RequestStatus::IoError};
     std::uint64_t frame_address{0};
+    std::uint32_t admitted{0};
 };
+
+__device__ bool access_accounting_enabled()
+{
+    const auto config = __hbfsim_access_accounting_config;
+    return config.magic == hbfsim::device::kAccessAccountingMagic &&
+           config.version == hbfsim::device::kAccessAccountingVersion &&
+           config.struct_bytes == sizeof(config) && config.enabled == 1;
+}
+
+__device__ void account_add(std::uint64_t* field, std::uint64_t value)
+{
+    if (value == 0) return;
+    auto observed = system_acquire(field);
+    for (;;) {
+        const bool overflow = value > UINT64_MAX - observed;
+        const auto desired = overflow ? UINT64_MAX : observed + value;
+        auto expected = observed;
+        if (system_compare_exchange(field, expected, desired)) {
+            if (overflow) {
+                (void)system_fetch_add(
+                    &__hbfsim_access_accounting_counters.counter_overflow, 1);
+            }
+            return;
+        }
+        observed = expected;
+    }
+}
+
+__device__ std::uint64_t range_intersection_bytes(
+    const SharedRangeRecord& range, std::uint64_t address,
+    std::uint32_t bytes)
+{
+    if (bytes == 0 || range.length > UINT64_MAX - range.base ||
+        bytes > UINT64_MAX - address) return 0;
+    const auto access_end = address + bytes;
+    const auto range_end = range.base + range.length;
+    const auto begin = address > range.base ? address : range.base;
+    const auto end = access_end < range_end ? access_end : range_end;
+    return end > begin ? end - begin : 0;
+}
 
 __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
                                        WaitState& wait)
@@ -313,7 +358,7 @@ __device__ CompletionResult wait_for_completion(
             // after observing liveness failure so IoError/CopyError/etc. are
             // not collapsed into a synthesized DaemonLost status.
             if (system_acquire(&slot.sequence) != ticket + 1) {
-                return {.status = liveness};
+                return {.status = liveness, .admitted = 1};
             }
             break;
         }
@@ -326,11 +371,11 @@ __device__ CompletionResult wait_for_completion(
                                  RequestStatus::Pending) ||
         completion.status > static_cast<std::uint32_t>(
                                 RequestStatus::DaemonLost)) {
-        return {.status = RequestStatus::IoError};
+        return {.status = RequestStatus::IoError, .admitted = 1};
     }
     const auto status = static_cast<RequestStatus>(completion.status);
     if (status != RequestStatus::Ready) {
-        return {.status = status};
+        return {.status = status, .admitted = 1};
     }
     const auto scaled = hbfsim::device::saturating_multiply(
         completion.modeled_ns, header->time_scale);
@@ -350,7 +395,7 @@ __device__ CompletionResult wait_for_completion(
     while (gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= wait.deadline_ns) {
-            return {.status = RequestStatus::Timeout};
+            return {.status = RequestStatus::Timeout, .admitted = 1};
         }
         const auto nap = hbfsim::device::wait_sleep_ns(
             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -359,7 +404,8 @@ __device__ CompletionResult wait_for_completion(
         }
     }
     return {.status = RequestStatus::Ready,
-            .frame_address = completion.cache_frame_address};
+            .frame_address = completion.cache_frame_address,
+            .admitted = 1};
 }
 
 __device__ CompletionResult resolve_leader(
@@ -373,7 +419,7 @@ __device__ CompletionResult resolve_leader(
         (capacity & (capacity - 1)) != 0 ||
         header->request_timeout_ns == 0 ||
         header->heartbeat_timeout_ns == 0 || header->time_scale == 0) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
     const auto arrival = gpu_time_ns();
     WaitState wait{.deadline_ns = hbfsim::device::saturating_add(
@@ -381,7 +427,7 @@ __device__ CompletionResult resolve_leader(
                    .heartbeat_value = system_acquire(&header->heartbeat_ns),
                    .heartbeat_observed_ns = arrival};
     if (wait.heartbeat_value == 0) {
-        return {.status = RequestStatus::DaemonLost};
+        return {.status = RequestStatus::DaemonLost, .admitted = 0};
     }
     auto* base = reinterpret_cast<std::byte*>(header);
     auto* requests = reinterpret_cast<SharedRequestSlot*>(
@@ -407,7 +453,7 @@ __device__ CompletionResult resolve_leader(
     return reserved == RequestStatus::Ready
                ? wait_for_completion(header, completions, ticket, wait,
                                      arrival)
-               : CompletionResult{.status = reserved};
+               : CompletionResult{.status = reserved, .admitted = 0};
 }
 
 __device__ CompletionResult resolve_fast_or_hybrid(
@@ -420,7 +466,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     const auto empirical_enabled = header->empirical_flags != 0;
     if (empirical_enabled &&
         !hbfsim::device::empirical_control_valid(*header)) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
     const auto sequence = system_fetch_add(&header->fast_request_sequence, 1);
     const auto sample_key = media.logical_address ^
@@ -434,14 +480,14 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         return resolve_leader(header, range, media, operation);
     }
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
 
     if (empirical_enabled) {
         if (media.bytes != 4096 || range.page_bytes != 4096 ||
             media.logical_address % media.bytes != 0 ||
             header->time_scale == 0 || header->request_timeout_ns == 0) {
-            return {.status = RequestStatus::Unsupported};
+            return {.status = RequestStatus::Unsupported, .admitted = 0};
         }
         const auto page = media.logical_address / media.bytes;
         auto previous_state =
@@ -451,7 +497,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
             request = hbfsim::device::empirical_request_service(
                 *header, previous_state, page, operation);
             if (!request.valid) {
-                return {.status = RequestStatus::Unsupported};
+                return {.status = RequestStatus::Unsupported, .admitted = 0};
             }
             auto expected = previous_state;
             if (system_compare_exchange(&header->empirical_burst_state,
@@ -486,11 +532,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         while (gpu_time_ns() < target) {
             const auto now = gpu_time_ns();
             if (now >= deadline) {
-                return {.status = RequestStatus::Timeout};
+                return {.status = RequestStatus::Timeout, .admitted = 1};
             }
             if (system_acquire(&header->shutdown) != 0 ||
                 system_acquire(&header->fault) != 0) {
-                return {.status = RequestStatus::DaemonLost};
+                return {.status = RequestStatus::DaemonLost, .admitted = 1};
             }
             const auto nap = hbfsim::device::wait_sleep_ns(
                 now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -501,7 +547,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         (void)system_fetch_add(&header->fast_requests, 1);
         (void)system_fetch_add(&header->fast_modeled_ns,
                                request.service_ns);
-        return {.status = RequestStatus::Ready};
+        return {.status = RequestStatus::Ready, .admitted = 1};
     }
 
     const auto base_latency = operation == 0 ? header->read_latency_ns
@@ -509,7 +555,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     const auto transfer_ns = hbfsim::device::fast_transfer_ns(
         media.bytes, header->aggregate_bandwidth_bytes_per_s);
     if (base_latency == 0 || transfer_ns == 0 || header->time_scale == 0) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
     const auto arrival = gpu_time_ns();
     const auto base_scaled = hbfsim::device::saturating_multiply(
@@ -539,11 +585,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     while (gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= deadline) {
-            return {.status = RequestStatus::Timeout};
+            return {.status = RequestStatus::Timeout, .admitted = 1};
         }
         if (system_acquire(&header->shutdown) != 0 ||
             system_acquire(&header->fault) != 0) {
-            return {.status = RequestStatus::DaemonLost};
+            return {.status = RequestStatus::DaemonLost, .admitted = 1};
         }
         const auto nap = hbfsim::device::wait_sleep_ns(
             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -557,7 +603,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         hbfsim::device::fast_service_ns(
             base_latency, media.bytes,
             header->aggregate_bandwidth_bytes_per_s));
-    return {.status = RequestStatus::Ready};
+    return {.status = RequestStatus::Ready, .admitted = 1};
 }
 
 }  // namespace
@@ -566,20 +612,33 @@ extern "C" __device__ hbfsim::device::ResolveResult
 __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                  std::uint32_t operation)
 {
+    const bool accounting = access_accounting_enabled();
+    if (accounting) {
+        account_add(&__hbfsim_access_accounting_counters.supported_accesses, 1);
+        account_add(&__hbfsim_access_accounting_counters.supported_bytes, bytes);
+    }
     const auto control_address =
         system_acquire(reinterpret_cast<const unsigned long long*>(
             &__hbfsim_control));
     const auto expected_generation =
         system_acquire(reinterpret_cast<const unsigned long long*>(
             &__hbfsim_control_generation));
-    // An unbound module must preserve ordinary HBM semantics. The launch gate
-    // rejects registered HBF pointers before such a module can execute, while
-    // an all-zero alias is the intentional fast-path state for non-HBF work.
+    // An unbound module must preserve ordinary HBM semantics. Accounting cannot
+    // infer whether the address overlaps a registration without the control
+    // range table, so keep this path explicitly unclassified.
     if (control_address == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, bytes == 0 ? RequestStatus::Unsupported
                                         : RequestStatus::Ready);
     }
     if (expected_generation == 0 || bytes == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -611,10 +670,18 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         header->program_latency_ns == 0 ||
         header->aggregate_bandwidth_bytes_per_s == 0 ||
         system_acquire(&header->control_generation) != expected_generation) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
     const auto count = system_acquire(&header->range_count);
     if (count > hbfsim::device::kRangeCapacity) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
@@ -629,6 +696,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
          !hbfsim::device::eval_chain_launch_matches(
              chain_config, gridDim.x, gridDim.y, gridDim.z, blockDim.x,
              blockDim.y, blockDim.z))) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
     const auto chain_producer =
@@ -640,6 +711,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     if (chain_experiment ==
             hbfsim::device::EvalChainDiagnosticAction::Apply &&
         chain_producer.valid == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 #endif
@@ -656,8 +731,20 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         // rejected by media_descriptor/access_supported, and the store side
         // already rejects any overlap in timing_future_native_store_span.
         // This makes the load side agree with both.
-        if (hbfsim::device::span_touches_any_range(ranges, count, address,
-                                                   bytes)) {
+        const auto index = hbfsim::device::find_range_index(ranges, count, address);
+        const auto successor = index == count ? 0U : index + 1U;
+        const SharedRangeRecord* overlap =
+            successor < count && hbfsim::device::range_overlaps(
+                ranges[successor], address, bytes) ? &ranges[successor] : nullptr;
+        if (overlap != nullptr) {
+            if (accounting) {
+                account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
+                            range_intersection_bytes(*overlap, address, bytes));
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                            range_intersection_bytes(*overlap, address, bytes));
+            }
             return fail(address, RequestStatus::Unsupported);
         }
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
@@ -675,6 +762,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                                    address, bytes, operation, observed_ns,
                                    observed_ns, status) ||
                 status != RequestStatus::Ready) {
+                if (accounting) {
+                    account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+                    account_add(&__hbfsim_access_accounting_counters.unclassified_bytes,
+                                bytes);
+                }
                 return fail(address, RequestStatus::Unsupported);
             }
         }
@@ -683,7 +775,17 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_accesses, 1);
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_bytes, bytes);
         }
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_bytes, bytes);
+        }
         return fail(address, RequestStatus::Ready);
+    }
+    const auto intersection = range_intersection_bytes(*range, address, bytes);
+    if (accounting) {
+        account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
+        account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
+                    intersection);
     }
     const auto media = hbfsim::device::media_descriptor(
         *range, address, bytes, operation);
@@ -700,6 +802,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 RequestStatus::Unsupported);
         }
 #endif
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -716,6 +823,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                                     hbfsim::device::EvalChainEventClass::Rejected,
                                     address, bytes, operation, observed_ns,
                                     observed_ns, RequestStatus::Unsupported);
+            if (accounting) {
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                            intersection);
+            }
             return fail(address, RequestStatus::Unsupported);
         }
     }
@@ -725,6 +837,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         __hbfsim_eval_delay_config, *range, operation, header->time_scale);
     if (experiment == hbfsim::device::EvalDelayAction::Reject) {
         (void)system_fetch_add(&__hbfsim_eval_delay_counters.rejected_accesses, 1);
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -758,6 +875,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 const auto timeout_ns = system_acquire(&header->request_timeout_ns);
                 const bool live = eval_delay_control_ready(header, expected_generation) &&
                                   timeout_ns != 0;
+                resolution.admitted = live ? 1U : 0U;
                 const auto interval = eval_delay_clock_wait(
                     live ? config.delay_ns : 0, timeout_ns);
                 resolution.status = live ? interval.status : RequestStatus::DaemonLost;
@@ -780,6 +898,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
             const bool live =
                 eval_delay_control_ready(header, expected_generation) &&
                 timeout_ns != 0;
+            resolution.admitted = live ? 1U : 0U;
             const auto interval = eval_delay_clock_wait(
                 live ? chain_config.delay_ns : 0, timeout_ns);
             resolution.status =
@@ -806,6 +925,34 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     }
     auto status = __shfl_sync(
         group, static_cast<std::uint32_t>(resolution.status), leader);
+    const auto admitted = __shfl_sync(group, resolution.admitted, leader);
+    if (accounting) {
+        if (admitted != 0) {
+            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_bytes,
+                        intersection);
+            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
+                account_add(&__hbfsim_access_accounting_counters.service_completed_accesses, 1);
+            else
+                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_accesses, 1);
+            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
+                account_add(&__hbfsim_access_accounting_counters.service_completed_bytes,
+                            intersection);
+            else
+                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_bytes,
+                            intersection);
+        } else if (status == static_cast<std::uint32_t>(RequestStatus::Unsupported)) {
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
+        } else {
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_bytes,
+                        intersection);
+        }
+        if (static_cast<int>(lane_id()) == leader && admitted != 0)
+            account_add(&__hbfsim_access_accounting_counters.service_requests, 1);
+    }
     const auto frame = __shfl_sync(group, resolution.frame_address, leader);
     if (status != static_cast<std::uint32_t>(RequestStatus::Ready)) {
         return {.address = address, .status = status, .reserved = 0};
@@ -813,6 +960,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto translated =
         hbfsim::device::resolved_address(*range, address, frame);
     if (translated == 0) {
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.translation_failed_accesses, 1);
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.translation_failed_bytes,
+                        intersection);
         return fail(address, RequestStatus::CopyError);
     }
     return {.address = translated, .status = status, .reserved = 0};

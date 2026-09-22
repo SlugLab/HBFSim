@@ -1799,6 +1799,60 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
     return HBFSIM_OK;
 }
 
+extern "C" int hbfsim_get_capacity_stats_v1(
+    hbfsim_context* context, hbfsim_capacity_stats_v1* out)
+{
+    if (context == nullptr || out == nullptr ||
+        out->struct_size != sizeof(hbfsim_capacity_stats_v1) ||
+        out->version != HBFSIM_CAPACITY_STATS_V1_VERSION) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation) {
+        return HBFSIM_IO_ERROR;
+    }
+    std::lock_guard lifecycle(context->capacity_mutex);
+    if (!context->capacity) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    const auto current = context->capacity->stats();
+    const auto service = current.service;
+    *out = {
+        .struct_size = sizeof(hbfsim_capacity_stats_v1),
+        .version = HBFSIM_CAPACITY_STATS_V1_VERSION,
+        .enabled = current.enabled ? 1u : 0u,
+        .reserved0 = 0,
+        .page_bytes = current.page_bytes,
+        .vmm_granularity = current.vmm_granularity,
+        .pool_allocated_bytes = current.pool_allocated_bytes,
+        .logical_frame_count = current.logical_frame_count,
+        .service_resolve_calls = service.service_resolve_calls,
+        .service_resident_hits = service.service_resident_hits,
+        .service_reclaimed_hits = service.service_reclaimed_hits,
+        .service_misses = service.service_misses,
+        .successful_backing_read_pages =
+            service.successful_backing_read_pages,
+        .successful_backing_read_bytes =
+            service.successful_backing_read_bytes,
+        .successful_h2d_fill_pages =
+            service.successful_h2d_fill_pages,
+        .successful_h2d_fill_bytes =
+            service.successful_h2d_fill_bytes,
+        .successful_resolve_evictions =
+            service.successful_resolve_evictions,
+        .service_ready_results = service.service_ready_results,
+        .successful_d2h_readback_pages =
+            service.successful_d2h_readback_pages,
+        .successful_d2h_readback_bytes =
+            service.successful_d2h_readback_bytes,
+        .successful_backing_write_pages =
+            service.successful_backing_write_pages,
+        .successful_backing_write_bytes =
+            service.successful_backing_write_bytes,
+    };
+    return HBFSIM_OK;
+}
+
 extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
 {
     if (context == nullptr || range_base == nullptr) {

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HBFSim R3 Capacity Payload Fixture Result",
+  "type": "object",
+  "required": [
+    "schema_version", "experiment", "evidence_class", "status",
+    "failure_phase", "failure_message", "logical_bytes", "cache_bytes", "page_bytes", "frame_count",
+    "common_offset_alignment", "sequential_access_only",
+    "concurrent_eviction_tested", "sample_count", "passed_count", "samples"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "experiment": {"const": "R3_CAPACITY_PAYLOAD_FIXTURE"},
+    "evidence_class": {
+      "const": "CAPACITY_RUNTIME_PAYLOAD_FIXTURE_NOT_MQSIM_TIMING"
+    },
+    "status": {"enum": ["PASS", "FAIL"]},
+    "failure_phase": {"type": "string"},
+    "failure_message": {"type": "string"},
+    "logical_bytes": {"const": 118111600640},
+    "cache_bytes": {"const": 2147483648},
+    "page_bytes": {"enum": [4096, 8192, 16384, 32768, 65536]},
+    "frame_count": {"type": "integer", "minimum": 32768},
+    "common_offset_alignment": {"const": 65536},
+    "sequential_access_only": {"const": true},
+    "concurrent_eviction_tested": {"const": false},
+    "sample_count": {"type": "integer", "minimum": 64},
+    "passed_count": {"type": "integer", "minimum": 0},
+    "samples": {"type": "array", "minItems": 64}
+  }
+}

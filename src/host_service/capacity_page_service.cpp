@@ -21,9 +21,10 @@ RequestStatus checked_status(RequestStatus status)
 CapacityPageService::CapacityPageService(CapacityBackingIo backing,
                                          runtime::HbmCache& cache,
                                          std::size_t page_bytes,
-                                         CapacityFrameIo frame_io)
+                                         CapacityFrameIo frame_io,
+                                         bool enable_stats)
     : backing_(std::move(backing)), cache_(cache), page_bytes_(page_bytes),
-      frame_io_(std::move(frame_io))
+      frame_io_(std::move(frame_io)), stats_enabled_(enable_stats)
 {
     if (page_bytes_ == 0 || !backing_.read_page || !backing_.write_page ||
         !backing_.flush || !frame_io_.host_to_frame ||
@@ -36,7 +37,8 @@ CapacityPageService::CapacityPageService(CapacityBackingIo backing,
 CapacityPageService::CapacityPageService(BackingStore& backing,
                                          runtime::HbmCache& cache,
                                          std::size_t page_bytes,
-                                         CapacityFrameIo frame_io)
+                                         CapacityFrameIo frame_io,
+                                         bool enable_stats)
     : CapacityPageService(
           {
               .read_page = [&backing](std::uint64_t page,
@@ -58,7 +60,7 @@ CapacityPageService::CapacityPageService(BackingStore& backing,
                   return RequestStatus::Ready;
               },
           },
-          cache, page_bytes, std::move(frame_io))
+          cache, page_bytes, std::move(frame_io), enable_stats)
 {}
 
 RequestStatus CapacityPageService::writeback(
@@ -74,12 +76,19 @@ RequestStatus CapacityPageService::writeback(
         if (!frame_io_.frame_to_host(eviction.frame_address, page)) {
             return RequestStatus::CopyError;
         }
+        if (stats_enabled_) ++stats_.successful_d2h_readback_pages;
+        if (stats_enabled_) stats_.successful_d2h_readback_bytes += page_bytes_;
     } catch (...) {
         return RequestStatus::CopyError;
     }
     try {
-        return checked_status(
+        const auto status = checked_status(
             backing_.write_page(eviction.logical_page, page_bytes_, page));
+        if (status == RequestStatus::Ready) {
+            if (stats_enabled_) ++stats_.successful_backing_write_pages;
+            if (stats_enabled_) stats_.successful_backing_write_bytes += page_bytes_;
+        }
+        return status;
     } catch (...) {
         return RequestStatus::IoError;
     }
@@ -88,26 +97,32 @@ RequestStatus CapacityPageService::writeback(
 CapacityResolveResult CapacityPageService::resolve(
     std::uint64_t logical_page, std::uint32_t operation)
 {
+    std::lock_guard lock(mutex_);
+    if (stats_enabled_) ++stats_.service_resolve_calls;
     if (operation > 1) {
         return {.status = RequestStatus::Unsupported};
     }
-    std::lock_guard lock(mutex_);
     if (const auto resident = cache_.resolve(logical_page); resident) {
+        if (stats_enabled_) ++stats_.service_resident_hits;
         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
             return {.status = RequestStatus::IoError};
         }
+        if (stats_enabled_) ++stats_.service_ready_results;
         return {.status = RequestStatus::Ready,
                 .frame_address = *resident};
     }
     if (const auto reclaimed = cache_.reclaim_eviction(logical_page);
         reclaimed) {
+        if (stats_enabled_) ++stats_.service_reclaimed_hits;
         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
             return {.status = RequestStatus::IoError};
         }
+        if (stats_enabled_) ++stats_.service_ready_results;
         return {.status = RequestStatus::Ready,
                 .frame_address = *reclaimed};
     }
 
+    if (stats_enabled_) ++stats_.service_misses;
     CapacityMediaPlan media{.flags = CapacityMediaRead};
     auto frame = cache_.free_frame();
     if (!frame.has_value()) {
@@ -135,6 +150,9 @@ CapacityResolveResult CapacityPageService::resolve(
         if (!cache_.complete_eviction(*eviction)) {
             return {.status = RequestStatus::IoError};
         }
+        if (stats_enabled_) {
+            ++stats_.successful_resolve_evictions;
+        }
         resident_range_ids_.erase(eviction->logical_page);
         frame = eviction->frame_address;
     }
@@ -154,6 +172,8 @@ CapacityResolveResult CapacityPageService::resolve(
         }
         range_id = routed.range_id;
         page = std::move(routed.bytes);
+        if (stats_enabled_) ++stats_.successful_backing_read_pages;
+        if (stats_enabled_) stats_.successful_backing_read_bytes += page_bytes_;
     } catch (...) {
         return {.status = RequestStatus::IoError};
     }
@@ -161,6 +181,8 @@ CapacityResolveResult CapacityPageService::resolve(
         if (!frame_io_.host_to_frame(*frame, page)) {
             return {.status = RequestStatus::CopyError};
         }
+        if (stats_enabled_) ++stats_.successful_h2d_fill_pages;
+        if (stats_enabled_) stats_.successful_h2d_fill_bytes += page_bytes_;
     } catch (...) {
         return {.status = RequestStatus::CopyError};
     }
@@ -181,9 +203,16 @@ CapacityResolveResult CapacityPageService::resolve(
     if (operation == 1 && !cache_.mark_dirty(logical_page)) {
         return {.status = RequestStatus::IoError};
     }
+    if (stats_enabled_) ++stats_.service_ready_results;
     return {.status = RequestStatus::Ready,
             .frame_address = *frame,
             .media = media};
+}
+
+CapacityPageServiceStats CapacityPageService::stats()
+{
+    std::lock_guard lock(mutex_);
+    return stats_;
 }
 
 RequestStatus CapacityPageService::flush()

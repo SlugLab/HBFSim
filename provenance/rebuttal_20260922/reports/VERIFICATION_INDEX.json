@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "snapshot_utc": "2026-09-22T08:21:36Z",
+  "scope": "Independent read-only review of frozen R1, R2, and all-model receipts; R3 status is failure-only and pending a new successful raw result; R4 was not executed.",
+  "r1": {
+    "status": "VALIDATED",
+    "validation": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/atomic-sidecar-v1/R1/final-validation.json",
+      "sha256": "86dc76965ab5fe26b750d1421f32993789b51a927c74bd98fff234e4f1ad377d",
+      "status": "PASS",
+      "checks_passed": 227,
+      "checks_total": 227,
+      "errors": 0
+    },
+    "native": {
+      "generation_seconds": 0.13155086801270954,
+      "token_sha256": "1aa842abd697c23f4c1336783816b1fe655820f4694fccde4f1773c59732af19"
+    },
+    "d0": {
+      "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/atomic-sidecar-v1/R1/d0/result.json",
+      "result_sha256": "f7ac75769972de8e45a758d6ce6f72b8981e74170ccc19c606dfbb18a1f114d8",
+      "generation_seconds": 417.1432405259984,
+      "in_range_accesses": 6144,
+      "in_range_bytes": 98304,
+      "modeled_admitted_accesses": 6144,
+      "service_completed_accesses": 6144,
+      "service_requests": 6134,
+      "eval_covered_accesses": 6134,
+      "eval_trace_overflow": 0,
+      "eval_trace_drop": null,
+      "token_sha256": "1aa842abd697c23f4c1336783816b1fe655820f4694fccde4f1773c59732af19"
+    },
+    "nominal": {
+      "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/atomic-sidecar-v1/R1/nominal/result.json",
+      "result_sha256": "c92e0835d87d3106c9e9a2e8810fc5a5ceb5e7bdf5ebbe107f2d246f494949e1",
+      "generation_seconds_from_r1_validation": 430.25809518099413,
+      "in_range_accesses": 6144,
+      "in_range_bytes": 98304,
+      "modeled_admitted_accesses": 6144,
+      "service_completed_accesses": 6144,
+      "service_requests": 6138,
+      "token_sha256": "1aa842abd697c23f4c1336783816b1fe655820f4694fccde4f1773c59732af19"
+    },
+    "coverage_scope": {
+      "modeled_fused_records_each_instrumented_arm": 72,
+      "opaque_unknown_whole_process_each_instrumented_arm": 1423,
+      "note": "Coverage JSON is whole-process and lacks formal-request epoch/timestamps; these counts are not the formal request's launch denominator."
+    }
+  },
+  "r2_common_60s": {
+    "status": "VALIDATED_6_OF_6",
+    "common_contract": {
+      "request_timeout_ns": 60000000000,
+      "output_token_sha256": "1aa842abd697c23f4c1336783816b1fe655820f4694fccde4f1773c59732af19",
+      "supported_accesses_each": 110473216,
+      "supported_bytes_each": 1695711232,
+      "validation_checks_each": 12,
+      "validation_errors_each": 0
+    },
+    "points": [
+      {
+        "registered_prefix_bytes": 16384,
+        "in_range_accesses": 6144,
+        "in_range_bytes": 98304,
+        "service_requests": 6135,
+        "generation_seconds": 412.60608185996534,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-16384/result.json",
+        "result_sha256": "a2b40a07eebfa4dc99441343ff80590624343ecc0778ef79d2af69f90fc41fed",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-16384/validation.json",
+        "validation_sha256": "583e29f1a00ca326c27d28feb436ccb94507f74a81ebe1d33c6093290fa3a440"
+      },
+      {
+        "registered_prefix_bytes": 1048576,
+        "in_range_accesses": 393216,
+        "in_range_bytes": 6291456,
+        "service_requests": 392007,
+        "generation_seconds": 410.86614346696297,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-1048576/result.json",
+        "result_sha256": "2b204a0fdf027ff87145103b530c0b4058facac35ee0bd54342dc16176ef3faa",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-1048576/validation.json",
+        "validation_sha256": "4fbee924f186335166c20ff21f25ebde50b93467c03ff9f89fa6f12e4a304d24"
+      },
+      {
+        "registered_prefix_bytes": 16777216,
+        "in_range_accesses": 4194304,
+        "in_range_bytes": 67108864,
+        "service_requests": 4179165,
+        "generation_seconds": 398.3968915269943,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-16777216/result.json",
+        "result_sha256": "456cd732b5a80d00fa7f6363dfcc3199dc152e4ef4b611154b497d84858e1e90",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-16777216/validation.json",
+        "validation_sha256": "4c90e161000c2bc52c7efef495371fe5320e9a51060a814a0f54df0e4bc9c3ff"
+      },
+      {
+        "registered_prefix_bytes": 67108864,
+        "in_range_accesses": 14680064,
+        "in_range_bytes": 234881024,
+        "service_requests": 14632023,
+        "generation_seconds": 406.353819824988,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline4s-v1/R2/range-67108864-timeout60s-v1/result.json",
+        "result_sha256": "581981622b317a2c09eec1ea3cbbe964e3c972aa430f5b0e2e43dfd9902983d7",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline4s-v1/R2/range-67108864-timeout60s-v1/validation.json",
+        "validation_sha256": "e072dafcc695e0078df707fe2f062682384f286e55290959ccf1d40394d14f2e"
+      },
+      {
+        "registered_prefix_bytes": 268435456,
+        "in_range_accesses": 45088768,
+        "in_range_bytes": 721420288,
+        "service_requests": 44952928,
+        "generation_seconds": 419.76681832497707,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-268435456/result.json",
+        "result_sha256": "d1010e2d175b4c2a735593395a4dab68ad6b28a94c7ba5cb22ecb4e37970c021",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-268435456/validation.json",
+        "validation_sha256": "762d6324c73f5b4c9a1afc078847ffaa7c80af03b8dd90d5c128f2c2634affb1"
+      },
+      {
+        "registered_prefix_bytes": 536870912,
+        "in_range_accesses": 93847552,
+        "in_range_bytes": 1501560832,
+        "service_requests": 93459086,
+        "generation_seconds": 530.6496867090464,
+        "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-536870912/result.json",
+        "result_sha256": "1f14e580751b3d116e4675a8d4430588b0a0da8ab3cfe6e9755563d75a251424",
+        "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/deadline60s-v1/R2/range-536870912/validation.json",
+        "validation_sha256": "969edc23e69861ba598cc4fbea258dc20ea25a92808ecf7ae9dc6eeaea87ed42"
+      }
+    ]
+  },
+  "all_model_extension": {
+    "status": "PASS_WITH_SCOPED_BUFFER_REVIEW",
+    "result_path": "/root/hbfsim-exp/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/result.json",
+    "result_sha256": "0c61252a530f3db0b6433ae5c7e7a727a0a6807cd6c0e058d2725ef6ad4f13f9",
+    "validation_path": "/root/hbfsim-exp/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/final-validation-derived-v1.json",
+    "validation_sha256": "c7b7a50b971b36c2b9c104a5831d027dc419b1cf48e7570aee2948301583f713",
+    "checks_passed": 26,
+    "checks_total": 26,
+    "registered_parameter_storages": 147,
+    "registered_parameter_bytes": 13838323712,
+    "generation_seconds": 11949.734653289022,
+    "in_range_accesses": 2178416640,
+    "in_range_bytes": 34854666240,
+    "modeled_admitted_accesses": 2178416640,
+    "service_completed_accesses": 2178416640,
+    "service_requests": 2170399597,
+    "output_token_sha256": "1aa842abd697c23f4c1336783816b1fe655820f4694fccde4f1773c59732af19",
+    "coverage_lower_bound": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/per-storage-coverage-v2.json",
+      "sha256": "db353fb461085d62df7e1179cee4c618e6a61f6b518c6e459b95eef5903b6f69",
+      "observed_modeled_storages": 32,
+      "no_recorded_match_storages": 115,
+      "scope": "WHOLE_PROCESS_INIT_WARMUP_FORMAL_NOT_EPOCH_SCOPED"
+    }
+  },
+  "r3": {
+    "status": "NO_SUCCESSFUL_SAMPLING_RUN",
+    "attempts": [
+      {"name": "activation-16k-fixed-sparse-v1", "elapsed_seconds": 1.092976464, "return_code": 1, "receipt_path": "/root/hbfsim-exp/rebuttal_20260921/results/R3_capacity_atomic_v1/activation-16k-fixed-sparse-v1/execution_receipt.json", "receipt_sha256": "da3c60d7c8d42580915db878967da07c56a08b660c17365216fa2c81e448f79b"},
+      {"name": "activation-16k-fixed-sparse-v2", "elapsed_seconds": 1.336957066, "return_code": 1, "receipt_path": "/root/hbfsim-exp/rebuttal_20260921/results/R3_capacity_atomic_v1/activation-16k-fixed-sparse-v2/execution_receipt.json", "receipt_sha256": "9e8b50a6c9be0d3f8ae04e0cdcf97d20f28b27183d229ea019fd5a6cc44f6485"},
+      {"name": "activation-16k-fixed-sparse-v3", "elapsed_seconds": 7.707386381, "return_code": 1, "receipt_path": "/root/hbfsim-exp/rebuttal_20260921/results/R3_capacity_atomic_v1/activation-16k-fixed-sparse-v3/execution_receipt.json", "receipt_sha256": "393e6aef1823fffebb746a89d5ad2861b848091311785a43308d919b5969ed7c"}
+    ],
+    "latest_observation": "v3 created the context and bound the intended probe, verified the first 9 of 65 cold regions, then rejected the tenth region with uninstrumented_pointer_parameter. The 35-record matrix never started; an offset representation repair was only being prepared at this snapshot."
+  },
+  "r4": {"status": "NOT_EXECUTED"},
+  "interpretation_limits": [
+    "N, M, and K are in-range supported accesses, modeled-admitted accesses, and service-completed accesses; they are not all supported program accesses.",
+    "service_requests counts grouped service operations and need not equal logical accesses.",
+    "All 147 finalized CUDA parameter storages being registered does not mean every weight or operator was dynamically instrumented.",
+    "The 115 NO_RECORDED_MATCH storages are parameter storages, not KV cache; the label means the whole-process coverage stream had no matching nonzero-address record and does not prove that the storage was not accessed.",
+    "Only four staged PTX identities, all fused_moe variants, supplied modeled nonzero-address coverage in the all-model run.",
+    "Hybrid reference/fast selection is sampling and analytic approximation, not a simulated HBM-cache hit/miss policy. The profile hbm_cache_bytes field is consumed by the separate capacity runtime.",
+    "Generation times are software wall times for these runs and are not hardware-speedup measurements."
+  ]
+}

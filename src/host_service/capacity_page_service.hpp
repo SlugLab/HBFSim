@@ -32,6 +32,26 @@ struct CapacityResolveResult {
     CapacityMediaPlan media;
 };
 
+// These counters cover CapacityPageService host resolution only. Device
+// resident fast paths may bypass this service and are deliberately not
+// inferred from total device loads.
+struct CapacityPageServiceStats {
+    std::uint64_t service_resolve_calls{0};
+    std::uint64_t service_resident_hits{0};
+    std::uint64_t service_reclaimed_hits{0};
+    std::uint64_t service_misses{0};
+    std::uint64_t successful_backing_read_pages{0};
+    std::uint64_t successful_backing_read_bytes{0};
+    std::uint64_t successful_h2d_fill_pages{0};
+    std::uint64_t successful_h2d_fill_bytes{0};
+    std::uint64_t successful_resolve_evictions{0};
+    std::uint64_t service_ready_results{0};
+    std::uint64_t successful_d2h_readback_pages{0};
+    std::uint64_t successful_d2h_readback_bytes{0};
+    std::uint64_t successful_backing_write_pages{0};
+    std::uint64_t successful_backing_write_bytes{0};
+};
+
 struct CapacityBackingIo {
     std::function<RoutedPage(std::uint64_t, std::size_t)> read_page;
     std::function<RequestStatus(std::uint64_t, std::size_t,
@@ -46,9 +66,11 @@ class CapacityPageService {
         std::function<RequestStatus(std::uint32_t, std::uint64_t)>;
 
     CapacityPageService(CapacityBackingIo backing, runtime::HbmCache& cache,
-                        std::size_t page_bytes, CapacityFrameIo frame_io);
+                        std::size_t page_bytes, CapacityFrameIo frame_io,
+                        bool enable_stats = false);
     CapacityPageService(BackingStore& backing, runtime::HbmCache& cache,
-                        std::size_t page_bytes, CapacityFrameIo frame_io);
+                        std::size_t page_bytes, CapacityFrameIo frame_io,
+                        bool enable_stats = false);
 
     CapacityResolveResult resolve(std::uint64_t logical_page,
                                   std::uint32_t operation);
@@ -58,6 +80,7 @@ class CapacityPageService {
         std::optional<std::uint32_t> range_id = std::nullopt);
     RequestStatus flush(std::uint64_t first_page,
                         std::uint64_t page_count);
+    [[nodiscard]] CapacityPageServiceStats stats();
 
   private:
     RequestStatus writeback(const runtime::CacheEviction& eviction);
@@ -68,7 +91,9 @@ class CapacityPageService {
     runtime::HbmCache& cache_;
     std::size_t page_bytes_;
     CapacityFrameIo frame_io_;
+    bool stats_enabled_{false};
     std::unordered_map<std::uint64_t, std::uint32_t> resident_range_ids_;
+    CapacityPageServiceStats stats_;
     std::mutex mutex_;
 };
 

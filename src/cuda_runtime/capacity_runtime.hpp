@@ -17,6 +17,15 @@
 
 namespace hbfsim::runtime {
 
+struct CapacityRuntimeStats {
+    bool enabled{false};
+    std::size_t page_bytes{0};
+    std::size_t vmm_granularity{0};
+    std::size_t pool_allocated_bytes{0};
+    std::size_t logical_frame_count{0};
+    host_service::CapacityPageServiceStats service;
+};
+
 // logical_range borrows the CapacityRuntime-owned VmmDriver. A Task 4 context
 // must therefore declare/construct its CapacityRuntime before CapacityMapping
 // objects so mappings are destroyed first.
@@ -46,6 +55,7 @@ class CapacityRuntime {
         host_service::CapacityPageService::ModelProgram model_program,
         std::optional<std::uint32_t> range_id = std::nullopt);
     void stop();
+    [[nodiscard]] CapacityRuntimeStats stats();
     [[nodiscard]] bool release_cuda_resources() noexcept;
 
   private:
@@ -83,6 +93,8 @@ class CapacityRuntime {
     int device_ordinal_;
     std::uintptr_t transfer_stream_{0};
     CudaVmmDriver driver_;
+    bool stats_enabled_{false};
+    std::size_t vmm_granularity_{0};
     VmmFramePool vmm_;
     HbmCache cache_;
     host_service::CapacityBackingRouter router_;

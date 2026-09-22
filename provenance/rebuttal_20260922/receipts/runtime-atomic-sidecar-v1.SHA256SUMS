@@ -1,0 +1,15 @@
+67e610c08ec89be941aa87f9be0becfd455278930a6dfa17d9a27566446925da  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/adapters/vllm/run.py
+2a6e2a6c274d9b967b77d3844b4f4f9668afefd8802c1f730536498a9e9361e3  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/adapters/vllm/triton_binding.py
+69e9ac41b409567cfd462591eaa5f1f3791ee8ffd03cde96c628e666ea550889  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/adapters/vllm/hbfsim_loader.py
+a62567d085fd55952fc6127fa6613c2c102e29325571a767c7044824ccac5da1  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/libhbfsim.so.0.1.0
+b1a3c30dd91e4a3804bd67780bbc59209fb38f74a6f30282ab3ebf7eea5850e5  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/hbfsimd
+2d339f08486f6821f8021bb1a9987d2ea88495bf530cd1201ff5ae74acb17399  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/hbf_device.ptx
+ad3aa52d584811259d9ad97cd461f2300ea26f3176d5deda547c390232e7d08f  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/libhbfsim_launch_gate.so
+d6fa85f66b9581bd67b0e66cef2241dede1221f5268208144568e9f2f4830034  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/libhbfsim_vllm_extension.so
+3c72b38ce8b817ffa6e3a38cd290273c299175e47dddc6096f256b33359fb263  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/libptxpass_hbf.so
+11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/vllm_fused_moe_probe.bpf.o
+823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72  /root/hbfsim-exp/rebuttal_20260921/runtime-atomic-sidecar-v1/hbfsim_bpftime_attach_loader
+27ea313983c325429d33efa896dcefcb519f14e5886226628c358c1f576d3089  /root/hbfsim-exp/rebuttal_20260921/worktree/build/rebuttal-bpftime-v7-llvm20-restored/runtime/agent/libbpftime-agent.so
+0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d  /root/hbfsim-exp/rebuttal_20260921/worktree/build/rebuttal-bpftime-v7-llvm20-restored/runtime/syscall-server/libbpftime-syscall-server.so
+a40c482e160cbf7c10677661b5f66a5ca2ef0cfce70328683c613febe20b3aa7  /root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-build-v3/source-audit-v3.json
+0a40f2339141bee2060a249e1e5ab0ea9f5189bf9daddfc3855e352203f69644  /root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-build-v3/ptx-audit-v3.json

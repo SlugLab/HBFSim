@@ -1,0 +1,1584 @@
+diff --git a/include/hbfsim/api.h b/include/hbfsim/api.h
+index a59f3ba..74e1a60 100644
+--- a/include/hbfsim/api.h
++++ b/include/hbfsim/api.h
+@@ -63,6 +63,32 @@ typedef struct hbfsim_stats {
+     uint64_t fast_modeled_ns;
+ } hbfsim_stats;
+ 
++#define HBFSIM_CAPACITY_STATS_V1_VERSION 1u
++typedef struct hbfsim_capacity_stats_v1 {
++    uint32_t struct_size;
++    uint32_t version;
++    uint32_t enabled;
++    uint32_t reserved0;
++    uint64_t page_bytes;
++    uint64_t vmm_granularity;
++    uint64_t pool_allocated_bytes;
++    uint64_t logical_frame_count;
++    uint64_t service_resolve_calls;
++    uint64_t service_resident_hits;
++    uint64_t service_reclaimed_hits;
++    uint64_t service_misses;
++    uint64_t successful_backing_read_pages;
++    uint64_t successful_backing_read_bytes;
++    uint64_t successful_h2d_fill_pages;
++    uint64_t successful_h2d_fill_bytes;
++    uint64_t successful_resolve_evictions;
++    uint64_t service_ready_results;
++    uint64_t successful_d2h_readback_pages;
++    uint64_t successful_d2h_readback_bytes;
++    uint64_t successful_backing_write_pages;
++    uint64_t successful_backing_write_bytes;
++} hbfsim_capacity_stats_v1;
++
+ uint32_t hbfsim_abi_version(void);
+ int hbfsim_context_create(const hbfsim_options* options,
+                           hbfsim_context** out);
+@@ -75,6 +101,8 @@ int hbfsim_map_file(hbfsim_context* context, const char* path,
+                     void** logical_device_ptr_out);
+ int hbfsim_flush(hbfsim_context* context);
+ int hbfsim_get_stats(hbfsim_context* context, hbfsim_stats* out);
++int hbfsim_get_capacity_stats_v1(hbfsim_context* context,
++                                 hbfsim_capacity_stats_v1* out);
+ int hbfsim_unregister(hbfsim_context* context, void* range_base);
+ void hbfsim_context_destroy(hbfsim_context* context);
+ 
+diff --git a/src/cuda_runtime/capacity_runtime.cpp b/src/cuda_runtime/capacity_runtime.cpp
+index 446b345..3f70cc2 100644
+--- a/src/cuda_runtime/capacity_runtime.cpp
++++ b/src/cuda_runtime/capacity_runtime.cpp
+@@ -6,6 +6,7 @@
+ #endif
+ 
+ #include <chrono>
++#include <cstdlib>
+ #include <cstring>
+ #include <limits>
+ #include <stdexcept>
+@@ -14,6 +15,12 @@
+ namespace hbfsim::runtime {
+ namespace {
+ 
++bool capacity_stats_enabled() noexcept
++{
++    const char* value = std::getenv("HBFSIM_CAPACITY_STATS_V1");
++    return value != nullptr && std::string_view(value) == "1";
++}
++
+ std::size_t frame_count(const Profile& profile)
+ {
+     validate_profile(profile);
+@@ -107,6 +114,8 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
+                                  int device_ordinal)
+     : page_bytes_(profile.page_bytes), cuda_context_(cuda_context),
+       device_ordinal_(device_ordinal), driver_(),
++      stats_enabled_(capacity_stats_enabled()),
++      vmm_granularity_(driver_.granularity(device_ordinal)),
+       vmm_(VmmFramePool::create(driver_, frame_count(profile),
+                                 profile.page_bytes, device_ordinal)),
+       cache_(vmm_.frame_addresses()), router_(),
+@@ -133,7 +142,7 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
+                   [this](std::uint64_t frame, std::span<std::byte> bytes) {
+                       return frame_to_host(frame, bytes);
+                   },
+-          }),
++          }, stats_enabled_),
+       worker_(control, service_, std::chrono::microseconds(50),
+               &CapacityRuntime::start_worker, this,
+               &CapacityRuntime::stop_worker, this)
+@@ -239,6 +248,18 @@ void CapacityRuntime::stop()
+     worker_.stop();
+ }
+ 
++CapacityRuntimeStats CapacityRuntime::stats()
++{
++    return {
++        .enabled = stats_enabled_,
++        .page_bytes = page_bytes_,
++        .vmm_granularity = vmm_granularity_,
++        .pool_allocated_bytes = vmm_.reserved_bytes(),
++        .logical_frame_count = vmm_.frame_addresses().size(),
++        .service = service_.stats(),
++    };
++}
++
+ bool CapacityRuntime::release_cuda_resources() noexcept
+ {
+     bool stream_released = true;
+diff --git a/src/cuda_runtime/capacity_runtime.hpp b/src/cuda_runtime/capacity_runtime.hpp
+index 4eb4b17..7d7b980 100644
+--- a/src/cuda_runtime/capacity_runtime.hpp
++++ b/src/cuda_runtime/capacity_runtime.hpp
+@@ -17,6 +17,15 @@
+ 
+ namespace hbfsim::runtime {
+ 
++struct CapacityRuntimeStats {
++    bool enabled{false};
++    std::size_t page_bytes{0};
++    std::size_t vmm_granularity{0};
++    std::size_t pool_allocated_bytes{0};
++    std::size_t logical_frame_count{0};
++    host_service::CapacityPageServiceStats service;
++};
++
+ // logical_range borrows the CapacityRuntime-owned VmmDriver. A Task 4 context
+ // must therefore declare/construct its CapacityRuntime before CapacityMapping
+ // objects so mappings are destroyed first.
+@@ -46,6 +55,7 @@ class CapacityRuntime {
+         host_service::CapacityPageService::ModelProgram model_program,
+         std::optional<std::uint32_t> range_id = std::nullopt);
+     void stop();
++    [[nodiscard]] CapacityRuntimeStats stats();
+     [[nodiscard]] bool release_cuda_resources() noexcept;
+ 
+   private:
+@@ -83,6 +93,8 @@ class CapacityRuntime {
+     int device_ordinal_;
+     std::uintptr_t transfer_stream_{0};
+     CudaVmmDriver driver_;
++    bool stats_enabled_{false};
++    std::size_t vmm_granularity_{0};
+     VmmFramePool vmm_;
+     HbmCache cache_;
+     host_service::CapacityBackingRouter router_;
+diff --git a/src/cuda_runtime/context.cpp b/src/cuda_runtime/context.cpp
+index b29eedb..d5f6c8e 100644
+--- a/src/cuda_runtime/context.cpp
++++ b/src/cuda_runtime/context.cpp
+@@ -56,6 +56,9 @@ struct hbfsim_context {
+     pid_t daemon_pid{-1};
+     std::uint64_t request_timeout_ns{0};
+     bool cuda_registered{false};
++    bool gpu_exclusive_producer{false};
++    bool device_state_poisoned{false};
++    hbfsim::host_service::DeviceTimingState* device_timing_state{nullptr};
+     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
+     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
+     const hbfsim::LaunchGateApiV4* launch_gate_api_v4{nullptr};
+@@ -98,9 +101,12 @@ int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
+     if (context->launch_gate_api_v4 != nullptr) {
+         ControlView control(context->control_mapping,context->control_bytes);
+         const auto* h=control.header();
+-        const auto caps=hbfsim::timing_future::derive_capabilities(h->timing_model,
++        auto caps=hbfsim::timing_future::derive_capabilities(h->timing_model,
+             h->empirical_flags,h->time_scale,h->read_latency_ns,h->program_latency_ns,
+             h->aggregate_bandwidth_bytes_per_s,h->request_timeout_ns);
++        if (context->gpu_exclusive_producer) {
++            caps.bits = 0;
++        }
+         return context->launch_gate_api_v4->activate_with_capabilities(
+             owner,control_alias,cuda_context,device_ordinal,&caps,generation);
+     }
+@@ -615,6 +621,26 @@ ReleaseResult release_context(hbfsim_context* context,
+     }
+     reap_or_terminate(context);
+ #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
++    if (context->device_timing_state != nullptr) {
++        if (!cuda_domain_is_current(context->cuda_context,
++                                    context->device_ordinal) ||
++            ::cudaFree(context->device_timing_state) != cudaSuccess) {
++            context->device_state_poisoned = true;
++            if (retire_token != 0) {
++                launch_gate_quarantine(context, retire_token);
++            }
++            return ReleaseResult::quarantined;
++        }
++        context->device_timing_state = nullptr;
++        context->device_state_poisoned = false;
++        if (context->control_mapping != MAP_FAILED) {
++            ControlView control(context->control_mapping,
++                                context->control_bytes);
++            control.header()->device_state_address = 0;
++            control.header()->device_state_bytes = 0;
++            control.header()->device_state_generation = 0;
++        }
++    }
+     if (context->cuda_registered) {
+         if (::cudaHostUnregister(context->control_mapping) != cudaSuccess) {
+             if (retire_token != 0) {
+@@ -911,6 +937,41 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
+             release_context(context.release(), false);
+             return HBFSIM_CUDA_ERROR;
+         }
++        context->cuda_context =
++            reinterpret_cast<std::uintptr_t>(cuda_context);
++        context->device_ordinal = static_cast<int>(device);
++        int host_native_atomic = 0;
++        if (::cudaDeviceGetAttribute(&host_native_atomic,
++                cudaDevAttrHostNativeAtomicSupported,
++                static_cast<int>(device)) != cudaSuccess) {
++            release_context(context.release(), false);
++            return HBFSIM_CUDA_ERROR;
++        }
++        if (host_native_atomic == 0) {
++            hbfsim::host_service::DeviceTimingState initial{};
++            initial.magic = hbfsim::host_service::kDeviceTimingStateMagic;
++            if (::cudaMalloc(
++                    reinterpret_cast<void**>(&context->device_timing_state),
++                    sizeof(initial)) != cudaSuccess ||
++                ::cudaMemcpy(context->device_timing_state, &initial,
++                             sizeof(initial), cudaMemcpyHostToDevice) !=
++                    cudaSuccess) {
++                context->device_state_poisoned =
++                    context->device_timing_state != nullptr;
++                release_context(context.release(), false);
++                return HBFSIM_CUDA_ERROR;
++            }
++            context->gpu_exclusive_producer = true;
++            control.header()->device_state_address =
++                reinterpret_cast<std::uintptr_t>(
++                    context->device_timing_state);
++            control.header()->device_state_bytes = sizeof(initial);
++            control.header()->producer_mode =
++                hbfsim::host_service::kProducerModeGpuExclusive;
++        } else {
++            control.header()->producer_mode =
++                hbfsim::host_service::kProducerModeHostNativeAtomic;
++        }
+         using get_api_type = hbfsim::LaunchGateGetApi;
+         auto get_api = reinterpret_cast<get_api_type>(
+             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
+@@ -1002,6 +1063,21 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
+         context->device_ordinal = static_cast<int>(device);
+         context->timing_owner_active = true;
+         control.header()->control_generation = context->control_generation;
++        if (context->gpu_exclusive_producer) {
++            hbfsim::host_service::DeviceTimingState initial{};
++            initial.magic = hbfsim::host_service::kDeviceTimingStateMagic;
++            initial.generation = context->control_generation;
++            if (::cudaMemcpy(context->device_timing_state, &initial,
++                             sizeof(initial), cudaMemcpyHostToDevice) !=
++                cudaSuccess) {
++                context->device_state_poisoned = true;
++                release_context(context.release(), false);
++                return HBFSIM_CUDA_ERROR;
++            }
++            control.header()->device_state_generation =
++                context->control_generation;
++        }
++
+ #else
+         release_context(context.release(), false);
+         return HBFSIM_CUDA_ERROR;
+@@ -1036,6 +1112,9 @@ int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
+     if (context == nullptr || ticket == nullptr) {
+         return HBFSIM_INVALID_ARGUMENT;
+     }
++    if (context->gpu_exclusive_producer) {
++        return HBFSIM_UNSUPPORTED;
++    }
+     ControlView control(context->control_mapping, context->control_bytes);
+     const auto deadline = monotonic_ns() + context->request_timeout_ns;
+     std::chrono::nanoseconds backoff(1'000);
+@@ -1237,6 +1316,9 @@ int wait_for_completion_for_test(hbfsim_context* context,
+     if (context == nullptr || completion == nullptr) {
+         return HBFSIM_INVALID_ARGUMENT;
+     }
++    if (context->gpu_exclusive_producer) {
++        return HBFSIM_UNSUPPORTED;
++    }
+     ControlView control(context->control_mapping, context->control_bytes);
+     const auto deadline = monotonic_ns() + context->request_timeout_ns;
+     std::chrono::nanoseconds backoff(1'000);
+@@ -1784,6 +1866,44 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
+         return HBFSIM_IO_ERROR;
+     }
+     const auto* header = control.header();
++    if (context->gpu_exclusive_producer) {
++#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
++        if (context->device_timing_state == nullptr ||
++            context->device_state_poisoned ||
++            !hbfsim::runtime::cuda_domain_is_current(
++                context->cuda_context, context->device_ordinal) ||
++            ::cudaDeviceSynchronize() != cudaSuccess) {
++            return HBFSIM_CUDA_ERROR;
++        }
++        hbfsim::host_service::DeviceTimingState state{};
++        if (::cudaMemcpy(&state, context->device_timing_state,
++                         sizeof(state), cudaMemcpyDeviceToHost) != cudaSuccess ||
++            state.magic !=
++                hbfsim::host_service::kDeviceTimingStateMagic ||
++            state.generation != context->control_generation ||
++            state.poisoned != 0 ||
++            header->producer_mode !=
++                hbfsim::host_service::kProducerModeGpuExclusive ||
++            header->device_state_address !=
++                reinterpret_cast<std::uintptr_t>(
++                    context->device_timing_state) ||
++            header->device_state_bytes != sizeof(state) ||
++            header->device_state_generation !=
++                context->control_generation) {
++            return HBFSIM_CUDA_ERROR;
++        }
++        *out = {
++            .requests_submitted = state.request_producer,
++            .requests_completed = state.completion_consumer,
++            .fast_requests = state.fast_requests,
++            .reference_requests = state.reference_requests,
++            .fast_modeled_ns = state.fast_modeled_ns,
++        };
++        return HBFSIM_OK;
++#else
++        return HBFSIM_CUDA_ERROR;
++#endif
++    }
+     *out = {
+         .requests_submitted = hbfsim::host_service::atomic_load(
+             header->request_producer, std::memory_order_acquire),
+@@ -1799,6 +1919,60 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
+     return HBFSIM_OK;
+ }
+ 
++extern "C" int hbfsim_get_capacity_stats_v1(
++    hbfsim_context* context, hbfsim_capacity_stats_v1* out)
++{
++    if (context == nullptr || out == nullptr ||
++        out->struct_size != sizeof(hbfsim_capacity_stats_v1) ||
++        out->version != HBFSIM_CAPACITY_STATS_V1_VERSION) {
++        return HBFSIM_INVALID_ARGUMENT;
++    }
++    hbfsim::runtime::ContextOperation operation(context);
++    if (!operation) {
++        return HBFSIM_IO_ERROR;
++    }
++    std::lock_guard lifecycle(context->capacity_mutex);
++    if (!context->capacity) {
++        return HBFSIM_INVALID_ARGUMENT;
++    }
++    const auto current = context->capacity->stats();
++    const auto service = current.service;
++    *out = {
++        .struct_size = sizeof(hbfsim_capacity_stats_v1),
++        .version = HBFSIM_CAPACITY_STATS_V1_VERSION,
++        .enabled = current.enabled ? 1u : 0u,
++        .reserved0 = 0,
++        .page_bytes = current.page_bytes,
++        .vmm_granularity = current.vmm_granularity,
++        .pool_allocated_bytes = current.pool_allocated_bytes,
++        .logical_frame_count = current.logical_frame_count,
++        .service_resolve_calls = service.service_resolve_calls,
++        .service_resident_hits = service.service_resident_hits,
++        .service_reclaimed_hits = service.service_reclaimed_hits,
++        .service_misses = service.service_misses,
++        .successful_backing_read_pages =
++            service.successful_backing_read_pages,
++        .successful_backing_read_bytes =
++            service.successful_backing_read_bytes,
++        .successful_h2d_fill_pages =
++            service.successful_h2d_fill_pages,
++        .successful_h2d_fill_bytes =
++            service.successful_h2d_fill_bytes,
++        .successful_resolve_evictions =
++            service.successful_resolve_evictions,
++        .service_ready_results = service.service_ready_results,
++        .successful_d2h_readback_pages =
++            service.successful_d2h_readback_pages,
++        .successful_d2h_readback_bytes =
++            service.successful_d2h_readback_bytes,
++        .successful_backing_write_pages =
++            service.successful_backing_write_pages,
++        .successful_backing_write_bytes =
++            service.successful_backing_write_bytes,
++    };
++    return HBFSIM_OK;
++}
++
+ extern "C" int hbfsim_unregister(hbfsim_context* context, void* range_base)
+ {
+     if (context == nullptr || range_base == nullptr) {
+diff --git a/src/cuda_runtime/device/hbf_device.cu b/src/cuda_runtime/device/hbf_device.cu
+index be68748..0209188 100644
+--- a/src/cuda_runtime/device/hbf_device.cu
++++ b/src/cuda_runtime/device/hbf_device.cu
+@@ -9,6 +9,10 @@ extern "C" __device__ hbfsim::device::EvalDelayConfig
+     __hbfsim_eval_delay_config = {};
+ extern "C" __device__ hbfsim::device::EvalDelayCounters
+     __hbfsim_eval_delay_counters = {};
++extern "C" __device__ hbfsim::device::AccessAccountingConfig
++    __hbfsim_access_accounting_config = {};
++extern "C" __device__ hbfsim::device::AccessAccountingCounters
++    __hbfsim_access_accounting_counters = {};
+ #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+     HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
+ extern "C" __device__ hbfsim::device::EvalChainDiagnosticConfig
+@@ -65,6 +69,57 @@ __device__ void system_fetch_sub_release(std::uint64_t* address,
+     (void)value.fetch_sub(decrement, cuda::memory_order_release);
+ }
+ 
++__device__ std::uint64_t device_acquire(const std::uint64_t* address)
++{
++    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(
++        *const_cast<std::uint64_t*>(address));
++    return value.load(cuda::memory_order_acquire);
++}
++
++__device__ bool device_compare_exchange(std::uint64_t* address,
++                                        std::uint64_t& expected,
++                                        std::uint64_t desired)
++{
++    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
++    return value.compare_exchange_weak(expected, desired,
++                                       cuda::memory_order_relaxed,
++                                       cuda::memory_order_relaxed);
++}
++
++__device__ std::uint64_t device_fetch_add(std::uint64_t* address,
++                                          std::uint64_t increment)
++{
++    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
++    return value.fetch_add(increment, cuda::memory_order_relaxed);
++}
++
++__device__ void device_fetch_sub_release(std::uint64_t* address,
++                                         std::uint64_t decrement)
++{
++    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
++    (void)value.fetch_sub(decrement, cuda::memory_order_release);
++}
++
++__device__ hbfsim::device::DeviceTimingState* device_timing_state(
++    SharedControlHeader* header, std::uint64_t expected_generation)
++{
++    if (header->producer_mode != hbfsim::device::kProducerModeGpuExclusive ||
++        header->device_state_bytes !=
++            sizeof(hbfsim::device::DeviceTimingState) ||
++        header->device_state_address == 0 ||
++        header->device_state_generation != expected_generation) {
++        return nullptr;
++    }
++    auto* state = reinterpret_cast<hbfsim::device::DeviceTimingState*>(
++        header->device_state_address);
++    return device_acquire(&state->magic) ==
++                   hbfsim::device::kDeviceTimingStateMagic &&
++               device_acquire(&state->generation) == expected_generation &&
++               device_acquire(&state->poisoned) == 0
++           ? state
++           : nullptr;
++}
++
+ __device__ std::uint64_t gpu_time_ns()
+ {
+     std::uint64_t now;
+@@ -205,8 +260,49 @@ struct WaitState {
+ struct CompletionResult {
+     RequestStatus status{RequestStatus::IoError};
+     std::uint64_t frame_address{0};
++    std::uint32_t admitted{0};
+ };
+ 
++__device__ bool access_accounting_enabled()
++{
++    const auto config = __hbfsim_access_accounting_config;
++    return config.magic == hbfsim::device::kAccessAccountingMagic &&
++           config.version == hbfsim::device::kAccessAccountingVersion &&
++           config.struct_bytes == sizeof(config) && config.enabled == 1;
++}
++
++__device__ void account_add(std::uint64_t* field, std::uint64_t value)
++{
++    if (value == 0) return;
++    auto observed = system_acquire(field);
++    for (;;) {
++        const bool overflow = value > UINT64_MAX - observed;
++        const auto desired = overflow ? UINT64_MAX : observed + value;
++        auto expected = observed;
++        if (system_compare_exchange(field, expected, desired)) {
++            if (overflow) {
++                (void)system_fetch_add(
++                    &__hbfsim_access_accounting_counters.counter_overflow, 1);
++            }
++            return;
++        }
++        observed = expected;
++    }
++}
++
++__device__ std::uint64_t range_intersection_bytes(
++    const SharedRangeRecord& range, std::uint64_t address,
++    std::uint32_t bytes)
++{
++    if (bytes == 0 || range.length > UINT64_MAX - range.base ||
++        bytes > UINT64_MAX - address) return 0;
++    const auto access_end = address + bytes;
++    const auto range_end = range.base + range.length;
++    const auto begin = address > range.base ? address : range.base;
++    const auto end = access_end < range_end ? access_end : range_end;
++    return end > begin ? end - begin : 0;
++}
++
+ __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
+                                        WaitState& wait)
+ {
+@@ -235,12 +331,14 @@ __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
+ }
+ 
+ __device__ RequestStatus reserve_request(
+-    SharedControlHeader* header, SharedRequestSlot* requests,
+-    SharedCompletionSlot* completions,
++    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
++    SharedRequestSlot* requests, SharedCompletionSlot* completions,
+     const hbfsim::device::HbfRequest& request, WaitState& wait,
+     std::uint64_t& ticket)
+ {
+-    auto admission = system_acquire(&header->admission_state);
++    auto admission = state != nullptr
++                         ? device_acquire(&state->admission_count)
++                         : system_acquire(&header->admission_state);
+     for (;;) {
+         if ((admission & hbfsim::device::kAdmissionClosedBit) != 0 ||
+             (admission & hbfsim::device::kAdmissionCountMask) ==
+@@ -248,17 +346,24 @@ __device__ RequestStatus reserve_request(
+             return RequestStatus::IoError;
+         }
+         auto expected = admission;
+-        if (system_compare_exchange(&header->admission_state, expected,
+-                                    admission + 1)) {
++        if (state != nullptr
++                ? device_compare_exchange(&state->admission_count, expected,
++                                          admission + 1)
++                : system_compare_exchange(&header->admission_state, expected,
++                                          admission + 1)) {
+             break;
+         }
+         admission = expected;
+     }
+-    auto position = system_acquire(&header->request_producer);
++    auto position = state != nullptr
++                        ? device_acquire(&state->request_producer)
++                        : system_acquire(&header->request_producer);
+     for (;;) {
+         if ((system_acquire(&header->admission_state) &
+              hbfsim::device::kAdmissionClosedBit) != 0) {
+-            system_fetch_sub_release(&header->admission_state, 1);
++            state != nullptr
++                ? device_fetch_sub_release(&state->admission_count, 1)
++                : system_fetch_sub_release(&header->admission_state, 1);
+             return RequestStatus::IoError;
+         }
+         auto& request_slot =
+@@ -274,13 +379,18 @@ __device__ RequestStatus reserve_request(
+             static_cast<std::int64_t>(completion_sequence - position);
+         if (request_difference == 0 && completion_difference == 0) {
+             auto expected = position;
+-            if (system_compare_exchange(&header->request_producer, expected,
+-                                        position + 1)) {
++            if (state != nullptr
++                    ? device_compare_exchange(&state->request_producer,
++                                              expected, position + 1)
++                    : system_compare_exchange(&header->request_producer,
++                                              expected, position + 1)) {
+                 request_slot.value = request;
+                 request_slot.value.request_id = position + 1;
+                 request_slot.value.sequence = position;
+                 system_release(&request_slot.sequence, position + 1);
+-                system_fetch_sub_release(&header->admission_state, 1);
++                state != nullptr
++                ? device_fetch_sub_release(&state->admission_count, 1)
++                : system_fetch_sub_release(&header->admission_state, 1);
+                 ticket = position;
+                 return RequestStatus::Ready;
+             }
+@@ -288,21 +398,27 @@ __device__ RequestStatus reserve_request(
+             continue;
+         }
+         if (request_difference > 0 && completion_difference > 0) {
+-            position = system_acquire(&header->request_producer);
++            position = state != nullptr
++                           ? device_acquire(&state->request_producer)
++                           : system_acquire(&header->request_producer);
+             continue;
+         }
+         const auto liveness = poll_liveness(header, wait);
+         if (liveness != RequestStatus::Pending) {
+-            system_fetch_sub_release(&header->admission_state, 1);
++            state != nullptr
++                ? device_fetch_sub_release(&state->admission_count, 1)
++                : system_fetch_sub_release(&header->admission_state, 1);
+             return liveness;
+         }
+-        position = system_acquire(&header->request_producer);
++        position = state != nullptr
++                           ? device_acquire(&state->request_producer)
++                           : system_acquire(&header->request_producer);
+     }
+ }
+ 
+ __device__ CompletionResult wait_for_completion(
+-    SharedControlHeader* header, SharedCompletionSlot* completions,
+-    std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns)
++    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
++    SharedCompletionSlot* completions, std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns)
+ {
+     auto& slot = completions[ticket & (header->ring_capacity - 1)];
+     while (system_acquire(&slot.sequence) != ticket + 1) {
+@@ -313,24 +429,27 @@ __device__ CompletionResult wait_for_completion(
+             // after observing liveness failure so IoError/CopyError/etc. are
+             // not collapsed into a synthesized DaemonLost status.
+             if (system_acquire(&slot.sequence) != ticket + 1) {
+-                return {.status = liveness};
++                return {.status = liveness, .admitted = 1};
+             }
+             break;
+         }
+     }
+     const auto completion = slot.value;
+     system_release(&slot.sequence, ticket + header->ring_capacity);
+-    system_fetch_add(&header->completion_consumer, 1);
++    if (state != nullptr)
++        (void)device_fetch_add(&state->completion_consumer, 1);
++    else
++        (void)system_fetch_add(&header->completion_consumer, 1);
+     if (completion.request_id != ticket + 1 ||
+         completion.status == static_cast<std::uint32_t>(
+                                  RequestStatus::Pending) ||
+         completion.status > static_cast<std::uint32_t>(
+                                 RequestStatus::DaemonLost)) {
+-        return {.status = RequestStatus::IoError};
++        return {.status = RequestStatus::IoError, .admitted = 1};
+     }
+     const auto status = static_cast<RequestStatus>(completion.status);
+     if (status != RequestStatus::Ready) {
+-        return {.status = status};
++        return {.status = status, .admitted = 1};
+     }
+     const auto scaled = hbfsim::device::saturating_multiply(
+         completion.modeled_ns, header->time_scale);
+@@ -350,7 +469,7 @@ __device__ CompletionResult wait_for_completion(
+     while (gpu_time_ns() < target) {
+         const auto now = gpu_time_ns();
+         if (now >= wait.deadline_ns) {
+-            return {.status = RequestStatus::Timeout};
++            return {.status = RequestStatus::Timeout, .admitted = 1};
+         }
+         const auto nap = hbfsim::device::wait_sleep_ns(
+             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+@@ -359,11 +478,13 @@ __device__ CompletionResult wait_for_completion(
+         }
+     }
+     return {.status = RequestStatus::Ready,
+-            .frame_address = completion.cache_frame_address};
++            .frame_address = completion.cache_frame_address,
++            .admitted = 1};
+ }
+ 
+ __device__ CompletionResult resolve_leader(
+-    SharedControlHeader* header, const SharedRangeRecord& range,
++    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
++    const SharedRangeRecord& range,
+     const hbfsim::device::MediaDescriptor& media,
+     std::uint32_t operation)
+ {
+@@ -373,7 +494,7 @@ __device__ CompletionResult resolve_leader(
+         (capacity & (capacity - 1)) != 0 ||
+         header->request_timeout_ns == 0 ||
+         header->heartbeat_timeout_ns == 0 || header->time_scale == 0) {
+-        return {.status = RequestStatus::Unsupported};
++        return {.status = RequestStatus::Unsupported, .admitted = 0};
+     }
+     const auto arrival = gpu_time_ns();
+     WaitState wait{.deadline_ns = hbfsim::device::saturating_add(
+@@ -381,7 +502,7 @@ __device__ CompletionResult resolve_leader(
+                    .heartbeat_value = system_acquire(&header->heartbeat_ns),
+                    .heartbeat_observed_ns = arrival};
+     if (wait.heartbeat_value == 0) {
+-        return {.status = RequestStatus::DaemonLost};
++        return {.status = RequestStatus::DaemonLost, .admitted = 0};
+     }
+     auto* base = reinterpret_cast<std::byte*>(header);
+     auto* requests = reinterpret_cast<SharedRequestSlot*>(
+@@ -402,16 +523,15 @@ __device__ CompletionResult resolve_leader(
+         .flags = 0,
+     };
+     std::uint64_t ticket = 0;
+-    const auto reserved = reserve_request(header, requests, completions,
+-                                          request, wait, ticket);
++    const auto reserved = reserve_request(header, state, requests, completions, request, wait, ticket);
+     return reserved == RequestStatus::Ready
+-               ? wait_for_completion(header, completions, ticket, wait,
+-                                     arrival)
+-               : CompletionResult{.status = reserved};
++               ? wait_for_completion(header, state, completions, ticket, wait, arrival)
++               : CompletionResult{.status = reserved, .admitted = 0};
+ }
+ 
+ __device__ CompletionResult resolve_fast_or_hybrid(
+-    SharedControlHeader* header, const SharedRangeRecord& range,
++    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
++    const SharedRangeRecord& range,
+     const hbfsim::device::MediaDescriptor& media,
+     std::uint32_t operation)
+ {
+@@ -420,9 +540,9 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+     const auto empirical_enabled = header->empirical_flags != 0;
+     if (empirical_enabled &&
+         !hbfsim::device::empirical_control_valid(*header)) {
+-        return {.status = RequestStatus::Unsupported};
++        return {.status = RequestStatus::Unsupported, .admitted = 0};
+     }
+-    const auto sequence = system_fetch_add(&header->fast_request_sequence, 1);
++    const auto sequence = (state != nullptr ? device_fetch_add(&state->fast_request_sequence, 1) : system_fetch_add(&header->fast_request_sequence, 1));
+     const auto sample_key = media.logical_address ^
+                             (static_cast<std::uint64_t>(range.range_id) << 32) ^
+                             operation;
+@@ -430,33 +550,31 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+         hbfsim::device::hybrid_reference_sample(
+             sequence, header->reference_warmup_requests,
+             header->reference_sample_threshold, sample_key)) {
+-        (void)system_fetch_add(&header->reference_requests, 1);
+-        return resolve_leader(header, range, media, operation);
++        (void)(state != nullptr ? device_fetch_add(&state->reference_requests, 1) : system_fetch_add(&header->reference_requests, 1));
++        return resolve_leader(header, state, range, media, operation);
+     }
+     if (header->timing_model != kFast && header->timing_model != kHybrid) {
+-        return {.status = RequestStatus::Unsupported};
++        return {.status = RequestStatus::Unsupported, .admitted = 0};
+     }
+ 
+     if (empirical_enabled) {
+         if (media.bytes != 4096 || range.page_bytes != 4096 ||
+             media.logical_address % media.bytes != 0 ||
+             header->time_scale == 0 || header->request_timeout_ns == 0) {
+-            return {.status = RequestStatus::Unsupported};
++            return {.status = RequestStatus::Unsupported, .admitted = 0};
+         }
+         const auto page = media.logical_address / media.bytes;
+         auto previous_state =
+-            system_acquire(&header->empirical_burst_state);
++            (state != nullptr ? device_acquire(&state->empirical_burst_state) : system_acquire(&header->empirical_burst_state));
+         hbfsim::device::EmpiricalRequestService request{};
+         for (;;) {
+             request = hbfsim::device::empirical_request_service(
+                 *header, previous_state, page, operation);
+             if (!request.valid) {
+-                return {.status = RequestStatus::Unsupported};
++                return {.status = RequestStatus::Unsupported, .admitted = 0};
+             }
+             auto expected = previous_state;
+-            if (system_compare_exchange(&header->empirical_burst_state,
+-                                        expected,
+-                                        request.packed_state)) {
++            if ((state != nullptr ? device_compare_exchange(&state->empirical_burst_state, expected, request.packed_state) : system_compare_exchange(&header->empirical_burst_state, expected, request.packed_state))) {
+                 break;
+             }
+             previous_state = expected;
+@@ -465,14 +583,14 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+         const auto arrival = gpu_time_ns();
+         const auto scaled_service = hbfsim::device::saturating_multiply(
+             request.service_ns, header->time_scale);
+-        auto tail = system_acquire(&header->fast_channel_tail_ns);
++        auto tail = (state != nullptr ? device_acquire(&state->fast_channel_tail_ns) : system_acquire(&header->fast_channel_tail_ns));
+         std::uint64_t target = 0;
+         for (;;) {
+             const auto start = tail > arrival ? tail : arrival;
+             target = hbfsim::device::saturating_add(start, scaled_service);
+             auto expected = tail;
+-            if (system_compare_exchange(&header->fast_channel_tail_ns,
+-                                        expected, target)) {
++            if ((state != nullptr ? device_compare_exchange(&state->fast_channel_tail_ns,
++                                        expected, target) : system_compare_exchange(&header->fast_channel_tail_ns, expected, target))) {
+                 break;
+             }
+             tail = expected;
+@@ -486,11 +604,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+         while (gpu_time_ns() < target) {
+             const auto now = gpu_time_ns();
+             if (now >= deadline) {
+-                return {.status = RequestStatus::Timeout};
++                return {.status = RequestStatus::Timeout, .admitted = 1};
+             }
+             if (system_acquire(&header->shutdown) != 0 ||
+                 system_acquire(&header->fault) != 0) {
+-                return {.status = RequestStatus::DaemonLost};
++                return {.status = RequestStatus::DaemonLost, .admitted = 1};
+             }
+             const auto nap = hbfsim::device::wait_sleep_ns(
+                 now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+@@ -498,10 +616,10 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+                 __nanosleep(nap);
+             }
+         }
+-        (void)system_fetch_add(&header->fast_requests, 1);
+-        (void)system_fetch_add(&header->fast_modeled_ns,
+-                               request.service_ns);
+-        return {.status = RequestStatus::Ready};
++        (void)(state != nullptr ? device_fetch_add(&state->fast_requests, 1) : system_fetch_add(&header->fast_requests, 1));
++        (void)(state != nullptr ? device_fetch_add(&state->fast_modeled_ns,
++                               request.service_ns) : system_fetch_add(&header->fast_modeled_ns, request.service_ns));
++        return {.status = RequestStatus::Ready, .admitted = 1};
+     }
+ 
+     const auto base_latency = operation == 0 ? header->read_latency_ns
+@@ -509,22 +627,21 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+     const auto transfer_ns = hbfsim::device::fast_transfer_ns(
+         media.bytes, header->aggregate_bandwidth_bytes_per_s);
+     if (base_latency == 0 || transfer_ns == 0 || header->time_scale == 0) {
+-        return {.status = RequestStatus::Unsupported};
++        return {.status = RequestStatus::Unsupported, .admitted = 0};
+     }
+     const auto arrival = gpu_time_ns();
+     const auto base_scaled = hbfsim::device::saturating_multiply(
+         base_latency, header->time_scale);
+     const auto transfer_scaled = hbfsim::device::saturating_multiply(
+         transfer_ns, header->time_scale);
+-    auto tail = system_acquire(&header->fast_channel_tail_ns);
++    auto tail = (state != nullptr ? device_acquire(&state->fast_channel_tail_ns) : system_acquire(&header->fast_channel_tail_ns));
+     std::uint64_t transfer_target = 0;
+     for (;;) {
+         const auto transfer_start = tail > arrival ? tail : arrival;
+         transfer_target = hbfsim::device::saturating_add(
+             transfer_start, transfer_scaled);
+         auto expected = tail;
+-        if (system_compare_exchange(&header->fast_channel_tail_ns, expected,
+-                                    transfer_target)) {
++        if ((state != nullptr ? device_compare_exchange(&state->fast_channel_tail_ns, expected, transfer_target) : system_compare_exchange(&header->fast_channel_tail_ns, expected, transfer_target))) {
+             break;
+         }
+         tail = expected;
+@@ -539,11 +656,11 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+     while (gpu_time_ns() < target) {
+         const auto now = gpu_time_ns();
+         if (now >= deadline) {
+-            return {.status = RequestStatus::Timeout};
++            return {.status = RequestStatus::Timeout, .admitted = 1};
+         }
+         if (system_acquire(&header->shutdown) != 0 ||
+             system_acquire(&header->fault) != 0) {
+-            return {.status = RequestStatus::DaemonLost};
++            return {.status = RequestStatus::DaemonLost, .admitted = 1};
+         }
+         const auto nap = hbfsim::device::wait_sleep_ns(
+             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
+@@ -551,13 +668,14 @@ __device__ CompletionResult resolve_fast_or_hybrid(
+             __nanosleep(nap);
+         }
+     }
+-    (void)system_fetch_add(&header->fast_requests, 1);
+-    (void)system_fetch_add(
+-        &header->fast_modeled_ns,
+-        hbfsim::device::fast_service_ns(
+-            base_latency, media.bytes,
+-            header->aggregate_bandwidth_bytes_per_s));
+-    return {.status = RequestStatus::Ready};
++    (void)(state != nullptr ? device_fetch_add(&state->fast_requests, 1) : system_fetch_add(&header->fast_requests, 1));
++    const auto modeled_ns = hbfsim::device::fast_service_ns(
++        base_latency, media.bytes,
++        header->aggregate_bandwidth_bytes_per_s);
++    (void)(state != nullptr
++               ? device_fetch_add(&state->fast_modeled_ns, modeled_ns)
++               : system_fetch_add(&header->fast_modeled_ns, modeled_ns));
++    return {.status = RequestStatus::Ready, .admitted = 1};
+ }
+ 
+ }  // namespace
+@@ -566,20 +684,41 @@ extern "C" __device__ hbfsim::device::ResolveResult
+ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+                  std::uint32_t operation)
+ {
++    const bool accounting = access_accounting_enabled();
++    if (accounting) {
++        account_add(&__hbfsim_access_accounting_counters.supported_accesses, 1);
++        account_add(&__hbfsim_access_accounting_counters.supported_bytes, bytes);
++    }
+     const auto control_address =
+         system_acquire(reinterpret_cast<const unsigned long long*>(
+             &__hbfsim_control));
+     const auto expected_generation =
+         system_acquire(reinterpret_cast<const unsigned long long*>(
+             &__hbfsim_control_generation));
+-    // An unbound module must preserve ordinary HBM semantics. The launch gate
+-    // rejects registered HBF pointers before such a module can execute, while
+-    // an all-zero alias is the intentional fast-path state for non-HBF work.
++    auto* mutable_control =
++        reinterpret_cast<SharedControlHeader*>(control_address);
++    auto* timing_state =
++        mutable_control != nullptr &&
++                mutable_control->producer_mode ==
++                    hbfsim::device::kProducerModeGpuExclusive
++            ? device_timing_state(mutable_control, expected_generation)
++            : nullptr;
++    // An unbound module must preserve ordinary HBM semantics. Accounting cannot
++    // infer whether the address overlaps a registration without the control
++    // range table, so keep this path explicitly unclassified.
+     if (control_address == 0) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, bytes == 0 ? RequestStatus::Unsupported
+                                         : RequestStatus::Ready);
+     }
+     if (expected_generation == 0 || bytes == 0) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+ 
+@@ -611,10 +750,18 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+         header->program_latency_ns == 0 ||
+         header->aggregate_bandwidth_bytes_per_s == 0 ||
+         system_acquire(&header->control_generation) != expected_generation) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+     const auto count = system_acquire(&header->range_count);
+     if (count > hbfsim::device::kRangeCapacity) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+ #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+@@ -629,6 +776,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+          !hbfsim::device::eval_chain_launch_matches(
+              chain_config, gridDim.x, gridDim.y, gridDim.z, blockDim.x,
+              blockDim.y, blockDim.z))) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+     const auto chain_producer =
+@@ -640,6 +791,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+     if (chain_experiment ==
+             hbfsim::device::EvalChainDiagnosticAction::Apply &&
+         chain_producer.valid == 0) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+ #endif
+@@ -656,8 +811,20 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+         // rejected by media_descriptor/access_supported, and the store side
+         // already rejects any overlap in timing_future_native_store_span.
+         // This makes the load side agree with both.
+-        if (hbfsim::device::span_touches_any_range(ranges, count, address,
+-                                                   bytes)) {
++        const auto index = hbfsim::device::find_range_index(ranges, count, address);
++        const auto successor = index == count ? 0U : index + 1U;
++        const SharedRangeRecord* overlap =
++            successor < count && hbfsim::device::range_overlaps(
++                ranges[successor], address, bytes) ? &ranges[successor] : nullptr;
++        if (overlap != nullptr) {
++            if (accounting) {
++                account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
++                account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
++                            range_intersection_bytes(*overlap, address, bytes));
++                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
++                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
++                            range_intersection_bytes(*overlap, address, bytes));
++            }
+             return fail(address, RequestStatus::Unsupported);
+         }
+ #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
+@@ -675,6 +842,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+                                    address, bytes, operation, observed_ns,
+                                    observed_ns, status) ||
+                 status != RequestStatus::Ready) {
++                if (accounting) {
++                    account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
++                    account_add(&__hbfsim_access_accounting_counters.unclassified_bytes,
++                                bytes);
++                }
+                 return fail(address, RequestStatus::Unsupported);
+             }
+         }
+@@ -683,8 +855,28 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_accesses, 1);
+             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_bytes, bytes);
+         }
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_bytes, bytes);
++        }
+         return fail(address, RequestStatus::Ready);
+     }
++    const auto intersection = range_intersection_bytes(*range, address, bytes);
++    if (accounting) {
++        account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
++        account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
++                    intersection);
++    }
++    if (header->producer_mode ==
++            hbfsim::device::kProducerModeGpuExclusive &&
++        timing_state == nullptr) {
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.failed_preissue_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.failed_preissue_bytes,
++                        intersection);
++        }
++        return fail(address, RequestStatus::DaemonLost);
++    }
+     const auto media = hbfsim::device::media_descriptor(
+         *range, address, bytes, operation);
+     if (!media.valid) {
+@@ -700,6 +892,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+                 RequestStatus::Unsupported);
+         }
+ #endif
++        if (accounting)
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
++        if (accounting)
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
++                        intersection);
+         return fail(address, RequestStatus::Unsupported);
+     }
+ 
+@@ -716,6 +913,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+                                     hbfsim::device::EvalChainEventClass::Rejected,
+                                     address, bytes, operation, observed_ns,
+                                     observed_ns, RequestStatus::Unsupported);
++            if (accounting) {
++                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
++                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
++                            intersection);
++            }
+             return fail(address, RequestStatus::Unsupported);
+         }
+     }
+@@ -725,6 +927,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+         __hbfsim_eval_delay_config, *range, operation, header->time_scale);
+     if (experiment == hbfsim::device::EvalDelayAction::Reject) {
+         (void)system_fetch_add(&__hbfsim_eval_delay_counters.rejected_accesses, 1);
++        if (accounting) {
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
++                        intersection);
++        }
+         return fail(address, RequestStatus::Unsupported);
+     }
+ 
+@@ -758,6 +965,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+                 const auto timeout_ns = system_acquire(&header->request_timeout_ns);
+                 const bool live = eval_delay_control_ready(header, expected_generation) &&
+                                   timeout_ns != 0;
++                resolution.admitted = live ? 1U : 0U;
+                 const auto interval = eval_delay_clock_wait(
+                     live ? config.delay_ns : 0, timeout_ns);
+                 resolution.status = live ? interval.status : RequestStatus::DaemonLost;
+@@ -780,6 +988,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+             const bool live =
+                 eval_delay_control_ready(header, expected_generation) &&
+                 timeout_ns != 0;
++            resolution.admitted = live ? 1U : 0U;
+             const auto interval = eval_delay_clock_wait(
+                 live ? chain_config.delay_ns : 0, timeout_ns);
+             resolution.status =
+@@ -798,14 +1007,40 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+ #endif
+         else {
+             resolution = range->mode == 1 && header->timing_model != 0
+-                         ? resolve_fast_or_hybrid(mutable_header, *range,
+-                                                  media, operation)
+-                         : resolve_leader(mutable_header, *range, media,
+-                                          operation);
++                         ? resolve_fast_or_hybrid(mutable_header, timing_state, *range, media, operation)
++                         : resolve_leader(mutable_header, timing_state, *range, media, operation);
+         }
+     }
+     auto status = __shfl_sync(
+         group, static_cast<std::uint32_t>(resolution.status), leader);
++    const auto admitted = __shfl_sync(group, resolution.admitted, leader);
++    if (accounting) {
++        if (admitted != 0) {
++            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_bytes,
++                        intersection);
++            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
++                account_add(&__hbfsim_access_accounting_counters.service_completed_accesses, 1);
++            else
++                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_accesses, 1);
++            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
++                account_add(&__hbfsim_access_accounting_counters.service_completed_bytes,
++                            intersection);
++            else
++                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_bytes,
++                            intersection);
++        } else if (status == static_cast<std::uint32_t>(RequestStatus::Unsupported)) {
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
++                        intersection);
++        } else {
++            account_add(&__hbfsim_access_accounting_counters.failed_preissue_accesses, 1);
++            account_add(&__hbfsim_access_accounting_counters.failed_preissue_bytes,
++                        intersection);
++        }
++        if (static_cast<int>(lane_id()) == leader && admitted != 0)
++            account_add(&__hbfsim_access_accounting_counters.service_requests, 1);
++    }
+     const auto frame = __shfl_sync(group, resolution.frame_address, leader);
+     if (status != static_cast<std::uint32_t>(RequestStatus::Ready)) {
+         return {.address = address, .status = status, .reserved = 0};
+@@ -813,6 +1048,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
+     const auto translated =
+         hbfsim::device::resolved_address(*range, address, frame);
+     if (translated == 0) {
++        if (accounting)
++            account_add(&__hbfsim_access_accounting_counters.translation_failed_accesses, 1);
++        if (accounting)
++            account_add(&__hbfsim_access_accounting_counters.translation_failed_bytes,
++                        intersection);
+         return fail(address, RequestStatus::CopyError);
+     }
+     return {.address = translated, .status = status, .reserved = 0};
+@@ -1056,7 +1296,9 @@ __device__ SharedControlHeader* future_header()
+     const auto generation=system_acquire(&__hbfsim_control_generation);
+     if (alias!=config.control_alias || generation!=config.control_generation) return nullptr;
+     auto* h=reinterpret_cast<SharedControlHeader*>(alias);
+-    if (h->magic!=hbfsim::device::kControlMagic || h->abi_version!=4 ||
++    if (h->magic!=hbfsim::device::kControlMagic ||
++        h->abi_version!=hbfsim::device::kControlAbiVersion ||
++        h->producer_mode==hbfsim::device::kProducerModeGpuExclusive ||
+         h->header_bytes!=sizeof(*h) || h->range_capacity!=hbfsim::device::kRangeCapacity ||
+         !hbfsim::device::valid_ring_capacity(h->ring_capacity) || h->page_capacity!=h->ring_capacity ||
+         h->range_offset!=sizeof(*h) ||
+diff --git a/src/cuda_runtime/device/hbf_device.cuh b/src/cuda_runtime/device/hbf_device.cuh
+index 9ae7cf4..5f4afce 100644
+--- a/src/cuda_runtime/device/hbf_device.cuh
++++ b/src/cuda_runtime/device/hbf_device.cuh
+@@ -15,7 +15,9 @@ namespace hbfsim::device {
+ #endif
+ 
+ inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
+-inline constexpr std::uint32_t kControlAbiVersion = 4;
++inline constexpr std::uint32_t kControlAbiVersion = 5;
++inline constexpr std::uint32_t kProducerModeHostNativeAtomic = 0;
++inline constexpr std::uint32_t kProducerModeGpuExclusive = 1;
+ inline constexpr std::uint32_t kRangeCapacity = 32'768;
+ inline constexpr std::uint32_t kMinimumRingCapacity = 2;
+ inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
+@@ -76,8 +78,30 @@ struct alignas(64) SharedControlHeader {
+     std::uint32_t empirical_breakpoint_pages[6];
+     std::uint32_t empirical_point_count;
+     std::uint32_t empirical_flags;
++    std::uint64_t device_state_address;
++    std::uint32_t device_state_bytes;
++    std::uint32_t producer_mode;
++    std::uint64_t device_state_generation;
++    std::uint64_t reserved_device_state[2];
+ };
+ 
++inline constexpr std::uint64_t kDeviceTimingStateMagic = 0x4842464453544154ULL;
++struct alignas(64) DeviceTimingState {
++    std::uint64_t magic;
++    std::uint64_t generation;
++    std::uint64_t fast_request_sequence;
++    std::uint64_t fast_channel_tail_ns;
++    std::uint64_t fast_requests;
++    std::uint64_t reference_requests;
++    std::uint64_t fast_modeled_ns;
++    std::uint64_t empirical_burst_state;
++    std::uint64_t request_producer;
++    std::uint64_t completion_consumer;
++    std::uint64_t admission_count;
++    std::uint64_t poisoned;
++};
++static_assert(sizeof(DeviceTimingState) == 128);
++
+ struct alignas(64) SharedRangeRecord {
+     std::uint64_t base;
+     std::uint64_t length;
+@@ -109,6 +133,46 @@ struct EvalDelayCounters {
+     std::uint64_t rejected_accesses;
+     std::uint64_t trace_overflow;
+ };
++
++// Default-off, module-local accounting for rebuttal experiments. This is
++// deliberately separate from SharedControlHeader: enabling observation must
++// not change the daemon/control ABI or production behavior.
++inline constexpr std::uint64_t kAccessAccountingMagic =
++    0x4842464143435431ULL;
++inline constexpr std::uint32_t kAccessAccountingVersion = 2;
++struct AccessAccountingConfig {
++    std::uint64_t magic;
++    std::uint32_t version;
++    std::uint32_t struct_bytes;
++    std::uint64_t enabled;
++    std::uint64_t request_epoch;
++};
++struct AccessAccountingCounters {
++    std::uint64_t supported_accesses;
++    std::uint64_t supported_bytes;
++    std::uint64_t in_range_accesses;
++    std::uint64_t in_range_intersection_bytes;
++    std::uint64_t native_out_of_range_accesses;
++    std::uint64_t native_out_of_range_bytes;
++    std::uint64_t modeled_admitted_accesses;
++    std::uint64_t modeled_admitted_bytes;
++    std::uint64_t service_completed_accesses;
++    std::uint64_t service_completed_bytes;
++    std::uint64_t failed_after_issue_accesses;
++    std::uint64_t failed_after_issue_bytes;
++    std::uint64_t unsupported_preissue_accesses;
++    std::uint64_t unsupported_preissue_bytes;
++    std::uint64_t failed_preissue_accesses;
++    std::uint64_t failed_preissue_bytes;
++    std::uint64_t translation_failed_accesses;
++    std::uint64_t translation_failed_bytes;
++    std::uint64_t service_requests;
++    std::uint64_t unclassified_accesses;
++    std::uint64_t unclassified_bytes;
++    std::uint64_t counter_overflow;
++};
++static_assert(sizeof(AccessAccountingConfig) == 32);
++static_assert(sizeof(AccessAccountingCounters) == 176);
+ struct EvalDelayTrace {
+     std::uint64_t thread_id;
+     std::uint64_t address;
+@@ -563,6 +627,8 @@ static_assert(offsetof(SharedControlHeader, empirical_cumulative_ns) == 264);
+ static_assert(offsetof(SharedControlHeader, empirical_breakpoint_pages) == 312);
+ static_assert(offsetof(SharedControlHeader, empirical_point_count) == 336);
+ static_assert(offsetof(SharedControlHeader, empirical_flags) == 340);
++static_assert(offsetof(SharedControlHeader, device_state_address) == 344);
++static_assert(offsetof(SharedControlHeader, producer_mode) == 356);
+ 
+ HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
+     std::uint64_t value) noexcept
+diff --git a/src/cuda_runtime/vmm.hpp b/src/cuda_runtime/vmm.hpp
+index bc738a2..40834d8 100644
+--- a/src/cuda_runtime/vmm.hpp
++++ b/src/cuda_runtime/vmm.hpp
+@@ -93,6 +93,10 @@ class VmmFramePool {
+     {
+         return frame_addresses_;
+     }
++    [[nodiscard]] std::size_t reserved_bytes() const noexcept
++    {
++        return reserved_bytes_;
++    }
+     [[nodiscard]] bool release() noexcept;
+ 
+   private:
+diff --git a/src/host_service/capacity_page_service.cpp b/src/host_service/capacity_page_service.cpp
+index 7e2d793..7f988f6 100644
+--- a/src/host_service/capacity_page_service.cpp
++++ b/src/host_service/capacity_page_service.cpp
+@@ -21,9 +21,10 @@ RequestStatus checked_status(RequestStatus status)
+ CapacityPageService::CapacityPageService(CapacityBackingIo backing,
+                                          runtime::HbmCache& cache,
+                                          std::size_t page_bytes,
+-                                         CapacityFrameIo frame_io)
++                                         CapacityFrameIo frame_io,
++                                         bool enable_stats)
+     : backing_(std::move(backing)), cache_(cache), page_bytes_(page_bytes),
+-      frame_io_(std::move(frame_io))
++      frame_io_(std::move(frame_io)), stats_enabled_(enable_stats)
+ {
+     if (page_bytes_ == 0 || !backing_.read_page || !backing_.write_page ||
+         !backing_.flush || !frame_io_.host_to_frame ||
+@@ -36,7 +37,8 @@ CapacityPageService::CapacityPageService(CapacityBackingIo backing,
+ CapacityPageService::CapacityPageService(BackingStore& backing,
+                                          runtime::HbmCache& cache,
+                                          std::size_t page_bytes,
+-                                         CapacityFrameIo frame_io)
++                                         CapacityFrameIo frame_io,
++                                         bool enable_stats)
+     : CapacityPageService(
+           {
+               .read_page = [&backing](std::uint64_t page,
+@@ -58,7 +60,7 @@ CapacityPageService::CapacityPageService(BackingStore& backing,
+                   return RequestStatus::Ready;
+               },
+           },
+-          cache, page_bytes, std::move(frame_io))
++          cache, page_bytes, std::move(frame_io), enable_stats)
+ {}
+ 
+ RequestStatus CapacityPageService::writeback(
+@@ -74,12 +76,19 @@ RequestStatus CapacityPageService::writeback(
+         if (!frame_io_.frame_to_host(eviction.frame_address, page)) {
+             return RequestStatus::CopyError;
+         }
++        if (stats_enabled_) ++stats_.successful_d2h_readback_pages;
++        if (stats_enabled_) stats_.successful_d2h_readback_bytes += page_bytes_;
+     } catch (...) {
+         return RequestStatus::CopyError;
+     }
+     try {
+-        return checked_status(
++        const auto status = checked_status(
+             backing_.write_page(eviction.logical_page, page_bytes_, page));
++        if (status == RequestStatus::Ready) {
++            if (stats_enabled_) ++stats_.successful_backing_write_pages;
++            if (stats_enabled_) stats_.successful_backing_write_bytes += page_bytes_;
++        }
++        return status;
+     } catch (...) {
+         return RequestStatus::IoError;
+     }
+@@ -88,26 +97,32 @@ RequestStatus CapacityPageService::writeback(
+ CapacityResolveResult CapacityPageService::resolve(
+     std::uint64_t logical_page, std::uint32_t operation)
+ {
++    std::lock_guard lock(mutex_);
++    if (stats_enabled_) ++stats_.service_resolve_calls;
+     if (operation > 1) {
+         return {.status = RequestStatus::Unsupported};
+     }
+-    std::lock_guard lock(mutex_);
+     if (const auto resident = cache_.resolve(logical_page); resident) {
++        if (stats_enabled_) ++stats_.service_resident_hits;
+         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
+             return {.status = RequestStatus::IoError};
+         }
++        if (stats_enabled_) ++stats_.service_ready_results;
+         return {.status = RequestStatus::Ready,
+                 .frame_address = *resident};
+     }
+     if (const auto reclaimed = cache_.reclaim_eviction(logical_page);
+         reclaimed) {
++        if (stats_enabled_) ++stats_.service_reclaimed_hits;
+         if (operation == 1 && !cache_.mark_dirty(logical_page)) {
+             return {.status = RequestStatus::IoError};
+         }
++        if (stats_enabled_) ++stats_.service_ready_results;
+         return {.status = RequestStatus::Ready,
+                 .frame_address = *reclaimed};
+     }
+ 
++    if (stats_enabled_) ++stats_.service_misses;
+     CapacityMediaPlan media{.flags = CapacityMediaRead};
+     auto frame = cache_.free_frame();
+     if (!frame.has_value()) {
+@@ -135,6 +150,9 @@ CapacityResolveResult CapacityPageService::resolve(
+         if (!cache_.complete_eviction(*eviction)) {
+             return {.status = RequestStatus::IoError};
+         }
++        if (stats_enabled_) {
++            ++stats_.successful_resolve_evictions;
++        }
+         resident_range_ids_.erase(eviction->logical_page);
+         frame = eviction->frame_address;
+     }
+@@ -154,6 +172,8 @@ CapacityResolveResult CapacityPageService::resolve(
+         }
+         range_id = routed.range_id;
+         page = std::move(routed.bytes);
++        if (stats_enabled_) ++stats_.successful_backing_read_pages;
++        if (stats_enabled_) stats_.successful_backing_read_bytes += page_bytes_;
+     } catch (...) {
+         return {.status = RequestStatus::IoError};
+     }
+@@ -161,6 +181,8 @@ CapacityResolveResult CapacityPageService::resolve(
+         if (!frame_io_.host_to_frame(*frame, page)) {
+             return {.status = RequestStatus::CopyError};
+         }
++        if (stats_enabled_) ++stats_.successful_h2d_fill_pages;
++        if (stats_enabled_) stats_.successful_h2d_fill_bytes += page_bytes_;
+     } catch (...) {
+         return {.status = RequestStatus::CopyError};
+     }
+@@ -181,11 +203,18 @@ CapacityResolveResult CapacityPageService::resolve(
+     if (operation == 1 && !cache_.mark_dirty(logical_page)) {
+         return {.status = RequestStatus::IoError};
+     }
++    if (stats_enabled_) ++stats_.service_ready_results;
+     return {.status = RequestStatus::Ready,
+             .frame_address = *frame,
+             .media = media};
+ }
+ 
++CapacityPageServiceStats CapacityPageService::stats()
++{
++    std::lock_guard lock(mutex_);
++    return stats_;
++}
++
+ RequestStatus CapacityPageService::flush()
+ {
+     std::lock_guard lock(mutex_);
+diff --git a/src/host_service/capacity_page_service.hpp b/src/host_service/capacity_page_service.hpp
+index 8d60d67..f9c8788 100644
+--- a/src/host_service/capacity_page_service.hpp
++++ b/src/host_service/capacity_page_service.hpp
+@@ -32,6 +32,26 @@ struct CapacityResolveResult {
+     CapacityMediaPlan media;
+ };
+ 
++// These counters cover CapacityPageService host resolution only. Device
++// resident fast paths may bypass this service and are deliberately not
++// inferred from total device loads.
++struct CapacityPageServiceStats {
++    std::uint64_t service_resolve_calls{0};
++    std::uint64_t service_resident_hits{0};
++    std::uint64_t service_reclaimed_hits{0};
++    std::uint64_t service_misses{0};
++    std::uint64_t successful_backing_read_pages{0};
++    std::uint64_t successful_backing_read_bytes{0};
++    std::uint64_t successful_h2d_fill_pages{0};
++    std::uint64_t successful_h2d_fill_bytes{0};
++    std::uint64_t successful_resolve_evictions{0};
++    std::uint64_t service_ready_results{0};
++    std::uint64_t successful_d2h_readback_pages{0};
++    std::uint64_t successful_d2h_readback_bytes{0};
++    std::uint64_t successful_backing_write_pages{0};
++    std::uint64_t successful_backing_write_bytes{0};
++};
++
+ struct CapacityBackingIo {
+     std::function<RoutedPage(std::uint64_t, std::size_t)> read_page;
+     std::function<RequestStatus(std::uint64_t, std::size_t,
+@@ -46,9 +66,11 @@ class CapacityPageService {
+         std::function<RequestStatus(std::uint32_t, std::uint64_t)>;
+ 
+     CapacityPageService(CapacityBackingIo backing, runtime::HbmCache& cache,
+-                        std::size_t page_bytes, CapacityFrameIo frame_io);
++                        std::size_t page_bytes, CapacityFrameIo frame_io,
++                        bool enable_stats = false);
+     CapacityPageService(BackingStore& backing, runtime::HbmCache& cache,
+-                        std::size_t page_bytes, CapacityFrameIo frame_io);
++                        std::size_t page_bytes, CapacityFrameIo frame_io,
++                        bool enable_stats = false);
+ 
+     CapacityResolveResult resolve(std::uint64_t logical_page,
+                                   std::uint32_t operation);
+@@ -58,6 +80,7 @@ class CapacityPageService {
+         std::optional<std::uint32_t> range_id = std::nullopt);
+     RequestStatus flush(std::uint64_t first_page,
+                         std::uint64_t page_count);
++    [[nodiscard]] CapacityPageServiceStats stats();
+ 
+   private:
+     RequestStatus writeback(const runtime::CacheEviction& eviction);
+@@ -68,7 +91,9 @@ class CapacityPageService {
+     runtime::HbmCache& cache_;
+     std::size_t page_bytes_;
+     CapacityFrameIo frame_io_;
++    bool stats_enabled_{false};
+     std::unordered_map<std::uint64_t, std::uint32_t> resident_range_ids_;
++    CapacityPageServiceStats stats_;
+     std::mutex mutex_;
+ };
+ 
+diff --git a/src/host_service/control_layout.hpp b/src/host_service/control_layout.hpp
+index c08c7d2..202bc91 100644
+--- a/src/host_service/control_layout.hpp
++++ b/src/host_service/control_layout.hpp
+@@ -12,7 +12,9 @@
+ 
+ namespace hbfsim::host_service {
+ 
+-inline constexpr std::uint32_t kControlAbiVersion = 4;
++inline constexpr std::uint32_t kControlAbiVersion = 5;
++inline constexpr std::uint32_t kProducerModeHostNativeAtomic = 0;
++inline constexpr std::uint32_t kProducerModeGpuExclusive = 1;
+ inline constexpr std::uint32_t kRangeCapacity = 32'768;
+ inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
+ inline constexpr std::uint32_t kMinimumRingCapacity = 2;
+@@ -121,8 +123,30 @@ struct alignas(64) SharedControlHeader {
+     std::uint32_t empirical_breakpoint_pages[6];
+     std::uint32_t empirical_point_count;
+     std::uint32_t empirical_flags;
++    std::uint64_t device_state_address;
++    std::uint32_t device_state_bytes;
++    std::uint32_t producer_mode;
++    std::uint64_t device_state_generation;
++    std::uint64_t reserved_device_state[2];
+ };
+ 
++inline constexpr std::uint64_t kDeviceTimingStateMagic = 0x4842464453544154ULL;
++struct alignas(64) DeviceTimingState {
++    std::uint64_t magic;
++    std::uint64_t generation;
++    std::uint64_t fast_request_sequence;
++    std::uint64_t fast_channel_tail_ns;
++    std::uint64_t fast_requests;
++    std::uint64_t reference_requests;
++    std::uint64_t fast_modeled_ns;
++    std::uint64_t empirical_burst_state;
++    std::uint64_t request_producer;
++    std::uint64_t completion_consumer;
++    std::uint64_t admission_count;
++    std::uint64_t poisoned;
++};
++static_assert(sizeof(DeviceTimingState) == 128);
++
+ struct alignas(64) SharedRangeRecord {
+     std::uint64_t base;
+     std::uint64_t length;
+@@ -157,6 +181,8 @@ static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
+ static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
+ static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
+ static_assert(sizeof(SharedControlHeader) == 384);
++static_assert(offsetof(SharedControlHeader, device_state_address) == 344);
++static_assert(offsetof(SharedControlHeader, producer_mode) == 356);
+ static_assert(sizeof(SharedRangeRecord) == 64);
+ static_assert(sizeof(SharedRequestSlot) == 128);
+ static_assert(sizeof(SharedCompletionSlot) == 128);
+diff --git a/tests/cpu/capacity_page_service_test.cpp b/tests/cpu/capacity_page_service_test.cpp
+index 103b7c5..4bc6e6c 100644
+--- a/tests/cpu/capacity_page_service_test.cpp
++++ b/tests/cpu/capacity_page_service_test.cpp
+@@ -94,7 +94,7 @@ int main()
+                 std::ranges::copy(frames.at(frame), data.begin());
+                 return true;
+             },
+-        });
++        }, true);
+ 
+     const auto page_zero = service.resolve(0, 0);
+     CHECK(page_zero.status == hbfsim::RequestStatus::Ready);
+@@ -107,6 +107,16 @@ int main()
+     CHECK(page_zero_hit.status == hbfsim::RequestStatus::Ready);
+     CHECK(page_zero_hit.media.flags ==
+           hbfsim::host_service::CapacityMediaNone);
++    const auto initial_stats = service.stats();
++    CHECK(initial_stats.service_resolve_calls == 2);
++    CHECK(initial_stats.service_resident_hits == 1);
++    CHECK(initial_stats.service_reclaimed_hits == 0);
++    CHECK(initial_stats.service_misses == 1);
++    CHECK(initial_stats.successful_backing_read_pages == 1);
++    CHECK(initial_stats.successful_backing_read_bytes == page_bytes);
++    CHECK(initial_stats.successful_h2d_fill_pages == 1);
++    CHECK(initial_stats.successful_h2d_fill_bytes == page_bytes);
++    CHECK(initial_stats.service_ready_results == 2);
+ 
+     const auto page_one = service.resolve(1, 1);
+     CHECK(page_one.status == hbfsim::RequestStatus::Ready);
+@@ -176,6 +186,8 @@ int main()
+     CHECK(!retry_cache.resolve(0).has_value());
+     CHECK(retry_service.resolve(0, 0).status ==
+           hbfsim::RequestStatus::Ready);
++    CHECK(retry_service.stats().service_resolve_calls == 0);
++    CHECK(retry_service.stats().successful_backing_read_bytes == 0);
+ 
+     const auto page_zero_before_writeback =
+         backing.read_page(0, page_bytes);
+diff --git a/tests/cpu/context_lifecycle_test.cpp b/tests/cpu/context_lifecycle_test.cpp
+index 62eca4e..d42a89f 100644
+--- a/tests/cpu/context_lifecycle_test.cpp
++++ b/tests/cpu/context_lifecycle_test.cpp
+@@ -116,7 +116,7 @@ void verify_empirical_publication(hbfsim_context* context,
+     CHECK(mapping != MAP_FAILED);
+     const auto* header =
+         static_cast<const hbfsim::host_service::SharedControlHeader*>(mapping);
+-    CHECK(header->abi_version == 4);
++    CHECK(header->abi_version == 5);
+     CHECK(header->empirical_burst_state == 0);
+     if (expected_empirical) {
+         CHECK(header->empirical_flags == 1);
+diff --git a/tests/cpu/device_helper_abi_test.cpp b/tests/cpu/device_helper_abi_test.cpp
+index 7a50e8b..1687b47 100644
+--- a/tests/cpu/device_helper_abi_test.cpp
++++ b/tests/cpu/device_helper_abi_test.cpp
+@@ -16,8 +16,8 @@ int main()
+ {
+     using namespace hbfsim;
+     using namespace hbfsim::device;
+-    static_assert(device::kControlAbiVersion == 4);
+-    static_assert(host_service::kControlAbiVersion == 4);
++    static_assert(device::kControlAbiVersion == 5);
++    static_assert(host_service::kControlAbiVersion == 5);
+     static_assert(sizeof(SharedControlHeader) == 384);
+     static_assert(sizeof(SharedControlHeader) ==
+                   sizeof(host_service::SharedControlHeader));

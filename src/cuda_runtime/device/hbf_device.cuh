@@ -109,6 +109,46 @@ struct EvalDelayCounters {
     std::uint64_t rejected_accesses;
     std::uint64_t trace_overflow;
 };
+
+// Default-off, module-local accounting for rebuttal experiments. This is
+// deliberately separate from SharedControlHeader: enabling observation must
+// not change the daemon/control ABI or production behavior.
+inline constexpr std::uint64_t kAccessAccountingMagic =
+    0x4842464143435431ULL;
+inline constexpr std::uint32_t kAccessAccountingVersion = 2;
+struct AccessAccountingConfig {
+    std::uint64_t magic;
+    std::uint32_t version;
+    std::uint32_t struct_bytes;
+    std::uint64_t enabled;
+    std::uint64_t request_epoch;
+};
+struct AccessAccountingCounters {
+    std::uint64_t supported_accesses;
+    std::uint64_t supported_bytes;
+    std::uint64_t in_range_accesses;
+    std::uint64_t in_range_intersection_bytes;
+    std::uint64_t native_out_of_range_accesses;
+    std::uint64_t native_out_of_range_bytes;
+    std::uint64_t modeled_admitted_accesses;
+    std::uint64_t modeled_admitted_bytes;
+    std::uint64_t service_completed_accesses;
+    std::uint64_t service_completed_bytes;
+    std::uint64_t failed_after_issue_accesses;
+    std::uint64_t failed_after_issue_bytes;
+    std::uint64_t unsupported_preissue_accesses;
+    std::uint64_t unsupported_preissue_bytes;
+    std::uint64_t failed_preissue_accesses;
+    std::uint64_t failed_preissue_bytes;
+    std::uint64_t translation_failed_accesses;
+    std::uint64_t translation_failed_bytes;
+    std::uint64_t service_requests;
+    std::uint64_t unclassified_accesses;
+    std::uint64_t unclassified_bytes;
+    std::uint64_t counter_overflow;
+};
+static_assert(sizeof(AccessAccountingConfig) == 32);
+static_assert(sizeof(AccessAccountingCounters) == 176);
 struct EvalDelayTrace {
     std::uint64_t thread_id;
     std::uint64_t address;

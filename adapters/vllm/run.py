@@ -5,15 +5,20 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ctypes
 import gc
+import hashlib
 import importlib.metadata
+import inspect
 import json
 import os
 import pathlib
 import random
 import re
+import shutil
 import subprocess
 import time
+import traceback
 from typing import Any
 
 
@@ -47,6 +52,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-model-len", type=int, default=256)
     parser.add_argument("--max-num-batched-tokens", type=int, default=256)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.85)
+    parser.add_argument("--moe-backend", choices=("triton",), default="triton")
     parser.add_argument("--hbf-parameter-regex", default="")
     parser.add_argument("--hbf-range-bytes", type=int, default=0)
     parser.add_argument(
@@ -55,6 +61,14 @@ def parse_args() -> argparse.Namespace:
         default="hybrid",
     )
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--warmup-requests", type=int, default=0)
+    parser.add_argument("--request-accounting", action="store_true")
+    parser.add_argument(
+        "--eval-delay-ns", type=int, default=-1,
+        help="enable the established per-module eval-delay control; 0 is the matched control",
+    )
+    parser.add_argument("--accounting-epoch", type=int, default=1)
+    parser.add_argument("--eval-trace-capacity", type=int, default=1_000_000)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -72,13 +86,21 @@ def configure_environment(report: pathlib.Path) -> pathlib.Path:
         "TRITON_CACHE_DIR": str(cache / "triton"),
         "FLASHINFER_WORKSPACE_BASE": str(cache / "flashinfer"),
         "CUDA_CACHE_PATH": str(cache / "cuda"),
-        "CC": "/usr/bin/gcc-13",
-        "CXX": "/usr/bin/g++-13",
         "HF_HUB_OFFLINE": "1",
         "TRANSFORMERS_OFFLINE": "1",
+        # vLLM 0.15.1 uses Triton for unquantized BF16 MoE unless a
+        # FlashInfer MoE opt-in is enabled.  Keep that opt-in disabled; the
+        # actual fused_moe_kernel binding receipt remains the runtime proof.
+        "VLLM_USE_FLASHINFER_MOE_FP16": "0",
     }
     for name, value in defaults.items():
         os.environ.setdefault(name, value)
+    cc = os.environ.get("CC") or shutil.which("gcc-13") or shutil.which("gcc")
+    cxx = os.environ.get("CXX") or shutil.which("g++-13") or shutil.which("g++")
+    if not cc or not cxx:
+        raise RuntimeError("no existing C/C++ compiler found for runtime JIT")
+    os.environ["CC"] = cc
+    os.environ["CXX"] = cxx
     # bpftime initializes CUDA state in the preloaded process. Forking a V1
     # engine core after that state exists is unsupported by the CUDA runtime.
     os.environ["VLLM_ENABLE_V1_MULTIPROCESSING"] = "0"
@@ -154,7 +176,12 @@ def base_manifest(args: argparse.Namespace, cache: pathlib.Path) -> dict[str, An
         "max_model_len": args.max_model_len,
         "max_num_batched_tokens": args.max_num_batched_tokens,
         "seed": args.seed,
+        "warmup_requests": args.warmup_requests,
+        "request_accounting": args.request_accounting,
+        "eval_delay_ns": args.eval_delay_ns,
+        "accounting_epoch": args.accounting_epoch,
         "attention_backend": "FLASHINFER",
+        "moe_backend": args.moe_backend,
         "cache_root": str(cache),
         "versions": runtime_versions(),
         "git_commit": repository_commit(),
@@ -180,6 +207,98 @@ def validate_args(args: argparse.Namespace) -> None:
         )
     if args.input_len + args.output_len > args.max_model_len:
         raise SystemExit("input plus output exceeds max model length")
+    if args.warmup_requests < 0 or args.eval_delay_ns < -1:
+        raise SystemExit("warmup-requests must be nonnegative and eval-delay-ns must be >= -1")
+    if args.accounting_epoch <= 0 or args.eval_trace_capacity <= 0:
+        raise SystemExit("accounting epoch and trace capacity must be positive")
+    if (args.request_accounting or args.eval_delay_ns >= 0) and args.mode != "timing":
+        raise SystemExit("request accounting and eval delay require timing mode")
+    if args.eval_delay_ns >= 0 and not args.request_accounting:
+        raise SystemExit("eval-delay-ns requires --request-accounting")
+
+
+class GateRequestAccounting:
+    """Request-scoped access to the preloaded launch gate's module snapshots."""
+
+    def __init__(self, eval_delay_ns: int, trace_capacity: int):
+        self._library = ctypes.CDLL(None)
+        self._eval_delay_ns = eval_delay_ns
+        self._trace_capacity = trace_capacity
+        self._bind()
+        self._accounting_active = False
+        self._eval_active = False
+
+    def _bind(self) -> None:
+        self._library.hbfsim_access_accounting_begin_v2.argtypes = [ctypes.c_uint64]
+        self._library.hbfsim_access_accounting_begin_v2.restype = ctypes.c_int
+        self._library.hbfsim_access_accounting_snapshot_v2.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t
+        ]
+        self._library.hbfsim_access_accounting_snapshot_v2.restype = ctypes.c_longlong
+        self._library.hbfsim_access_accounting_abort_v2.argtypes = []
+        self._library.hbfsim_access_accounting_abort_v2.restype = ctypes.c_int
+        if self._eval_delay_ns >= 0:
+            self._library.hbfsim_eval_delay_begin_v1.argtypes = [
+                ctypes.c_uint64, ctypes.c_uint64, ctypes.c_uint64
+            ]
+            self._library.hbfsim_eval_delay_begin_v1.restype = ctypes.c_int
+            self._library.hbfsim_eval_delay_snapshot_v1.argtypes = [
+                ctypes.c_char_p, ctypes.c_size_t
+            ]
+            self._library.hbfsim_eval_delay_snapshot_v1.restype = ctypes.c_longlong
+            self._library.hbfsim_eval_delay_abort_v1.argtypes = []
+            self._library.hbfsim_eval_delay_abort_v1.restype = ctypes.c_int
+
+    @staticmethod
+    def _read_json(function: Any) -> dict[str, Any]:
+        required = int(function(None, 0))
+        if required <= 1:
+            raise RuntimeError(f"launch-gate snapshot size failed: {required}")
+        buffer = ctypes.create_string_buffer(required)
+        observed = int(function(buffer, required))
+        if observed != required:
+            raise RuntimeError(
+                f"launch-gate snapshot size changed: required={required} observed={observed}"
+            )
+        return json.loads(buffer.value.decode())
+
+    def begin(self, epoch: int) -> None:
+        if self._eval_delay_ns >= 0:
+            status = self._library.hbfsim_eval_delay_begin_v1(
+                self._eval_delay_ns, epoch, self._trace_capacity
+            )
+            if status != 0:
+                raise RuntimeError(f"eval-delay begin failed: {status}")
+            self._eval_active = True
+        status = self._library.hbfsim_access_accounting_begin_v2(epoch)
+        if status != 0:
+            if self._eval_active:
+                self._library.hbfsim_eval_delay_abort_v1()
+                self._eval_active = False
+            raise RuntimeError(f"access-accounting begin failed: {status}")
+        self._accounting_active = True
+
+    def snapshot(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        if self._accounting_active:
+            result["access"] = self._read_json(
+                self._library.hbfsim_access_accounting_snapshot_v2
+            )
+            self._accounting_active = False
+        if self._eval_active:
+            result["eval_delay"] = self._read_json(
+                self._library.hbfsim_eval_delay_snapshot_v1
+            )
+            self._eval_active = False
+        return result
+
+    def abort(self) -> None:
+        if self._accounting_active:
+            self._library.hbfsim_access_accounting_abort_v2()
+            self._accounting_active = False
+        if self._eval_active:
+            self._library.hbfsim_eval_delay_abort_v1()
+            self._eval_active = False
 
 
 def main() -> int:
@@ -221,6 +340,7 @@ def main() -> int:
             }
 
         from vllm import LLM, SamplingParams
+        from vllm.engine.arg_utils import EngineArgs
 
     engine_args = {
         "model": str(model_path),
@@ -232,32 +352,93 @@ def main() -> int:
         "enforce_eager": True,
         "seed": args.seed,
         "disable_log_stats": True,
+        "enable_prefix_caching": False,
         "attention_backend": "FLASHINFER",
         "load_format": load_format,
     }
+    engine_arg_parameters = inspect.signature(EngineArgs).parameters
+    if "moe_backend" in engine_arg_parameters:
+        engine_args["moe_backend"] = args.moe_backend
+        manifest["moe_backend_control"] = "EXPLICIT_ENGINE_ARGUMENT"
+    else:
+        manifest["moe_backend_control"] = (
+            "VLLM_0_15_DEFAULT_TRITON_RUNTIME_BINDING_REQUIRED"
+        )
     if loader_extra is not None:
         engine_args["model_loader_extra_config"] = loader_extra
     started = time.perf_counter()
     llm = LLM(**engine_args)
     loaded = time.perf_counter()
-    outputs = llm.generate(
-        prompts,
-        SamplingParams(
-            temperature=0.0,
-            max_tokens=args.output_len,
-            ignore_eos=True,
-            seed=args.seed,
-        ),
-        use_tqdm=True,
+    sampling = SamplingParams(
+        temperature=0.0,
+        max_tokens=args.output_len,
+        ignore_eos=True,
+        seed=args.seed,
     )
+    warmup_token_ids: list[list[list[int]]] = []
+    warmup_started = time.perf_counter()
+    for _ in range(args.warmup_requests):
+        warmup = llm.generate(prompts, sampling, use_tqdm=False)
+        warmup_token_ids.append([
+            list(output.outputs[0].token_ids) for output in warmup
+        ])
+        del warmup
+    warmup_finished = time.perf_counter()
+
+    accounting = None
+    accounting_snapshot = None
+    if args.request_accounting:
+        accounting = GateRequestAccounting(
+            args.eval_delay_ns, args.eval_trace_capacity
+        )
+        accounting.begin(args.accounting_epoch)
+    outputs = None
+    request_error = None
+    request_error_traceback = None
+    snapshot_error = None
+    generation_started = time.perf_counter()
+    try:
+        outputs = llm.generate(prompts, sampling, use_tqdm=True)
+    except BaseException as error:
+        request_error = error
+        request_error_traceback = traceback.format_exc()
+    finally:
+        if accounting is not None:
+            try:
+                accounting_snapshot = accounting.snapshot()
+            except BaseException as error:
+                snapshot_error = error
+                accounting.abort()
     finished = time.perf_counter()
+    if request_error is not None or snapshot_error is not None:
+        failure = dict(manifest)
+        failure.update({
+            "request_terminal_status": "failed",
+            "request_error": repr(request_error) if request_error else None,
+            "request_traceback": request_error_traceback,
+            "snapshot_error": repr(snapshot_error) if snapshot_error else None,
+            "access_accounting": accounting_snapshot,
+            "warmup_output_token_ids": warmup_token_ids,
+            "warmup_seconds": warmup_finished - warmup_started,
+            "generation_seconds_before_failure": finished - generation_started,
+            "scientific_status": "FAILED_REQUEST" if request_error else "INCOMPLETE",
+        })
+        (report / "request_failure.json").write_text(
+            json.dumps(failure, indent=2, sort_keys=True) + "\n"
+        )
+        if request_error is not None:
+            raise request_error
+        raise snapshot_error
+    assert outputs is not None
     token_ids = [list(output.outputs[0].token_ids) for output in outputs]
+    token_payload = json.dumps(token_ids, separators=(",", ":")).encode()
     output_tokens = sum(len(tokens) for tokens in token_ids)
     prompt_tokens = sum(len(prompt["prompt_token_ids"]) for prompt in prompts)
-    generation_seconds = finished - loaded
+    generation_seconds = finished - generation_started
     manifest.update({
         "load_seconds": loaded - started,
         "generation_seconds": generation_seconds,
+        "warmup_seconds": warmup_finished - warmup_started,
         "requests_per_second": args.num_prompts / generation_seconds,
         "total_tokens_per_second": (
             prompt_tokens + output_tokens
@@ -265,13 +446,29 @@ def main() -> int:
         "output_tokens_per_second": output_tokens / generation_seconds,
         "prompt_token_ids": [prompt["prompt_token_ids"] for prompt in prompts],
         "output_token_ids": token_ids,
+        "output_token_ids_sha256": hashlib.sha256(token_payload).hexdigest(),
+        "warmup_output_token_ids": warmup_token_ids,
+        "request_terminal_status": "success",
+        "access_accounting": accounting_snapshot,
         "triton_exact_bindings": (
             triton_binder.bound_count if triton_binder is not None else 0
         ),
     })
+    access_status = None
+    eval_status = None
+    if accounting_snapshot is not None:
+        access_status = accounting_snapshot.get("access", {}).get("status")
+        eval_status = accounting_snapshot.get("eval_delay", {}).get("status")
+    complete = accounting_snapshot is None or (
+        access_status == "COMPLETE" and
+        (args.eval_delay_ns < 0 or eval_status == "COMPLETE")
+    )
+    manifest["scientific_status"] = "COMPLETE" if complete else "INCOMPLETE"
     output_path = report / "result.json"
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print(json.dumps(manifest, indent=2, sort_keys=True))
+    if not complete:
+        raise SystemExit(70)
     del outputs
     del llm
     gc.collect()

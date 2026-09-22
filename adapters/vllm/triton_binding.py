@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import ctypes
 import hashlib
 import json
@@ -75,6 +76,20 @@ class TritonVariantBinder:
         self.retries = retries
         self.retry_seconds = retry_seconds
         self.bound_count = 0
+        self._hook_chain: Any = None
+        self._hook_callback: Any = None
+        self._owns_direct_hook = False
+
+    def uninstall(self) -> None:
+        if self._hook_chain is not None and self._hook_callback is not None:
+            self._hook_chain.remove(self._hook_callback)
+        elif self._owns_direct_hook:
+            import triton
+            if triton.knobs.runtime.kernel_load_end_hook is self._hook_callback:
+                triton.knobs.runtime.kernel_load_end_hook = None
+        self._hook_chain = None
+        self._hook_callback = None
+        self._owns_direct_hook = False
 
     def _write(self, record: dict[str, Any]) -> None:
         with self.output.open("a", encoding="utf-8") as stream:
@@ -145,5 +160,20 @@ def install_triton_binding(report_dir: pathlib.Path, *, required: bool = True,
     binder = TritonVariantBinder(
         report_dir, native or load_native_binder(), required=required
     )
-    triton.knobs.runtime.kernel_load_end_hook = binder.on_kernel_load
+    hook = triton.knobs.runtime.kernel_load_end_hook
+    if hasattr(hook, "add") and hasattr(hook, "remove"):
+        callback = binder.on_kernel_load
+        hook.add(callback)
+        binder._hook_chain = hook
+        binder._hook_callback = callback
+    elif hook is None:
+        callback = binder.on_kernel_load
+        triton.knobs.runtime.kernel_load_end_hook = callback
+        binder._hook_callback = callback
+        binder._owns_direct_hook = True
+    else:
+        raise TritonBindingError(
+            "unsupported non-chain Triton kernel_load_end_hook is already installed"
+        )
+    atexit.register(binder.uninstall)
     return binder

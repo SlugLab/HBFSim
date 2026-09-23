@@ -1,0 +1,69 @@
+{
+  "access_accounting": null,
+  "accounting_epoch": 1,
+  "attention_backend": "FLASHINFER",
+  "cache_root": "/root/hbfsim-exp/rebuttal_20260921/results/new-cohort-layer0-native-075-v1/cache/vllm",
+  "compiler": {
+    "CC": "/usr/bin/gcc-13",
+    "CXX": "/usr/bin/g++-13"
+  },
+  "eval_delay_ns": -1,
+  "generation_seconds": 0.3159052060218528,
+  "git_commit": "unknown",
+  "hbf_selection": {
+    "max_bytes_per_storage": 0,
+    "parameter_regex": ""
+  },
+  "hbf_timing_model": "hybrid",
+  "input_len": 2,
+  "load_seconds": 23.872990303032566,
+  "max_model_len": 256,
+  "max_num_batched_tokens": 256,
+  "mode": "baseline",
+  "model": "/root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
+  "moe_backend": "triton",
+  "moe_backend_control": "VLLM_0_15_DEFAULT_TRITON_RUNTIME_BINDING_REQUIRED",
+  "num_prompts": 1,
+  "output_len": 2,
+  "output_token_ids": [
+    [
+      70,
+      13
+    ]
+  ],
+  "output_token_ids_sha256": "06df4d1df2181aa0d792324ce4dd007c7f3f6cb63015eb345ea26a3b9e0460a7",
+  "output_tokens_per_second": 6.331013107335907,
+  "profile": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "prompt_token_ids": [
+    [
+      25347,
+      49773
+    ]
+  ],
+  "request_accounting": false,
+  "request_terminal_status": "success",
+  "request_timeout_ns": 300000000000,
+  "requests_per_second": 3.1655065536679534,
+  "schema_version": 1,
+  "scientific_status": "COMPLETE",
+  "seed": 0,
+  "total_tokens_per_second": 12.662026214671814,
+  "triton_exact_bindings": 0,
+  "versions": {
+    "flashinfer-python": "0.6.1",
+    "torch": "2.9.1+cu128",
+    "triton": "3.5.1",
+    "vllm": "0.15.1"
+  },
+  "warmup_output_token_ids": [],
+  "warmup_requests": 0,
+  "warmup_seconds": 1.8730061128735542e-06,
+  "weight_binding": {
+    "accept_storage_closure": false,
+    "exclude_patterns": [],
+    "include_patterns": [],
+    "instrumentation_policy": "strict",
+    "legacy": false,
+    "selection": "all"
+  }
+}

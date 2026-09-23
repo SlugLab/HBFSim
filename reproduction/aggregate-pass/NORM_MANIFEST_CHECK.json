@@ -1,0 +1,134 @@
+{
+  "rc": 0,
+  "pass_sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+  "raw_sha256": "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+  "manifest_sha256": "21fa004ce807b3c5ed254fe03c2313c609c4f763684f89c880b6e51dde4563b1",
+  "rows": [
+    {
+      "kernel": "_ZN4vllm15rms_norm_kernelIN3c108BFloat16ELi8ELi2EEEvPT_PKS3_lllllS6_fii",
+      "parameters": [
+        {
+          "index": 0,
+          "kind": "pointer",
+          "offset": 0,
+          "width": 8
+        },
+        {
+          "index": 1,
+          "kind": "pointer",
+          "offset": 8,
+          "width": 8
+        },
+        {
+          "index": 2,
+          "kind": "scalar",
+          "offset": 16,
+          "width": 8
+        },
+        {
+          "index": 3,
+          "kind": "scalar",
+          "offset": 24,
+          "width": 8
+        },
+        {
+          "index": 4,
+          "kind": "scalar",
+          "offset": 32,
+          "width": 8
+        },
+        {
+          "index": 5,
+          "kind": "scalar",
+          "offset": 40,
+          "width": 8
+        },
+        {
+          "index": 6,
+          "kind": "scalar",
+          "offset": 48,
+          "width": 8
+        },
+        {
+          "index": 7,
+          "kind": "pointer",
+          "offset": 56,
+          "width": 8
+        },
+        {
+          "index": 8,
+          "kind": "scalar",
+          "offset": 64,
+          "width": 4
+        },
+        {
+          "index": 9,
+          "kind": "scalar",
+          "offset": 68,
+          "width": 4
+        },
+        {
+          "index": 10,
+          "kind": "scalar",
+          "offset": 72,
+          "width": 4
+        }
+      ],
+      "unsupported": 0
+    },
+    {
+      "kernel": "_ZN4vllm25fused_add_rms_norm_kernelIN3c108BFloat16ELi8EEENSt9enable_ifIXaagtT0_Li0Esr4vllm12_typeConvertIT_EE6existsEvE4typeEPS4_lS7_PKS4_fii",
+      "parameters": [
+        {
+          "index": 0,
+          "kind": "pointer",
+          "offset": 0,
+          "width": 8
+        },
+        {
+          "index": 1,
+          "kind": "scalar",
+          "offset": 8,
+          "width": 8
+        },
+        {
+          "index": 2,
+          "kind": "pointer",
+          "offset": 16,
+          "width": 8
+        },
+        {
+          "index": 3,
+          "kind": "pointer",
+          "offset": 24,
+          "width": 8
+        },
+        {
+          "index": 4,
+          "kind": "scalar",
+          "offset": 32,
+          "width": 4
+        },
+        {
+          "index": 5,
+          "kind": "scalar",
+          "offset": 36,
+          "width": 4
+        },
+        {
+          "index": 6,
+          "kind": "scalar",
+          "offset": 40,
+          "width": 4
+        }
+      ],
+      "unsupported": 0
+    }
+  ],
+  "staged": [
+    [
+      "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66"
+    ]
+  ]
+}

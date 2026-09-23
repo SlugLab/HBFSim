@@ -16,8 +16,8 @@ int main()
 {
     using namespace hbfsim;
     using namespace hbfsim::device;
-    static_assert(device::kControlAbiVersion == 4);
-    static_assert(host_service::kControlAbiVersion == 4);
+    static_assert(device::kControlAbiVersion == 5);
+    static_assert(host_service::kControlAbiVersion == 5);
     static_assert(sizeof(SharedControlHeader) == 384);
     static_assert(sizeof(SharedControlHeader) ==
                   sizeof(host_service::SharedControlHeader));

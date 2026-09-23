@@ -1,0 +1,176 @@
+{
+  "schema": "hbfsim.supported_weights.source_freeze.v1",
+  "source_tree": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+  "base_main_commit": "17d0fc58c0444789650ab40b4641802b5b6c2db8",
+  "scope": "HBF/agent integration files owned by CPU source agent; root docs and execution tools separately owned",
+  "historical_source_delta": "REPRODUCTION_HBFSIM_SOURCE_V2.patch includes preexisting successful helper changes; this integration did not introduce a new PTX rewrite or helper algorithm",
+  "files": [
+    {
+      "path": "CMakeLists.txt",
+      "sha256": "52cb9ce5458047c8f4ac8ece0e98c7ec0c124d933ae5469b49c27a1d8f89524a",
+      "bytes": 48647
+    },
+    {
+      "path": "cmake/cudart-versions.map",
+      "sha256": "a72268814d69b1102c25b0529af33ea8cc911d71c883234f932059e76a5c205b",
+      "bytes": 58
+    },
+    {
+      "path": "patches/bpftime/0002-supported-weights-from-ec26.patch",
+      "sha256": "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f",
+      "bytes": 110998
+    },
+    {
+      "path": "reproduction/aggregate-pass/CLEAN_BUILD_RECEIPT.json",
+      "sha256": "a20940054ba13e425b4a1d0500415f64ed1f0558c413b690de165a22455e18bd",
+      "bytes": 3410
+    },
+    {
+      "path": "reproduction/aggregate-pass/CLEAN_LINK_VERIFY.json",
+      "sha256": "a9053157b1c612e09a4e9264da049a8f96bab7e5388d3310ac1e43e1b066d915",
+      "bytes": 3350
+    },
+    {
+      "path": "reproduction/aggregate-pass/NORM_MANIFEST_CHECK.json",
+      "sha256": "78c987bd5ef1a51b91c287679d8b127d372c21a9fb2a77b3eb51ac2dd0d5da97",
+      "bytes": 2945
+    },
+    {
+      "path": "reproduction/aggregate-pass/ORIGINAL_C3_RECEIPT.json",
+      "sha256": "2056fd2ac5745e4a513a12054c8e873e2d7b4fa1efbcaa6a138e7ab77ef60aab",
+      "bytes": 2271
+    },
+    {
+      "path": "scripts/BPFTIME_AGENT_REPRODUCTION.md",
+      "sha256": "a869e761b9782cc34365f03443abc68ea7413962585a28838cb4b49fe9e00052",
+      "bytes": 2756
+    },
+    {
+      "path": "scripts/HBFSIM_CPU_BUILD.md",
+      "sha256": "753558bc8c9f9858f5bc4387043ca93611a804bed80daf538e5720e6aa763863",
+      "bytes": 1909
+    },
+    {
+      "path": "scripts/bpftime_build_lock/LOCK.json",
+      "sha256": "caca9de943deb0a7c6a5780ef614ddac71cd641ae17b7ad4d137b4f15994c104",
+      "bytes": 8869
+    },
+    {
+      "path": "scripts/bpftime_build_lock/helpers/include/boost/process/v1.hpp",
+      "sha256": "30828feb175acdb50694dc1cbfadcef627a86630b7512d81ac36c98587461e66",
+      "bytes": 621
+    },
+    {
+      "path": "scripts/bpftime_build_lock/helpers/rebuttal_bpftime_cc_wrapper.sh",
+      "sha256": "54d0acf400420f55bfe74ead258df5113dcbcae720348964e1f727dc5ad1c7c7",
+      "bytes": 287
+    },
+    {
+      "path": "scripts/bpftime_build_lock/locked_build.py",
+      "sha256": "3a57d6cdad52c776b032354499b0484de57044a08c0e7bc33c16515de45b15ff",
+      "bytes": 5057
+    },
+    {
+      "path": "scripts/prepare_cuda13_glibc_overlay.py",
+      "sha256": "b4a11e299a176975890302cde1631c2ce9b5b31568233a84d4f48aa5bc874c35",
+      "bytes": 3704
+    },
+    {
+      "path": "scripts/reproduce_bpftime_agent.py",
+      "sha256": "6936b1ee33d9e85d978d6407d3a53783d9f866f98215f6c3acedf18ddef6d533",
+      "bytes": 9280
+    },
+    {
+      "path": "scripts/reproduce_hbfsim_cpu_build.py",
+      "sha256": "d1b9009a9fdabe9cb9e74cc7d29cb1c824cd57ce8b1aa847f84b176d7d9d0cd9",
+      "bytes": 10488
+    },
+    {
+      "path": "src/cuda_runtime/launch_gate.cpp",
+      "sha256": "19e149da779a5c31317507320138195bc88154d3c6dfe9fc88fe46cea265510e",
+      "bytes": 205891
+    },
+    {
+      "path": "src/cuda_runtime/scoped_accounting_policy.hpp",
+      "sha256": "3c7ef3d12efbccfca742aa05bd50f5e417883392d31c3d2b4d1ce67053d51b70",
+      "bytes": 570
+    },
+    {
+      "path": "src/cuda_runtime/scoped_aux_range.hpp",
+      "sha256": "d9bd13328caf234d8d5a7dac42e2dc6473933935b081d542c51d739a79fd711f",
+      "bytes": 1722
+    },
+    {
+      "path": "src/ptxpass_hbf/plugin.cpp",
+      "sha256": "887f01f41ca914895bd6206cbb3397a8a250fe6609cc54c015a2d8c3786c0b3f",
+      "bytes": 25620
+    },
+    {
+      "path": "src/ptxpass_hbf/plugin_aggregate_metadata.cpp",
+      "sha256": "a7f538d38b33e5bc709e200d517fe724daf5def37db602fa6e817c8df744dad3",
+      "bytes": 40914
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/ACTUAL_CPU_RECEIPT.json",
+      "sha256": "85244ea0c4f7b83528ea8d66b9ad0a5f539fa54c355eff44f6c4803568cbbda6",
+      "bytes": 6763
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/ACTUAL_CPU_STDOUT.json",
+      "sha256": "cd02d44a4aac0d08ca9cfbd11b9a161c423214492a585fbd6e7a4ef0c79f0a11",
+      "bytes": 2397
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/cudart.map",
+      "sha256": "f0aa0d88be95de52274e999bf685b66070e8e0cb074531a0f32a2e58d304f059",
+      "bytes": 580
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/fake_cuda.c",
+      "sha256": "df14c54cc6fcc65c18b9e533923cccafe95c47abdafe13ca9290f45e1e7d49af",
+      "bytes": 1306
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/fake_cudart.c",
+      "sha256": "723c491af936f484b4e2e657f6a2c8034644cad2c6c053b7bc1c89a848d68ebb",
+      "bytes": 2867
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/run.py",
+      "sha256": "bef8e808365ce2bcec955953af0215d8b328109a31aa8e6ced4a2a4c310e674c",
+      "bytes": 3070
+    },
+    {
+      "path": "tests/integration/reproduction_gate_cpu/run_gate_cpu.py",
+      "sha256": "740f47e81c8e481f2234fc73d429de63bd971270845fc5109f9c4acef694437b",
+      "bytes": 5180
+    },
+    {
+      "path": "tests/integration/test_ptxpass_plugin.py",
+      "sha256": "fe3ad0146c6963e270fba5793da61cfd6529cd697e6fd08157c13878d1b7923d",
+      "bytes": 13174
+    }
+  ],
+  "builds": {
+    "gate": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889",
+    "norm_pass": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf",
+    "aggregate_pass_clean": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+    "agent": "519ef5617b5e0cbe28ce0b91d2a14decbe3e2dc99498bf874ec3789dd36caba8",
+    "compiler": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+    "runtime_core": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+  },
+  "tests": {
+    "gate_real_dso_rows": 12,
+    "adapter_policy_binder": 17,
+    "adapter_loader": 21,
+    "bpftime_patch_check": "PASS",
+    "norm_pass_cpu": "PASS",
+    "aggregate_pass_cpu": "PASS",
+    "aggregate_norm_manifest_matches_original": true,
+    "cuda_overlay_fresh_helper_ptx": "PASS",
+    "agent_lock_helpers_packaged_and_bound": "PASS",
+    "auto_prepare_ptx": 14,
+    "strict_direct_policy_compile_and_run": "PASS"
+  },
+  "test_raw_dir": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-cpu-tests-v1"
+}

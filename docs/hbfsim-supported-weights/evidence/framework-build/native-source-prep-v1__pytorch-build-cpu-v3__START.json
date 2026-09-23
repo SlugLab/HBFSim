@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "STARTED",
+  "pid": 164700,
+  "proc_starttime_ticks": "33113126",
+  "argv": [
+    "ninja",
+    "-C",
+    "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4",
+    "-j4",
+    "torch_cuda"
+  ],
+  "build_dir": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4",
+  "source_commit": "5811a8d7da873dd699ff6687092c225caffcf1bb",
+  "cpp_httplib_commit": "89c932f313c6437c38f2982869beacc89c2f2246",
+  "original_failure_receipt": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-build-cpu-v1/FINAL.json",
+  "withdrawn_copy_attempt": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-build-cpu-v2/WITHDRAWN.json",
+  "dry_run_actions": 752,
+  "dry_run_sha256": "c91b00bb11d68d1c67cad6bcf9754699332a5687f5c6119db305f70f71bd712c",
+  "jobs": 4,
+  "mem_floor_bytes": 8589934592,
+  "disk_floor_bytes": 204010946560,
+  "deadline_seconds": 21600,
+  "started_unix_ns": 1790104452597069162
+}

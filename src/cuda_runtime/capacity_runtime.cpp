@@ -6,6 +6,7 @@
 #endif
 
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -13,6 +14,12 @@
 
 namespace hbfsim::runtime {
 namespace {
+
+bool capacity_stats_enabled() noexcept
+{
+    const char* value = std::getenv("HBFSIM_CAPACITY_STATS_V1");
+    return value != nullptr && std::string_view(value) == "1";
+}
 
 std::size_t frame_count(const Profile& profile)
 {
@@ -107,6 +114,8 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
                                  int device_ordinal)
     : page_bytes_(profile.page_bytes), cuda_context_(cuda_context),
       device_ordinal_(device_ordinal), driver_(),
+      stats_enabled_(capacity_stats_enabled()),
+      vmm_granularity_(driver_.granularity(device_ordinal)),
       vmm_(VmmFramePool::create(driver_, frame_count(profile),
                                 profile.page_bytes, device_ordinal)),
       cache_(vmm_.frame_addresses()), router_(),
@@ -133,7 +142,7 @@ CapacityRuntime::CapacityRuntime(const Profile& profile,
                   [this](std::uint64_t frame, std::span<std::byte> bytes) {
                       return frame_to_host(frame, bytes);
                   },
-          }),
+          }, stats_enabled_),
       worker_(control, service_, std::chrono::microseconds(50),
               &CapacityRuntime::start_worker, this,
               &CapacityRuntime::stop_worker, this)
@@ -237,6 +246,18 @@ RequestStatus CapacityRuntime::flush(
 void CapacityRuntime::stop()
 {
     worker_.stop();
+}
+
+CapacityRuntimeStats CapacityRuntime::stats()
+{
+    return {
+        .enabled = stats_enabled_,
+        .page_bytes = page_bytes_,
+        .vmm_granularity = vmm_granularity_,
+        .pool_allocated_bytes = vmm_.reserved_bytes(),
+        .logical_frame_count = vmm_.frame_addresses().size(),
+        .service = service_.stats(),
+    };
 }
 
 bool CapacityRuntime::release_cuda_resources() noexcept

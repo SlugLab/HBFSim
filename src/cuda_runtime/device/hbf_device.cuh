@@ -15,7 +15,9 @@ namespace hbfsim::device {
 #endif
 
 inline constexpr std::uint64_t kControlMagic = 0x48424653494d3031ULL;
-inline constexpr std::uint32_t kControlAbiVersion = 4;
+inline constexpr std::uint32_t kControlAbiVersion = 5;
+inline constexpr std::uint32_t kProducerModeHostNativeAtomic = 0;
+inline constexpr std::uint32_t kProducerModeGpuExclusive = 1;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
 inline constexpr std::uint32_t kMaximumRingCapacity = 4096;
@@ -76,7 +78,29 @@ struct alignas(64) SharedControlHeader {
     std::uint32_t empirical_breakpoint_pages[6];
     std::uint32_t empirical_point_count;
     std::uint32_t empirical_flags;
+    std::uint64_t device_state_address;
+    std::uint32_t device_state_bytes;
+    std::uint32_t producer_mode;
+    std::uint64_t device_state_generation;
+    std::uint64_t reserved_device_state[2];
 };
+
+inline constexpr std::uint64_t kDeviceTimingStateMagic = 0x4842464453544154ULL;
+struct alignas(64) DeviceTimingState {
+    std::uint64_t magic;
+    std::uint64_t generation;
+    std::uint64_t fast_request_sequence;
+    std::uint64_t fast_channel_tail_ns;
+    std::uint64_t fast_requests;
+    std::uint64_t reference_requests;
+    std::uint64_t fast_modeled_ns;
+    std::uint64_t empirical_burst_state;
+    std::uint64_t request_producer;
+    std::uint64_t completion_consumer;
+    std::uint64_t admission_count;
+    std::uint64_t poisoned;
+};
+static_assert(sizeof(DeviceTimingState) == 128);
 
 struct alignas(64) SharedRangeRecord {
     std::uint64_t base;
@@ -109,6 +133,142 @@ struct EvalDelayCounters {
     std::uint64_t rejected_accesses;
     std::uint64_t trace_overflow;
 };
+
+// Default-off, module-local accounting for rebuttal experiments. This is
+// deliberately separate from SharedControlHeader: enabling observation must
+// not change the daemon/control ABI or production behavior.
+inline constexpr std::uint64_t kAccessAccountingMagic =
+    0x4842464143435431ULL;
+inline constexpr std::uint32_t kAccessAccountingVersion = 2;
+struct AccessAccountingConfig {
+    std::uint64_t magic;
+    std::uint32_t version;
+    std::uint32_t struct_bytes;
+    std::uint64_t enabled;
+    std::uint64_t request_epoch;
+};
+struct AccessAccountingCounters {
+    std::uint64_t supported_accesses;
+    std::uint64_t supported_bytes;
+    std::uint64_t in_range_accesses;
+    std::uint64_t in_range_intersection_bytes;
+    std::uint64_t native_out_of_range_accesses;
+    std::uint64_t native_out_of_range_bytes;
+    std::uint64_t modeled_admitted_accesses;
+    std::uint64_t modeled_admitted_bytes;
+    std::uint64_t service_completed_accesses;
+    std::uint64_t service_completed_bytes;
+    std::uint64_t failed_after_issue_accesses;
+    std::uint64_t failed_after_issue_bytes;
+    std::uint64_t unsupported_preissue_accesses;
+    std::uint64_t unsupported_preissue_bytes;
+    std::uint64_t failed_preissue_accesses;
+    std::uint64_t failed_preissue_bytes;
+    std::uint64_t translation_failed_accesses;
+    std::uint64_t translation_failed_bytes;
+    std::uint64_t service_requests;
+    std::uint64_t unclassified_accesses;
+    std::uint64_t unclassified_bytes;
+    std::uint64_t counter_overflow;
+};
+static_assert(sizeof(AccessAccountingConfig) == 32);
+static_assert(sizeof(AccessAccountingCounters) == 176);
+
+// Default-off, module-local first-fault diagnostic.  The record destination is
+// host-mapped memory, but the only RMW is `claimed`, which is a CUDA module
+// global in device memory.  Record fields are naturally aligned plain stores;
+// `ready` is the sole system-scope release publication and is written last.
+inline constexpr std::uint64_t kFirstFaultConfigMagic =
+    0x4842464641554c54ULL;
+inline constexpr std::uint32_t kFirstFaultSchemaVersion = 1;
+inline constexpr std::uint64_t kFirstFaultReadyMagic =
+    0x4842464646524459ULL;
+enum class FirstFaultReason : std::uint32_t {
+    None = 0,
+    FastWait = 1,
+    ReferenceReserve = 2,
+    ReferenceCompletion = 3,
+    Liveness = 4,
+    GenerationValidation = 5,
+    Other = 6,
+};
+enum class FirstFaultPhase : std::uint32_t {
+    None = 0,
+    ReserveSlot = 1,
+    WaitCompletion = 2,
+    ReferenceTarget = 3,
+    FastTarget = 4,
+    Validation = 5,
+    FaultTrap = 6,
+};
+enum FirstFaultValidBits : std::uint64_t {
+    FirstFaultHasArrival = 1ULL << 0,
+    FirstFaultHasDeadline = 1ULL << 1,
+    FirstFaultHasTarget = 1ULL << 2,
+    FirstFaultHasHeartbeat = 1ULL << 3,
+    FirstFaultHasSidecar = 1ULL << 4,
+    FirstFaultHasTicket = 1ULL << 5,
+    FirstFaultHasRing = 1ULL << 6,
+    FirstFaultHasCompletion = 1ULL << 7,
+};
+struct FirstFaultConfig {
+    std::uint64_t magic;
+    std::uint32_t schema_version;
+    std::uint32_t struct_bytes;
+    std::uint64_t enabled;
+    std::uint64_t epoch;
+    std::uint64_t compact_address;
+    std::uint64_t record_address;
+    std::uint64_t module_identity[4];
+};
+struct alignas(8) FirstFaultRecord {
+    std::uint64_t schema_version;
+    std::uint64_t epoch;
+    std::uint64_t module_identity[4];
+    std::uint32_t status;
+    std::uint32_t reason;
+    std::uint32_t phase;
+    std::uint32_t reserved0;
+    std::uint64_t valid_bits;
+    std::uint64_t gpu_now_ns;
+    std::uint64_t arrival_ns;
+    std::uint64_t deadline_ns;
+    std::uint64_t target_ns;
+    std::uint64_t heartbeat_value;
+    std::uint64_t heartbeat_observed_ns;
+    std::uint64_t heartbeat_current;
+    std::uint64_t shutdown;
+    std::uint64_t fault;
+    std::uint64_t expected_generation;
+    std::uint64_t header_generation;
+    std::uint64_t sidecar_generation;
+    std::uint64_t sidecar_poisoned;
+    std::uint64_t ticket;
+    std::uint64_t position;
+    std::uint64_t slot_index;
+    std::uint64_t ring_capacity;
+    std::uint64_t request_slot_sequence;
+    std::uint64_t completion_slot_sequence;
+    std::uint64_t device_request_producer;
+    std::uint64_t device_completion_consumer;
+    std::uint64_t host_request_consumer;
+    std::uint64_t host_completion_producer;
+    std::uint64_t admission_count;
+    std::uint64_t completion_request_id;
+    std::uint64_t completion_modeled_ns;
+    std::uint32_t completion_status;
+    std::uint32_t block_x;
+    std::uint32_t block_y;
+    std::uint32_t block_z;
+    std::uint32_t thread_x;
+    std::uint32_t thread_y;
+    std::uint32_t thread_z;
+    std::uint32_t lane;
+    std::uint32_t reserved1;
+    std::uint64_t ready;
+};
+static_assert(sizeof(FirstFaultConfig) == 80);
+static_assert(sizeof(FirstFaultRecord) == 328);
 struct EvalDelayTrace {
     std::uint64_t thread_id;
     std::uint64_t address;
@@ -563,6 +723,8 @@ static_assert(offsetof(SharedControlHeader, empirical_cumulative_ns) == 264);
 static_assert(offsetof(SharedControlHeader, empirical_breakpoint_pages) == 312);
 static_assert(offsetof(SharedControlHeader, empirical_point_count) == 336);
 static_assert(offsetof(SharedControlHeader, empirical_flags) == 340);
+static_assert(offsetof(SharedControlHeader, device_state_address) == 344);
+static_assert(offsetof(SharedControlHeader, producer_mode) == 356);
 
 HBFSIM_HOST_DEVICE constexpr std::uint64_t fast_hash(
     std::uint64_t value) noexcept

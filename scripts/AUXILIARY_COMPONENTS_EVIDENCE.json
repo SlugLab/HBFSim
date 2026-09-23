@@ -1,0 +1,56 @@
+{
+  "schema": "hbfsim.auxiliary_component_provenance.v1",
+  "scope": "read_only_review_no_build",
+  "items": [
+    {
+      "name": "loader",
+      "artifact": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsim_bpftime_attach_loader",
+      "artifact_sha256": "823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/src/cuda_runtime/bpftime_attach_loader.cpp",
+      "source_sha256": "d8d41bda08d0c870531bfd1e49daffb86d00ede1ae5bbcc6f280cdb7c76c6399",
+      "historical_producer": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2",
+      "target": "hbfsim_bpftime_attach_loader",
+      "producer_cache_sha256": "ee309b12f36dd31d8f2f9ff84db035d85fc6871cad3e7265269ec16d56da6091",
+      "command_query_rc": 0,
+      "source_commands": [
+        "/usr/bin/g++-15   -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG -MD -MT CMakeFiles/hbfsim_bpftime_attach_loader.dir/src/cuda_runtime/bpftime_attach_loader.cpp.o -MF CMakeFiles/hbfsim_bpftime_attach_loader.dir/src/cuda_runtime/bpftime_attach_loader.cpp.o.d -o CMakeFiles/hbfsim_bpftime_attach_loader.dir/src/cuda_runtime/bpftime_attach_loader.cpp.o -c /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/cuda_runtime/bpftime_attach_loader.cpp",
+        ": && /usr/bin/g++-15 -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/hbfsim_bpftime_attach_loader.dir/link.d CMakeFiles/hbfsim_bpftime_attach_loader.dir/src/cuda_runtime/bpftime_attach_loader.cpp.o -o hbfsim_bpftime_attach_loader  /usr/lib/x86_64-linux-gnu/libbpf.so && :"
+      ]
+    },
+    {
+      "name": "probe",
+      "artifact": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/vllm_fused_moe_probe.bpf.o",
+      "artifact_sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tests/gpu/vllm_fused_moe_probe.bpf.c",
+      "source_sha256": "d100fd992b5e4d2cbe02891443eb94d666d325c604c339618328af0adf7d3cd8",
+      "historical_producer": "/root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-build-v3",
+      "target": "vllm_fused_moe_probe.bpf.o",
+      "producer_cache_sha256": "45a7a028613f6d394863390131a1a318acbb0ca648b42470cc95eeb1b9723bfd",
+      "command_query_rc": 0,
+      "source_commands": [
+        "cd /root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-build-v3 && /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang -target bpf -O2 -g -c /root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-source-v1/tests/gpu/vllm_fused_moe_probe.bpf.c -o /root/hbfsim-exp/rebuttal_20260921/atomic-sidecar-build-v3/vllm_fused_moe_probe.bpf.o"
+      ]
+    },
+    {
+      "name": "syscall_server",
+      "artifact": "/root/hbfsim-exp/rebuttal_20260921/native-norm-bpftime-v4/runtime/syscall-server/libbpftime-syscall-server.so",
+      "artifact_sha256": "0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/source/runtime/syscall-server/CMakeLists.txt",
+      "source_sha256": "7067f15d1523b89f64ecdd1124f7f16a6829b8998d89d48af142da6d1a8bfd71",
+      "historical_producer": null,
+      "target": "bpftime-syscall-server"
+    }
+  ],
+  "source_same_as_main": {
+    "loader": true,
+    "probe": true,
+    "syscall_server_source_same_as_ec26": true
+  },
+  "new_main_runtime_targets_configured": [
+    "hbfsim_bpftime_attach_loader",
+    "hbfsim_vllm_probe"
+  ],
+  "new_agent_server_target_configured": true,
+  "new_agent_server_artifact_built": false,
+  "historical_server_exact_producer_found": false
+}

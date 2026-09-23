@@ -1,0 +1,287 @@
+{
+  "schema": "hbfsim.main_reproduction.cpu_build.v1",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+  "output": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4",
+  "source_head": "17d0fc58c0444789650ab40b4641802b5b6c2db8",
+  "source_dirty_paths": [
+    " M CMakeLists.txt",
+    " M adapters/vllm/hbfsim_loader.py",
+    " M adapters/vllm/run.py",
+    " M adapters/vllm/tests/test_hbfsim_loader.py",
+    " M adapters/vllm/tests/test_run.py",
+    " M adapters/vllm/tests/test_triton_binding.py",
+    " M adapters/vllm/triton_binding.py",
+    " M include/hbfsim/api.h",
+    " M include/hbfsim/coverage.hpp",
+    " M scripts/run_with_bpftime.sh",
+    " M src/cuda_runtime/capacity_runtime.cpp",
+    " M src/cuda_runtime/capacity_runtime.hpp",
+    " M src/cuda_runtime/context.cpp",
+    " M src/cuda_runtime/coverage.cpp",
+    " M src/cuda_runtime/device/hbf_device.cu",
+    " M src/cuda_runtime/device/hbf_device.cuh",
+    " M src/cuda_runtime/launch_gate.cpp",
+    " M src/cuda_runtime/vmm.hpp",
+    " M src/host_service/capacity_page_service.cpp",
+    " M src/host_service/capacity_page_service.hpp",
+    " M src/host_service/control_layout.hpp",
+    " M src/ptxpass_hbf/plugin.cpp",
+    " M src/reporting/coverage_writer.cpp",
+    " M tests/cpu/capacity_page_service_test.cpp",
+    " M tests/cpu/context_lifecycle_test.cpp",
+    " M tests/cpu/coverage_gate_test.cpp",
+    " M tests/cpu/device_helper_abi_test.cpp",
+    " M tests/integration/fake_cuda_lookup.cpp",
+    " M tests/integration/test_timing_gate_binding.py",
+    "?? adapters/vllm/AUTO_PTX_WORKFLOW.md",
+    "?? adapters/vllm/auto_prepare_ptx.py",
+    "?? adapters/vllm/auto_run.py",
+    "?? adapters/vllm/tests/test_auto_run.py",
+    "?? adapters/vllm/tests/test_weight_policy.py",
+    "?? cmake/cudart-versions.map",
+    "?? include/hbfsim/strict_direct_policy.hpp",
+    "?? scripts/reproduce_hbfsim_cpu_build.py",
+    "?? scripts/validate_bpftime_activation.py",
+    "?? src/cuda_runtime/scoped_accounting_policy.hpp",
+    "?? src/cuda_runtime/scoped_aux_range.hpp",
+    "?? tests/cpu/strict_direct_policy_test.cpp",
+    "?? tests/integration/auto_ptx_live_fixture.py",
+    "?? tests/integration/test_aggregate_argument_readers.py",
+    "?? tests/integration/test_bpftime_activation_validator.py",
+    "?? tests/integration/test_unbound_strict_handshake.py",
+    "?? tests/test_auto_prepare_ptx.py"
+  ],
+  "plugin_sha256": "887f01f41ca914895bd6206cbb3397a8a250fe6609cc54c015a2d8c3786c0b3f",
+  "gate_sha256": "19e149da779a5c31317507320138195bc88154d3c6dfe9fc88fe46cea265510e",
+  "version_map_sha256": "a72268814d69b1102c25b0529af33ea8cc911d71c883234f932059e76a5c205b",
+  "tools": {
+    "cmake": {
+      "path": "/usr/bin/cmake",
+      "sha256": "6e1dccda39845415d68eabb934c598998949c99ec4668625d571aee1827b05c7"
+    },
+    "ninja": {
+      "path": "/usr/bin/ninja",
+      "sha256": "91e9548850cda2799facfdaa7abe33f9e978832f85e98212255708a7bbe437f2"
+    },
+    "g++-15": {
+      "path": "/usr/bin/g++-15",
+      "sha256": "e6718f7e0c7d057c3ff77b550c603da9bc4030e3ede3c053705acce1293dbe4d"
+    },
+    "g++-13": {
+      "path": "/usr/bin/g++-13",
+      "sha256": "d255fa40289dde1dcea3b820339e992d2a6889548b20e422d8c150cfb0230de7"
+    },
+    "nvcc": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+      "sha256": "b8e2347d9d7fcadf8812a27324d515de99d033d3e48611811ece7e66d7895f8a"
+    },
+    "ptxas": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/ptxas",
+      "sha256": "daba837a68265cae38c832d13399b61dab811891de9b8914defddef143b849f2"
+    },
+    "clang": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+      "sha256": "7c19dc665abb898a09fe5976c44f7691d7c137534dd5fcf6a76dfaab334c90c8"
+    },
+    "llvm-nm": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-nm",
+      "sha256": "476e6a6c4368bf265c46c87c7f7e58886b59ffd8887c80141e4c172c3c9a28e4"
+    },
+    "llvm-objdump": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-objdump",
+      "sha256": "71036adaa9fe8d3006ee4176da528c0933c1126d36aa69a73da0e4865a324651"
+    }
+  },
+  "profiles": {
+    "runtime-futures-on": {
+      "flags": [
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=ON",
+        "-DHBFSIM_ENABLE_EVAL_TOOLS=ON",
+        "-DCUDA_CUDART:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64/libcudart.so",
+        "-DCUDA_cudart_LIBRARY:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64/libcudart.so",
+        "-DCUDA_cuda_driver_LIBRARY:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/targets/x86_64-linux/lib/stubs/libcuda.so",
+        "-DCMAKE_CXX_FLAGS=-fconstexpr-loop-limit=1048576"
+      ],
+      "targets": [
+        "hbfsim",
+        "hbfsimd",
+        "ptxpass_hbf_plugin",
+        "hbfsim_vllm_extension"
+      ]
+    },
+    "gate-core-futures-off": {
+      "flags": [
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=OFF",
+        "-DHBFSIM_ENABLE_EVAL_TOOLS=OFF",
+        "-DCUDA_CUDART:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cudart_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cuda_driver_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcuda.so",
+        "-DHBFSIM_GATE_TEST_HOOKS=ON",
+        "-DHBFSIM_GATE_CUDART_VERSION_MAP=/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/cmake/cudart-versions.map"
+      ],
+      "targets": [
+        "hbfsim_launch_gate"
+      ]
+    }
+  },
+  "commands": [
+    {
+      "label": "runtime-futures-on-configure",
+      "argv": [
+        "/usr/bin/cmake",
+        "-G",
+        "Ninja",
+        "-S",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-15",
+        "-DCMAKE_CUDA_COMPILER=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-13",
+        "-DCMAKE_CUDA_ARCHITECTURES=120",
+        "-DHBFSIM_CUDA_ARCHITECTURE=120",
+        "-DCUDAToolkit_ROOT=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0",
+        "-DHBFSIM_ENABLE_CUDA=ON",
+        "-DHBFSIM_ENABLE_MQSIM=ON",
+        "-DHBFSIM_ENABLE_LLM_TESTS=OFF",
+        "-DHBFSIM_NVCC_HOST_COMPILER=/usr/bin/g++-13",
+        "-DHBFSIM_PTXAS_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/ptxas",
+        "-DHBFSIM_CLANG_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+        "-DHBFSIM_LLVM_OBJDUMP_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-objdump",
+        "-DHBFSIM_NM_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-nm",
+        "-DHBFSIM_PYTHON3_EXECUTABLE=/usr/bin/python3",
+        "-DBUILD_TESTING=ON",
+        "-B",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=ON",
+        "-DHBFSIM_ENABLE_EVAL_TOOLS=ON",
+        "-DCUDA_CUDART:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64/libcudart.so",
+        "-DCUDA_cudart_LIBRARY:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64/libcudart.so",
+        "-DCUDA_cuda_driver_LIBRARY:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/targets/x86_64-linux/lib/stubs/libcuda.so",
+        "-DCMAKE_CXX_FLAGS=-fconstexpr-loop-limit=1048576"
+      ],
+      "cwd": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+      "start_ns": 1790184145594709200,
+      "end_ns": 1790184147835313599,
+      "returncode": 0,
+      "stdout_sha256": "16935305156557117fbd0ca4989793c357938644d9ea3e2919295ddf0f43138d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "runtime-futures-on-build",
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on",
+        "--parallel",
+        "2",
+        "--target",
+        "hbfsim",
+        "hbfsimd",
+        "ptxpass_hbf_plugin",
+        "hbfsim_vllm_extension"
+      ],
+      "cwd": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+      "start_ns": 1790184147835818536,
+      "end_ns": 1790184190661437578,
+      "returncode": 0,
+      "stdout_sha256": "f684942449a27a12178bf6a705ed95995d795e51775b6546f10b017005eb4de5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "gate-core-futures-off-configure",
+      "argv": [
+        "/usr/bin/cmake",
+        "-G",
+        "Ninja",
+        "-S",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-15",
+        "-DCMAKE_CUDA_COMPILER=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-13",
+        "-DCMAKE_CUDA_ARCHITECTURES=120",
+        "-DHBFSIM_CUDA_ARCHITECTURE=120",
+        "-DCUDAToolkit_ROOT=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0",
+        "-DHBFSIM_ENABLE_CUDA=ON",
+        "-DHBFSIM_ENABLE_MQSIM=ON",
+        "-DHBFSIM_ENABLE_LLM_TESTS=OFF",
+        "-DHBFSIM_NVCC_HOST_COMPILER=/usr/bin/g++-13",
+        "-DHBFSIM_PTXAS_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/ptxas",
+        "-DHBFSIM_CLANG_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+        "-DHBFSIM_LLVM_OBJDUMP_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-objdump",
+        "-DHBFSIM_NM_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-nm",
+        "-DHBFSIM_PYTHON3_EXECUTABLE=/usr/bin/python3",
+        "-DBUILD_TESTING=ON",
+        "-B",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/gate-core-futures-off",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=OFF",
+        "-DHBFSIM_ENABLE_EVAL_TOOLS=OFF",
+        "-DCUDA_CUDART:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cudart_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cuda_driver_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcuda.so",
+        "-DHBFSIM_GATE_TEST_HOOKS=ON",
+        "-DHBFSIM_GATE_CUDART_VERSION_MAP=/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/cmake/cudart-versions.map"
+      ],
+      "cwd": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+      "start_ns": 1790184190661804195,
+      "end_ns": 1790184192510170723,
+      "returncode": 0,
+      "stdout_sha256": "a5de96faceb7147e65528d504116d7cf85049c8cd6cc69b04b8d1d8f61f1f96b",
+      "stderr_sha256": "95367393bee46c58366d5120ae031b2bbdc90009cf6fdb21900475fd2db15928"
+    },
+    {
+      "label": "gate-core-futures-off-build",
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/gate-core-futures-off",
+        "--parallel",
+        "2",
+        "--target",
+        "hbfsim_launch_gate"
+      ],
+      "cwd": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+      "start_ns": 1790184192510489367,
+      "end_ns": 1790184221099853052,
+      "returncode": 0,
+      "stdout_sha256": "b090d476e038de3f8564780fd96b0750b87c7a6c7d8de8fbc100587cfcbece49",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "artifacts": {
+    "runtime-futures-on/libhbfsim.so": {
+      "bytes": 2614712,
+      "sha256": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+    },
+    "runtime-futures-on/hbfsimd": {
+      "bytes": 1048616,
+      "sha256": "6e6a54c94de72d06072ee48de9b853933ddffc687edd61b6bf9fa7927869e339"
+    },
+    "runtime-futures-on/libptxpass_hbf.so": {
+      "bytes": 1431680,
+      "sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf"
+    },
+    "runtime-futures-on/libhbfsim_vllm_extension.so": {
+      "bytes": 422784,
+      "sha256": "e49eeac31969f099cedafd39765ce68325dfb8c96cf8e9ab6fe999b087799453"
+    },
+    "runtime-futures-on/libhbfsim_core.a": {
+      "bytes": 2547864,
+      "sha256": "c83d9e76cd57142def8740db8d77fa03d7e8eb63cdd04310ad6f9997eecf646b"
+    },
+    "runtime-futures-on/libhbfsim_eval_ptx.a": {
+      "bytes": 1238428,
+      "sha256": "c31effad80fd5870e673199dd2976e103a3eb171e0a7ec24944e32776aae87cb"
+    },
+    "gate-core-futures-off/libhbfsim_launch_gate.so": {
+      "bytes": 640464,
+      "sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889"
+    },
+    "gate-core-futures-off/libhbfsim_core.a": {
+      "bytes": 2420232,
+      "sha256": "877fa5f9e6571a8bd7b6d83352fd1400cf5b6e43ae9da304432ebfe173bacaf8"
+    }
+  },
+  "status": "BUILD_PASS",
+  "end_ns": 1790184221109834252
+}

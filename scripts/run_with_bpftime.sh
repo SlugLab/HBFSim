@@ -144,7 +144,13 @@ if (( status != 0 )); then
     exit "$status"
 fi
 
-if ! python3 -c 'import json,sys; manifests=[json.loads(x) for x in open(sys.argv[1]) if x.strip()]; decisions=[json.loads(x) for x in open(sys.argv[2]) if x.strip()]; assert manifests and all(m.get("module_id") and m.get("kernel") for m in manifests); assert decisions and all("allowed" in d and d.get("reason") for d in decisions); assert any(d.get("modeled") is True for d in decisions)' "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
+activation_policy=${HBFSIM_INSTRUMENTATION_POLICY:-auto}
+if [[ $activation_policy != strict ]]; then
+    activation_policy=auto
+fi
+if ! python3 "$HBFSIM_ROOT/scripts/validate_bpftime_activation.py" \
+        --policy "$activation_policy" \
+        "$HBFSIM_PASS_MANIFEST_PATH" "$HBFSIM_COVERAGE_PATH" 2>/dev/null; then
     echo "run_with_bpftime: target produced no valid instrumentation activation artifacts" >&2
     exit 70
 fi

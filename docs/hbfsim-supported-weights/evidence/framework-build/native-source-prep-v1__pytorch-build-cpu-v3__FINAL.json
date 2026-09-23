@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "status": "COMPLETE",
+  "build_pid": 164700,
+  "source_commit": "5811a8d7da873dd699ff6687092c225caffcf1bb",
+  "cpp_httplib_commit": "89c932f313c6437c38f2982869beacc89c2f2246",
+  "dso": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
+  "dso_bytes": 589843592,
+  "dso_mtime_ns": 1790107646316768707,
+  "dso_sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
+  "build_log_sha256": "7413b6e87239d0860e0e953f3aed05cef2349cea148018895fd7a6161ceea4d0",
+  "build_log_bytes": 113164,
+  "noop_returncode": 0,
+  "noop_output": "ninja: Entering directory `/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4'\nninja: no work to do.\n",
+  "ldd_returncode": 0,
+  "cuobjdump_list_returncode": 0,
+  "cuobjdump_path": "/usr/bin/cuobjdump",
+  "cuobjdump_version": "cuobjdump: NVIDIA (R) fat binary listing tool\nCopyright (c) 2005-2024 NVIDIA Corporation\nBuilt on Fri_Mar_15_14:38:03_PDT_2024\nCuda compilation tools, release 12.4, V12.4.127\nBuild cuda_12.4.r12.4/compiler.34043715_0",
+  "ptx_member_lines": 397,
+  "target_ptx_member_lines": [],
+  "supervisor_terminal": {
+    "event": "supervisor_complete",
+    "time_ns": 1790107675871444360,
+    "termination": null,
+    "process_absent": true
+  },
+  "recorded_unix_ns": 1790107925034750889
+}

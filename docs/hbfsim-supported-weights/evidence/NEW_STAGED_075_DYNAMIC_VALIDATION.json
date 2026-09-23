@@ -1,0 +1,98 @@
+{
+  "accounting_complete": true,
+  "by_storage": [
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "base": 1099683594240,
+      "bytes": 268435456,
+      "modeled_coverage_rows": 12
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "base": 123872225525760,
+      "bytes": 536870912,
+      "modeled_coverage_rows": 12
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "base": 123891021287424,
+      "bytes": 4096,
+      "modeled_coverage_rows": 6
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "base": 123891021291520,
+      "bytes": 4096,
+      "modeled_coverage_rows": 6
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "base": 123891021561344,
+      "bytes": 4096,
+      "modeled_coverage_rows": 6
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "base": 123891021565440,
+      "bytes": 4096,
+      "modeled_coverage_rows": 6
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1"
+      ],
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "base": 123891024396288,
+      "bytes": 206045184,
+      "modeled_coverage_rows": 3
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "base": 123891290566656,
+      "bytes": 4096,
+      "modeled_coverage_rows": 6
+    }
+  ],
+  "coverage_sha256": "40b5fd7b1589bfa582561bcd91cd780bbd836a94136cdf2e47b4d7a236c878e3",
+  "note": "Addressed coverage plus measured per-module closure; shared modules do not give separate per-storage latency.",
+  "registration_sha256": "4b592ab7a3f530b49d9b3f1b36f6e258dfe71ef6c6d7a990f10ffb2141d3cda5",
+  "result_sha256": "187251a551fe6942f6fb61a93bf01d892d9dc6db03f86f10b2613596b9e53947",
+  "status": "PASS_8_OF_8_ADDRESSED_ACTIVE"
+}

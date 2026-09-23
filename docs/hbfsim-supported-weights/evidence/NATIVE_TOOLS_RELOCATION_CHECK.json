@@ -1,0 +1,36 @@
+{
+  "schema": "hbfsim.native_tools_relocation_check.v1",
+  "time_ns": 1790184962794592940,
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/collector/collect_native_ptx.py",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "usage: collect_native_ptx.py [-h] --container CONTAINER --cuobjdump CUOBJDUMP\n                             --output OUTPUT\n\noptions:\n  -h, --help            show this help message and exit\n  --container CONTAINER\n  --cuobjdump CUOBJDUMP\n  --output OUTPUT\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/scoped_join/join_scoped_staging_provenance.py",
+        "--help"
+      ],
+      "returncode": 0,
+      "stdout": "usage: join_scoped_staging_provenance.py [-h]\n                                         --collector-manifest COLLECTOR_MANIFEST\n                                         --staging-dir STAGING_DIR\n                                         --pass-manifest PASS_MANIFEST\n                                         [--selected-entry SELECTED_ENTRY]\n                                         [--selected-entries-json SELECTED_ENTRIES_JSON]\n                                         --output OUTPUT\n\noptions:\n  -h, --help            show this help message and exit\n  --collector-manifest COLLECTOR_MANIFEST\n  --staging-dir STAGING_DIR\n  --pass-manifest PASS_MANIFEST\n  --selected-entry SELECTED_ENTRY\n  --selected-entries-json SELECTED_ENTRIES_JSON\n  --output OUTPUT\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python3",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/scoped_join/test_scoped_join.py"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.004s\n\nOK\n"
+    }
+  ],
+  "status": "PASS"
+}

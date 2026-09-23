@@ -57,6 +57,17 @@ class LaunchRangeSynchronizer {
 
 enum class ParameterKind { Scalar, Pointer, OpaqueAggregate };
 
+struct PointerFieldMetadata {
+    std::size_t byte_offset{0};
+    std::size_t width{0};
+    std::string proof_kind;
+    std::string load_opcode;
+    std::string conversion_opcode;
+    std::size_t load_instruction{0};
+    std::size_t conversion_instruction{0};
+    bool operator==(const PointerFieldMetadata&) const = default;
+};
+
 enum class RangePolicy : std::uint32_t {
     None = 0,
     LegacyStrict = 1,
@@ -71,6 +82,9 @@ struct ParameterMetadata {
     std::size_t offset{0};
     std::size_t width{0};
     ParameterKind kind{ParameterKind::Scalar};
+    std::vector<PointerFieldMetadata> pointer_fields;
+    bool fields_complete{false};
+    std::vector<std::string> opaque_reason;
 };
 
 struct UnsupportedParameter {
@@ -139,6 +153,9 @@ struct GateDecision {
     RangePolicy range_policy{RangePolicy::None};
     bool modeled{false};
     bool opaque_unmodeled{false};
+    // Strict policy can require transformed execution without claiming that a
+    // dynamic address intersected an HBF range.
+    bool requires_instrumented_execution{false};
 };
 
 [[nodiscard]] ModuleManifest module_manifest_from_json(const std::string& json);

@@ -1,0 +1,67 @@
+{
+  "compiler": {
+    "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so",
+    "sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c"
+  },
+  "files": {
+    "hbfsim-bpftime.provenance": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-norm-bpftime-v4/hbfsim-bpftime.provenance",
+      "sha256": "6689cafc2ecd2e66dabeaddca7c805bab470354031e113d6a919605a00ab328e"
+    },
+    "hbfsim_bpftime_attach_loader": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsim_bpftime_attach_loader",
+      "sha256": "823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72"
+    },
+    "hbfsimd": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/hbfsimd",
+      "sha256": "6e6a54c94de72d06072ee48de9b853933ddffc687edd61b6bf9fa7927869e339"
+    },
+    "libhbfsim.so": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libhbfsim.so.0.1.0",
+      "sha256": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+    },
+    "libhbfsim.so.0": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libhbfsim.so.0.1.0",
+      "sha256": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+    },
+    "libhbfsim.so.0.1.0": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libhbfsim.so.0.1.0",
+      "sha256": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+    },
+    "libhbfsim_launch_gate.so": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/gate-core-futures-off/libhbfsim_launch_gate.so",
+      "sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889"
+    },
+    "libptxpass_hbf.so": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libptxpass_hbf.so",
+      "sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf"
+    },
+    "runtime/agent/libbpftime-agent.so": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2/runtime/agent/libbpftime-agent.so",
+      "sha256": "519ef5617b5e0cbe28ce0b91d2a14decbe3e2dc99498bf874ec3789dd36caba8"
+    },
+    "runtime/syscall-server/libbpftime-syscall-server.so": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-norm-bpftime-v4/runtime/syscall-server/libbpftime-syscall-server.so",
+      "sha256": "0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d"
+    },
+    "vllm_fused_moe_probe.bpf.o": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/vllm_fused_moe_probe.bpf.o",
+      "sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5"
+    }
+  },
+  "note": "Source-built HBF and agent cohort with stable loader/probe/server; explicit external artifacts must be supplied.",
+  "receipts": {
+    "agent_build": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2-receipt.json",
+      "sha256": "9f54133bb7d734423515dcd8e4585c66e9e21fc44a12b7b841f9d30e82a54723"
+    },
+    "aggregate_build": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/RESULT.json",
+      "sha256": "a20940054ba13e425b4a1d0500415f64ed1f0558c413b690de165a22455e18bd"
+    },
+    "hbf_build": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/CPU_BUILD_RECEIPT.json",
+      "sha256": "19fca91c6942dde789de3c680531dba6533793cd2169a50f517c2af69ffdda94"
+    }
+  }
+}

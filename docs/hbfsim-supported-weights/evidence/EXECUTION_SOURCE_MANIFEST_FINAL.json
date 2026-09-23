@@ -1,0 +1,78 @@
+{
+  "files": {
+    "MODEL_FILE_IDENTITY.json": {
+      "bytes": 1490,
+      "sha256": "f77e1ef0845492ed1eb70787da0cc28ed40366f82a3b80fba1af3cfd804440ac"
+    },
+    "README.md": {
+      "bytes": 5583,
+      "sha256": "c7d33b3d857001c8bc71d9327a3b5fa68c482f775e9e1649641fd84f6113a28d"
+    },
+    "bundle-inputs.example.giga.json": {
+      "bytes": 3839,
+      "sha256": "14c5f1e2e89f56ffefb8c09eecf0724485bbb9947c4070bfa8f2672688617e7a"
+    },
+    "compile_stage_v1.py": {
+      "bytes": 5122,
+      "sha256": "dfb3d18e17c488c246aa1808869e621fc823d5ab9394e30df0ba5e9ff80deb9f"
+    },
+    "compose_bundle_v1.py": {
+      "bytes": 2560,
+      "sha256": "6ce7f926169c57f715e320352400d519dbe0edb0f988b11a8d780b992e02c1ed"
+    },
+    "config.schema.json": {
+      "bytes": 3952,
+      "sha256": "eec1595cd79fb3eabdddc0ac3477addb8530c00ff8dbd324c24f34b1eda1e070"
+    },
+    "cpu_checks.py": {
+      "bytes": 4680,
+      "sha256": "00c4d46afcd6109e8304e12bada66481ffbe77abf1abfeb328ac1139924c8db5"
+    },
+    "entry_proof.py": {
+      "bytes": 9851,
+      "sha256": "ef16497d178ed0c0a9da6219d247fa72e66ecf237413911de2395d2a5ba5dfbd"
+    },
+    "example.giga.json": {
+      "bytes": 8663,
+      "sha256": "7c2bb7e324a3868c2179c878da087bab20a7422717305f3b4766e02330b7539c"
+    },
+    "example.source-built-layer0.giga.json": {
+      "bytes": 10181,
+      "sha256": "9a3a7cd2f2698b2733c56e03cc3618a5ef62f2ee19a8a90c13b0b4c950b55849"
+    },
+    "fixtures/collector-references.giga.json": {
+      "bytes": 791,
+      "sha256": "e6c0ca1a0b9f2bf81ac734a4cf08206f56a040edb2a0ce87dfc4efa365085c20"
+    },
+    "fixtures/expected-all98.giga.json": {
+      "bytes": 21952,
+      "sha256": "6c748aa34e1554ad9d277fdebf332a0dd33212f87bdf378312443b31347d25c6"
+    },
+    "fixtures/expected-layer0.giga.json": {
+      "bytes": 1519,
+      "sha256": "644abdbff31648ceb130b5e86ad479a98e817724b3bae0ddb7347d07cddab505"
+    },
+    "fixtures/native-bindings-template.giga.json": {
+      "bytes": 4933,
+      "sha256": "fbfa512f0f6e385fd738ed677d30187f44b091f78d547d3edc2145edfe87389d"
+    },
+    "join_native_v1.py": {
+      "bytes": 5873,
+      "sha256": "10f0952dd60f84f66e687ea27ccbdc230717150ee842475e6aef045cc3604f34"
+    },
+    "reproduce.py": {
+      "bytes": 27895,
+      "sha256": "017114084b1f99e14bbb52edf42b97ce36a0db7e521d5fb6f3e94c600facde97"
+    },
+    "stage-inputs.example.giga.json": {
+      "bytes": 1863,
+      "sha256": "891d284fd49dc945a711a6a9966fd1a55f72c1ea5de6d55d97c98c2e441c43aa"
+    },
+    "stage_exact_v3.py": {
+      "bytes": 7923,
+      "sha256": "ca894a2b0acfbfcbd23a1deed32f4b0e75b554a63c47c58d0b5a0b467e3f95aa"
+    }
+  },
+  "schema": "hbfsim.execution_source_manifest.v1",
+  "status": "CPU_SOURCE_FROZEN"
+}

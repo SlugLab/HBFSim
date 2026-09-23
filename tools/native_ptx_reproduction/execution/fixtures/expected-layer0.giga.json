@@ -1,0 +1,65 @@
+{
+  "status": "HISTORICAL_EXPECTATION_NOT_CURRENT_REGISTRATION",
+  "scope": "Representative layer 0 supported weights plus global embedding and final norm; full supported scope remains subsequent objective",
+  "source_sha256": "601c60150f6abed81f30fda492e5f732da9593fd15d26b01f0c9aef8cdfbef11",
+  "selected_count": 8,
+  "selected_bytes": 1011372032,
+  "selected": [
+    {
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "storage_bytes": 206045184,
+      "category": "embedding"
+    },
+    {
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    }
+  ]
+}

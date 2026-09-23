@@ -78,18 +78,98 @@ std::size_t align_up(std::size_t value, std::size_t alignment)
 bool parameter_feeds_memory_address(const std::string& body,
                                     const std::string& parameter_name)
 {
-    const std::regex load(
-        R"(ld\.param\.(?:u64|b64)\s+(%rd[A-Za-z0-9_$]+)\s*,\s*\[\s*)" +
-        parameter_name + R"((?:\s*\+\s*0)?\s*\])");
-    std::smatch loaded;
-    if (!std::regex_search(body, loaded, load)) {
-        return false;
+    // NVCC 13 emits `.ptr` for the fixture parameters, while NVCC 12.8
+    // emits plain `.u64` and makes the pointer nature explicit in the body:
+    // ld.param -> cvta.to.global -> address arithmetic -> ld/st.global.
+    // Track only values that cross cvta.to.global as pointer bases.  A plain
+    // u64 scalar used as an address offset therefore remains scalar.
+    const std::regex instruction(
+        R"((?:^|\n)\s*(?:@!?%[A-Za-z0-9_$]+\s+)?([A-Za-z][A-Za-z0-9_.]*)\s+([^;]+);)");
+    const std::regex register_token(R"(%[A-Za-z][A-Za-z0-9_$]*)");
+    const std::regex parameter_source(
+        R"(\[\s*)" + parameter_name + R"((?:\s*\+\s*0)?\s*\])");
+    std::vector<std::string> generic_values;
+    std::vector<std::string> pointer_values;
+    const auto has = [](const std::vector<std::string>& values,
+                        const std::string& value) {
+        return std::find(values.begin(), values.end(), value) != values.end();
+    };
+    const auto erase = [](std::vector<std::string>& values,
+                          const std::string& value) {
+        values.erase(std::remove(values.begin(), values.end(), value),
+                     values.end());
+    };
+    const auto registers = [&](const std::string& text) {
+        std::vector<std::string> result;
+        for (std::sregex_iterator it(text.begin(), text.end(), register_token),
+                                  end;
+             it != end; ++it) {
+            result.push_back(it->str());
+        }
+        return result;
+    };
+    for (std::sregex_iterator it(body.begin(), body.end(), instruction), end;
+         it != end; ++it) {
+        const auto opcode = (*it)[1].str();
+        const auto operands = (*it)[2].str();
+        const auto regs = registers(operands);
+
+        const auto bracket = operands.find('[');
+        const bool memory_opcode =
+            opcode.find(".global") != std::string::npos ||
+            std::regex_match(opcode, std::regex(
+                R"((?:ld|st|atom|red)\.(?:[subf][0-9]+|b[0-9]+))"));
+        if (bracket != std::string::npos && memory_opcode &&
+            (opcode.starts_with("ld.") || opcode.starts_with("st.") ||
+             opcode.starts_with("atom.") || opcode.starts_with("red."))) {
+            const auto close = operands.find(']', bracket + 1);
+            const auto address = operands.substr(
+                bracket + 1, close == std::string::npos
+                                 ? std::string::npos
+                                 : close - bracket - 1);
+            for (const auto& reg : registers(address)) {
+                // Retain the legacy direct ld.param->memory-address case,
+                // while also accepting a base proven by cvta propagation.
+                if (has(generic_values, reg) || has(pointer_values, reg))
+                    return true;
+            }
+        }
+        if (regs.empty()) continue;
+        const auto& destination = regs.front();
+        bool generic = false;
+        bool pointer = false;
+        if ((opcode == "ld.param.u64" || opcode == "ld.param.b64") &&
+            std::regex_search(operands, parameter_source)) {
+            generic = true;
+        } else if (opcode == "cvta.to.global.u64") {
+            for (std::size_t index = 1; index < regs.size(); ++index)
+                pointer = pointer || has(generic_values, regs[index]) ||
+                          has(pointer_values, regs[index]);
+        } else if (opcode == "mov.u64" || opcode == "mov.b64") {
+            for (std::size_t index = 1; index < regs.size(); ++index) {
+                generic = generic || has(generic_values, regs[index]);
+                pointer = pointer || has(pointer_values, regs[index]);
+            }
+        } else if (opcode == "add.u64" || opcode == "add.s64") {
+            for (std::size_t index = 1; index < regs.size(); ++index)
+                pointer = pointer || has(pointer_values, regs[index]);
+        }
+        // Kill only for instructions that actually write their first operand.
+        // Predicated writes preserve the old value on the untaken path, so
+        // retain its taint and merge the new classification conservatively.
+        const bool predicated = it->str().find('@') != std::string::npos;
+        const bool writes_destination =
+            !opcode.starts_with("st.") && !opcode.starts_with("red.") &&
+            !opcode.starts_with("bra") && !opcode.starts_with("ret") &&
+            !opcode.starts_with("bar.") && !opcode.starts_with("membar.");
+        if (writes_destination && !predicated) {
+            erase(generic_values, destination);
+            erase(pointer_values, destination);
+        }
+        if (generic) generic_values.push_back(destination);
+        if (pointer) pointer_values.push_back(destination);
     }
-    const auto address_register = loaded[1].str();
-    const std::regex memory_address(
-        R"((?:ld|st|atom|red)(?:\.global|\.[subf][0-9]|\.b[0-9])[^;]*\[\s*)" +
-        address_register + R"((?:\s*[+-][^\]]+)?\s*\])");
-    return std::regex_search(body, memory_address);
+    return false;
 }
 
 std::vector<PassParameter> decode_parameters(const std::string& declarations,

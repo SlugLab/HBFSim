@@ -138,6 +138,33 @@ def test_required_binding_rejects_missing_or_ambiguous_variant(tmp_path,
         )
 
 
+def test_strict_binding_applies_to_every_loaded_kernel(tmp_path):
+    hook = binding.TritonVariantBinder(
+        tmp_path / "report", lambda *_: 0, required=True)
+    with pytest.raises(binding.TritonBindingError,
+                       match="metadata missing for attention_kernel"):
+        hook.on_kernel_load(
+            None, 0x1234, "attention_kernel", {}, "hash")
+
+
+def test_legacy_required_names_can_limit_required_kernel_set(tmp_path):
+    hook = binding.TritonVariantBinder(
+        tmp_path / "report", lambda *_: 0, required=True,
+        required_names={"fused_moe_kernel"})
+    hook.on_kernel_load(None, 0x1234, "attention_kernel", {}, "hash")
+    record = json.loads(
+        (tmp_path / "report" / "triton-bindings.jsonl").read_text())
+    assert record["kernel_name"] == "attention_kernel"
+    assert record["result"] == "missing_ptx"
+    assert record["required"] is False
+
+
+def test_required_names_rejects_string_that_would_split_characters(tmp_path):
+    with pytest.raises(ValueError, match="collection of strings"):
+        binding.TritonVariantBinder(
+            tmp_path / "report", lambda *_: 0, required_names="kernel")
+
+
 def test_metadata_group_path_is_supported(tmp_path):
     ptx = tmp_path / "fused_moe_kernel.ptx"
     ptx.write_bytes(PTX_A)

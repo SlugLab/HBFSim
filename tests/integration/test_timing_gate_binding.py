@@ -509,6 +509,17 @@ def main() -> int:
     pointer.value = 0x1008
     require(approve_original(ctypes.c_void_p(0x9000), parameters, None) == 2,
             "modeled HBF launch did not select the patched function")
+    fake_library.fakeCudaSetNestedLaunchApprovalMode.argtypes = [ctypes.c_int]
+    fake_library.fakeCudaNestedLaunchApprovalResult.restype = ctypes.c_int
+    fake_library.fakeCudaSetNestedLaunchApprovalMode(1)
+    require(launch_kernel() == 0 and
+            fake_library.fakeCudaNestedLaunchApprovalResult() == 2,
+            "runtime/driver nested launch lost transformed approval")
+    fake_library.fakeCudaSetNestedLaunchApprovalMode(2)
+    require(launch_kernel() == 0 and
+            fake_library.fakeCudaNestedLaunchApprovalResult() == 0,
+            "runtime/driver nested launch accepted a different function")
+    fake_library.fakeCudaSetNestedLaunchApprovalMode(0)
     require(launch_kernel() == 0, "bound trusted module launch was rejected")
     fake_library.fakeCudaSetCurrentDomain(0xCB00, 3)
     require(launch_kernel() != 0, "foreign CUDA context used a bound module")

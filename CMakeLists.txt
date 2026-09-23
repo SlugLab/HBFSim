@@ -4,6 +4,8 @@ project(HBFSim VERSION 0.1.0 LANGUAGES CXX)
 
 option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON)
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
+option(HBFSIM_GATE_TEST_HOOKS "Enable tested CUDA launch gate ABI hooks" OFF)
+set(HBFSIM_GATE_CUDART_VERSION_MAP "" CACHE FILEPATH "CUDA runtime symbol version map for launch gate")
 option(HBFSIM_ENABLE_LLM_TESTS "Enable llama.cpp and vLLM integration tests" OFF)
 option(HBFSIM_ENABLE_TIMING_FUTURES "Build explicitly selected scalar TIMING futures" OFF)
 option(HBFSIM_ENABLE_EVAL_TOOLS "Build offline evaluation models and replay tools" OFF)
@@ -322,6 +324,23 @@ set_target_properties(
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+# Independent metadata profile for native aggregate parameter layouts.  The
+# ordinary ptxpass_hbf_plugin target remains the norm CVTA profile.
+add_library(ptxpass_hbf_aggregate_plugin SHARED src/ptxpass_hbf/plugin_aggregate_metadata.cpp)
+target_link_libraries(
+    ptxpass_hbf_aggregate_plugin PRIVATE hbfsim_core OpenSSL::Crypto
+)
+target_include_directories(
+    ptxpass_hbf_aggregate_plugin PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ptxpass_hbf"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party"
+)
+set_target_properties(
+    ptxpass_hbf_aggregate_plugin PROPERTIES
+    OUTPUT_NAME ptxpass_hbf_aggregate
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
 if(BUILD_TESTING)
     find_program(HBFSIM_PYTHON3_EXECUTABLE python3 REQUIRED)
 endif()
@@ -598,7 +617,14 @@ if(CUDAToolkit_FOUND)
     endif()
 
     add_library(hbfsim_launch_gate SHARED src/cuda_runtime/launch_gate.cpp)
-    target_link_libraries(hbfsim_launch_gate PRIVATE hbfsim_core ${CMAKE_DL_LIBS})
+    target_link_libraries(hbfsim_launch_gate PRIVATE hbfsim_core ${CMAKE_DL_LIBS} OpenSSL::Crypto CUDA::cudart CUDA::cuda_driver)
+    if(HBFSIM_GATE_CUDART_VERSION_MAP)
+        if(NOT EXISTS "${HBFSIM_GATE_CUDART_VERSION_MAP}")
+            message(FATAL_ERROR "HBFSIM_GATE_CUDART_VERSION_MAP does not exist: ${HBFSIM_GATE_CUDART_VERSION_MAP}")
+        endif()
+        target_link_options(hbfsim_launch_gate PRIVATE "LINKER:--version-script=${HBFSIM_GATE_CUDART_VERSION_MAP}")
+        set_property(TARGET hbfsim_launch_gate APPEND PROPERTY LINK_DEPENDS "${HBFSIM_GATE_CUDART_VERSION_MAP}")
+    endif()
     target_include_directories(
         hbfsim_launch_gate
         PRIVATE
@@ -609,7 +635,7 @@ if(CUDAToolkit_FOUND)
         hbfsim_launch_gate PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
-    if(BUILD_TESTING)
+    if(BUILD_TESTING OR HBFSIM_GATE_TEST_HOOKS)
         target_compile_definitions(
             hbfsim_launch_gate PRIVATE HBFSIM_ENABLE_TEST_HOOKS=1
         )

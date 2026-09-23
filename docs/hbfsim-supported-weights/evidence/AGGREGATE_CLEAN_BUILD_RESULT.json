@@ -1,0 +1,68 @@
+{
+  "schema": "hbfsim.aggregate_clean_build.v1",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+  "commands": [
+    {
+      "label": "configure",
+      "argv": [
+        "/usr/bin/cmake",
+        "-G",
+        "Ninja",
+        "-S",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+        "-B",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-15",
+        "-DCMAKE_CUDA_COMPILER=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-13",
+        "-DCMAKE_CUDA_ARCHITECTURES=120",
+        "-DHBFSIM_CUDA_ARCHITECTURE=120",
+        "-DCUDAToolkit_ROOT=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0",
+        "-DHBFSIM_ENABLE_CUDA=ON",
+        "-DHBFSIM_ENABLE_MQSIM=ON",
+        "-DHBFSIM_ENABLE_LLM_TESTS=OFF",
+        "-DHBFSIM_NVCC_HOST_COMPILER=/usr/bin/g++-13",
+        "-DHBFSIM_PTXAS_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/ptxas",
+        "-DHBFSIM_CLANG_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+        "-DHBFSIM_LLVM_OBJDUMP_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-objdump",
+        "-DHBFSIM_NM_EXECUTABLE=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-nm",
+        "-DHBFSIM_PYTHON3_EXECUTABLE=/usr/bin/python3",
+        "-DBUILD_TESTING=ON",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=ON",
+        "-DHBFSIM_ENABLE_EVAL_TOOLS=ON",
+        "-DCUDA_CUDART:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cudart_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcudart.so",
+        "-DCUDA_cuda_driver_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libcuda.so",
+        "-DCMAKE_CXX_FLAGS=-fconstexpr-loop-limit=1048576"
+      ],
+      "start_ns": 1790186962280342413,
+      "end_ns": 1790186965361833541,
+      "rc": 0,
+      "stdout": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/configure.stdout",
+      "stderr": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/configure.stderr"
+    },
+    {
+      "label": "build",
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build",
+        "--parallel",
+        "2",
+        "--target",
+        "ptxpass_hbf_aggregate_plugin"
+      ],
+      "start_ns": 1790186965361981265,
+      "end_ns": 1790187009526041646,
+      "rc": 0,
+      "stdout": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build.stdout",
+      "stderr": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build.stderr"
+    }
+  ],
+  "status": "PASS",
+  "plugin": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build/libptxpass_hbf_aggregate.so",
+  "plugin_sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+  "plugin_bytes": 1498544,
+  "source_sha256": "a7f538d38b33e5bc709e200d517fe724daf5def37db602fa6e817c8df744dad3"
+}

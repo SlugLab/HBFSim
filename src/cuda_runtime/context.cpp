@@ -56,6 +56,9 @@ struct hbfsim_context {
     pid_t daemon_pid{-1};
     std::uint64_t request_timeout_ns{0};
     bool cuda_registered{false};
+    bool gpu_exclusive_producer{false};
+    bool device_state_poisoned{false};
+    hbfsim::host_service::DeviceTimingState* device_timing_state{nullptr};
     const hbfsim::LaunchGateApiV2* launch_gate_api_v2{nullptr};
     const hbfsim::LaunchGateApiV3* launch_gate_api_v3{nullptr};
     const hbfsim::LaunchGateApiV4* launch_gate_api_v4{nullptr};
@@ -98,9 +101,12 @@ int launch_gate_activate(hbfsim_context* context, std::uintptr_t owner,
     if (context->launch_gate_api_v4 != nullptr) {
         ControlView control(context->control_mapping,context->control_bytes);
         const auto* h=control.header();
-        const auto caps=hbfsim::timing_future::derive_capabilities(h->timing_model,
+        auto caps=hbfsim::timing_future::derive_capabilities(h->timing_model,
             h->empirical_flags,h->time_scale,h->read_latency_ns,h->program_latency_ns,
             h->aggregate_bandwidth_bytes_per_s,h->request_timeout_ns);
+        if (context->gpu_exclusive_producer) {
+            caps.bits = 0;
+        }
         return context->launch_gate_api_v4->activate_with_capabilities(
             owner,control_alias,cuda_context,device_ordinal,&caps,generation);
     }
@@ -615,6 +621,26 @@ ReleaseResult release_context(hbfsim_context* context,
     }
     reap_or_terminate(context);
 #if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+    if (context->device_timing_state != nullptr) {
+        if (!cuda_domain_is_current(context->cuda_context,
+                                    context->device_ordinal) ||
+            ::cudaFree(context->device_timing_state) != cudaSuccess) {
+            context->device_state_poisoned = true;
+            if (retire_token != 0) {
+                launch_gate_quarantine(context, retire_token);
+            }
+            return ReleaseResult::quarantined;
+        }
+        context->device_timing_state = nullptr;
+        context->device_state_poisoned = false;
+        if (context->control_mapping != MAP_FAILED) {
+            ControlView control(context->control_mapping,
+                                context->control_bytes);
+            control.header()->device_state_address = 0;
+            control.header()->device_state_bytes = 0;
+            control.header()->device_state_generation = 0;
+        }
+    }
     if (context->cuda_registered) {
         if (::cudaHostUnregister(context->control_mapping) != cudaSuccess) {
             if (retire_token != 0) {
@@ -911,6 +937,41 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
             release_context(context.release(), false);
             return HBFSIM_CUDA_ERROR;
         }
+        context->cuda_context =
+            reinterpret_cast<std::uintptr_t>(cuda_context);
+        context->device_ordinal = static_cast<int>(device);
+        int host_native_atomic = 0;
+        if (::cudaDeviceGetAttribute(&host_native_atomic,
+                cudaDevAttrHostNativeAtomicSupported,
+                static_cast<int>(device)) != cudaSuccess) {
+            release_context(context.release(), false);
+            return HBFSIM_CUDA_ERROR;
+        }
+        if (host_native_atomic == 0) {
+            hbfsim::host_service::DeviceTimingState initial{};
+            initial.magic = hbfsim::host_service::kDeviceTimingStateMagic;
+            if (::cudaMalloc(
+                    reinterpret_cast<void**>(&context->device_timing_state),
+                    sizeof(initial)) != cudaSuccess ||
+                ::cudaMemcpy(context->device_timing_state, &initial,
+                             sizeof(initial), cudaMemcpyHostToDevice) !=
+                    cudaSuccess) {
+                context->device_state_poisoned =
+                    context->device_timing_state != nullptr;
+                release_context(context.release(), false);
+                return HBFSIM_CUDA_ERROR;
+            }
+            context->gpu_exclusive_producer = true;
+            control.header()->device_state_address =
+                reinterpret_cast<std::uintptr_t>(
+                    context->device_timing_state);
+            control.header()->device_state_bytes = sizeof(initial);
+            control.header()->producer_mode =
+                hbfsim::host_service::kProducerModeGpuExclusive;
+        } else {
+            control.header()->producer_mode =
+                hbfsim::host_service::kProducerModeHostNativeAtomic;
+        }
         using get_api_type = hbfsim::LaunchGateGetApi;
         auto get_api = reinterpret_cast<get_api_type>(
             ::dlsym(RTLD_DEFAULT, "hbfsim_launch_gate_get_api"));
@@ -1002,6 +1063,21 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         context->device_ordinal = static_cast<int>(device);
         context->timing_owner_active = true;
         control.header()->control_generation = context->control_generation;
+        if (context->gpu_exclusive_producer) {
+            hbfsim::host_service::DeviceTimingState initial{};
+            initial.magic = hbfsim::host_service::kDeviceTimingStateMagic;
+            initial.generation = context->control_generation;
+            if (::cudaMemcpy(context->device_timing_state, &initial,
+                             sizeof(initial), cudaMemcpyHostToDevice) !=
+                cudaSuccess) {
+                context->device_state_poisoned = true;
+                release_context(context.release(), false);
+                return HBFSIM_CUDA_ERROR;
+            }
+            control.header()->device_state_generation =
+                context->control_generation;
+        }
+
 #else
         release_context(context.release(), false);
         return HBFSIM_CUDA_ERROR;
@@ -1035,6 +1111,9 @@ int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
 {
     if (context == nullptr || ticket == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (context->gpu_exclusive_producer) {
+        return HBFSIM_UNSUPPORTED;
     }
     ControlView control(context->control_mapping, context->control_bytes);
     const auto deadline = monotonic_ns() + context->request_timeout_ns;
@@ -1236,6 +1315,9 @@ int wait_for_completion_for_test(hbfsim_context* context,
 {
     if (context == nullptr || completion == nullptr) {
         return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (context->gpu_exclusive_producer) {
+        return HBFSIM_UNSUPPORTED;
     }
     ControlView control(context->control_mapping, context->control_bytes);
     const auto deadline = monotonic_ns() + context->request_timeout_ns;
@@ -1784,6 +1866,44 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
         return HBFSIM_IO_ERROR;
     }
     const auto* header = control.header();
+    if (context->gpu_exclusive_producer) {
+#if defined(HBFSIM_ENABLE_CUDA_RUNTIME)
+        if (context->device_timing_state == nullptr ||
+            context->device_state_poisoned ||
+            !hbfsim::runtime::cuda_domain_is_current(
+                context->cuda_context, context->device_ordinal) ||
+            ::cudaDeviceSynchronize() != cudaSuccess) {
+            return HBFSIM_CUDA_ERROR;
+        }
+        hbfsim::host_service::DeviceTimingState state{};
+        if (::cudaMemcpy(&state, context->device_timing_state,
+                         sizeof(state), cudaMemcpyDeviceToHost) != cudaSuccess ||
+            state.magic !=
+                hbfsim::host_service::kDeviceTimingStateMagic ||
+            state.generation != context->control_generation ||
+            state.poisoned != 0 ||
+            header->producer_mode !=
+                hbfsim::host_service::kProducerModeGpuExclusive ||
+            header->device_state_address !=
+                reinterpret_cast<std::uintptr_t>(
+                    context->device_timing_state) ||
+            header->device_state_bytes != sizeof(state) ||
+            header->device_state_generation !=
+                context->control_generation) {
+            return HBFSIM_CUDA_ERROR;
+        }
+        *out = {
+            .requests_submitted = state.request_producer,
+            .requests_completed = state.completion_consumer,
+            .fast_requests = state.fast_requests,
+            .reference_requests = state.reference_requests,
+            .fast_modeled_ns = state.fast_modeled_ns,
+        };
+        return HBFSIM_OK;
+#else
+        return HBFSIM_CUDA_ERROR;
+#endif
+    }
     *out = {
         .requests_submitted = hbfsim::host_service::atomic_load(
             header->request_producer, std::memory_order_acquire),
@@ -1795,6 +1915,60 @@ extern "C" int hbfsim_get_stats(hbfsim_context* context,
             header->reference_requests, std::memory_order_acquire),
         .fast_modeled_ns = hbfsim::host_service::atomic_load(
             header->fast_modeled_ns, std::memory_order_acquire),
+    };
+    return HBFSIM_OK;
+}
+
+extern "C" int hbfsim_get_capacity_stats_v1(
+    hbfsim_context* context, hbfsim_capacity_stats_v1* out)
+{
+    if (context == nullptr || out == nullptr ||
+        out->struct_size != sizeof(hbfsim_capacity_stats_v1) ||
+        out->version != HBFSIM_CAPACITY_STATS_V1_VERSION) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    hbfsim::runtime::ContextOperation operation(context);
+    if (!operation) {
+        return HBFSIM_IO_ERROR;
+    }
+    std::lock_guard lifecycle(context->capacity_mutex);
+    if (!context->capacity) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    const auto current = context->capacity->stats();
+    const auto service = current.service;
+    *out = {
+        .struct_size = sizeof(hbfsim_capacity_stats_v1),
+        .version = HBFSIM_CAPACITY_STATS_V1_VERSION,
+        .enabled = current.enabled ? 1u : 0u,
+        .reserved0 = 0,
+        .page_bytes = current.page_bytes,
+        .vmm_granularity = current.vmm_granularity,
+        .pool_allocated_bytes = current.pool_allocated_bytes,
+        .logical_frame_count = current.logical_frame_count,
+        .service_resolve_calls = service.service_resolve_calls,
+        .service_resident_hits = service.service_resident_hits,
+        .service_reclaimed_hits = service.service_reclaimed_hits,
+        .service_misses = service.service_misses,
+        .successful_backing_read_pages =
+            service.successful_backing_read_pages,
+        .successful_backing_read_bytes =
+            service.successful_backing_read_bytes,
+        .successful_h2d_fill_pages =
+            service.successful_h2d_fill_pages,
+        .successful_h2d_fill_bytes =
+            service.successful_h2d_fill_bytes,
+        .successful_resolve_evictions =
+            service.successful_resolve_evictions,
+        .service_ready_results = service.service_ready_results,
+        .successful_d2h_readback_pages =
+            service.successful_d2h_readback_pages,
+        .successful_d2h_readback_bytes =
+            service.successful_d2h_readback_bytes,
+        .successful_backing_write_pages =
+            service.successful_backing_write_pages,
+        .successful_backing_write_bytes =
+            service.successful_backing_write_bytes,
     };
     return HBFSIM_OK;
 }

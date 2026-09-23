@@ -1,0 +1,10 @@
+{
+  "gate_sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889",
+  "fake_driver_sha256": "30eb29df0afa85038f885ade8c8effbdfa836cb61c71791e48fa5c6c3fd2a943",
+  "fake_cudart13_sha256": "a8ce89706ff756f3e04f9b5ab0d980e516ddd81276111aad7576b23f6f51c3a7",
+  "returncode": 0,
+  "stderr": "",
+  "ld_library_path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-gate-cpu-v3:/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-real-dso-cpu-v1",
+  "status": "PASS",
+  "rows": 12
+}

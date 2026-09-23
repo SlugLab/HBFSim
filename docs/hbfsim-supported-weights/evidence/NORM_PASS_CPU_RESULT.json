@@ -1,0 +1,31 @@
+{
+  "returncode": 0,
+  "raw_sha256": "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+  "pass_sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf",
+  "staged_sha256": "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66",
+  "old_staged_sha256": "5c4cf1843497d1651bd55e98fccafe6cca8d38647fa18b48df16f30d79caa2b3",
+  "manifest_sha256": "21fa004ce807b3c5ed254fe03c2313c609c4f763684f89c880b6e51dde4563b1",
+  "rows": [
+    {
+      "kernel": "_ZN4vllm15rms_norm_kernelIN3c108BFloat16ELi8ELi2EEEvPT_PKS3_lllllS6_fii",
+      "rewrites": 66,
+      "unsupported": 0,
+      "pointer_indices": [
+        0,
+        1,
+        7
+      ]
+    },
+    {
+      "kernel": "_ZN4vllm25fused_add_rms_norm_kernelIN3c108BFloat16ELi8EEENSt9enable_ifIXaagtT0_Li0Esr4vllm12_typeConvertIT_EE6existsEvE4typeEPS4_lS7_PKS4_fii",
+      "rewrites": 60,
+      "unsupported": 0,
+      "pointer_indices": [
+        0,
+        2,
+        3
+      ]
+    }
+  ],
+  "stderr_tail": ""
+}

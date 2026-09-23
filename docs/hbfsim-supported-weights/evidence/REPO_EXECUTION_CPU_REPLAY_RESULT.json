@@ -1,0 +1,48 @@
+{
+  "bundle_file_count": 11,
+  "compile_count": 7,
+  "cubin_shas_match_gpu_candidate": true,
+  "files": {
+    "actual_gpu_finish": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/new-cohort-layer0-staged-075-v1/finish.json",
+      "sha256": "2981a01215f7d3d443dcd92055f53cddac8abe77f500f14702679c21c5d3d261"
+    },
+    "actual_gpu_result": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/new-cohort-layer0-staged-075-v1/cell/result.json",
+      "sha256": "187251a551fe6942f6fb61a93bf01d892d9dc6db03f86f10b2613596b9e53947"
+    },
+    "bundle": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-bundle-v1/BUNDLE_MANIFEST.json",
+      "sha256": "6e075fb2078844682dec1403e9f9cf68a33d5b67f08385519f3c448ad573ce9b"
+    },
+    "compile": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-compile-v1/COMPILE_RECEIPT.json",
+      "sha256": "1bb3aec7f8607f8a1255e2534a1b8db1f524a970a1c11783de72b4b85fb91313"
+    },
+    "config": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-config-v1.json",
+      "sha256": "b0f4aa927652cc0f38a5205c1150ccd058a276c661d86991b9fd1f99dd3e6356"
+    },
+    "join": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-join-v1/JOIN_RECEIPT.json",
+      "sha256": "19ba37bc0f34631d797cde17403793950860d158a072ec3a5bb93a0e06a613f9"
+    },
+    "source_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/EXECUTION_SOURCE_MANIFEST_FINAL.json",
+      "sha256": "026c658b2de45231052e2324a33f199b17691f080ee446594a5783066096c690"
+    },
+    "stage": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/STAGE_RECEIPT.json",
+      "sha256": "fe9e828ba7d177ea3cb433614b9d59fd3a6c5f7a1f7c51d389bf85584f836a60"
+    }
+  },
+  "native_binding_count": 4,
+  "pass_row_count": 8,
+  "preflight": "PASS_33_ARTIFACTS",
+  "schema": "hbfsim.execution_repo_cpu_replay.v1",
+  "stage_count": 7,
+  "stage_shas_match_gpu_candidate": true,
+  "status": "PASS_CPU_REPLAY_NO_NEW_GPU",
+  "time_unix_ns": 1790190260586796467,
+  "verify_existing_gpu_result": "PASS_8_OF_8_ADDRESSED_ACTIVE"
+}

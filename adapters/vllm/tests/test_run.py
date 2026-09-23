@@ -63,3 +63,37 @@ def test_timing_model_defaults_to_hybrid(monkeypatch):
                       "--profile", "/profile.json", "--report-dir", "/report"]
     )
     assert run_module.parse_args().hbf_timing_model == "hybrid"
+
+
+def test_explicit_request_timeout_reaches_loader_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        sys, "argv", [
+            "run.py", "--mode", "timing", "--model", "/model",
+            "--profile", "/profile.json", "--report-dir", "/report",
+            "--request-timeout-ns", "300000000000",
+        ],
+    )
+    args = run_module.parse_args()
+    run_module.validate_args(args)
+    policy = run_module.resolve_weight_policy(args)
+    extra = run_module.timing_loader_extra(args, tmp_path / "report", policy)
+    assert args.request_timeout_ns == 300_000_000_000
+    assert extra["request_timeout_ns"] == 300_000_000_000
+    assert extra["ring_capacity"] == 64
+
+
+def test_request_timeout_must_be_positive(monkeypatch):
+    monkeypatch.setattr(
+        sys, "argv", [
+            "run.py", "--mode", "timing", "--model", "/model",
+            "--profile", "/profile.json", "--report-dir", "/report",
+            "--request-timeout-ns", "0",
+        ],
+    )
+    args = run_module.parse_args()
+    try:
+        run_module.validate_args(args)
+    except SystemExit as error:
+        assert "request-timeout-ns must be positive" in str(error)
+    else:
+        raise AssertionError("zero request timeout was accepted")

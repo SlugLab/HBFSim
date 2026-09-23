@@ -1,0 +1,22 @@
+{
+  "cache_sha256": "db26d667157c9eeeb5bd04cb178921bcd1441433226fe9797bc20bf2fd97b700",
+  "rules_sha256": "477015e35cf49aa546a24036dd72c9ba4dc83429ab121ec141940a9f9b2dcb03",
+  "cache_entries": [
+    "CMAKE_BUILD_TYPE:STRING=Release",
+    "CMAKE_CUDA_COMPILER:STRING=/root/hbfsim-exp/rebuttal_20260921/cuda128-toolchain-prep-v1/root/cuda-12.8/bin/nvcc",
+    "CMAKE_CUDA_HOST_COMPILER:UNINITIALIZED=/usr/bin/g++-13",
+    "CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++",
+    "CUDA_NVRTC_LIB:FILEPATH=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/lib/python3.13/site-packages/nvidia/cuda_nvrtc/lib/libnvrtc.so.12",
+    "FETCHCONTENT_SOURCE_DIR_CUTLASS:PATH=/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-v1/deps/cutlass-src",
+    "FETCHCONTENT_SOURCE_DIR_FLASHMLA:PATH=/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-v1/deps/flashmla-src",
+    "FETCHCONTENT_SOURCE_DIR_QUTLASS:PATH=/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-v1/deps/qutlass-src",
+    "FETCHCONTENT_SOURCE_DIR_TRITON_KERNELS:PATH=/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-v1/deps/triton_kernels-src",
+    "FETCHCONTENT_SOURCE_DIR_VLLM-FLASH-ATTN:PATH=/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-v1/deps/vllm-flash-attn-src",
+    "VLLM_PYTHON_EXECUTABLE:UNINITIALIZED=/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/bin/python",
+    "VLLM_TARGET_DEVICE:STRING=cuda"
+  ],
+  "actual_rules": [
+    "rule CUDA_COMPILER___C_unscanned_Release\n  depfile = $DEP_FILE\n  deps = gcc\n  command = ${LAUNCHER}${CODE_CHECK}/root/hbfsim-exp/rebuttal_20260921/cuda128-toolchain-prep-v1/root/cuda-12.8/bin/nvcc -forward-unknown-to-host-compiler -ccbin=/usr/bin/g++-13 $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -x cu -c $in -o $out\n  description = Building CUDA object $out\n",
+    "rule CXX_COMPILER___C_unscanned_Release\n  depfile = $DEP_FILE\n  deps = gcc\n  command = ${LAUNCHER}${CODE_CHECK}/usr/bin/c++ $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in\n  description = Building CXX object $out\n"
+  ]
+}

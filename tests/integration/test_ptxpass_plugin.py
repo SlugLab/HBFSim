@@ -275,17 +275,21 @@ def main() -> int:
         require(aggregate_status == 0,
                 f"aggregate plugin request failed with status {aggregate_status}")
         aggregate_manifest = json.loads(manifest_path.read_text())
+        aggregate_parameters = aggregate_manifest["parameters"]
         require(
-            aggregate_manifest["parameters"] == [
-                {
-                    "index": 0,
-                    "offset": 0,
-                    "width": 24,
-                    "kind": "opaque_aggregate",
-                }
+            [{key: row[key] for key in ("index", "offset", "width", "kind")}
+             for row in aggregate_parameters] == [
+                {"index": 0, "offset": 0, "width": 24,
+                 "kind": "opaque_aggregate"}
             ],
-            f"unexpected aggregate ABI: {aggregate_manifest['parameters']}",
+            f"unexpected aggregate ABI: {aggregate_parameters}",
         )
+        if "pointer_fields" in aggregate_parameters[0]:
+            require(aggregate_parameters[0]["pointer_fields"] == [] and
+                    aggregate_parameters[0]["fields_complete"] is False and
+                    aggregate_parameters[0]["opaque_reason"] ==
+                    ["no_proven_pointer_fields"],
+                    f"unexpected aggregate proof: {aggregate_parameters[0]}")
     return 0
 
 

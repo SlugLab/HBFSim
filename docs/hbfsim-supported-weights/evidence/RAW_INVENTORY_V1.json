@@ -1,0 +1,408 @@
+{
+  "file_count": 76,
+  "files": [
+    {
+      "bytes": 3826,
+      "path": "SUPPORTED_98_EXECUTION_RECEIPT.json",
+      "sha256": "092f4729f90418361939786e18fa6a4d4811671f66824eb3c5a5b4b0c22d78b8"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/__grp__fused_moe_kernel.json",
+      "sha256": "9b299b7afcc069e47146ce07e3cbf960213408fc140632429fdfb777e941d114"
+    },
+    {
+      "bytes": 31496,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.cubin",
+      "sha256": "600354b215b71749afd30158f100b89cf8fe5a841680253107ad6b48d50973c8"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.json",
+      "sha256": "6bc8d672694f7396919893ab405ce2b8fcbcc143dcb070222621995d3b41a31a"
+    },
+    {
+      "bytes": 27166,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.llir",
+      "sha256": "6c98813593a5b0854d7212667210414b8e5cdaacfe8250f0b96df82c9076cdd3"
+    },
+    {
+      "bytes": 25097,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.ptx",
+      "sha256": "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+    },
+    {
+      "bytes": 64026,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.source",
+      "sha256": "75b7a14288b8c13cbc9c90400ad14aa6615fb1971b869ff4d38ec335667e771a"
+    },
+    {
+      "bytes": 38935,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.ttgir",
+      "sha256": "9ae0b7c26de5a0fe63c53ab5b46e81db93ac2d7357b8489e996e69cae41007e8"
+    },
+    {
+      "bytes": 31711,
+      "path": "cache/triton/32YPZL3D3N75GHCG3ZUTWPQG4CSBAZGQQWCJC5CRBSWPSKZHDCUQ/fused_moe_kernel.ttir",
+      "sha256": "77140f1bf2142a882a5f4111b171b4619f57b4ad738f00eee3c04a87bc0044df"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/__grp__fused_moe_kernel.json",
+      "sha256": "a8fe2930ee72f9504e9337f2ca50cb513dcf7952e6a0ef51bb0dfd997101c533"
+    },
+    {
+      "bytes": 44864,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.cubin",
+      "sha256": "1c714097b6559d81548c2528b475d4440678a54535016e3b0385c8596a3930b6"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.json",
+      "sha256": "60584648ae898df651f6f5d831a871c708b94765db1bdc7478baca0a0ecb44f0"
+    },
+    {
+      "bytes": 52951,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.llir",
+      "sha256": "502e19b0f8c77e9c5064da9fbdb20738dd6a68fba3eb55cf9c217979d251a3f9"
+    },
+    {
+      "bytes": 34470,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.ptx",
+      "sha256": "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3"
+    },
+    {
+      "bytes": 62327,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.source",
+      "sha256": "8f8496052a5fee9914e025121ff07abae50bbe2203da7e6ef8ccb7d41f73a0d9"
+    },
+    {
+      "bytes": 38663,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.ttgir",
+      "sha256": "8019026fabe4c3155869b3a783336c3fb0f8246c8a899802627437183bb02f8e"
+    },
+    {
+      "bytes": 31269,
+      "path": "cache/triton/6IFXUVKQVXQNIDUURZ3OD7B56NFED3EOXXAVXSVCHKEFR6TELGCA/fused_moe_kernel.ttir",
+      "sha256": "91168550c0190f813cd2fac41c40e8ff885be3672c449e55f0eadd9804fc7106"
+    },
+    {
+      "bytes": 21624,
+      "path": "cache/triton/6VOBIWYE632URSPOJFGN3TSPSHWKG33KP2WU6XUW3YT4SRXXUKOQ/__triton_launcher.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "fb0b6a8e54f2ec892a2f3dbac6858f1e004b8602ffc82af77b8376b5ffbc1d71"
+    },
+    {
+      "bytes": 25720,
+      "path": "cache/triton/74OQIYEEXF7EDTEU2CXCTC2TSIII5GPDGCQIDCWRYJO6ZGPX56FQ/__triton_launcher.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "87f11781a7c082d42e014675f244c3aecfb6fbb4235ae45ff589c92f00cbbe43"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/__grp__fused_moe_kernel.json",
+      "sha256": "3adf095cd0ec8b187a81bb90bfbfaa6857997ce74cacb4852951db694a531f0f"
+    },
+    {
+      "bytes": 41016,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.cubin",
+      "sha256": "968c44f63c92f3fb6793533229719980201cdbdb97b27a6c6987d555d3abef0a"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.json",
+      "sha256": "0fadaa3007a8a20a8e464da29b4fd5fa74a41cfcff8119465446514e1b56e8bd"
+    },
+    {
+      "bytes": 45980,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.llir",
+      "sha256": "aa2346ee651ab643a3b732dc7a115e4b5c7fd7f6c1da096c4075bfc3fa7bcd48"
+    },
+    {
+      "bytes": 31931,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.ptx",
+      "sha256": "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536"
+    },
+    {
+      "bytes": 60526,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.source",
+      "sha256": "d1e4378dbf491a45063450e852d3b1e1fda217c1dd87f8c3ea7ee12f7854a178"
+    },
+    {
+      "bytes": 35843,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.ttgir",
+      "sha256": "00c507ddef5f9e8d7ec85ecff98f2eec949d603d85421425047b41ce2e9619a4"
+    },
+    {
+      "bytes": 29983,
+      "path": "cache/triton/AHIKIZP4BCA7F5PUYF52NRIUQAZTLUKQL4OHGP4U2M4VU6EU2KBQ/fused_moe_kernel.ttir",
+      "sha256": "06d6aaeb4b8872999133a7240aea107e4ee2a732a3b62979789b9da345c43d62"
+    },
+    {
+      "bytes": 21624,
+      "path": "cache/triton/GFPJE7XQPT4PKSM32SUG5HDARK5X2BCEAQWENGPMLSLV7VQHKIEQ/__triton_launcher.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "8c7a1a733687d6ae8b3999385ed27732c7df870c8f17cd69cd01fa805a86227e"
+    },
+    {
+      "bytes": 27824,
+      "path": "cache/triton/KJGBFCDPODDSTMI2D3ESJLJ6JDTKTCDGYNBY5NRKEHPZNNN6VV2Q/cuda_utils.cpython-313-x86_64-linux-gnu.so",
+      "sha256": "7fd085bb744f4838e997d926298413c1efeb3205c9331b48950adddc49e2b938"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/__grp__fused_moe_kernel.json",
+      "sha256": "fb864ec6ff672f6a4d339cf5ef6a8d60b1f9ca6d90d2a65b952cbd9b9c60e27b"
+    },
+    {
+      "bytes": 30256,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.cubin",
+      "sha256": "5a90f692d20bbcccd378ebbf6704f7571dd432b79a36734ecffe9c3b0a57641b"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.json",
+      "sha256": "4d22d1cee48dbe8f6ef2b5ca1d4053ae0ff737ffd48859e3f2c5bd8897dfeb77"
+    },
+    {
+      "bytes": 25656,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.llir",
+      "sha256": "bfee5ba09a7a7fcd01c620ccfbe8c71cefad78bc1d53f3dd93eca3f4dbfd7cec"
+    },
+    {
+      "bytes": 24108,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.ptx",
+      "sha256": "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+    },
+    {
+      "bytes": 62196,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.source",
+      "sha256": "93485e21a7b725ad0ef36a3fbe542e78c79421a29b941abeaa821c6e238f3350"
+    },
+    {
+      "bytes": 36087,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.ttgir",
+      "sha256": "4630975fd996f861e3f49ed628a29c3e5cdfb56c3ab17b80d94dc9213b8e0780"
+    },
+    {
+      "bytes": 30388,
+      "path": "cache/triton/LZKZHOJQZNFIKGNBGDNKSPWOLW6RA6TGH752RF6WJQ5WU7E6VJEA/fused_moe_kernel.ttir",
+      "sha256": "18c187c24dfee036d4e932b4aacbdb927eb0e792ba10c53d2f8f23ba8c606621"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/__grp__fused_moe_kernel.json",
+      "sha256": "25545462940aeee83a9e6a4eff679a45bdf23554bc2bf80f319ea66a5eba6645"
+    },
+    {
+      "bytes": 31496,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.cubin",
+      "sha256": "600354b215b71749afd30158f100b89cf8fe5a841680253107ad6b48d50973c8"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.json",
+      "sha256": "89f454d589c8fbdea2e4a476756aeedfe0f68da56c889964a07708852e84f1d6"
+    },
+    {
+      "bytes": 27166,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.llir",
+      "sha256": "6c98813593a5b0854d7212667210414b8e5cdaacfe8250f0b96df82c9076cdd3"
+    },
+    {
+      "bytes": 25097,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.ptx",
+      "sha256": "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+    },
+    {
+      "bytes": 63997,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.source",
+      "sha256": "f8cd491a3409bd28f3b96ed6ef34ca417d13ef9270dbef067efdea631a0ff8c5"
+    },
+    {
+      "bytes": 38906,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.ttgir",
+      "sha256": "287ace126313cad18e3dde242a069943ae9e9eac350e89ca90bf19229ae8206e"
+    },
+    {
+      "bytes": 31682,
+      "path": "cache/triton/P2W3OECQUM7DANYG6JKY6FSDS6TFQP664L4BO34CANNLZLAZAE3A/fused_moe_kernel.ttir",
+      "sha256": "104bb68abe3120a2b93b627b043fc268075e47f500f3e6b46e51f7728425ea36"
+    },
+    {
+      "bytes": 1493,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/__grp___copy_page_indices_kernel.json",
+      "sha256": "518813a0781bc812e6bb35492bff53ba10f918c947f83e179ff627bc51986bae"
+    },
+    {
+      "bytes": 17624,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.cubin",
+      "sha256": "8bad4c6cfd435587b30288d28b01cc6d7d1335ad27382d4cc0728c901dc7ec04"
+    },
+    {
+      "bytes": 1141,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.json",
+      "sha256": "68b6cb3895ed9f302d2e0edad12d39a27626410f2a8aff0e570b1e88ef4d1d91"
+    },
+    {
+      "bytes": 14771,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.llir",
+      "sha256": "70dc2c990236e940ddc4ac0800d11eb62e5ff1790c05798160dd5bb30df0e8b5"
+    },
+    {
+      "bytes": 10533,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.ptx",
+      "sha256": "c9a546d44fdd6c3cdcd03eacfb0e28c7c11fa5e33dfdc1d53aa9cac587843f57"
+    },
+    {
+      "bytes": 9942,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.source",
+      "sha256": "7ed96779b6c4503fbdb7a14f9e6324e625688d8fd3ba9157995978e0b3baa83e"
+    },
+    {
+      "bytes": 7238,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.ttgir",
+      "sha256": "36ab8e0c2fe97803d0bbec9bed2af31d898cf0270d1913c4b48b928998bfd1fe"
+    },
+    {
+      "bytes": 6164,
+      "path": "cache/triton/SHA3AVS76FHELTA7RVDTSLY3WPSXDNP62MGVE5QPHWBF5T2TFF4A/_copy_page_indices_kernel.ttir",
+      "sha256": "a2100918811ac59e957ff07c85a30adce9a6f03871bf3e95cd2f49e1d04f4d71"
+    },
+    {
+      "bytes": 1367,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/__grp__fused_moe_kernel.json",
+      "sha256": "1be3bd919dae5ab5e278f7fb4460c139cc231146860eec666dcb97af7dc0dbfc"
+    },
+    {
+      "bytes": 30256,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.cubin",
+      "sha256": "5a90f692d20bbcccd378ebbf6704f7571dd432b79a36734ecffe9c3b0a57641b"
+    },
+    {
+      "bytes": 1132,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.json",
+      "sha256": "d55537610b2b339dfb2a51e5ac75658577ccd62fa9a0b5e1dfd4692ea7610e09"
+    },
+    {
+      "bytes": 25656,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.llir",
+      "sha256": "bfee5ba09a7a7fcd01c620ccfbe8c71cefad78bc1d53f3dd93eca3f4dbfd7cec"
+    },
+    {
+      "bytes": 24108,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.ptx",
+      "sha256": "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+    },
+    {
+      "bytes": 62225,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.source",
+      "sha256": "45476d641d8e834700b1102f6ea9ffb201caa51eeec99d0e45dce800b32450d8"
+    },
+    {
+      "bytes": 36116,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.ttgir",
+      "sha256": "d86aed52a073e017fe430dd4221dab562dd57d031dbc996339045114f29979a0"
+    },
+    {
+      "bytes": 30417,
+      "path": "cache/triton/UBR6CRAAB4EVFN5OKHTYQ5L4GQNX2IHMLEW32LPI6ILNHZ2N64FA/fused_moe_kernel.ttir",
+      "sha256": "851ef149b40069ec0dcfcaa8cadfd54a413e0f6d8c478beed80ee3579e4b95c1"
+    },
+    {
+      "bytes": 53774,
+      "path": "cell/registration.json",
+      "sha256": "3913704263061e246c411d27ce22e6fd9f7d20c8ed2f3f82695ebb039565a05c"
+    },
+    {
+      "bytes": 11390,
+      "path": "cell/result.json",
+      "sha256": "ed051170d9748b3e06d08addf056af3b4c3267777a6c0d3a5a68e1879028f479"
+    },
+    {
+      "bytes": 3614,
+      "path": "cell/triton-bindings.jsonl",
+      "sha256": "67edb47ecd7056cf3b52a99b01b9d748fed4eb78c16694dfd4080633c45ef435"
+    },
+    {
+      "bytes": 802147,
+      "path": "coverage.jsonl",
+      "sha256": "6b1ac64f8459ee9526054b123d0c7e52cd44bfb38b52d1756dec02d34d411cef"
+    },
+    {
+      "bytes": 28745,
+      "path": "dynamic-coverage-validation.json",
+      "sha256": "b8fe03ef82b3725087953d1590622f4aeac65b70a06c6a7882457d494d5be156"
+    },
+    {
+      "bytes": 109,
+      "path": "finish.json",
+      "sha256": "f1ea8dbdcf15c01fce3df5c5246dd33d7766b07bce4849202263399f45da1aac"
+    },
+    {
+      "bytes": 663,
+      "path": "mapped-libraries.json",
+      "sha256": "7b47eb6c3d3964ced2d962509fdff9ce5ab7062de4be85ce02017e685a54b1af"
+    },
+    {
+      "bytes": 17497531,
+      "path": "native-registration.jsonl",
+      "sha256": "343b5504f28323b12d823a0ea122e156e0b35ef8d8531af5cc355148504b0efd"
+    },
+    {
+      "bytes": 10305,
+      "path": "pass-manifests.jsonl",
+      "sha256": "50480cc29902621e9805ea866d91c8998a4a048ca15c0173642b34d05366da7c"
+    },
+    {
+      "bytes": 14047,
+      "path": "start.json",
+      "sha256": "ff36f7bb223a6b282ae0ecd20161b499582cf87d6960ae5f3533f9962ff1c4d5"
+    },
+    {
+      "bytes": 2379,
+      "path": "target-processes.json",
+      "sha256": "e366e7308d08b60aaa9322271faf2c6c73e3001c83fd3879175d755f259baf88"
+    },
+    {
+      "bytes": 82,
+      "path": "worker-finish.json",
+      "sha256": "1c642cf69d900de6441535e3bf9662f5933c98853de5fd3282c4a58c19117848"
+    },
+    {
+      "bytes": 107,
+      "path": "worker-start.json",
+      "sha256": "3c5798a6fb42b2e1bb002019b12cd2e64faeebcf795b3fbc9e048cbd1027cf2a"
+    },
+    {
+      "bytes": 59551,
+      "path": "worker.stderr",
+      "sha256": "6c9a3fd9bd940925b52ac88e0e4e79a9d3e5ef261e938fa57257229d3584a6c5"
+    },
+    {
+      "bytes": 18066,
+      "path": "worker.stdout",
+      "sha256": "6785f3edb5a9342d4889155aff35b4b3b29e17ba64b12b0eb06baeb606704810"
+    }
+  ],
+  "mandatory": [
+    "start.json",
+    "worker-start.json",
+    "worker-finish.json",
+    "finish.json",
+    "cell/result.json",
+    "cell/registration.json",
+    "cell/triton-bindings.jsonl",
+    "coverage.jsonl",
+    "native-registration.jsonl",
+    "pass-manifests.jsonl",
+    "worker.stdout",
+    "worker.stderr",
+    "dynamic-coverage-validation.json",
+    "SUPPORTED_98_EXECUTION_RECEIPT.json",
+    "target-processes.json",
+    "mapped-libraries.json"
+  ],
+  "root": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1",
+  "schema": "hbfsim.full98_raw_inventory.v1",
+  "status": "FROZEN_AFTER_TERMINAL",
+  "time_unix_ns": 1790182368307873838,
+  "total_bytes": 20051095
+}

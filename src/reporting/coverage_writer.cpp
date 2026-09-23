@@ -22,6 +22,8 @@ nlohmann::json to_json(const GateDecision& decision)
         {"address", decision.address},
         {"range_policy", range_policy_name(decision.range_policy)},
         {"modeled", decision.modeled},
+        {"requires_instrumented_execution",
+         decision.requires_instrumented_execution},
         {"opaque_unmodeled", decision.opaque_unmodeled},
     };
 }

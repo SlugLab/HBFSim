@@ -24,6 +24,8 @@ HBFSIM_VLLM_ABI_VERSION = 2
 _TIMING_MODELS = {"reference": 0, "fast": 1, "hybrid": 2}
 _UINTPTR_LIMIT = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 _REGISTERED = False
+_STRICT_GATE_CAPABILITIES = 0x3
+_STRICT_BRIDGE_CAPABILITIES = 0x1
 
 
 class HbfSimError(RuntimeError):
@@ -45,6 +47,63 @@ class TimingConfig:
     parameter_regex: str = ""
     max_bytes_per_storage: int = 0
     timing_model: str = "hybrid"
+    weight_selection: str = "all"
+    include_patterns: tuple[str, ...] = ()
+    exclude_patterns: tuple[str, ...] = ()
+    accept_storage_closure: bool = False
+    instrumentation_policy: str | None = None
+
+    def __post_init__(self) -> None:
+        # Direct construction is a supported legacy API.  Normalize the old
+        # regex/cap knobs here as well as in from_mapping so they cannot
+        # silently expand to the new default all/strict policy.
+        if not isinstance(self.include_patterns, (list, tuple)) or not all(
+                isinstance(item, str) for item in self.include_patterns):
+            raise ValueError("include_patterns must be a list of strings")
+        if not isinstance(self.exclude_patterns, (list, tuple)) or not all(
+                isinstance(item, str) for item in self.exclude_patterns):
+            raise ValueError("exclude_patterns must be a list of strings")
+        if not isinstance(self.accept_storage_closure, bool):
+            raise ValueError("accept_storage_closure must be boolean")
+        legacy = bool(self.parameter_regex or self.max_bytes_per_storage)
+        if self.parameter_regex:
+            normalized_legacy = (
+                self.weight_selection == "include" and
+                tuple(self.include_patterns) == (self.parameter_regex,))
+            if (self.include_patterns or self.weight_selection != "all") and not normalized_legacy:
+                raise ValueError(
+                    "legacy parameter_regex cannot be combined with new selection")
+            object.__setattr__(self, "weight_selection", "include")
+            object.__setattr__(self, "include_patterns",
+                               (self.parameter_regex,))
+        else:
+            object.__setattr__(self, "include_patterns",
+                               tuple(self.include_patterns))
+        object.__setattr__(self, "exclude_patterns",
+                           tuple(self.exclude_patterns))
+        if self.instrumentation_policy is None:
+            object.__setattr__(
+                self, "instrumentation_policy",
+                "partial" if legacy else "strict")
+        if self.weight_selection not in {"all", "include", "off"}:
+            raise ValueError("weight_selection must be all, include, or off")
+        if self.instrumentation_policy not in {"strict", "partial"}:
+            raise ValueError(
+                "instrumentation_policy must be strict or partial")
+        if self.weight_selection == "include" and not self.include_patterns:
+            raise ValueError("include selection requires include_patterns")
+        if self.weight_selection != "include" and self.include_patterns:
+            raise ValueError(
+                "include_patterns require weight_selection=include")
+        if self.max_bytes_per_storage < 0:
+            raise ValueError("max_bytes_per_storage must be nonnegative")
+        for pattern in (self.parameter_regex, *self.include_patterns,
+                        *self.exclude_patterns):
+            try:
+                re.compile(pattern)
+            except re.error as error:
+                raise ValueError(
+                    f"invalid weight selection pattern: {error}") from error
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> "TimingConfig":
@@ -64,7 +123,28 @@ class TimingConfig:
         parameter_regex = str(raw.get("parameter_regex", ""))
         max_bytes = int(raw.get("max_bytes_per_storage", 0))
         timing_model = str(raw.get("timing_model", "hybrid"))
-        if not profile or not report:
+        explicit_selection = "weight_selection" in raw
+        weight_selection = str(raw.get(
+            "weight_selection", "include" if parameter_regex else "all"))
+        raw_includes = raw.get(
+            "include_patterns", (parameter_regex,) if parameter_regex else ())
+        raw_excludes = raw.get("exclude_patterns", ())
+        if (not isinstance(raw_includes, (list, tuple)) or
+                not all(isinstance(item, str) for item in raw_includes)):
+            raise ValueError("include_patterns must be a list of strings")
+        if (not isinstance(raw_excludes, (list, tuple)) or
+                not all(isinstance(item, str) for item in raw_excludes)):
+            raise ValueError("exclude_patterns must be a list of strings")
+        for key in ("accept_storage_closure", "require_modeled_accesses",
+                    "allow_opaque_timing"):
+            if key in raw and not isinstance(raw[key], bool):
+                raise ValueError(f"{key} must be boolean")
+        include_patterns = tuple(raw_includes)
+        exclude_patterns = tuple(raw_excludes)
+        legacy_partial = bool(parameter_regex or max_bytes)
+        instrumentation_policy = str(raw.get(
+            "instrumentation_policy", "partial" if legacy_partial else "strict"))
+        if weight_selection != "off" and (not profile or not report):
             raise ValueError("profile_path and report_dir are required")
         if ring <= 0 or timeout <= 0:
             raise ValueError(
@@ -76,8 +156,23 @@ class TimingConfig:
             raise ValueError("default_loader_extra_config must be a mapping")
         try:
             re.compile(parameter_regex)
+            for pattern in (*include_patterns, *exclude_patterns):
+                re.compile(pattern)
         except re.error as error:
-            raise ValueError(f"invalid parameter_regex: {error}") from error
+            raise ValueError(f"invalid weight selection pattern: {error}") from error
+        if weight_selection not in {"all", "include", "off"}:
+            raise ValueError("weight_selection must be all, include, or off")
+        if instrumentation_policy not in {"strict", "partial"}:
+            raise ValueError(
+                "instrumentation_policy must be strict or partial")
+        if weight_selection == "include" and not include_patterns:
+            raise ValueError("include selection requires include_patterns")
+        if weight_selection != "include" and include_patterns:
+            raise ValueError(
+                "include_patterns require weight_selection=include")
+        if explicit_selection and parameter_regex:
+            raise ValueError(
+                "legacy parameter_regex cannot be combined with weight_selection")
         if max_bytes < 0:
             raise ValueError("max_bytes_per_storage must be nonnegative")
         if timing_model not in _TIMING_MODELS:
@@ -98,6 +193,12 @@ class TimingConfig:
             parameter_regex=parameter_regex,
             max_bytes_per_storage=max_bytes,
             timing_model=timing_model,
+            weight_selection=weight_selection,
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            accept_storage_closure=bool(raw.get(
+                "accept_storage_closure", False)),
+            instrumentation_policy=instrumentation_policy,
         )
 
 
@@ -206,6 +307,7 @@ class _Storage:
     address: int
     size: int
     aliases: list[str]
+    tensors: list[dict[str, Any]]
 
     @property
     def end(self) -> int:
@@ -221,11 +323,17 @@ def _device_index(parameter: Any) -> int:
     return int(torch.cuda.current_device())
 
 
-def _discover_storages(model: Any) -> tuple[list[_Storage], int]:
+def _discover_storages(model: Any) -> tuple[list[_Storage], int, bool]:
     unique: dict[tuple[int, int, int], _Storage] = {}
     parameter_count = 0
     devices: set[int] = set()
-    for name, parameter in model.named_parameters(recurse=True):
+    try:
+        parameters = model.named_parameters(recurse=True, remove_duplicate=False)
+        alias_complete = True
+    except TypeError:
+        parameters = model.named_parameters(recurse=True)
+        alias_complete = False
+    for name, parameter in parameters:
         parameter_count += 1
         if getattr(parameter.device, "type", None) != "cuda":
             raise HbfSimError(f"finalized parameter is not CUDA-backed: {name}")
@@ -238,8 +346,24 @@ def _discover_storages(model: Any) -> tuple[list[_Storage], int]:
         devices.add(device)
         key = (device, address, size)
         if key not in unique:
-            unique[key] = _Storage(device, address, size, [])
+            unique[key] = _Storage(device, address, size, [], [])
         unique[key].aliases.append(name)
+        shape = [int(value) for value in getattr(parameter, "shape", ())]
+        stride = [int(value) for value in parameter.stride()] if hasattr(
+            parameter, "stride") else []
+        offset = int(parameter.storage_offset()) if hasattr(
+            parameter, "storage_offset") else 0
+        element_size = int(parameter.element_size()) if hasattr(
+            parameter, "element_size") else 0
+        unique[key].tensors.append({
+            "name": name,
+            "shape": shape,
+            "stride": stride,
+            "dtype": str(getattr(parameter, "dtype", "unknown")),
+            "storage_offset": offset,
+            "element_size": element_size,
+            "requires_grad": bool(getattr(parameter, "requires_grad", False)),
+        })
     if parameter_count == 0 or not unique:
         raise HbfSimError("model has no CUDA parameter storages")
     if len(devices) != 1:
@@ -254,7 +378,7 @@ def _discover_storages(model: Any) -> tuple[list[_Storage], int]:
                 f"0x{previous.address:x}-0x{previous.end:x} and "
                 f"0x{current.address:x}-0x{current.end:x}"
             )
-    return storages, parameter_count
+    return storages, parameter_count, alias_complete
 
 
 def _write_manifest(path: pathlib.Path, manifest: dict[str, Any]) -> None:
@@ -267,41 +391,130 @@ def _write_manifest(path: pathlib.Path, manifest: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _activate_instrumentation_policy(config: TimingConfig) -> None:
+    if config.weight_selection == "off":
+        return
+    requested = str(config.instrumentation_policy)
+    current = os.environ.get("HBFSIM_INSTRUMENTATION_POLICY")
+    if current not in (None, "", requested):
+        raise HbfSimError(
+            "conflicting process-global instrumentation policy: "
+            f"existing={current} requested={requested}")
+    os.environ["HBFSIM_INSTRUMENTATION_POLICY"] = requested
+
+
+def _require_strict_runtime_capabilities() -> None:
+    process = ctypes.CDLL(None)
+    requirements = (
+        ("hbfsim_instrumentation_policy_capabilities_v1",
+         _STRICT_GATE_CAPABILITIES),
+        ("bpftime_nv_strict_bridge_capabilities_v1",
+         _STRICT_BRIDGE_CAPABILITIES),
+    )
+    for symbol, required in requirements:
+        try:
+            function = getattr(process, symbol)
+        except AttributeError as error:
+            raise HbfSimError(
+                f"strict instrumentation runtime capability missing: {symbol}"
+            ) from error
+        function.argtypes = []
+        function.restype = ctypes.c_uint64
+        observed = int(function())
+        if observed & required != required:
+            raise HbfSimError(
+                "strict instrumentation runtime capability mismatch: "
+                f"{symbol} required=0x{required:x} observed=0x{observed:x}")
+
+
 def register_model_storages(
     model: Any,
     config: TimingConfig,
     session_factory: Callable[[TimingConfig], Any] = NativeTimingSession,
 ) -> dict[str, Any]:
-    storages, parameter_count = _discover_storages(model)
     pathlib.Path(config.report_dir).mkdir(parents=True, exist_ok=True)
-    session = session_factory(config)
+    if config.weight_selection == "off":
+        manifest = {
+            "schema_version": 2,
+            "status": "DISABLED",
+            "mode": "native",
+            "parameter_count": None,
+            "discovered_storage_count": None,
+            "selection": {"mode": "off"},
+            "storages": [],
+        }
+        _write_manifest(pathlib.Path(config.report_dir) / "registration.json",
+                        manifest)
+        return manifest
+    storages, parameter_count, alias_complete = _discover_storages(model)
+    if config.instrumentation_policy == "strict" and not alias_complete:
+        raise HbfSimError(
+            "strict instrumentation requires remove_duplicate=False support")
     try:
-        matcher = re.compile(config.parameter_regex)
-        selected = [
-            storage for storage in storages
-            if not config.parameter_regex or
-            any(matcher.search(alias) for alias in storage.aliases)
-        ]
+        includes = tuple(re.compile(item) for item in config.include_patterns)
+        excludes = tuple(re.compile(item) for item in config.exclude_patterns)
+        selected = []
+        closure = []
+        for storage in storages:
+            candidates = {
+                alias for alias in storage.aliases
+                if config.weight_selection == "all" or
+                any(pattern.search(alias) for pattern in includes)
+            }
+            excluded = {
+                alias for alias in storage.aliases
+                if any(pattern.search(alias) for pattern in excludes)
+            }
+            included = candidates - excluded
+            if not included:
+                continue
+            if excluded:
+                raise HbfSimError(
+                    "selected storage also contains explicitly excluded aliases: " +
+                    ", ".join(sorted(excluded)))
+            extras = set(storage.aliases) - included
+            if extras and not config.accept_storage_closure:
+                raise HbfSimError(
+                    "selection requires storage closure for aliases: " +
+                    ", ".join(storage.aliases))
+            selected.append(storage)
+            closure.extend(sorted(extras))
         if not selected:
-            raise HbfSimError("parameter_regex matched no CUDA storages")
+            raise HbfSimError("weight selection matched no CUDA storages")
         registered = [
             (storage, min(storage.size, config.max_bytes_per_storage)
              if config.max_bytes_per_storage else storage.size)
             for storage in selected
         ]
+        if (config.instrumentation_policy == "strict" and
+                any(size < storage.size for storage, size in registered)):
+            raise HbfSimError(
+                "strict instrumentation forbids truncated storage binding")
+        _activate_instrumentation_policy(config)
+        if config.instrumentation_policy == "strict":
+            _require_strict_runtime_capabilities()
+        session = session_factory(config)
         for storage, bytes_to_register in registered:
             session.register_storage(storage.address, bytes_to_register)
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2,
+            "status": "REGISTERED_PENDING_INSTRUMENTATION",
             "mode": "timing_backed",
             "device": storages[0].device,
             "parameter_count": parameter_count,
+            "alias_discovery_complete": alias_complete,
             "discovered_storage_count": len(storages),
             "unique_storage_count": len(registered),
             "registered_bytes": sum(size for _, size in registered),
             "profile_path": config.profile_path,
             "timing_model": config.timing_model,
             "selection": {
+                "mode": config.weight_selection,
+                "include_patterns": list(config.include_patterns),
+                "exclude_patterns": list(config.exclude_patterns),
+                "accept_storage_closure": config.accept_storage_closure,
+                "storage_closure_aliases": closure,
+                "instrumentation_policy": config.instrumentation_policy,
                 "parameter_regex": config.parameter_regex,
                 "max_bytes_per_storage": config.max_bytes_per_storage,
             },
@@ -311,6 +524,7 @@ def register_model_storages(
                     "bytes": registered_bytes,
                     "storage_bytes": item.size,
                     "aliases": item.aliases,
+                    "tensors": item.tensors,
                 }
                 for item, registered_bytes in registered
             ],
@@ -320,7 +534,8 @@ def register_model_storages(
         setattr(model, "_hbfsim_timing_session", session)
         return manifest
     except Exception:
-        session.close()
+        if "session" in locals():
+            session.close()
         raise
 
 

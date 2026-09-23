@@ -1,0 +1,192 @@
+{
+  "artifacts": {
+    "agent": {
+      "path": "native-supported-layer0-runtime-bundle-v3/runtime/agent/libbpftime-agent.so",
+      "sha256": "c6ec3ea1e8b8a50f7480eebb0ccb6360cafa515f8858f8efdbfa2c5d6f4c7d5f"
+    },
+    "agent_build_receipt": {
+      "path": "native-supported-partial-exact-agent-build-v1/FINAL_CPU_BUILD_RECEIPT.json",
+      "sha256": "b81de436137d726c7a14f8d25a4d392359fe8b000828622e04234d2d0c4dabc6"
+    },
+    "binder": {
+      "path": "weight-binding-config-source-v1/adapters/vllm/triton_binding.py",
+      "sha256": "7f2ac6def69afcdb322822d4903eb869653bf6a9ee2dc24d1237fbe71eb78400"
+    },
+    "binding_manifest": {
+      "path": "full-supported-union-cpu-prep-v1/native-bindings-union.json",
+      "sha256": "fbfa512f0f6e385fd738ed677d30187f44b091f78d547d3edc2145edfe87389d"
+    },
+    "bundle_manifest": {
+      "path": "native-supported-layer0-runtime-bundle-v3/BUNDLE_MANIFEST.json",
+      "sha256": "ba3c58440e173681c31ff8305244a9ad156a416731b1a673bf1114be4157d3cb"
+    },
+    "compiler": {
+      "path": "native-supported-partial-exact-agent-build-v1/build/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so",
+      "sha256": "23d64da25ede61d9e38412ea28085301212f9358a5416f6d631d662148db516e"
+    },
+    "core": {
+      "path": "native-supported-layer0-runtime-bundle-v3/libhbfsim.so.0.1.0",
+      "sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb"
+    },
+    "daemon": {
+      "path": "native-supported-layer0-runtime-bundle-v3/hbfsimd",
+      "sha256": "b1a3c30dd91e4a3804bd67780bbc59209fb38f74a6f30282ab3ebf7eea5850e5"
+    },
+    "expect_all98": {
+      "path": "native-supported-all98-source-v1/EXPECTED_STORAGE.json",
+      "sha256": "6c748aa34e1554ad9d277fdebf332a0dd33212f87bdf378312443b31347d25c6"
+    },
+    "expect_layer0": {
+      "path": "native-supported-layer0-short-source-v1/EXPECTED_STORAGE.json",
+      "sha256": "644abdbff31648ceb130b5e86ad479a98e817724b3bae0ddb7347d07cddab505"
+    },
+    "extension": {
+      "path": "first-fault-compact-runtime-v2/libhbfsim_vllm_extension.so",
+      "sha256": "3697042d627105028b4d84cdf351da1d39b6d94ea067f24b4ccb4ad1a327b794"
+    },
+    "gate": {
+      "path": "native-supported-layer0-runtime-bundle-v3/libhbfsim_launch_gate.so",
+      "sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889"
+    },
+    "loader_env": {
+      "path": "native-embedding-runtime-preflight-v1/LOADER_COMMAND_RECEIPT.json",
+      "sha256": "8124408d7acca25a66a5b5786e04b22aeb3237b44ea5a5131d5a9819b3dee633"
+    },
+    "model_config": {
+      "path": "model/OLMoE-1B-7B-0924-6d84c485/config.json",
+      "sha256": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335"
+    },
+    "model_identity": {
+      "path": "supported-weight-reproduction-runner-cpu-v1/MODEL_FILE_IDENTITY.json",
+      "sha256": "f77e1ef0845492ed1eb70787da0cc28ed40366f82a3b80fba1af3cfd804440ac"
+    },
+    "nvcc": {
+      "path": "cuda128-toolchain-prep-v1/root/cuda-12.8/bin/nvcc",
+      "sha256": "59e4e55f9a38b78c590df1e28a69dad91052958f18a03868ca4a547c043fbba7"
+    },
+    "pass_manifest": {
+      "path": "native-supported-layer0-stage-combined-v1/pass-manifests.jsonl",
+      "sha256": "50480cc29902621e9805ea866d91c8998a4a048ca15c0173642b34d05366da7c"
+    },
+    "pass_plugin": {
+      "path": "native-supported-layer0-runtime-bundle-v3/libptxpass_hbf.so",
+      "sha256": "0ab365ca22940995a568cce6d8962f034709b6090d7074c417068379efb09a58"
+    },
+    "probe": {
+      "path": "native-supported-layer0-runtime-bundle-v3/vllm_fused_moe_probe.bpf.o",
+      "sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5"
+    },
+    "profile": {
+      "path": "worktree/configs/profiles/nominal.json",
+      "sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0"
+    },
+    "python": {
+      "path": "env-restore-v1/runtime-v2/bin/python",
+      "sha256": "9a9c16534cdf2c0f2dd8b6088f64511c6066b50ba607ef99cabb302242dd6ebe"
+    },
+    "runner": {
+      "path": "weight-binding-config-source-v1/adapters/vllm/run.py",
+      "sha256": "3815e3f655e9e559f668503b35637a3a5068c0c6970d3c4efcc6edc2f0e6ed33"
+    },
+    "stage_receipt": {
+      "path": "native-supported-layer0-stage-combined-v1/STAGE_RECEIPT.json",
+      "sha256": "c445d4d55afa36c8c6db8308e8a89a5c144b98ab3740321b3110d73aef3d2141"
+    },
+    "torch_cuda": {
+      "path": "native-embedding-python-overlay-v1/torch/lib/libtorch_cuda.so",
+      "sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe"
+    },
+    "torch_overlay": {
+      "path": "native-embedding-python-overlay-v1/torch/__init__.py",
+      "sha256": "3caf7f40140ede2465bde40b9003af10cbbc8f7bcf436fa1de026471daa1b288"
+    },
+    "tuned_config": {
+      "path": "configs/moe-stage1-v1/E=64,N=1024,device_name=NVIDIA_GeForce_RTX_5090.json",
+      "sha256": "40b465f23320f38c8b40ef3aae7201d1f3716b3815efa94ef5b2169d5d2cedb1"
+    },
+    "vllm_C": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/_C.abi3.so",
+      "sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a"
+    },
+    "vllm_moe_C": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/_moe_C.abi3.so",
+      "sha256": "44942f2b9909ee5b687e928055c2de802b76d9e3fb11812be9f421288ff273ef"
+    },
+    "vllm_overlay": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/__init__.py",
+      "sha256": "7d2fcdb2be605a1762738ace551515832d4fbdd485b7e888c6387fc1bd7e2876"
+    },
+    "wrapper": {
+      "path": "weight-binding-config-source-v1/scripts/run_with_bpftime.sh",
+      "sha256": "ebc170c3da3bd5553c6a05e2d3b5b6f55a31189b002d6af5406d34e01dee7269"
+    }
+  },
+  "minimum_bindings": 4,
+  "minimum_pass_rows": 8,
+  "norm_opt_by_raw": {
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e": 0
+  },
+  "resource": {
+    "cleanup_margin_seconds": 600,
+    "gpu_uuid": "GPU-45044e90-a553-930c-b950-ba660acb37fc",
+    "hostname": "threadripper",
+    "reservation": {
+      "pid": null,
+      "start_ticks": null
+    },
+    "watchdog": {
+      "deadline_unix": null,
+      "pid": null,
+      "start_ticks": null
+    }
+  },
+  "runtime": {
+    "cc": "/usr/bin/gcc-13",
+    "cuda_visible_devices": "0",
+    "cxx": "/usr/bin/g++-13",
+    "max_registers": 64,
+    "site_packages": "env-restore-v1/runtime-v2/lib/python3.13/site-packages"
+  },
+  "schema": "hbfsim.supported_weight_run.v1",
+  "scopes": {
+    "all98": {
+      "bytes": 13091213312,
+      "count": 98,
+      "include_patterns": [
+        "^model\\.embed_tokens\\.weight$",
+        "^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+        "^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$"
+      ]
+    },
+    "layer0": {
+      "bytes": 1011372032,
+      "count": 8,
+      "include_patterns": [
+        "^model\\.embed_tokens\\.weight$",
+        "^model\\.(?:norm|layers\\.0\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+        "^model\\.layers\\.0\\.mlp\\.experts\\.w(?:13|2)_weight$"
+      ]
+    }
+  },
+  "stage_dir": "native-supported-layer0-stage-combined-v1/stage",
+  "stage_sha256": {
+    "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx": "733f94c523dc2459db04ca7141f667c72270ec97c54ffe10c7b3a5872fc6811f",
+    "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536.ptx": "77db2d7b879d9bba726b88de976473efbb118f76fe8189e7abd944c65a5231ce",
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx": "5c4cf1843497d1651bd55e98fccafe6cca8d38647fa18b48df16f30d79caa2b3",
+    "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982.ptx": "1ca08d15cf42fe7a348c47ae8b54a5baf353f8346f2f8d1b604520b9e7259f0e",
+    "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3.ptx": "046ba1dc658a6b28c41171577cb68de7411e5b2a91fed52d1909ec0320d9ddfd",
+    "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx": "2a42261fbf8dbbe8d27dce2af8a1713a29021db2c479012714eaa2edac67f821",
+    "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc.ptx": "bfbdcd9690c9a7c1e1a50caf3369bf46511878ba358eb3e98173906f1a896cb2"
+  },
+  "workload": {
+    "gpu_memory_utilization": 0.78,
+    "input_len": 2,
+    "max_model_len": 256,
+    "max_num_batched_tokens": 256,
+    "num_prompts": 1,
+    "output_len": 2,
+    "request_timeout_ns": 300000000000,
+    "seed": 0,
+    "warmup_requests": 0
+  }
+}

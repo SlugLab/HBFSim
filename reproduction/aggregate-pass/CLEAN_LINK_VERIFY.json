@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "plugin": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build/libptxpass_hbf_aggregate.so",
+  "plugin_sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+  "plugin_bytes": 1498544,
+  "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/src/ptxpass_hbf/plugin_aggregate_metadata.cpp",
+  "source_sha256": "a7f538d38b33e5bc709e200d517fe724daf5def37db602fa6e817c8df744dad3",
+  "compile_command": "/usr/bin/g++-15 -DHBFSIM_ENABLE_TIMING_FUTURES=1 -DHBFSIM_TIMING_FUTURE_UNIT_COMPLETE=1 -Dptxpass_hbf_aggregate_plugin_EXPORTS -I/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/src/ptxpass_hbf -I/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/third_party/bpftime/third_party -I/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/include -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG -std=gnu++20 -fPIC -MD -MT CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/src/ptxpass_hbf/plugin_aggregate_metadata.cpp.o -MF CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/src/ptxpass_hbf/plugin_aggregate_metadata.cpp.o.d -o CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/src/ptxpass_hbf/plugin_aggregate_metadata.cpp.o -c /root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/src/ptxpass_hbf/plugin_aggregate_metadata.cpp",
+  "link_command": ": && /usr/bin/g++-15 -fPIC -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG  -shared -Wl,--dependency-file=CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/link.d -Wl,-soname,libptxpass_hbf_aggregate.so -o libptxpass_hbf_aggregate.so CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/src/ptxpass_hbf/plugin_aggregate_metadata.cpp.o  libhbfsim_core.a  /usr/lib/x86_64-linux-gnu/libcrypto.so  libhbfsim_future_emitter.a  libhbfsim_eval_ptx.a  /usr/lib/x86_64-linux-gnu/libcudart.so  /usr/lib/x86_64-linux-gnu/libcuda.so  -ldl  /usr/lib/x86_64-linux-gnu/librt.a  libmqsim_hbf.a && :",
+  "cache": {
+    "CMAKE_CXX_COMPILER": "/usr/bin/g++-15",
+    "CMAKE_CUDA_COMPILER": "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+    "CMAKE_CUDA_HOST_COMPILER": "/usr/bin/g++-13",
+    "HBFSIM_ENABLE_TIMING_FUTURES": "ON",
+    "CUDA_CUDART": "/usr/lib/x86_64-linux-gnu/libcudart.so",
+    "CUDA_cudart_LIBRARY": "/usr/lib/x86_64-linux-gnu/libcudart.so",
+    "CUDAToolkit_ROOT": "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0"
+  },
+  "ldd_rc": 0,
+  "ldd": "\tlinux-vdso.so.1 (0x00007ed68ef75000)\n\tlibcrypto.so.3 => /usr/lib/x86_64-linux-gnu/libcrypto.so.3 (0x00007ed68e600000)\n\tlibstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007ed68e200000)\n\tlibgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007ed68edd6000)\n\tlibc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x00007ed68de00000)\n\tlibz.so.1 => /usr/lib/x86_64-linux-gnu/libz.so.1 (0x00007ed68edb8000)\n\tlibzstd.so.1 => /usr/lib/x86_64-linux-gnu/libzstd.so.1 (0x00007ed68ecf3000)\n\tlibm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007ed68e4da000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007ed68ef77000)\n",
+  "ninja_cmd_rc": 0,
+  "cudart_note": "Link argv uses system CUDA12 libcudart; linker --as-needed omits DT_NEEDED because this pass DSO references no cudart symbols. No CUDA13 forwarding inferred."
+}

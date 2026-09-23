@@ -1,0 +1,205 @@
+{
+  "artifacts": {
+    "agent": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/runtime/agent/libbpftime-agent.so",
+      "sha256": "519ef5617b5e0cbe28ce0b91d2a14decbe3e2dc99498bf874ec3789dd36caba8"
+    },
+    "agent_build_receipt": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2-receipt.json",
+      "sha256": "9f54133bb7d734423515dcd8e4585c66e9e21fc44a12b7b841f9d30e82a54723"
+    },
+    "aggregate_pass_plugin": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build/libptxpass_hbf_aggregate.so",
+      "sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a"
+    },
+    "binder": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/adapters/vllm/triton_binding.py",
+      "sha256": "7f2ac6def69afcdb322822d4903eb869653bf6a9ee2dc24d1237fbe71eb78400"
+    },
+    "binding_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/native-join-v1/native-bindings-new.json",
+      "sha256": "b9eae9bad488ccc7d295f5b44343f83a4be59a07beb4bd359f03bd2d15c18623"
+    },
+    "bundle_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/BUNDLE_MANIFEST.json",
+      "sha256": "26640347b1fbfc50c7c4017f96005b6db3ca1b1674ceaa65a6f2b0c341409d0a"
+    },
+    "compile_receipt": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/compile-run-v1/COMPILE_RECEIPT.json",
+      "sha256": "c68e378518f9c96d80a8ba90f43fafb2e08ce9050fa4410911f802cd25f8013e"
+    },
+    "compiler": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so",
+      "sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c"
+    },
+    "core": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/libhbfsim.so.0.1.0",
+      "sha256": "5acdc2328f6a79ac447a0506c09b72620aa16a8af408613a9602a57dc8a6700f"
+    },
+    "daemon": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/hbfsimd",
+      "sha256": "6e6a54c94de72d06072ee48de9b853933ddffc687edd61b6bf9fa7927869e339"
+    },
+    "expect_all98": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/execution/fixtures/expected-all98.giga.json",
+      "sha256": "6c748aa34e1554ad9d277fdebf332a0dd33212f87bdf378312443b31347d25c6"
+    },
+    "expect_layer0": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/execution/fixtures/expected-layer0.giga.json",
+      "sha256": "644abdbff31648ceb130b5e86ad479a98e817724b3bae0ddb7347d07cddab505"
+    },
+    "extension": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libhbfsim_vllm_extension.so",
+      "sha256": "e49eeac31969f099cedafd39765ce68325dfb8c96cf8e9ab6fe999b087799453"
+    },
+    "gate": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/libhbfsim_launch_gate.so",
+      "sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889"
+    },
+    "loader_env": {
+      "path": "native-embedding-runtime-preflight-v1/LOADER_COMMAND_RECEIPT.json",
+      "sha256": "8124408d7acca25a66a5b5786e04b22aeb3237b44ea5a5131d5a9819b3dee633"
+    },
+    "model_config": {
+      "path": "model/OLMoE-1B-7B-0924-6d84c485/config.json",
+      "sha256": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335"
+    },
+    "model_identity": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/execution/MODEL_FILE_IDENTITY.json",
+      "sha256": "f77e1ef0845492ed1eb70787da0cc28ed40366f82a3b80fba1af3cfd804440ac"
+    },
+    "native_join_receipt": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/native-join-v1/JOIN_RECEIPT.json",
+      "sha256": "c4a94b54b39dfc09d730f0540f9bb095a2393b91178d32bc65e83eb35ac3c88e"
+    },
+    "nvcc": {
+      "path": "cuda128-toolchain-prep-v1/root/cuda-12.8/bin/nvcc",
+      "sha256": "59e4e55f9a38b78c590df1e28a69dad91052958f18a03868ca4a547c043fbba7"
+    },
+    "pass_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/stage-run-v4/pass-manifests.jsonl",
+      "sha256": "50480cc29902621e9805ea866d91c8998a4a048ca15c0173642b34d05366da7c"
+    },
+    "pass_plugin": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/libptxpass_hbf.so",
+      "sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf"
+    },
+    "probe": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/runtime-bundle-v1/vllm_fused_moe_probe.bpf.o",
+      "sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5"
+    },
+    "profile": {
+      "path": "worktree/configs/profiles/nominal.json",
+      "sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0"
+    },
+    "python": {
+      "path": "env-restore-v1/runtime-v2/bin/python",
+      "sha256": "9a9c16534cdf2c0f2dd8b6088f64511c6066b50ba607ef99cabb302242dd6ebe"
+    },
+    "runner": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/adapters/vllm/run.py",
+      "sha256": "3815e3f655e9e559f668503b35637a3a5068c0c6970d3c4efcc6edc2f0e6ed33"
+    },
+    "stage_receipt": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/stage-run-v4/STAGE_RECEIPT.json",
+      "sha256": "e70ce9c30d27edc1fe5b4b06c2df86176faf8d168add0c464000cf5982ed381c"
+    },
+    "torch_cuda": {
+      "path": "native-embedding-python-overlay-v1/torch/lib/libtorch_cuda.so",
+      "sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe"
+    },
+    "torch_overlay": {
+      "path": "native-embedding-python-overlay-v1/torch/__init__.py",
+      "sha256": "3caf7f40140ede2465bde40b9003af10cbbc8f7bcf436fa1de026471daa1b288"
+    },
+    "tuned_config": {
+      "path": "configs/moe-stage1-v1/E=64,N=1024,device_name=NVIDIA_GeForce_RTX_5090.json",
+      "sha256": "40b465f23320f38c8b40ef3aae7201d1f3716b3815efa94ef5b2169d5d2cedb1"
+    },
+    "vllm_C": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/_C.abi3.so",
+      "sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a"
+    },
+    "vllm_moe_C": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/_moe_C.abi3.so",
+      "sha256": "44942f2b9909ee5b687e928055c2de802b76d9e3fb11812be9f421288ff273ef"
+    },
+    "vllm_overlay": {
+      "path": "native-supported-layer0-vllm-python-overlay-v1/vllm/__init__.py",
+      "sha256": "7d2fcdb2be605a1762738ace551515832d4fbdd485b7e888c6387fc1bd7e2876"
+    },
+    "wrapper": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/scripts/run_with_bpftime.sh",
+      "sha256": "ebc170c3da3bd5553c6a05e2d3b5b6f55a31189b002d6af5406d34e01dee7269"
+    }
+  },
+  "cohort_note": "Example external artifact selection only. Fill current reservation/watchdog identities and verify fresh hashes before execution.",
+  "minimum_bindings": 4,
+  "minimum_pass_rows": 8,
+  "norm_opt_by_raw": {
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e": 0
+  },
+  "resource": {
+    "cleanup_margin_seconds": 600,
+    "gpu_uuid": "GPU-45044e90-a553-930c-b950-ba660acb37fc",
+    "hostname": "threadripper",
+    "reservation": {
+      "pid": null,
+      "start_ticks": null
+    },
+    "watchdog": {
+      "deadline_unix": null,
+      "pid": null,
+      "start_ticks": null
+    }
+  },
+  "runtime": {
+    "cc": "/usr/bin/gcc-13",
+    "cuda_visible_devices": "0",
+    "cxx": "/usr/bin/g++-13",
+    "max_registers": 64,
+    "site_packages": "env-restore-v1/runtime-v2/lib/python3.13/site-packages"
+  },
+  "schema": "hbfsim.supported_weight_run.v1",
+  "scopes": {
+    "all98": {
+      "bytes": 13091213312,
+      "count": 98,
+      "include_patterns": [
+        "^model\\.embed_tokens\\.weight$",
+        "^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+        "^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$"
+      ]
+    },
+    "layer0": {
+      "bytes": 1011372032,
+      "count": 8,
+      "include_patterns": [
+        "^model\\.embed_tokens\\.weight$",
+        "^model\\.(?:norm|layers\\.0\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+        "^model\\.layers\\.0\\.mlp\\.experts\\.w(?:13|2)_weight$"
+      ]
+    }
+  },
+  "stage_dir": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/stage-run-v4/stage",
+  "stage_sha256": {
+    "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx": "1d2efaa44c0e94a8dbab1c03a49382befecb58a7ae9e54b167167e94cb9b9aab",
+    "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536.ptx": "4f12d4943a61cd0e4f0b49515c53a2ebde278021ce85936b28c2e691d50b4268",
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx": "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66",
+    "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982.ptx": "fae7de3df5458a1b0df292fc8d35c00b1550178807e23ee02bf0cd9e58077742",
+    "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3.ptx": "03245331b3caeefee64afd9a7939710532be47324c92287e6b142772bcced2a8",
+    "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx": "882cceb847d586bbc770e11e22f4519431af55fe0ae9f54682248dd02afc69d3",
+    "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc.ptx": "30afed4a404f144ea6307a38b3b3433850212c5e109ba3d842008a3b89b7046e"
+  },
+  "workload": {
+    "gpu_memory_utilization": 0.75,
+    "input_len": 2,
+    "max_model_len": 256,
+    "max_num_batched_tokens": 256,
+    "num_prompts": 1,
+    "output_len": 2,
+    "request_timeout_ns": 300000000000,
+    "seed": 0,
+    "warmup_requests": 0
+  }
+}

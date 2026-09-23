@@ -1,0 +1,138 @@
+{
+  "status": "PASS",
+  "scope": "real gate DSO public12/private13 wrappers; fake cudart and inert fake driver",
+  "gate": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/gate-core-futures-off/libhbfsim_launch_gate.so",
+  "cuda_visible_devices": "",
+  "rows": [
+    {
+      "case": "public12_original",
+      "expected": 0,
+      "actual": 0,
+      "public_calls": 1,
+      "private_calls": 0,
+      "consume": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "case": "public12_original",
+      "expected": 801,
+      "actual": 801,
+      "public_calls": 1,
+      "private_calls": 0,
+      "consume": [
+        1,
+        1,
+        801
+      ]
+    },
+    {
+      "case": "private13_original",
+      "expected": 0,
+      "actual": 0,
+      "public_calls": 0,
+      "private_calls": 1,
+      "consume": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "case": "private13_original",
+      "expected": 801,
+      "actual": 801,
+      "public_calls": 0,
+      "private_calls": 1,
+      "consume": [
+        1,
+        1,
+        801
+      ]
+    },
+    {
+      "case": "nested_lifo_wrong_top",
+      "status": "PASS"
+    },
+    {
+      "case": "wrong_function",
+      "wrong": [
+        0,
+        -1,
+        -1
+      ],
+      "later": [
+        0,
+        -1,
+        -1
+      ],
+      "matching_token_failure_pops_frame": true
+    },
+    {
+      "case": "wrong_domain",
+      "wrong": [
+        0,
+        -1,
+        -1
+      ],
+      "later": [
+        0,
+        -1,
+        -1
+      ],
+      "matching_token_failure_pops_frame": true
+    },
+    {
+      "case": "wrong_api",
+      "wrong": [
+        0,
+        -1,
+        -1
+      ],
+      "later": [
+        0,
+        -1,
+        -1
+      ],
+      "matching_token_failure_pops_frame": true
+    },
+    {
+      "case": "wrong_observed_return",
+      "wrong": [
+        0,
+        -1,
+        -1
+      ],
+      "later": [
+        0,
+        -1,
+        -1
+      ],
+      "matching_token_failure_pops_frame": true
+    },
+    {
+      "case": "cross_thread",
+      "other": [
+        0,
+        -1,
+        -1
+      ],
+      "owner": "PASS"
+    },
+    {
+      "case": "invalid_begin",
+      "status": "PASS"
+    },
+    {
+      "case": "decision_helper",
+      "actions": [
+        0,
+        1,
+        2
+      ],
+      "boundary": "helper only; no actual patched driver launch"
+    }
+  ]
+}

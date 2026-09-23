@@ -12,7 +12,9 @@
 
 namespace hbfsim::host_service {
 
-inline constexpr std::uint32_t kControlAbiVersion = 4;
+inline constexpr std::uint32_t kControlAbiVersion = 5;
+inline constexpr std::uint32_t kProducerModeHostNativeAtomic = 0;
+inline constexpr std::uint32_t kProducerModeGpuExclusive = 1;
 inline constexpr std::uint32_t kRangeCapacity = 32'768;
 inline constexpr std::uint32_t kControlCapabilityCapacityMedia = 1U << 0;
 inline constexpr std::uint32_t kMinimumRingCapacity = 2;
@@ -121,7 +123,29 @@ struct alignas(64) SharedControlHeader {
     std::uint32_t empirical_breakpoint_pages[6];
     std::uint32_t empirical_point_count;
     std::uint32_t empirical_flags;
+    std::uint64_t device_state_address;
+    std::uint32_t device_state_bytes;
+    std::uint32_t producer_mode;
+    std::uint64_t device_state_generation;
+    std::uint64_t reserved_device_state[2];
 };
+
+inline constexpr std::uint64_t kDeviceTimingStateMagic = 0x4842464453544154ULL;
+struct alignas(64) DeviceTimingState {
+    std::uint64_t magic;
+    std::uint64_t generation;
+    std::uint64_t fast_request_sequence;
+    std::uint64_t fast_channel_tail_ns;
+    std::uint64_t fast_requests;
+    std::uint64_t reference_requests;
+    std::uint64_t fast_modeled_ns;
+    std::uint64_t empirical_burst_state;
+    std::uint64_t request_producer;
+    std::uint64_t completion_consumer;
+    std::uint64_t admission_count;
+    std::uint64_t poisoned;
+};
+static_assert(sizeof(DeviceTimingState) == 128);
 
 struct alignas(64) SharedRangeRecord {
     std::uint64_t base;
@@ -157,6 +181,8 @@ static_assert(std::is_trivially_copyable_v<SharedRangeRecord>);
 static_assert(std::is_trivially_copyable_v<SharedRequestSlot>);
 static_assert(std::is_trivially_copyable_v<SharedCompletionSlot>);
 static_assert(sizeof(SharedControlHeader) == 384);
+static_assert(offsetof(SharedControlHeader, device_state_address) == 344);
+static_assert(offsetof(SharedControlHeader, producer_mode) == 356);
 static_assert(sizeof(SharedRangeRecord) == 64);
 static_assert(sizeof(SharedRequestSlot) == 128);
 static_assert(sizeof(SharedCompletionSlot) == 128);

@@ -93,6 +93,10 @@ class VmmFramePool {
     {
         return frame_addresses_;
     }
+    [[nodiscard]] std::size_t reserved_bytes() const noexcept
+    {
+        return reserved_bytes_;
+    }
     [[nodiscard]] bool release() noexcept;
 
   private:

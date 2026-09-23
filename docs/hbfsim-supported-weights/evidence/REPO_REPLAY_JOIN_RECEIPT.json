@@ -1,0 +1,14 @@
+{
+  "binding_sha256": "5566cdccaebd706f0b1c86488ff9461ccca440ea74e0c012740c242198065933",
+  "sidecars": {
+    "norm": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-join-v1/norm/native-provenance-scoped.json",
+      "sha256": "d93d9b9579186fd4b76b5afaf24bce568b1455b146661e0cd418bca63f4aaf3b"
+    },
+    "torch": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-join-v1/torch/native-provenance-scoped.json",
+      "sha256": "2a4a051cf345fec71332bb84c07ce67fc416ed64daf6ddbf5ad0fb3b4b639f17"
+    }
+  },
+  "status": "CPU_SCOPED_JOIN_NOT_GPU_VALIDATED"
+}

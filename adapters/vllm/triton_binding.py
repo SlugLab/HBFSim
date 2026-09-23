@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import atexit
 import ctypes
 import hashlib
 import json
 import pathlib
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from typing import Any
 
 
@@ -66,15 +67,40 @@ class TritonVariantBinder:
 
     def __init__(self, report_dir: pathlib.Path, native: NativeBinder,
                  *, required: bool = True, retries: int = 100,
-                 retry_seconds: float = 0.05):
+                 retry_seconds: float = 0.05,
+                 required_names: Collection[str] | None = None):
         self.report_dir = pathlib.Path(report_dir).resolve()
         self.report_dir.mkdir(parents=True, exist_ok=True)
         self.output = self.report_dir / "triton-bindings.jsonl"
         self.native = native
         self.required = required
+        if isinstance(required_names, (str, bytes)) or (
+                required_names is not None and
+                not all(isinstance(item, str) for item in required_names)):
+            raise ValueError("required_names must be a collection of strings")
+        self.required_names = (None if required_names is None else
+                               frozenset(required_names))
         self.retries = retries
         self.retry_seconds = retry_seconds
         self.bound_count = 0
+        self._hook_chain: Any = None
+        self._hook_callback: Any = None
+        self._owns_direct_hook = False
+
+    def _is_required(self, name: str) -> bool:
+        return self.required and (
+            self.required_names is None or name in self.required_names)
+
+    def uninstall(self) -> None:
+        if self._hook_chain is not None and self._hook_callback is not None:
+            self._hook_chain.remove(self._hook_callback)
+        elif self._owns_direct_hook:
+            import triton
+            if triton.knobs.runtime.kernel_load_end_hook is self._hook_callback:
+                triton.knobs.runtime.kernel_load_end_hook = None
+        self._hook_chain = None
+        self._hook_callback = None
+        self._owns_direct_hook = False
 
     def _write(self, record: dict[str, Any]) -> None:
         with self.output.open("a", encoding="utf-8") as stream:
@@ -90,9 +116,10 @@ class TritonVariantBinder:
                 "kernel_name": name,
                 "triton_hash": triton_hash,
                 "result": "missing_ptx",
+                "required": self._is_required(name),
             }
             self._write(record)
-            if self.required and name == "fused_moe_kernel":
+            if self._is_required(name):
                 raise TritonBindingError(
                     f"exact PTX variant metadata missing for {name}"
                 )
@@ -125,12 +152,13 @@ class TritonVariantBinder:
             "result": labels.get(result, f"native_error_{result}"),
             "native_result": result,
             "attempts": attempts,
+            "required": self._is_required(name),
         }
         self._write(record)
         if result == 0:
             self.bound_count += 1
             return
-        if self.required and name == "fused_moe_kernel":
+        if self._is_required(name):
             raise TritonBindingError(
                 f"exact PTX variant binding failed for {name}: "
                 f"{record['result']}"
@@ -138,12 +166,29 @@ class TritonVariantBinder:
 
 
 def install_triton_binding(report_dir: pathlib.Path, *, required: bool = True,
-                           native: NativeBinder | None = None
+                           native: NativeBinder | None = None,
+                           required_names: Collection[str] | None = None,
                            ) -> TritonVariantBinder:
     import triton
 
     binder = TritonVariantBinder(
-        report_dir, native or load_native_binder(), required=required
+        report_dir, native or load_native_binder(), required=required,
+        required_names=required_names,
     )
-    triton.knobs.runtime.kernel_load_end_hook = binder.on_kernel_load
+    hook = triton.knobs.runtime.kernel_load_end_hook
+    if hasattr(hook, "add") and hasattr(hook, "remove"):
+        callback = binder.on_kernel_load
+        hook.add(callback)
+        binder._hook_chain = hook
+        binder._hook_callback = callback
+    elif hook is None:
+        callback = binder.on_kernel_load
+        triton.knobs.runtime.kernel_load_end_hook = callback
+        binder._hook_callback = callback
+        binder._owns_direct_hook = True
+    else:
+        raise TritonBindingError(
+            "unsupported non-chain Triton kernel_load_end_hook is already installed"
+        )
+    atexit.register(binder.uninstall)
     return binder

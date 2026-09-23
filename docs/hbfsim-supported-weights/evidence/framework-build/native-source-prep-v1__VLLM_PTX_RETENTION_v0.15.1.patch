@@ -1,0 +1,35 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 97e96e997..5b32165f2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,6 +18,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+ # CUDA by default, can be overridden by using -DVLLM_TARGET_DEVICE=... (used by setup.py)
+ set(VLLM_TARGET_DEVICE "cuda" CACHE STRING "Target device backend for vLLM")
++# HBFSim source-preparation option.  It is deliberately OFF by default so an
++# ordinary vLLM build remains unchanged.  When enabled, plain SM120 source
++# rules emit both sm_120 cubin and compute_120 PTX for post-link verification.
++option(HBFSIM_RETAIN_SM120_PTX
++       "Retain compute_120 PTX alongside plain sm_120 CUDA source rules" OFF)
+ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+ message(STATUS "Target device: ${VLLM_TARGET_DEVICE}")
+ 
+diff --git a/cmake/utils.cmake b/cmake/utils.cmake
+index bdb2ba74d..52f2054e8 100644
+--- a/cmake/utils.cmake
++++ b/cmake/utils.cmake
+@@ -270,6 +270,14 @@ macro(set_gencode_flags_for_srcs)
+   cmake_parse_arguments(arg "${options}" "${oneValueArgs}"
+                         "${multiValueArgs}" ${ARGN} )
+ 
++  # vLLM intentionally strips the top-level TORCH_CUDA_ARCH_LIST +PTX marker
++  # before applying per-source rules.  Promote only the plain 12.0 rule here;
++  # architecture-qualified rules such as 12.0a keep their upstream behavior.
++  # The final fatbin still has to be checked with cuobjdump for each target.
++  if(HBFSIM_RETAIN_SM120_PTX)
++    list(TRANSFORM arg_CUDA_ARCHS REPLACE "^12\\.0$" "12.0+PTX")
++  endif()
++
+   foreach(_ARCH ${arg_CUDA_ARCHS})
+     # handle +PTX suffix: generate both sm and ptx codes if requested
+     string(FIND "${_ARCH}" "+PTX" _HAS_PTX)

@@ -4,6 +4,7 @@
 #include <openssl/sha.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <iomanip>
 #include <ranges>
 #include <sstream>
@@ -44,6 +45,12 @@ bool strict_policy(RangePolicy policy)
 {
     return policy == RangePolicy::LegacyStrict ||
            policy == RangePolicy::CapacityUnbacked;
+}
+
+bool strict_instrumentation_policy()
+{
+    const char* value = std::getenv("HBFSIM_INSTRUMENTATION_POLICY");
+    return value != nullptr && std::string_view(value) == "strict";
 }
 
 RangePolicy stricter_policy(RangePolicy left, RangePolicy right)
@@ -173,6 +180,10 @@ GateDecision uninspectable_launch_decision(bool has_hbf_ranges,
                 .operation = std::move(kind),
                 .range_policy = RangePolicy::CapacityUnbacked};
     }
+    if (strict_instrumentation_policy()) {
+        KernelLaunch launch{.kernel = kind};
+        return rejected(launch, "strict_uninspectable_timing");
+    }
     KernelLaunch launch{.kernel = kind};
     return unmodeled_timing(launch, std::move(kind));
 }
@@ -189,12 +200,61 @@ ModuleManifest module_manifest_from_json(const std::string& text)
     };
     for (const auto& parameter :
          json.value("parameters", nlohmann::json::array())) {
-        manifest.parameters.push_back({
+        ParameterMetadata metadata{
             .index = parameter.at("index").get<std::size_t>(),
             .offset = parameter.at("offset").get<std::size_t>(),
             .width = parameter.at("width").get<std::size_t>(),
             .kind = parameter_kind(parameter.at("kind").get<std::string>()),
-        });
+        };
+        const bool has_aggregate_metadata =
+            parameter.contains("pointer_fields") ||
+            parameter.contains("fields_complete") ||
+            parameter.contains("opaque_reason");
+        if (metadata.kind != ParameterKind::OpaqueAggregate &&
+            has_aggregate_metadata) {
+            throw std::invalid_argument(
+                "aggregate pointer metadata on non-aggregate parameter");
+        }
+        if (metadata.kind == ParameterKind::OpaqueAggregate) {
+            if (!parameter.contains("pointer_fields") ||
+                !parameter.at("pointer_fields").is_array() ||
+                !parameter.contains("fields_complete") ||
+                !parameter.at("fields_complete").is_boolean() ||
+                !parameter.contains("opaque_reason") ||
+                !parameter.at("opaque_reason").is_array()) {
+                // Legacy manifests remain parseable but cannot authorize an
+                // aggregate pointer read.
+                metadata.opaque_reason = {"aggregate_pointer_metadata_missing"};
+            } else {
+                metadata.fields_complete =
+                    parameter.at("fields_complete").get<bool>();
+                for (const auto& field : parameter.at("pointer_fields")) {
+                    if (!field.is_object() || field.size() != 7) {
+                        throw std::invalid_argument(
+                            "invalid aggregate pointer field schema");
+                    }
+                    metadata.pointer_fields.push_back({
+                        .byte_offset = field.at("byte_offset").get<std::size_t>(),
+                        .width = field.at("width").get<std::size_t>(),
+                        .proof_kind = field.at("proof_kind").get<std::string>(),
+                        .load_opcode = field.at("load_opcode").get<std::string>(),
+                        .conversion_opcode =
+                            field.at("conversion_opcode").get<std::string>(),
+                        .load_instruction =
+                            field.at("load_instruction").get<std::size_t>(),
+                        .conversion_instruction =
+                            field.at("conversion_instruction").get<std::size_t>(),
+                    });
+                }
+                for (const auto& item : parameter.at("opaque_reason")) {
+                    if (!item.is_string() || item.get<std::string>().empty())
+                        throw std::invalid_argument(
+                            "invalid aggregate opaque reason");
+                    metadata.opaque_reason.push_back(item.get<std::string>());
+                }
+            }
+        }
+        manifest.parameters.push_back(std::move(metadata));
     }
     manifest.transform_mode=json.value("transform_mode","synchronous");
     if (json.contains("future_requirements")) {
@@ -290,6 +350,39 @@ void CoverageGate::add_module(ModuleManifest manifest)
                                         "indices and nonzero widths");
         }
         indices.push_back(parameter.index);
+        if (parameter.kind == ParameterKind::OpaqueAggregate) {
+            std::vector<std::size_t> field_offsets;
+            for (const auto& field : parameter.pointer_fields) {
+                if (field.width != sizeof(std::uintptr_t) ||
+                    field.byte_offset % alignof(std::uintptr_t) != 0 ||
+                    field.byte_offset > parameter.width ||
+                    field.width > parameter.width - field.byte_offset ||
+                    field.proof_kind !=
+                        "ptx_constant_param_load_to_cvta_global_v1" ||
+                    field.load_opcode != "ld.param.u64" ||
+                    field.conversion_opcode != "cvta.to.global.u64" ||
+                    field.load_instruction == 0 ||
+                    field.conversion_instruction == 0 ||
+                    field.conversion_instruction <= field.load_instruction ||
+                    std::ranges::find(field_offsets, field.byte_offset) !=
+                        field_offsets.end()) {
+                    throw std::invalid_argument(
+                        "invalid aggregate pointer field proof");
+                }
+                field_offsets.push_back(field.byte_offset);
+            }
+            if (parameter.fields_complete !=
+                    (!parameter.pointer_fields.empty() &&
+                     parameter.opaque_reason.empty())) {
+                throw std::invalid_argument(
+                    "inconsistent aggregate pointer completeness");
+            }
+        } else if (!parameter.pointer_fields.empty() ||
+                   parameter.fields_complete ||
+                   !parameter.opaque_reason.empty()) {
+            throw std::invalid_argument(
+                "aggregate metadata on non-aggregate parameter");
+        }
     }
     std::unique_lock lock(mutex_);
     for(const auto& [_,old]:modules_) if(old.module_id==manifest.module_id &&
@@ -302,7 +395,10 @@ void CoverageGate::add_module(ModuleManifest manifest)
         const auto& previous=old->second;
         const bool same_parameters=previous.parameters.size()==manifest.parameters.size() &&
             std::ranges::equal(previous.parameters,manifest.parameters,[](const auto& a,const auto& b) {
-                return a.index==b.index && a.offset==b.offset && a.width==b.width && a.kind==b.kind;
+                return a.index==b.index && a.offset==b.offset && a.width==b.width &&
+                    a.kind==b.kind && a.pointer_fields==b.pointer_fields &&
+                    a.fields_complete==b.fields_complete &&
+                    a.opaque_reason==b.opaque_reason;
             });
         const bool same_unsupported=previous.unsupported_parameters.size()==manifest.unsupported_parameters.size() &&
             std::ranges::equal(previous.unsupported_parameters,manifest.unsupported_parameters,[](const auto& a,const auto& b) {
@@ -452,9 +548,45 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         return {.allowed=true,.module_id=launch.module_id,.kernel=launch.kernel,
             .ptx_target=m.ptx_target,.reason="timing_future_validated",.modeled=true};
     }
+    const ModuleManifest* manifest = nullptr;
+    if (!launch.module_id.empty()) {
+        const auto found =
+            modules_.find(module_key(launch.module_id, launch.kernel));
+        if (found != modules_.end()) manifest = &found->second;
+    }
+    const auto metadata_for = [&](const LaunchParameter& parameter) {
+        return manifest == nullptr
+                   ? static_cast<const ParameterMetadata*>(nullptr)
+                   : [&]() -> const ParameterMetadata* {
+                         const auto found = std::ranges::find_if(
+                             manifest->parameters,
+                             [&parameter](const ParameterMetadata& item) {
+                                 return item.index == parameter.index;
+                             });
+                         return found == manifest->parameters.end()
+                                    ? nullptr
+                                    : &*found;
+                     }();
+    };
+    const auto aggregate_proven = [&](const LaunchParameter& parameter) {
+        const auto* metadata = metadata_for(parameter);
+        if (!parameter.opaque_aggregate || metadata == nullptr ||
+            metadata->kind != ParameterKind::OpaqueAggregate ||
+            !metadata->fields_complete ||
+            parameter.slots.size() != metadata->pointer_fields.size())
+            return false;
+        return std::ranges::all_of(
+            metadata->pointer_fields, [&](const PointerFieldMetadata& field) {
+                return std::ranges::count_if(
+                           parameter.slots, [&](const ArgumentSlot& slot) {
+                               return slot.offset == field.byte_offset;
+                           }) == 1;
+            });
+    };
     const bool opaque_aggregate = std::ranges::any_of(
-        launch.parameters, [](const LaunchParameter& parameter) {
-            return parameter.opaque_aggregate;
+        launch.parameters, [&](const LaunchParameter& parameter) {
+            return parameter.opaque_aggregate &&
+                   !aggregate_proven(parameter);
         });
     RangePolicy launch_policy = RangePolicy::None;
     for (const auto& parameter : launch.parameters) {
@@ -464,6 +596,10 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         }
     }
     const bool has_hbf = launch_policy != RangePolicy::None;
+    const bool strict_timing = strict_instrumentation_policy() &&
+        std::ranges::any_of(ranges_, [](const AddressRange& range) {
+            return range.policy == RangePolicy::TimingBacked;
+        });
     RangePolicy aggregate_policy = RangePolicy::None;
     if (opaque_aggregate && !ranges_.empty()) {
         aggregate_policy = std::ranges::any_of(
@@ -475,28 +611,76 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         launch_policy = stricter_policy(launch_policy, aggregate_policy);
     }
     if (!has_hbf && !(opaque_aggregate && !ranges_.empty())) {
+        if (strict_timing) {
+            if (launch.module_id.empty()) {
+                return rejected(launch, "strict_module_identity_required");
+            }
+            if (manifest == nullptr) {
+                return rejected(launch, "strict_unresolved_module");
+            }
+            if (manifest->cubin_only) {
+                return rejected(launch, "cubin_only_module",
+                                RangePolicy::TimingBacked);
+            }
+            if (!manifest->instrumented ||
+                !manifest->unsupported_parameters.empty()) {
+                return rejected(launch, "strict_uninstrumented_module",
+                                RangePolicy::TimingBacked);
+            }
+            const bool exact_layout =
+                launch.parameters.size() == manifest->parameters.size() &&
+                std::ranges::all_of(
+                    launch.parameters, [&](const LaunchParameter& p) {
+                        const auto metadata = std::ranges::find_if(
+                            manifest->parameters,
+                            [&p](const ParameterMetadata& item) {
+                                return item.index == p.index;
+                            });
+                        return metadata != manifest->parameters.end() &&
+                               metadata->offset == p.offset &&
+                               metadata->width == p.width &&
+                               (!p.opaque_aggregate ||
+                                aggregate_proven(p));
+                    });
+            if (!exact_layout) {
+                return rejected(launch, "strict_unproven_parameter_layout",
+                                RangePolicy::TimingBacked);
+            }
+        }
         return {.allowed = true,
-                .module_id = launch.module_id,
-                .kernel = launch.kernel,
-                .inspected_parameters = launch.parameters.size()};
+                .module_id = manifest != nullptr ? manifest->module_id
+                                                 : launch.module_id,
+                .kernel = manifest != nullptr ? manifest->kernel
+                                              : launch.kernel,
+                .ptx_target = manifest != nullptr ? manifest->ptx_target : "",
+                .inspected_parameters = launch.parameters.size(),
+                .requires_instrumented_execution = strict_timing};
     }
 
     if (launch.module_id.empty()) {
         return launch_policy == RangePolicy::TimingBacked
-                   ? unmodeled_timing(launch, "opaque_pointer_access")
+                   ? (strict_timing
+                          ? rejected(launch, "strict_module_identity_required",
+                                     launch_policy)
+                          : unmodeled_timing(launch, "opaque_pointer_access"))
                    : rejected(launch, "exact_module_identity_required",
                               launch_policy);
     }
-    const ModuleManifest* manifest = nullptr;
-    const auto found =
-        modules_.find(module_key(launch.module_id, launch.kernel));
-    if (found != modules_.end()) {
-        manifest = &found->second;
-    }
     if (manifest == nullptr) {
         return launch_policy == RangePolicy::TimingBacked
-                   ? unmodeled_timing(launch, "opaque_pointer_access")
+                   ? (strict_timing
+                          ? rejected(launch, "strict_unresolved_module",
+                                     launch_policy)
+                          : unmodeled_timing(launch, "opaque_pointer_access"))
                    : rejected(launch, "uninstrumented_module", launch_policy);
+    }
+
+    if (strict_timing && !manifest->unsupported_parameters.empty()) {
+        auto unsupported = rejected(launch, "unsupported_operation",
+                                    RangePolicy::TimingBacked);
+        unsupported.operation =
+            manifest->unsupported_parameters.front().operation;
+        return unsupported;
     }
 
     GateDecision decision{
@@ -508,6 +692,11 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         .inspected_parameters = launch.parameters.size(),
         .range_policy = launch_policy,
     };
+    // Strict timing policy requires the transformed implementation even when
+    // this launch's directly inspectable arguments do not intersect a range.
+    // This is distinct from `modeled`, which records a launch-parameter range
+    // intersection decision rather than proof that every device load hit HBF.
+    decision.requires_instrumented_execution = strict_timing;
     const bool exact_parameter_layout =
         launch.parameters.size() == manifest->parameters.size() &&
         std::ranges::all_of(
@@ -531,9 +720,10 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
         return decision;
     }
     for (const auto& parameter : launch.parameters) {
-        if (parameter.opaque_aggregate && !ranges_.empty()) {
+        if (parameter.opaque_aggregate && !aggregate_proven(parameter) &&
+            !ranges_.empty()) {
             if (aggregate_policy == RangePolicy::TimingBacked &&
-                !strict_policy(launch_policy)) {
+                !strict_policy(launch_policy) && !strict_timing) {
                 auto fallback = unmodeled_timing(
                     launch, "unproven_aggregate_pointer_slots");
                 fallback.parameter_index = parameter.index;
@@ -563,7 +753,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 });
             if (unsupported != manifest->unsupported_parameters.end()) {
                 if (slot_policy == RangePolicy::TimingBacked &&
-                    !strict_policy(launch_policy)) {
+                    !strict_policy(launch_policy) && !strict_timing) {
                     auto fallback =
                         unmodeled_timing(launch, unsupported->operation);
                     fallback.parameter_index = parameter.index;
@@ -578,7 +768,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
             }
             if (manifest->cubin_only) {
                 if (slot_policy == RangePolicy::TimingBacked &&
-                    !strict_policy(launch_policy)) {
+                    !strict_policy(launch_policy) && !strict_timing) {
                     auto fallback =
                         unmodeled_timing(launch, "opaque_pointer_access");
                     fallback.cubin_only = true;
@@ -594,7 +784,7 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
             }
             if (!manifest->instrumented) {
                 if (slot_policy == RangePolicy::TimingBacked &&
-                    !strict_policy(launch_policy)) {
+                    !strict_policy(launch_policy) && !strict_timing) {
                     auto fallback =
                         unmodeled_timing(launch, "opaque_pointer_access");
                     fallback.parameter_index = parameter.index;
@@ -612,10 +802,20 @@ GateDecision CoverageGate::check_launch(const KernelLaunch& launch) const
                 [&parameter](const ParameterMetadata& item) {
                     return item.index == parameter.index;
                 });
+            const bool proven_aggregate_field =
+                metadata != manifest->parameters.end() &&
+                metadata->kind == ParameterKind::OpaqueAggregate &&
+                metadata->fields_complete &&
+                std::ranges::any_of(
+                    metadata->pointer_fields,
+                    [&slot](const PointerFieldMetadata& field) {
+                        return field.byte_offset == slot.offset;
+                    });
             if (metadata == manifest->parameters.end() ||
-                metadata->kind != ParameterKind::Pointer) {
+                (metadata->kind != ParameterKind::Pointer &&
+                 !proven_aggregate_field)) {
                 if (slot_policy == RangePolicy::TimingBacked &&
-                    !strict_policy(launch_policy)) {
+                    !strict_policy(launch_policy) && !strict_timing) {
                     auto fallback =
                         unmodeled_timing(launch, "unrecognized_pointer_access");
                     fallback.parameter_index = parameter.index;

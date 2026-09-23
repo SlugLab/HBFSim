@@ -1,0 +1,16 @@
+[
+  {
+    "file": "src/cuda_runtime/device/hbf_device.cu",
+    "reference_source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/device/hbf_device.cu",
+    "source_sha256": "da6912230874d56ab0327477a40b113895f1df8018d9751944cc781e0971e77a",
+    "reference_sha256": "da6912230874d56ab0327477a40b113895f1df8018d9751944cc781e0971e77a",
+    "byte_equal": true
+  },
+  {
+    "file": "src/cuda_runtime/device/hbf_device.cuh",
+    "reference_source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/device/hbf_device.cuh",
+    "source_sha256": "730659c824749e654ad58f8b41e00b0be5d7a321e2fd1ff425378a84776acf40",
+    "reference_sha256": "730659c824749e654ad58f8b41e00b0be5d7a321e2fd1ff425378a84776acf40",
+    "byte_equal": true
+  }
+]

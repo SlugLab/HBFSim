@@ -1,0 +1,13 @@
+{
+  "schema": "hbfsim.locked_build_receipt.v1",
+  "mode": "check",
+  "profile": "agent",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/source",
+  "build": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-agent-cpu-v1/build-v2",
+  "time_ns": 1790185546105267660,
+  "status": "PASS",
+  "spawned": false,
+  "cache_sha256": "007b6d756c82bdb3d69994d9ebd569935a1cb99f83efe4d3f48ea959b9b65e70",
+  "compile_commands_sha256": "0cb7462f783511042a6aefed3ffd67653f0a1d2cbedae81066782a3783769967",
+  "lock_sha256": "caca9de943deb0a7c6a5780ef614ddac71cd641ae17b7ad4d137b4f15994c104"
+}

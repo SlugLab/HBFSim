@@ -1,0 +1,37 @@
+[
+  {
+    "source": "native-source-prep-v1/pytorch-configure-v4-command.json",
+    "file": "native-source-prep-v1__pytorch-configure-v4-command.json",
+    "sha256": "10dedb935a0fec3d393ad2ad5d6a496555cca08eb7638f5a23c51915a8a1f481"
+  },
+  {
+    "source": "native-source-prep-v1/pytorch-build-cpu-v3/START.json",
+    "file": "native-source-prep-v1__pytorch-build-cpu-v3__START.json",
+    "sha256": "a0988d4796f6616354187d0ad39932fb52a91a33ac0be5a0f0df6185dcc52e3c"
+  },
+  {
+    "source": "native-source-prep-v1/pytorch-build-cpu-v3/FINAL.json",
+    "file": "native-source-prep-v1__pytorch-build-cpu-v3__FINAL.json",
+    "sha256": "d812d37ce9285d1516bdfbf77a3d277c32d277dabdc88bfbd91618a0072d06d6"
+  },
+  {
+    "source": "native-source-prep-v1/vllm-build-cpu-v1/START.json",
+    "file": "native-source-prep-v1__vllm-build-cpu-v1__START.json",
+    "sha256": "f376b1a7eca643d18bb7000dbe226b0df4b8f0a319a4eded74d7ccb591fb19b1"
+  },
+  {
+    "source": "native-source-prep-v1/vllm-build-cpu-v1/terminal-noop-check.log",
+    "file": "native-source-prep-v1__vllm-build-cpu-v1__terminal-noop-check.log",
+    "sha256": "23a89bf6ea998e992fbc392ace674c3d2b6cfdad22637e6cb2b4889fb45f4483"
+  },
+  {
+    "source": "native-source-prep-v1/vllm-build-cpu-v1/terminal-noop-check.rc",
+    "file": "native-source-prep-v1__vllm-build-cpu-v1__terminal-noop-check.rc",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "source": "native-source-prep-v1/VLLM_PTX_RETENTION_v0.15.1.patch",
+    "file": "native-source-prep-v1__VLLM_PTX_RETENTION_v0.15.1.patch",
+    "sha256": "1c3b8d9669870edb8b7f7723ddac45c6b81e87674218c804a599b60e2fcc7379"
+  }
+]

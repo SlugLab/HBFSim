@@ -1,0 +1,73 @@
+{
+  "addressed_active_storage_count": 98,
+  "aggregate_in_range_accesses": 267614976,
+  "aggregate_modeled_admitted_accesses": 267614976,
+  "aggregate_modeled_bytes": 4279001088,
+  "aggregate_service_completed_accesses": 267614976,
+  "aggregate_service_completed_bytes": 4279001088,
+  "aggregate_service_requests": 266666807,
+  "category_counts": {
+    "embedding": 1,
+    "expert": 32,
+    "norm": 65
+  },
+  "controller_finish_unix_ns": 1790180494826376500,
+  "discovered_storage_count": 147,
+  "files": {
+    "cell/registration.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/registration.json",
+      "sha256": "3913704263061e246c411d27ce22e6fd9f7d20c8ed2f3f82695ebb039565a05c"
+    },
+    "cell/result.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/result.json",
+      "sha256": "ed051170d9748b3e06d08addf056af3b4c3267777a6c0d3a5a68e1879028f479"
+    },
+    "coverage.jsonl": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/coverage.jsonl",
+      "sha256": "6b1ac64f8459ee9526054b123d0c7e52cd44bfb38b52d1756dec02d34d411cef"
+    },
+    "dynamic-coverage-validation.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/dynamic-coverage-validation.json",
+      "sha256": "b8fe03ef82b3725087953d1590622f4aeac65b70a06c6a7882457d494d5be156"
+    },
+    "finish.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/finish.json",
+      "sha256": "f1ea8dbdcf15c01fce3df5c5246dd33d7766b07bce4849202263399f45da1aac"
+    },
+    "mapped-libraries.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/mapped-libraries.json",
+      "sha256": "7b47eb6c3d3964ced2d962509fdff9ce5ab7062de4be85ce02017e685a54b1af"
+    },
+    "start.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/start.json",
+      "sha256": "ff36f7bb223a6b282ae0ecd20161b499582cf87d6960ae5f3533f9962ff1c4d5"
+    },
+    "worker-finish.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-finish.json",
+      "sha256": "1c642cf69d900de6441535e3bf9662f5933c98853de5fd3282c4a58c19117848"
+    },
+    "worker-start.json": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-start.json",
+      "sha256": "3c5798a6fb42b2e1bb002019b12cd2e64faeebcf795b3fbc9e048cbd1027cf2a"
+    }
+  },
+  "limitation": "Addressed launch coverage plus per-module measured service closure; shared norm module does not provide separate per-storage latency measurements. No claim for unsupported/no-PTX weights or general input/shape performance.",
+  "module_count": 7,
+  "native_reference_output_sha256": "06df4d1df2181aa0d792324ce4dd007c7f3f6cb63015eb345ea26a3b9e0460a7",
+  "output_sha256": "06df4d1df2181aa0d792324ce4dd007c7f3f6cb63015eb345ea26a3b9e0460a7",
+  "output_token_ids": [
+    [
+      70,
+      13
+    ]
+  ],
+  "registered_bytes": 13091213312,
+  "registered_storage_count": 98,
+  "request_terminal_status": "success",
+  "resource_observation": "At first 30-minute sample GPU free 1248/32607 MiB (3.83% vs approximate 5% target), no OOM; at terminal sample free 27487/32607 MiB. Fixed 4GiB reservation remained alive.",
+  "schema": "hbfsim.supported98_execution_acceptance.v1",
+  "scope": "One native-reference-matched 2-input/2-output full-model request; 98 supported complete storages instrumented and modeled; remaining 49 storages retain native implementation and are not claimed as HBF-covered.",
+  "start_unix_ns": 1790178258795381214,
+  "status": "PASS_SUPPORTED_98_STORAGE_PROJECTION",
+  "worker_finish_unix_ns": 1790180494798331797
+}

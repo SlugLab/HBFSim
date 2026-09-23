@@ -1,0 +1,1034 @@
+{
+  "status": "HISTORICAL_EXPECTATION_NOT_CURRENT_REGISTRATION",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/registration.json",
+  "source_sha256": "601c60150f6abed81f30fda492e5f732da9593fd15d26b01f0c9aef8cdfbef11",
+  "patterns": {
+    "embedding": "^model\\.embed_tokens\\.weight$",
+    "norm": "^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+    "experts": "^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$"
+  },
+  "selected_count": 98,
+  "selected_bytes": 13091213312,
+  "category_totals": {
+    "embedding": {
+      "count": 1,
+      "bytes": 206045184
+    },
+    "norm": {
+      "count": 65,
+      "bytes": 266240
+    },
+    "experts": {
+      "count": 32,
+      "bytes": 12884901888
+    }
+  },
+  "excluded_count": 49,
+  "excluded_bytes": 747110400,
+  "selected": [
+    {
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "storage_bytes": 206045184,
+      "category": "embedding"
+    },
+    {
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.1.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.1.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.10.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.10.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.11.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.11.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.12.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.12.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.13.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.13.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.14.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.14.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.15.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.15.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.2.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.2.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.3.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.3.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.4.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.4.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.5.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.5.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.6.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.6.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.7.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.7.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.8.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.8.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.9.input_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w13_weight"
+      ],
+      "storage_bytes": 536870912,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w2_weight"
+      ],
+      "storage_bytes": 268435456,
+      "category": "experts"
+    },
+    {
+      "aliases": [
+        "model.layers.9.post_attention_layernorm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.k_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.q_norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    },
+    {
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "storage_bytes": 4096,
+      "category": "norm"
+    }
+  ],
+  "excluded": [
+    {
+      "aliases": [
+        "lm_head.weight"
+      ],
+      "storage_bytes": 206045184
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.gate.weight"
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.o_proj.weight"
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.qkv_proj.weight"
+      ],
+      "storage_bytes": 25165824
+    }
+  ],
+  "profile_path": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "profile_sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0",
+  "profile": {
+    "name": "nominal",
+    "capacity_bytes": 1099511627776,
+    "page_bytes": 16384,
+    "read_latency_ns": 10000,
+    "program_latency_ns": 100000,
+    "channels": 32,
+    "dies_per_channel": 8,
+    "planes_per_die": 4,
+    "pages_per_block": 256,
+    "channel_width_bits": 8,
+    "channel_transfer_rate_mtps": 1600,
+    "queue_depth": 128,
+    "aggregate_bandwidth_bytes_per_s": 512000000000,
+    "hbm_cache_bytes": 8589934592,
+    "reference_sample_rate": 0.01,
+    "reference_warmup_requests": 1024,
+    "time_scale": 100,
+    "timing_tolerance_ns": 10000
+  }
+}

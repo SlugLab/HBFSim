@@ -94,7 +94,7 @@ int main()
                 std::ranges::copy(frames.at(frame), data.begin());
                 return true;
             },
-        });
+        }, true);
 
     const auto page_zero = service.resolve(0, 0);
     CHECK(page_zero.status == hbfsim::RequestStatus::Ready);
@@ -107,6 +107,16 @@ int main()
     CHECK(page_zero_hit.status == hbfsim::RequestStatus::Ready);
     CHECK(page_zero_hit.media.flags ==
           hbfsim::host_service::CapacityMediaNone);
+    const auto initial_stats = service.stats();
+    CHECK(initial_stats.service_resolve_calls == 2);
+    CHECK(initial_stats.service_resident_hits == 1);
+    CHECK(initial_stats.service_reclaimed_hits == 0);
+    CHECK(initial_stats.service_misses == 1);
+    CHECK(initial_stats.successful_backing_read_pages == 1);
+    CHECK(initial_stats.successful_backing_read_bytes == page_bytes);
+    CHECK(initial_stats.successful_h2d_fill_pages == 1);
+    CHECK(initial_stats.successful_h2d_fill_bytes == page_bytes);
+    CHECK(initial_stats.service_ready_results == 2);
 
     const auto page_one = service.resolve(1, 1);
     CHECK(page_one.status == hbfsim::RequestStatus::Ready);
@@ -176,6 +186,8 @@ int main()
     CHECK(!retry_cache.resolve(0).has_value());
     CHECK(retry_service.resolve(0, 0).status ==
           hbfsim::RequestStatus::Ready);
+    CHECK(retry_service.stats().service_resolve_calls == 0);
+    CHECK(retry_service.stats().successful_backing_read_bytes == 0);
 
     const auto page_zero_before_writeback =
         backing.read_page(0, page_bytes);

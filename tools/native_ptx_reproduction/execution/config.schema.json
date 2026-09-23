@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HBFSim supported-weight one-shot reproduction",
+  "type": "object",
+  "required": ["schema", "artifacts", "stage_dir", "stage_sha256", "minimum_pass_rows", "minimum_bindings", "norm_opt_by_raw", "runtime", "workload", "scopes", "resource"],
+  "properties": {
+    "schema": {"const": "hbfsim.supported_weight_run.v1"},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/artifact"},
+      "required": ["python", "runner", "model_config", "model_identity", "profile", "torch_overlay", "vllm_overlay", "torch_cuda", "vllm_C", "vllm_moe_C", "nvcc", "tuned_config", "loader_env", "binder", "expect_layer0", "expect_all98", "wrapper", "bundle_manifest", "agent", "compiler", "agent_build_receipt", "gate", "core", "pass_plugin", "probe", "daemon", "extension", "binding_manifest", "pass_manifest", "stage_receipt"]
+    },
+    "stage_dir": {"type": "string", "minLength": 1},
+    "stage_sha256": {"type": "object", "minProperties": 1, "patternProperties": {"^[0-9a-f]{64}\\.ptx$": {"$ref": "#/$defs/sha256"}}, "additionalProperties": false},
+    "minimum_pass_rows": {"type": "integer", "minimum": 1},
+    "minimum_bindings": {"type": "integer", "minimum": 1},
+    "norm_opt_by_raw": {"type": "object", "minProperties": 1, "patternProperties": {"^[0-9a-f]{64}$": {"type": "integer", "minimum": 0, "maximum": 3}}, "additionalProperties": false},
+    "runtime": {
+      "type": "object", "required": ["site_packages", "cuda_visible_devices", "cc", "cxx", "max_registers"],
+      "properties": {"site_packages": {"type": "string"}, "cuda_visible_devices": {"type": "string"}, "cc": {"type": "string"}, "cxx": {"type": "string"}, "max_registers": {"type": "integer", "minimum": 1}}
+    },
+    "workload": {
+      "type": "object", "required": ["num_prompts", "input_len", "output_len", "max_model_len", "max_num_batched_tokens", "gpu_memory_utilization", "seed", "warmup_requests", "request_timeout_ns"],
+      "properties": {"num_prompts": {"type": "integer", "minimum": 1}, "input_len": {"type": "integer", "minimum": 1}, "output_len": {"type": "integer", "minimum": 1}, "max_model_len": {"type": "integer", "minimum": 1}, "max_num_batched_tokens": {"type": "integer", "minimum": 1}, "gpu_memory_utilization": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}, "seed": {"type": "integer"}, "warmup_requests": {"type": "integer", "minimum": 0}, "request_timeout_ns": {"type": "integer", "minimum": 1}}
+    },
+    "scopes": {"type": "object", "required": ["layer0", "all98"], "properties": {"layer0": {"$ref": "#/$defs/scope"}, "all98": {"$ref": "#/$defs/scope"}}},
+    "resource": {
+      "type": "object", "required": ["hostname", "gpu_uuid", "reservation", "watchdog", "cleanup_margin_seconds"],
+      "properties": {"hostname": {"type": "string"}, "gpu_uuid": {"type": "string"}, "reservation": {"$ref": "#/$defs/process_identity"}, "watchdog": {"type": "object", "required": ["pid", "start_ticks", "deadline_unix"], "properties": {"pid": {"type": ["integer", "null"]}, "start_ticks": {"type": ["integer", "null"]}, "deadline_unix": {"type": ["integer", "null"]}}}, "cleanup_margin_seconds": {"type": "integer", "minimum": 600}}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "scope": {"type": "object", "required": ["count", "bytes", "include_patterns"], "properties": {"count": {"type": "integer", "minimum": 1}, "bytes": {"type": "integer", "minimum": 1}, "include_patterns": {"type": "array", "minItems": 1, "items": {"type": "string"}}}},
+    "process_identity": {"type": "object", "required": ["pid", "start_ticks"], "properties": {"pid": {"type": ["integer", "null"]}, "start_ticks": {"type": ["integer", "null"]}}}
+  }
+}

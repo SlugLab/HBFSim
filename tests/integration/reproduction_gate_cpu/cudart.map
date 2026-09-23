@@ -1,0 +1,3 @@
+libcudart.so.12 { global: cudaLaunchKernel; cudaGetFuncBySymbol; cudaHostRegister; cudaHostUnregister; cudaDeviceSynchronize; cudaHostGetDevicePointer; cudaGetErrorString; cudaGetLastError; cudaSetDeviceFlags; cudaStreamIsCapturing; };
+libcudart.so.13 { global: __cudaLaunchKernel; cudaHostRegister; cudaHostUnregister; cudaHostGetDevicePointer; cudaStreamIsCapturing; cudaSetDeviceFlags; cudaGetLastError; cudaGetErrorString; } libcudart.so.12;
+FAKE_TEST_1 { global: bpftime_nv_strict_bridge_capabilities_v1; fake_reset; fake_public_calls; fake_private_calls; } libcudart.so.13;

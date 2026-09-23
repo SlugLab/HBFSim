@@ -1,0 +1,105 @@
+{
+  "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+  "results": {
+    "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 3193312,
+      "cubin_sha256": "3080bfebfa514ad3ef2bf4dd40db45dc2f4f5133c705080ad833aa5a168aad74",
+      "fixed_sha256": "1d2efaa44c0e94a8dbab1c03a49382befecb58a7ae9e54b167167e94cb9b9aab",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "1d2efaa44c0e94a8dbab1c03a49382befecb58a7ae9e54b167167e94cb9b9aab"
+    },
+    "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 637976,
+      "cubin_sha256": "9587ecebabd4e2ab9da9ed53773d86ff3806770675e5b6d75f832289d1b58da5",
+      "fixed_sha256": "79e66034e1b301ce24dc02cb2317d364089da1c9b286c94fd89d10882162aac1",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "4f12d4943a61cd0e4f0b49515c53a2ebde278021ce85936b28c2e691d50b4268"
+    },
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 3631968,
+      "cubin_sha256": "0c99eefaa36c53f7f3827ee082f2cf8299e3aa0a9e94f11c006b1725a82af73e",
+      "fixed_sha256": "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O0",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66"
+    },
+    "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 615064,
+      "cubin_sha256": "a3a36f20f7440be346ca488e7f4c147f9d6f1bc6196c10ef49af8535725e2a0a",
+      "fixed_sha256": "90da502cba331ce0d6424de1f256b1741b76057ab6cc0a55663afdac3a887108",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "fae7de3df5458a1b0df292fc8d35c00b1550178807e23ee02bf0cd9e58077742"
+    },
+    "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 654464,
+      "cubin_sha256": "5568b6157c4abe2a3951d438e8a6a9df9b4cf965091921b411f608619b1573d6",
+      "fixed_sha256": "b0b87ae96cbacff0d24b95b14a5226d8669e4fad1190788959f03f85cf44163e",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "03245331b3caeefee64afd9a7939710532be47324c92287e6b142772bcced2a8"
+    },
+    "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 25663832,
+      "cubin_sha256": "2b207f907c99fa480dab85bec131a7cf400bc7c4e6666a8defdac990d43fb96c",
+      "fixed_sha256": "882cceb847d586bbc770e11e22f4519431af55fe0ae9f54682248dd02afc69d3",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "882cceb847d586bbc770e11e22f4519431af55fe0ae9f54682248dd02afc69d3"
+    },
+    "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc": {
+      "compiler_sha256": "ee904bc6482648c9dcdfb43ad44e2c0bc396e8a15c42da21d87d7bb95b0b429c",
+      "cubin_bytes": 621200,
+      "cubin_sha256": "86ee268595e358f21fc492b40757c576f63f08900e64725cd7faf139c921b898",
+      "fixed_sha256": "1ded49cb375a58ee43a43d8b8979d60744e68b1a0777d9f485f68fc6e1687942",
+      "options": [
+        "--gpu-name=sm_120",
+        "--verbose",
+        "-O3",
+        "--maxrregcount=64"
+      ],
+      "returncode": 0,
+      "source_sha256": "30afed4a404f144ea6307a38b3b3433850212c5e109ba3d842008a3b89b7046e"
+    }
+  },
+  "stage_receipt_sha256": "e70ce9c30d27edc1fe5b4b06c2df86176faf8d168add0c464000cf5982ed381c",
+  "status": "CPU_COMPILED_NOT_GPU_VALIDATED"
+}

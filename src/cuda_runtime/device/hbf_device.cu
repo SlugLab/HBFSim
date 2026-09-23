@@ -9,6 +9,13 @@ extern "C" __device__ hbfsim::device::EvalDelayConfig
     __hbfsim_eval_delay_config = {};
 extern "C" __device__ hbfsim::device::EvalDelayCounters
     __hbfsim_eval_delay_counters = {};
+extern "C" __device__ hbfsim::device::AccessAccountingConfig
+    __hbfsim_access_accounting_config = {};
+extern "C" __device__ hbfsim::device::AccessAccountingCounters
+    __hbfsim_access_accounting_counters = {};
+extern "C" __device__ hbfsim::device::FirstFaultConfig
+    __hbfsim_first_fault_config = {};
+extern "C" __device__ unsigned int __hbfsim_first_fault_claimed = 0;
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
     HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC
 extern "C" __device__ hbfsim::device::EvalChainDiagnosticConfig
@@ -65,11 +72,172 @@ __device__ void system_fetch_sub_release(std::uint64_t* address,
     (void)value.fetch_sub(decrement, cuda::memory_order_release);
 }
 
+__device__ std::uint64_t device_acquire(const std::uint64_t* address)
+{
+    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(
+        *const_cast<std::uint64_t*>(address));
+    return value.load(cuda::memory_order_acquire);
+}
+
+__device__ bool device_compare_exchange(std::uint64_t* address,
+                                        std::uint64_t& expected,
+                                        std::uint64_t desired)
+{
+    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
+    return value.compare_exchange_weak(expected, desired,
+                                       cuda::memory_order_relaxed,
+                                       cuda::memory_order_relaxed);
+}
+
+__device__ std::uint64_t device_fetch_add(std::uint64_t* address,
+                                          std::uint64_t increment)
+{
+    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
+    return value.fetch_add(increment, cuda::memory_order_relaxed);
+}
+
+__device__ void device_fetch_sub_release(std::uint64_t* address,
+                                         std::uint64_t decrement)
+{
+    cuda::atomic_ref<std::uint64_t, cuda::thread_scope_device> value(*address);
+    (void)value.fetch_sub(decrement, cuda::memory_order_release);
+}
+
+__device__ hbfsim::device::DeviceTimingState* device_timing_state(
+    SharedControlHeader* header, std::uint64_t expected_generation)
+{
+    if (header->producer_mode != hbfsim::device::kProducerModeGpuExclusive ||
+        header->device_state_bytes !=
+            sizeof(hbfsim::device::DeviceTimingState) ||
+        header->device_state_address == 0 ||
+        header->device_state_generation != expected_generation) {
+        return nullptr;
+    }
+    auto* state = reinterpret_cast<hbfsim::device::DeviceTimingState*>(
+        header->device_state_address);
+    return device_acquire(&state->magic) ==
+                   hbfsim::device::kDeviceTimingStateMagic &&
+               device_acquire(&state->generation) == expected_generation &&
+               device_acquire(&state->poisoned) == 0
+           ? state
+           : nullptr;
+}
+
 __device__ std::uint64_t gpu_time_ns()
 {
     std::uint64_t now;
     asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(now));
     return now;
+}
+
+struct FirstFaultObservation {
+    hbfsim::device::FirstFaultReason reason{
+        hbfsim::device::FirstFaultReason::Other};
+    hbfsim::device::FirstFaultPhase phase{
+        hbfsim::device::FirstFaultPhase::FaultTrap};
+    RequestStatus status{RequestStatus::IoError};
+    std::uint64_t valid_bits{0};
+    std::uint64_t arrival_ns{0}, deadline_ns{0}, target_ns{0};
+    std::uint64_t heartbeat_value{0}, heartbeat_observed_ns{0};
+    std::uint64_t ticket{0}, position{0}, slot_index{0};
+    std::uint64_t request_slot_sequence{0}, completion_slot_sequence{0};
+    std::uint64_t completion_request_id{0}, completion_modeled_ns{0};
+    std::uint32_t completion_status{0};
+};
+
+__device__ void first_fault_record(const SharedControlHeader* header,
+                                   const hbfsim::device::DeviceTimingState* state,
+                                   std::uint64_t expected_generation,
+                                   const FirstFaultObservation& observation)
+{
+    const auto config = __hbfsim_first_fault_config;
+    if (config.magic != hbfsim::device::kFirstFaultConfigMagic ||
+        config.schema_version != hbfsim::device::kFirstFaultSchemaVersion ||
+        config.struct_bytes != sizeof(config) || config.enabled != 1 ||
+        config.epoch == 0 || config.compact_address == 0 ||
+        config.record_address == 0) return;
+    const auto reason = static_cast<std::uint32_t>(observation.reason);
+    const auto phase = static_cast<std::uint32_t>(observation.phase);
+    const auto status = static_cast<std::uint32_t>(observation.status);
+    if (config.compact_address != 0 && reason >= 1 && reason <= 5 &&
+        phase >= 1 && phase <= 5 && status >= 2 && status <= 7) {
+        constexpr std::uint64_t compact_magic = 0x4846ULL;
+        constexpr std::uint64_t compact_schema = 2ULL;
+        const std::uint64_t compact = (compact_magic << 48) |
+            (compact_schema << 44) |
+            (static_cast<std::uint64_t>(reason) << 40) |
+            (static_cast<std::uint64_t>(phase) << 36) |
+            (static_cast<std::uint64_t>(status) << 28) |
+            (config.epoch & 0x0fffffffULL);
+        system_release(reinterpret_cast<std::uint64_t*>(
+            config.compact_address), compact);
+    }
+    // This CAS targets a CUDA module global.  It never touches mapped host
+    // memory and therefore remains valid when HostNativeAtomicSupported == 0.
+    if (atomicCAS(&__hbfsim_first_fault_claimed, 0U, 1U) != 0U) return;
+    auto* record = reinterpret_cast<hbfsim::device::FirstFaultRecord*>(
+        config.record_address);
+    record->schema_version = config.schema_version;
+    record->epoch = config.epoch;
+    for (unsigned i = 0; i != 4; ++i)
+        record->module_identity[i] = config.module_identity[i];
+    record->status = static_cast<std::uint32_t>(observation.status);
+    record->reason = static_cast<std::uint32_t>(observation.reason);
+    record->phase = static_cast<std::uint32_t>(observation.phase);
+    record->reserved0 = 0;
+    record->valid_bits = observation.valid_bits;
+    record->gpu_now_ns = gpu_time_ns();
+    record->arrival_ns = observation.arrival_ns;
+    record->deadline_ns = observation.deadline_ns;
+    record->target_ns = observation.target_ns;
+    record->heartbeat_value = observation.heartbeat_value;
+    record->heartbeat_observed_ns = observation.heartbeat_observed_ns;
+    record->heartbeat_current =
+        header != nullptr ? system_acquire(&header->heartbeat_ns) : 0;
+    record->shutdown = header != nullptr ? system_acquire(&header->shutdown) : 0;
+    record->fault = header != nullptr ? system_acquire(&header->fault) : 0;
+    record->expected_generation = expected_generation;
+    record->header_generation =
+        header != nullptr ? system_acquire(&header->control_generation) : 0;
+    if (state != nullptr) {
+        record->sidecar_generation = device_acquire(&state->generation);
+        record->sidecar_poisoned = device_acquire(&state->poisoned);
+        record->valid_bits |= hbfsim::device::FirstFaultHasSidecar;
+    } else {
+        record->sidecar_generation = 0;
+        record->sidecar_poisoned = 0;
+    }
+    record->ticket = observation.ticket;
+    record->position = observation.position;
+    record->slot_index = observation.slot_index;
+    record->ring_capacity = header != nullptr ? header->ring_capacity : 0;
+    record->request_slot_sequence = observation.request_slot_sequence;
+    record->completion_slot_sequence = observation.completion_slot_sequence;
+    record->device_request_producer =
+        state != nullptr ? device_acquire(&state->request_producer) : 0;
+    record->device_completion_consumer =
+        state != nullptr ? device_acquire(&state->completion_consumer) : 0;
+    record->host_request_consumer =
+        header != nullptr ? system_acquire(&header->request_consumer) : 0;
+    record->host_completion_producer =
+        header != nullptr ? system_acquire(&header->completion_producer) : 0;
+    record->admission_count = state != nullptr
+        ? device_acquire(&state->admission_count)
+        : (header != nullptr ? system_acquire(&header->admission_state) : 0);
+    record->completion_request_id = observation.completion_request_id;
+    record->completion_modeled_ns = observation.completion_modeled_ns;
+    record->completion_status = observation.completion_status;
+    record->block_x = blockIdx.x;
+    record->block_y = blockIdx.y;
+    record->block_z = blockIdx.z;
+    record->thread_x = threadIdx.x;
+    record->thread_y = threadIdx.y;
+    record->thread_z = threadIdx.z;
+    std::uint32_t diagnostic_lane;
+    asm volatile("mov.u32 %0, %%laneid;" : "=r"(diagnostic_lane));
+    record->lane = diagnostic_lane;
+    record->reserved1 = 0;
+    system_release(&record->ready, hbfsim::device::kFirstFaultReadyMagic);
 }
 
 struct EvalDelayClock {
@@ -205,7 +373,48 @@ struct WaitState {
 struct CompletionResult {
     RequestStatus status{RequestStatus::IoError};
     std::uint64_t frame_address{0};
+    std::uint32_t admitted{0};
 };
+
+__device__ bool access_accounting_enabled()
+{
+    const auto config = __hbfsim_access_accounting_config;
+    return config.magic == hbfsim::device::kAccessAccountingMagic &&
+           config.version == hbfsim::device::kAccessAccountingVersion &&
+           config.struct_bytes == sizeof(config) && config.enabled == 1;
+}
+
+__device__ void account_add(std::uint64_t* field, std::uint64_t value)
+{
+    if (value == 0) return;
+    auto observed = system_acquire(field);
+    for (;;) {
+        const bool overflow = value > UINT64_MAX - observed;
+        const auto desired = overflow ? UINT64_MAX : observed + value;
+        auto expected = observed;
+        if (system_compare_exchange(field, expected, desired)) {
+            if (overflow) {
+                (void)system_fetch_add(
+                    &__hbfsim_access_accounting_counters.counter_overflow, 1);
+            }
+            return;
+        }
+        observed = expected;
+    }
+}
+
+__device__ std::uint64_t range_intersection_bytes(
+    const SharedRangeRecord& range, std::uint64_t address,
+    std::uint32_t bytes)
+{
+    if (bytes == 0 || range.length > UINT64_MAX - range.base ||
+        bytes > UINT64_MAX - address) return 0;
+    const auto access_end = address + bytes;
+    const auto range_end = range.base + range.length;
+    const auto begin = address > range.base ? address : range.base;
+    const auto end = access_end < range_end ? access_end : range_end;
+    return end > begin ? end - begin : 0;
+}
 
 __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
                                        WaitState& wait)
@@ -235,30 +444,66 @@ __device__ RequestStatus poll_liveness(const SharedControlHeader* header,
 }
 
 __device__ RequestStatus reserve_request(
-    SharedControlHeader* header, SharedRequestSlot* requests,
-    SharedCompletionSlot* completions,
+    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
+    SharedRequestSlot* requests, SharedCompletionSlot* completions,
     const hbfsim::device::HbfRequest& request, WaitState& wait,
     std::uint64_t& ticket)
 {
-    auto admission = system_acquire(&header->admission_state);
+    auto admission = state != nullptr
+                         ? device_acquire(&state->admission_count)
+                         : system_acquire(&header->admission_state);
     for (;;) {
         if ((admission & hbfsim::device::kAdmissionClosedBit) != 0 ||
             (admission & hbfsim::device::kAdmissionCountMask) ==
                 hbfsim::device::kAdmissionCountMask) {
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::ReferenceReserve;
+            observed.phase = hbfsim::device::FirstFaultPhase::ReserveSlot;
+            observed.status = RequestStatus::IoError;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasHeartbeat;
+            observed.arrival_ns = request.arrival_ns;
+            observed.deadline_ns = wait.deadline_ns;
+            observed.heartbeat_value = wait.heartbeat_value;
+            observed.heartbeat_observed_ns = wait.heartbeat_observed_ns;
+            first_fault_record(header, state, header->control_generation, observed);
             return RequestStatus::IoError;
         }
         auto expected = admission;
-        if (system_compare_exchange(&header->admission_state, expected,
-                                    admission + 1)) {
+        if (state != nullptr
+                ? device_compare_exchange(&state->admission_count, expected,
+                                          admission + 1)
+                : system_compare_exchange(&header->admission_state, expected,
+                                          admission + 1)) {
             break;
         }
         admission = expected;
     }
-    auto position = system_acquire(&header->request_producer);
+    auto position = state != nullptr
+                        ? device_acquire(&state->request_producer)
+                        : system_acquire(&header->request_producer);
     for (;;) {
         if ((system_acquire(&header->admission_state) &
              hbfsim::device::kAdmissionClosedBit) != 0) {
-            system_fetch_sub_release(&header->admission_state, 1);
+            state != nullptr
+                ? device_fetch_sub_release(&state->admission_count, 1)
+                : system_fetch_sub_release(&header->admission_state, 1);
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::ReferenceReserve;
+            observed.phase = hbfsim::device::FirstFaultPhase::ReserveSlot;
+            observed.status = RequestStatus::IoError;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasHeartbeat |
+                                  hbfsim::device::FirstFaultHasRing;
+            observed.arrival_ns = request.arrival_ns;
+            observed.deadline_ns = wait.deadline_ns;
+            observed.heartbeat_value = wait.heartbeat_value;
+            observed.heartbeat_observed_ns = wait.heartbeat_observed_ns;
+            observed.position = position;
+            observed.slot_index = position & (header->ring_capacity - 1);
+            first_fault_record(header, state, header->control_generation, observed);
             return RequestStatus::IoError;
         }
         auto& request_slot =
@@ -274,13 +519,18 @@ __device__ RequestStatus reserve_request(
             static_cast<std::int64_t>(completion_sequence - position);
         if (request_difference == 0 && completion_difference == 0) {
             auto expected = position;
-            if (system_compare_exchange(&header->request_producer, expected,
-                                        position + 1)) {
+            if (state != nullptr
+                    ? device_compare_exchange(&state->request_producer,
+                                              expected, position + 1)
+                    : system_compare_exchange(&header->request_producer,
+                                              expected, position + 1)) {
                 request_slot.value = request;
                 request_slot.value.request_id = position + 1;
                 request_slot.value.sequence = position;
                 system_release(&request_slot.sequence, position + 1);
-                system_fetch_sub_release(&header->admission_state, 1);
+                state != nullptr
+                ? device_fetch_sub_release(&state->admission_count, 1)
+                : system_fetch_sub_release(&header->admission_state, 1);
                 ticket = position;
                 return RequestStatus::Ready;
             }
@@ -288,21 +538,44 @@ __device__ RequestStatus reserve_request(
             continue;
         }
         if (request_difference > 0 && completion_difference > 0) {
-            position = system_acquire(&header->request_producer);
+            position = state != nullptr
+                           ? device_acquire(&state->request_producer)
+                           : system_acquire(&header->request_producer);
             continue;
         }
         const auto liveness = poll_liveness(header, wait);
         if (liveness != RequestStatus::Pending) {
-            system_fetch_sub_release(&header->admission_state, 1);
+            state != nullptr
+                ? device_fetch_sub_release(&state->admission_count, 1)
+                : system_fetch_sub_release(&header->admission_state, 1);
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::Liveness;
+            observed.phase = hbfsim::device::FirstFaultPhase::ReserveSlot;
+            observed.status = liveness;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasHeartbeat |
+                                  hbfsim::device::FirstFaultHasRing;
+            observed.arrival_ns = request.arrival_ns;
+            observed.deadline_ns = wait.deadline_ns;
+            observed.heartbeat_value = wait.heartbeat_value;
+            observed.heartbeat_observed_ns = wait.heartbeat_observed_ns;
+            observed.position = position;
+            observed.slot_index = position & (header->ring_capacity - 1);
+            observed.request_slot_sequence = request_sequence;
+            observed.completion_slot_sequence = completion_sequence;
+            first_fault_record(header, state, header->control_generation, observed);
             return liveness;
         }
-        position = system_acquire(&header->request_producer);
+        position = state != nullptr
+                           ? device_acquire(&state->request_producer)
+                           : system_acquire(&header->request_producer);
     }
 }
 
 __device__ CompletionResult wait_for_completion(
-    SharedControlHeader* header, SharedCompletionSlot* completions,
-    std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns)
+    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
+    SharedCompletionSlot* completions, std::uint64_t ticket, WaitState& wait, std::uint64_t arrival_ns)
 {
     auto& slot = completions[ticket & (header->ring_capacity - 1)];
     while (system_acquire(&slot.sequence) != ticket + 1) {
@@ -313,24 +586,81 @@ __device__ CompletionResult wait_for_completion(
             // after observing liveness failure so IoError/CopyError/etc. are
             // not collapsed into a synthesized DaemonLost status.
             if (system_acquire(&slot.sequence) != ticket + 1) {
-                return {.status = liveness};
+                FirstFaultObservation observed{};
+                observed.reason = hbfsim::device::FirstFaultReason::Liveness;
+                observed.phase = hbfsim::device::FirstFaultPhase::WaitCompletion;
+                observed.status = liveness;
+                observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                      hbfsim::device::FirstFaultHasDeadline |
+                                      hbfsim::device::FirstFaultHasHeartbeat |
+                                      hbfsim::device::FirstFaultHasTicket |
+                                      hbfsim::device::FirstFaultHasRing;
+                observed.arrival_ns = arrival_ns;
+                observed.deadline_ns = wait.deadline_ns;
+                observed.heartbeat_value = wait.heartbeat_value;
+                observed.heartbeat_observed_ns = wait.heartbeat_observed_ns;
+                observed.ticket = ticket;
+                observed.position = ticket;
+                observed.slot_index = ticket & (header->ring_capacity - 1);
+                observed.completion_slot_sequence = system_acquire(&slot.sequence);
+                first_fault_record(header, state, header->control_generation, observed);
+                return {.status = liveness, .admitted = 1};
             }
             break;
         }
     }
     const auto completion = slot.value;
     system_release(&slot.sequence, ticket + header->ring_capacity);
-    system_fetch_add(&header->completion_consumer, 1);
+    if (state != nullptr)
+        (void)device_fetch_add(&state->completion_consumer, 1);
+    else
+        (void)system_fetch_add(&header->completion_consumer, 1);
     if (completion.request_id != ticket + 1 ||
         completion.status == static_cast<std::uint32_t>(
                                  RequestStatus::Pending) ||
         completion.status > static_cast<std::uint32_t>(
                                 RequestStatus::DaemonLost)) {
-        return {.status = RequestStatus::IoError};
+        FirstFaultObservation observed{};
+        observed.reason = hbfsim::device::FirstFaultReason::ReferenceCompletion;
+        observed.phase = hbfsim::device::FirstFaultPhase::WaitCompletion;
+        observed.status = RequestStatus::IoError;
+        observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                              hbfsim::device::FirstFaultHasDeadline |
+                              hbfsim::device::FirstFaultHasTicket |
+                              hbfsim::device::FirstFaultHasRing |
+                              hbfsim::device::FirstFaultHasCompletion;
+        observed.arrival_ns = arrival_ns;
+        observed.deadline_ns = wait.deadline_ns;
+        observed.ticket = ticket;
+        observed.position = ticket;
+        observed.slot_index = ticket & (header->ring_capacity - 1);
+        observed.completion_request_id = completion.request_id;
+        observed.completion_status = completion.status;
+        observed.completion_modeled_ns = completion.modeled_ns;
+        first_fault_record(header, state, header->control_generation, observed);
+        return {.status = RequestStatus::IoError, .admitted = 1};
     }
     const auto status = static_cast<RequestStatus>(completion.status);
     if (status != RequestStatus::Ready) {
-        return {.status = status};
+        FirstFaultObservation observed{};
+        observed.reason = hbfsim::device::FirstFaultReason::ReferenceCompletion;
+        observed.phase = hbfsim::device::FirstFaultPhase::WaitCompletion;
+        observed.status = status;
+        observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                              hbfsim::device::FirstFaultHasDeadline |
+                              hbfsim::device::FirstFaultHasTicket |
+                              hbfsim::device::FirstFaultHasRing |
+                              hbfsim::device::FirstFaultHasCompletion;
+        observed.arrival_ns = arrival_ns;
+        observed.deadline_ns = wait.deadline_ns;
+        observed.ticket = ticket;
+        observed.position = ticket;
+        observed.slot_index = ticket & (header->ring_capacity - 1);
+        observed.completion_request_id = completion.request_id;
+        observed.completion_status = completion.status;
+        observed.completion_modeled_ns = completion.modeled_ns;
+        first_fault_record(header, state, header->control_generation, observed);
+        return {.status = status, .admitted = 1};
     }
     const auto scaled = hbfsim::device::saturating_multiply(
         completion.modeled_ns, header->time_scale);
@@ -350,7 +680,27 @@ __device__ CompletionResult wait_for_completion(
     while (gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= wait.deadline_ns) {
-            return {.status = RequestStatus::Timeout};
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::ReferenceCompletion;
+            observed.phase = hbfsim::device::FirstFaultPhase::ReferenceTarget;
+            observed.status = RequestStatus::Timeout;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasTarget |
+                                  hbfsim::device::FirstFaultHasTicket |
+                                  hbfsim::device::FirstFaultHasRing |
+                                  hbfsim::device::FirstFaultHasCompletion;
+            observed.arrival_ns = arrival_ns;
+            observed.deadline_ns = wait.deadline_ns;
+            observed.target_ns = target;
+            observed.ticket = ticket;
+            observed.position = ticket;
+            observed.slot_index = ticket & (header->ring_capacity - 1);
+            observed.completion_request_id = completion.request_id;
+            observed.completion_status = completion.status;
+            observed.completion_modeled_ns = completion.modeled_ns;
+            first_fault_record(header, state, header->control_generation, observed);
+            return {.status = RequestStatus::Timeout, .admitted = 1};
         }
         const auto nap = hbfsim::device::wait_sleep_ns(
             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -359,11 +709,13 @@ __device__ CompletionResult wait_for_completion(
         }
     }
     return {.status = RequestStatus::Ready,
-            .frame_address = completion.cache_frame_address};
+            .frame_address = completion.cache_frame_address,
+            .admitted = 1};
 }
 
 __device__ CompletionResult resolve_leader(
-    SharedControlHeader* header, const SharedRangeRecord& range,
+    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
+    const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media,
     std::uint32_t operation)
 {
@@ -373,7 +725,7 @@ __device__ CompletionResult resolve_leader(
         (capacity & (capacity - 1)) != 0 ||
         header->request_timeout_ns == 0 ||
         header->heartbeat_timeout_ns == 0 || header->time_scale == 0) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
     const auto arrival = gpu_time_ns();
     WaitState wait{.deadline_ns = hbfsim::device::saturating_add(
@@ -381,7 +733,7 @@ __device__ CompletionResult resolve_leader(
                    .heartbeat_value = system_acquire(&header->heartbeat_ns),
                    .heartbeat_observed_ns = arrival};
     if (wait.heartbeat_value == 0) {
-        return {.status = RequestStatus::DaemonLost};
+        return {.status = RequestStatus::DaemonLost, .admitted = 0};
     }
     auto* base = reinterpret_cast<std::byte*>(header);
     auto* requests = reinterpret_cast<SharedRequestSlot*>(
@@ -402,16 +754,15 @@ __device__ CompletionResult resolve_leader(
         .flags = 0,
     };
     std::uint64_t ticket = 0;
-    const auto reserved = reserve_request(header, requests, completions,
-                                          request, wait, ticket);
+    const auto reserved = reserve_request(header, state, requests, completions, request, wait, ticket);
     return reserved == RequestStatus::Ready
-               ? wait_for_completion(header, completions, ticket, wait,
-                                     arrival)
-               : CompletionResult{.status = reserved};
+               ? wait_for_completion(header, state, completions, ticket, wait, arrival)
+               : CompletionResult{.status = reserved, .admitted = 0};
 }
 
 __device__ CompletionResult resolve_fast_or_hybrid(
-    SharedControlHeader* header, const SharedRangeRecord& range,
+    SharedControlHeader* header, hbfsim::device::DeviceTimingState* state,
+    const SharedRangeRecord& range,
     const hbfsim::device::MediaDescriptor& media,
     std::uint32_t operation)
 {
@@ -420,9 +771,9 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     const auto empirical_enabled = header->empirical_flags != 0;
     if (empirical_enabled &&
         !hbfsim::device::empirical_control_valid(*header)) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
-    const auto sequence = system_fetch_add(&header->fast_request_sequence, 1);
+    const auto sequence = (state != nullptr ? device_fetch_add(&state->fast_request_sequence, 1) : system_fetch_add(&header->fast_request_sequence, 1));
     const auto sample_key = media.logical_address ^
                             (static_cast<std::uint64_t>(range.range_id) << 32) ^
                             operation;
@@ -430,33 +781,31 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         hbfsim::device::hybrid_reference_sample(
             sequence, header->reference_warmup_requests,
             header->reference_sample_threshold, sample_key)) {
-        (void)system_fetch_add(&header->reference_requests, 1);
-        return resolve_leader(header, range, media, operation);
+        (void)(state != nullptr ? device_fetch_add(&state->reference_requests, 1) : system_fetch_add(&header->reference_requests, 1));
+        return resolve_leader(header, state, range, media, operation);
     }
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
 
     if (empirical_enabled) {
         if (media.bytes != 4096 || range.page_bytes != 4096 ||
             media.logical_address % media.bytes != 0 ||
             header->time_scale == 0 || header->request_timeout_ns == 0) {
-            return {.status = RequestStatus::Unsupported};
+            return {.status = RequestStatus::Unsupported, .admitted = 0};
         }
         const auto page = media.logical_address / media.bytes;
         auto previous_state =
-            system_acquire(&header->empirical_burst_state);
+            (state != nullptr ? device_acquire(&state->empirical_burst_state) : system_acquire(&header->empirical_burst_state));
         hbfsim::device::EmpiricalRequestService request{};
         for (;;) {
             request = hbfsim::device::empirical_request_service(
                 *header, previous_state, page, operation);
             if (!request.valid) {
-                return {.status = RequestStatus::Unsupported};
+                return {.status = RequestStatus::Unsupported, .admitted = 0};
             }
             auto expected = previous_state;
-            if (system_compare_exchange(&header->empirical_burst_state,
-                                        expected,
-                                        request.packed_state)) {
+            if ((state != nullptr ? device_compare_exchange(&state->empirical_burst_state, expected, request.packed_state) : system_compare_exchange(&header->empirical_burst_state, expected, request.packed_state))) {
                 break;
             }
             previous_state = expected;
@@ -465,14 +814,14 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         const auto arrival = gpu_time_ns();
         const auto scaled_service = hbfsim::device::saturating_multiply(
             request.service_ns, header->time_scale);
-        auto tail = system_acquire(&header->fast_channel_tail_ns);
+        auto tail = (state != nullptr ? device_acquire(&state->fast_channel_tail_ns) : system_acquire(&header->fast_channel_tail_ns));
         std::uint64_t target = 0;
         for (;;) {
             const auto start = tail > arrival ? tail : arrival;
             target = hbfsim::device::saturating_add(start, scaled_service);
             auto expected = tail;
-            if (system_compare_exchange(&header->fast_channel_tail_ns,
-                                        expected, target)) {
+            if ((state != nullptr ? device_compare_exchange(&state->fast_channel_tail_ns,
+                                        expected, target) : system_compare_exchange(&header->fast_channel_tail_ns, expected, target))) {
                 break;
             }
             tail = expected;
@@ -486,11 +835,33 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         while (gpu_time_ns() < target) {
             const auto now = gpu_time_ns();
             if (now >= deadline) {
-                return {.status = RequestStatus::Timeout};
+                FirstFaultObservation observed{};
+                observed.reason = hbfsim::device::FirstFaultReason::FastWait;
+                observed.phase = hbfsim::device::FirstFaultPhase::FastTarget;
+                observed.status = RequestStatus::Timeout;
+                observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                      hbfsim::device::FirstFaultHasDeadline |
+                                      hbfsim::device::FirstFaultHasTarget;
+                observed.arrival_ns = arrival;
+                observed.deadline_ns = deadline;
+                observed.target_ns = target;
+                first_fault_record(header, state, header->control_generation, observed);
+                return {.status = RequestStatus::Timeout, .admitted = 1};
             }
             if (system_acquire(&header->shutdown) != 0 ||
                 system_acquire(&header->fault) != 0) {
-                return {.status = RequestStatus::DaemonLost};
+                FirstFaultObservation observed{};
+                observed.reason = hbfsim::device::FirstFaultReason::Liveness;
+                observed.phase = hbfsim::device::FirstFaultPhase::FastTarget;
+                observed.status = RequestStatus::DaemonLost;
+                observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                      hbfsim::device::FirstFaultHasDeadline |
+                                      hbfsim::device::FirstFaultHasTarget;
+                observed.arrival_ns = arrival;
+                observed.deadline_ns = deadline;
+                observed.target_ns = target;
+                first_fault_record(header, state, header->control_generation, observed);
+                return {.status = RequestStatus::DaemonLost, .admitted = 1};
             }
             const auto nap = hbfsim::device::wait_sleep_ns(
                 now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -498,10 +869,10 @@ __device__ CompletionResult resolve_fast_or_hybrid(
                 __nanosleep(nap);
             }
         }
-        (void)system_fetch_add(&header->fast_requests, 1);
-        (void)system_fetch_add(&header->fast_modeled_ns,
-                               request.service_ns);
-        return {.status = RequestStatus::Ready};
+        (void)(state != nullptr ? device_fetch_add(&state->fast_requests, 1) : system_fetch_add(&header->fast_requests, 1));
+        (void)(state != nullptr ? device_fetch_add(&state->fast_modeled_ns,
+                               request.service_ns) : system_fetch_add(&header->fast_modeled_ns, request.service_ns));
+        return {.status = RequestStatus::Ready, .admitted = 1};
     }
 
     const auto base_latency = operation == 0 ? header->read_latency_ns
@@ -509,22 +880,21 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     const auto transfer_ns = hbfsim::device::fast_transfer_ns(
         media.bytes, header->aggregate_bandwidth_bytes_per_s);
     if (base_latency == 0 || transfer_ns == 0 || header->time_scale == 0) {
-        return {.status = RequestStatus::Unsupported};
+        return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
     const auto arrival = gpu_time_ns();
     const auto base_scaled = hbfsim::device::saturating_multiply(
         base_latency, header->time_scale);
     const auto transfer_scaled = hbfsim::device::saturating_multiply(
         transfer_ns, header->time_scale);
-    auto tail = system_acquire(&header->fast_channel_tail_ns);
+    auto tail = (state != nullptr ? device_acquire(&state->fast_channel_tail_ns) : system_acquire(&header->fast_channel_tail_ns));
     std::uint64_t transfer_target = 0;
     for (;;) {
         const auto transfer_start = tail > arrival ? tail : arrival;
         transfer_target = hbfsim::device::saturating_add(
             transfer_start, transfer_scaled);
         auto expected = tail;
-        if (system_compare_exchange(&header->fast_channel_tail_ns, expected,
-                                    transfer_target)) {
+        if ((state != nullptr ? device_compare_exchange(&state->fast_channel_tail_ns, expected, transfer_target) : system_compare_exchange(&header->fast_channel_tail_ns, expected, transfer_target))) {
             break;
         }
         tail = expected;
@@ -539,11 +909,33 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     while (gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= deadline) {
-            return {.status = RequestStatus::Timeout};
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::FastWait;
+            observed.phase = hbfsim::device::FirstFaultPhase::FastTarget;
+            observed.status = RequestStatus::Timeout;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasTarget;
+            observed.arrival_ns = arrival;
+            observed.deadline_ns = deadline;
+            observed.target_ns = target;
+            first_fault_record(header, state, header->control_generation, observed);
+            return {.status = RequestStatus::Timeout, .admitted = 1};
         }
         if (system_acquire(&header->shutdown) != 0 ||
             system_acquire(&header->fault) != 0) {
-            return {.status = RequestStatus::DaemonLost};
+            FirstFaultObservation observed{};
+            observed.reason = hbfsim::device::FirstFaultReason::Liveness;
+            observed.phase = hbfsim::device::FirstFaultPhase::FastTarget;
+            observed.status = RequestStatus::DaemonLost;
+            observed.valid_bits = hbfsim::device::FirstFaultHasArrival |
+                                  hbfsim::device::FirstFaultHasDeadline |
+                                  hbfsim::device::FirstFaultHasTarget;
+            observed.arrival_ns = arrival;
+            observed.deadline_ns = deadline;
+            observed.target_ns = target;
+            first_fault_record(header, state, header->control_generation, observed);
+            return {.status = RequestStatus::DaemonLost, .admitted = 1};
         }
         const auto nap = hbfsim::device::wait_sleep_ns(
             now, target, kWaitBackoffCapNs, kWaitSpinFloorNs);
@@ -551,13 +943,14 @@ __device__ CompletionResult resolve_fast_or_hybrid(
             __nanosleep(nap);
         }
     }
-    (void)system_fetch_add(&header->fast_requests, 1);
-    (void)system_fetch_add(
-        &header->fast_modeled_ns,
-        hbfsim::device::fast_service_ns(
-            base_latency, media.bytes,
-            header->aggregate_bandwidth_bytes_per_s));
-    return {.status = RequestStatus::Ready};
+    (void)(state != nullptr ? device_fetch_add(&state->fast_requests, 1) : system_fetch_add(&header->fast_requests, 1));
+    const auto modeled_ns = hbfsim::device::fast_service_ns(
+        base_latency, media.bytes,
+        header->aggregate_bandwidth_bytes_per_s);
+    (void)(state != nullptr
+               ? device_fetch_add(&state->fast_modeled_ns, modeled_ns)
+               : system_fetch_add(&header->fast_modeled_ns, modeled_ns));
+    return {.status = RequestStatus::Ready, .admitted = 1};
 }
 
 }  // namespace
@@ -566,20 +959,41 @@ extern "C" __device__ hbfsim::device::ResolveResult
 __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                  std::uint32_t operation)
 {
+    const bool accounting = access_accounting_enabled();
+    if (accounting) {
+        account_add(&__hbfsim_access_accounting_counters.supported_accesses, 1);
+        account_add(&__hbfsim_access_accounting_counters.supported_bytes, bytes);
+    }
     const auto control_address =
         system_acquire(reinterpret_cast<const unsigned long long*>(
             &__hbfsim_control));
     const auto expected_generation =
         system_acquire(reinterpret_cast<const unsigned long long*>(
             &__hbfsim_control_generation));
-    // An unbound module must preserve ordinary HBM semantics. The launch gate
-    // rejects registered HBF pointers before such a module can execute, while
-    // an all-zero alias is the intentional fast-path state for non-HBF work.
+    auto* mutable_control =
+        reinterpret_cast<SharedControlHeader*>(control_address);
+    auto* timing_state =
+        mutable_control != nullptr &&
+                mutable_control->producer_mode ==
+                    hbfsim::device::kProducerModeGpuExclusive
+            ? device_timing_state(mutable_control, expected_generation)
+            : nullptr;
+    // An unbound module must preserve ordinary HBM semantics. Accounting cannot
+    // infer whether the address overlaps a registration without the control
+    // range table, so keep this path explicitly unclassified.
     if (control_address == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, bytes == 0 ? RequestStatus::Unsupported
                                         : RequestStatus::Ready);
     }
     if (expected_generation == 0 || bytes == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -611,10 +1025,18 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         header->program_latency_ns == 0 ||
         header->aggregate_bandwidth_bytes_per_s == 0 ||
         system_acquire(&header->control_generation) != expected_generation) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
     const auto count = system_acquire(&header->range_count);
     if (count > hbfsim::device::kRangeCapacity) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
@@ -629,6 +1051,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
          !hbfsim::device::eval_chain_launch_matches(
              chain_config, gridDim.x, gridDim.y, gridDim.z, blockDim.x,
              blockDim.y, blockDim.z))) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
     const auto chain_producer =
@@ -640,6 +1066,10 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     if (chain_experiment ==
             hbfsim::device::EvalChainDiagnosticAction::Apply &&
         chain_producer.valid == 0) {
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unclassified_bytes, bytes);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 #endif
@@ -656,8 +1086,20 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         // rejected by media_descriptor/access_supported, and the store side
         // already rejects any overlap in timing_future_native_store_span.
         // This makes the load side agree with both.
-        if (hbfsim::device::span_touches_any_range(ranges, count, address,
-                                                   bytes)) {
+        const auto index = hbfsim::device::find_range_index(ranges, count, address);
+        const auto successor = index == count ? 0U : index + 1U;
+        const SharedRangeRecord* overlap =
+            successor < count && hbfsim::device::range_overlaps(
+                ranges[successor], address, bytes) ? &ranges[successor] : nullptr;
+        if (overlap != nullptr) {
+            if (accounting) {
+                account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
+                            range_intersection_bytes(*overlap, address, bytes));
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                            range_intersection_bytes(*overlap, address, bytes));
+            }
             return fail(address, RequestStatus::Unsupported);
         }
 #if defined(HBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC) && \
@@ -675,6 +1117,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                                    address, bytes, operation, observed_ns,
                                    observed_ns, status) ||
                 status != RequestStatus::Ready) {
+                if (accounting) {
+                    account_add(&__hbfsim_access_accounting_counters.unclassified_accesses, 1);
+                    account_add(&__hbfsim_access_accounting_counters.unclassified_bytes,
+                                bytes);
+                }
                 return fail(address, RequestStatus::Unsupported);
             }
         }
@@ -683,7 +1130,32 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_accesses, 1);
             (void)system_fetch_add(&__hbfsim_eval_delay_counters.bypass_bytes, bytes);
         }
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.native_out_of_range_bytes, bytes);
+        }
         return fail(address, RequestStatus::Ready);
+    }
+    const auto intersection = range_intersection_bytes(*range, address, bytes);
+    if (accounting) {
+        account_add(&__hbfsim_access_accounting_counters.in_range_accesses, 1);
+        account_add(&__hbfsim_access_accounting_counters.in_range_intersection_bytes,
+                    intersection);
+    }
+    if (header->producer_mode ==
+            hbfsim::device::kProducerModeGpuExclusive &&
+        timing_state == nullptr) {
+        FirstFaultObservation observed{};
+        observed.reason = hbfsim::device::FirstFaultReason::GenerationValidation;
+        observed.phase = hbfsim::device::FirstFaultPhase::Validation;
+        observed.status = RequestStatus::DaemonLost;
+        first_fault_record(header, nullptr, expected_generation, observed);
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_bytes,
+                        intersection);
+        }
+        return fail(address, RequestStatus::DaemonLost);
     }
     const auto media = hbfsim::device::media_descriptor(
         *range, address, bytes, operation);
@@ -700,6 +1172,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 RequestStatus::Unsupported);
         }
 #endif
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -716,6 +1193,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                                     hbfsim::device::EvalChainEventClass::Rejected,
                                     address, bytes, operation, observed_ns,
                                     observed_ns, RequestStatus::Unsupported);
+            if (accounting) {
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+                account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                            intersection);
+            }
             return fail(address, RequestStatus::Unsupported);
         }
     }
@@ -725,6 +1207,11 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
         __hbfsim_eval_delay_config, *range, operation, header->time_scale);
     if (experiment == hbfsim::device::EvalDelayAction::Reject) {
         (void)system_fetch_add(&__hbfsim_eval_delay_counters.rejected_accesses, 1);
+        if (accounting) {
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
+        }
         return fail(address, RequestStatus::Unsupported);
     }
 
@@ -758,6 +1245,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
                 const auto timeout_ns = system_acquire(&header->request_timeout_ns);
                 const bool live = eval_delay_control_ready(header, expected_generation) &&
                                   timeout_ns != 0;
+                resolution.admitted = live ? 1U : 0U;
                 const auto interval = eval_delay_clock_wait(
                     live ? config.delay_ns : 0, timeout_ns);
                 resolution.status = live ? interval.status : RequestStatus::DaemonLost;
@@ -780,6 +1268,7 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
             const bool live =
                 eval_delay_control_ready(header, expected_generation) &&
                 timeout_ns != 0;
+            resolution.admitted = live ? 1U : 0U;
             const auto interval = eval_delay_clock_wait(
                 live ? chain_config.delay_ns : 0, timeout_ns);
             resolution.status =
@@ -798,14 +1287,40 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
 #endif
         else {
             resolution = range->mode == 1 && header->timing_model != 0
-                         ? resolve_fast_or_hybrid(mutable_header, *range,
-                                                  media, operation)
-                         : resolve_leader(mutable_header, *range, media,
-                                          operation);
+                         ? resolve_fast_or_hybrid(mutable_header, timing_state, *range, media, operation)
+                         : resolve_leader(mutable_header, timing_state, *range, media, operation);
         }
     }
     auto status = __shfl_sync(
         group, static_cast<std::uint32_t>(resolution.status), leader);
+    const auto admitted = __shfl_sync(group, resolution.admitted, leader);
+    if (accounting) {
+        if (admitted != 0) {
+            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.modeled_admitted_bytes,
+                        intersection);
+            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
+                account_add(&__hbfsim_access_accounting_counters.service_completed_accesses, 1);
+            else
+                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_accesses, 1);
+            if (status == static_cast<std::uint32_t>(RequestStatus::Ready))
+                account_add(&__hbfsim_access_accounting_counters.service_completed_bytes,
+                            intersection);
+            else
+                account_add(&__hbfsim_access_accounting_counters.failed_after_issue_bytes,
+                            intersection);
+        } else if (status == static_cast<std::uint32_t>(RequestStatus::Unsupported)) {
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.unsupported_preissue_bytes,
+                        intersection);
+        } else {
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_accesses, 1);
+            account_add(&__hbfsim_access_accounting_counters.failed_preissue_bytes,
+                        intersection);
+        }
+        if (static_cast<int>(lane_id()) == leader && admitted != 0)
+            account_add(&__hbfsim_access_accounting_counters.service_requests, 1);
+    }
     const auto frame = __shfl_sync(group, resolution.frame_address, leader);
     if (status != static_cast<std::uint32_t>(RequestStatus::Ready)) {
         return {.address = address, .status = status, .reserved = 0};
@@ -813,13 +1328,36 @@ __hbfsim_resolve(std::uint64_t address, std::uint32_t bytes,
     const auto translated =
         hbfsim::device::resolved_address(*range, address, frame);
     if (translated == 0) {
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.translation_failed_accesses, 1);
+        if (accounting)
+            account_add(&__hbfsim_access_accounting_counters.translation_failed_bytes,
+                        intersection);
         return fail(address, RequestStatus::CopyError);
     }
     return {.address = translated, .status = status, .reserved = 0};
 }
 
-extern "C" __device__ void __hbfsim_fault(std::uint32_t)
+extern "C" __device__ void __hbfsim_fault(std::uint32_t status)
 {
+    const auto diagnostic = __hbfsim_first_fault_config;
+    if (diagnostic.magic != hbfsim::device::kFirstFaultConfigMagic ||
+        diagnostic.schema_version != hbfsim::device::kFirstFaultSchemaVersion ||
+        diagnostic.struct_bytes != sizeof(diagnostic) ||
+        diagnostic.enabled != 1) {
+        asm volatile("trap;");
+        return;
+    }
+    FirstFaultObservation observed{};
+    observed.reason = hbfsim::device::FirstFaultReason::Other;
+    observed.phase = hbfsim::device::FirstFaultPhase::FaultTrap;
+    observed.status = status <= static_cast<std::uint32_t>(RequestStatus::DaemonLost)
+                          ? static_cast<RequestStatus>(status)
+                          : RequestStatus::IoError;
+    // The generic trap may follow an early invalid-header path.  Do not
+    // dereference control/sidecar here; detailed sites have already claimed
+    // the record when those pointers were validated.
+    first_fault_record(nullptr, nullptr, 0, observed);
     asm volatile("trap;");
 }
 
@@ -1056,7 +1594,9 @@ __device__ SharedControlHeader* future_header()
     const auto generation=system_acquire(&__hbfsim_control_generation);
     if (alias!=config.control_alias || generation!=config.control_generation) return nullptr;
     auto* h=reinterpret_cast<SharedControlHeader*>(alias);
-    if (h->magic!=hbfsim::device::kControlMagic || h->abi_version!=4 ||
+    if (h->magic!=hbfsim::device::kControlMagic ||
+        h->abi_version!=hbfsim::device::kControlAbiVersion ||
+        h->producer_mode==hbfsim::device::kProducerModeGpuExclusive ||
         h->header_bytes!=sizeof(*h) || h->range_capacity!=hbfsim::device::kRangeCapacity ||
         !hbfsim::device::valid_ring_capacity(h->ring_capacity) || h->page_capacity!=h->ring_capacity ||
         h->range_offset!=sizeof(*h) ||

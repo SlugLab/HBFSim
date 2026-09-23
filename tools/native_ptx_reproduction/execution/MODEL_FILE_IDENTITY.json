@@ -1,0 +1,47 @@
+{
+  "schema": "hbfsim.model_file_identity.v1",
+  "source_directory": "/root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
+  "files": [
+    {
+      "name": "config.json",
+      "bytes": 759,
+      "sha256": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335"
+    },
+    {
+      "name": "model-00001-of-00003.safetensors",
+      "bytes": 4997744872,
+      "sha256": "5e3cff7e367794685c241169072c940d200918617d5e2813f1c387dff52d845e"
+    },
+    {
+      "name": "model-00002-of-00003.safetensors",
+      "bytes": 4997235176,
+      "sha256": "15ef5c730ee3cfed7199498788cd2faf337203fc74b529625e7502cdd759f4a7"
+    },
+    {
+      "name": "model-00003-of-00003.safetensors",
+      "bytes": 3843741912,
+      "sha256": "a9abac4ac1b55c9adabac721a02fa39971f103eea9a65c310972b1246de76e04"
+    },
+    {
+      "name": "model.safetensors.index.json",
+      "bytes": 287214,
+      "sha256": "0e2e1e0d8d357ac7af817cff28410c3dbad398f060c517a433e4076b2aae5579"
+    },
+    {
+      "name": "special_tokens_map.json",
+      "bytes": 65,
+      "sha256": "b77491e270c6fcc5b2ecf22370f7318a6a18d3cabea09ba7bab92e9bf12656c2"
+    },
+    {
+      "name": "tokenizer.json",
+      "bytes": 2115417,
+      "sha256": "a094266ac6c4982efba277bc251349a5a6d6ad37efb39a2a90f53d8be2a40a40"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "bytes": 5372,
+      "sha256": "78a839c7851f14f9fb30e664c2b46166dc0628f2900679e5ec160656f702edff"
+    }
+  ],
+  "elapsed_seconds": 6.593589377996977
+}

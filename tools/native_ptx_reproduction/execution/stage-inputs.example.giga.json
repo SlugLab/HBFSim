@@ -1,0 +1,27 @@
+{
+  "aggregate_pass_library": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-aggregate-clean-build-v1/build/libptxpass_hbf_aggregate.so",
+  "aggregate_pass_sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+  "auto_prepare_ptx": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/adapters/vllm/auto_prepare_ptx.py",
+  "auto_prepare_sha256": "a30d44286dcc879f689111304616db9394055ec7b6e2afa6d941d19139917d3a",
+  "moe_raw": [
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-short-moe-raw4-cpu-prep-v1/cache/43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536.ptx",
+      "sha256": "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536"
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-short-moe-raw4-cpu-prep-v1/cache/5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982.ptx",
+      "sha256": "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-short-moe-raw4-cpu-prep-v1/cache/60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3.ptx",
+      "sha256": "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3"
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-short-moe-raw4-cpu-prep-v1/cache/bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc.ptx",
+      "sha256": "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+    }
+  ],
+  "native_binding_manifest": "/root/hbfsim-exp/rebuttal_20260921/full-supported-union-cpu-prep-v1/native-bindings-union.json",
+  "pass_library": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1-build-v4/runtime-futures-on/libptxpass_hbf.so",
+  "pass_sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf"
+}

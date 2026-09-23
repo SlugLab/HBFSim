@@ -1,0 +1,16 @@
+{
+  "collectors": [
+    {
+      "container_sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-embedding-scoped-join-v1/collector-v3/native-ptx-manifest.json",
+      "sha256": "6125f7ca3fcf14f942d808ca98ac4cc2c73bafba39d083879343fb0a9b3ae7da"
+    },
+    {
+      "container_sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a",
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-v2/vllm-C-attempt-2/native-ptx-manifest.json",
+      "sha256": "44584c4126fd63fd0c1b64cb2a22650919c9b70f70ecce5c81380ed5043d327b"
+    }
+  ],
+  "note": "External source-build collector manifests; no historical runtime address reuse.",
+  "schema": "hbfsim.reproduction_collector_refs.v1"
+}

@@ -31,6 +31,8 @@ bool unload_fails = false;
 bool lifecycle_fails = false;
 std::atomic_int launch_count{0};
 int launch_error=0;
+int nested_launch_approval_mode=0;
+int nested_launch_approval_result=-1;
 int synchronize_count = 0;
 bool synchronize_fails = false;
 int unregister_count = 0;
@@ -981,11 +983,24 @@ int fakeCudaImplMemcpyDtoH(void* destination, std::uintptr_t source,
     return 0;
 }
 
-int cuLaunchKernel(void*, unsigned int, unsigned int, unsigned int,
+int cuLaunchKernel(void* function, unsigned int, unsigned int, unsigned int,
                    unsigned int, unsigned int, unsigned int, unsigned int,
-                   void*, void**, void**)
+                   void*, void** parameters, void** extra)
 {
     ++launch_count;
+    if (nested_launch_approval_mode != 0) {
+        using approve_type = int (*)(void*, void**, void**);
+        auto approve = reinterpret_cast<approve_type>(
+            dlsym(RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
+        void* nested_function = function;
+        if (nested_launch_approval_mode == 2) {
+            nested_function = reinterpret_cast<void*>(
+                reinterpret_cast<std::uintptr_t>(function) + 1);
+        }
+        nested_launch_approval_result =
+            approve == nullptr ? -2
+                               : approve(nested_function, parameters, extra);
+    }
     return launch_error;
 }
 
@@ -1153,6 +1168,15 @@ int fakeCudaLaunchCount()
     return launch_count;
 }
 void fakeCudaSetLaunchFailure(int error){launch_error=error;}
+void fakeCudaSetNestedLaunchApprovalMode(int mode)
+{
+    nested_launch_approval_mode=mode;
+    nested_launch_approval_result=-1;
+}
+int fakeCudaNestedLaunchApprovalResult()
+{
+    return nested_launch_approval_result;
+}
 
 void fakeCudaSetHostUnregisterFailure(int fail)
 {

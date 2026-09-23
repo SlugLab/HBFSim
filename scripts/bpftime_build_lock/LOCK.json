@@ -1,0 +1,182 @@
+{
+  "schema": "hbfsim.build_environment_lock.v2",
+  "reference": {
+    "build": "/root/hbfsim-exp/rebuttal_20260921/native-registration-identity-build-v9",
+    "source": "/root/hbfsim-exp/rebuttal_20260921/native-registration-identity-source-v7",
+    "cache_sha256": "05ce704ab37b7fc8f07476b5f1814559985bac871ba7f9b7f72750a38c25f800",
+    "compile_commands_sha256": "951f1017602963d3e97b56007ae8bf4c1699b90b60cf9d1d31908bccc061e99e",
+    "agent_dso": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/native-registration-identity-build-v9/runtime/agent/libbpftime-agent.so",
+      "realpath": "/root/hbfsim-exp/rebuttal_20260921/native-registration-identity-build-v9/runtime/agent/libbpftime-agent.so",
+      "bytes": 206713784,
+      "sha256": "6cd7e2caf0af714dd529544b8b15a22373ce5bea025a9134d0888d94434bd2f4"
+    }
+  },
+  "profiles": {
+    "agent": {
+      "status": "READY",
+      "tools": {
+        "cc_wrapper": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+          "bytes": 287,
+          "sha256": "54d0acf400420f55bfe74ead258df5113dcbcae720348964e1f727dc5ad1c7c7"
+        },
+        "gcc13": {
+          "path": "/usr/bin/gcc-13",
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-13",
+          "bytes": 1023032,
+          "sha256": "64f2fc42063e1eaa600a9dfd9f218df3ad67e724a6a16ea262db8f088d536df1"
+        },
+        "cxx": {
+          "path": "/usr/bin/g++-13",
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-13",
+          "bytes": 1027128,
+          "sha256": "d255fa40289dde1dcea3b820339e992d2a6889548b20e422d8c150cfb0230de7"
+        },
+        "cmake": {
+          "path": "/usr/bin/cmake",
+          "realpath": "/usr/bin/cmake",
+          "bytes": 14253272,
+          "sha256": "6e1dccda39845415d68eabb934c598998949c99ec4668625d571aee1827b05c7"
+        },
+        "ninja": {
+          "path": "/usr/bin/ninja",
+          "realpath": "/usr/bin/ninja",
+          "bytes": 350624,
+          "sha256": "91e9548850cda2799facfdaa7abe33f9e978832f85e98212255708a7bbe437f2"
+        },
+        "nvcc": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/bin/nvcc",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/bin/nvcc",
+          "bytes": 30153384,
+          "sha256": "b8e2347d9d7fcadf8812a27324d515de99d033d3e48611811ece7e66d7895f8a"
+        },
+        "clang": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/clang",
+          "bytes": 131344,
+          "sha256": "7c19dc665abb898a09fe5976c44f7691d7c137534dd5fcf6a76dfaab334c90c8"
+        },
+        "llvm_config": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-config",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/bin/llvm-config",
+          "bytes": 631248,
+          "sha256": "92e01693b3c3bb9acd0773a4da3ca539b626488b75a22479c1ce805ca1d44aa1"
+        },
+        "cuda_h": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cuda.h",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cuda.h",
+          "bytes": 1146681,
+          "sha256": "64025f81a9d6d2b10e9e11654f3523e5b046d01b883f0b9ca474e463274b80d4"
+        },
+        "cuda_runtime_api_h": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cuda_runtime_api.h",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cuda_runtime_api.h",
+          "bytes": 607504,
+          "sha256": "3f91d3f84f1aafb17cccc475803f9c489b6474f2a3bf0fbc75a5380821c966e0"
+        },
+        "cupti_h": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cupti.h",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cupti.h",
+          "bytes": 4644,
+          "sha256": "2b0a3268524bf80c13ffb173b7271295ee81161d220ea28951d748d5af26bd0e"
+        },
+        "compat_boost_process": {
+          "path": "/root/hbfsim-exp/rebuttal_20260921/bpftime_compat_include/boost/process/v1.hpp",
+          "realpath": "/root/hbfsim-exp/rebuttal_20260921/bpftime_compat_include/boost/process/v1.hpp",
+          "bytes": 621,
+          "sha256": "30828feb175acdb50694dc1cbfadcef627a86630b7512d81ac36c98587461e66"
+        }
+      },
+      "expected_cache": {
+        "CMAKE_GENERATOR": "Ninja",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "/root/hbfsim-exp/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+        "CMAKE_CXX_COMPILER": "/usr/bin/g++-13",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "",
+        "BPFTIME_BUILD_EXECUTABLE": "OFF",
+        "BPFTIME_BUILD_KERNEL_BPF": "ON",
+        "BPFTIME_BUILD_STATIC_LIB": "OFF",
+        "BPFTIME_BUILD_WITH_LIBBPF": "ON",
+        "BPFTIME_CUDA_ROOT": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0",
+        "BPFTIME_ENABLE_ASAN": "OFF",
+        "BPFTIME_ENABLE_CCACHE": "OFF",
+        "BPFTIME_ENABLE_CUDA_ATTACH": "ON",
+        "BPFTIME_ENABLE_IOURING_EXT": "OFF",
+        "BPFTIME_ENABLE_LLVM_PRELOAD": "OFF",
+        "BPFTIME_ENABLE_LTO": "OFF",
+        "BPFTIME_ENABLE_MPK": "OFF",
+        "BPFTIME_ENABLE_UNIT_TESTING": "OFF",
+        "BPFTIME_LLVM_JIT": "ON",
+        "BPFTIME_UBPF_JIT": "ON",
+        "BPFTIME_USE_CATCH2": "OFF",
+        "BPFTIME_VERBOSE_OUTPUT": "ON",
+        "BPFTIME_WARNINGS_AS_ERRORS": "OFF",
+        "BUILD_BPFTIME_DAEMON": "ON",
+        "BUILD_LLVM_AOT_CLI": "OFF",
+        "LLVM_DIR": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/lib/cmake/llvm",
+        "CMAKE_CXX_FLAGS": "-I/root/hbfsim-exp/rebuttal_20260921/bpftime_compat_include"
+      },
+      "source_cmakelists_sha256": "7a93ae1f7deb4101efab3f3143f883e26fb2b05c213b8403b2806d3bf4171adf",
+      "fixed_env": {
+        "CC": "/root/hbfsim-exp/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+        "CXX": "/usr/bin/g++-13",
+        "BPFTIME_CUDA_ROOT": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0",
+        "LLVM_DIR": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/lib/llvm-20/lib/cmake/llvm"
+      },
+      "protected_env": [
+        "CC",
+        "CXX",
+        "BPFTIME_CUDA_ROOT",
+        "CUDAToolkit_ROOT",
+        "CUDA_HOME",
+        "CUDA_PATH",
+        "LLVM_DIR"
+      ],
+      "allowed_targets": [
+        "bpftime-agent"
+      ],
+      "compile_command_invariants": [
+        "/usr/bin/g++-13",
+        "-std=gnu++20",
+        "-O3",
+        "-DNDEBUG",
+        "-fPIC",
+        "-I/root/hbfsim-exp/rebuttal_20260921/bpftime_compat_include"
+      ]
+    },
+    "gate": {
+      "status": "NOT_READY",
+      "reason": "c2e5 used CUDA13 headers and system libcudart12 through a manual link; complete literal compile/link argv plus coherent cache not yet proven",
+      "artifact": {
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-norm-runtime-v1/libhbfsim_launch_gate.so",
+        "realpath": "/root/hbfsim-exp/rebuttal_20260921/native-norm-runtime-v1/libhbfsim_launch_gate.so",
+        "bytes": 549632,
+        "sha256": "c2e5d9dd255e972e75fc0480302dc9023214fc5851be18b60760fd6b0248afae"
+      }
+    },
+    "vllm_cuda12": {
+      "status": "NOT_READY",
+      "reason": "separate profile not frozen"
+    },
+    "torch_cuda12": {
+      "status": "NOT_READY",
+      "reason": "separate profile not frozen"
+    }
+  },
+  "corrections": [
+    {
+      "attempt": 1,
+      "field": "CMAKE_EXPORT_COMPILE_COMMANDS",
+      "incorrect": "ON",
+      "actual": "",
+      "evidence": "native-registration-identity-build-v9/CMakeCache.txt; compile_commands.json nevertheless exists and is separately required"
+    }
+  ],
+  "v2_corrections": [
+    "lock CMAKE_CXX_FLAGS compatibility include",
+    "fresh configure must postvalidate cache, compile_commands, and attach command",
+    "CMAKE_EXPORT_COMPILE_COMMANDS remains exact successful-cache empty value; fresh configure provides empirical proof"
+  ]
+}

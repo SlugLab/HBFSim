@@ -1,6 +1,7 @@
 #include "hbfsim/coverage.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -56,6 +57,7 @@ void require(bool condition, const char* message)
 
 int main()
 {
+    unsetenv("HBFSIM_INSTRUMENTATION_POLICY");
     std::array<std::uint8_t, 32> identity{};
     identity.front() = 0x12;
     identity.back() = 0x34;
@@ -231,6 +233,50 @@ int main()
     CHECK(!aggregate.allowed);
     CHECK(aggregate.reason == "opaque_aggregate_parameter");
 
+    hbfsim::ParameterMetadata proven_aggregate{
+        .index = 0,
+        .offset = 0,
+        .width = 24,
+        .kind = hbfsim::ParameterKind::OpaqueAggregate,
+        .pointer_fields = {{.byte_offset = 0,
+                            .width = 8,
+                            .proof_kind =
+                                "ptx_constant_param_load_to_cvta_global_v1",
+                            .load_opcode = "ld.param.u64",
+                            .conversion_opcode = "cvta.to.global.u64",
+                            .load_instruction = 3,
+                            .conversion_instruction = 4}},
+        .fields_complete = true,
+    };
+    gate.add_module(manifest("ptx:aggregate-proven", "aggregate_proven",
+                             {proven_aggregate}));
+    const auto aggregate_safe = gate.check_launch(launch(
+        "ptx:aggregate-proven", "aggregate_proven",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .opaque_aggregate = true,
+          .slots = {{0, 0x100180}}}}));
+    CHECK(aggregate_safe.allowed);
+    CHECK(aggregate_safe.modeled);
+    const auto aggregate_missing_slot = gate.check_launch(launch(
+        "ptx:aggregate-proven", "aggregate_proven",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .opaque_aggregate = true}}));
+    CHECK(!aggregate_missing_slot.allowed);
+    CHECK(aggregate_missing_slot.reason == "opaque_aggregate_parameter");
+    const auto aggregate_wrong_slot = gate.check_launch(launch(
+        "ptx:aggregate-proven", "aggregate_proven",
+        {{.index = 0,
+          .offset = 0,
+          .width = 24,
+          .opaque_aggregate = true,
+          .slots = {{8, 0x100180}}}}));
+    CHECK(!aggregate_wrong_slot.allowed);
+    CHECK(aggregate_wrong_slot.reason == "opaque_aggregate_parameter");
+
     hbfsim::ModuleManifest cubin{
         .module_id = "cubin:123",
         .kernel = "opaque_kernel",
@@ -352,6 +398,74 @@ int main()
         launch("missing", "opaque_kernel", {pointer(0, 0x900000)}));
     CHECK(hbm.allowed);
 
+    hbfsim::CoverageGate strict_gate;
+    strict_gate.add_range(0x700000, 0x800000,
+                          hbfsim::RangePolicy::TimingBacked);
+    strict_gate.add_module(manifest(
+        "ptx:strict", "strict_known",
+        {{.index = 0, .offset = 0, .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer}}));
+    strict_gate.add_module({
+        .module_id = "cubin:strict",
+        .kernel = "strict_cubin",
+        .instrumented = false,
+        .cubin_only = true,
+    });
+    setenv("HBFSIM_INSTRUMENTATION_POLICY", "strict", 1);
+    const auto strict_unknown = strict_gate.check_launch(
+        launch("unknown:module", "indirect_unknown",
+               {pointer(0, 0x0)}));
+    CHECK(!strict_unknown.allowed);
+    CHECK(strict_unknown.reason == "strict_unresolved_module");
+    const auto strict_missing_identity = strict_gate.check_launch(
+        launch("", "indirect_unknown", {pointer(0, 0x0)}));
+    CHECK(!strict_missing_identity.allowed);
+    CHECK(strict_missing_identity.reason ==
+          "strict_module_identity_required");
+    const auto strict_known = strict_gate.check_launch(
+        launch("ptx:strict", "strict_known", {pointer(0, 0x0)}));
+    CHECK(strict_known.allowed);
+    CHECK(!strict_known.modeled);
+    CHECK(strict_known.requires_instrumented_execution);
+    strict_gate.add_module(manifest(
+        "ptx:strict-scalar", "strict_scalar",
+        {{.index = 0, .offset = 0, .width = 8,
+          .kind = hbfsim::ParameterKind::Scalar}}));
+    const auto strict_scalar = strict_gate.check_launch(
+        launch("ptx:strict-scalar", "strict_scalar",
+               {pointer(0, 0x700100)}));
+    CHECK(!strict_scalar.allowed);
+    CHECK(strict_scalar.reason == "uninstrumented_pointer_parameter");
+    auto strict_partial_unsupported = manifest(
+        "ptx:strict-partial", "strict_partial",
+        {{.index = 0, .offset = 0, .width = 8,
+          .kind = hbfsim::ParameterKind::Pointer},
+         {.index = 1, .offset = 8, .width = 8,
+          .kind = hbfsim::ParameterKind::Scalar}});
+    strict_partial_unsupported.unsupported_parameters.push_back(
+        {.index = 1, .operation = "indirect.global"});
+    strict_gate.add_module(std::move(strict_partial_unsupported));
+    const auto strict_any_unsupported = strict_gate.check_launch(launch(
+        "ptx:strict-partial", "strict_partial",
+        {{.index = 0, .offset = 0, .width = 8,
+          .slots = {{0, 0x700200}}},
+         {.index = 1, .offset = 8, .width = 8}}));
+    CHECK(!strict_any_unsupported.allowed);
+    CHECK(strict_any_unsupported.reason == "unsupported_operation");
+    CHECK(strict_any_unsupported.operation == "indirect.global");
+    const auto strict_cubin = strict_gate.check_launch(
+        launch("cubin:strict", "strict_cubin", {}));
+    CHECK(!strict_cubin.allowed);
+    CHECK(strict_cubin.reason == "cubin_only_module");
+    const auto strict_graph = hbfsim::uninspectable_launch_decision(
+        true, false, "graph_launch");
+    CHECK(!strict_graph.allowed);
+    CHECK(strict_graph.reason == "strict_uninspectable_timing");
+    unsetenv("HBFSIM_INSTRUMENTATION_POLICY");
+    const auto partial_unknown = strict_gate.check_launch(
+        launch("unknown:module", "indirect_unknown", {pointer(0, 0x0)}));
+    CHECK(partial_unknown.allowed);
+
     const auto parsed = hbfsim::module_manifest_from_json(R"({
       "module_id":"ptx:json", "kernel":"json_kernel", "ptx_target":"sm_120",
       "instrumented":false, "cubin_only":false,
@@ -361,6 +475,54 @@ int main()
     CHECK(parsed.module_id == "ptx:json");
     CHECK(parsed.parameters.front().kind == hbfsim::ParameterKind::Pointer);
 
+    const auto parsed_aggregate = hbfsim::module_manifest_from_json(R"({
+      "module_id":"ptx:aggregate-json", "kernel":"aggregate_json",
+      "ptx_target":"sm_120", "instrumented":true, "cubin_only":false,
+      "parameters":[{"index":0,"offset":0,"width":24,
+        "kind":"opaque_aggregate","fields_complete":true,
+        "opaque_reason":[],"pointer_fields":[{"byte_offset":0,"width":8,
+        "proof_kind":"ptx_constant_param_load_to_cvta_global_v1",
+        "load_opcode":"ld.param.u64","conversion_opcode":"cvta.to.global.u64",
+        "load_instruction":3,"conversion_instruction":4}]}]
+    })");
+    CHECK(parsed_aggregate.parameters.front().fields_complete);
+    CHECK(parsed_aggregate.parameters.front().pointer_fields.size() == 1);
+
+    const auto rejects_manifest = [](const std::string& text) {
+        try {
+            (void)hbfsim::module_manifest_from_json(text);
+            return false;
+        } catch (const std::invalid_argument&) {
+            return true;
+        }
+    };
+    CHECK(rejects_manifest(R"({
+      "module_id":"ptx:duplicate", "kernel":"duplicate",
+      "instrumented":true,"cubin_only":false,"parameters":[{
+      "index":0,"offset":0,"width":24,"kind":"opaque_aggregate",
+      "fields_complete":true,"opaque_reason":[],"pointer_fields":[
+      {"byte_offset":0,"width":8,"proof_kind":"ptx_constant_param_load_to_cvta_global_v1",
+       "load_opcode":"ld.param.u64","conversion_opcode":"cvta.to.global.u64",
+       "load_instruction":1,"conversion_instruction":2},
+      {"byte_offset":0,"width":8,"proof_kind":"ptx_constant_param_load_to_cvta_global_v1",
+       "load_opcode":"ld.param.u64","conversion_opcode":"cvta.to.global.u64",
+       "load_instruction":3,"conversion_instruction":4}]}]})"));
+    CHECK(rejects_manifest(R"({
+      "module_id":"ptx:oob", "kernel":"oob", "instrumented":true,
+      "cubin_only":false,"parameters":[{"index":0,"offset":0,"width":24,
+      "kind":"opaque_aggregate","fields_complete":true,"opaque_reason":[],
+      "pointer_fields":[{"byte_offset":24,"width":8,
+      "proof_kind":"ptx_constant_param_load_to_cvta_global_v1",
+      "load_opcode":"ld.param.u64","conversion_opcode":"cvta.to.global.u64",
+      "load_instruction":1,"conversion_instruction":2}]}]})"));
+    CHECK(rejects_manifest(R"({
+      "module_id":"ptx:bad-proof", "kernel":"bad_proof", "instrumented":true,
+      "cubin_only":false,"parameters":[{"index":0,"offset":0,"width":24,
+      "kind":"opaque_aggregate","fields_complete":true,"opaque_reason":[],
+      "pointer_fields":[{"byte_offset":0,"width":8,"proof_kind":"guessed",
+      "load_opcode":"ld.param.u64","conversion_opcode":"cvta.to.global.u64",
+      "load_instruction":1,"conversion_instruction":2}]}]})"));
+
     const auto test_id = std::to_string(getpid());
     const auto report = std::filesystem::temp_directory_path() /
                         ("hbfsim-coverage-gate-test-" + test_id + ".json");
@@ -368,6 +530,7 @@ int main()
     hbfsim::CoverageWriter writer(report);
     writer.append(unsupported);
     writer.append(timing_cubin);
+    writer.append(strict_known);
     std::ifstream input(report);
     const std::string json{std::istreambuf_iterator<char>(input), {}};
     CHECK(json.find("ptx:atom") != std::string::npos);
@@ -375,6 +538,8 @@ int main()
     CHECK(json.find("opaque_unmodeled_timing") != std::string::npos);
     CHECK(json.find("timing_backed") != std::string::npos);
     CHECK(json.find("\"modeled\":false") != std::string::npos);
+    CHECK(json.find("\"requires_instrumented_execution\":true") !=
+          std::string::npos);
     std::filesystem::remove(report);
 
     bool write_failed = false;

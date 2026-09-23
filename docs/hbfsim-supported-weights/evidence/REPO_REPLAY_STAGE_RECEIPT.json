@@ -1,0 +1,55 @@
+{
+  "aggregate_pass_sha256": "a6aa66064cc1251ae698845acb79e74b167cba394b576c26d30ca9f986867b3a",
+  "pass_manifest_sha256": "50480cc29902621e9805ea866d91c8998a4a048ca15c0173642b34d05366da7c",
+  "pass_row_count": 8,
+  "pass_sha256": "1ffe053ee123b8c2689a7fc18cdb616cf6be3a35f1e8fce179475ec15c17cfcf",
+  "plugin_selection": {
+    "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6": "aggregate",
+    "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536": "base",
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e": "base",
+    "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982": "base",
+    "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3": "base",
+    "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1": "aggregate",
+    "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc": "base"
+  },
+  "stage_count": 7,
+  "stages": {
+    "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6": {
+      "bytes": 3790114,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+      "sha256": "1d2efaa44c0e94a8dbab1c03a49382befecb58a7ae9e54b167167e94cb9b9aab"
+    },
+    "43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536": {
+      "bytes": 350818,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/43e3c9cd84f57e019f2edb4691c549f64846ad23c2630b7c760c946721b24536.ptx",
+      "sha256": "4f12d4943a61cd0e4f0b49515c53a2ebde278021ce85936b28c2e691d50b4268"
+    },
+    "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e": {
+      "bytes": 2072001,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "sha256": "c491eead39c3a4243db728234c60627cfe9b655226ae585d05d5482016424b66"
+    },
+    "5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982": {
+      "bytes": 331138,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982.ptx",
+      "sha256": "fae7de3df5458a1b0df292fc8d35c00b1550178807e23ee02bf0cd9e58077742"
+    },
+    "60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3": {
+      "bytes": 361915,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/60ac6d2a15fef95a86741dc37797101da52b9c70a6e00edca8f36a8fc21404f3.ptx",
+      "sha256": "03245331b3caeefee64afd9a7939710532be47324c92287e6b142772bcced2a8"
+    },
+    "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1": {
+      "bytes": 21936052,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+      "sha256": "882cceb847d586bbc770e11e22f4519431af55fe0ae9f54682248dd02afc69d3"
+    },
+    "bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc": {
+      "bytes": 336409,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/new-cohort-layer0-cpu-v1/repo-replay-stage-v1/stage/bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc.ptx",
+      "sha256": "30afed4a404f144ea6307a38b3b3433850212c5e109ba3d842008a3b89b7046e"
+    }
+  },
+  "status": "CPU_STAGED_NOT_GPU_VALIDATED",
+  "time_unix_ns": 1790189918690730138
+}

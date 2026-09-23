@@ -1,0 +1,13 @@
+{
+  "status": "PASS_OUTSIDE_EXPLICIT_BYTE_PRESERVATION_EXCEPTIONS",
+  "raw_check_exit": 2,
+  "raw_check_sha256": "a57cc736b96fec27ebacb71dda12539526582646d6a5ccf22e7d6f44312fb064",
+  "exceptions": {
+    "adapters/vllm/tests/test_weight_policy.py": "retained source blank line at EOF",
+    "tools/native_ptx_reproduction/execution/entry_proof.py": "retained exact proof source blank line at EOF",
+    "tools/native_ptx_reproduction/execution/example.giga.json": "retained archived CRLF example",
+    "docs/hbfsim-supported-weights/evidence/framework-build/native-source-prep-v1__VLLM_PTX_RETENTION_v0.15.1.patch": "original hash-bound unified patch context blank lines"
+  },
+  "remaining_files_check_exit": 0,
+  "note": "Do not normalize hash-bound original artifacts or frozen source solely for whitespace. No semantic source changes."
+}

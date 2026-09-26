@@ -9,3 +9,5 @@ Publication CPU plugin fixtures passed (see [the verification receipt](verificat
 `first-fault-runtime-from-eabc5c2.patch` reconstructs the accepted helper/runtime source overlay. `CURRENT_RESEARCH_WIP_FROM_EABC.patch` instead preserves the current dirty research checkout and is **unvalidated WIP**, not applied to accepted runtime or main production code. Both use HBFSim eabc5c2 as their base. The agent patch uses a different repository: bpftime ec26daec.
 
 The [unvalidated worktree source inventory](unvalidated-worktree-source/INVENTORY.json) preserves accompanying source/configuration files separately from accepted components.
+
+The [upstream repair and merge follow-up](upstream-repair-followup/README.md) records the later five merged fixes, 107 CPU checks, and the HBFSim coverage-gap analysis.

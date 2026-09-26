@@ -1,0 +1,22 @@
+{
+  "status": "TIMEOUT_BUILD_INCOMPLETE_NOT_TEST_FAILURE",
+  "scope": "exact PR1 head conventional ptx --lib --no-run",
+  "started_recorded_utc": "2026-09-26T06:04:49.015924+00:00",
+  "session_id": 97867,
+  "timeout_seconds": 600,
+  "jobs": 2,
+  "CMAKE": "/usr/bin/cmake",
+  "cmake_version": "4.2.3",
+  "CCACHE_DIR": "/root/hbfsim-exp/upstream-concordia-fixes-20260926/test-environment/ccache",
+  "CARGO_TARGET_DIR": "/root/hbfsim-exp/upstream-concordia-fixes-20260926/test-environment/workspace-target",
+  "baseline": "12e8ee2aed0e89a178289422d4e835e6999448ab",
+  "dependency_sources_readonly": [
+    "/root/hetGPU/ext/llvm-project",
+    "/root/hetGPU/ext/cuda-tile"
+  ],
+  "gpu": false,
+  "returncode": 124,
+  "terminal_recorded_utc": "2026-09-26T06:15:18.196221+00:00",
+  "interpretation": "Selected ptx --lib bypassed workspace phantom target; after correcting build-tool/cache output configuration, no-run compilation did not finish within finite600s. No conventional test binary/result claimed.",
+  "log": "ptx-package-no-run-isolated-cache.log"
+}

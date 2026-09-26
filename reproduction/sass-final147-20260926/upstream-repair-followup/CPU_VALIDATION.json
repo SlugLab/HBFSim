@@ -1,0 +1,42 @@
+{
+  "schema": "concordia.combined_cpu_acceptance.v1",
+  "status": "FOCUSED_CPU_AND_OFFLINE_ASSEMBLY_PASS_NOT_WORKSPACE_PASS",
+  "base": "c60cfd8ab54fd1ec4512f749ad61cccc4a390a05",
+  "combined_commit": "0cba323996e90c7d07042e9655e97952509fe4b9",
+  "combined_tree": "1a1ec20aa474d3740a1137e518b4a13f5ec43997",
+  "final_pr_heads_observed": {
+    "pr1": "a069bbd1523c060fae4aae7dd7ee49aa3a83172a",
+    "pr2": "5d62c6a448e20cae75c242ac5c123504db292c98",
+    "pr3": "934498e4b36a47372b02d1e9970091044a24de9c",
+    "pr4": "8905b0618e72b3793c2d3b81df8e259cb0c05b58",
+    "pr5": "bbee6afa9b65b73d8388d80c7bcc367536282927"
+  },
+  "source_blob": "efb744803833f818d7fa60bab7c464ca8f4f6eec",
+  "actual_tests": {
+    "unit": 93,
+    "sass_lifter_fuzz_integration": 12,
+    "sass_translation_pipeline_integration": 2,
+    "total": 107,
+    "failed": 0,
+    "ignored": 0,
+    "filtered": 0
+  },
+  "offline_assembler": "/usr/local/cuda-13.1/bin/ptxas",
+  "explicit_assembler_tests": [
+    "imad_hi_generated_ptx_assembles_offline",
+    "bf16_generated_ptx_all_modes_assemble_offline",
+    "text_lifter_register_pairs_assemble_offline"
+  ],
+  "command": "HETGPU_TEST_PTXAS=<configured ptxas> CARGO_BUILD_JOBS=1 cargo test --offline --locked --manifest-path <actual-source harness>/Cargo.toml -- --include-ignored",
+  "log": "all-tests-final.log",
+  "real_parser": true,
+  "source_and_tests_copied": false,
+  "gpu": false,
+  "worktree_clean": true,
+  "conventional_workspace_status": "missing Gemmini declared test_ttmlir target, exit101",
+  "conventional_ptx_package_status": "Finite600s no-run compilation timeout rc124; incomplete, not source/test failure",
+  "excluded_integration": "LLVM inliner CLI / GPU record-replay / tmatmul/backend tests not executed",
+  "conflicts": "Mechanical unions detailed in RESOLUTION.md and raw conflict snapshots; failed scratch-name expectation retained and corrected upstream through5d62c6a",
+  "portable_harness_commit": "25eec9f",
+  "upstream_push_or_merge_by_this_worker": false
+}

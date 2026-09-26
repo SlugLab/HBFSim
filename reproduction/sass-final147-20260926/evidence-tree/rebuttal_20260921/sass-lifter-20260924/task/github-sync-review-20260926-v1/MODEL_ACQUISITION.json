@@ -1,0 +1,14 @@
+{
+  "observed_utc": "2026-09-26T05:36:40.383727+00:00",
+  "repo": "allenai/OLMoE-1B-7B-0924",
+  "recorded_revision_prefix": "6d84c485",
+  "revision_resolved_now": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+  "api_url": "https://huggingface.co/api/models/allenai/OLMoE-1B-7B-0924/revision/6d84c485",
+  "config_url": "https://huggingface.co/allenai/OLMoE-1B-7B-0924/resolve/6d84c48581ece794365f2b8e9cfb043c68ade9c5/config.json",
+  "published_config_sha256": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+  "local_config_sha256": "3643aa880d2f1c9b418156269ae791c73e5612d6b6b6fde0724d927cf89b6335",
+  "config_bytes_equal": true,
+  "historical_full_revision_observed": false,
+  "weights_rehashed": false,
+  "limitation": "Current public revision resolution and config identity check only; do not relabel as historical full weight-integrity observation."
+}

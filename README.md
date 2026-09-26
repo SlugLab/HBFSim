@@ -1,5 +1,7 @@
 # HBFSim: simulating High-Bandwidth Flash while the workload runs on a real GPU
 
+The [SASS final147 reproduction package](reproduction/sass-final147-20260926/README.md) preserves the experimental runtime sources, actual interface contracts, build recipes and fixed-request validation evidence. Its [upstream PR review](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md) records generality limits separately from the model result.
+
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)

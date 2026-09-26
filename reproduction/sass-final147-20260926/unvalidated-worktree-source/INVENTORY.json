@@ -1,0 +1,103 @@
+{
+  "status": "UNVALIDATED_WORKTREE_SOURCE_NOT_FINAL147_COMPONENTS",
+  "base_commit": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
+  "tracked_changes": "../CURRENT_RESEARCH_WIP_FROM_EABC.patch",
+  "files": [
+    {
+      "path": "docs/rebuttal_20260921/BUILD_PROVENANCE_AUDIT.md",
+      "bytes": 11917
+    },
+    {
+      "path": "docs/rebuttal_20260921/R1_ACCESS_COVERAGE.md",
+      "bytes": 2815
+    },
+    {
+      "path": "docs/rebuttal_20260921/R1_PREFLIGHT.md",
+      "bytes": 4573
+    },
+    {
+      "path": "docs/rebuttal_20260921/R2_RANGE_SWEEP.md",
+      "bytes": 3496
+    },
+    {
+      "path": "docs/rebuttal_20260921/R3_CAPACITY.md",
+      "bytes": 6977
+    },
+    {
+      "path": "docs/rebuttal_20260921/R3_PUBLIC_CAPACITY_STATUS.md",
+      "bytes": 3599
+    },
+    {
+      "path": "docs/rebuttal_20260921/REBUTTAL_EXPERIMENT_STATUS.md",
+      "bytes": 5494
+    },
+    {
+      "path": "docs/rebuttal_20260921/REBUTTAL_READY_NUMBERS.md",
+      "bytes": 1953
+    },
+    {
+      "path": "docs/rebuttal_20260921/VLLM_015_COMPATIBILITY_AUDIT.md",
+      "bytes": 4001
+    },
+    {
+      "path": "experiments/rebuttal_20260921/R1_MANIFEST.json",
+      "bytes": 1920,
+      "archive_path": "experiments/rebuttal_20260921/R1_MANIFEST.json.invalid-original",
+      "status": "ORIGINAL_MALFORMED_JSON_PRESERVED_NOT_EXECUTABLE",
+      "original_error": "Expecting ',' delimiter: line 57 column 1 (char 1920)"
+    },
+    {
+      "path": "experiments/rebuttal_20260921/access_coverage/validate_r1_three_arm.py",
+      "bytes": 17955
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/capacity_payload_fixture.cu",
+      "bytes": 19698
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/r3_public_capacity_bench.cpp",
+      "bytes": 12385
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/r3_public_capacity_kernel.cu",
+      "bytes": 422
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/result_schema.json",
+      "bytes": 1319
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/run_r3_capacity.py",
+      "bytes": 4647
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/run_r3_public_capacity.py",
+      "bytes": 5631
+    },
+    {
+      "path": "experiments/rebuttal_20260921/capacity/validate_fixture.py",
+      "bytes": 2344
+    },
+    {
+      "path": "experiments/rebuttal_20260921/range_sweep/prepare_r2_range_sweep.py",
+      "bytes": 4236
+    },
+    {
+      "path": "experiments/rebuttal_20260921/range_sweep/prepare_r2_range_sweep_v2.py",
+      "bytes": 7297
+    },
+    {
+      "path": "experiments/rebuttal_20260921/range_sweep/validate_r2_cell_v2.py",
+      "bytes": 8776
+    },
+    {
+      "path": "experiments/rebuttal_20260921/range_sweep/validate_r2_range_sweep.py",
+      "bytes": 4363
+    },
+    {
+      "path": "tests/integration/test_access_accounting_host_contract.py",
+      "bytes": 5744
+    }
+  ],
+  "excluded": "build products, CMake compiler-identification files, raw/run/result directories and binaries"
+}

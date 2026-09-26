@@ -1,0 +1,1535 @@
+{
+  "by_storage": [
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.0.mlp.experts.w2_weight",
+      "base": 1099683594240,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.15.mlp.experts.w2_weight",
+      "base": 132103530348544,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "lm_head.weight",
+      "base": 132103798784000,
+      "bytes": 206045184
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.15.mlp.experts.w13_weight",
+      "base": 132104067219456,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.14.mlp.experts.w2_weight",
+      "base": 132104604090368,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.15.self_attn.qkv_proj.weight",
+      "base": 132104872525824,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.14.mlp.experts.w13_weight",
+      "base": 132105140961280,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.13.mlp.experts.w2_weight",
+      "base": 132105677832192,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.14.self_attn.qkv_proj.weight",
+      "base": 132105946267648,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.14.self_attn.o_proj.weight",
+      "base": 132105971433472,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.15.self_attn.o_proj.weight",
+      "base": 132105979822080,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.14.mlp.gate.weight",
+      "base": 132105992404992,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.15.mlp.gate.weight",
+      "base": 132105992667136,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.13.mlp.experts.w13_weight",
+      "base": 132106214703104,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.12.mlp.experts.w2_weight",
+      "base": 132106751574016,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.13.self_attn.qkv_proj.weight",
+      "base": 132107020009472,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.12.mlp.experts.w13_weight",
+      "base": 132107288444928,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.11.mlp.experts.w2_weight",
+      "base": 132107825315840,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.12.self_attn.qkv_proj.weight",
+      "base": 132108093751296,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.12.self_attn.o_proj.weight",
+      "base": 132108118917120,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.13.self_attn.o_proj.weight",
+      "base": 132108127305728,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.11.mlp.experts.w13_weight",
+      "base": 132108362186752,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.10.mlp.experts.w2_weight",
+      "base": 132108899057664,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.11.self_attn.qkv_proj.weight",
+      "base": 132109167493120,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.10.mlp.experts.w13_weight",
+      "base": 132109435928576,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.9.mlp.experts.w2_weight",
+      "base": 132109972799488,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.10.self_attn.qkv_proj.weight",
+      "base": 132110241234944,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.10.self_attn.o_proj.weight",
+      "base": 132110266400768,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.11.self_attn.o_proj.weight",
+      "base": 132110274789376,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.9.mlp.experts.w13_weight",
+      "base": 132110509670400,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.8.mlp.experts.w2_weight",
+      "base": 132111046541312,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.9.self_attn.qkv_proj.weight",
+      "base": 132111314976768,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.8.mlp.experts.w13_weight",
+      "base": 132111583412224,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.7.mlp.experts.w2_weight",
+      "base": 132112120283136,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.8.self_attn.qkv_proj.weight",
+      "base": 132112388718592,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.8.self_attn.o_proj.weight",
+      "base": 132112413884416,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.9.self_attn.o_proj.weight",
+      "base": 132112422273024,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.7.mlp.experts.w13_weight",
+      "base": 132112657154048,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.6.mlp.experts.w2_weight",
+      "base": 132113194024960,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.7.self_attn.qkv_proj.weight",
+      "base": 132113462460416,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.6.mlp.experts.w13_weight",
+      "base": 132113730895872,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.5.mlp.experts.w2_weight",
+      "base": 132114267766784,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.6.self_attn.qkv_proj.weight",
+      "base": 132114536202240,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.6.self_attn.o_proj.weight",
+      "base": 132114561368064,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.7.self_attn.o_proj.weight",
+      "base": 132114569756672,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.5.mlp.experts.w13_weight",
+      "base": 132114804637696,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.4.mlp.experts.w2_weight",
+      "base": 132115341508608,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.5.self_attn.qkv_proj.weight",
+      "base": 132115609944064,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.4.mlp.experts.w13_weight",
+      "base": 132115878379520,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.3.mlp.experts.w2_weight",
+      "base": 132116415250432,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.4.self_attn.qkv_proj.weight",
+      "base": 132116683685888,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.4.self_attn.o_proj.weight",
+      "base": 132116708851712,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.5.self_attn.o_proj.weight",
+      "base": 132116717240320,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.3.mlp.experts.w13_weight",
+      "base": 132116952121344,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.2.mlp.experts.w2_weight",
+      "base": 132117488992256,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.3.self_attn.qkv_proj.weight",
+      "base": 132117757427712,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.2.mlp.experts.w13_weight",
+      "base": 132118025863168,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:bd090f9119c46742e53780e617b6b3e34524a60a6856614b55d21df41459e3bc"
+      ],
+      "alias": "model.layers.1.mlp.experts.w2_weight",
+      "base": 132118562734080,
+      "bytes": 268435456
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.2.self_attn.qkv_proj.weight",
+      "base": 132118831169536,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.2.self_attn.o_proj.weight",
+      "base": 132118856335360,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.3.self_attn.o_proj.weight",
+      "base": 132118864723968,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.1.mlp.experts.w13_weight",
+      "base": 132119099604992,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:5c54634dc94e40e6385ac7f34d02a3668918c1582f95576d12de146ac9f7e982"
+      ],
+      "alias": "model.layers.0.mlp.experts.w13_weight",
+      "base": 132119636475904,
+      "bytes": 536870912
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.0.self_attn.q_norm.weight",
+      "base": 132138977497088,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.0.self_attn.k_norm.weight",
+      "base": 132138977501184,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.0.mlp.gate.weight",
+      "base": 132138977508864,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.0.input_layernorm.weight",
+      "base": 132138977771008,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.0.post_attention_layernorm.weight",
+      "base": 132138977775104,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.1.self_attn.q_norm.weight",
+      "base": 132138977779200,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.1.self_attn.k_norm.weight",
+      "base": 132138977783296,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.1.mlp.gate.weight",
+      "base": 132138977790976,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.1.input_layernorm.weight",
+      "base": 132138978053120,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.1.post_attention_layernorm.weight",
+      "base": 132138978057216,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.2.self_attn.q_norm.weight",
+      "base": 132138978061312,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.2.self_attn.k_norm.weight",
+      "base": 132138978065408,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.2.mlp.gate.weight",
+      "base": 132138978073088,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.2.input_layernorm.weight",
+      "base": 132138978335232,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.2.post_attention_layernorm.weight",
+      "base": 132138978339328,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.3.self_attn.q_norm.weight",
+      "base": 132138978343424,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.3.self_attn.k_norm.weight",
+      "base": 132138978347520,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.3.input_layernorm.weight",
+      "base": 132138978355200,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.3.post_attention_layernorm.weight",
+      "base": 132138978359296,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.4.self_attn.q_norm.weight",
+      "base": 132138978363392,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.4.self_attn.k_norm.weight",
+      "base": 132138978367488,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.4.input_layernorm.weight",
+      "base": 132138978375168,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.4.post_attention_layernorm.weight",
+      "base": 132138978379264,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.5.self_attn.q_norm.weight",
+      "base": 132138978383360,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.5.self_attn.k_norm.weight",
+      "base": 132138978387456,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.5.input_layernorm.weight",
+      "base": 132138978395136,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.5.post_attention_layernorm.weight",
+      "base": 132138978399232,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.6.self_attn.q_norm.weight",
+      "base": 132138978403328,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.6.self_attn.k_norm.weight",
+      "base": 132138978407424,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.6.input_layernorm.weight",
+      "base": 132138978415104,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.6.post_attention_layernorm.weight",
+      "base": 132138978419200,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.7.self_attn.q_norm.weight",
+      "base": 132138978423296,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.7.self_attn.k_norm.weight",
+      "base": 132138978427392,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.7.input_layernorm.weight",
+      "base": 132138978435072,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.7.post_attention_layernorm.weight",
+      "base": 132138978439168,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.8.self_attn.q_norm.weight",
+      "base": 132138978443264,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.8.self_attn.k_norm.weight",
+      "base": 132138978447360,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.8.input_layernorm.weight",
+      "base": 132138978455040,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.8.post_attention_layernorm.weight",
+      "base": 132138978459136,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.9.self_attn.q_norm.weight",
+      "base": 132138978463232,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.9.self_attn.k_norm.weight",
+      "base": 132138978467328,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.9.input_layernorm.weight",
+      "base": 132138978475008,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.9.post_attention_layernorm.weight",
+      "base": 132138978479104,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.10.self_attn.q_norm.weight",
+      "base": 132138978483200,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.10.self_attn.k_norm.weight",
+      "base": 132138978487296,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.10.input_layernorm.weight",
+      "base": 132138978494976,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.10.post_attention_layernorm.weight",
+      "base": 132138978499072,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.11.self_attn.q_norm.weight",
+      "base": 132138978503168,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1"
+      ],
+      "alias": "model.embed_tokens.weight",
+      "base": 132138980605952,
+      "bytes": 206045184
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.0.self_attn.qkv_proj.weight",
+      "base": 132139188224000,
+      "bytes": 25165824
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.0.self_attn.o_proj.weight",
+      "base": 132139213389824,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.1.self_attn.o_proj.weight",
+      "base": 132139221778432,
+      "bytes": 8388608
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.3.mlp.gate.weight",
+      "base": 132139243798528,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.4.mlp.gate.weight",
+      "base": 132139244060672,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.5.mlp.gate.weight",
+      "base": 132139244322816,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.6.mlp.gate.weight",
+      "base": 132139244584960,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.7.mlp.gate.weight",
+      "base": 132139244847104,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.8.mlp.gate.weight",
+      "base": 132139245109248,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.9.mlp.gate.weight",
+      "base": 132139245371392,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.10.mlp.gate.weight",
+      "base": 132139245633536,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.11.self_attn.k_norm.weight",
+      "base": 132139245895680,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.11.mlp.gate.weight",
+      "base": 132139245901824,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.11.input_layernorm.weight",
+      "base": 132139246163968,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.11.post_attention_layernorm.weight",
+      "base": 132139246168064,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.12.self_attn.q_norm.weight",
+      "base": 132139246172160,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.12.self_attn.k_norm.weight",
+      "base": 132139246176256,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.12.mlp.gate.weight",
+      "base": 132139246183936,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.12.input_layernorm.weight",
+      "base": 132139246446080,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.12.post_attention_layernorm.weight",
+      "base": 132139246450176,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.13.self_attn.q_norm.weight",
+      "base": 132139246454272,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.13.self_attn.k_norm.weight",
+      "base": 132139246458368,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      ],
+      "alias": "model.layers.13.mlp.gate.weight",
+      "base": 132139246466048,
+      "bytes": 262144
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.13.input_layernorm.weight",
+      "base": 132139246728192,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.13.post_attention_layernorm.weight",
+      "base": 132139246732288,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.14.self_attn.q_norm.weight",
+      "base": 132139246736384,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.14.self_attn.k_norm.weight",
+      "base": 132139246740480,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.14.input_layernorm.weight",
+      "base": 132139246748160,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.14.post_attention_layernorm.weight",
+      "base": 132139246752256,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.15.self_attn.q_norm.weight",
+      "base": 132139246756352,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.15.self_attn.k_norm.weight",
+      "base": 132139246760448,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.15.input_layernorm.weight",
+      "base": 132139246768128,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.layers.15.post_attention_layernorm.weight",
+      "base": 132139246772224,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e"
+      ],
+      "alias": "model.norm.weight",
+      "base": 132139246776320,
+      "bytes": 4096
+    },
+    {
+      "active_complete_modules": [
+        "ptx:sha256:6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab"
+      ],
+      "alias": "model.layers.1.self_attn.qkv_proj.weight",
+      "base": 132139246944256,
+      "bytes": 25165824
+    }
+  ],
+  "epoch": 6712,
+  "limit": "Per-storage modeled address and selected call join; shared module counters do not prove per-storage latency.",
+  "old98_count": 98,
+  "registered_storage_count": 147,
+  "schema": "hbfsim.combined_model_validation.v1",
+  "scope": "added49",
+  "selected": [
+    {
+      "alias": "model.layers.0.self_attn.qkv_proj.weight",
+      "base": 132139188224000,
+      "bytes": 25165824,
+      "decision_ordinal": 3,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.0.self_attn.o_proj.weight",
+      "base": 132139213389824,
+      "bytes": 8388608,
+      "decision_ordinal": 5,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.0.mlp.gate.weight",
+      "base": 132138977508864,
+      "bytes": 262144,
+      "decision_ordinal": 7,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.1.self_attn.qkv_proj.weight",
+      "base": 132139246944256,
+      "bytes": 25165824,
+      "decision_ordinal": 9,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.1.self_attn.o_proj.weight",
+      "base": 132139221778432,
+      "bytes": 8388608,
+      "decision_ordinal": 11,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.1.mlp.gate.weight",
+      "base": 132138977790976,
+      "bytes": 262144,
+      "decision_ordinal": 13,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.2.self_attn.qkv_proj.weight",
+      "base": 132118831169536,
+      "bytes": 25165824,
+      "decision_ordinal": 15,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.2.self_attn.o_proj.weight",
+      "base": 132118856335360,
+      "bytes": 8388608,
+      "decision_ordinal": 17,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.2.mlp.gate.weight",
+      "base": 132138978073088,
+      "bytes": 262144,
+      "decision_ordinal": 19,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.3.self_attn.qkv_proj.weight",
+      "base": 132117757427712,
+      "bytes": 25165824,
+      "decision_ordinal": 21,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.3.self_attn.o_proj.weight",
+      "base": 132118864723968,
+      "bytes": 8388608,
+      "decision_ordinal": 23,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.3.mlp.gate.weight",
+      "base": 132139243798528,
+      "bytes": 262144,
+      "decision_ordinal": 25,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.4.self_attn.qkv_proj.weight",
+      "base": 132116683685888,
+      "bytes": 25165824,
+      "decision_ordinal": 27,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.4.self_attn.o_proj.weight",
+      "base": 132116708851712,
+      "bytes": 8388608,
+      "decision_ordinal": 29,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.4.mlp.gate.weight",
+      "base": 132139244060672,
+      "bytes": 262144,
+      "decision_ordinal": 31,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.5.self_attn.qkv_proj.weight",
+      "base": 132115609944064,
+      "bytes": 25165824,
+      "decision_ordinal": 33,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.5.self_attn.o_proj.weight",
+      "base": 132116717240320,
+      "bytes": 8388608,
+      "decision_ordinal": 35,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.5.mlp.gate.weight",
+      "base": 132139244322816,
+      "bytes": 262144,
+      "decision_ordinal": 37,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.6.self_attn.qkv_proj.weight",
+      "base": 132114536202240,
+      "bytes": 25165824,
+      "decision_ordinal": 39,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.6.self_attn.o_proj.weight",
+      "base": 132114561368064,
+      "bytes": 8388608,
+      "decision_ordinal": 41,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.6.mlp.gate.weight",
+      "base": 132139244584960,
+      "bytes": 262144,
+      "decision_ordinal": 43,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.7.self_attn.qkv_proj.weight",
+      "base": 132113462460416,
+      "bytes": 25165824,
+      "decision_ordinal": 45,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.7.self_attn.o_proj.weight",
+      "base": 132114569756672,
+      "bytes": 8388608,
+      "decision_ordinal": 47,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.7.mlp.gate.weight",
+      "base": 132139244847104,
+      "bytes": 262144,
+      "decision_ordinal": 49,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.8.self_attn.qkv_proj.weight",
+      "base": 132112388718592,
+      "bytes": 25165824,
+      "decision_ordinal": 51,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.8.self_attn.o_proj.weight",
+      "base": 132112413884416,
+      "bytes": 8388608,
+      "decision_ordinal": 53,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.8.mlp.gate.weight",
+      "base": 132139245109248,
+      "bytes": 262144,
+      "decision_ordinal": 55,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.9.self_attn.qkv_proj.weight",
+      "base": 132111314976768,
+      "bytes": 25165824,
+      "decision_ordinal": 57,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.9.self_attn.o_proj.weight",
+      "base": 132112422273024,
+      "bytes": 8388608,
+      "decision_ordinal": 59,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.9.mlp.gate.weight",
+      "base": 132139245371392,
+      "bytes": 262144,
+      "decision_ordinal": 61,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.10.self_attn.qkv_proj.weight",
+      "base": 132110241234944,
+      "bytes": 25165824,
+      "decision_ordinal": 63,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.10.self_attn.o_proj.weight",
+      "base": 132110266400768,
+      "bytes": 8388608,
+      "decision_ordinal": 65,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.10.mlp.gate.weight",
+      "base": 132139245633536,
+      "bytes": 262144,
+      "decision_ordinal": 67,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.11.self_attn.qkv_proj.weight",
+      "base": 132109167493120,
+      "bytes": 25165824,
+      "decision_ordinal": 69,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.11.self_attn.o_proj.weight",
+      "base": 132110274789376,
+      "bytes": 8388608,
+      "decision_ordinal": 71,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.11.mlp.gate.weight",
+      "base": 132139245901824,
+      "bytes": 262144,
+      "decision_ordinal": 73,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.12.self_attn.qkv_proj.weight",
+      "base": 132108093751296,
+      "bytes": 25165824,
+      "decision_ordinal": 75,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.12.self_attn.o_proj.weight",
+      "base": 132108118917120,
+      "bytes": 8388608,
+      "decision_ordinal": 77,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.12.mlp.gate.weight",
+      "base": 132139246183936,
+      "bytes": 262144,
+      "decision_ordinal": 79,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.13.self_attn.qkv_proj.weight",
+      "base": 132107020009472,
+      "bytes": 25165824,
+      "decision_ordinal": 81,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.13.self_attn.o_proj.weight",
+      "base": 132108127305728,
+      "bytes": 8388608,
+      "decision_ordinal": 83,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.13.mlp.gate.weight",
+      "base": 132139246466048,
+      "bytes": 262144,
+      "decision_ordinal": 85,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.14.self_attn.qkv_proj.weight",
+      "base": 132105946267648,
+      "bytes": 25165824,
+      "decision_ordinal": 87,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.14.self_attn.o_proj.weight",
+      "base": 132105971433472,
+      "bytes": 8388608,
+      "decision_ordinal": 89,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.14.mlp.gate.weight",
+      "base": 132105992404992,
+      "bytes": 262144,
+      "decision_ordinal": 91,
+      "profile": "li7"
+    },
+    {
+      "alias": "model.layers.15.self_attn.qkv_proj.weight",
+      "base": 132104872525824,
+      "bytes": 25165824,
+      "decision_ordinal": 93,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.15.self_attn.o_proj.weight",
+      "base": 132105979822080,
+      "bytes": 8388608,
+      "decision_ordinal": 95,
+      "profile": "li6"
+    },
+    {
+      "alias": "model.layers.15.mlp.gate.weight",
+      "base": 132105992667136,
+      "bytes": 262144,
+      "decision_ordinal": 97,
+      "profile": "li7"
+    },
+    {
+      "alias": "lm_head.weight",
+      "base": 132103798784000,
+      "bytes": 206045184,
+      "decision_ordinal": 99,
+      "profile": "li6"
+    }
+  ],
+  "selected_count": 49,
+  "status": "MODEL_CONNECTED_PASS_COMBINED_ADDED49",
+  "target_pid": 4011197,
+  "target_start_ticks": 61618075
+}

@@ -1,0 +1,8 @@
+{
+  "schema": "hbfsim.combined_selected_scope_reuse.v1",
+  "status": "SOURCE_IDENTICAL_FOR_V1_SELECT_END",
+  "same": {
+    "bpftime_nv_qkv_select_weight_storage_v1(": true,
+    "bpftime_nv_qkv_end_selected_call_v1()": true
+  }
+}

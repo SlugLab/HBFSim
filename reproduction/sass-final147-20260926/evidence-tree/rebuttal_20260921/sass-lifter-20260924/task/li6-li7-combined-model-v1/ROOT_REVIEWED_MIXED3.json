@@ -1,0 +1,19 @@
+{
+  "status": "ROOT_REVIEWED_COMBINED_MIXED3_V1",
+  "plan_sha256": "955071522d62f250e9ac7a2429dccc465c029d2d1e01f3a31b7354e1194f4bad",
+  "launcher_sha256": "dc858c59b45dcc3d7adb368f6c5740d882f818c01d10634155d8e6f6ecdb601d",
+  "validator_sha256": "eb909804f0330369a4eda8b01585350526b9f06aeeae7d12d9e8aa68835c52da",
+  "authority": "USER_CONFIRMED SASS continuation; Astra root in-scope launch decision",
+  "cpu_reviews": [
+    "ROOT_PLUGIN_CPU_REVIEW.json",
+    "ROOT_VALIDATOR_CPU_REVIEW.json",
+    "ROOT_SCOPE_STAGE_REVIEW.json",
+    "ROOT_MIXED3_LAUNCHER_CPU_REVIEW.json"
+  ],
+  "updated_launcher_review": "Source reviewed genuine freshSTART identity normalization, finite selfdeadline bound, sameexclusiveownerlock inherited bycontroller; noacceptanceweakening",
+  "preflight": "PREFLIGHT.json",
+  "head_dependency": "runs/li6-head-progress-v1/MODEL_VALIDATION.json",
+  "fresh_resource": "acquisition-20260926-v1/START_RECEIPT.json",
+  "scope": "Three layer0 sequential consumers only; no old98 rerun or expansion yet",
+  "reviewed_utc": "2026-09-26T01:03:53.005428+00:00"
+}

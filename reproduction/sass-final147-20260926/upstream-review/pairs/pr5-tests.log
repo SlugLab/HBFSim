@@ -1,0 +1,1003 @@
+     Locking 50 packages to latest compatible versions
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling syn v2.0.117
+   Compiling libc v0.2.189
+   Compiling regex-syntax v0.8.10
+   Compiling serde_core v1.0.229
+   Compiling fnv v1.0.7
+   Compiling beef v0.5.2
+   Compiling lazy_static v1.5.0
+   Compiling logos-codegen v0.14.4
+   Compiling getrandom v0.4.3
+   Compiling rustc-hash v2.1.2
+   Compiling zmij v1.0.23
+   Compiling heck v0.5.0
+   Compiling thiserror v1.0.69
+   Compiling rustix v1.1.5
+   Compiling unicode-segmentation v1.12.0
+   Compiling unicode-xid v0.2.6
+   Compiling derive_more-impl v1.0.0
+   Compiling convert_case v0.6.0
+   Compiling strum_macros v0.27.2
+   Compiling ptx_parser_macros_impl v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser_macros_impl)
+   Compiling logos-derive v0.14.4
+   Compiling thiserror-impl v1.0.69
+   Compiling syn v3.0.6
+   Compiling either v1.16.0
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling serde v1.0.229
+   Compiling cfg-if v1.0.5
+   Compiling serde_json v1.0.151
+   Compiling memchr v2.8.3
+   Compiling ptx_parser_macros v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser_macros)
+   Compiling serde_derive v1.0.229
+   Compiling logos v0.14.4
+   Compiling strum v0.27.2
+   Compiling derive_more v1.0.0
+   Compiling itoa v1.0.18
+   Compiling once_cell v1.21.4
+   Compiling winnow v0.6.26
+   Compiling fastrand v2.5.0
+   Compiling bitflags v1.3.2
+   Compiling ptx_parser v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser)
+warning: use of deprecated enum `winnow::error::ErrorKind`
+  --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:10:30
+   |
+10 | use winnow::error::{ErrMode, ErrorKind};
+   |                              ^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+  --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:16:5
+   |
+16 |     PResult,
+   |     ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:158:61
+    |
+158 | fn ident<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<&'input str> {
+    |                                                             ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:174:65
+    |
+174 | fn dot_ident<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<&'input str> {
+    |                                                                 ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:188:59
+    |
+188 | fn num<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(&'input str, u32, bool)> {
+    |                                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:229:68
+    |
+229 | fn int_immediate<'a, 'input>(input: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
+    |                                                                    ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:256:59
+    |
+256 | fn f32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<f32> {
+    |                                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:267:59
+    |
+267 | fn f64<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<f64> {
+    |                                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:278:59
+    |
+278 | fn s32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<i32> {
+    |                                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:289:58
+    |
+289 | fn u8<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u8> {
+    |                                                          ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:300:59
+    |
+300 | fn u32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u32> {
+    |                                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:314:64
+    |
+314 | fn constant<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
+    |                                                                ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:327:71
+    |
+327 | fn immediate_value<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
+    |                                                                       ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:342:6
+    |
+342 | ) -> PResult<ast::RegOrImmediate<&'input str>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:465:62
+    |
+465 | fn module<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::Module<'input>> {
+    |                                                              ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:486:68
+    |
+486 | fn address_size<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                                    ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:492:63
+    |
+492 | fn version<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u8, u8)> {
+    |                                                               ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:498:62
+    |
+498 | fn target<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u32, Option<char>)> {
+    |                                                              ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:511:43
+    |
+511 | fn shader_model<'a>(stream: &mut &str) -> PResult<(u32, Option<char>)> {
+    |                                           ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:524:6
+    |
+524 | ) -> PResult<Option<ast::Directive<'input, ast::ParsedOperand<&'input str>>>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:565:6
+    |
+565 | ) -> PResult<(ast::LinkingDirective, ast::Variable<&'input str>)> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:581:60
+    |
+581 | fn file<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                            ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:595:63
+    |
+595 | fn section<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                               ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:610:74
+    |
+610 | fn section_dwarf_line<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                                          ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:624:68
+    |
+624 | fn any_bit_type<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                                    ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:630:69
+    |
+630 | fn section_label<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                                     ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:638:6
+    |
+638 | ) -> PResult<(
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:668:6
+    |
+668 | ) -> PResult<ast::LinkingDirective> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:687:6
+    |
+687 | ) -> PResult<ast::TuningDirective> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:700:6
+    |
+700 | ) -> PResult<ast::MethodDeclaration<'input, &'input str>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:717:6
+    |
+717 | ) -> PResult<Vec<ast::Variable<&'input str>>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:728:6
+    |
+728 | ) -> PResult<Vec<ast::Variable<&'input str>>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:739:6
+    |
+739 | ) -> PResult<ast::Variable<&'input str>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:743:64
+    |
+743 | fn fn_input<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::Variable<&'input str>> {
+    |                                                                ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:752:69
+    |
+752 | fn tuple1to3_u32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u32, u32, u32)> {
+    |                                                                     ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:792:6
+    |
+792 | ) -> PResult<Option<Vec<ast::Statement<ParsedOperandStr<'input>>>>> {
+    |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:803:6
+    |
+803 | ) -> PResult<Option<Statement<ParsedOperandStr<'input>>>> {
+    |      ^^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Token`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:843:55
+    |
+843 | ...                   winnow::error::ErrorKind::Token,
+    |                                                 ^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:26
+    |
+860 |         Err(ParserError::from_error_kind(stream, ErrorKind::Eof))
+    |                          ^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Eof`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:61
+    |
+860 |         Err(ParserError::from_error_kind(stream, ErrorKind::Eof))
+    |                                                             ^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:896:62
+    |
+896 | fn pragma<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+    |                                                              ^^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:76
+    |
+938 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+    |                                                                            ^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:910:10
+    |
+910 |     ) -> PResult<((Option<u32>, Option<NonZeroU8>, ScalarType), &'input str)> {
+    |          ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:957:6
+    |
+957 | ) -> PResult<(Option<u32>, Option<NonZeroU8>, ScalarType)> {
+    |      ^^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:76
+    |
+986 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+    |                                                                            ^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:76
+     |
+1016 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                                                            ^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:72
+     |
+1044 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                                                        ^^^^^^
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:72
+     |
+1083 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                                                        ^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1104:72
+     |
+1104 | fn array_dimensions<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<Vec<u32>> {
+     |                                                                        ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1135:6
+     |
+1135 | ) -> PResult<R, E>
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1162:68
+     |
+1162 | fn global_space<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<StateSpace> {
+     |                                                                    ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1171:68
+     |
+1171 | fn method_space<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<StateSpace> {
+     |                                                                    ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1181:61
+     |
+1181 | fn align<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u32> {
+     |                                                             ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1185:69
+     |
+1185 | fn vector_prefix<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<Option<NonZeroU8>> {
+     |                                                                     ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1194:67
+     |
+1194 | fn scalar_type<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ScalarType> {
+     |                                                                   ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1227:6
+     |
+1227 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1236:63
+     |
+1236 | fn pred_at<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::PredAt<&'input str>> {
+     |                                                               ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1249:6
+     |
+1249 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1255:71
+     |
+1255 | fn debug_directive<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
+     |                                                                       ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1278:6
+     |
+1278 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1357:14
+     |
+1357 |         ) -> PResult<ast::ParsedOperand<&'input str>> {
+     |              ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1373:14
+     |
+1373 |         ) -> PResult<Vec<ast::RegOrImmediate<&'input str>>> {
+     |              ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1557:6
+     |
+1557 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1572:6
+     |
+1572 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1646:6
+     |
+1646 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1686:6
+     |
+1686 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
+     |      ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+     |
+1846 | / derive_parser!(
+1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
+1848 | |     #[logos(skip r"(?:\s+)|(?://[^\n\r]*[\n\r]*)|(?:/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)")]
+1849 | |     #[logos(error = TokenError)]
+...    |
+4302 | |     .mma_kind: Tcgen05MmaKind = { .kind::f16, .kind::tf32, .kind::f8f6f4, .kind::mxf8f6f4, .kind::mxf4, .kind::mxf4nvf4 };
+4303 | | );
+     | |_^
+     |
+     = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated unit variant `winnow::error::ErrorKind::Token`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+     |
+1846 | / derive_parser!(
+1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
+1848 | |     #[logos(skip r"(?:\s+)|(?://[^\n\r]*[\n\r]*)|(?:/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)")]
+1849 | |     #[logos(error = TokenError)]
+...    |
+4302 | |     .mma_kind: Tcgen05MmaKind = { .kind::f16, .kind::tf32, .kind::f8f6f4, .kind::mxf8f6f4, .kind::mxf4, .kind::mxf4nvf4 };
+4303 | | );
+     | |_^
+     |
+     = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1343:10
+     |
+1343 |     ) -> PResult<ast::ParsedOperand<&'input str>> {
+     |          ^^^^^^^
+
+warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1550:48
+     |
+1550 |     fn parse_next(&mut self, input: &mut I) -> PResult<(Self, X), E> {
+     |                                                ^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:841:45
+    |
+841 |                         return Err(ErrMode::from_error_kind(
+    |                                             ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:41
+    |
+938 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+    |                                         ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:41
+    |
+986 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+    |                                         ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:41
+     |
+1016 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                         ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:37
+     |
+1044 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                     ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:37
+     |
+1083 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
+     |                                     ^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+     |
+1846 | / derive_parser!(
+1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
+1848 | |     #[logos(skip r"(?:\s+)|(?://[^\n\r]*[\n\r]*)|(?:/\*[^*]*\*+(?:[^/*][^*]*\*+)*/)")]
+1849 | |     #[logos(error = TokenError)]
+...    |
+4302 | |     .mma_kind: Tcgen05MmaKind = { .kind::f16, .kind::tf32, .kind::f8f6f4, .kind::mxf8f6f4, .kind::mxf4, .kind::mxf4nvf4 };
+4303 | | );
+     | |_^
+     |
+     = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: variable `nCols` should have a snake case name
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
+     |
+4171 |     tcgen05.alloc.cta_group.sync.aligned taddr, [saddr], nCols => {
+     |                                                          ^^^^^ help: convert the identifier to snake case: `n_cols`
+     |
+     = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `nCols` should have a snake case name
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4180:51
+     |
+4180 |     tcgen05.dealloc.cta_group.sync.aligned taddr, nCols => {
+     |                                                   ^^^^^ help: convert the identifier to snake case: `n_cols`
+
+warning: variable `nCols` should have a snake case name
+    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
+     |
+4171 |     tcgen05.alloc.cta_group.sync.aligned taddr, [saddr], nCols => {
+     |                                                          ^^^^^ help: convert the identifier to snake case: `n_cols`
+
+warning: `ptx_parser` (lib) generated 82 warnings (2 duplicates)
+   Compiling tempfile v3.27.0
+   Compiling object v0.32.2
+   Compiling pair_review_5 v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5)
+warning: unused import: `std::collections::HashMap`
+  --> src/sass/instruction.rs:10:5
+   |
+10 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `SectionKind`
+  --> src/sass/cubin_parser.rs:12:54
+   |
+12 |     Endianness, Object, ObjectSection, ObjectSymbol, SectionKind, SymbolKind,
+   |                                                      ^^^^^^^^^^^
+
+warning: unused import: `super::instruction::*`
+  --> src/sass/cubin_parser.rs:17:5
+   |
+17 | use super::instruction::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `SectionHeader`
+  --> src/sass/cubin_parser.rs:11:38
+   |
+11 |     read::elf::{ElfFile, FileHeader, SectionHeader},
+   |                                      ^^^^^^^^^^^^^
+
+warning: unused variable: `label`
+   --> src/sass/disassembler.rs:762:47
+    |
+762 |                     if let SassOperand::Label(label) = op {
+    |                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_label`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:297:9
+    |
+297 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: unused variable: `kernel_symbol`
+   --> src/sass/cubin_parser.rs:310:21
+    |
+310 |                 let kernel_symbol = symbols
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_kernel_symbol`
+
+warning: variable does not need to be mutable
+   --> src/sass/cubin_parser.rs:350:13
+    |
+350 |         let mut const_mem = 0u32;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:472:9
+    |
+472 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: methods `is_memory_access` and `is_synchronization` are never used
+   --> src/sass/instruction.rs:99:12
+    |
+ 97 | impl SassOpcodeClass {
+    | -------------------- methods in this implementation
+ 98 |     /// Check if this instruction class accesses memory
+ 99 |     pub fn is_memory_access(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+...
+131 |     pub fn is_synchronization(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `size_bits` is never used
+   --> src/sass/instruction.rs:211:12
+    |
+209 | impl SassDataType {
+    | ----------------- method in this implementation
+210 |     /// Get the size in bits
+211 |     pub fn size_bits(&self) -> u32 {
+    |            ^^^^^^^^^
+
+warning: method `should_stall` is never used
+   --> src/sass/instruction.rs:661:12
+    |
+610 | impl SassControlCodes {
+    | --------------------- method in this implementation
+...
+661 |     pub fn should_stall(&self) -> bool {
+    |            ^^^^^^^^^^^^
+
+warning: methods `writes_to`, `reads_from`, and `estimated_latency` are never used
+   --> src/sass/instruction.rs:879:12
+    |
+792 | impl EnhancedSassInstruction {
+    | ---------------------------- methods in this implementation
+...
+879 |     pub fn writes_to(&self, reg: &SassRegister) -> bool {
+    |            ^^^^^^^^^
+...
+890 |     pub fn reads_from(&self, reg: &SassRegister) -> bool {
+    |            ^^^^^^^^^^
+...
+901 |     pub fn estimated_latency(&self) -> u32 {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: field `sm_version` is never read
+   --> src/sass/disassembler.rs:116:5
+    |
+112 | struct OpcodeTable {
+    |        ----------- field in this struct
+...
+116 |     sm_version: SmVersion,
+    |     ^^^^^^^^^^
+
+warning: method `sm_version` is never used
+   --> src/sass/disassembler.rs:492:12
+    |
+246 | impl SassDisassembler {
+    | --------------------- method in this implementation
+...
+492 |     pub fn sm_version(&self) -> SmVersion {
+    |            ^^^^^^^^^^
+
+warning: variants `InvalidInstruction` and `ParseError` are never constructed
+   --> src/sass/disassembler.rs:720:5
+    |
+718 | pub enum DisassemblerError {
+    |          ----------------- variants in this enum
+719 |     UnsupportedVersion(u32),
+720 |     InvalidInstruction(u64),
+    |     ^^^^^^^^^^^^^^^^^^
+721 |     ParseError(String),
+    |     ^^^^^^^^^^
+    |
+    = note: `DisassemblerError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `analyze_data_flow` is never used
+   --> src/sass/disassembler.rs:792:12
+    |
+745 | impl ControlFlowAnalyzer {
+    | ------------------------ associated function in this implementation
+...
+792 |     pub fn analyze_data_flow(instructions: &mut [EnhancedSassInstruction]) {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: fields `size`, `num_registers`, `shared_mem_size`, `const_mem_size`, `local_mem_size`, and `max_threads_per_block` are never read
+  --> src/sass/cubin_parser.rs:51:9
+   |
+45 | pub struct CubinKernel {
+   |            ----------- fields in this struct
+...
+51 |     pub size: u64,
+   |         ^^^^
+...
+55 |     pub num_registers: u32,
+   |         ^^^^^^^^^^^^^
+56 |     /// Shared memory size
+57 |     pub shared_mem_size: u32,
+   |         ^^^^^^^^^^^^^^^
+58 |     /// Constant memory size
+59 |     pub const_mem_size: u32,
+   |         ^^^^^^^^^^^^^^
+60 |     /// Local memory size per thread
+61 |     pub local_mem_size: u32,
+   |         ^^^^^^^^^^^^^^
+62 |     /// Maximum threads per block
+63 |     pub max_threads_per_block: u32,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `CubinKernel` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `bank`, `offset`, `size`, `name`, and `data` are never read
+  --> src/sass/cubin_parser.rs:72:9
+   |
+70 | pub struct CubinConstant {
+   |            ------------- fields in this struct
+71 |     /// Constant buffer index (0-17)
+72 |     pub bank: u32,
+   |         ^^^^
+73 |     /// Offset within the bank
+74 |     pub offset: u32,
+   |         ^^^^^^
+75 |     /// Size in bytes
+76 |     pub size: u32,
+   |         ^^^^
+77 |     /// Name if available
+78 |     pub name: Option<String>,
+   |         ^^^^
+79 |     /// Raw data
+80 |     pub data: Vec<u8>,
+   |         ^^^^
+   |
+   = note: `CubinConstant` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `sm_version`, `ptx_version`, `constants`, `symbols`, and `sections` are never read
+  --> src/sass/cubin_parser.rs:87:9
+   |
+85 | pub struct ParsedCubin {
+   |            ----------- fields in this struct
+86 |     /// SM architecture version (e.g., 61 for sm_61, 86 for sm_86)
+87 |     pub sm_version: u32,
+   |         ^^^^^^^^^^
+88 |     /// PTX version if embedded
+89 |     pub ptx_version: Option<String>,
+   |         ^^^^^^^^^^^
+...
+93 |     pub constants: Vec<CubinConstant>,
+   |         ^^^^^^^^^
+...
+97 |     pub symbols: Vec<CubinSymbol>,
+   |         ^^^^^^^
+98 |     /// Raw section data for advanced analysis
+99 |     pub sections: HashMap<String, CubinSection>,
+   |         ^^^^^^^^
+   |
+   = note: `ParsedCubin` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `address`, `is_statement`, and `discriminator` are never read
+   --> src/sass/cubin_parser.rs:105:9
+    |
+104 | pub struct DebugLineInfo {
+    |            ------------- fields in this struct
+105 |     pub address: u64,
+    |         ^^^^^^^
+...
+109 |     pub is_statement: bool,
+    |         ^^^^^^^^^^^^
+110 |     pub discriminator: u32,
+    |         ^^^^^^^^^^^^^
+    |
+    = note: `DebugLineInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `address`, `size`, `symbol_type`, and `is_global` are never read
+   --> src/sass/cubin_parser.rs:117:9
+    |
+115 | pub struct CubinSymbol {
+    |            ----------- fields in this struct
+116 |     pub name: String,
+117 |     pub address: u64,
+    |         ^^^^^^^
+118 |     pub size: u64,
+    |         ^^^^
+119 |     pub symbol_type: CubinSymbolType,
+    |         ^^^^^^^^^^^
+120 |     pub section: Option<String>,
+121 |     pub is_global: bool,
+    |         ^^^^^^^^^
+    |
+    = note: `CubinSymbol` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Texture`, `Surface`, and `Sampler` are never constructed
+   --> src/sass/cubin_parser.rs:129:5
+    |
+126 | pub enum CubinSymbolType {
+    |          --------------- variants in this enum
+...
+129 |     Texture,
+    |     ^^^^^^^
+130 |     Surface,
+    |     ^^^^^^^
+131 |     Sampler,
+    |     ^^^^^^^
+    |
+    = note: `CubinSymbolType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name`, `section_type`, and `flags` are never read
+   --> src/sass/cubin_parser.rs:139:9
+    |
+138 | pub struct CubinSection {
+    |            ------------ fields in this struct
+139 |     pub name: String,
+    |         ^^^^
+...
+143 |     pub section_type: u32,
+    |         ^^^^^^^^^^^^
+144 |     pub flags: u64,
+    |         ^^^^^
+    |
+    = note: `CubinSection` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: associated items `from_file`, `get_kernel_code`, and `get_kernel_names` are never used
+   --> src/sass/cubin_parser.rs:164:12
+    |
+157 | impl CubinParser {
+    | ---------------- associated items in this implementation
+...
+164 |     pub fn from_file(path: &str) -> Result<Self, CubinParseError> {
+    |            ^^^^^^^^^
+...
+480 |     pub fn get_kernel_code<'a>(
+    |            ^^^^^^^^^^^^^^^
+...
+493 |     pub fn get_kernel_names(parsed: &ParsedCubin) -> Vec<&str> {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: variants `IoError`, `InvalidFormat`, and `UnsupportedVersion` are never constructed
+   --> src/sass/cubin_parser.rs:504:5
+    |
+503 | pub enum CubinParseError {
+    |          --------------- variants in this enum
+504 |     IoError(String),
+    |     ^^^^^^^
+...
+507 |     InvalidFormat(String),
+    |     ^^^^^^^^^^^^^
+508 |     UnsupportedVersion(u32),
+    |     ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `CubinParseError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: struct `CubinParserBuilder` is never constructed
+   --> src/sass/cubin_parser.rs:587:12
+    |
+587 | pub struct CubinParserBuilder {
+    |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `data`, `from_file`, `parse_debug`, `parse_constants`, and `build` are never used
+   --> src/sass/cubin_parser.rs:594:12
+    |
+593 | impl CubinParserBuilder {
+    | ----------------------- associated items in this implementation
+594 |     pub fn new() -> Self {
+    |            ^^^
+...
+602 |     pub fn data(mut self, data: Vec<u8>) -> Self {
+    |            ^^^^
+...
+607 |     pub fn from_file(mut self, path: &str) -> Result<Self, CubinParseError> {
+    |            ^^^^^^^^^
+...
+613 |     pub fn parse_debug(mut self, enable: bool) -> Self {
+    |            ^^^^^^^^^^^
+...
+618 |     pub fn parse_constants(mut self, enable: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+623 |     pub fn build(self) -> Result<CubinParser, CubinParseError> {
+    |            ^^^^^
+
+warning: constant `SHT_CUDA_INFO` is never used
+  --> src/sass/cubin_parser.rs:25:15
+   |
+25 |     pub const SHT_CUDA_INFO: u32 = 0x70000000; // .nv.info
+   |               ^^^^^^^^^^^^^
+
+warning: constant `SHT_CUDA_CALLGRAPH` is never used
+  --> src/sass/cubin_parser.rs:26:15
+   |
+26 |     pub const SHT_CUDA_CALLGRAPH: u32 = 0x70000001; // .nv.callgraph
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: constant `SHT_CUDA_RELOCINFO` is never used
+  --> src/sass/cubin_parser.rs:27:15
+   |
+27 |     pub const SHT_CUDA_RELOCINFO: u32 = 0x70000002; // .nv.rel.*
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_FUNC` is never used
+  --> src/sass/cubin_parser.rs:32:15
+   |
+32 |     pub const STT_CUDA_FUNC: u32 = 10;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_OBJECT` is never used
+  --> src/sass/cubin_parser.rs:33:15
+   |
+33 |     pub const STT_CUDA_OBJECT: u32 = 11;
+   |               ^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_TEXTURE` is never used
+  --> src/sass/cubin_parser.rs:34:15
+   |
+34 |     pub const STT_CUDA_TEXTURE: u32 = 12;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_SURFACE` is never used
+  --> src/sass/cubin_parser.rs:35:15
+   |
+35 |     pub const STT_CUDA_SURFACE: u32 = 13;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_SAMPLER` is never used
+  --> src/sass/cubin_parser.rs:36:15
+   |
+36 |     pub const STT_CUDA_SAMPLER: u32 = 14;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: `pair_review_5` (bin "pair_review_5" test) generated 36 warnings (run `cargo fix --bin "pair_review_5" -p pair_review_5 --tests` to apply 8 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 35.18s
+     Running unittests src/main.rs (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/target/debug/deps/pair_review_5-8170c325b0841ca6)
+
+running 47 tests
+test sass::lifter::tests::sass_lifter_cubin_selection_uses_requested_kernel_name ... ok
+test sass::lifter::tests::sass_lifter_diagnostics_keep_original_instruction_text ... ok
+test sass::lifter::tests::sass_lifter_cubin_frontend_rejects_malformed_input ... ok
+test sass::lifter::tests::sass_lifter_declares_implicit_descriptor_address_pair ... ok
+test sass::lifter::tests::sass_lifter_emits_generic_lop3_lut ... ok
+test sass::lifter::tests::sass_lifter_emits_complete_module_for_sm120_text ... ok
+test sass::lifter::tests::sass_lifter_declares_implicit_imad_wide_result_pair_and_predicates_scratch ... ok
+test sass::lifter::tests::sass_lifter_emits_generic_lop_lut_when_truth_table_is_present ... ok
+test sass::lifter::tests::sass_lifter_emits_rounded_ffma ... ok
+test sass::lifter::tests::sass_lifter_expands_three_source_iadd3_with_scratch_register ... ok
+test sass::lifter::tests::sass_lifter_emits_static_jmx_as_branch ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_binary_lop_text_sample ... ok
+test sass::lifter::tests::sass_lifter_formats_zero_register_as_float_literal_in_float_ops ... ok
+test sass::lifter::tests::sass_lifter_expands_cuda_param_abi_from_sm120_constant_bank_reads ... ok
+test sass::lifter::tests::sass_lifter_lifts_decoded_binary_lop_with_spurious_third_source ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_descriptor_store_with_offset ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_global_atomic_add_bucket_op ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_hmul2_bucket_op ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_idp_and_fsel_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_r2p_bucket_op ... ok
+test sass::lifter::tests::sass_lifter_lifts_predicate_lop3_lut_with_scratch ... ok
+test sass::lifter::tests::sass_lifter_canonicalizes_abs_reuse_float_operands_for_parser ... ok
+test sass::lifter::tests::sass_lifter_emits_parser_compatible_roundtrip_syntax ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_uniform_setp_and_sel_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lifts_kimi_mufu_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lifts_sm120_scalar_and_warp_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lifts_sm120_uniform_and_permute_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lifts_sm120_uniform_shift_and_minmax_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lowers_lop3_odd_predicate_before_generic_predicate_lut ... ok
+test sass::lifter::tests::sass_lifter_maps_fmnmx_static_selector_to_min_or_max ... ok
+test sass::lifter::tests::sass_lifter_lowers_sm120_ptxas_followup_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_normalizes_load_store_and_constant_memory ... ok
+test sass::lifter::tests::sass_lifter_only_rejects_wide_stores_on_global_path ... ok
+test sass::lifter::tests::sass_lifter_maps_sm120_launch_constant_bank_metadata ... ok
+test sass::lifter::tests::sass_lifter_preserves_predicates_and_branch_targets ... ok
+test sass::lifter::tests::sass_lifter_reports_psetp_instead_of_emitting_pred_setp ... ok
+test sass::lifter::tests::sass_lifter_reports_unsupported_tensor_instruction ... ok
+test sass::lifter::tests::sass_lifter_respects_binary_lop_or_and_xor_modifiers ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_default_options_infer_single_function_name ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_rejects_empty_input ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_lifts_unspecified_multi_function_input ... ok
+test sass::lifter::tests::sass_lifter_lifts_sm120_half_and_predicate_bucket_ops ... ok
+test sass::lifter::tests::sass_lifter_lowers_call_rel_noinc_to_synthetic_continuation ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_selects_literal_kernel_function_name ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_selects_requested_function_only ... ok
+test sass::lifter::tests::sass_lifter_text_frontend_uses_function_name_and_sm120 ... ok
+test sass::lifter::tests::sass_lifter_lowers_nested_local_calls_with_stack_slots ... ok
+
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+

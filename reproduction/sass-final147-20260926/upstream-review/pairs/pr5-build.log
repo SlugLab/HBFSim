@@ -1,0 +1,445 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.6
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling pair_review_5 v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5)
+warning: unused import: `std::collections::HashMap`
+  --> src/sass/instruction.rs:10:5
+   |
+10 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `SectionKind`
+  --> src/sass/cubin_parser.rs:12:54
+   |
+12 |     Endianness, Object, ObjectSection, ObjectSymbol, SectionKind, SymbolKind,
+   |                                                      ^^^^^^^^^^^
+
+warning: unused import: `super::instruction::*`
+  --> src/sass/cubin_parser.rs:17:5
+   |
+17 | use super::instruction::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `SectionHeader`
+  --> src/sass/cubin_parser.rs:11:38
+   |
+11 |     read::elf::{ElfFile, FileHeader, SectionHeader},
+   |                                      ^^^^^^^^^^^^^
+
+warning: unused variable: `label`
+   --> src/sass/disassembler.rs:762:47
+    |
+762 |                     if let SassOperand::Label(label) = op {
+    |                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_label`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:297:9
+    |
+297 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: unused variable: `kernel_symbol`
+   --> src/sass/cubin_parser.rs:310:21
+    |
+310 |                 let kernel_symbol = symbols
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_kernel_symbol`
+
+warning: variable does not need to be mutable
+   --> src/sass/cubin_parser.rs:350:13
+    |
+350 |         let mut const_mem = 0u32;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:472:9
+    |
+472 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: methods `is_memory_access`, `is_control_flow`, and `is_synchronization` are never used
+   --> src/sass/instruction.rs:99:12
+    |
+ 97 | impl SassOpcodeClass {
+    | -------------------- methods in this implementation
+ 98 |     /// Check if this instruction class accesses memory
+ 99 |     pub fn is_memory_access(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+...
+119 |     pub fn is_control_flow(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^
+...
+131 |     pub fn is_synchronization(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `size_bits` and `to_ptx_suffix` are never used
+   --> src/sass/instruction.rs:211:12
+    |
+209 | impl SassDataType {
+    | ----------------- methods in this implementation
+210 |     /// Get the size in bits
+211 |     pub fn size_bits(&self) -> u32 {
+    |            ^^^^^^^^^
+...
+263 |     pub fn to_ptx_suffix(&self) -> &'static str {
+    |            ^^^^^^^^^^^^^
+
+warning: associated items `parse` and `should_stall` are never used
+   --> src/sass/instruction.rs:612:12
+    |
+610 | impl SassControlCodes {
+    | --------------------- associated items in this implementation
+611 |     /// Parse from SASS control code string (e.g., "{!5,Y,^1}")
+612 |     pub fn parse(s: &str) -> Self {
+    |            ^^^^^
+...
+661 |     pub fn should_stall(&self) -> bool {
+    |            ^^^^^^^^^^^^
+
+warning: associated items `new`, `generate_ptx`, `writes_to`, `reads_from`, and `estimated_latency` are never used
+   --> src/sass/instruction.rs:794:12
+    |
+792 | impl EnhancedSassInstruction {
+    | ---------------------------- associated items in this implementation
+793 |     /// Create a new enhanced instruction with minimal information
+794 |     pub fn new(opcode: String, address: u64) -> Self {
+    |            ^^^
+...
+823 |     pub fn generate_ptx(&self) -> Option<String> {
+    |            ^^^^^^^^^^^^
+...
+879 |     pub fn writes_to(&self, reg: &SassRegister) -> bool {
+    |            ^^^^^^^^^
+...
+890 |     pub fn reads_from(&self, reg: &SassRegister) -> bool {
+    |            ^^^^^^^^^^
+...
+901 |     pub fn estimated_latency(&self) -> u32 {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: enum `SmVersion` is never used
+  --> src/sass/disassembler.rs:24:10
+   |
+24 | pub enum SmVersion {
+   |          ^^^^^^^^^
+
+warning: associated items `from_version`, `instruction_size`, and `uses_128bit` are never used
+  --> src/sass/disassembler.rs:53:12
+   |
+51 | impl SmVersion {
+   | -------------- associated items in this implementation
+52 |     /// Parse from version number
+53 |     pub fn from_version(version: u32) -> Option<Self> {
+   |            ^^^^^^^^^^^^
+...
+77 |     pub fn instruction_size(&self) -> usize {
+   |            ^^^^^^^^^^^^^^^^
+...
+86 |     pub fn uses_128bit(&self) -> bool {
+   |            ^^^^^^^^^^^
+
+warning: struct `SassDisassembler` is never constructed
+   --> src/sass/disassembler.rs:104:12
+    |
+104 | pub struct SassDisassembler {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: struct `OpcodeTable` is never constructed
+   --> src/sass/disassembler.rs:112:8
+    |
+112 | struct OpcodeTable {
+    |        ^^^^^^^^^^^
+
+warning: associated items `new` and `lookup` are never used
+   --> src/sass/disassembler.rs:120:8
+    |
+119 | impl OpcodeTable {
+    | ---------------- associated items in this implementation
+120 |     fn new(sm_version: SmVersion) -> Self {
+    |        ^^^
+...
+241 |     fn lookup(&self, opcode_bits: u16) -> &'static str {
+    |        ^^^^^^
+
+warning: multiple associated items are never used
+   --> src/sass/disassembler.rs:248:12
+    |
+246 | impl SassDisassembler {
+    | --------------------- associated items in this implementation
+247 |     /// Create a new disassembler for the specified SM version
+248 |     pub fn new(sm_version: u32) -> Result<Self, DisassemblerError> {
+    |            ^^^
+...
+259 |     pub fn disassemble(&self, code: &[u8], base_address: u64) -> Vec<EnhancedSassInstruction> {
+    |            ^^^^^^^^^^^
+...
+274 |     fn decode_instruction(&self, bytes: &[u8], address: u64) -> EnhancedSassInstruction {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+283 |     fn decode_64bit(&self, bytes: &[u8], address: u64) -> EnhancedSassInstruction {
+    |        ^^^^^^^^^^^^
+...
+360 |     fn decode_128bit(&self, bytes: &[u8], address: u64) -> EnhancedSassInstruction {
+    |        ^^^^^^^^^^^^^
+...
+463 |     fn create_invalid_instruction(&self, address: u64) -> EnhancedSassInstruction {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+492 |     pub fn sm_version(&self) -> SmVersion {
+    |            ^^^^^^^^^^
+
+warning: enum `DisassemblerError` is never used
+   --> src/sass/disassembler.rs:718:10
+    |
+718 | pub enum DisassemblerError {
+    |          ^^^^^^^^^^^^^^^^^
+
+warning: struct `ControlFlowAnalyzer` is never constructed
+   --> src/sass/disassembler.rs:743:12
+    |
+743 | pub struct ControlFlowAnalyzer;
+    |            ^^^^^^^^^^^^^^^^^^^
+
+warning: associated functions `find_basic_blocks` and `analyze_data_flow` are never used
+   --> src/sass/disassembler.rs:747:12
+    |
+745 | impl ControlFlowAnalyzer {
+    | ------------------------ associated functions in this implementation
+746 |     /// Identify basic blocks in a sequence of instructions
+747 |     pub fn find_basic_blocks(instructions: &mut [EnhancedSassInstruction]) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+792 |     pub fn analyze_data_flow(instructions: &mut [EnhancedSassInstruction]) {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: struct `CubinKernel` is never constructed
+  --> src/sass/cubin_parser.rs:45:12
+   |
+45 | pub struct CubinKernel {
+   |            ^^^^^^^^^^^
+
+warning: struct `CubinConstant` is never constructed
+  --> src/sass/cubin_parser.rs:70:12
+   |
+70 | pub struct CubinConstant {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `ParsedCubin` is never constructed
+  --> src/sass/cubin_parser.rs:85:12
+   |
+85 | pub struct ParsedCubin {
+   |            ^^^^^^^^^^^
+
+warning: struct `DebugLineInfo` is never constructed
+   --> src/sass/cubin_parser.rs:104:12
+    |
+104 | pub struct DebugLineInfo {
+    |            ^^^^^^^^^^^^^
+
+warning: struct `CubinSymbol` is never constructed
+   --> src/sass/cubin_parser.rs:115:12
+    |
+115 | pub struct CubinSymbol {
+    |            ^^^^^^^^^^^
+
+warning: enum `CubinSymbolType` is never used
+   --> src/sass/cubin_parser.rs:126:10
+    |
+126 | pub enum CubinSymbolType {
+    |          ^^^^^^^^^^^^^^^
+
+warning: struct `CubinSection` is never constructed
+   --> src/sass/cubin_parser.rs:138:12
+    |
+138 | pub struct CubinSection {
+    |            ^^^^^^^^^^^^
+
+warning: struct `CubinParser` is never constructed
+   --> src/sass/cubin_parser.rs:152:12
+    |
+152 | pub struct CubinParser {
+    |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src/sass/cubin_parser.rs:159:12
+    |
+157 | impl CubinParser {
+    | ---------------- associated items in this implementation
+158 |     /// Create a new parser from raw CUBIN data
+159 |     pub fn new(data: Vec<u8>) -> Self {
+    |            ^^^
+...
+164 |     pub fn from_file(path: &str) -> Result<Self, CubinParseError> {
+    |            ^^^^^^^^^
+...
+170 |     pub fn parse(&self) -> Result<ParsedCubin, CubinParseError> {
+    |            ^^^^^
+...
+205 |     fn extract_sm_version<'a, F: FileHeader>(
+    |        ^^^^^^^^^^^^^^^^^^
+...
+219 |     fn parse_sections<'a, F: FileHeader>(
+    |        ^^^^^^^^^^^^^^
+...
+257 |     fn parse_symbols<'a, F: FileHeader>(
+    |        ^^^^^^^^^^^^^
+...
+295 |     fn extract_kernels<'a, F: FileHeader>(
+    |        ^^^^^^^^^^^^^^^
+...
+344 |     fn parse_nv_info(&self, data: &[u8]) -> (u32, u32, u32, u32, u32) {
+    |        ^^^^^^^^^^^^^
+...
+424 |     fn extract_constants(
+    |        ^^^^^^^^^^^^^^^^^
+...
+454 |     fn find_ptx_version(&self, sections: &HashMap<String, CubinSection>) -> Option<String> {
+    |        ^^^^^^^^^^^^^^^^
+...
+470 |     fn parse_debug_lines<'a, F: FileHeader>(
+    |        ^^^^^^^^^^^^^^^^^
+...
+480 |     pub fn get_kernel_code<'a>(
+    |            ^^^^^^^^^^^^^^^
+...
+493 |     pub fn get_kernel_names(parsed: &ParsedCubin) -> Vec<&str> {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: enum `CubinParseError` is never used
+   --> src/sass/cubin_parser.rs:503:10
+    |
+503 | pub enum CubinParseError {
+    |          ^^^^^^^^^^^^^^^
+
+warning: function `is_cubin` is never used
+   --> src/sass/cubin_parser.rs:532:8
+    |
+532 | pub fn is_cubin(data: &[u8]) -> bool {
+    |        ^^^^^^^^
+
+warning: function `sm_version_from_filename` is never used
+   --> src/sass/cubin_parser.rs:564:8
+    |
+564 | pub fn sm_version_from_filename(filename: &str) -> Option<u32> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sm_version_from_elf_flags` is never used
+   --> src/sass/cubin_parser.rs:574:4
+    |
+574 | fn sm_version_from_elf_flags(flags: u32) -> Option<u32> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CubinParserBuilder` is never constructed
+   --> src/sass/cubin_parser.rs:587:12
+    |
+587 | pub struct CubinParserBuilder {
+    |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new`, `data`, `from_file`, `parse_debug`, `parse_constants`, and `build` are never used
+   --> src/sass/cubin_parser.rs:594:12
+    |
+593 | impl CubinParserBuilder {
+    | ----------------------- associated items in this implementation
+594 |     pub fn new() -> Self {
+    |            ^^^
+...
+602 |     pub fn data(mut self, data: Vec<u8>) -> Self {
+    |            ^^^^
+...
+607 |     pub fn from_file(mut self, path: &str) -> Result<Self, CubinParseError> {
+    |            ^^^^^^^^^
+...
+613 |     pub fn parse_debug(mut self, enable: bool) -> Self {
+    |            ^^^^^^^^^^^
+...
+618 |     pub fn parse_constants(mut self, enable: bool) -> Self {
+    |            ^^^^^^^^^^^^^^^
+...
+623 |     pub fn build(self) -> Result<CubinParser, CubinParseError> {
+    |            ^^^^^
+
+warning: constant `SHT_CUDA_INFO` is never used
+  --> src/sass/cubin_parser.rs:25:15
+   |
+25 |     pub const SHT_CUDA_INFO: u32 = 0x70000000; // .nv.info
+   |               ^^^^^^^^^^^^^
+
+warning: constant `SHT_CUDA_CALLGRAPH` is never used
+  --> src/sass/cubin_parser.rs:26:15
+   |
+26 |     pub const SHT_CUDA_CALLGRAPH: u32 = 0x70000001; // .nv.callgraph
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: constant `SHT_CUDA_RELOCINFO` is never used
+  --> src/sass/cubin_parser.rs:27:15
+   |
+27 |     pub const SHT_CUDA_RELOCINFO: u32 = 0x70000002; // .nv.rel.*
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_FUNC` is never used
+  --> src/sass/cubin_parser.rs:32:15
+   |
+32 |     pub const STT_CUDA_FUNC: u32 = 10;
+   |               ^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_OBJECT` is never used
+  --> src/sass/cubin_parser.rs:33:15
+   |
+33 |     pub const STT_CUDA_OBJECT: u32 = 11;
+   |               ^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_TEXTURE` is never used
+  --> src/sass/cubin_parser.rs:34:15
+   |
+34 |     pub const STT_CUDA_TEXTURE: u32 = 12;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_SURFACE` is never used
+  --> src/sass/cubin_parser.rs:35:15
+   |
+35 |     pub const STT_CUDA_SURFACE: u32 = 13;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: constant `STT_CUDA_SAMPLER` is never used
+  --> src/sass/cubin_parser.rs:36:15
+   |
+36 |     pub const STT_CUDA_SAMPLER: u32 = 14;
+   |               ^^^^^^^^^^^^^^^^
+
+warning: function `lift_cubin_to_ptx` is never used
+  --> src/sass/lifter.rs:81:8
+   |
+81 | pub fn lift_cubin_to_ptx(
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: function `lift_cubin_to_ptx_with_cuobjdump` is never used
+   --> src/sass/lifter.rs:120:8
+    |
+120 | pub fn lift_cubin_to_ptx_with_cuobjdump(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `infer_sm_version_from_cuobjdump_text` is never used
+   --> src/sass/lifter.rs:169:4
+    |
+169 | fn infer_sm_version_from_cuobjdump_text(text: &str) -> Option<u32> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `select_cubin_kernel` is never used
+   --> src/sass/lifter.rs:254:4
+    |
+254 | fn select_cubin_kernel<'a>(
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: `pair_review_5` (bin "pair_review_5") generated 49 warnings (run `cargo fix --bin "pair_review_5" -p pair_review_5` to apply 8 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.35s

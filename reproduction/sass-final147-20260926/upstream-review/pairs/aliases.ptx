@@ -1,0 +1,27 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry aliases()
+{
+    .reg .b32 %r<4>;
+    .reg .b32 %ur<4>;
+    .reg .pred %p<2>;
+    .reg .b64 %rd<17>;
+
+L_0000:
+    // 0x0000: /*0000*/ @!P0 IADD.64 R2, R2, UR2;
+    @!%p0 mov.b64 %rd2, {%r2, %r3};
+    @!%p0 mov.b64 %rd16, {%ur2, %ur3};
+    @!%p0 add.u64 %rd2, %rd2, %rd16;
+    @!%p0 mov.b64 {%r2, %r3}, %rd2;
+L_0010:
+    // 0x0010: /*0010*/ @P1 IMAD.WIDE.U32 R2, R3, UR2, R2;
+    @%p1 mul.wide.u32 %rd16, %r3, %ur2;
+    @%p1 mov.b64 %rd2, {%r2, %r3};
+    @%p1 add.u64 %rd2, %rd2, %rd16;
+    @%p1 mov.b64 {%r2, %r3}, %rd2;
+L_0020:
+    // 0x0020: /*0020*/ EXIT;
+    ret;
+}

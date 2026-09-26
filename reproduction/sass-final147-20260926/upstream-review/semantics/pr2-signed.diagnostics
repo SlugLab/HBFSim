@@ -1,0 +1,1 @@
+[SassLiftDiagnostic { address: Some(0), opcode: "IMAD", message: "IMAD.HI form other than U32 is not supported", instruction_text: "/*0000*/ IMAD.HI R5, R6, R7, R4 ;" }]

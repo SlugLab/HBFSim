@@ -1,0 +1,24 @@
+{
+  "exact_symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+  "first_image_byte_range": [
+    0,
+    436999
+  ],
+  "first_image_bytes": 436999,
+  "first_image_sha256": "b47041a156744059482761addf9241ea09c4ebdb759a0a0c8938bd47b158527a",
+  "first_instruction": "0x0000",
+  "instruction_count": 1984,
+  "last_instruction": "0x7bf0",
+  "schema": "hbfsim.li7_first_image_slice.v1",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v1/li7-sm120.sass",
+  "source_bytes": 623396,
+  "source_sha256": "c9ba206e63d61c4e6e4c96e8603863beb20bd6f3460b7e0c3f7cee2f6e2dcf2a",
+  "trailing_byte_range": [
+    436999,
+    623396
+  ],
+  "trailing_function_count": 0,
+  "trailing_header_count": 1347,
+  "trailing_instruction_count": 0,
+  "trailing_sha256": "e79c3e00913bf341869646ff1b350ace2681b01e9bd461d3804f514178eb81d6"
+}

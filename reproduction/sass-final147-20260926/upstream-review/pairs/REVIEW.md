@@ -1,0 +1,29 @@
+# PR3 / PR5 independent CPU review — 2026-09-26
+
+Scope USER_CONFIRMED by coordinator: review only; no source edits, push, merge, install, or GPU. All generated files here are isolated fixtures. Repository CONTRIBUTING.md requires cargo test --workspace; full workspace was not built. Exact commit copies: PR3 591a8e63e004427c42bbe40a4c29da741e9f656c, PR5 4a3cac900c6d43859bc519062e29c87e724305e7. No QKV PASS used.
+
+## Findings
+
+1. **PR5 P1: known generic integer integration pattern is now rejected.** Added guard ptx/src/sass/lifter.rs:560–561, acceptance predicate:1129–1140. Existing ptx/tests/sass_lifter_fuzz.rs:116–167 has IMAD.WIDE.U32 R2, R7, 0x4, R2 and R4 equivalent at128/130; line151 asserts no diagnostics. Exact fixture extraction int_add.sass run against exact PR5 source produces two unsupported diagnostics (int_add.diag), at176 and208. This is an introduced supported-input/test regression, independent of QKV. Existing test also expects rd<16> and fixed rd15 product scratch; should update scratch-name assumptions after retaining the immediate form with correct pair semantics. Do not delete the test/relax diagnostics to hide the regression.
+
+2. **PR5 P1/P2 incomplete newly added fail-closed guard:** ptx/src/sass/lifter.rs:655–660 and2769–2772. Text parser only recognizes U64/S64/B64/U128, not numeric64/128 (instruction.rs:236+). wide_numeric.sass containing LDG.E.64 and STG.E.128 returns no diagnostics and emits ld.global.u32 / st.global.u32. Exact emitted evidence in wide_numeric.ptx/.diag. Wrong width is preexisting; PR5 promises rejection of unsupported wide forms but fails to enforce that boundary for conventional numeric spellings. Recommend correct guard and regressions before merge, without claiming this PR introduced every width bug.
+
+3. **PR3 binary path limitation, not evidence of a regression from correct behavior:** new lifter.rs:506–509 fails closed for binary CS2R. decode_128bit disassembler.rs:401–419 always creates generic R sources; :437–442 leaves type/modifiers empty. cs2r_reads_srz at2641–2648 accepts textual SpecialRegister/Label only. Thus binary CS2R cannot enter the pair repair. The original binary CS2R was already wrongly interpreted as a generic register move, so do not fix by broadening acceptance to arbitrary R sources. Proper decoder work is a separate semantic task or explicitly scope PR3 to text and document binary diagnostic. This review does not claim universal binary decoding.
+
+4. **PR5 descriptor atomics remain outside coherent pair lowering:** collect_implicit_desc_address_pair_decl discovers all label operands, while setup is applied only in load_op/store_op. atomic_op uses format_memory_address_operand without pair_read, so standalone ATOMG descriptor addresses can reference uninitialized rdN. This defect predates PR5; PR5 newly declares the implicit words but does not repair atomic consumers. Scope/unsupported diagnostics should make this boundary clear. Not classified as a new arithmetic regression.
+
+## Positive semantic inspection
+
+PR3 bare even Rn/SRZ writes low and high, preserves predicate on both writes, and discovers otherwise-unreferenced upper word. Explicit .32 remains single. Odd destinations and unsupported non-.32 sources fail closed. No carry/signed arithmetic is involved. Numeric source truth for full binary SASS remains outside evidence.
+
+PR5 accepted IADD.64 packs both R or R/UR source pairs before writing destination, uses add.u64 modulo2^64 (low-word carry/high overflow correct), unpacks final result. Rn versus URn have separate storage; UR scratch is allocated above all rd registers. Accepted IMAD.WIDE.U32 computes unsigned32×unsigned32 product before packing R addend, then modulo64 add and pair write. This order is safe even when a multiplicand aliases an output/addend word. Signed WIDE and extra carry modifiers are rejected, rather than being mislabeled U32. Every bridge/product/add/unpack is predicated, including negated predicates. aliases.sass exercises equal R/UR indices, in-place IADD and multiplicand/high-word overlap; output assembles successfully with existing CUDA13.1 ptxas -arch=sm_120 (CPU compilation only). Assembly success is not execution correctness.
+
+Primary PTX reference: https://docs.nvidia.com/cuda/archive/12.1.1/parallel-thread-execution/index.html (mov pack/unpack orders low/high words, integer mul.wide and add). This establishes PTX side semantics, not undocumented SASS decoding.
+
+## Tests and management
+
+Exact upstream four modules, isolated wiring/dependencies: PR3 lifter unit subset45/45 PASS; PR5 47/47 PASS. Logs pr3-tests.log/pr5-tests.log. New test helpers reg/mem exist in the conventional upstream tests module; their visibility is not a compile blocker. However these unit subsets omit the integration regression above. Full cargo test --workspace NOT_RUN, no GPU. Tests created by this review do not alter PR source. rustfmt --check logs recorded; PR3 and PR5 additions have formatting differences from standard rustfmt. Existing base also contains formatting debt, so do not attribute every diff to this PR.
+
+PR2 and PR5 edit adjacent IMAD dispatch arms: HI vs WIDE are semantically distinct; preserve both and ensure guard ordering rejects unsupported combined modifiers rather than accidentally routing to HI. PR3/PR5 both add implicit pair discovery calls adjacent in from_instructions; semantically complementary, mechanically should be merged preserving both calls. No combined build/merge performed by this worker.
+
+Readiness: PR5 CHANGES_REQUIRED (integration regression plus rejection boundary). PR3 text-only implementation is locally coherent and CPU tests pass; binary limitation must be resolved or explicitly accepted/documented as scope by coordinator. No unrestricted architectural/general SASS acceptance claim.

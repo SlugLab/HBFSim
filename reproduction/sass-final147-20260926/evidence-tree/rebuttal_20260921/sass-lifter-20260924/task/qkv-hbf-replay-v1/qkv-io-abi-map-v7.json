@@ -1,0 +1,471 @@
+{
+  "candidate": {
+    "KPARAM_count": 19,
+    "candidate_cbank_param_size": 148,
+    "cubin_sha256": "0e154ab5dc11fc66f930e55d4cd0d235a8021dfa18c30fd06275600189b0648d",
+    "cuobjdump_argv": [
+      "/usr/local/cuda-13.1/bin/cuobjdump",
+      "--dump-elf",
+      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+    ],
+    "cuobjdump_stdout_sha256": "c8bc3308bff6e71cdd5bbbe8d330f82eb9ca1fdaa0c8ee0f7f7add752d7666fe",
+    "declared_params": [
+      {
+        "bytes": 8,
+        "name": "out",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "in",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param2",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param3",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param4",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param5",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param6",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param7",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param8",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 4,
+        "name": "param9",
+        "ptx_type": "u32"
+      },
+      {
+        "bytes": 8,
+        "name": "param10",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param11",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param12",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param13",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 4,
+        "name": "param14",
+        "ptx_type": "u32"
+      },
+      {
+        "bytes": 8,
+        "name": "param15",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param16",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 8,
+        "name": "param17",
+        "ptx_type": "u64"
+      },
+      {
+        "bytes": 4,
+        "name": "param18",
+        "ptx_type": "u32"
+      }
+    ],
+    "lifter_rs_sha256": "0ec6653a78a2e8eb1ac5a8f5aa1a34c2fbe310fd5c7bb073bbb36a289ee12ca9",
+    "ptx_sha256": "6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab",
+    "readelf_nvinfo_argv": [
+      "/usr/bin/readelf",
+      "-W",
+      "--hex-dump=.nv.info",
+      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+    ],
+    "readelf_nvinfo_stdout_sha256": "bb28159965dacb2a068200c8358a5da4e79f95ef9e2650eea8a57cdebacda7e3",
+    "readelf_sections_argv": [
+      "/usr/bin/readelf",
+      "-W",
+      "-S",
+      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+    ],
+    "readelf_sections_stdout_sha256": "9654adbde08064f988a1c8d8c70808dbca51c9f41c4593d93270757ebe606f75"
+  },
+  "candidate_unmapped_ranges": [
+    {
+      "bytes": 4,
+      "candidate_unmapped_range": [
+        76,
+        80
+      ],
+      "label": "unmapped alignment gap; semantic meaning not inferred"
+    },
+    {
+      "bytes": 4,
+      "candidate_unmapped_range": [
+        116,
+        120
+      ],
+      "label": "unmapped alignment gap; semantic meaning not inferred"
+    },
+    {
+      "bytes": 4,
+      "candidate_unmapped_range": [
+        148,
+        152
+      ],
+      "label": "original aggregate tail not represented in candidate parameter list"
+    }
+  ],
+  "coverage_checks": {
+    "candidate_kparam_offsets_match_lifter_8byte_slots": true,
+    "candidate_kparam_rows": 19,
+    "candidate_param_end_bytes": 148,
+    "parameter_ordinals": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "source_aggregate_size_bytes": 152
+  },
+  "interpretation_limits": [
+    "The original metadata exposes one 152-byte aggregate; it does not identify C++ fields/types/roles.",
+    "Candidate metadata exposes 19 PTX parameters. The byte map follows the pinned lifter formula and actual candidate KPARAM offset/size.",
+    "The 4-byte gaps and final 4-byte tail are not assigned semantic meaning; no cross-instruction read/semantic proof is claimed.",
+    "Same-process replay can pass each candidate argument from the corresponding byte slice of the original aggregate; no device-pointer relocation is implied or tested."
+  ],
+  "mapping": [
+    {
+      "candidate_kparam_offset": 0,
+      "candidate_kparam_size": 8,
+      "candidate_name": "out",
+      "ordinal": 0,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        0,
+        8
+      ],
+      "source_aggregate_offset": 0,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 896
+    },
+    {
+      "candidate_kparam_offset": 8,
+      "candidate_kparam_size": 8,
+      "candidate_name": "in",
+      "ordinal": 1,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        8,
+        16
+      ],
+      "source_aggregate_offset": 8,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 904
+    },
+    {
+      "candidate_kparam_offset": 16,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param2",
+      "ordinal": 2,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        16,
+        24
+      ],
+      "source_aggregate_offset": 16,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 912
+    },
+    {
+      "candidate_kparam_offset": 24,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param3",
+      "ordinal": 3,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        24,
+        32
+      ],
+      "source_aggregate_offset": 24,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 920
+    },
+    {
+      "candidate_kparam_offset": 32,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param4",
+      "ordinal": 4,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        32,
+        40
+      ],
+      "source_aggregate_offset": 32,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 928
+    },
+    {
+      "candidate_kparam_offset": 40,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param5",
+      "ordinal": 5,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        40,
+        48
+      ],
+      "source_aggregate_offset": 40,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 936
+    },
+    {
+      "candidate_kparam_offset": 48,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param6",
+      "ordinal": 6,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        48,
+        56
+      ],
+      "source_aggregate_offset": 48,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 944
+    },
+    {
+      "candidate_kparam_offset": 56,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param7",
+      "ordinal": 7,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        56,
+        64
+      ],
+      "source_aggregate_offset": 56,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 952
+    },
+    {
+      "candidate_kparam_offset": 64,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param8",
+      "ordinal": 8,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        64,
+        72
+      ],
+      "source_aggregate_offset": 64,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 960
+    },
+    {
+      "candidate_kparam_offset": 72,
+      "candidate_kparam_size": 4,
+      "candidate_name": "param9",
+      "ordinal": 9,
+      "ptx_type": "u32",
+      "same_process_source_slice": [
+        72,
+        76
+      ],
+      "source_aggregate_offset": 72,
+      "source_bytes_copied": 4,
+      "source_cbank_start": 968
+    },
+    {
+      "candidate_kparam_offset": 80,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param10",
+      "ordinal": 10,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        80,
+        88
+      ],
+      "source_aggregate_offset": 80,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 976
+    },
+    {
+      "candidate_kparam_offset": 88,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param11",
+      "ordinal": 11,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        88,
+        96
+      ],
+      "source_aggregate_offset": 88,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 984
+    },
+    {
+      "candidate_kparam_offset": 96,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param12",
+      "ordinal": 12,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        96,
+        104
+      ],
+      "source_aggregate_offset": 96,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 992
+    },
+    {
+      "candidate_kparam_offset": 104,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param13",
+      "ordinal": 13,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        104,
+        112
+      ],
+      "source_aggregate_offset": 104,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 1000
+    },
+    {
+      "candidate_kparam_offset": 112,
+      "candidate_kparam_size": 4,
+      "candidate_name": "param14",
+      "ordinal": 14,
+      "ptx_type": "u32",
+      "same_process_source_slice": [
+        112,
+        116
+      ],
+      "source_aggregate_offset": 112,
+      "source_bytes_copied": 4,
+      "source_cbank_start": 1008
+    },
+    {
+      "candidate_kparam_offset": 120,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param15",
+      "ordinal": 15,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        120,
+        128
+      ],
+      "source_aggregate_offset": 120,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 1016
+    },
+    {
+      "candidate_kparam_offset": 128,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param16",
+      "ordinal": 16,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        128,
+        136
+      ],
+      "source_aggregate_offset": 128,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 1024
+    },
+    {
+      "candidate_kparam_offset": 136,
+      "candidate_kparam_size": 8,
+      "candidate_name": "param17",
+      "ordinal": 17,
+      "ptx_type": "u64",
+      "same_process_source_slice": [
+        136,
+        144
+      ],
+      "source_aggregate_offset": 136,
+      "source_bytes_copied": 8,
+      "source_cbank_start": 1032
+    },
+    {
+      "candidate_kparam_offset": 144,
+      "candidate_kparam_size": 4,
+      "candidate_name": "param18",
+      "ordinal": 18,
+      "ptx_type": "u32",
+      "same_process_source_slice": [
+        144,
+        148
+      ],
+      "source_aggregate_offset": 144,
+      "source_bytes_copied": 4,
+      "source_cbank_start": 1040
+    }
+  ],
+  "schema": "hbfsim.qkv_byte_abi_mapping.v1",
+  "scope": "byte offsets and parameter extents only; no C++ semantic types or pointer roles inferred",
+  "source": {
+    "EIATTR_CBANK_PARAM_SIZE": 152,
+    "base_evidence": "Pinned lifter maps c[0] offsets >=0x380 through cuda_param_index_and_byte_offset; representative preserved SASS operands include c[0][0x380], c[0][0x388], c[0][0x390].",
+    "cubin_sha256": "7491aacefddd62ecf0c11f2ff798852d0a05a60ce465a377f52bd15d881e2963",
+    "exact_nvinfo_aggregate": {
+      "index": 0,
+      "offset": 0,
+      "ordinal": 0,
+      "size": 152
+    },
+    "kernel_symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+    "sass_cbank_param_base": 896,
+    "sass_sha256": "8bf18f936d5b7dd2eac6b8bd9eaba6499ad3a0070ecb58561aa2b77da67eed53",
+    "upstream_commit": "c60cfd8ab54fd1ec4512f749ad61cccc4a390a05"
+  },
+  "status": "MAPPING_EXACT_FOR_DECLARED_KPARAM_BYTES"
+}

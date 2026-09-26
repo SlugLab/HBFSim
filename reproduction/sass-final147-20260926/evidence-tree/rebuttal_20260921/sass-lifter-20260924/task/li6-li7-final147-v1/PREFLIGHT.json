@@ -1,0 +1,49 @@
+{
+  "schema": "hbfsim.final147_preflight_cpu_template.v1",
+  "status": "DEPENDENCIES_PASS_BUDGET_CHOSEN_PENDING_ROOT_LIVE_PREPARE",
+  "evidence_class": "DOC_DERIVED",
+  "scope": "added49",
+  "registered_storage_count": 147,
+  "registered_storage_bytes": 13838323712,
+  "selected_new_storage_count": 49,
+  "old_storage_count": 98,
+  "dependencies": [
+    "MODEL_CONNECTED_PASS_LM_HEAD",
+    "MODEL_CONNECTED_PASS_COMBINED_MIXED3",
+    "MODEL_CONNECTED_PASS_COMBINED_REMAINING45"
+  ],
+  "acceptance": "single actual final combined run, unchanged validator added49 scope",
+  "request_timeout_ns": 780000000000,
+  "budget_seconds": {
+    "worker": 12600,
+    "outer": 13200,
+    "collection": 600,
+    "startup_cleanup": 300,
+    "full_admission": 14100,
+    "decision_owner": "root after user clarified larger runtime allowed"
+  },
+  "output_run": "runs/li6-li7-final147-v1",
+  "gpu_started": false,
+  "live_plan": null,
+  "epoch": 6712,
+  "conditional_cost_seconds": 8044.214,
+  "cost_limit": "Conservative additive estimate double-counts setup;12600worker givesabout57%margin, notcompletionguarantee",
+  "root_latest_budget_override": {
+    "worker_seconds": 12600,
+    "outer_seconds": 13200,
+    "collection_seconds": 600,
+    "startup_cleanup_seconds": 300,
+    "full_admission_seconds": 14100,
+    "authority": "USER_CONFIRMED can increase runtime; root chose withinexistingfinitelease",
+    "reason": "~8044s conservativeestimatedcost +~57%margin; prior10800proposal superseded beforeLIVEPLAN",
+    "time_utc": "2026-09-26T02:23:56.396254+00:00"
+  },
+  "superseded_budget_seconds": {
+    "worker": 10800,
+    "outer": 11400,
+    "collection": 600,
+    "startup_cleanup": 300,
+    "full_admission": 12300,
+    "decision_owner": "root after actual remaining45 PASS"
+  }
+}

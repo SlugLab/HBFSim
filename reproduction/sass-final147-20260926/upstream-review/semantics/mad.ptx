@@ -1,0 +1,14 @@
+.version 8.8
+.target sm_120
+.address_size 64
+.visible .entry madprobe(.param .u64 output, .param .u32 a, .param .u32 b, .param .u32 c) {
+.reg .u64 %out;
+.reg .u32 %a, %b, %c, %d;
+ld.param.u64 %out,[output];
+ld.param.u32 %a,[a];
+ld.param.u32 %b,[b];
+ld.param.u32 %c,[c];
+mad.hi.u32 %d,%a,%b,%c;
+st.global.u32 [%out],%d;
+ret;
+}

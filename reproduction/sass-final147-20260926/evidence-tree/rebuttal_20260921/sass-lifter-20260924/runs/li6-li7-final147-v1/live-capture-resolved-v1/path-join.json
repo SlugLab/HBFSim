@@ -1,0 +1,26 @@
+{
+  "libraries": [
+    {
+      "configured_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/bundle-combined-v1/build/runtime/agent/libbpftime-agent.so",
+      "device": 66310,
+      "inode": 3547701,
+      "resolved_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so"
+    },
+    {
+      "configured_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/bundle-combined-v1/build/libhbfsim_launch_gate.so",
+      "device": 66310,
+      "inode": 3545927,
+      "resolved_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/libhbfsim_launch_gate.so"
+    },
+    {
+      "configured_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/bundle-combined-v1/build/libprovider_router.so",
+      "device": 66310,
+      "inode": 3547707,
+      "resolved_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so"
+    }
+  ],
+  "owner_start_sha256": "d2e8f050104f5041b48a5aa4d6d54e53ed4087b2fb6f89e4255f399c21ea74df",
+  "status": "EXACT_CONFIGURED_TO_RESOLVED_INODE_JOIN",
+  "target_pid": 4011197,
+  "target_start_ticks": 61618075
+}

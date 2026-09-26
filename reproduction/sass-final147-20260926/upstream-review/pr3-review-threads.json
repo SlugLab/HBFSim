@@ -1,0 +1,28 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 509,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "This branch only recognizes the textual `SpecialRegister`/`Label` form of `SRZ`, but `lift_cubin_to_ptx` supplies instructions from `SassDisassembler::decode_128bit`, which currently represents CS2R sources as `SassOperand::Register` and leaves modifiers empty (`disassembler.rs:401-419, 425-443`). Consequently a binary `CS2R R8, SRZ` cannot match the pair branch and now falls into this unsupported diagnostic instead of emitting either write. Decode the CS2R special-register field as `SRZ` (or otherwise preserve that information before this guard) so the binary lifting path receives the same semantics as the text path.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 561,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "This guard now diagnoses the existing SM120 round-trip fixture's `IMAD.WIDE.U32 R2, R7, 0x4, R2` and `... R4` instructions because their scalar multiplier is an immediate rather than `UR`. That fixture still asserts empty diagnostics and the generated `mul.wide.u32`/`add.u64` at `ptx/tests/sass_lifter_fuzz.rs:151-164`, so the current test suite fails. Either retain a compatible narrow path for these existing immediate forms or update the fixture and support contract together.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 946,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "This new declaration path also covers the existing `ATOMG.E.ADD.STRONG.GPU ... desc[UR6][R8.64]` fixture, but only `load_op` and `store_op` call `desc_address_pair_setup`; `atomic_op` formats `[%rd8]` directly. The resulting PTX uses an uninitialized `%rd8` instead of the `{%r8, %r9}` address pair. Add the predicated descriptor setup in `atomic_op` using its computed address index, or diagnose descriptor-address atomics as unsupported.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 2772,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "Numeric width modifiers are kept in `inst.modifiers` while `data_type` remains unset (`disassembler.rs:539-548` and `SassDataType::from_modifier` does not map `64`/`128`). Consequently `LDG.E.64`/`STG.E.64` (and `.128`) bypass this predicate and fall through to `load_op`/`store_op`, which emit `.u32` instead of rejecting the unsupported wide access. Detect the numeric width modifiers and all data types wider than 32 bits here.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 529,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "The new `IADD.64` lowering path has no unit fixture, while the surrounding lifter has extensive instruction-level tests. Add a predicated case covering an `R` first source, an `UR` second source, pair unpacking, and the unsupported-form diagnostic so the new register-pair bridge is protected.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

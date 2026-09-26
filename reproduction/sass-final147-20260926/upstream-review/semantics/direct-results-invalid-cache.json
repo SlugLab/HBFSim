@@ -1,0 +1,174 @@
+[
+  {
+    "pr": 1,
+    "case": "allones",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "canonical",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, -QNAN, %r6, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "missing",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "wrongopcode",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "wrongsource",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, -QNAN, 0, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "positive",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "infinity",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "snan",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 1,
+    "case": "guarded",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "@%p1 selp.b32 %r5, 0, -QNAN, %p0;"
+    ]
+  },
+  {
+    "pr": 2,
+    "case": "pair",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "mad.hi.u32 %r5, %r6, %r7, %r4;"
+    ]
+  },
+  {
+    "pr": 2,
+    "case": "zero",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "mad.hi.u32 %r5, %r6, %r7, 0;"
+    ]
+  },
+  {
+    "pr": 2,
+    "case": "constant",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "mad.hi.u32 %r5, %r6, %r4, 0;"
+    ]
+  },
+  {
+    "pr": 2,
+    "case": "signed",
+    "rc": 0,
+    "diagnostics": "[SassLiftDiagnostic { address: Some(0), opcode: \"IMAD\", message: \"IMAD.HI form other than U32 is not supported\", instruction_text: \"/*0000*/ IMAD.HI R5, R6, R7, R4 ;\" }]",
+    "operation": []
+  },
+  {
+    "pr": 2,
+    "case": "x",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "mad.hi.u32 %r5, %r6, %r7, %r4;"
+    ]
+  },
+  {
+    "pr": 4,
+    "case": "rn",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "cvt.rn.f16x2.f32 %r5, %r4, %r5;"
+    ]
+  },
+  {
+    "pr": 4,
+    "case": "rz",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "cvt.rn.f16x2.f32 %r5, %r4, %r5;"
+    ]
+  },
+  {
+    "pr": 4,
+    "case": "relu",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": [
+      "cvt.rn.f16x2.f32 %r5, %r4, %r5;"
+    ]
+  },
+  {
+    "pr": 4,
+    "case": "geu",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": []
+  },
+  {
+    "pr": 4,
+    "case": "geu_nontrivial",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": []
+  },
+  {
+    "pr": 4,
+    "case": "geu_ftz",
+    "rc": 0,
+    "diagnostics": "[]",
+    "operation": []
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "schema": "hbfsim.model_coverage_increment.v1",
+  "evidence_class": "DOC_DERIVED",
+  "time_unix_ns": 1790345079555830518,
+  "target_storage_count": 147,
+  "target_storage_bytes": 13838323712,
+  "accepted_storage_count": 101,
+  "accepted_storage_bytes": 13125029888,
+  "baseline": {
+    "ledger": "task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_ROUTER_v1.json",
+    "storage_count": 100,
+    "storage_bytes": 13116641280,
+    "unchanged_reused": true
+  },
+  "increment": {
+    "alias": "model.layers.0.self_attn.o_proj.weight",
+    "storage_count": 1,
+    "storage_bytes": 8388608,
+    "validation": "runs/li6-oproj-only-v1/MODEL_VALIDATION.json",
+    "controller_finish": "runs/li6-oproj-only-v1/controller/controller-finish.json",
+    "epoch": 6704,
+    "level": "MODEL_CONNECTED_PASS_OPROJ_LAYER0",
+    "consumer_scope": "one scheduled decode real layer0 o_proj call; lm_head and other weights native unselected"
+  },
+  "remaining_storage_count": 46,
+  "remaining_storage_bytes": 713293824,
+  "limitations": [
+    "one o_proj representative is not all 16 o_proj storages or prefill consumer coverage",
+    "lm_head has LIFT_OUTPUT_PASS only, not MODEL_CONNECTED_PASS",
+    "epoch6701 and epoch6703 two-selector timeouts remain failures",
+    "final combined147 regression remains pending"
+  ]
+}

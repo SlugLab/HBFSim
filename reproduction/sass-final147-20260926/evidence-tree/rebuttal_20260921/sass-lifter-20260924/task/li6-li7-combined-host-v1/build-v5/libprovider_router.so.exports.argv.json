@@ -1,0 +1,6 @@
+[
+  "/usr/bin/x86_64-linux-gnu-nm",
+  "-D",
+  "--defined-only",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so"
+]

@@ -1,0 +1,5 @@
+[
+  "/usr/bin/ldd",
+  "-r",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so"
+]

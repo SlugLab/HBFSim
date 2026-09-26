@@ -1,0 +1,80 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry int_add(
+    .param .u64 out,
+    .param .u64 in,
+    .param .u32 param2
+)
+{
+    .reg .b32 %r<8>;
+    .reg .b32 %ur<6>;
+    .reg .pred %p<1>;
+    .reg .b64 %rd<17>;
+
+L_0000:
+    // 0x0000: /*0000*/                   LDC R1, c[0x0][0x37c]                      &wr=0x0          ?trans1;           /* 0x0000df00ff017b82 */
+    mov.u32 %r1, 0;
+L_0010:
+    // 0x0010: /*0010*/                   S2R R7, SR_TID.X                           &wr=0x1          ?trans7;           /* 0x0000000000077919 */
+    mov.u32 %r7, %tid.x;
+L_0020:
+    // 0x0020: /*0020*/                   S2UR UR4, SR_CTAID.X                       &wr=0x1          ?trans1;           /* 0x00000000000479c3 */
+    mov.u32 %ur4, %ctaid.x;
+L_0030:
+    // 0x0030: /*0030*/                   LDCU UR5, c[0x0][0x390]                    &wr=0x2          ?trans7;           /* 0x00007200ff0577ac */
+    ld.param.u32 %ur5, [param2];
+L_0040:
+    // 0x0040: /*0040*/                   LDC R0, c[0x0][0x360]                      &wr=0x1          ?trans2;           /* 0x0000d800ff007b82 */
+    mov.u32 %r0, %ntid.x;
+L_0050:
+    // 0x0050: /*0050*/                   IMAD R7, R0, UR4, R7                       &req={1}         ?WAIT5_END_GROUP;  /* 0x0000000400077c24 */
+    mad.lo.s32 %r7, %r0, %ur4, %r7;
+L_0060:
+    // 0x0060: /*0060*/                   ISETP.GE.U32.AND P0, PT, R7, UR5, PT       &req={2}         ?WAIT13_END_GROUP; /* 0x0000000507007c0c */
+    setp.ge.u32 %p0, %r7, %ur5;
+L_0070:
+    // 0x0070: /*0070*/               @P0 EXIT                                       &req={0}         ?trans5;           /* 0x000000000000094d */
+    @%p0 ret;
+L_0080:
+    // 0x0080: /*0080*/                   LDC.64 R2, c[0x0][0x388]                   &wr=0x0          ?trans1;           /* 0x0000e200ff027b82 */
+    ld.param.u64 %rd2, [in];
+    mov.b64 {%r2, %r3}, %rd2;
+L_0090:
+    // 0x0090: /*0090*/                   LDCU.64 UR4, c[0x0][0x358]                 &wr=0x1          ?trans7;           /* 0x00006b00ff0477ac */
+    mov.u32 %ur4, 0;
+L_00a0:
+    // 0x00a0: /*00a0*/                   LDC.64 R4, c[0x0][0x380]                   &wr=0x2          ?trans1;           /* 0x0000e000ff047b82 */
+    ld.param.u64 %rd4, [out];
+    mov.b64 {%r4, %r5}, %rd4;
+L_00b0:
+    // 0x00b0: /*00b0*/                   IMAD.WIDE.U32 R2, R7, 0x4, R2              &req={0}         ?WAIT6_END_GROUP;  /* 0x0000000407027825 */
+    // unsupported SASS IMAD at 0x00b0: IMAD.WIDE operand form is not supported by pair repair
+L_00c0:
+    // 0x00c0: /*00c0*/                   LDG.E R2, desc[UR4][R2.64]                 &req={1} &wr=0x3 ?trans1;           /* 0x0000000402027981 */
+    mov.b64 %rd2, {%r2, %r3};
+    ld.global.u32 %r2, [%rd2];
+L_00d0:
+    // 0x00d0: /*00d0*/                   IMAD.WIDE.U32 R4, R7, 0x4, R4              &req={2}         ?trans1;           /* 0x0000000407047825 */
+    // unsupported SASS IMAD at 0x00d0: IMAD.WIDE operand form is not supported by pair repair
+L_00e0:
+    // 0x00e0: /*00e0*/                   IADD3 R0, PT, PT, R2, 0x11, RZ             &req={3}         ?WAIT4_END_GROUP;  /* 0x0000001102007810 */
+    add.u32 %r0, %r2, 17;
+L_00f0:
+    // 0x00f0: /*00f0*/                   LOP3.LUT R7, R0, 0x5a5a5a5a, RZ, 0x3c, !PT                  ?WAIT5_END_GROUP;  /* 0x5a5a5a5a00077812 */
+    xor.b32 %r7, %r0, 1515870810;
+L_0100:
+    // 0x0100: /*0100*/                   STG.E desc[UR4][R4.64], R7                                  ?trans1;           /* 0x0000000704007986 */
+    mov.b64 %rd4, {%r4, %r5};
+    st.global.u32 [%rd4], %r7;
+L_0110:
+    // 0x0110: /*0110*/                   EXIT                                                        ?trans5;           /* 0x000000000000794d */
+    ret;
+L_0120:
+    // 0x0120: /*0120*/                   BRA 0x120;                                                                     /* 0xfffffffc00fc7947 */
+    bra L_0120;
+L_0130:
+    // 0x0130: /*0130*/                   NOP;                                                                           /* 0x0000000000007918 */
+    // nop;
+}

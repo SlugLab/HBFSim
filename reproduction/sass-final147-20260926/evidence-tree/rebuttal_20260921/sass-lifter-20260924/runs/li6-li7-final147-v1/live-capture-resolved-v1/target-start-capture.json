@@ -1,0 +1,17 @@
+{
+  "cgroup": "0::/user.slice/user-0.slice/session-17455.scope\n",
+  "cmdline": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/bin/python /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/run.py --mode timing --model /root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485 --profile /root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json --report-dir /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell --num-prompts 1 --input-len 2 --output-len 2 --max-model-len 256 --max-num-batched-tokens 256 --gpu-memory-utilization 0.78 --seed 0 --warmup-requests 0 --request-timeout-ns 780000000000 --request-accounting --accounting-epoch 6712 --eval-delay-ns -1 --hbf-weight-selection include --hbf-include-pattern ^model\\.embed_tokens\\.weight$ --hbf-include-pattern ^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$ --hbf-include-pattern ^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$ --hbf-include-pattern ^model\\.layers\\.(?:[0-9]|1[0-5])\\.(?:self_attn\\.(?:qkv_proj|o_proj)|mlp\\.gate)\\.weight$ --hbf-include-pattern ^lm_head\\.weight$ --hbf-instrumentation-policy partial --hbf-timing-model hybrid",
+  "parent_pid": 4011163,
+  "pgid": 4011163,
+  "pid": 4011197,
+  "required_maps_present": true,
+  "start_ticks": 61618075,
+  "status": "CAPTURED",
+  "time_unix_ns": 1790389502420766342,
+  "wrapper": {
+    "cmdline": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/run_with_bpftime_combined.sh -- /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/bin/python /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/run.py --mode timing --model /root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485 --profile /root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json --report-dir /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell --num-prompts 1 --input-len 2 --output-len 2 --max-model-len 256 --max-num-batched-tokens 256 --gpu-memory-utilization 0.78 --seed 0 --warmup-requests 0 --request-timeout-ns 780000000000 --request-accounting --accounting-epoch 6712 --eval-delay-ns -1 --hbf-weight-selection include --hbf-include-pattern ^model\\.embed_tokens\\.weight$ --hbf-include-pattern ^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$ --hbf-include-pattern ^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$ --hbf-include-pattern ^model\\.layers\\.(?:[0-9]|1[0-5])\\.(?:self_attn\\.(?:qkv_proj|o_proj)|mlp\\.gate)\\.weight$ --hbf-include-pattern ^lm_head\\.weight$ --hbf-instrumentation-policy partial --hbf-timing-model hybrid",
+    "pgid": 4011163,
+    "pid": 4011163,
+    "start_ticks": 61618066
+  }
+}

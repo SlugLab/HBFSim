@@ -1,0 +1,34 @@
+{
+  "schema": "hbfsim.publication_check.v1",
+  "observed_utc": "2026-09-26T05:40:29.819016+00:00",
+  "status": "PASS_SOURCE_PUBLICATION_WITH_EXPLICIT_INVALID_WIP_ARCHIVE",
+  "files_checked": 453,
+  "bytes_checked": 5607422,
+  "syntax": {
+    "python": 41,
+    "json": 137
+  },
+  "errors": [],
+  "plugin_fixture": "PUBLISHED_PLUGIN_CPU.json",
+  "full_rebuild": "NOT_RUN",
+  "cross_machine_gpu": "NOT_RUN",
+  "upstream_merge_decision": "0/5 meet all user conditions; see ../upstream-review/DECISION.json",
+  "limits": [
+    "historical gate-core variant fresh build not verified",
+    "legacy seven-module generated PTX inputs must be recollected",
+    "historical source paths are inventory, not machine identity gates"
+  ],
+  "initial_check": "PUBLICATION_CHECK_INITIAL.json",
+  "known_archival_errors": [
+    {
+      "path": "unvalidated-worktree-source/experiments/rebuttal_20260921/R1_MANIFEST.json",
+      "issue": "Expecting ',' delimiter: line 57 column 1 (char 1920)"
+    }
+  ],
+  "followup_verification": [
+    "Original malformed manifest bytes preserved exactly under .invalid-original suffix",
+    "WIP inventory parses and maps original to archive path",
+    "No executable or accepted configuration was repaired or reclassified as passed"
+  ],
+  "validation_scope": "Initial scan checks retained for unchanged files; followup checks cover the sole archive classification change and inventory."
+}

@@ -1,0 +1,99 @@
+diff --git a/ptx/src/sass/lifter.rs b/ptx/src/sass/lifter.rs
+index 62484fc..de0f415 100644
+--- a/ptx/src/sass/lifter.rs
++++ b/ptx/src/sass/lifter.rs
+@@ -496,6 +496,17 @@ impl<'a> LiftContext<'a> {
+     fn lift_instruction(&mut self, inst: &EnhancedSassInstruction) -> Option<String> {
+         let pred = predicate_prefix(inst);
+         match inst.opcode.as_str() {
++            "CS2R" if cs2r_srz_pair_destination(inst).is_some() => {
++                let dst = cs2r_srz_pair_destination(inst).unwrap();
++                Some(format!(
++                    "{}mov.u32 %r{}, 0;\n    {}mov.u32 %r{}, 0;",
++                    pred, dst.number, pred, dst.number + 1
++                ))
++            }
++            "CS2R" if !has_modifier(inst, "32") => self.unsupported(
++                inst,
++                "CS2R supports only .32 singles and bare SRZ register pairs",
++            ),
+             "S2R" | "S2UR" | "CS2R" => Some(format!(
+                 "{}mov.u32 {}, {};",
+                 pred,
+@@ -921,6 +932,7 @@ impl RegisterDecls {
+                 collect_register_decl(predicate, &mut decls);
+             }
+             collect_implicit_register_pair_decl(inst, &mut decls);
++            collect_implicit_cs2r_srz_pair_decl(inst, &mut decls);
+             collect_implicit_r2p_predicate_decl(inst, &mut decls);
+         }
+         decls
+@@ -954,6 +966,13 @@ fn collect_implicit_register_pair_decl(inst: &EnhancedSassInstruction, decls: &m
+     }
+ }
+ 
++fn collect_implicit_cs2r_srz_pair_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
++    let Some(dst) = cs2r_srz_pair_destination(inst) else {
++        return;
++    };
++    decls.max_gpr = decls.max_gpr.max(dst.number + 2);
++}
++
+ fn collect_implicit_r2p_predicate_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
+     if inst.opcode != "R2P" {
+         return;
+@@ -2619,6 +2638,28 @@ fn has_modifier(inst: &EnhancedSassInstruction, modifier: &str) -> bool {
+         .any(|m| m.eq_ignore_ascii_case(modifier))
+ }
+ 
++fn cs2r_reads_srz(inst: &EnhancedSassInstruction) -> bool {
++    matches!(
++        inst.src_operands.as_slice(),
++        [SassOperand::SpecialRegister(name) | SassOperand::Label(name)]
++            if matches!(name.as_str(), "SRZ" | "SR_Z")
++    )
++}
++
++fn cs2r_srz_pair_destination(inst: &EnhancedSassInstruction) -> Option<&SassRegister> {
++    if inst.opcode != "CS2R"
++        || !inst.modifiers.is_empty()
++        || inst.dest_operands.len() != 1
++        || !cs2r_reads_srz(inst)
++    {
++        return None;
++    }
++    let Some(SassOperand::Register(reg)) = inst.dest_operands.first() else {
++        return None;
++    };
++    (reg.prefix == "R" && !reg.is_zero && reg.number % 2 == 0).then_some(reg)
++}
++
+ fn is_64bit_modifier(inst: &EnhancedSassInstruction) -> bool {
+     has_modifier(inst, "64")
+         || matches!(
+@@ -3600,6 +3641,25 @@ Function : kernel
+         assert!(!result.ptx.contains("c[0x0]"));
+     }
+ 
++    #[test]
++    fn sass_lifter_declares_implicit_high_register_for_bare_cs2r_srz_pair() {
++        let text = r#"Function : cs2r_srz_pair
++        /*0000*/                   CS2R R8, SRZ;
++        /*0010*/                   CS2R.32 R2, SRZ;
++        /*0020*/                   EXIT;
++"#;
++
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("bare CS2R SRZ pair should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result.ptx.contains(".reg .b32 %r<10>;"));
++        assert!(result
++            .ptx
++            .contains("mov.u32 %r8, 0;\n    mov.u32 %r9, 0;"));
++        assert!(result.ptx.contains("mov.u32 %r2, 0;"));
++        assert!(!result.ptx.contains("mov.u32 %r3, 0;"));
++    }
++
+     #[test]
+     fn sass_lifter_lowers_sm120_ptxas_followup_bucket_ops() {
+         let text = r#"Function : ptxas_followup

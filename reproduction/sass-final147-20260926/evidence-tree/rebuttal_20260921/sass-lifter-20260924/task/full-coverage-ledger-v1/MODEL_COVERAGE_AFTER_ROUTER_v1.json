@@ -1,0 +1,31 @@
+{
+  "schema": "hbfsim.model_coverage_increment.v1",
+  "time_unix_ns": 1790342125753980774,
+  "target_storage_count": 147,
+  "target_storage_bytes": 13838323712,
+  "accepted_storage_count": 100,
+  "accepted_storage_bytes": 13116641280,
+  "baseline": {
+    "run": "runs/qkv-model-combined-v3",
+    "storage_count": 99,
+    "storage_bytes": 13116379136,
+    "unchanged_reused": true
+  },
+  "increment": {
+    "alias": "model.layers.0.mlp.gate.weight",
+    "storage_count": 1,
+    "storage_bytes": 262144,
+    "validation": "runs/li7-router-layer0-model-v1/MODEL_VALIDATION.json",
+    "epoch": 6702,
+    "level": "MODEL_CONNECTED_PASS",
+    "consumer_scope": "one scheduled decode real router call; native prefill not instrumented"
+  },
+  "remaining_storage_count": 47,
+  "remaining_storage_bytes": 721682432,
+  "limitations": [
+    "storage footprint is not all possible consumer/expert access coverage",
+    "Li6 timeout not counted even though o_proj local bytes equal",
+    "all missing category representatives precede expansion",
+    "final combined147 regression still pending"
+  ]
+}

@@ -1,0 +1,5 @@
+[
+  "ldd",
+  "-r",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/libhbfsim_launch_gate.so"
+]

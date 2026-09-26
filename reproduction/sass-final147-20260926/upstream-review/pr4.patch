@@ -1,0 +1,77 @@
+diff --git a/ptx/src/sass/lifter.rs b/ptx/src/sass/lifter.rs
+index 62484fc..2cb08b8 100644
+--- a/ptx/src/sass/lifter.rs
++++ b/ptx/src/sass/lifter.rs
+@@ -1208,7 +1208,15 @@ fn f2fp_pack_ab_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+         .get(1)
+         .map(format_f32_pack_operand)
+         .unwrap_or_else(|| "0f00000000".to_string());
+-    format!("{}cvt.rn.f16x2.f32 {}, {}, {};", pred, dst, src0, src1)
++    let packed_type = if has_modifier(inst, "BF16") {
++        "bf16x2"
++    } else {
++        "f16x2"
++    };
++    format!(
++        "{}cvt.rn.{}.f32 {}, {}, {};",
++        pred, packed_type, dst, src0, src1
++    )
+ }
+ 
+ fn hadd2_op(inst: &EnhancedSassInstruction, pred: &str, scratch_gpr: Option<&str>) -> String {
+@@ -2236,7 +2244,13 @@ fn fsetp_op(
+         .unwrap_or_else(|| format_f32_literal(0.0));
+     let abs_src0 = src0_operand.and_then(abs_float_operand);
+     let abs_src1 = src1_operand.and_then(abs_float_operand);
+-    let suffix = comparison_suffix(inst);
++    // GEU is unordered: the predicate is true if either floating operand is NaN.
++    // Keep the generic comparison selector unchanged for every other form.
++    let suffix = if has_modifier(inst, "GEU") {
++        "geu".to_string()
++    } else {
++        comparison_suffix(inst)
++    };
+     match (abs_src0, abs_src1) {
+         (Some(abs0), Some(abs1)) => {
+             let scratch0 = scratch_gpr.unwrap_or("%r0");
+@@ -4170,6 +4184,40 @@ Function : kernel
+         assert!(result.ptx.contains("prmt.b32 %r9, %r16, 30212, %r9;"));
+     }
+ 
++    #[test]
++    fn sass_lifter_preserves_fsetp_geu_and_other_float_comparisons() {
++        let text = r#"Function : fsetp_geu
++        /*0000*/                   FSETP.GEU.AND P0, PT, R5, R0, PT ;
++        /*0010*/                   FSETP.GE.AND P1, PT, R5, R0, PT ;
++        /*0020*/                   FSETP.EQ.AND P2, PT, R5, R0, PT ;
++        /*0030*/                   EXIT ;
++"#;
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("FSETP GEU and neighboring comparisons should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result.ptx.contains("setp.geu.f32 %p0, %r5, %r0;"));
++        assert!(result.ptx.contains("setp.ge.f32 %p1, %r5, %r0;"));
++        assert!(result.ptx.contains("setp.eq.f32 %p2, %r5, %r0;"));
++    }
++
++    #[test]
++    fn sass_lifter_preserves_bf16_and_f16_f2fp_pack_ab_types() {
++        let text = r#"Function : f2fp_pack_ab_types
++        /*0000*/                   F2FP.BF16.F32.PACK_AB R6, RZ, R4 ;
++        /*0010*/                   F2FP.F16.F32.PACK_AB R8, RZ, R7 ;
++        /*0020*/                   EXIT ;
++"#;
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("BF16 and FP16 PACK_AB should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result
++            .ptx
++            .contains("cvt.rn.bf16x2.f32 %r6, 0f00000000, %r4;"));
++        assert!(result
++            .ptx
++            .contains("cvt.rn.f16x2.f32 %r8, 0f00000000, %r7;"));
++    }
++
+     #[test]
+     fn sass_lifter_lifts_sm120_half_and_predicate_bucket_ops() {
+         let text = r#"Function : half_pred_bucket_ops

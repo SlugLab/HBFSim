@@ -1,0 +1,12 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--workspace",
+    "--offline",
+    "--no-run"
+  ],
+  "returncode": 101,
+  "status": "BLOCKED_MISSING_BASELINE_LLVM_SUBMODULE",
+  "note": "Compile preflight only, no GPU tests started; same unchanged baseline dependency needed by all PRs."
+}

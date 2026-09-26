@@ -1,0 +1,12 @@
+{
+  "schema": "hbfsim.selected_gpu_cpu_portability.v1",
+  "status": "PASS_CPU_MOCK_NO_GPU",
+  "cases": [
+    "multi_gpu_inventory_selected_index",
+    "selected_gpu_only_guard_query",
+    "own_group_wrong_gpu_vs_foreign_other_gpu",
+    "configured_guard_thresholds_and_index_argv",
+    "exact_three_alias_selector"
+  ],
+  "limitation": "Mocked commands; no real nvidia-smi, process, signal or GPU call."
+}

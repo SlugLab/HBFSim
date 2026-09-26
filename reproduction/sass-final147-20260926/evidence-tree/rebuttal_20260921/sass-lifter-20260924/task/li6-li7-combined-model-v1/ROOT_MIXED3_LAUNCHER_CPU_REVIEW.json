@@ -1,0 +1,36 @@
+{
+  "schema": "hbfsim.combined_mixed3_cpu_root_review.v1",
+  "status": "ROOT_CPU_REVIEW_ACCEPTED_NO_GPU_AUTHORIZATION_RECORD",
+  "observed_utc": "2026-09-25T15:31:15.333205+00:00",
+  "scope": "Portable future mixed3 launcher, guard, controller and template; CPU package only",
+  "evidence": [
+    "CPU_READINESS.md",
+    "SELECTED_GPU_CPU_RESULT.json",
+    "ROOT_PLUGIN_CPU_REVIEW.json",
+    "ROOT_VALIDATOR_CPU_REVIEW.json",
+    "ROOT_SCOPE_STAGE_REVIEW.json"
+  ],
+  "decisions": {
+    "request_timeout_seconds": 480,
+    "request_timeout_meaning": "individual helper/service wait; aggregate candidate runtime does not justify enlarging this timer",
+    "worker_seconds": 1800,
+    "outer_seconds": 2100,
+    "collection_seconds": 600,
+    "startup_cleanup_seconds": 300,
+    "full_admission_seconds": 3000,
+    "gpu_identity": "configured index selected at prepare; observed UUID recorded, not compared with historical machine UUID",
+    "registration": "layer0 qkv_proj/o_proj/router only; old98 staged but not registered"
+  },
+  "pending": [
+    "Real lm_head MODEL_CONNECTED_PASS",
+    "Fresh finite lease covering complete admission window",
+    "Concrete live plan and root launch review",
+    "Actual GPU path/entry/storage/output/service evidence"
+  ],
+  "identities": {
+    "root_mixed3_launcher.py": "805b80c27035986096ca12a9b40be7ce3a984f0e0fe399f45bece762248ee0af",
+    "run_bounded_selected_gpu_stage.py": "d6b4f6e19bb1fceb2aa007e8579b4a37acea9659dc88fd99d1a005013c9601c7",
+    "resource_guard_selected_gpu.py": "263cc12f05dd50003493a89d53df5fdc0663c148ea8ec62ea7a9de00c6393b80",
+    "MIXED3_PLAN_TEMPLATE.json": "88c7b6ba6b21ec97d7630a1edcd68d5fb3d2fd93c967623f2def20b726da685b"
+  }
+}

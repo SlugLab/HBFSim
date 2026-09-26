@@ -1,0 +1,1 @@
+Initial run_checks shared Cargo target and identical package names reused PR2 executable for PR1/PR4. INVALID evidence preserved as direct-results-invalid-cache.json. Fix: unique package name per PR then direct executable by unique name. No upstream source changed.

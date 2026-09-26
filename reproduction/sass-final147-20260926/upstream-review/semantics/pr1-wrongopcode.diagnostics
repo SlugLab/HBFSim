@@ -1,0 +1,1 @@
+[SassLiftDiagnostic { address: Some(0), opcode: "FSEL", message: "FSEL -QNAN requires an encoded negative quiet-NaN immediate", instruction_text: "/*0000*/ FSEL R5, RZ, -QNAN, P0 ; /* 0xffffffffff057208 */" }]

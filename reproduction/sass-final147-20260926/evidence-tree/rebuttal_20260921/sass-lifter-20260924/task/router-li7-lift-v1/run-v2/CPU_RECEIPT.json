@@ -1,0 +1,141 @@
+{
+  "abi_map": {
+    "bytes": 5225,
+    "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-byte-abi-map.json",
+    "sha256": "bb00420b91dac15c735e30ad2fea52f71d21c583540dd18a8181cc34b2a4bd09"
+  },
+  "candidate_cubin": {
+    "bytes": 46736,
+    "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-assembled.cubin",
+    "sha256": "38bb35eb562e50aef9771411e24bfd63e687167896c10d4a738cd81a774b7eb0"
+  },
+  "diagnostic": {
+    "admitted": false,
+    "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.diagnostics.json",
+    "reason_codes": [
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF",
+      "REQUIRES_SEMANTIC_PROOF"
+    ],
+    "sha256": "c35779bb0343832e73f922f27dcafcc0bb02a83efa4dd13cd99ad09e6231a11d",
+    "status": "REJECTED"
+  },
+  "elapsed_seconds": 0.13712514110375196,
+  "gpu_used": false,
+  "inputs": {
+    "binary": {
+      "bytes": 977384,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/target/release/hbfsim_sass_recovery_diagnostic",
+      "sha256": "3a5fb93bcc5a241afe578eeab4da4751c62646002064c5d1f4078f5d4a11990e"
+    },
+    "cuobjdump": {
+      "bytes": 744744,
+      "path": "/usr/local/cuda-13.1/bin/cuobjdump",
+      "sha256": "d76bde61348813d19643b18d7ae1b8287eabcdb2195cc4d6e6d860a9b1995900"
+    },
+    "lifter_source": {
+      "bytes": 170087,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/lifter.rs",
+      "sha256": "0ec6653a78a2e8eb1ac5a8f5aa1a34c2fbe310fd5c7bb073bbb36a289ee12ca9"
+    },
+    "original_cubin": {
+      "bytes": 7910216,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v2/d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0.7.sm_120.cubin",
+      "sha256": "7491aacefddd62ecf0c11f2ff798852d0a05a60ce465a377f52bd15d881e2963"
+    },
+    "original_metadata": {
+      "bytes": 1201,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v2/li7-kparam-official.txt",
+      "sha256": "837980a686e053203d9f3d60dca4d3dae162eb3b9f1aa961150f0b5388bbf4cf"
+    },
+    "ptxas": {
+      "bytes": 41357392,
+      "path": "/usr/local/cuda-13.1/bin/ptxas",
+      "sha256": "85836303aeca1a2ac9387a6d364b276a3603907c95c3b06c9e3aadf46195b0d8"
+    },
+    "sass": {
+      "bytes": 436999,
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/li7-single-image.sass",
+      "sha256": "b47041a156744059482761addf9241ea09c4ebdb759a0a0c8938bd47b158527a"
+    }
+  },
+  "jobs": [
+    {
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/target/release/hbfsim_sass_recovery_diagnostic",
+        "--input",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/li7-single-image.sass",
+        "--kernel",
+        "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+        "--sm",
+        "sm_120",
+        "--ptx-out",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.candidate.ptx",
+        "--diagnostics-out",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.diagnostics.json",
+        "--quarantine-out",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx",
+        "--cubin",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v2/d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0.7.sm_120.cubin"
+      ],
+      "elapsed_seconds": 0.022250363021157682,
+      "name": "recovery",
+      "rc": 1,
+      "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/recovery.stderr",
+      "stderr_bytes": 3522,
+      "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/recovery.stdout",
+      "stdout_bytes": 0
+    },
+    {
+      "argv": [
+        "/usr/local/cuda-13.1/bin/ptxas",
+        "-arch=sm_120",
+        "-o",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-assembled.cubin",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx"
+      ],
+      "elapsed_seconds": 0.09717556706164032,
+      "name": "ptxas",
+      "rc": 0,
+      "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/ptxas.stderr",
+      "stderr_bytes": 0,
+      "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/ptxas.stdout",
+      "stdout_bytes": 0
+    },
+    {
+      "argv": [
+        "/usr/local/cuda-13.1/bin/cuobjdump",
+        "--dump-elf",
+        "--function",
+        "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+        "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-assembled.cubin"
+      ],
+      "elapsed_seconds": 0.016939196968451142,
+      "name": "candidate-elf",
+      "rc": 0,
+      "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/candidate-elf.stderr",
+      "stderr_bytes": 0,
+      "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/candidate-elf.stdout",
+      "stdout_bytes": 107470
+    }
+  ],
+  "offline_assembly_input": {
+    "bytes": 398756,
+    "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx",
+    "sha256": "e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+  },
+  "schema": "hbfsim.li7_cpu_recovery.v2",
+  "source_aggregate_bytes": 152,
+  "status": "CPU_ASSEMBLY_AND_ABI_LAYOUT_PASS_QUARANTINED",
+  "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+}

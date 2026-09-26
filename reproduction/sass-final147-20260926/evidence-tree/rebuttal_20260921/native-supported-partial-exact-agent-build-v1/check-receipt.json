@@ -1,0 +1,13 @@
+{
+  "schema": "hbfsim.locked_build_receipt.v1",
+  "mode": "check",
+  "profile": "agent",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source",
+  "build": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build",
+  "time_ns": 1790176815727039456,
+  "status": "PASS",
+  "spawned": false,
+  "cache_sha256": "5e36077127d1aaed79b1cad784c15e0ac6eae35c22edf1d697c91cf2da992855",
+  "compile_commands_sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0",
+  "lock_sha256": "caca9de943deb0a7c6a5780ef614ddac71cd641ae17b7ad4d137b4f15994c104"
+}

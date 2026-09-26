@@ -1,0 +1,434 @@
+diff --git a/ptx/src/sass/lifter.rs b/ptx/src/sass/lifter.rs
+index 62484fc..4505e04 100644
+--- a/ptx/src/sass/lifter.rs
++++ b/ptx/src/sass/lifter.rs
+@@ -280,6 +280,7 @@ struct LiftContext<'a> {
+     branch_targets: HashSet<u64>,
+     scratch_gpr: Option<String>,
+     scratch_gpr2: Option<String>,
++    scratch_b64: Option<String>,
+     call_state: Option<CallLoweringState>,
+     cuda_params: Vec<CudaParamDecl>,
+     uses_cuda_param_abi: bool,
+@@ -343,6 +344,7 @@ impl<'a> LiftContext<'a> {
+             branch_targets: HashSet::new(),
+             scratch_gpr: None,
+             scratch_gpr2: None,
++            scratch_b64: None,
+             call_state: None,
+             cuda_params: Vec::new(),
+             uses_cuda_param_abi: false,
+@@ -368,6 +370,7 @@ impl<'a> LiftContext<'a> {
+         self.branch_targets.clear();
+         self.scratch_gpr = None;
+         self.scratch_gpr2 = None;
++        self.scratch_b64 = None;
+         self.call_state = None;
+         self.cuda_params.clear();
+         self.uses_cuda_param_abi = false;
+@@ -400,6 +403,11 @@ impl<'a> LiftContext<'a> {
+         if self.uses_cuda_param_abi || self.uses_shared_memory {
+             regs.max_b64 = regs.max_b64.max(16);
+         }
++        if instructions.iter().any(|inst| (inst.opcode == "IADD" && is_64bit_modifier(inst))
++            || (inst.opcode == "IMAD" && has_modifier(inst, "WIDE"))) {
++            self.scratch_b64 = Some(format!("%rd{}", regs.max_b64));
++            regs.max_b64 += 1;
++        }
+ 
+         if self.uses_cuda_param_abi {
+             self.emit_param_entry_header(kernel_name);
+@@ -514,6 +522,11 @@ impl<'a> LiftContext<'a> {
+             "UMOV" => Some(unary_op(inst, &pred, "mov", "u32")),
+             "ULEA" => Some(ulea_op(inst, &pred)),
+             "LEA" => Some(lea_op(inst, &pred)),
++            "IADD" if is_64bit_modifier(inst) => self
++                .scratch_b64
++                .as_deref()
++                .and_then(|scratch| iadd_64_op(inst, &pred, scratch))
++                .or_else(|| self.unsupported(inst, "IADD.64 register-pair form is not supported")),
+             "IADD" => Some(binary_op(
+                 inst,
+                 &pred,
+@@ -544,7 +557,13 @@ impl<'a> LiftContext<'a> {
+                 "mul.lo",
+                 &data_type_suffix(inst, SassDataType::S32),
+             )),
+-            "IMAD" if has_modifier(inst, "WIDE") => Some(imad_wide_op(inst, &pred)),
++            "IMAD" if has_modifier(inst, "WIDE") && !supported_imad_wide_pair_form(inst) =>
++                self.unsupported(inst, "IMAD.WIDE operand form is not supported by pair repair"),
++            "IMAD" if has_modifier(inst, "WIDE") => self
++                .scratch_b64
++                .as_deref()
++                .map(|scratch| imad_wide_op(inst, &pred, scratch))
++                .or_else(|| self.unsupported(inst, "IMAD.WIDE pair scratch is unavailable")),
+             "IMAD" => Some(imad_op(
+                 inst,
+                 &pred,
+@@ -634,8 +653,11 @@ impl<'a> LiftContext<'a> {
+                 "neg",
+                 &data_type_suffix(inst, SassDataType::F32),
+             )),
++            "LDG" if is_wide_memory_data(inst) => self.unsupported(inst, "wide global data load is not supported by pair repair"),
+             "LDG" | "LDS" | "LDL" => Some(load_op(inst, &pred)),
+             "LDC" | "LDCU" => Some(ldc_op(inst, &pred)),
++            "ST" | "STG" if is_wide_memory_data(inst) && is_global_memory_inst(inst) =>
++                self.unsupported(inst, "wide global data store is not supported by pair repair"),
+             "ST" | "STG" | "STS" | "STL" => Some(store_op(inst, &pred)),
+             "ATOMG" | "ATOMS" => Some(atomic_op(inst, &pred)),
+             "IDP" if is_idp_4a_s8_s8(inst) => Some(idp_4a_s8_s8_op(inst, &pred)),
+@@ -921,6 +943,7 @@ impl RegisterDecls {
+                 collect_register_decl(predicate, &mut decls);
+             }
+             collect_implicit_register_pair_decl(inst, &mut decls);
++            collect_implicit_desc_address_pair_decl(inst, &mut decls);
+             collect_implicit_r2p_predicate_decl(inst, &mut decls);
+         }
+         decls
+@@ -936,10 +959,16 @@ impl RegisterDecls {
+ }
+ 
+ fn collect_implicit_register_pair_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
+-    if !is_64bit_modifier(inst) {
++    let operands: Vec<&SassOperand> = if supported_imad_wide_pair_form(inst) {
++        // The destination and addend are 64-bit pairs; the two multiplicands
++        // are scalar U32 and must not acquire implicit upper-word declarations.
++        inst.dest_operands.iter().chain(inst.src_operands.iter().skip(2)).collect()
++    } else if is_64bit_modifier(inst) {
++        inst.dest_operands.iter().chain(inst.src_operands.iter()).collect()
++    } else {
+         return;
+-    }
+-    for operand in inst.dest_operands.iter().chain(inst.src_operands.iter()) {
++    };
++    for operand in operands {
+         let SassOperand::Register(reg) = operand else {
+             continue;
+         };
+@@ -954,6 +983,20 @@ fn collect_implicit_register_pair_decl(inst: &EnhancedSassInstruction, decls: &m
+     }
+ }
+ 
++fn collect_implicit_desc_address_pair_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
++    for operand in inst.dest_operands.iter().chain(inst.src_operands.iter()) {
++        let SassOperand::Label(label) = operand else {
++            continue;
++        };
++        if !label.contains(".64") {
++            continue;
++        }
++        if let Some(reg) = desc_address_register_number(label) {
++            decls.max_gpr = decls.max_gpr.max(reg + 2);
++        }
++    }
++}
++
+ fn collect_implicit_r2p_predicate_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
+     if inst.opcode != "R2P" {
+         return;
+@@ -1030,6 +1073,72 @@ fn binary_op(inst: &EnhancedSassInstruction, pred: &str, op: &str, ty: &str) ->
+     format!("{}{}.{} {}, {}, {};", pred, op, ty, dst, src0, src1)
+ }
+ 
++// SASS R/UR registers are 32-bit physical words. A .64 operand consumes two
++// adjacent words; PTX %rdN is a separate virtual register, not an alias.
++fn pair_read(operand: &SassOperand, pred: &str, ur_scratch: &str) -> Option<(String, String)> {
++    match operand {
++        SassOperand::Register(reg) if reg.is_zero => Some((String::new(), "0".to_string())),
++        SassOperand::Register(reg) if reg.prefix == "R" => {
++            let wide = format!("%rd{}", reg.number);
++            Some((format!("{}mov.b64 {}, {{%r{}, %r{}}};", pred, wide,
++                          reg.number, reg.number + 1), wide))
++        }
++        SassOperand::Register(reg) if reg.prefix == "UR" => Some((
++            format!("{}mov.b64 {}, {{%ur{}, %ur{}}};", pred, ur_scratch,
++                    reg.number, reg.number + 1),
++            ur_scratch.to_string(),
++        )),
++        _ => None,
++    }
++}
++
++fn pair_write(operand: &SassOperand, pred: &str) -> Option<String> {
++    match operand {
++        SassOperand::Register(reg) if reg.prefix == "R" && !reg.is_zero => Some(format!(
++            "{}mov.b64 {{%r{}, %r{}}}, %rd{};",
++            pred, reg.number, reg.number + 1, reg.number
++        )),
++        _ => None,
++    }
++}
++
++fn iadd_64_op(inst: &EnhancedSassInstruction, pred: &str, ur_scratch: &str) -> Option<String> {
++    if inst.modifiers.len() != 1 || !has_modifier(inst, "64")
++        || inst.dest_operands.len() != 1 || inst.src_operands.len() != 2
++        || !matches!(inst.dest_operands.first()?, SassOperand::Register(reg)
++            if reg.prefix == "R" && !reg.is_zero)
++        || !matches!(inst.src_operands.first()?, SassOperand::Register(reg)
++            if reg.prefix == "R" && !reg.is_zero)
++        || !matches!(inst.src_operands.get(1)?, SassOperand::Register(reg)
++            if (reg.prefix == "R" || reg.prefix == "UR") && !reg.is_zero) {
++        return None;
++    }
++    let dst = inst.dest_operands.first()?;
++    if inst.src_operands.iter().take(2).filter(|operand| matches!(operand,
++        SassOperand::Register(reg) if reg.prefix == "UR" && !reg.is_zero)).count() > 1 {
++        return None;
++    }
++    let (setup0, src0) = pair_read(inst.src_operands.first()?, pred, ur_scratch)?;
++    let (setup1, src1) = pair_read(inst.src_operands.get(1)?, pred, ur_scratch)?;
++    let output = pair_write(dst, pred)?;
++    let wide_dst = dest_rd_operand(inst)?;
++    Some(format!("{}\n    {}\n    {}add.u64 {}, {}, {};\n    {}",
++                 setup0, setup1, pred, wide_dst, src0, src1, output))
++}
++
++fn supported_imad_wide_pair_form(inst: &EnhancedSassInstruction) -> bool {
++    inst.modifiers.len() == 2 && has_modifier(inst, "WIDE") && has_modifier(inst, "U32")
++        && inst.dest_operands.len() == 1 && inst.src_operands.len() == 3
++        && matches!(inst.dest_operands.first(), Some(SassOperand::Register(reg))
++            if reg.prefix == "R" && !reg.is_zero)
++        && matches!(inst.src_operands.first(), Some(SassOperand::Register(reg))
++            if reg.prefix == "R" && !reg.is_zero)
++        && matches!(inst.src_operands.get(1), Some(SassOperand::Register(reg))
++            if reg.prefix == "UR" && !reg.is_zero)
++        && matches!(inst.src_operands.get(2), Some(SassOperand::Register(reg))
++            if reg.prefix == "R" && !reg.is_zero)
++}
++
+ fn float_binary_op(
+     inst: &EnhancedSassInstruction,
+     pred: &str,
+@@ -1471,7 +1580,7 @@ fn fmnmx_op(inst: &EnhancedSassInstruction, pred: &str, scratch_gpr: Option<&str
+     }
+ }
+ 
+-fn imad_wide_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
++fn imad_wide_op(inst: &EnhancedSassInstruction, pred: &str, product_scratch: &str) -> String {
+     let dst = dest_rd_operand(inst).unwrap_or_else(|| "%rd0".to_string());
+     let data_operands: Vec<&SassOperand> = inst
+         .src_operands
+@@ -1489,15 +1598,19 @@ fn imad_wide_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+         .unwrap_or_else(|| "0".to_string());
+     let (base_setup, base) = data_operands
+         .get(2)
+-        .map(|operand| wide_base_operand_setup(&dst, operand))
++        .map(|operand| wide_pair_base_operand_setup(operand, pred))
+         .unwrap_or_else(|| (String::new(), "0".to_string()));
+ 
+-    let mut lines = format!("{}mul.wide.u32 %rd15, {}, {};", pred, src0, src1);
++    let mut lines = format!("{}mul.wide.u32 {}, {}, {};", pred, product_scratch, src0, src1);
+     if !base_setup.is_empty() {
+         lines.push_str("\n    ");
+         lines.push_str(&base_setup);
+     }
+-    lines.push_str(&format!("\n    {}add.u64 {}, {}, %rd15;", pred, dst, base));
++    lines.push_str(&format!("\n    {}add.u64 {}, {}, {};", pred, dst, base, product_scratch));
++    if let Some(unpack) = inst.dest_operands.first().and_then(|operand| pair_write(operand, pred)) {
++        lines.push_str("\n    ");
++        lines.push_str(&unpack);
++    }
+     lines
+ }
+ 
+@@ -1520,6 +1633,20 @@ fn wide_base_operand_setup(dst: &str, operand: &SassOperand) -> (String, String)
+     }
+ }
+ 
++fn wide_pair_base_operand_setup(operand: &SassOperand, pred: &str) -> (String, String) {
++    match operand {
++        SassOperand::Register(reg) if reg.prefix == "UR" && !reg.is_zero => (
++            format!("{}mov.b64 %rd{}, {{%ur{}, %ur{}}};", pred, reg.number, reg.number, reg.number + 1),
++            format!("%rd{}", reg.number),
++        ),
++        SassOperand::Register(reg) if reg.prefix == "R" && !reg.is_zero => (
++            format!("{}mov.b64 %rd{}, {{%r{}, %r{}}};", pred, reg.number, reg.number, reg.number + 1),
++            format!("%rd{}", reg.number),
++        ),
++        _ => (String::new(), format_rd_operand(operand)),
++    }
++}
++
+ fn iadd3_extended_op(inst: &EnhancedSassInstruction, pred: &str, ty: &str) -> String {
+     let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
+     let terms: Vec<(String, bool)> = inst
+@@ -2001,13 +2128,17 @@ fn load_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+         return shared_load_op(inst, pred);
+     }
+     let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
+-    let addr = inst
+-        .src_operands
+-        .first()
++    let address_operand = inst.src_operands.first();
++    let addr = address_operand
+         .map(|operand| format_memory_address_operand(inst, operand))
+         .unwrap_or_else(|| "[0]".to_string());
++    let setup = address_operand
++        .and_then(|operand| desc_address_pair_setup(operand, pred))
++        .map(|line| format!("{}\n    ", line))
++        .unwrap_or_default();
+     format!(
+-        "{}ld.{}.{} {}, {};",
++        "{}{}ld.{}.{} {}, {};",
++        setup,
+         pred,
+         memory_space_suffix(inst),
+         data_type_suffix(inst, SassDataType::U32),
+@@ -2047,18 +2178,22 @@ fn store_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+     if is_shared_memory_inst(inst) {
+         return shared_store_op(inst, pred);
+     }
+-    let addr = inst
+-        .dest_operands
+-        .first()
++    let address_operand = inst.dest_operands.first();
++    let addr = address_operand
+         .map(|operand| format_memory_address_operand(inst, operand))
+         .unwrap_or_else(|| "[0]".to_string());
++    let setup = address_operand
++        .and_then(|operand| desc_address_pair_setup(operand, pred))
++        .map(|line| format!("{}\n    ", line))
++        .unwrap_or_default();
+     let src = inst
+         .src_operands
+         .first()
+         .map(format_operand)
+         .unwrap_or_else(|| "0".to_string());
+     format!(
+-        "{}st.{}.{} {}, {};",
++        "{}{}st.{}.{} {}, {};",
++        setup,
+         pred,
+         memory_space_suffix(inst),
+         data_type_suffix(inst, SassDataType::U32),
+@@ -2583,12 +2718,12 @@ fn cuda_param_load_op(
+                 pred, low, name, pred, high, name
+             );
+         }
+-        return format!(
+-            "{}ld.param.u64 {}, [{}];",
+-            pred,
+-            dest_rd_operand(inst).unwrap_or_else(|| "%rd0".to_string()),
+-            name
+-        );
++        let wide = dest_rd_operand(inst).unwrap_or_else(|| "%rd0".to_string());
++        let load = format!("{}ld.param.u64 {}, [{}];", pred, wide, name);
++        return match inst.dest_operands.first().and_then(|operand| pair_write(operand, pred)) {
++            Some(unpack) => format!("{}\n    {}", load, unpack),
++            None => load,
++        };
+     }
+ 
+     let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
+@@ -2627,6 +2762,15 @@ fn is_64bit_modifier(inst: &EnhancedSassInstruction) -> bool {
+         )
+ }
+ 
++fn is_global_memory_inst(inst: &EnhancedSassInstruction) -> bool {
++    inst.memory_space.unwrap_or(SassMemorySpace::Global) == SassMemorySpace::Global
++}
++
++fn is_wide_memory_data(inst: &EnhancedSassInstruction) -> bool {
++    matches!(inst.data_type, Some(SassDataType::U64 | SassDataType::S64
++        | SassDataType::B64 | SassDataType::U128))
++}
++
+ fn is_extended_iadd3(inst: &EnhancedSassInstruction) -> bool {
+     inst.opcode == "IADD3" && inst.src_operands.len() > 3
+ }
+@@ -2900,7 +3044,7 @@ fn is_predicate_true_operand(operand: &SassOperand) -> bool {
+     matches!(operand, SassOperand::Register(reg) if reg.prefix == "PT")
+ }
+ 
+-fn desc_address_to_ptx(label: &str) -> Option<String> {
++fn desc_address_register_number(label: &str) -> Option<u32> {
+     let marker = "][R";
+     let reg_start = label.find(marker)? + marker.len();
+     let rest = &label[reg_start..];
+@@ -2908,7 +3052,23 @@ fn desc_address_to_ptx(label: &str) -> Option<String> {
+     if digits.is_empty() {
+         return None;
+     }
+-    let reg_num = digits.parse::<u32>().ok()?;
++    digits.parse::<u32>().ok()
++}
++
++fn desc_address_pair_setup(operand: &SassOperand, pred: &str) -> Option<String> {
++    let SassOperand::Label(label) = operand else { return None; };
++    if !label.contains(".64") { return None; }
++    let reg_num = desc_address_register_number(label)?;
++    Some(format!("{}mov.b64 %rd{}, {{%r{}, %r{}}};",
++                 pred, reg_num, reg_num, reg_num + 1))
++}
++
++fn desc_address_to_ptx(label: &str) -> Option<String> {
++    let reg_num = desc_address_register_number(label)?;
++    let marker = "][R";
++    let reg_start = label.find(marker)? + marker.len();
++    let rest = &label[reg_start..];
++    let digits: String = rest.chars().take_while(|ch| ch.is_ascii_digit()).collect();
+     let tail = rest[digits.len()..].split(']').next().unwrap_or_default();
+     let offset = tail
+         .char_indices()
+@@ -4170,6 +4330,61 @@ Function : kernel
+         assert!(result.ptx.contains("prmt.b32 %r9, %r16, 30212, %r9;"));
+     }
+ 
++    #[test]
++    fn sass_lifter_declares_implicit_imad_wide_result_pair_and_predicates_scratch() {
++        let text = r#"Function : imad_wide_pair_decl
++        /*0000*/              @P0 IMAD.WIDE.U32 R8, R1, UR2, R4 ;
++        /*0010*/                   EXIT ;
++"#;
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("supported IMAD.WIDE pair should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result.ptx.contains(".reg .b32 %r<10>;"));
++        assert!(result.ptx.contains(".reg .b64 %rd<17>;"));
++        assert!(result.ptx.contains("@%p0 mul.wide.u32 %rd16, %r1, %ur2;"));
++        assert!(result.ptx.contains("@%p0 mov.b64 %rd4, {%r4, %r5};"));
++        assert!(result.ptx.contains("@%p0 add.u64 %rd8, %rd4, %rd16;"));
++        assert!(result.ptx.contains("@%p0 mov.b64 {%r8, %r9}, %rd8;"));
++    }
++
++    #[test]
++    fn sass_lifter_declares_implicit_descriptor_address_pair() {
++        let text = r#"Function : descriptor_pair_decl
++        /*0000*/              @P0 LDG.E.U16 R1, desc[UR2][R30.64] ;
++        /*0010*/                   EXIT ;
++"#;
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("descriptor address pair should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result.ptx.contains(".reg .b32 %r<32>;"));
++        assert!(result.ptx.contains(".reg .b64 %rd<32>;"));
++        assert!(result.ptx.contains("@%p0 mov.b64 %rd30, {%r30, %r31};"));
++        assert!(result.ptx.contains("@%p0 ld.global.u16 %r1, [%rd30];"));
++    }
++
++    #[test]
++    fn sass_lifter_only_rejects_wide_stores_on_global_path() {
++        let mut shared = EnhancedSassInstruction::new("ST".to_string(), 0);
++        shared.data_type = Some(SassDataType::U64);
++        shared.memory_space = Some(SassMemorySpace::Shared);
++        shared.dest_operands.push(mem(0, 0));
++        shared.src_operands.push(reg(2));
++        let options = SassLiftOptions::default();
++        let mut context = LiftContext::new(&options);
++        let lowered = context.lift_instruction(&shared).expect("shared ST should retain its path");
++        assert!(context.diagnostics.is_empty(), "{:?}", context.diagnostics);
++        assert!(lowered.contains("st.shared.u64"), "{lowered}");
++
++        let mut local = EnhancedSassInstruction::new("ST".to_string(), 0x10);
++        local.data_type = Some(SassDataType::U64);
++        local.memory_space = Some(SassMemorySpace::Local);
++        local.dest_operands.push(mem(0, 0));
++        local.src_operands.push(reg(2));
++        let lowered = context.lift_instruction(&local).expect("local ST should retain its path");
++        assert!(context.diagnostics.is_empty(), "{:?}", context.diagnostics);
++        assert!(lowered.contains("st.local.u64"), "{lowered}");
++    }
++
+     #[test]
+     fn sass_lifter_lifts_sm120_half_and_predicate_bucket_ops() {
+         let text = r#"Function : half_pred_bucket_ops

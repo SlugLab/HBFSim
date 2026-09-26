@@ -1,0 +1,63 @@
+{
+  "schema": "hbfsim.final_single_run_acceptance.v1",
+  "status": "FINAL_SINGLE_RUN_147_ACCEPTED",
+  "evidence_class": "DOC_DERIVED",
+  "epoch": 6712,
+  "validator_status": "MODEL_CONNECTED_PASS_COMBINED_ADDED49",
+  "time_unix_ns": 1790395861625684203,
+  "registered_storage_count": 147,
+  "registered_extent_bytes": 13838323712,
+  "old_storage_count": 98,
+  "new_selected_storage_count": 49,
+  "selected_output_comparisons": 49,
+  "output_token_ids": [
+    [
+      70,
+      13
+    ]
+  ],
+  "controller_seconds": 6359.627391798,
+  "aggregate_accounting": {
+    "counter_overflow": 0,
+    "failed_after_issue_accesses": 0,
+    "failed_after_issue_bytes": 0,
+    "failed_preissue_accesses": 0,
+    "failed_preissue_bytes": 0,
+    "in_range_accesses": 641170176,
+    "in_range_intersection_bytes": 5026111488,
+    "modeled_admitted_accesses": 641170176,
+    "modeled_admitted_bytes": 5026111488,
+    "native_out_of_range_accesses": 412942720,
+    "native_out_of_range_bytes": 1020924160,
+    "service_completed_accesses": 641170176,
+    "service_completed_bytes": 5026111488,
+    "service_requests": 640024072,
+    "supported_accesses": 1054112896,
+    "supported_bytes": 6047035648,
+    "translation_failed_accesses": 0,
+    "translation_failed_bytes": 0,
+    "unclassified_accesses": 0,
+    "unclassified_bytes": 0,
+    "unsupported_preissue_accesses": 0,
+    "unsupported_preissue_bytes": 0
+  },
+  "module_count": 9,
+  "sources": {
+    "validation": "runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
+    "report": "reports/final147-20260926-v1/REPORT.json",
+    "controller_finish": "runs/li6-li7-final147-v1/controller/controller-finish.json",
+    "historical_union": "task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
+    "resource_release": "task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
+  },
+  "historical_union_substituted_for_run": false,
+  "limits": {
+    "registered_extent_is_bytes_touched": false,
+    "coverage_address_row_semantics": "observed modeled parameter address inside live storage, not exhaustive memory-reference addresses or unique touched-byte extent",
+    "service_requests_is_reference_completion_count": false,
+    "shared_module_counters_are_per_storage_counts": false,
+    "native_prefill_consumer_coverage": "NOT_MEASURED: selected49 claim is scheduled decode; aggregate native-out-of-range counters cannot identify all prefill consumers",
+    "unsupported_consumer_enumeration": "Observed nonmodeled categories are listed above; exhaustive unsupported-consumer enumeration UNKNOWN, and no native/unsupported path is promoted to modeled coverage",
+    "exact_experts_or_expert_lanes_triggered": "UNKNOWN: registered expert storage/address rows do not enumerate every expert or lane",
+    "all_possible_shapes_and_consumers_covered": false
+  }
+}

@@ -1,0 +1,39 @@
+   Compiling pr1_semantics v0.1.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-crate)
+warning: unused variable: `label`
+   --> src/sass/disassembler.rs:762:47
+    |
+762 |                     if let SassOperand::Label(label) = op {
+    |                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_label`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:297:9
+    |
+297 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: unused variable: `kernel_symbol`
+   --> src/sass/cubin_parser.rs:310:21
+    |
+310 |                 let kernel_symbol = symbols
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_kernel_symbol`
+
+warning: variable does not need to be mutable
+   --> src/sass/cubin_parser.rs:350:13
+    |
+350 |         let mut const_mem = 0u32;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:472:9
+    |
+472 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: `pr1_semantics` (bin "pr1_semantics") generated 5 warnings (run `cargo fix --bin "pr1_semantics" -p pr1_semantics` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.36s

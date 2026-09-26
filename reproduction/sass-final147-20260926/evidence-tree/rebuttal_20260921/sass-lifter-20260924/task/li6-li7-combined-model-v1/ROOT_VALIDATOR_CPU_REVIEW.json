@@ -1,0 +1,22 @@
+{
+  "schema": "hbfsim.combined_validator_root_review.v1",
+  "status": "CPU_VALIDATOR_REVIEW_ACCEPTED_PENDING_CONCRETE_LAUNCH_JOIN",
+  "utc": "2026-09-25T15:19:23.311177+00:00",
+  "validator_sha256": "b4aee45f89849a6ff89224e0b61fa77088f6581afea5b31801443cbb15091bbf",
+  "reviewed_real_evidence": "runs/li6-oproj-only-v1 logs/correlation.jsonl and selected ABI decision; original EXACT durable FATBIN vs patched TOPOLOGY_ONLY verified",
+  "closed_findings": [
+    "Separate original image vs patched callback/service identity",
+    "Unique actual patched callbacks in selected order; surplus/duplicate callbacks rejected",
+    "Positive context/function pointer parsing",
+    "Exact per-storage registered base/extent/output and addressed active module service closure",
+    "Actual run/controller/owner plan hash and guard return code; run-scoped trace paths",
+    "Actual combined two-profile environment and configured/resolved path/device/inode join"
+  ],
+  "synthetic_test_receipt": "VALIDATOR_SYNTHETIC_RESULT.json",
+  "limitations": [
+    "Synthetic check_receipts tests do not exercise a real GPU or full capture/result file tree",
+    "Concrete launcher/capture status strings, backing paths, runtime environment and actual freeze hashes must match this validator before admission",
+    "No MODEL_CONNECTED result or coverage increment"
+  ],
+  "old98_acceptance": "Same per-storage addressed active closure scope as6603; no assertion all experts/bytes/consumers fired"
+}

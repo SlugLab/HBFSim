@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "status": "CPU_REVIEW_READY_NOT_RUNTIME_BUNDLE",
+  "gpu_used": false,
+  "accepted_base": "/root/hbfsim-exp/rebuttal_20260921/native-bridge-failstop-source-v1",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1",
+  "build": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1",
+  "accepted_base_launch_gate_sha256": "74a4fc3b7fc2a5fc8b290dbd8040093407ae64913585431e3b6dd47b8a5fd8de",
+  "source_files": [
+    {
+      "path": "include/hbfsim/coverage.hpp",
+      "size": 7027,
+      "sha256": "7dc4024741e24122ca8304a7e57915ce68ed81e6f0c36cb60d08503b35de3703",
+      "base_sha256": "d5f923d3503f1ac1ab33e71312adfdff2e0dcfc73c1b0b83df913f9845a840e4"
+    },
+    {
+      "path": "src/cuda_runtime/coverage.cpp",
+      "size": 39167,
+      "sha256": "700148233a3e866255bc909b4fc22a47a695a22d089d3f2a451844bdfeda5866",
+      "base_sha256": "0bb2995c239b15d8c5b14f775bc7b6fd2c1031b05efc004017f0cb3d7edae823"
+    },
+    {
+      "path": "src/cuda_runtime/launch_gate.cpp",
+      "size": 184540,
+      "sha256": "3c30b1e3c7a34b9d211a7b1f0716c21d8a3ce29d8b08e263206d457c9b65b3f8",
+      "base_sha256": "74a4fc3b7fc2a5fc8b290dbd8040093407ae64913585431e3b6dd47b8a5fd8de"
+    },
+    {
+      "path": "tests/cpu/coverage_gate_test.cpp",
+      "size": 24319,
+      "sha256": "f10b404c6508c657954365b4f1473ebd7cd94170e9706b52dc5bd27b59ce0ed7",
+      "base_sha256": "4ac5479cac9ee8b90b9d21b7ffab3e1ee42a18a945a3bc18e2bcf822b547884c"
+    },
+    {
+      "path": "tests/integration/test_aggregate_argument_readers.py",
+      "size": 3046,
+      "sha256": "f33d599ab325d2e5f212546ef5f3bef7afecfc4c7e6baa56b099e0c8b1014b60",
+      "base_sha256": null
+    }
+  ],
+  "source_patch": {
+    "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/SOURCE.patch",
+    "sha256": "de582a265324b949257d56c2207f7e7539abbf45350465016160dfaffe2422ba"
+  },
+  "build_binding": {
+    "build_ninja_source_root": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1",
+    "focused_commands": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-build-commands-v2.json",
+    "focused_gate_commands": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-gate-build-v4.json",
+    "first_regeneration_failure": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/build-v2.stdout",
+    "failure_reason": "unchanged CUDA helper regeneration hit known CUDA13/GCC rsqrt noexcept conflict",
+    "resolution": "reused byte-identical accepted generated helper PTX/header, then ran exact C++ compile/archive/link commands emitted by this build for modified source",
+    "accepted_helper_ptx_sha256": "07f01c00ea462efe195922a11b9467fab8c76d6091e5ae9d80d69fd7957aad7e",
+    "candidate_helper_ptx_sha256": "07f01c00ea462efe195922a11b9467fab8c76d6091e5ae9d80d69fd7957aad7e"
+  },
+  "artifacts": {
+    "gate": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so",
+      "size": 593896,
+      "sha256": "df719bfa75f9cecbe8da02be54a63b9b7aa3a1c2bc086ce25a85867f2e449b33"
+    },
+    "coverage_gate_test": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test",
+      "sha256": "5ee41ff15e634679dbc6da3091f51ae0de01462bec3b2840c35690d840eff509"
+    }
+  },
+  "tests": [
+    {
+      "name": "coverage_gate_test",
+      "command": [
+        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "aggregate_argument_readers",
+      "command": [
+        "python3",
+        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1/tests/integration/test_aggregate_argument_readers.py",
+        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "dynamic_exports": [
+    "200: 0000000000035ef0    27 FUNC    GLOBAL DEFAULT   14 cudaLaunchKernelExC@libcudart.so.12",
+    "202: 0000000000035f10    30 FUNC    GLOBAL DEFAULT   14 cudaLaunchKernelExC@libcudart.so.13",
+    "334: 000000000001f160    46 FUNC    GLOBAL DEFAULT   14 hbfsim_test_read_argument_pointer",
+    "352: 0000000000038900    57 FUNC    GLOBAL DEFAULT   14 __cudaLaunchKernel@libcudart.so.12",
+    "353: 0000000000038940    60 FUNC    GLOBAL DEFAULT   14 __cudaLaunchKernel@libcudart.so.13",
+    "509: 0000000000036a10    57 FUNC    GLOBAL DEFAULT   14 cudaLaunchKernel@libcudart.so.12",
+    "510: 0000000000036a50    60 FUNC    GLOBAL DEFAULT   14 cudaLaunchKernel@libcudart.so.13",
+    "515: 000000000001f0a0   183 FUNC    GLOBAL DEFAULT   14 hbfsim_test_read_packed_pointer"
+  ],
+  "ldd": "\tlinux-vdso.so.1 (0x000076016139a000)\n\tlibcrypto.so.3 => /usr/lib/x86_64-linux-gnu/libcrypto.so.3 (0x0000760160c00000)\n\tlibcudart.so.12 => /usr/lib/x86_64-linux-gnu/libcudart.so.12 (0x0000760160800000)\n\tlibstdc++.so.6 => /usr/lib/x86_64-linux-gnu/libstdc++.so.6 (0x0000760160400000)\n\tlibgcc_s.so.1 => /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007601612c8000)\n\tlibc.so.6 => /usr/lib/x86_64-linux-gnu/libc.so.6 (0x0000760160000000)\n\t/lib64/ld-linux-x86-64.so.2 (0x000076016139c000)\n\tlibz.so.1 => /usr/lib/x86_64-linux-gnu/libz.so.1 (0x00007601612a8000)\n\tlibzstd.so.1 => /usr/lib/x86_64-linux-gnu/libzstd.so.1 (0x0000760160b3d000)\n\tlibdl.so.2 => /usr/lib/x86_64-linux-gnu/libdl.so.2 (0x00007601612a3000)\n\tlibpthread.so.0 => /usr/lib/x86_64-linux-gnu/libpthread.so.0 (0x000076016129e000)\n\tlibrt.so.1 => /usr/lib/x86_64-linux-gnu/librt.so.1 (0x0000760161299000)\n\tlibm.so.6 => /usr/lib/x86_64-linux-gnu/libm.so.6 (0x00007601606da000)\n",
+  "limitations": [
+    "CPU-only review candidate; not assembled into or approved as a production runtime bundle",
+    "test reader hooks exist only because accepted gate build enables HBFSIM_ENABLE_TEST_HOOKS",
+    "no GPU launch was performed",
+    "packed-buffer parser has a bounded 32-word key/value scan and rejects unknown, duplicate, truncated, or missing required entries"
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "observed_utc": "2026-09-26T05:17:37.558092+00:00",
+  "repo": "vickiegpt/Concordia",
+  "base_sha": "c60cfd8ab54fd1ec4512f749ad61cccc4a390a05",
+  "permission": "ADMIN",
+  "branch_protected": false,
+  "rulesets": [],
+  "standard": "CONTRIBUTING.md asks initialized submodules and cargo test --workspace",
+  "ci_note": "No PR status checks reported; only dynamic Copilot review workflow found. CLEAN is GitHub mergeability, not correctness or test acceptance.",
+  "workspace_preflight": "workspace-test.json",
+  "prs": [
+    {
+      "number": 1,
+      "head_sha": "12e8ee2aed0e89a178289422d4e835e6999448ab",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 80,
+          "deletions": 14
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 0,
+      "decision": "HOLD_VALIDATION",
+      "reason": "Bounded FSEL payload semantics pass independent fixtures; required workspace verification unavailable.",
+      "merged": false
+    },
+    {
+      "number": 2,
+      "head_sha": "47d1f534d4faae68748992bda040e5a0a6938cb9",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 36,
+          "deletions": 0
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 2,
+      "decision": "CHANGES_REQUIRED",
+      "reason": "Nonzero SASS 64-bit addend pair is reduced to its low32 word; unsupported operands can silently shift positions.",
+      "merged": false
+    },
+    {
+      "number": 3,
+      "head_sha": "591a8e63e004427c42bbe40a4c29da741e9f656c",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 60,
+          "deletions": 0
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 1,
+      "decision": "HOLD_SCOPE_AND_VALIDATION",
+      "reason": "Text SRZ pair repair is locally coherent; binary decoder does not supply required semantic operands, unresolved review and full workspace gap.",
+      "merged": false
+    },
+    {
+      "number": 4,
+      "head_sha": "ad7bfe830e4f83404addf5a06bb00c83569e1586",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 50,
+          "deletions": 2
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 1,
+      "decision": "CHANGES_REQUIRED",
+      "reason": "Real BF16 PACK_AB.RZ/RELU forms accepted but emitted as RN without RELU; inherited GEU predicate/FTZ limits must be explicit.",
+      "merged": false
+    },
+    {
+      "number": 5,
+      "head_sha": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 239,
+          "deletions": 24
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 4,
+      "decision": "CHANGES_REQUIRED",
+      "reason": "Rejects existing immediate IMAD.WIDE integration fixture; numeric .64/.128 forms bypass new wide-memory rejection guard.",
+      "merged": false
+    }
+  ],
+  "schema": "hbfsim.upstream_pr_review_decision.v1",
+  "decision_reviewer": "root / GPT-6 Astra medium",
+  "decision_utc": "2026-09-26T05:20:47.020313+00:00",
+  "final_decision": "NO_PR_MEETS_ALL_USER_MERGE_CONDITIONS",
+  "gpu_used": false,
+  "upstream_modified": false,
+  "full_workspace_tests": "BLOCKED_PREEXISTING_MISSING_LLVM_SUBMODULE",
+  "evidence": [
+    "pairs/REVIEW.md",
+    "semantics/REPORT.md",
+    "workspace-test.json"
+  ]
+}

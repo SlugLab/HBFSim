@@ -1,0 +1,23 @@
+# Route to the original147-storage final component regression
+
+Root planning record, 2026-09-25. This does not launch a matrix or mark the goal complete. The unchanged target is147 deduplicated storages/13,838,323,712B from TARGET_LEDGER.json. Current accepted historical union is102/147; head6706 passed the frozen real-model validator (MODEL_COVERAGE_AFTER_HEAD_v1.json). No GPU expansion starts before every missing category has a MODEL_CONNECTED_PASS representative. No old98 or6603 standalone rerun is planned.
+
+## Dependencies and minimal ordering
+
+1. Resolve the current head representative from real terminal evidence. Output/lift-only proof and sampled host progress cannot satisfy it. Preserve all6701/6703/6705 failures regardless of later success.
+2. During that finite wait, prepare an isolated default-off combined host component under ROOT_CPU_DESIGN_REVIEW.json, with exact Li6/Li7 identity separation and no device/PTX changes. CPU readiness is not deployment or model coverage.
+3. After the head representative passes, validate the changed combined host component on one short real-model interleaving of layer0 QKV, o_proj and router, proving both profile identities and selected-scope reuse. It need not repeat head's unchanged long representative solely for conversion proof. A short mixed pilot does not by itself repair or prove the old o_proj→head case.
+4. Expand the three shared classes to their remaining45 storages (layers1–15 of QKV/o_proj/router), using each actual native profile entry in NATIVE_PROFILE_REUSE.json and actual fresh storage registration. Avoid repeating unchanged layer0 proof once the same final component's mixed pilot passed. Each execution gets a reviewed concrete metadata/resource window based on measured cost, without changing the scientific input/profile to finish faster.
+5. Freeze the final agent/provider/gate/plugin/config/stage/manifest/sidecar set and run the promised147-storage combined regression once. This is the necessary changed-component regression, not a rerun of the unchanged old98 baseline. It includes head after earlier selected layers and thus finally tests that compatibility. No union of separate-process passes substitutes for this final run.
+
+## Acceptance scope and joins
+
+Preserve the accepted6603 standard for old98: fresh per-storage addressed modeled rows, active COMPLETE exact modules with access/admission/service closure, correct actual model outputs and terminal status. Preserve its limitation: shared module counters are aggregate, and expert storage extent is not an assertion that the fixed request reads every expert byte.
+
+For every new selected consumer, require real scheduled request/thread binding; exact alias and observed full registered storage base/extent; separate original aggregate and recovered metadata identities; selected original/patched/context/provider token/profile; actual Driver API/CBID/thread; independent native and candidate output bytes under the existing exact criterion; successful select/end; address-matched modeled coverage; positive exact-module admission/completion with zero errors and complete terminal accounting. Missing, ambiguous, duplicate or native-fallback selected consumers fail their row individually. Positive totals cannot fill those rows. A new per-storage latency/counter theorem is not added to the accepted scope.
+
+The final report must distinguish registered extent, addressed consumer coverage, instrumented/admitted/completed access bytes, and the real-model connected union. It must enumerate untriggered experts and unsupported/native prefill or other consumers, rather than label all possible shapes or all bytes covered. The recovered profiles currently establish selected scheduled n=1 decode consumers; n=1 alone does not identify decode without request/position receipts.
+
+## Resource planning evidence
+
+The actual6603 combined old98+oneQKV controller elapsed2457.664s. O_proj-only whole worker elapsed80.849s, of which selected candidate16.823s; router-only whole worker65.694s. These setup-inclusive times are not interchangeable kernel costs. Head6706 measured candidate3314.621s and controller3366.030s; earlier2812/4284s conditional projections are superseded for this representative. Therefore the final full-component window must be estimated from measured staged costs and given a reasonable finite collection/cleanup margin; a short representative's wall time cannot be reused as a full147 budget. No exact final deadline is frozen here. Root renews the unique watchdog only when a concrete finite run plan warrants it, always covering collection and preserving the prior watchdog stop/confirm/start sequence.

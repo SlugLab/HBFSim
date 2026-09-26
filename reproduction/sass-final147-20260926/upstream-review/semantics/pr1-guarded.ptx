@@ -1,0 +1,16 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry probe()
+{
+    .reg .b32 %r<6>;
+    .reg .pred %p<2>;
+    .reg .b64 %rd<16>;
+
+L_0000:
+    // unsupported SASS FSEL at 0x0000: FSEL -QNAN requires an encoded negative quiet-NaN immediate
+L_0010:
+    ret;
+}
+

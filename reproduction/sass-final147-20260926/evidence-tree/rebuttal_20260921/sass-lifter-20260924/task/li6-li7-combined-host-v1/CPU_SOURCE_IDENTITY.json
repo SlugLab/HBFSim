@@ -1,0 +1,30 @@
+{
+  "actual_archive_members": [
+    "nv_attach_impl.cpp.o",
+    "nv_attach_private_data.cpp.o",
+    "nv_attach_impl_frida_setup.cpp.o",
+    "nv_attach_impl_patcher.cpp.o",
+    "nv_attach_utils.cpp.o",
+    "nv_attach_fatbin_record.cpp.o",
+    "nv_attach_module_load_provenance.cpp.o",
+    "nv_elf_introspect.cpp.o"
+  ],
+  "base_archive": "rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/libbpftime_nv_attach_impl.a",
+  "base_archive_recorded_sha256": "1dc5f74c3fa447e9ef29bb7d6da944c380476198a1125ce79e55af08ce6a0362",
+  "build_receipt": "rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_BUILD_RECEIPT.json",
+  "changed_sources": {
+    "nv_attach_impl_frida_setup.cpp": "1a105177bd202ec6b1bb62eeb5fb067d8628f95b7c0c05c8662b6c59670e12d8",
+    "provider_router_exact.cpp": "6e57dc32a14d0e981d3835825d0d3250fd4bfc3b58ba17c19042f660ec1ce738",
+    "qkv_live_identity_v1.hpp": "e7a32f51dbf5082a269a83276a528a65526192ac5b80e18410b1cd89d6174b6b"
+  },
+  "copied_unchanged_sources": {
+    "library_identity_core.cpp": "fb8d2ac996c4cb36a2ebe372a5e9815c47e6ac9f8f34ee264a7e431c71ecf397",
+    "library_identity_core.hpp": "5be8029d483ab3ec24c50caacafc4294b4646a57caf039e60621193073889cf0",
+    "qkv_exact_abi_adapter.hpp": "2f52c5ebb0285d6b5b9b1cb3cd80857bdb196bac2c5f4efac87ee21d26deb2b6"
+  },
+  "object": {
+    "path": "rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/nv_attach_impl_frida_setup.cpp.o",
+    "sha256": "758974eb5a5120a532e04c19f2e3f09d97c3680b5e09bfbcad6d23d6e42e83bc"
+  },
+  "schema": "hbfsim.combined_host_source_identity.v1"
+}

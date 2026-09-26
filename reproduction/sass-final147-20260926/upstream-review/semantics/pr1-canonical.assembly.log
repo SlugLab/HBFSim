@@ -1,0 +1,3 @@
+ptxas rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-canonical.ptx, line 11; error   : Arguments mismatch for instruction 'selp'
+ptxas rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-canonical.ptx, line 11; error   : Unknown symbol '%p0'
+ptxas fatal   : Ptx assembly aborted due to errors

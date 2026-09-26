@@ -1,0 +1,248 @@
+{
+  "schema": "hbfsim.final147.ptx_stage_recipe.v1",
+  "status": "READ_ONLY_RECIPE_AUDIT_NO_TRANSFORMS",
+  "li6": {
+    "historical_transform_script": "task/qkv-hbf-stage-v1/run_stage.sh",
+    "historical_transform_input_receipt": "task/qkv-hbf-stage-v1/run-v1/source.sha256",
+    "outputs": {
+      "instrumented_ptx_sha256": "7219c1e8f58fdca32bc520a3a8ccdb1055aaccc33d12ff7935d7ef7baf786d67",
+      "kernel": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+      "pass_manifest_sha256": "7e6efbdbde59aaa9bdeed87f7307758d7d8b5bbaa70d997545e2886da4aa80b6",
+      "schema": "hbfsim.qkv_exact_prepatched_stage.v1",
+      "source_ptx_sha256": "6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab",
+      "staged_ptx": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/stage-v1/6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab.ptx",
+      "status": "CPU_PREPARED_NOT_RUNTIME_BOUND"
+    }
+  },
+  "li7": {
+    "actual_recovery_jobs": [
+      {
+        "argv": [
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/target/release/hbfsim_sass_recovery_diagnostic",
+          "--input",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/li7-single-image.sass",
+          "--kernel",
+          "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+          "--sm",
+          "sm_120",
+          "--ptx-out",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.candidate.ptx",
+          "--diagnostics-out",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.diagnostics.json",
+          "--quarantine-out",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx",
+          "--cubin",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v2/d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0.7.sm_120.cubin"
+        ],
+        "elapsed_seconds": 0.022250363021157682,
+        "name": "recovery",
+        "rc": 1,
+        "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/recovery.stderr",
+        "stderr_bytes": 3522,
+        "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/recovery.stdout",
+        "stdout_bytes": 0
+      },
+      {
+        "argv": [
+          "/usr/local/cuda-13.1/bin/ptxas",
+          "-arch=sm_120",
+          "-o",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-assembled.cubin",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx"
+        ],
+        "elapsed_seconds": 0.09717556706164032,
+        "name": "ptxas",
+        "rc": 0,
+        "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/ptxas.stderr",
+        "stderr_bytes": 0,
+        "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/ptxas.stdout",
+        "stdout_bytes": 0
+      },
+      {
+        "argv": [
+          "/usr/local/cuda-13.1/bin/cuobjdump",
+          "--dump-elf",
+          "--function",
+          "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+          "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-assembled.cubin"
+        ],
+        "elapsed_seconds": 0.016939196968451142,
+        "name": "candidate-elf",
+        "rc": 0,
+        "stderr": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/candidate-elf.stderr",
+        "stderr_bytes": 0,
+        "stdout": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/candidate-elf.stdout",
+        "stdout_bytes": 107470
+      }
+    ],
+    "outputs": {
+      "schema": "hbfsim.li7_exact_target.v1",
+      "status": "CPU_PREPARED_GPU_NOT_RUN",
+      "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+      "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+      "native_aggregate": {
+        "offset": 0,
+        "bytes": 152,
+        "semantic_roles": "RUNTIME_CAPTURE_REQUIRED"
+      },
+      "candidate_abi_map": {
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-byte-abi-map.json",
+        "sha256": "bb00420b91dac15c735e30ad2fea52f71d21c583540dd18a8181cc34b2a4bd09"
+      },
+      "source_ptx": {
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx",
+        "sha256": "e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"
+      },
+      "staged_ptx": {
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/staged.ptx",
+        "sha256": "7ac0e8a61283376711e6b13e8af9e4d7e2e5621ab1cb6896e6791280476c689a"
+      },
+      "pass_manifest": {
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/pass-manifests.jsonl",
+        "sha256": "21a18f62209eff935b4876866ffc4013f1345fb9628f58ea8b84eb0c9dc169a5"
+      },
+      "sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/li7-sidecar.json"
+    },
+    "transform_historical_argv": "UNKNOWN_NOT_PRESERVED_IN_INSPECTED_STAGE_RECEIPTS",
+    "transform_recipe_class": "DOC_DERIVED_RECONSTRUCTION_NOT_VERBATIM_HISTORICAL_COMMAND"
+  },
+  "common_transform": {
+    "argv": [
+      "python3",
+      "${PREPARE_TRITON_PTX}",
+      "--transform-one",
+      "--pass-library",
+      "${HBF_PASS_LIBRARY}",
+      "--kernel",
+      "${EXACT_LI6_OR_LI7_SYMBOL}"
+    ],
+    "stdin": "${RECOVERED_QUARANTINE_PTX}",
+    "stdout": "${NEW_STAGE_DIR}/staged.ptx",
+    "environment": {
+      "HBFSIM_PASS_MANIFEST_PATH": "${NEW_STAGE_DIR}/pass-manifests.jsonl"
+    },
+    "pass_sha256": "0ab365ca22940995a568cce6d8962f034709b6090d7074c417068379efb09a58",
+    "python_entry_sha256": "f385d3ee6e5c16e0141ec857fc465fddb2320cdca53fca64025c518310c2709e",
+    "exact_python_source": "/root/hbfsim-exp/rebuttal_20260921/worktree/adapters/vllm/prepare_triton_ptx.py"
+  },
+  "helper": {
+    "historical_build_command": "cd /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2 && /usr/bin/cmake -E make_directory /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/generated && /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/bin/nvcc --ptx --std=c++20 --gpu-architecture=compute_120 --relocatable-device-code=true --keep-device-functions --compiler-bindir=/usr/bin/g++-15 -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/cuda_runtime/device -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/include -DHBFSIM_ENABLE_TIMING_FUTURES=1 -DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=0 -DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=0 /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/cuda_runtime/device/hbf_device.cu -o /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/generated/hbf_device.ptx && /usr/bin/cmake -DINPUT=/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/generated/hbf_device.ptx -DOUTPUT=/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/generated/hbf_device_ptx.hpp -P /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/cmake/EmbedDevicePtx.cmake",
+    "source_root": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2",
+    "build_blocks": [
+      "build CMakeFiles/hbfsim_core.dir/src/ptxpass_hbf/transform.cpp.o: CXX_COMPILER__hbfsim_core_unscanned_Release /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/ptxpass_hbf/transform.cpp || cmake_object_order_depends_target_hbfsim_core\n  CONFIG = Release\n  DEFINES = -DHBFSIM_DEVICE_PTX_ARCHITECTURE=120 -DHBFSIM_ENABLE_CUDA_RUNTIME=1 -DHBFSIM_ENABLE_TIMING_FUTURES=1 -DHBFSIM_HAVE_DEVICE_HELPER_PTX=1 -DHBFSIM_TIMING_FUTURE_UNIT_COMPLETE=1\n  DEP_FILE = CMakeFiles/hbfsim_core.dir/src/ptxpass_hbf/transform.cpp.o.d\n  FLAGS = -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG -std=gnu++20 -fPIC\n  INCLUDES = -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/include -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/third_party/bpftime/third_party -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/generated -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/ptxpass_hbf -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/exec -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/host -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/nvm_chip -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/sim -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/ssd -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/_deps/mqsim-hbf-src/src/utils -isystem /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include -isystem /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cccl\n  OBJECT_DIR = CMakeFiles/hbfsim_core.dir\n  OBJECT_FILE_DIR = CMakeFiles/hbfsim_core.dir/src/ptxpass_hbf\n  TARGET_COMPILE_PDB = CMakeFiles/hbfsim_core.dir/hbfsim_core.pdb\n  TARGET_PDB = libhbfsim_core.pdb\n  TARGET_SUPPORT_DIR = CMakeFiles/hbfsim_core.dir",
+      "build CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf/plugin.cpp.o: CXX_COMPILER__ptxpass_hbf_plugin_unscanned_Release /root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/ptxpass_hbf/plugin.cpp || cmake_object_order_depends_target_ptxpass_hbf_plugin\n  CONFIG = Release\n  DEFINES = -DHBFSIM_ENABLE_TIMING_FUTURES=1 -DHBFSIM_TIMING_FUTURE_UNIT_COMPLETE=1 -Dptxpass_hbf_plugin_EXPORTS\n  DEP_FILE = CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf/plugin.cpp.o.d\n  FLAGS = -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG -std=gnu++20 -fPIC\n  INCLUDES = -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/src/ptxpass_hbf -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/third_party/bpftime/third_party -I/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-source-v2/include\n  OBJECT_DIR = CMakeFiles/ptxpass_hbf_plugin.dir\n  OBJECT_FILE_DIR = CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf\n  TARGET_COMPILE_PDB = CMakeFiles/ptxpass_hbf_plugin.dir/\n  TARGET_PDB = libptxpass_hbf.pdb\n  TARGET_SUPPORT_DIR = CMakeFiles/ptxpass_hbf_plugin.dir",
+      "build libptxpass_hbf.so: CXX_SHARED_LIBRARY_LINKER__ptxpass_hbf_plugin_Release CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf/plugin.cpp.o | libhbfsim_core.a /usr/lib/x86_64-linux-gnu/libcrypto.so libhbfsim_future_emitter.a libhbfsim_eval_ptx.a /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/lib64/libcudart.so /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/lib/stubs/libcuda.so /usr/lib/x86_64-linux-gnu/librt.a libmqsim_hbf.a || libhbfsim_core.a libhbfsim_eval_ptx.a libhbfsim_future_emitter.a libmqsim_hbf.a\n  CONFIG = Release\n  DEP_FILE = CMakeFiles/ptxpass_hbf_plugin.dir/link.d\n  LANGUAGE_COMPILE_FLAGS = -fconstexpr-loop-limit=1048576 -O3 -DNDEBUG\n  LINK_FLAGS = -shared -Wl,--version-script=/root/hbfsim-exp/rebuttal_20260921/first-fault-build-v3/cudart-versions.map -Wl,--dependency-file=CMakeFiles/ptxpass_hbf_plugin.dir/link.d\n  LINK_LIBRARIES = -Wl,-rpath,/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/lib64  libhbfsim_core.a  /usr/lib/x86_64-linux-gnu/libcrypto.so  libhbfsim_future_emitter.a  libhbfsim_eval_ptx.a  /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/lib64/libcudart.so  /root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/lib/stubs/libcuda.so  -ldl  /usr/lib/x86_64-linux-gnu/librt.a  libmqsim_hbf.a\n  OBJECT_DIR = CMakeFiles/ptxpass_hbf_plugin.dir\n  POST_BUILD = :\n  PRE_LINK = :\n  SONAME = libptxpass_hbf.so\n  SONAME_FLAG = -Wl,-soname,\n  TARGET_COMPILE_PDB = CMakeFiles/ptxpass_hbf_plugin.dir/\n  TARGET_FILE = libptxpass_hbf.so\n  TARGET_PDB = libptxpass_hbf.pdb\n  TARGET_SUPPORT_DIR = CMakeFiles/ptxpass_hbf_plugin.dir"
+    ],
+    "embedded_ptx_sha256": "f9efe0858b1aca808c263074ad7bfa2c4826e9d254476c5f5343a8e1f0a699c7",
+    "embedded_bytes": 297388,
+    "toolchain": "CUDA13.0 nvcc compute_120, g++15; source delivery profile Cargo/rustc1.97.0-nightly; recovery assembler/cuobjdump CUDA13.1 V13.1.115"
+  },
+  "small_required_files": [
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run_stage.sh",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/source.sha256",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/command.txt",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/stage.rc",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/staged.sha256",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/manifest.sha256",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/pass-manifests.jsonl",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/prepare_stage.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/reproduce_v7_cpu.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/profile-giga-v7.json",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/README.md",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-MIT",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-APACHE",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_cpu.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_metadata_v2.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/prepare_first_image_v2.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run_li7_cpu_v2.py",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/SLICE_RECEIPT.json",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/CPU_RECEIPT.json",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/PAUSE_CHECKPOINT_20260925.md",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/li7-target-manifest.json",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/pass-manifests.jsonl",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/stage.rc",
+      "exists": true
+    },
+    {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-wait-boundary-v1/EXACT_HELPER_AND_OBSERVER_REVIEW.md",
+      "exists": true
+    }
+  ],
+  "source_closure": [
+    "first-fault-compact-source-v2/CMakeLists.txt",
+    "first-fault-compact-source-v2/cmake/EmbedDevicePtx.cmake",
+    "first-fault-compact-source-v2/src/ptxpass_hbf (sources/headers)",
+    "first-fault-compact-source-v2/src/cuda_runtime/device/hbf_device.cu",
+    "first-fault-compact-source-v2/src/cuda_runtime/device/hbf_device.cuh",
+    "first-fault-compact-source-v2/include/hbfsim/timing_future_abi.hpp",
+    "source includes/core/MQSim closure via published base+first-fault patch; plugin links core, future emitter, PTX IR, MQSim, crypto, CUDA runtime/driver and rt"
+  ],
+  "warning": "No GPU or transform executed; Li7 reconstruction command is not fabricated historical argv; target filenames use SOURCE SHA, content uses STAGED SHA. Preserve exact manifest/sidecar joins after relocation."
+}

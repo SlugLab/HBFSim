@@ -1,0 +1,9 @@
+{
+  "instrumented_ptx_sha256": "7219c1e8f58fdca32bc520a3a8ccdb1055aaccc33d12ff7935d7ef7baf786d67",
+  "kernel": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+  "pass_manifest_sha256": "7e6efbdbde59aaa9bdeed87f7307758d7d8b5bbaa70d997545e2886da4aa80b6",
+  "schema": "hbfsim.qkv_exact_prepatched_stage.v1",
+  "source_ptx_sha256": "6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab",
+  "staged_ptx": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/stage-v1/6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab.ptx",
+  "status": "CPU_PREPARED_NOT_RUNTIME_BOUND"
+}

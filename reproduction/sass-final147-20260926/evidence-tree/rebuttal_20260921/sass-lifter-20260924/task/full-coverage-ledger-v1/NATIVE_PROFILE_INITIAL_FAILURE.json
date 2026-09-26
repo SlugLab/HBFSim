@@ -1,0 +1,7 @@
+{
+  "status": "CPU_DERIVATION_ASSERTION_FAILED",
+  "command": "python3 task/full-coverage-ledger-v1/compare_native_profiles.py",
+  "symptom": "AssertionError: ('lm_head.weight', 2)",
+  "cause": "Initial derived-audit assumption of one scheduled n=1 BLAS per storage is false for lm_head; preserve both calls and all exact-driver links. n=1 is not a decode label.",
+  "gpu_started": false
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "hbfsim.combined_model_plugin_root_review.v1",
+  "status": "CPU_PLUGIN_REVIEW_ACCEPTED_NOT_GPU_VALIDATED",
+  "utc": "2026-09-25T15:12:15.461495+00:00",
+  "reviewer": "root Astra6 medium",
+  "plugin_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter/__init__.py",
+  "plugin_sha256": "86f8d30d5a36040807b2610dbff576b8707d00d96b0cb0d0cc3717c62ef04a71",
+  "review_scope": [
+    "Full plugin source including manifest exact scope/cardinality and storage identity",
+    "Single scheduled request/thread selected lifecycle, one native reference plus candidate feeding actual caller",
+    "QKV/oproj tuple-none, router bias identity, head final100608B/vocab50304 contract",
+    "Per-target saved raw activation/native/candidate and exact same-device/nonalias output checks",
+    "Candidate primary error preserved if end also raises; both logged",
+    "Missing/duplicate target and post-forward head/execute completion guards",
+    "Isolated actual vllm.general_plugins metadata entrypoint reviewed"
+  ],
+  "cpu_fixtures": "CPU_CONTRACT_RESULT.json",
+  "stage_review": "ROOT_SCOPE_STAGE_REVIEW.json",
+  "limitations": [
+    "Fake runner sets completion flags deliberately; fixture proves wrapper rejection/ordering only, not real vLLM execution",
+    "Live registration addresses, module/context/Driver and service joins require real run",
+    "Strict validator and concrete runtime package still being prepared",
+    "GPU launch requires head representative MODEL_CONNECTED_PASS and concrete root-reviewed preflight"
+  ],
+  "unchanged": [
+    "active6706 frozen package",
+    "host build-v5",
+    "gate",
+    "stagedPTX",
+    "devicehelper",
+    "old98/6603 evidence"
+  ]
+}

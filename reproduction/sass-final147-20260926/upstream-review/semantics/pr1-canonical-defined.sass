@@ -1,0 +1,4 @@
+Function : probe
+/*0000*/ ISETP.EQ.U32.AND P0, PT, R1, R2, PT ;
+/*0010*/ FSEL R5, R6, -QNAN, !P0 ; /* 0xffc0000006057808 */
+/*0020*/ EXIT ;

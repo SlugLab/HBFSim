@@ -1,0 +1,24 @@
+{
+  "elapsed_seconds": 24.813265323638916,
+  "gpu_used": false,
+  "products": {
+    "build-agent-v2/libbpftime-agent.so": {
+      "bytes": 206747688,
+      "sha256": "f707cc21f3f472d5c4a314dde97ad73bc56d491e88b153d9e33d85507abf785c"
+    },
+    "build-agent-v2/libbpftime_nv_attach_impl.a": {
+      "bytes": 2416424,
+      "sha256": "1dc5f74c3fa447e9ef29bb7d6da944c380476198a1125ce79e55af08ce6a0362"
+    },
+    "build-gate-v2/libhbfsim_launch_gate.so": {
+      "bytes": 645288,
+      "sha256": "7bdabe7847b97bd541f72d61681583db0dba865d040328c5ba7ed1071c113917"
+    },
+    "build-provider-v2/libprovider_router.so": {
+      "bytes": 174040,
+      "sha256": "fe47fd3e2d1780844381055e6df1fb23c09fa419c94969fbe6d58033071144eb"
+    }
+  },
+  "schema": "hbfsim.li7_host_cpu_build.v1",
+  "status": "CPU_BUILD_PASS_NO_GPU"
+}

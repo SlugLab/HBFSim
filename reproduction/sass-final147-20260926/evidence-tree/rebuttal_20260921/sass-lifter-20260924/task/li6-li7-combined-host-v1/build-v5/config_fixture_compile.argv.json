@@ -1,0 +1,8 @@
+[
+  "/usr/bin/g++-13",
+  "-std=c++20",
+  "-O0",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/config_fixture.cpp",
+  "-o",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/config_fixture"
+]

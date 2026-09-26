@@ -1,0 +1,21 @@
+# Combined host binding review, 2026-09-25
+
+Status: DOC_DERIVED static findings; no implementation/build/run. Root Astra review while epoch6705 is active. This is preparation for the original147 target, not a substitute for missing head representative evidence.
+
+## Reviewed concrete consumers
+
+- `task/router-li7-host-adapter-v1/source/nv_attach_impl_frida_setup.cpp:1507-1529`: active profile derives from process-global `HBFSIM_QKV_TARGET_KIND`, while bound original/patched/context/token is a single object. Config identity, source/staged files, entry name and geometry all depend on this choice.
+- Same source `:1759-1785`: public select/end ABI already selects an exact registered base/extent on the actual execution thread. End clears the TLS selection and succeeds only after one successful selected call. Keep those semantics. Each layer must select its newly observed registered storage, never reuse an old pointer.
+- Same source `:1860-1940`: the selected weight comes from the original aggregate first pointer; it is checked before exact envelope, provider identity, bound token, candidate metadata and aggregate conversion. A selected failure refuses the call. The converted bridge is one TLS scope across direct/common entry and must not become two inspections.
+- `source/launch_gate.cpp:2701-2726` already recognizes exact Li6 and Li7 names, with an identity fallback for unknown names. `:4221` supplies the existing launch guard/geometry/one inspect/approval/direct-call lifecycle for converted cells. No need to replace this lifecycle solely for two profiles.
+- `source/provider_router_exact.cpp:97-100,206,424-425`: provider identity query and callback API/CBID/thread enrichment still filter by a single selected symbol. Updating only the agent would therefore leave one category without verified identity or callback evidence. Module/function/context invalidation and library-generation checks are already implemented and must stay effective.
+- `source/qkv_live_identity_v1.hpp`: current query returns104-byte V1 identity with context,module,token,image hash; it does not return an entry/profile identifier. Two entries share the same admitted image. Broadening the provider to either name while retaining an untyped fallback is insufficient evidence that a chosen profile is correct. A concrete future implementation must prove exact entry identity as well as image/context/token, without repurposing reserved ABI fields silently.
+- `source/qkv_exact_abi_adapter.hpp`: both reviewed candidates currently use one152-byte original aggregate to19 independently aligned cells, with widths4 at slots9/14/18 and8 elsewhere. This common layout is an observed compatibility fact; retain separate registered map identities and per-candidate metadata checks. Similar names alone are not profile equivalence.
+
+## Required evidence for a future bounded host extension
+
+Use two immutable profiles and independently pinned live identities, activated by a new default-off combined configuration. Avoid changing environment during execution. Preserve select/end ABI and existing unarmed native path. Match profile by exact entry identity and validate registered storage/envelope; reject mismatched/cross-profile identities. Provider callback logs need API/CBID/thread for both exact entries. Each profile must keep original-source filename, staged-content hash and manifest/sidecar joins separate.
+
+CPU fixtures should cover interleaved Li6/Li7, wrong entry within the same image, stale context/module/library token, wrong map/staged identity, duplicate selected launch and missing launch, wrong storage, and unchanged legacy/default-off behavior. Build records must map each changed translation unit to its object/archive/final DSO and check actual exports/resolution. GPU validation then uses real model consumers and per-storage attribution, followed by the promised final combined regression only after all representative and expansion gates pass.
+
+The new entry-identity mechanism and exact diff remain undecided pending representative evidence. No new PTX/helper algorithm or scheduling/ownership change is authorized by this static note. Head-only success would not prove the prior two-selection failure fixed. Registration extents and observed access bytes remain separate.

@@ -1,0 +1,21 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry wide_numeric()
+{
+    .reg .b32 %r<32>;
+    .reg .b64 %rd<32>;
+
+L_0000:
+    // 0x0000: /*0000*/ LDG.E.64 R8, desc[UR2][R30.64];
+    mov.b64 %rd30, {%r30, %r31};
+    ld.global.u32 %r8, [%rd30];
+L_0010:
+    // 0x0010: /*0010*/ STG.E.128 desc[UR2][R30.64], R8;
+    mov.b64 %rd30, {%r30, %r31};
+    st.global.u32 [%rd30], %r8;
+L_0020:
+    // 0x0020: /*0020*/ EXIT;
+    ret;
+}

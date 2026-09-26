@@ -1,0 +1,23 @@
+[
+  "/usr/bin/g++-15",
+  "-DHBFSIM_ENABLE_TEST_HOOKS=1",
+  "-Dhbfsim_launch_gate_EXPORTS",
+  "-I",
+  "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include",
+  "-I",
+  "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/toolchain-download-v1/root/usr/local/cuda-13.0/targets/x86_64-linux/include/cccl",
+  "-I",
+  "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/third_party/bpftime/third_party",
+  "-I",
+  "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include",
+  "-I",
+  "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime",
+  "-O3",
+  "-DNDEBUG",
+  "-std=gnu++20",
+  "-fPIC",
+  "-c",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/launch_gate.cpp",
+  "-o",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/launch_gate.cpp.o"
+]

@@ -1,0 +1,3640 @@
+{
+  "alias_discovery_complete": true,
+  "device": 0,
+  "discovered_storage_count": 147,
+  "mode": "timing_backed",
+  "parameter_count": 147,
+  "profile_path": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "registered_bytes": 13838323712,
+  "schema_version": 2,
+  "selection": {
+    "accept_storage_closure": false,
+    "exclude_patterns": [],
+    "include_patterns": [
+      "^model\\.embed_tokens\\.weight$",
+      "^model\\.(?:norm|layers\\.\\d+\\.(?:input_layernorm|post_attention_layernorm|self_attn\\.[qk]_norm))\\.weight$",
+      "^model\\.layers\\.\\d+\\.mlp\\.experts\\.w(?:13|2)_weight$",
+      "^model\\.layers\\.(?:[0-9]|1[0-5])\\.(?:self_attn\\.(?:qkv_proj|o_proj)|mlp\\.gate)\\.weight$",
+      "^lm_head\\.weight$"
+    ],
+    "instrumentation_policy": "partial",
+    "max_bytes_per_storage": 0,
+    "mode": "include",
+    "parameter_regex": "",
+    "storage_closure_aliases": []
+  },
+  "status": "REGISTERED_PENDING_INSTRUMENTATION",
+  "storages": [
+    {
+      "address": 1099683594240,
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132103530348544,
+      "aliases": [
+        "model.layers.15.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132103798784000,
+      "aliases": [
+        "lm_head.weight"
+      ],
+      "bytes": 206045184,
+      "storage_bytes": 206045184,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "lm_head.weight",
+          "requires_grad": false,
+          "shape": [
+            50304,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132104067219456,
+      "aliases": [
+        "model.layers.15.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132104604090368,
+      "aliases": [
+        "model.layers.14.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132104872525824,
+      "aliases": [
+        "model.layers.15.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105140961280,
+      "aliases": [
+        "model.layers.14.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105677832192,
+      "aliases": [
+        "model.layers.13.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105946267648,
+      "aliases": [
+        "model.layers.14.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105971433472,
+      "aliases": [
+        "model.layers.14.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105979822080,
+      "aliases": [
+        "model.layers.15.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105992404992,
+      "aliases": [
+        "model.layers.14.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132105992667136,
+      "aliases": [
+        "model.layers.15.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132106214703104,
+      "aliases": [
+        "model.layers.13.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132106751574016,
+      "aliases": [
+        "model.layers.12.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132107020009472,
+      "aliases": [
+        "model.layers.13.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132107288444928,
+      "aliases": [
+        "model.layers.12.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132107825315840,
+      "aliases": [
+        "model.layers.11.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132108093751296,
+      "aliases": [
+        "model.layers.12.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132108118917120,
+      "aliases": [
+        "model.layers.12.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132108127305728,
+      "aliases": [
+        "model.layers.13.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132108362186752,
+      "aliases": [
+        "model.layers.11.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132108899057664,
+      "aliases": [
+        "model.layers.10.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132109167493120,
+      "aliases": [
+        "model.layers.11.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132109435928576,
+      "aliases": [
+        "model.layers.10.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132109972799488,
+      "aliases": [
+        "model.layers.9.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132110241234944,
+      "aliases": [
+        "model.layers.10.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132110266400768,
+      "aliases": [
+        "model.layers.10.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132110274789376,
+      "aliases": [
+        "model.layers.11.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132110509670400,
+      "aliases": [
+        "model.layers.9.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132111046541312,
+      "aliases": [
+        "model.layers.8.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132111314976768,
+      "aliases": [
+        "model.layers.9.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132111583412224,
+      "aliases": [
+        "model.layers.8.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132112120283136,
+      "aliases": [
+        "model.layers.7.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132112388718592,
+      "aliases": [
+        "model.layers.8.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132112413884416,
+      "aliases": [
+        "model.layers.8.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132112422273024,
+      "aliases": [
+        "model.layers.9.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132112657154048,
+      "aliases": [
+        "model.layers.7.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132113194024960,
+      "aliases": [
+        "model.layers.6.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132113462460416,
+      "aliases": [
+        "model.layers.7.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132113730895872,
+      "aliases": [
+        "model.layers.6.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132114267766784,
+      "aliases": [
+        "model.layers.5.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132114536202240,
+      "aliases": [
+        "model.layers.6.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132114561368064,
+      "aliases": [
+        "model.layers.6.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132114569756672,
+      "aliases": [
+        "model.layers.7.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132114804637696,
+      "aliases": [
+        "model.layers.5.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132115341508608,
+      "aliases": [
+        "model.layers.4.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132115609944064,
+      "aliases": [
+        "model.layers.5.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132115878379520,
+      "aliases": [
+        "model.layers.4.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132116415250432,
+      "aliases": [
+        "model.layers.3.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132116683685888,
+      "aliases": [
+        "model.layers.4.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132116708851712,
+      "aliases": [
+        "model.layers.4.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132116717240320,
+      "aliases": [
+        "model.layers.5.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132116952121344,
+      "aliases": [
+        "model.layers.3.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132117488992256,
+      "aliases": [
+        "model.layers.2.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132117757427712,
+      "aliases": [
+        "model.layers.3.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132118025863168,
+      "aliases": [
+        "model.layers.2.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132118562734080,
+      "aliases": [
+        "model.layers.1.mlp.experts.w2_weight"
+      ],
+      "bytes": 268435456,
+      "storage_bytes": 268435456,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.mlp.experts.w2_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2097152,
+            1024,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132118831169536,
+      "aliases": [
+        "model.layers.2.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132118856335360,
+      "aliases": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132118864723968,
+      "aliases": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132119099604992,
+      "aliases": [
+        "model.layers.1.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132119636475904,
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "bytes": 536870912,
+      "storage_bytes": 536870912,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.mlp.experts.w13_weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            4194304,
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977497088,
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977501184,
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977508864,
+      "aliases": [
+        "model.layers.0.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977771008,
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977775104,
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977779200,
+      "aliases": [
+        "model.layers.1.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977783296,
+      "aliases": [
+        "model.layers.1.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138977790976,
+      "aliases": [
+        "model.layers.1.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978053120,
+      "aliases": [
+        "model.layers.1.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978057216,
+      "aliases": [
+        "model.layers.1.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978061312,
+      "aliases": [
+        "model.layers.2.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978065408,
+      "aliases": [
+        "model.layers.2.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978073088,
+      "aliases": [
+        "model.layers.2.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978335232,
+      "aliases": [
+        "model.layers.2.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978339328,
+      "aliases": [
+        "model.layers.2.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.2.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978343424,
+      "aliases": [
+        "model.layers.3.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978347520,
+      "aliases": [
+        "model.layers.3.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978355200,
+      "aliases": [
+        "model.layers.3.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978359296,
+      "aliases": [
+        "model.layers.3.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978363392,
+      "aliases": [
+        "model.layers.4.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978367488,
+      "aliases": [
+        "model.layers.4.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978375168,
+      "aliases": [
+        "model.layers.4.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978379264,
+      "aliases": [
+        "model.layers.4.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978383360,
+      "aliases": [
+        "model.layers.5.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978387456,
+      "aliases": [
+        "model.layers.5.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978395136,
+      "aliases": [
+        "model.layers.5.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978399232,
+      "aliases": [
+        "model.layers.5.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978403328,
+      "aliases": [
+        "model.layers.6.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978407424,
+      "aliases": [
+        "model.layers.6.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978415104,
+      "aliases": [
+        "model.layers.6.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978419200,
+      "aliases": [
+        "model.layers.6.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978423296,
+      "aliases": [
+        "model.layers.7.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978427392,
+      "aliases": [
+        "model.layers.7.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978435072,
+      "aliases": [
+        "model.layers.7.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978439168,
+      "aliases": [
+        "model.layers.7.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978443264,
+      "aliases": [
+        "model.layers.8.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978447360,
+      "aliases": [
+        "model.layers.8.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978455040,
+      "aliases": [
+        "model.layers.8.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978459136,
+      "aliases": [
+        "model.layers.8.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978463232,
+      "aliases": [
+        "model.layers.9.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978467328,
+      "aliases": [
+        "model.layers.9.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978475008,
+      "aliases": [
+        "model.layers.9.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978479104,
+      "aliases": [
+        "model.layers.9.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978483200,
+      "aliases": [
+        "model.layers.10.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978487296,
+      "aliases": [
+        "model.layers.10.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978494976,
+      "aliases": [
+        "model.layers.10.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978499072,
+      "aliases": [
+        "model.layers.10.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138978503168,
+      "aliases": [
+        "model.layers.11.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132138980605952,
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "bytes": 206045184,
+      "storage_bytes": 206045184,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.embed_tokens.weight",
+          "requires_grad": false,
+          "shape": [
+            50304,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139188224000,
+      "aliases": [
+        "model.layers.0.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139213389824,
+      "aliases": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.0.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139221778432,
+      "aliases": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "bytes": 8388608,
+      "storage_bytes": 8388608,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.self_attn.o_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            2048,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139243798528,
+      "aliases": [
+        "model.layers.3.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.3.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139244060672,
+      "aliases": [
+        "model.layers.4.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.4.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139244322816,
+      "aliases": [
+        "model.layers.5.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.5.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139244584960,
+      "aliases": [
+        "model.layers.6.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.6.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139244847104,
+      "aliases": [
+        "model.layers.7.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.7.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139245109248,
+      "aliases": [
+        "model.layers.8.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.8.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139245371392,
+      "aliases": [
+        "model.layers.9.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.9.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139245633536,
+      "aliases": [
+        "model.layers.10.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.10.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139245895680,
+      "aliases": [
+        "model.layers.11.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139245901824,
+      "aliases": [
+        "model.layers.11.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246163968,
+      "aliases": [
+        "model.layers.11.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246168064,
+      "aliases": [
+        "model.layers.11.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.11.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246172160,
+      "aliases": [
+        "model.layers.12.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246176256,
+      "aliases": [
+        "model.layers.12.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246183936,
+      "aliases": [
+        "model.layers.12.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246446080,
+      "aliases": [
+        "model.layers.12.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246450176,
+      "aliases": [
+        "model.layers.12.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.12.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246454272,
+      "aliases": [
+        "model.layers.13.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246458368,
+      "aliases": [
+        "model.layers.13.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246466048,
+      "aliases": [
+        "model.layers.13.mlp.gate.weight"
+      ],
+      "bytes": 262144,
+      "storage_bytes": 262144,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.mlp.gate.weight",
+          "requires_grad": false,
+          "shape": [
+            64,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246728192,
+      "aliases": [
+        "model.layers.13.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246732288,
+      "aliases": [
+        "model.layers.13.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.13.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246736384,
+      "aliases": [
+        "model.layers.14.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246740480,
+      "aliases": [
+        "model.layers.14.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246748160,
+      "aliases": [
+        "model.layers.14.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246752256,
+      "aliases": [
+        "model.layers.14.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.14.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246756352,
+      "aliases": [
+        "model.layers.15.self_attn.q_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.self_attn.q_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246760448,
+      "aliases": [
+        "model.layers.15.self_attn.k_norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.self_attn.k_norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246768128,
+      "aliases": [
+        "model.layers.15.input_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.input_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246772224,
+      "aliases": [
+        "model.layers.15.post_attention_layernorm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.15.post_attention_layernorm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246776320,
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "bytes": 4096,
+      "storage_bytes": 4096,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.norm.weight",
+          "requires_grad": true,
+          "shape": [
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "address": 132139246944256,
+      "aliases": [
+        "model.layers.1.self_attn.qkv_proj.weight"
+      ],
+      "bytes": 25165824,
+      "storage_bytes": 25165824,
+      "tensors": [
+        {
+          "dtype": "torch.bfloat16",
+          "element_size": 2,
+          "name": "model.layers.1.self_attn.qkv_proj.weight",
+          "requires_grad": false,
+          "shape": [
+            6144,
+            2048
+          ],
+          "storage_offset": 0,
+          "stride": [
+            2048,
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "timing_model": "hybrid",
+  "unique_storage_count": 147
+}

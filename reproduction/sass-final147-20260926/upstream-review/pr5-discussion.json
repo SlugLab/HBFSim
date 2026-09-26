@@ -1,0 +1,323 @@
+{
+  "reviews": [
+    {
+      "id": 5308724687,
+      "node_id": "PRR_kwDOR9dSnM8AAAABPGy1zw",
+      "user": {
+        "login": "copilot-pull-request-reviewer[bot]",
+        "id": 175728472,
+        "node_id": "BOT_kgDOCnlnWA",
+        "avatar_url": "https://avatars.githubusercontent.com/in/946600?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D",
+        "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+        "followers_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/copilot-pull-request-reviewer%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "<!-- ccr-overview-v2 -->\n\n## Copilot review overview\n\n### \ud83d\udfe1 Changes recommended\n\nCritical regressions and unsupported operand/address forms remain unresolved.\n\n*Get a fresh assessment by requesting another Copilot review.*\n\n**Review effort:** Lite  \n**Findings:** 2 <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.png\" alt=\"High severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> \u00b7 1 <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-light.png\" alt=\"Medium severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> \u00b7 1 <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-light.png\" alt=\"Low severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture>\n\n<details open>\n<summary><strong>Open (4)</strong></summary>\n\n- <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.png\" alt=\"High severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> [Immediate IMAD.WIDE forms break existing round-trip fixture](#discussion_r4097232521) \u00b7 New\n- <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/high-v2-light.png\" alt=\"High severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> [Descriptor-address atomics omit required address-pair setup](#discussion_r4097232584) \u00b7 New\n- <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/medium-v2-light.png\" alt=\"Medium severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> [Wide numeric memory modifiers bypass unsupported-width rejection](#discussion_r4097232625) \u00b7 New\n- <picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-light.svg\"><img src=\"https://github.githubassets.com/static/images/icons/copilot-code-review/low-v2-light.png\" alt=\"Low severity\" width=\"62\" height=\"18\" align=\"texttop\"></picture> [Add unit coverage for IADD.64 register-pair lowering](#discussion_r4097232661) \u00b7 New\n</details>\n\n<details>\n<summary><strong>What changed in this PR</strong></summary>\n\nAdds narrow SASS-to-PTX lowering for selected 64-bit register-pair operations and descriptor addresses.\n\n**Changes:**\n- Adds pair bridging for `IADD.64` and selected `IMAD.WIDE.U32` forms.\n- Declares implicit upper registers and preserves predicates.\n- Rejects selected unsupported wide global memory operations.\n\n| File | Summary |\r\n|---|---|\r\n| `ptx/\u200bsrc/\u200bsass/\u200blifter.rs` | Adds pair lowering and diagnostics, but has critical fixture and atomic descriptor regressions, plus moderate gaps for wide modifiers, binary opcode handling, and commuted operands; a focused `IADD.64` test is also missing. |\n</details>\n\n---\n\n\ud83d\udca1 <a href=\"/vickiegpt/Concordia/new/tmatmul?filename=.github/skills/code-review/SKILL.md\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Add a `code-review` agent skill</a> or configure MCP servers for context-aware, tailored reviews. <a href=\"https://docs.github.com/copilot/how-tos/use-copilot-agents/request-a-code-review/use-code-review?tool=webui#mcp-servers-and-agent-skills\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Learn more in the docs.</a>",
+      "state": "COMMENTED",
+      "html_url": "https://github.com/vickiegpt/Concordia/pull/5#pullrequestreview-5308724687",
+      "pull_request_url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5",
+      "author_association": "NONE",
+      "_links": {
+        "html": {
+          "href": "https://github.com/vickiegpt/Concordia/pull/5#pullrequestreview-5308724687"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5"
+        }
+      },
+      "submitted_at": "2026-09-24T18:47:32Z",
+      "commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7"
+    }
+  ],
+  "review_comments": [
+    {
+      "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232521",
+      "pull_request_review_id": 5308724687,
+      "id": 4097232521,
+      "node_id": "PRRC_kwDOR9dSnM70Ns6J",
+      "diff_hunk": "@@ -544,7 +557,13 @@ impl<'a> LiftContext<'a> {\n                 \"mul.lo\",\n                 &data_type_suffix(inst, SassDataType::S32),\n             )),\n-            \"IMAD\" if has_modifier(inst, \"WIDE\") => Some(imad_wide_op(inst, &pred)),\n+            \"IMAD\" if has_modifier(inst, \"WIDE\") && !supported_imad_wide_pair_form(inst) =>\n+                self.unsupported(inst, \"IMAD.WIDE operand form is not supported by pair repair\"),",
+      "path": "ptx/src/sass/lifter.rs",
+      "commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "original_commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "user": {
+        "login": "Copilot",
+        "id": 175728472,
+        "node_id": "BOT_kgDOCnlnWA",
+        "avatar_url": "https://avatars.githubusercontent.com/in/946600?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Copilot",
+        "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+        "followers_url": "https://api.github.com/users/Copilot/followers",
+        "following_url": "https://api.github.com/users/Copilot/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Copilot/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Copilot/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Copilot/subscriptions",
+        "organizations_url": "https://api.github.com/users/Copilot/orgs",
+        "repos_url": "https://api.github.com/users/Copilot/repos",
+        "events_url": "https://api.github.com/users/Copilot/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Copilot/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "This guard now diagnoses the existing SM120 round-trip fixture's `IMAD.WIDE.U32 R2, R7, 0x4, R2` and `... R4` instructions because their scalar multiplier is an immediate rather than `UR`. That fixture still asserts empty diagnostics and the generated `mul.wide.u32`/`add.u64` at `ptx/tests/sass_lifter_fuzz.rs:151-164`, so the current test suite fails. Either retain a compatible narrow path for these existing immediate forms or update the fixture and support contract together.",
+      "created_at": "2026-09-24T18:47:31Z",
+      "updated_at": "2026-09-24T18:47:32Z",
+      "html_url": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232521",
+      "pull_request_url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232521"
+        },
+        "html": {
+          "href": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232521"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232521/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": 560,
+      "original_start_line": 560,
+      "start_side": "RIGHT",
+      "line": 561,
+      "original_line": 561,
+      "side": "RIGHT",
+      "author_association": "NONE",
+      "original_position": 54,
+      "position": 54,
+      "subject_type": "line"
+    },
+    {
+      "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232584",
+      "pull_request_review_id": 5308724687,
+      "id": 4097232584,
+      "node_id": "PRRC_kwDOR9dSnM70Ns7I",
+      "diff_hunk": "@@ -921,6 +943,7 @@ impl RegisterDecls {\n                 collect_register_decl(predicate, &mut decls);\n             }\n             collect_implicit_register_pair_decl(inst, &mut decls);\n+            collect_implicit_desc_address_pair_decl(inst, &mut decls);",
+      "path": "ptx/src/sass/lifter.rs",
+      "commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "original_commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "user": {
+        "login": "Copilot",
+        "id": 175728472,
+        "node_id": "BOT_kgDOCnlnWA",
+        "avatar_url": "https://avatars.githubusercontent.com/in/946600?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Copilot",
+        "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+        "followers_url": "https://api.github.com/users/Copilot/followers",
+        "following_url": "https://api.github.com/users/Copilot/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Copilot/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Copilot/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Copilot/subscriptions",
+        "organizations_url": "https://api.github.com/users/Copilot/orgs",
+        "repos_url": "https://api.github.com/users/Copilot/repos",
+        "events_url": "https://api.github.com/users/Copilot/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Copilot/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "This new declaration path also covers the existing `ATOMG.E.ADD.STRONG.GPU ... desc[UR6][R8.64]` fixture, but only `load_op` and `store_op` call `desc_address_pair_setup`; `atomic_op` formats `[%rd8]` directly. The resulting PTX uses an uninitialized `%rd8` instead of the `{%r8, %r9}` address pair. Add the predicated descriptor setup in `atomic_op` using its computed address index, or diagnose descriptor-address atomics as unsupported.",
+      "created_at": "2026-09-24T18:47:31Z",
+      "updated_at": "2026-09-24T18:47:32Z",
+      "html_url": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232584",
+      "pull_request_url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232584"
+        },
+        "html": {
+          "href": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232584"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232584/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": 945,
+      "original_start_line": 945,
+      "start_side": "RIGHT",
+      "line": 946,
+      "original_line": 946,
+      "side": "RIGHT",
+      "author_association": "NONE",
+      "original_position": 79,
+      "position": 79,
+      "subject_type": "line"
+    },
+    {
+      "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232625",
+      "pull_request_review_id": 5308724687,
+      "id": 4097232625,
+      "node_id": "PRRC_kwDOR9dSnM70Ns7x",
+      "diff_hunk": "@@ -2627,6 +2762,15 @@ fn is_64bit_modifier(inst: &EnhancedSassInstruction) -> bool {\n         )\n }\n \n+fn is_global_memory_inst(inst: &EnhancedSassInstruction) -> bool {\n+    inst.memory_space.unwrap_or(SassMemorySpace::Global) == SassMemorySpace::Global\n+}\n+\n+fn is_wide_memory_data(inst: &EnhancedSassInstruction) -> bool {\n+    matches!(inst.data_type, Some(SassDataType::U64 | SassDataType::S64\n+        | SassDataType::B64 | SassDataType::U128))\n+}",
+      "path": "ptx/src/sass/lifter.rs",
+      "commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "original_commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "user": {
+        "login": "Copilot",
+        "id": 175728472,
+        "node_id": "BOT_kgDOCnlnWA",
+        "avatar_url": "https://avatars.githubusercontent.com/in/946600?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Copilot",
+        "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+        "followers_url": "https://api.github.com/users/Copilot/followers",
+        "following_url": "https://api.github.com/users/Copilot/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Copilot/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Copilot/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Copilot/subscriptions",
+        "organizations_url": "https://api.github.com/users/Copilot/orgs",
+        "repos_url": "https://api.github.com/users/Copilot/repos",
+        "events_url": "https://api.github.com/users/Copilot/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Copilot/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "Numeric width modifiers are kept in `inst.modifiers` while `data_type` remains unset (`disassembler.rs:539-548` and `SassDataType::from_modifier` does not map `64`/`128`). Consequently `LDG.E.64`/`STG.E.64` (and `.128`) bypass this predicate and fall through to `load_op`/`store_op`, which emit `.u32` instead of rejecting the unsupported wide access. Detect the numeric width modifiers and all data types wider than 32 bits here.",
+      "created_at": "2026-09-24T18:47:31Z",
+      "updated_at": "2026-09-24T18:47:32Z",
+      "html_url": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232625",
+      "pull_request_url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232625"
+        },
+        "html": {
+          "href": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232625"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232625/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": 2769,
+      "original_start_line": 2769,
+      "start_side": "RIGHT",
+      "line": 2772,
+      "original_line": 2772,
+      "side": "RIGHT",
+      "author_association": "NONE",
+      "original_position": 329,
+      "position": 329,
+      "subject_type": "line"
+    },
+    {
+      "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232661",
+      "pull_request_review_id": 5308724687,
+      "id": 4097232661,
+      "node_id": "PRRC_kwDOR9dSnM70Ns8V",
+      "diff_hunk": "@@ -514,6 +522,11 @@ impl<'a> LiftContext<'a> {\n             \"UMOV\" => Some(unary_op(inst, &pred, \"mov\", \"u32\")),\n             \"ULEA\" => Some(ulea_op(inst, &pred)),\n             \"LEA\" => Some(lea_op(inst, &pred)),\n+            \"IADD\" if is_64bit_modifier(inst) => self\n+                .scratch_b64\n+                .as_deref()\n+                .and_then(|scratch| iadd_64_op(inst, &pred, scratch))\n+                .or_else(|| self.unsupported(inst, \"IADD.64 register-pair form is not supported\")),",
+      "path": "ptx/src/sass/lifter.rs",
+      "commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "original_commit_id": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "user": {
+        "login": "Copilot",
+        "id": 175728472,
+        "node_id": "BOT_kgDOCnlnWA",
+        "avatar_url": "https://avatars.githubusercontent.com/in/946600?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Copilot",
+        "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+        "followers_url": "https://api.github.com/users/Copilot/followers",
+        "following_url": "https://api.github.com/users/Copilot/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Copilot/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Copilot/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Copilot/subscriptions",
+        "organizations_url": "https://api.github.com/users/Copilot/orgs",
+        "repos_url": "https://api.github.com/users/Copilot/repos",
+        "events_url": "https://api.github.com/users/Copilot/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Copilot/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "The new `IADD.64` lowering path has no unit fixture, while the surrounding lifter has extensive instruction-level tests. Add a predicated case covering an `R` first source, an `UR` second source, pair unpacking, and the unsupported-form diagnostic so the new register-pair bridge is protected.",
+      "created_at": "2026-09-24T18:47:32Z",
+      "updated_at": "2026-09-24T18:47:32Z",
+      "html_url": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232661",
+      "pull_request_url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232661"
+        },
+        "html": {
+          "href": "https://github.com/vickiegpt/Concordia/pull/5#discussion_r4097232661"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/vickiegpt/Concordia/pulls/5"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/vickiegpt/Concordia/pulls/comments/4097232661/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": 525,
+      "original_start_line": 525,
+      "start_side": "RIGHT",
+      "line": 529,
+      "original_line": 529,
+      "side": "RIGHT",
+      "author_association": "NONE",
+      "original_position": 44,
+      "position": 44,
+      "subject_type": "line"
+    }
+  ],
+  "conversation": []
+}

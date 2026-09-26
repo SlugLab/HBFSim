@@ -1,0 +1,2508 @@
+{
+  "status": "NATIVE_PROFILE_REUSE_AUDIT_COMPLETE_NOT_HBF_COVERAGE",
+  "source_run": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2",
+  "evidence_class": "DOC_DERIVED",
+  "scope": "all observed scheduled BLAS n=1 input-consumers per target storage, with repeated lm_head calls preserved; exact identity and geometry joined by CUPTI correlation and thread",
+  "limits": [
+    "Native agreement permits preparing same-class extension; does not prove candidate output, instrumentation or model connection at additional layers",
+    "No historical addresses, contexts or handles are reusable; fresh per-run registration required",
+    "No assertion about prefill or other consumer support"
+  ],
+  "categories": {
+    "lm_head": {
+      "storage_count": 1,
+      "observed_call_count": 2,
+      "distinct_observed_profiles": 1,
+      "all_layers_same_profile": true,
+      "aliases": [
+        "lm_head.weight"
+      ],
+      "profiles": [
+        {
+          "blas": {
+            "a_type": 14,
+            "algorithm": 99,
+            "api": "cublasGemmEx",
+            "b_type": 14,
+            "c_type": 14,
+            "compute_type": 68,
+            "k": 2048,
+            "lda": 2048,
+            "ldb": 2048,
+            "ldc": 50304,
+            "m": 50304,
+            "n": 1,
+            "trans_a": 1,
+            "trans_b": 0
+          },
+          "exact_driver": [
+            {
+              "api": "cuLaunchKernel",
+              "block": [
+                16,
+                4,
+                1
+              ],
+              "cbid": 307,
+              "dynamic_shared_bytes": 272,
+              "grid": [
+                12576,
+                1,
+                1
+              ],
+              "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+              "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+            }
+          ],
+          "offset_bytes": 0,
+          "operand": "A"
+        }
+      ]
+    },
+    "qkv_proj": {
+      "storage_count": 16,
+      "observed_call_count": 16,
+      "distinct_observed_profiles": 1,
+      "all_layers_same_profile": true,
+      "aliases": [
+        "model.layers.0.self_attn.qkv_proj.weight",
+        "model.layers.1.self_attn.qkv_proj.weight",
+        "model.layers.10.self_attn.qkv_proj.weight",
+        "model.layers.11.self_attn.qkv_proj.weight",
+        "model.layers.12.self_attn.qkv_proj.weight",
+        "model.layers.13.self_attn.qkv_proj.weight",
+        "model.layers.14.self_attn.qkv_proj.weight",
+        "model.layers.15.self_attn.qkv_proj.weight",
+        "model.layers.2.self_attn.qkv_proj.weight",
+        "model.layers.3.self_attn.qkv_proj.weight",
+        "model.layers.4.self_attn.qkv_proj.weight",
+        "model.layers.5.self_attn.qkv_proj.weight",
+        "model.layers.6.self_attn.qkv_proj.weight",
+        "model.layers.7.self_attn.qkv_proj.weight",
+        "model.layers.8.self_attn.qkv_proj.weight",
+        "model.layers.9.self_attn.qkv_proj.weight"
+      ],
+      "profiles": [
+        {
+          "blas": {
+            "a_type": 14,
+            "algorithm": 99,
+            "api": "cublasGemmEx",
+            "b_type": 14,
+            "c_type": 14,
+            "compute_type": 68,
+            "k": 2048,
+            "lda": 2048,
+            "ldb": 2048,
+            "ldc": 6144,
+            "m": 6144,
+            "n": 1,
+            "trans_a": 1,
+            "trans_b": 0
+          },
+          "exact_driver": [
+            {
+              "api": "cuLaunchKernel",
+              "block": [
+                16,
+                4,
+                1
+              ],
+              "cbid": 307,
+              "dynamic_shared_bytes": 272,
+              "grid": [
+                1536,
+                1,
+                1
+              ],
+              "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+              "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+            }
+          ],
+          "offset_bytes": 0,
+          "operand": "A"
+        }
+      ]
+    },
+    "o_proj": {
+      "storage_count": 16,
+      "observed_call_count": 16,
+      "distinct_observed_profiles": 1,
+      "all_layers_same_profile": true,
+      "aliases": [
+        "model.layers.0.self_attn.o_proj.weight",
+        "model.layers.1.self_attn.o_proj.weight",
+        "model.layers.10.self_attn.o_proj.weight",
+        "model.layers.11.self_attn.o_proj.weight",
+        "model.layers.12.self_attn.o_proj.weight",
+        "model.layers.13.self_attn.o_proj.weight",
+        "model.layers.14.self_attn.o_proj.weight",
+        "model.layers.15.self_attn.o_proj.weight",
+        "model.layers.2.self_attn.o_proj.weight",
+        "model.layers.3.self_attn.o_proj.weight",
+        "model.layers.4.self_attn.o_proj.weight",
+        "model.layers.5.self_attn.o_proj.weight",
+        "model.layers.6.self_attn.o_proj.weight",
+        "model.layers.7.self_attn.o_proj.weight",
+        "model.layers.8.self_attn.o_proj.weight",
+        "model.layers.9.self_attn.o_proj.weight"
+      ],
+      "profiles": [
+        {
+          "blas": {
+            "a_type": 14,
+            "algorithm": 99,
+            "api": "cublasGemmEx",
+            "b_type": 14,
+            "c_type": 14,
+            "compute_type": 68,
+            "k": 2048,
+            "lda": 2048,
+            "ldb": 2048,
+            "ldc": 2048,
+            "m": 2048,
+            "n": 1,
+            "trans_a": 1,
+            "trans_b": 0
+          },
+          "exact_driver": [
+            {
+              "api": "cuLaunchKernel",
+              "block": [
+                16,
+                4,
+                1
+              ],
+              "cbid": 307,
+              "dynamic_shared_bytes": 272,
+              "grid": [
+                512,
+                1,
+                1
+              ],
+              "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+              "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+            }
+          ],
+          "offset_bytes": 0,
+          "operand": "A"
+        }
+      ]
+    },
+    "router": {
+      "storage_count": 16,
+      "observed_call_count": 16,
+      "distinct_observed_profiles": 1,
+      "all_layers_same_profile": true,
+      "aliases": [
+        "model.layers.0.mlp.gate.weight",
+        "model.layers.1.mlp.gate.weight",
+        "model.layers.10.mlp.gate.weight",
+        "model.layers.11.mlp.gate.weight",
+        "model.layers.12.mlp.gate.weight",
+        "model.layers.13.mlp.gate.weight",
+        "model.layers.14.mlp.gate.weight",
+        "model.layers.15.mlp.gate.weight",
+        "model.layers.2.mlp.gate.weight",
+        "model.layers.3.mlp.gate.weight",
+        "model.layers.4.mlp.gate.weight",
+        "model.layers.5.mlp.gate.weight",
+        "model.layers.6.mlp.gate.weight",
+        "model.layers.7.mlp.gate.weight",
+        "model.layers.8.mlp.gate.weight",
+        "model.layers.9.mlp.gate.weight"
+      ],
+      "profiles": [
+        {
+          "blas": {
+            "a_type": 14,
+            "algorithm": 99,
+            "api": "cublasGemmEx",
+            "b_type": 14,
+            "c_type": 14,
+            "compute_type": 68,
+            "k": 2048,
+            "lda": 2048,
+            "ldb": 2048,
+            "ldc": 64,
+            "m": 64,
+            "n": 1,
+            "trans_a": 1,
+            "trans_b": 0
+          },
+          "exact_driver": [
+            {
+              "api": "cuLaunchKernel",
+              "block": [
+                32,
+                4,
+                1
+              ],
+              "cbid": 307,
+              "dynamic_shared_bytes": 528,
+              "grid": [
+                16,
+                1,
+                1
+              ],
+              "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+              "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+            }
+          ],
+          "offset_bytes": 0,
+          "operand": "A"
+        }
+      ]
+    }
+  },
+  "per_storage_observed_calls": {
+    "lm_head.weight": [
+      {
+        "call_id": 243,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 50304,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 50304,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              12576,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      },
+      {
+        "call_id": 292,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 50304,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 50304,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              12576,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.0.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 244,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.0.self_attn.o_proj.weight": [
+      {
+        "call_id": 245,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.0.mlp.gate.weight": [
+      {
+        "call_id": 246,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.1.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 247,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.1.self_attn.o_proj.weight": [
+      {
+        "call_id": 248,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.1.mlp.gate.weight": [
+      {
+        "call_id": 249,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.2.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 250,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.2.self_attn.o_proj.weight": [
+      {
+        "call_id": 251,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.2.mlp.gate.weight": [
+      {
+        "call_id": 252,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.3.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 253,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.3.self_attn.o_proj.weight": [
+      {
+        "call_id": 254,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.3.mlp.gate.weight": [
+      {
+        "call_id": 255,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.4.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 256,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.4.self_attn.o_proj.weight": [
+      {
+        "call_id": 257,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.4.mlp.gate.weight": [
+      {
+        "call_id": 258,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.5.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 259,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.5.self_attn.o_proj.weight": [
+      {
+        "call_id": 260,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.5.mlp.gate.weight": [
+      {
+        "call_id": 261,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.6.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 262,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.6.self_attn.o_proj.weight": [
+      {
+        "call_id": 263,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.6.mlp.gate.weight": [
+      {
+        "call_id": 264,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.7.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 265,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.7.self_attn.o_proj.weight": [
+      {
+        "call_id": 266,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.7.mlp.gate.weight": [
+      {
+        "call_id": 267,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.8.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 268,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.8.self_attn.o_proj.weight": [
+      {
+        "call_id": 269,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.8.mlp.gate.weight": [
+      {
+        "call_id": 270,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.9.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 271,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.9.self_attn.o_proj.weight": [
+      {
+        "call_id": 272,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.9.mlp.gate.weight": [
+      {
+        "call_id": 273,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.10.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 274,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.10.self_attn.o_proj.weight": [
+      {
+        "call_id": 275,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.10.mlp.gate.weight": [
+      {
+        "call_id": 276,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.11.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 277,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.11.self_attn.o_proj.weight": [
+      {
+        "call_id": 278,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.11.mlp.gate.weight": [
+      {
+        "call_id": 279,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.12.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 280,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.12.self_attn.o_proj.weight": [
+      {
+        "call_id": 281,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.12.mlp.gate.weight": [
+      {
+        "call_id": 282,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.13.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 283,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.13.self_attn.o_proj.weight": [
+      {
+        "call_id": 284,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.13.mlp.gate.weight": [
+      {
+        "call_id": 285,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.14.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 286,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.14.self_attn.o_proj.weight": [
+      {
+        "call_id": 287,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.14.mlp.gate.weight": [
+      {
+        "call_id": 288,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ],
+    "model.layers.15.self_attn.qkv_proj.weight": [
+      {
+        "call_id": 289,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 6144,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 6144,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              1536,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.15.self_attn.o_proj.weight": [
+      {
+        "call_id": 290,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 2048,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 2048,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              512,
+              1,
+              1
+            ],
+            "block": [
+              16,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 272
+          }
+        ]
+      }
+    ],
+    "model.layers.15.mlp.gate.weight": [
+      {
+        "call_id": 291,
+        "request_ids": [
+          "0-8fc234dc"
+        ],
+        "operand": "A",
+        "offset_bytes": 0,
+        "blas": {
+          "api": "cublasGemmEx",
+          "m": 64,
+          "n": 1,
+          "k": 2048,
+          "trans_a": 1,
+          "trans_b": 0,
+          "a_type": 14,
+          "b_type": 14,
+          "c_type": 14,
+          "lda": 2048,
+          "ldb": 2048,
+          "ldc": 64,
+          "compute_type": 68,
+          "algorithm": 99
+        },
+        "exact_driver": [
+          {
+            "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+            "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+            "api": "cuLaunchKernel",
+            "cbid": 307,
+            "grid": [
+              16,
+              1,
+              1
+            ],
+            "block": [
+              32,
+              4,
+              1
+            ],
+            "dynamic_shared_bytes": 528
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry probe()
+{
+    .reg .b32 %r<8>;
+    .reg .b64 %rd<16>;
+
+L_0000:
+    // unsupported SASS IMAD at 0x0000: IMAD.HI form other than U32 is not supported
+L_0010:
+    ret;
+}
+

@@ -1,0 +1,59 @@
+diff --git a/ptx/src/sass/lifter.rs b/ptx/src/sass/lifter.rs
+index 62484fc..91ee22a 100644
+--- a/ptx/src/sass/lifter.rs
++++ b/ptx/src/sass/lifter.rs
+@@ -544,6 +544,9 @@ impl<'a> LiftContext<'a> {
+                 "mul.lo",
+                 &data_type_suffix(inst, SassDataType::S32),
+             )),
++            "IMAD" if has_modifier(inst, "HI") && !has_modifier(inst, "U32") =>
++                self.unsupported(inst, "IMAD.HI form other than U32 is not supported"),
++            "IMAD" if has_modifier(inst, "HI") => Some(imad_hi_u32_op(inst, &pred)),
+             "IMAD" if has_modifier(inst, "WIDE") => Some(imad_wide_op(inst, &pred)),
+             "IMAD" => Some(imad_op(
+                 inst,
+@@ -1118,6 +1121,23 @@ fn imad_op(inst: &EnhancedSassInstruction, pred: &str, ty: &str) -> String {
+     )
+ }
+ 
++fn imad_hi_u32_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
++    let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
++    let values: Vec<String> = inst
++        .src_operands
++        .iter()
++        .filter_map(format_integer_data_operand)
++        .take(3)
++        .collect();
++    let src0 = values.first().cloned().unwrap_or_else(|| "0".to_string());
++    let src1 = values.get(1).cloned().unwrap_or_else(|| "0".to_string());
++    let src2 = values.get(2).cloned().unwrap_or_else(|| "0".to_string());
++    format!(
++        "{}mad.hi.u32 {}, {}, {}, {};",
++        pred, dst, src0, src1, src2
++    )
++}
++
+ fn ternary_op(inst: &EnhancedSassInstruction, pred: &str, op: &str, ty: &str) -> String {
+     let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
+     let src0 = inst
+@@ -4358,4 +4378,20 @@ Function : kernel
+         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+         assert!(result.ptx.contains("mul.rn.f16x2 %r7, %r14, %r7;"));
+     }
++
++    #[test]
++    fn sass_lifter_preserves_imad_hi_u32_modifiers() {
++        let text = r#"Function : imad_hi_u32
++        /*04a0*/ IMAD.HI.U32 R19, R19, R21, R18 ; /* 0x0000001513137227 */
++        /*04c0*/ IMAD.HI.U32 R19, R19, R21, RZ ; /* 0x0000001513137227 */
++        /*04d0*/ EXIT ;
++"#;
++
++        let result = lift_sass_text_to_ptx(text, SassLiftOptions::default())
++            .expect("IMAD.HI.U32 should lift");
++        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
++        assert!(result.ptx.contains("mad.hi.u32 %r19, %r19, %r21, %r18;"));
++        assert!(result.ptx.contains("mad.hi.u32 %r19, %r19, %r21, 0;"));
++        assert!(!result.ptx.contains("mad.lo.u32 %r19"));
++    }
+ }

@@ -1,0 +1,24 @@
+{
+  "status": "ROOT_SCOPE_AND_STAGE_PATH_AUDIT_PASS_NO_GPU",
+  "utc": "2026-09-25T15:03:32.538511+00:00",
+  "prepared_version": "prepared-v2",
+  "scope_counts": {
+    "mixed3": 3,
+    "remaining45": 45,
+    "added49": 49
+  },
+  "checks": [
+    "No duplicate aliases within each scope",
+    "mixed3 and remaining45 disjoint; union plus lm_head equals added49",
+    "added49 exactly matches all non-old98 TARGET_LEDGER aliases",
+    "Added storage bytes747110400",
+    "All9 stage links resolve; filenames equal recorded identity set",
+    "Every relocated sidecar path uses new stage directory and rawSHA.ptx basename"
+  ],
+  "identity_policy": "Recorded unchanged stage content hashes reused; audit checks new set/path relationships, no redundant asset rehash",
+  "limits": [
+    "Plugin still under CPU implementation",
+    "No model connection or actual loaded path proof",
+    "Final147 needs old98 plus all49 and real terminal validation"
+  ]
+}

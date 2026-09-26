@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "experiment_id": "REBUTTAL-20260921-R1-v1",
+  "status": "AUTHORIZED_PREPARATION",
+  "host": "giga",
+  "gpu_uuid": "GPU-45044e90-a553-930c-b950-ba660acb37fc",
+  "gpu_count": 1,
+  "source_base": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
+  "environment": {
+    "driver": "610.57.04",
+    "vllm": "0.19.2rc1.dev134+gfe9c3d6c5.cu130",
+    "torch": "2.11.0+cu130",
+    "cuda_runtime": "13.0",
+    "triton": "3.6.0",
+    "flashinfer": "0.6.8.post1",
+    "environment_change_allowed": false
+  },
+  "model": {
+    "id": "allenai/OLMoE-1B-7B-0924",
+    "revision": "6d84c48581ece794365f2b8e9cfb043c68ade9c5",
+    "dtype": "bfloat16",
+    "architecture": "OlmoeForCausalLM",
+    "expected_experts": 64,
+    "expected_top_k": 8,
+    "kernel_gate": "actual fused-MoE PTX and exact binding required"
+  },
+  "workload": {
+    "batch": 1,
+    "input_tokens": 128,
+    "output_tokens": 16,
+    "seed": 0,
+    "decoding": "greedy",
+    "eager": true,
+    "tensor_parallel": 1,
+    "pipeline_parallel": 1,
+    "prefix_cache": false,
+    "cpu_offload": false,
+    "swap": false
+  },
+  "arms": ["native", "instrumented_zero_delay", "hbf_injected"],
+  "registered_bytes": 16384,
+  "storage_selection": "runtime-proved finalized fused-MoE expert-weight storage",
+  "counter_scope": "resolve-instrumented supported-site dynamic accesses",
+  "required_outputs": [
+    "environment.json", "model.json", "registration.json",
+    "launch_coverage.json", "dynamic_access_coverage.json",
+    "opaque_audit.json", "service_accounting.json", "correctness.json",
+    "stdout.log", "stderr.log", "R1_SUMMARY.md"
+  ],
+  "raw_output_root": "/root/hbfsim-exp/rebuttal_20260921/results/R1_access_coverage",
+  "r2_r3_gate": "R1 accepted",
+  "known_limits": [
+    "not whole-program memory coverage",
+    "opaque overlap remains UNKNOWN without proof",
+    "smaller model does not reproduce original Qwen3 access distribution"
+  ]

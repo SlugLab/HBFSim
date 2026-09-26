@@ -1,0 +1,28 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 1211,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "`lift_cubin_to_ptx` normally reaches this helper with instructions from `SassDisassembler`, whose binary decoders leave both `data_type` and `modifiers` empty (`ptx/src/sass/disassembler.rs:341-347, 437-443`). A binary CUBIN containing `F2FP.BF16.PACK_AB` therefore still takes the `f16x2` fallback; this fix only works for cuobjdump text input. Please preserve the BF16 metadata in the binary path or explicitly route that path through a semantic disassembler before relying on this branch.\n\nThis issue also appears on line 2249 of the same file.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "schema": "hbfsim.goal_completion_audit.v1",
+  "observed_utc": "2026-09-26T04:57:31.306443+00:00",
+  "status": "COMPLETE_WITH_DECLARED_CONSUMER_SCOPE",
+  "checks": [
+    {
+      "requirement": "representatives_before_expansion",
+      "evidence": [
+        "runs/li6-oproj-only-v1/MODEL_VALIDATION.json",
+        "runs/li7-router-layer0-model-v1/MODEL_VALIDATION.json",
+        "runs/li6-head-progress-v1/MODEL_VALIDATION.json"
+      ],
+      "status": "PROVEN"
+    },
+    {
+      "requirement": "combined_profile_pilot_then_remaining45",
+      "evidence": [
+        "runs/li6-li7-combined-mixed3-v1/MODEL_VALIDATION.json",
+        "runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json"
+      ],
+      "status": "PROVEN"
+    },
+    {
+      "requirement": "one_final147_actualmodelrun_not_historicalunion",
+      "evidence": [
+        "runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
+        "reports/final147-20260926-v1/REPORT.json"
+      ],
+      "status": "PROVEN"
+    },
+    {
+      "requirement": "separate_registeredextent_addressedconsumer_and_servicecoverage",
+      "evidence": [
+        "reports/final147-20260926-v1/REPORT.json"
+      ],
+      "status": "PROVEN_WITH_EXPLICIT_CONSUMER_LIMITS"
+    },
+    {
+      "requirement": "rawfailures_retained",
+      "evidence": [
+        "runs/li6-representatives-v1/controller/controller-finish.json",
+        "runs/li6-wait-boundary-v1/controller/controller-finish.json",
+        "runs/li6-head-only-v1/controller/controller-finish.json"
+      ],
+      "status": "PROVEN"
+    },
+    {
+      "requirement": "singleGPUowner_finitewatchdog_cleanup",
+      "evidence": [
+        "task/resume-giga-20260925-v1/OWNER.json",
+        "task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
+      ],
+      "status": "PROVEN"
+    },
+    {
+      "requirement": "portable_identity_not_historicalUUIDgate",
+      "evidence": [
+        "task/resume-giga-20260925-v1/portable-acquire-v1/ROOT_CPU_REVIEW.json",
+        "task/li6-li7-final147-v1/ROOT_CPU_SCAFFOLD_REVIEW.json"
+      ],
+      "status": "PROVEN_FOR_SUCCESSOR_LAUNCHERS_NOT_CROSS_MACHINE_TEST_CLAIM"
+    },
+    {
+      "requirement": "final_handoff_interface_registry_and_ledger_consistent",
+      "status": "PROVEN",
+      "evidence": [
+        "CURRENT_HANDOFF.md",
+        "reports/interface-binding-contract.md",
+        "reports/weight-integration-matrix.md",
+        "task/full-coverage-ledger-v1/FINAL_SINGLE_RUN_147_ACCEPTED_v1.json",
+        "/root/hbfsim-exp/docs/codex/PROJECT_HANDOFF.md",
+        "/root/hbfsim-exp/docs/codex/PROJECT_STATE.md",
+        "/root/hbfsim-exp/docs/codex/EXPERIMENT_REGISTRY.md"
+      ]
+    }
+  ],
+  "preserved_scope": "147deduplicatedstorages/13838323712registeredbytes infixedrequest,49newselecteddecodeconsumers; notallpossibleinputs/experts/prefillshapes",
+  "no_device_algorithm_change": "FinalsamefrozenPTX/helper; hostbinding changesrecordedseparately",
+  "old98_6603": "No unchangedstandalone rerun; requiredfinalcombinedregression includesold98",
+  "remaining": [],
+  "completed_utc": "2026-09-26T05:06:01.157876+00:00"
+}

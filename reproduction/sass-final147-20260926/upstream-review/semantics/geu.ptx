@@ -1,0 +1,14 @@
+.version 8.8
+.target sm_120
+.address_size 64
+.visible .entry probe(.param .u64 output,.param .u32 a,.param .u32 b){
+.reg .u64 %out;
+.reg .b32 %a,%b,%d;
+.reg .pred %p;
+ld.param.u64 %out,[output];
+ld.param.b32 %a,[a];
+ld.param.b32 %b,[b];
+setp.geu.f32 %p,%a,%b; selp.u32 %d,1,0,%p;
+st.global.b32 [%out],%d;
+ret;
+}

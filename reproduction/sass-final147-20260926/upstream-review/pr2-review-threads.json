@@ -1,0 +1,44 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 549,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "This branch only works when the instruction carries parsed suffixes. The `lift_cubin_to_ptx` path feeds instructions from `SassDisassembler`, whose 128-bit decoder currently sets `modifiers` to an empty vector and `data_type` to `None`, so a real cubin `IMAD.HI.U32` reaches the final `\"IMAD\"` arm and is still emitted as `mad.lo`. Populate the SASS suffix metadata during binary decoding (or otherwise route this path through a parser that preserves it) so the fix applies to cubin lifting as well.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "ptx/src/sass/lifter.rs",
+              "line": 549,
+              "comments": {
+                "nodes": [
+                  {
+                    "body": "The new rejection branch is not covered by the added fixture: all inputs are `.HI.U32`, so a regression could make signed or untyped `IMAD.HI` silently use the unsigned PTX path. Add a focused case such as `IMAD.HI.S32` and assert the diagnostic opcode/message, alongside the positive cases.",
+                    "author": {
+                      "login": "copilot-pull-request-reviewer"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "hbfsim.combined_validator_synthetic.v1",
+  "status": "PASS_SYNTHETIC_CPU_ONLY",
+  "negative_cases": [
+    "missing_selected",
+    "duplicate_selected",
+    "native_fallback",
+    "wrong_base",
+    "wrong_profile",
+    "wrong_api",
+    "wrong_thread",
+    "wrong_original_image",
+    "one_patched_callback_reused",
+    "extra_patched_callback",
+    "incomplete_module",
+    "failed_result"
+  ],
+  "limitation": "Fixture rows are fabricated; no model, CUDA, provider, or service proof."
+}

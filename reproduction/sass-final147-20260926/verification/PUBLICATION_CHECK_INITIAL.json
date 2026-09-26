@@ -1,0 +1,26 @@
+{
+  "schema": "hbfsim.publication_check.v1",
+  "observed_utc": "2026-09-26T05:39:25.924457+00:00",
+  "status": "FAIL",
+  "files_checked": 453,
+  "bytes_checked": 5607422,
+  "syntax": {
+    "python": 41,
+    "json": 137
+  },
+  "errors": [
+    {
+      "path": "unvalidated-worktree-source/experiments/rebuttal_20260921/R1_MANIFEST.json",
+      "issue": "Expecting ',' delimiter: line 57 column 1 (char 1920)"
+    }
+  ],
+  "plugin_fixture": "PUBLISHED_PLUGIN_CPU.json",
+  "full_rebuild": "NOT_RUN",
+  "cross_machine_gpu": "NOT_RUN",
+  "upstream_merge_decision": "0/5 meet all user conditions; see ../upstream-review/DECISION.json",
+  "limits": [
+    "historical gate-core variant fresh build not verified",
+    "legacy seven-module generated PTX inputs must be recollected",
+    "historical source paths are inventory, not machine identity gates"
+  ]
+}

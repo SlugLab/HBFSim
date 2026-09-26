@@ -1,0 +1,4090 @@
+{
+  "schema": "hbfsim.full_coverage_target_ledger.v1",
+  "status": "TARGET_SET_PREPARED_NOT_FULL_COVERAGE",
+  "evidence_class": "DOC_DERIVED",
+  "inputs": {
+    "native_inventory": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2/result/observer/worker-1961849.jsonl",
+    "accepted6603_registration": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/qkv-model-combined-v3/result/cell/registration.json"
+  },
+  "total_storage_count": 147,
+  "total_storage_bytes": 13838323712,
+  "accepted_historical_storage_count": 99,
+  "pending_model_storage_count": 48,
+  "pending_model_storage_bytes": 721944576,
+  "category_counts": {
+    "old98": 98,
+    "lm_head": 1,
+    "qkv_proj": 16,
+    "o_proj": 16,
+    "router": 16
+  },
+  "category_bytes": {
+    "old98": 13091213312,
+    "lm_head": 206045184,
+    "qkv_proj": 402653184,
+    "o_proj": 134217728,
+    "router": 4194304
+  },
+  "order": [
+    "Complete o_proj/lm_head/router representative MODEL_CONNECTED evidence",
+    "Expand QKV/o_proj/router remaining layers only after category representatives pass",
+    "One final regression using final combined components and exact 147-storage set"
+  ],
+  "consumer_contract": [
+    "Exact model request, storage pointer, dispatch identity and output comparison for selected recovered decode consumers",
+    "Old98 existing proven consumer scope retained; registration and positive global counters are insufficient for uncovered consumers",
+    "Prefill or other uninstrumented consumers remain explicitly unsupported/uncovered; do not claim all-consumer coverage"
+  ],
+  "entries": [
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "lm_head.weight"
+      ],
+      "category": "lm_head",
+      "layer": null,
+      "storage_bytes": 206045184,
+      "tensor_profiles": [
+        {
+          "name": "lm_head.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            50304,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 15,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 14,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 14,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 15,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 14,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 15,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 13,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 12,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 12,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 13,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 11,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 10,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 10,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 11,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 9,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 8,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 8,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 9,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 7,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 6,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 6,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 7,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 5,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 4,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 4,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 5,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 3,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w2_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 268435456,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.mlp.experts.w2_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            1024
+          ],
+          "stride": [
+            2097152,
+            1024,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 2,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 2,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 3,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 536870912,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.mlp.experts.w13_weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048,
+            2048
+          ],
+          "stride": [
+            4194304,
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 206045184,
+      "tensor_profiles": [
+        {
+          "name": "model.embed_tokens.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            50304,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 0,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "category": "o_proj",
+      "layer": 1,
+      "storage_bytes": 8388608,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.self_attn.o_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 1,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 0,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 1,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.1.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.1.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 2,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.2.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.2.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.qkv_proj.weight"
+      ],
+      "category": "qkv_proj",
+      "layer": 0,
+      "storage_bytes": 25165824,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.0.self_attn.qkv_proj.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            6144,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 3,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.3.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 4,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.4.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 5,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.5.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 6,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.6.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 7,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.7.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 8,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.8.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 9,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.9.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 10,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.10.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 11,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.11.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.11.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 12,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.12.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.12.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.gate.weight"
+      ],
+      "category": "router",
+      "layer": 13,
+      "storage_bytes": 262144,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.mlp.gate.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            64,
+            2048
+          ],
+          "stride": [
+            2048,
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "MODEL_CONNECTED_NOT_YET_PROVEN",
+      "historical_scope": null,
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.13.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.13.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.14.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.14.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.q_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.self_attn.q_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.k_norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.self_attn.k_norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.input_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.input_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.layers.15.post_attention_layernorm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.layers.15.post_attention_layernorm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    },
+    {
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "category": "old98",
+      "layer": null,
+      "storage_bytes": 4096,
+      "tensor_profiles": [
+        {
+          "name": "model.norm.weight",
+          "dtype": "torch.bfloat16",
+          "shape": [
+            2048
+          ],
+          "stride": [
+            1
+          ],
+          "element_size": 2,
+          "storage_offset": 0
+        }
+      ],
+      "historical_model_evidence": "6603_ACCEPTED_SCOPE_REUSED",
+      "historical_scope": "Existing 6603 per-consumer scope; QKV only selected layer0 decode",
+      "runtime_address_policy": "Observe this run storage base; validate full [base,base+storage_bytes) and actual consumer pointers. Never reuse historical addresses.",
+      "final_component_regression": "NOT_RUN"
+    }
+  ]
+}

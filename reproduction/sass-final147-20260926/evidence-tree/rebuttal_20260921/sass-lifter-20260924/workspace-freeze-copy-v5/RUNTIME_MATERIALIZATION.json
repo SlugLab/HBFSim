@@ -1,0 +1,170 @@
+{
+  "bundle_status": "CPU_COMPOSED_NOT_GPU_VALIDATED",
+  "components": [
+    {
+      "bytes": 5603,
+      "destination": "runtime-v3/payload/BUNDLE_MANIFEST.json",
+      "expected_sha256": "ba3c58440e173681c31ff8305244a9ad156a416731b1a673bf1114be4157d3cb",
+      "mode": "0o644",
+      "name": "bundle-manifest",
+      "sha256": "ba3c58440e173681c31ff8305244a9ad156a416731b1a673bf1114be4157d3cb",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-layer0-runtime-bundle-v3/BUNDLE_MANIFEST.json"
+    },
+    {
+      "bytes": 206724264,
+      "destination": "runtime-v3/payload/runtime/agent/libbpftime-agent.so",
+      "expected_sha256": "c6ec3ea1e8b8a50f7480eebb0ccb6360cafa515f8858f8efdbfa2c5d6f4c7d5f",
+      "mode": "0o755",
+      "name": "agent",
+      "sha256": "c6ec3ea1e8b8a50f7480eebb0ccb6360cafa515f8858f8efdbfa2c5d6f4c7d5f",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/runtime/agent/libbpftime-agent.so"
+    },
+    {
+      "bytes": 48225360,
+      "destination": "runtime-v3/payload/build-artifacts/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so",
+      "expected_sha256": "23d64da25ede61d9e38412ea28085301212f9358a5416f6d631d662148db516e",
+      "mode": "0o755",
+      "name": "compiler",
+      "sha256": "23d64da25ede61d9e38412ea28085301212f9358a5416f6d631d662148db516e",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so"
+    },
+    {
+      "bytes": 2850,
+      "destination": "runtime-v3/evidence/agent/FINAL_CPU_BUILD_RECEIPT.json",
+      "expected_sha256": "b81de436137d726c7a14f8d25a4d392359fe8b000828622e04234d2d0c4dabc6",
+      "mode": "0o644",
+      "name": "agent-build-receipt",
+      "sha256": "b81de436137d726c7a14f8d25a4d392359fe8b000828622e04234d2d0c4dabc6",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/FINAL_CPU_BUILD_RECEIPT.json"
+    },
+    {
+      "bytes": 410,
+      "destination": "runtime-v3/evidence/agent/SOURCE_TREE_DELTA.json",
+      "expected_sha256": "733876994fdbdb30b792374941c3905fa12ae094aa01b076896fcbff9b4f1be1",
+      "mode": "0o644",
+      "name": "agent-source-delta",
+      "sha256": "733876994fdbdb30b792374941c3905fa12ae094aa01b076896fcbff9b4f1be1",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/SOURCE_TREE_DELTA.json"
+    },
+    {
+      "bytes": 24930,
+      "destination": "runtime-v3/evidence/agent/REPRODUCTION_HBFSIM_SOURCE_V2_REMOTE_MANIFEST.json",
+      "expected_sha256": "3c65416b4b8f9cf0a47ac5e6146c27e8a6805120e2bdbe398f53aba1c7a5fc09",
+      "mode": "0o644",
+      "name": "agent-source-manifest",
+      "sha256": "3c65416b4b8f9cf0a47ac5e6146c27e8a6805120e2bdbe398f53aba1c7a5fc09",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_HBFSIM_SOURCE_V2_REMOTE_MANIFEST.json"
+    },
+    {
+      "bytes": 151,
+      "destination": "runtime-v3/payload/hbfsim-bpftime.provenance",
+      "expected_sha256": "6689cafc2ecd2e66dabeaddca7c805bab470354031e113d6a919605a00ab328e",
+      "mode": "0o644",
+      "name": "bpftime-provenance",
+      "sha256": "6689cafc2ecd2e66dabeaddca7c805bab470354031e113d6a919605a00ab328e",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-norm-bpftime-v4/hbfsim-bpftime.provenance"
+    },
+    {
+      "bytes": 204309056,
+      "destination": "runtime-v3/payload/runtime/syscall-server/libbpftime-syscall-server.so",
+      "expected_sha256": "0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d",
+      "mode": "0o755",
+      "name": "syscall-server",
+      "sha256": "0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-norm-bpftime-v4/runtime/syscall-server/libbpftime-syscall-server.so"
+    },
+    {
+      "bytes": 1048616,
+      "destination": "runtime-v3/payload/hbfsimd",
+      "expected_sha256": "b1a3c30dd91e4a3804bd67780bbc59209fb38f74a6f30282ab3ebf7eea5850e5",
+      "mode": "0o755",
+      "name": "daemon",
+      "sha256": "b1a3c30dd91e4a3804bd67780bbc59209fb38f74a6f30282ab3ebf7eea5850e5",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsimd"
+    },
+    {
+      "bytes": 2587616,
+      "destination": "runtime-v3/payload/libhbfsim.so",
+      "expected_sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "mode": "0o755",
+      "name": "hbf-core-so",
+      "sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim.so.0.1.0"
+    },
+    {
+      "bytes": 2587616,
+      "destination": "runtime-v3/payload/libhbfsim.so.0",
+      "expected_sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "mode": "0o755",
+      "name": "hbf-core-so0",
+      "sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim.so.0.1.0"
+    },
+    {
+      "bytes": 2587616,
+      "destination": "runtime-v3/payload/libhbfsim.so.0.1.0",
+      "expected_sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "mode": "0o755",
+      "name": "hbf-core-versioned",
+      "sha256": "a3db7e5438ecd823554cb8b22438dce5edfb1742a27bbe6df5f49b8d5cf06afb",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim.so.0.1.0"
+    },
+    {
+      "bytes": 640464,
+      "destination": "runtime-v3/payload/libhbfsim_launch_gate.so",
+      "expected_sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889",
+      "mode": "0o755",
+      "name": "launch-gate",
+      "sha256": "abde17316e71e18382462947cb4647e29b9b1657ef715d1e3fe9b056fdd6e889",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-moe-original-binder-runtime-bundle-v6/libhbfsim_launch_gate.so"
+    },
+    {
+      "bytes": 1391024,
+      "destination": "runtime-v3/payload/libptxpass_hbf.so",
+      "expected_sha256": "0ab365ca22940995a568cce6d8962f034709b6090d7074c417068379efb09a58",
+      "mode": "0o755",
+      "name": "ptx-pass",
+      "sha256": "0ab365ca22940995a568cce6d8962f034709b6090d7074c417068379efb09a58",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libptxpass_hbf.so"
+    },
+    {
+      "bytes": 17720,
+      "destination": "runtime-v3/payload/hbfsim_bpftime_attach_loader",
+      "expected_sha256": "823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72",
+      "mode": "0o755",
+      "name": "attach-loader",
+      "sha256": "823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/hbfsim_bpftime_attach_loader"
+    },
+    {
+      "bytes": 3992,
+      "destination": "runtime-v3/payload/vllm_fused_moe_probe.bpf.o",
+      "expected_sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5",
+      "mode": "0o644",
+      "name": "probe",
+      "sha256": "11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/vllm_fused_moe_probe.bpf.o"
+    },
+    {
+      "bytes": 422928,
+      "destination": "runtime-v3/external/extension/libhbfsim_vllm_extension.so",
+      "expected_sha256": "3697042d627105028b4d84cdf351da1d39b6d94ea067f24b4ccb4ad1a327b794",
+      "mode": "0o755",
+      "name": "vllm-extension",
+      "sha256": "3697042d627105028b4d84cdf351da1d39b6d94ea067f24b4ccb4ad1a327b794",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-runtime-v2/libhbfsim_vllm_extension.so"
+    },
+    {
+      "bytes": 3604,
+      "destination": "runtime-v3/evidence/gate-origin-BUNDLE_MANIFEST.json",
+      "expected_sha256": "6dd19422aa4ad152393aacc578a8ab5cadcedbc3b95bdffe358a77cc3231f0eb",
+      "mode": "0o644",
+      "name": "gate-origin-manifest",
+      "sha256": "6dd19422aa4ad152393aacc578a8ab5cadcedbc3b95bdffe358a77cc3231f0eb",
+      "source_resolved": "/root/hbfsim-exp/rebuttal_20260921/native-moe-original-binder-runtime-bundle-v6/BUNDLE_MANIFEST.json"
+    }
+  ],
+  "note": "v3 manifest paths and symlink targets are materialized as independent files; extension is kept separately START-bound.",
+  "schema": "hbf.runtime_materialization.v1",
+  "source_bundle": "native-supported-layer0-runtime-bundle-v3"
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "hbfsim.qkv_v7_cpu_source_profile.v1",
+  "source_root": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1",
+  "source_sha256": {
+    "Cargo.toml": "e6ec930a14b17349383045c17a5ba4dd62236f9add519141a04f436ba695b342",
+    "Cargo.lock": "da907f869a9684f4b39b7a312e18d396800235d73f9e44eaf6856e0e439ac02c",
+    "src/main.rs": "b4271e5251fa6daced2f6ff8f95753c5e028b8859fcedfb6cd7eb3a676c5e172",
+    "src/bin/cs2r_repro.rs": "472615bd33ef35f8542148fce89b9094b4f1f04ff0fe0f7b75850750c17fb7da",
+    "src/bin/hi_repro.rs": "7fca7df770ea8d8a6141aea466a2c5e002b9ab1d857047f48d9642fde4070de2",
+    "src/bin/output_repro.rs": "f4fff6da39e9385a50ec374792003e4955bf35ea67668befca1f92b22054ac86",
+    "src/bin/pair_repro.rs": "7d69717013757b7f02e514ee061071c3249922403585e2e189455b7a468e4b82",
+    "src/bin/qnan_repro.rs": "13ed133a8d1b4d419d919d2607d533e2750f82dcc6d342dbed00d1d81261342c",
+    "src/sass/cubin_parser.rs": "b95fb04f66331d66f0d6c4cce5291ec5bd87666860a5451cf091d045ceb7f065",
+    "src/sass/disassembler.rs": "a0c580e9cb5220a4aea94249d3d265e92817af3af29a107ed6a6691803124467",
+    "src/sass/instruction.rs": "fe75d8edd6ad292d43ff1633272db70cdec04bcd31dc15b59b60f17acf3aedc8",
+    "src/sass/lifter.rs": "0ec6653a78a2e8eb1ac5a8f5aa1a34c2fbe310fd5c7bb073bbb36a289ee12ca9",
+    "src/sass/mod.rs": "8b3704ec03b83c9191e85207cbbe51fefd9027473d7a8b3976f3e489999fcac7"
+  },
+  "licenses": {
+    "LICENSE-MIT": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-MIT", "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"},
+    "LICENSE-APACHE": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-APACHE", "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"}
+  },
+  "sass": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/lifter-standalone-v1/fixtures/qkv-real.sass", "sha256": "8bf18f936d5b7dd2eac6b8bd9eaba6499ad3a0070ecb58561aa2b77da67eed53"},
+  "kernel": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+  "sm": "sm_120",
+  "tools": {
+    "cargo": {"path": "/usr/bin/cargo", "sha256": "781e518b98a14a57b0513314c8e2dbb506f4b7840f58f850b24b225d2081e1e1", "version_fragment": "cargo 1.97.0-nightly"},
+    "rustc": {"path": "/usr/bin/rustc", "sha256": "781e518b98a14a57b0513314c8e2dbb506f4b7840f58f850b24b225d2081e1e1", "version_fragment": "rustc 1.97.0-nightly"},
+    "ptxas": {"path": "/usr/local/cuda-13.1/bin/ptxas", "sha256": "85836303aeca1a2ac9387a6d364b276a3603907c95c3b06c9e3aadf46195b0d8", "version_fragment": "V13.1.115"}
+  },
+  "limits": {"cpu_affinity": [47], "address_space_bytes": 4294967296, "total_seconds": 900, "cargo_jobs": 1}
+}

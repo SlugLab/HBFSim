@@ -1,0 +1,9 @@
+{
+  "status": "PASS_NO_GPU",
+  "returncode": 0,
+  "fixture_root": "/tmp/hbfsim-published-plugin-_en4c8hs",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/github-publication-final147-20260926/reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1",
+  "stdout": "PUBLISHED_PLUGIN_CPU.stdout",
+  "stderr": "PUBLISHED_PLUGIN_CPU.stderr",
+  "scope": "Published plugin isolated fake-tensor/agent contract checks, not a new model or GPU run."
+}

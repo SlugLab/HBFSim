@@ -1,0 +1,32 @@
+{
+  "schema": "hbfsim.model_coverage_increment.v1",
+  "evidence_class": "DOC_DERIVED",
+  "status": "UNION147_FINAL_SINGLE_RUN_PENDING",
+  "final_single_run_status": "PENDING",
+  "time_unix_ns": 1790387860045280561,
+  "target_storage_count": 147,
+  "target_storage_bytes": 13838323712,
+  "accepted_storage_count": 147,
+  "accepted_storage_bytes": 13838323712,
+  "baseline": {
+    "ledger": "task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_HEAD_v1.json",
+    "storage_count": 102,
+    "storage_bytes": 13331075072,
+    "unchanged_reused": true
+  },
+  "increment": {
+    "validation": "runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json",
+    "epoch": 6711,
+    "storage_count": 45,
+    "storage_bytes": 507248640,
+    "level": "MODEL_CONNECTED_PASS_COMBINED_REMAINING45",
+    "consumer_scope": "layers1\u201315 QKV/o_proj/router scheduled decode selected calls"
+  },
+  "remaining_storage_count": 0,
+  "remaining_storage_bytes": 0,
+  "limitations": [
+    "historical accepted union is not the final147 single-run regression",
+    "final one-run must include old98 plus selected49 and head after layer calls",
+    "older failures remain failures; task goal not complete"
+  ]
+}

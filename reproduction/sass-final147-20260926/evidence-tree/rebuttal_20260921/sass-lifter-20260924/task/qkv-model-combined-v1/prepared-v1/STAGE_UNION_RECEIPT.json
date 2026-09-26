@@ -1,0 +1,64 @@
+{
+  "boundary": "Stage/manifest/old binding paths prepared; new QKV live identity is separate and not fabricated in libtorch native bindings. No GPU or model run.",
+  "new_exact_qkv_weight": {
+    "bytes": 25165824,
+    "name": "model.layers.0.self_attn.qkv_proj.weight",
+    "pass_manifest_sha256": "7e6efbdbde59aaa9bdeed87f7307758d7d8b5bbaa70d997545e2886da4aa80b6",
+    "stage_file": "6db074711d19c3e31cbcc98c6e170f0b4330259f220c2d518ce8aee42b9c9eab.ptx",
+    "stage_sha256": "7219c1e8f58fdca32bc520a3a8ccdb1055aaccc33d12ff7935d7ef7baf786d67"
+  },
+  "old_input_sha256": {
+    "binding_manifest": "403346b245c00c8db2958720e53afb72fa94062cf4e7689498e283a93923742f",
+    "config": "0db33e882b8d2473cec4b03ed554f3d8025b9541d5e4f0b6615e643e68a16b58",
+    "pass_manifest": "50480cc29902621e9805ea866d91c8998a4a048ca15c0173642b34d05366da7c"
+  },
+  "old_scope": {
+    "binding_count": 4,
+    "bytes": 13091213312,
+    "count": 98,
+    "pass_rows": 8,
+    "stage_files": 7
+  },
+  "outputs": {
+    "binding_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/native-bindings-union.json",
+      "sha256": "37494798acdf790d945cef65f27d6ef4e9f8660a26091f6254e89e65d7f0d210"
+    },
+    "pass_manifest": {
+      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/pass-manifests.jsonl",
+      "sha256": "73f7673784bdaed1fc348127e95e279601de845a8e9f06ee9d890104312805f1"
+    },
+    "sidecars": [
+      {
+        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
+        "sha256": "bb925908109713031a669a94420479cf9d2968143336ff5cd8d5474cb4d82449",
+        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/0-relocated-provenance.json"
+      },
+      {
+        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
+        "sha256": "17c6a73468d1b229b02bc397cd663de7b9e71b4e19730b66c453bf39884c1b82",
+        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/1-relocated-provenance.json"
+      },
+      {
+        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+        "sha256": "6e4bf81f7778d681f5506411ec368035cf661563e693f29a160129a17aa57370",
+        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/2-relocated-provenance.json"
+      }
+    ],
+    "stage_dir": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage"
+  },
+  "schema": "hbfsim.qkv_model_combined_stage.v1",
+  "status": "CPU_STAGE_UNION_PASS_NO_GPU",
+  "union_scope": {
+    "bytes": 13116379136,
+    "count": 99,
+    "pass_rows": 9,
+    "stage_files": 8
+  }
+}

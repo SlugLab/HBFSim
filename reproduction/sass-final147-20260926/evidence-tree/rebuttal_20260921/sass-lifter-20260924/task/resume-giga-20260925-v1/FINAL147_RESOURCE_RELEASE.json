@@ -1,0 +1,19 @@
+{
+  "started_utc": "2026-09-26T04:56:08.427616+00:00",
+  "status": "TASK_GPU_RESERVATION_AND_WATCHDOG_RELEASED",
+  "container": "hbfsim-sass-combined-20260926-v1",
+  "reservation_pid": 3834147,
+  "reservation_start_ticks": 61124152,
+  "watchdog_pid": 4007502,
+  "watchdog_start_ticks": 61607239,
+  "reservation_stop": {
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "reservation_absent": true,
+  "watchdog_absent": true,
+  "finished_utc": "2026-09-26T04:56:09.585312+00:00",
+  "terminal_gpu_inventory": "0, GPU-45044e90-a553-930c-b950-ba660acb37fc, 32607, 32089\n",
+  "terminal_gpu_apps": ""
+}

@@ -1,0 +1,60 @@
+{
+  "bindings": [
+    {
+      "container_path": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
+      "container_sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
+      "kernel": "_ZN2at6native44_GLOBAL__N__cf70cbee_11_Indexing_cu_89862edb21indexSelectSmallIndexIN3c108BFloat16EljLi2ELi2ELin2EEEvNS_4cuda6detail10TensorInfoIT_T1_EENS7_IKS8_S9_EENS7_IKT0_S9_EEiiS9_l",
+      "member_id": "member-0199",
+      "member_sha256": "91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1",
+      "module_id": "ptx:sha256:91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1",
+      "provenance_sha256": "bb925908109713031a669a94420479cf9d2968143336ff5cd8d5474cb4d82449",
+      "provenance_sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
+      "raw_ptx_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/binding-inputs/raw_ptx_path/0-91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+      "runtime_binding_status": "NOT_RUN",
+      "runtime_domain": 12,
+      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+      "staged_sha256": "2a42261fbf8dbbe8d27dce2af8a1713a29021db2c479012714eaa2edac67f821"
+    },
+    {
+      "container_path": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
+      "container_sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
+      "kernel": "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIN3c108BFloat16EEESt5arrayIPcLm1EEEEviT0_T1_",
+      "member_id": "member-0175",
+      "member_sha256": "2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6",
+      "module_id": "ptx:sha256:2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6",
+      "provenance_sha256": "17c6a73468d1b229b02bc397cd663de7b9e71b4e19730b66c453bf39884c1b82",
+      "provenance_sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
+      "raw_ptx_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/binding-inputs/raw_ptx_path/1-libtorch_cuda.175.sm_120.ptx",
+      "runtime_binding_status": "NOT_RUN",
+      "runtime_domain": 12,
+      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+      "staged_sha256": "733f94c523dc2459db04ca7141f667c72270ec97c54ffe10c7b3a5872fc6811f"
+    },
+    {
+      "container_sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a",
+      "kernel": "_ZN4vllm15rms_norm_kernelIN3c108BFloat16ELi8ELi2EEEvPT_PKS3_lllllS6_fii",
+      "member_sha256": "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+      "module_id": "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+      "provenance_sha256": "6e4bf81f7778d681f5506411ec368035cf661563e693f29a160129a17aa57370",
+      "provenance_sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+      "raw_ptx_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/binding-inputs/raw_ptx_path/2-553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "runtime_domain": 12,
+      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "staged_sha256": "5c4cf1843497d1651bd55e98fccafe6cca8d38647fa18b48df16f30d79caa2b3"
+    },
+    {
+      "container_sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a",
+      "kernel": "_ZN4vllm25fused_add_rms_norm_kernelIN3c108BFloat16ELi8EEENSt9enable_ifIXaagtT0_Li0Esr4vllm12_typeConvertIT_EE6existsEvE4typeEPS4_lS7_PKS4_fii",
+      "member_sha256": "553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+      "module_id": "ptx:sha256:553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e",
+      "provenance_sha256": "6e4bf81f7778d681f5506411ec368035cf661563e693f29a160129a17aa57370",
+      "provenance_sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+      "raw_ptx_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/binding-inputs/raw_ptx_path/3-553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "runtime_domain": 12,
+      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "staged_sha256": "5c4cf1843497d1651bd55e98fccafe6cca8d38647fa18b48df16f30d79caa2b3"
+    }
+  ],
+  "schema_version": 1,
+  "status": "READY"
+}

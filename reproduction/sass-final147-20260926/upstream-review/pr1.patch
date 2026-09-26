@@ -1,0 +1,129 @@
+diff --git a/ptx/src/sass/lifter.rs b/ptx/src/sass/lifter.rs
+index 62484fc..098148f 100644
+--- a/ptx/src/sass/lifter.rs
++++ b/ptx/src/sass/lifter.rs
+@@ -621,7 +621,12 @@ impl<'a> LiftContext<'a> {
+             "FRND" if has_modifier(inst, "TRUNC") => Some(frnd_trunc_op(inst, &pred)),
+             "FRND" => self.unsupported(inst, "floating round mode lifting is not implemented"),
+             "FMNMX" => Some(fmnmx_op(inst, &pred, self.scratch_gpr.as_deref())),
+-            "FSEL" => Some(fsel_op(inst, &pred)),
++            "FSEL" => fsel_op(inst, &pred).or_else(|| {
++                self.unsupported(
++                    inst,
++                    "FSEL -QNAN requires an encoded negative quiet-NaN immediate",
++                )
++            }),
+             "FABS" => Some(unary_op(
+                 inst,
+                 &pred,
+@@ -1903,18 +1908,16 @@ fn uniform_high_register_name(name: &str) -> Option<String> {
+     Some(format!("%ur{}", number + 1))
+ }
+ 
+-fn fsel_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
++fn fsel_op(inst: &EnhancedSassInstruction, pred: &str) -> Option<String> {
+     let dst = dest_operand(inst).unwrap_or_else(|| "%r0".to_string());
+-    let mut src0 = inst
+-        .src_operands
+-        .first()
+-        .map(format_operand)
+-        .unwrap_or_else(|| "0".to_string());
+-    let mut src1 = inst
+-        .src_operands
+-        .get(1)
+-        .map(format_operand)
+-        .unwrap_or_else(|| "0".to_string());
++    let mut src0 = match inst.src_operands.first() {
++        Some(source) => format_fsel_source(inst, 0, source)?,
++        None => "0".to_string(),
++    };
++    let mut src1 = match inst.src_operands.get(1) {
++        Some(source) => format_fsel_source(inst, 1, source)?,
++        None => "0".to_string(),
++    };
+     let (predicate, negated) = inst
+         .src_operands
+         .get(2)
+@@ -1923,10 +1926,34 @@ fn fsel_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+     if negated {
+         std::mem::swap(&mut src0, &mut src1);
+     }
+-    format!(
++    Some(format!(
+         "{}selp.b32 {}, {}, {}, {};",
+         pred, dst, src0, src1, predicate
+-    )
++    ))
++}
++
++fn format_fsel_source(
++    inst: &EnhancedSassInstruction,
++    index: usize,
++    source: &SassOperand,
++) -> Option<String> {
++    if matches!(source, SassOperand::Label(label) if label == "-QNAN") {
++        // cuobjdump prints different negative qNaN payloads identically as
++        // -QNAN. The encoded immediate, not that display label, identifies
++        // the exact 32-bit value selected by this FSEL instruction.
++        let encoding = extract_sass_encoding(inst)?;
++        // Both independently assembled FSEL immediate references have low
++        // 16 bits 0x7808; register-source FSEL instead has 0x7208.
++        if index != 1 || encoding & 0xffff != 0x7808 {
++            return None;
++        }
++        let bits = (encoding >> 32) as u32;
++        if bits & 0xffc0_0000 != 0xffc0_0000 {
++            return None;
++        }
++        return Some(format!("0x{:08x}", bits));
++    }
++    Some(format_operand(source))
+ }
+ 
+ fn idp_4a_s8_s8_op(inst: &EnhancedSassInstruction, pred: &str) -> String {
+@@ -3265,6 +3292,45 @@ mod tests {
+         }
+     }
+ 
++    #[test]
++    fn sass_lifter_fsel_negative_qnan_preserves_encoded_payload() {
++        let text = r#"Function : fsel_qnan
++        /*0050*/ FSEL R5, RZ, -QNAN , P0 ; /* 0xffffffffff057808 */
++                 /* 0x000fca0000000000 */
++        /*0060*/ EXIT ; /* 0x000000000000794d */
++                 /* 0x000fea0003800000 */"#;
++        let options = SassLiftOptions {
++            sm_version: 120,
++            kernel_name: "fsel_qnan".to_string(),
++            include_sass_comments: false,
++            emit_unsupported_comments: true,
++        };
++        let all_ones = lift_sass_text_to_ptx(text, options.clone()).unwrap();
++        assert!(
++            all_ones.diagnostics.is_empty(),
++            "{:?}",
++            all_ones.diagnostics
++        );
++        assert!(all_ones.ptx.contains("selp.b32 %r5, 0, 0xffffffff, %p0;"));
++
++        let canonical = lift_sass_text_to_ptx(
++            &text.replace("0xffffffffff057808", "0xffc00000ff057808"),
++            options.clone(),
++        )
++        .unwrap();
++        assert!(
++            canonical.diagnostics.is_empty(),
++            "{:?}",
++            canonical.diagnostics
++        );
++        assert!(canonical.ptx.contains("selp.b32 %r5, 0, 0xffc00000, %p0;"));
++
++        let missing =
++            lift_sass_text_to_ptx(&text.replace("/* 0xffffffffff057808 */", ""), options).unwrap();
++        assert_eq!(missing.diagnostics.len(), 1);
++        assert!(!missing.ptx.contains("selp.b32 %r5, 0, -QNAN"));
++    }
++
+     #[test]
+     fn sass_lifter_text_frontend_uses_function_name_and_sm120() {
+         let text = r#"Function : vector_add

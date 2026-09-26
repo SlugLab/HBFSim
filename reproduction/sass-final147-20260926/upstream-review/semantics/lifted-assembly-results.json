@@ -1,0 +1,68 @@
+[
+  {
+    "case": "pr1-allones",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-allones.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-allones.cubin"
+    ],
+    "rc": 0
+  },
+  {
+    "case": "pr1-canonical",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-canonical.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr1-canonical.cubin"
+    ],
+    "rc": 255
+  },
+  {
+    "case": "pr2-pair",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-pair.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-pair.cubin"
+    ],
+    "rc": 0
+  },
+  {
+    "case": "pr2-zero",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-zero.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-zero.cubin"
+    ],
+    "rc": 0
+  },
+  {
+    "case": "pr4-rn",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr4-rn.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr4-rn.cubin"
+    ],
+    "rc": 0
+  },
+  {
+    "case": "pr4-geu",
+    "argv": [
+      "/usr/local/cuda-13.1/bin/ptxas",
+      "-arch=sm_120",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr4-geu.ptx",
+      "-o",
+      "rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr4-geu.cubin"
+    ],
+    "rc": 0
+  }
+]

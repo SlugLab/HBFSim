@@ -1,0 +1,98 @@
+{
+  "observed_utc": "2026-09-26T05:17:37.558092+00:00",
+  "repo": "vickiegpt/Concordia",
+  "base_sha": "c60cfd8ab54fd1ec4512f749ad61cccc4a390a05",
+  "permission": "ADMIN",
+  "branch_protected": false,
+  "rulesets": [],
+  "standard": "CONTRIBUTING.md asks initialized submodules and cargo test --workspace",
+  "ci_note": "No PR status checks reported; only dynamic Copilot review workflow found. CLEAN is GitHub mergeability, not correctness or test acceptance.",
+  "workspace_preflight": "workspace-test.json",
+  "prs": [
+    {
+      "number": 1,
+      "head_sha": "12e8ee2aed0e89a178289422d4e835e6999448ab",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 80,
+          "deletions": 14
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 0
+    },
+    {
+      "number": 2,
+      "head_sha": "47d1f534d4faae68748992bda040e5a0a6938cb9",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 36,
+          "deletions": 0
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 2
+    },
+    {
+      "number": 3,
+      "head_sha": "591a8e63e004427c42bbe40a4c29da741e9f656c",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 60,
+          "deletions": 0
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 1
+    },
+    {
+      "number": 4,
+      "head_sha": "ad7bfe830e4f83404addf5a06bb00c83569e1586",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 50,
+          "deletions": 2
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 1
+    },
+    {
+      "number": 5,
+      "head_sha": "4a3cac900c6d43859bc519062e29c87e724305e7",
+      "base_branch": "tmatmul",
+      "state": "OPEN",
+      "draft": false,
+      "merge_state": "CLEAN",
+      "files": [
+        {
+          "path": "ptx/src/sass/lifter.rs",
+          "additions": 239,
+          "deletions": 24
+        }
+      ],
+      "checks": [],
+      "unresolved_threads": 4
+    }
+  ]
+}

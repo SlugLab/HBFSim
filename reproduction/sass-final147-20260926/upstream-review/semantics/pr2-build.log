@@ -1,0 +1,68 @@
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling typenum v1.20.1
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling getrandom v0.4.3
+   Compiling rustix v1.1.5
+   Compiling cfg-if v1.0.5
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling memchr v2.8.3
+   Compiling digest v0.10.7
+   Compiling serde_derive v1.0.229
+   Compiling fastrand v2.5.0
+   Compiling itoa v1.0.18
+   Compiling cpufeatures v0.2.17
+   Compiling once_cell v1.21.4
+   Compiling tempfile v3.27.0
+   Compiling sha2 v0.10.9
+   Compiling object v0.32.2
+   Compiling hbfsim_sass_recovery_diagnostic v0.1.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-crate)
+warning: unused variable: `label`
+   --> src/sass/disassembler.rs:762:47
+    |
+762 |                     if let SassOperand::Label(label) = op {
+    |                                               ^^^^^ help: if this is intentional, prefix it with an underscore: `_label`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:297:9
+    |
+297 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: unused variable: `kernel_symbol`
+   --> src/sass/cubin_parser.rs:310:21
+    |
+310 |                 let kernel_symbol = symbols
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_kernel_symbol`
+
+warning: variable does not need to be mutable
+   --> src/sass/cubin_parser.rs:350:13
+    |
+350 |         let mut const_mem = 0u32;
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `elf`
+   --> src/sass/cubin_parser.rs:472:9
+    |
+472 |         elf: &ElfFile<'a, F>,
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_elf`
+
+warning: `hbfsim_sass_recovery_diagnostic` (bin "hbfsim_sass_recovery_diagnostic") generated 5 warnings (run `cargo fix --bin "hbfsim_sass_recovery_diagnostic" -p hbfsim_sass_recovery_diagnostic` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.90s

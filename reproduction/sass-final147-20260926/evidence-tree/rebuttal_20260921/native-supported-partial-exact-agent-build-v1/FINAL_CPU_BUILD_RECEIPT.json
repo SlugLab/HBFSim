@@ -1,0 +1,75 @@
+{
+  "configure-receipt.json": {
+    "status": "PASS",
+    "returncode": 0,
+    "sha256": "81ac7a76c85e4f5fc6aef602b7690f688986b6927871b2c88a9109eae1877d9b"
+  },
+  "build-receipt.json": {
+    "status": "PASS",
+    "returncode": 0,
+    "sha256": "3419f1e99777108de4dd767726808ff096c8c978572ed504e13c0c51863b41c1"
+  },
+  "check-receipt.json": {
+    "status": "PASS",
+    "returncode": null,
+    "sha256": "96e2ca88bfa8b3a67d3a2d3f8ced5f27a8fdaa9fe3392ff36739ece07b7b56aa"
+  },
+  "agent": {
+    "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/runtime/agent/libbpftime-agent.so",
+    "exists": true,
+    "sha256": "c6ec3ea1e8b8a50f7480eebb0ccb6360cafa515f8858f8efdbfa2c5d6f4c7d5f",
+    "bytes": 206724264,
+    "mode": "0o755"
+  },
+  "compiler": {
+    "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/attach/nv_attach_impl/ptx_compiler/libnv_attach_impl_ptx_compiler.so",
+    "exists": true,
+    "sha256": "23d64da25ede61d9e38412ea28085301212f9358a5416f6d631d662148db516e",
+    "bytes": 48225360,
+    "mode": "0o755"
+  },
+  "diff_sha256": "14f686503af860116170e589c24009cf0e127f1e3cc5fc5369ab3163eba6277a",
+  "changed_source_sha256": {
+    "attach/nv_attach_impl/nv_attach_impl.hpp": "a769bf11b27cf3161a2a38a9d18d4d59b1d8efcbebcc00196caffb725f135409",
+    "attach/nv_attach_impl/nv_attach_impl.cpp": "d1749581c42239622a8ea604009e500864290f0a68fd87e1a998f2ca558ccec9",
+    "attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp": "a94b2cb01592a62dcc6a70f3f50f17004e4dc6be31cc7c4cf086cd528c18b1b5"
+  },
+  "cpu_test": {
+    "source_extract_sha256": "c250a373a2bab0f18611eca6434821b753ebc4cd8fca7f9feba2ffcda536e44a",
+    "manifest_sha256": "e4443561061be1e105feacb96bbb441e34d46d19fc6609b73a5e538b9c5dcf51",
+    "compile_argv": [
+      "/usr/bin/g++-13",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-O0",
+      "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/cpu-tests/candidate_exact_test.cpp",
+      "-o",
+      "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/cpu-tests/candidate_exact_test"
+    ],
+    "compile_rc": 0,
+    "run_rc": 0,
+    "cases": [
+      "selected",
+      "wrong_domain",
+      "unregistered",
+      "stale_generation",
+      "reregistered_generation",
+      "disabled_manifest"
+    ]
+  },
+  "joint_o0_cpu_compile": {
+    "cubin_sha256": "30923bf9e94307953ae8f6efdecba07bd79bb794090094afe0da66499d35cdcc",
+    "bytes": 3631968,
+    "expected_sha256": "30923bf9e94307953ae8f6efdecba07bd79bb794090094afe0da66499d35cdcc",
+    "match": true,
+    "options": [
+      "--gpu-name=sm_120",
+      "--verbose",
+      "-O0",
+      "--maxrregcount=64"
+    ],
+    "compiler_sha256": "23d64da25ede61d9e38412ea28085301212f9358a5416f6d631d662148db516e"
+  }
+}

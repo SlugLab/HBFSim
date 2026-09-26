@@ -1,0 +1,582 @@
+{
+  "baseline_commit": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
+  "patch_sha256": "e78c08939a751cfff71d21563c42fac9c0ae7453244aa5e5a675d40b5cadb645",
+  "patch_bytes": 501605,
+  "rows": [
+    {
+      "path": "adapters/vllm/AUTO_PTX_WORKFLOW.md",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/AUTO_PTX_WORKFLOW.md",
+      "source_sha256": "c78579eb81936aa1d5df5f0f6fa75bf95336eef45317aacc2072a5ec3e0656b0",
+      "source_bytes": 5823,
+      "baseline_sha256": null
+    },
+    {
+      "path": "adapters/vllm/auto_prepare_ptx.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/auto_prepare_ptx.py",
+      "source_sha256": "a30d44286dcc879f689111304616db9394055ec7b6e2afa6d941d19139917d3a",
+      "source_bytes": 26767,
+      "baseline_sha256": null
+    },
+    {
+      "path": "adapters/vllm/auto_run.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/auto_run.py",
+      "source_sha256": "7c7e24269cd39e156dcd133ce80662a1530ab9485c22be26633826e78507dcb6",
+      "source_bytes": 42484,
+      "baseline_sha256": null
+    },
+    {
+      "path": "adapters/vllm/hbfsim_loader.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/hbfsim_loader.py",
+      "source_sha256": "40c441d92ad5f675bdd1f44313ca68a3de685bddb20666cdebe94488aed0532a",
+      "source_bytes": 24981,
+      "baseline_sha256": "69e9ac41b409567cfd462591eaa5f1f3791ee8ffd03cde96c628e666ea550889"
+    },
+    {
+      "path": "adapters/vllm/run.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/run.py",
+      "source_sha256": "3815e3f655e9e559f668503b35637a3a5068c0c6970d3c4efcc6edc2f0e6ed33",
+      "source_bytes": 23633,
+      "baseline_sha256": "079eef945018ccc82651d8aad59ccc75cb65d2288a220916393b25abdf9e1973"
+    },
+    {
+      "path": "adapters/vllm/tests/test_auto_run.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/tests/test_auto_run.py",
+      "source_sha256": "565402871e1602bc5620e87daef1aed049c33e79bf2beb8974a37a7e91ffb301",
+      "source_bytes": 20027,
+      "baseline_sha256": null
+    },
+    {
+      "path": "adapters/vllm/tests/test_hbfsim_loader.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/tests/test_hbfsim_loader.py",
+      "source_sha256": "f7a4264410e6f0ce4594d036fd8edc447220b752413f925191530156ff0a1736",
+      "source_bytes": 14166,
+      "baseline_sha256": "494ac3ee5cda329e742d2cef9a3f6981c43bebd555deda9a28db643fd8daf3fc"
+    },
+    {
+      "path": "adapters/vllm/tests/test_run.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/tests/test_run.py",
+      "source_sha256": "2ff37d3bac23dbff07fed95decc34ca40508944ec5ef6dcbf2167b7ce9cf127a",
+      "source_bytes": 3357,
+      "baseline_sha256": "5cc006f6d336d472bcea5f3d2e3a6ea00351551c4e50dfecec8a8dc2294fafe1"
+    },
+    {
+      "path": "adapters/vllm/tests/test_triton_binding.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/tests/test_triton_binding.py",
+      "source_sha256": "dd6091d87ce0c1b0efe2e388fc1f3ab46c7d76341f906d8fb813c25a3a16c557",
+      "source_bytes": 6637,
+      "baseline_sha256": "854bd970dfa4a687a425b0598866c2e41ff9b8bd4655fd285dc76e30ba6add95"
+    },
+    {
+      "path": "adapters/vllm/tests/test_weight_policy.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/tests/test_weight_policy.py",
+      "source_sha256": "d01e61a6bab69e31841a296f30987fbe9fcb727c9d346cd9d21e4782875e31d2",
+      "source_bytes": 2747,
+      "baseline_sha256": null
+    },
+    {
+      "path": "adapters/vllm/triton_binding.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/adapters/vllm/triton_binding.py",
+      "source_sha256": "7f2ac6def69afcdb322822d4903eb869653bf6a9ee2dc24d1237fbe71eb78400",
+      "source_bytes": 6933,
+      "baseline_sha256": "2254aff83e2ef010f42fb1b8914f0ec226ca03210d9da25ce158ccb950de3fcd"
+    },
+    {
+      "path": "include/hbfsim/api.h",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/include/hbfsim/api.h",
+      "source_sha256": "1288cb3a1fae4270015c98f1ad60ef70f967a34a9ca81497da9d61b5fe1cbc7f",
+      "source_bytes": 3174,
+      "baseline_sha256": "a08a6569b51aeff1a9fcc221bbded5866ce3633bb621381af7e374c4aefa2935"
+    },
+    {
+      "path": "include/hbfsim/coverage.hpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/include/hbfsim/coverage.hpp",
+      "source_sha256": "7dc4024741e24122ca8304a7e57915ce68ed81e6f0c36cb60d08503b35de3703",
+      "source_bytes": 7027,
+      "baseline_sha256": "c8d3488d263c27d541eb8611d66f23d95be1df72b79c1b035126d80fe9aacb27"
+    },
+    {
+      "path": "include/hbfsim/strict_direct_policy.hpp",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/include/hbfsim/strict_direct_policy.hpp",
+      "source_sha256": "5761b8c5bf3ab3063c88c30104be00e08b65c09c31a510ea2b0c8689e1810d56",
+      "source_bytes": 903,
+      "baseline_sha256": null
+    },
+    {
+      "path": "scripts/run_with_bpftime.sh",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/scripts/run_with_bpftime.sh",
+      "source_sha256": "ebc170c3da3bd5553c6a05e2d3b5b6f55a31189b002d6af5406d34e01dee7269",
+      "source_bytes": 6218,
+      "baseline_sha256": "e4fadca384f3a4cbcb7b9acdddd0868fa18cc4084d4fce73bf477c3e7edffa2c"
+    },
+    {
+      "path": "scripts/validate_bpftime_activation.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/scripts/validate_bpftime_activation.py",
+      "source_sha256": "ea1b3c8947c90a94f68fe47dbd97b3978bc6c0c04a516ece230853e93af94d89",
+      "source_bytes": 2906,
+      "baseline_sha256": null
+    },
+    {
+      "path": "src/cuda_runtime/capacity_runtime.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/capacity_runtime.cpp",
+      "source_sha256": "ccda8bf80807883bb6e05b2aa4435530568779a7a8e554a641768b073957bf79",
+      "source_bytes": 8622,
+      "baseline_sha256": "1b4629eb043789549032ca2c5657de8afe98698c0ab0db35000cf04b461d194f"
+    },
+    {
+      "path": "src/cuda_runtime/capacity_runtime.hpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/capacity_runtime.hpp",
+      "source_sha256": "91148ca10dd199bf37c3b123d421839b5816879bb9028e97ff8bc047655c6918",
+      "source_bytes": 3464,
+      "baseline_sha256": "4863533c30fbd0a69f34b9643b3da79b574200aaad8cb11d471c984aea30ad88"
+    },
+    {
+      "path": "src/cuda_runtime/context.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/context.cpp",
+      "source_sha256": "ee2b5ccf1e6e2bebc2655141eed973391ef8f3b6ce38daa0e6ce749b22a775a4",
+      "source_bytes": 83202,
+      "baseline_sha256": "71ccbb7a6986be6dfd0b1a9f00255dc066a8f298d45d6ba4d2a04753f0c723c7"
+    },
+    {
+      "path": "src/cuda_runtime/coverage.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/coverage.cpp",
+      "source_sha256": "700148233a3e866255bc909b4fc22a47a695a22d089d3f2a451844bdfeda5866",
+      "source_bytes": 39167,
+      "baseline_sha256": "faaab777b0a9fdc652516440ee757ca0a481eb7779e9bc0f5132a8d81fe18fad"
+    },
+    {
+      "path": "src/cuda_runtime/device/hbf_device.cu",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/device/hbf_device.cu",
+      "source_sha256": "da6912230874d56ab0327477a40b113895f1df8018d9751944cc781e0971e77a",
+      "source_bytes": 98509,
+      "baseline_sha256": "4c8d0f05add7f60c620453a2ddfc660dbdc6272e300a641235958421c84e62f6"
+    },
+    {
+      "path": "src/cuda_runtime/device/hbf_device.cuh",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/device/hbf_device.cuh",
+      "source_sha256": "730659c824749e654ad58f8b41e00b0be5d7a321e2fd1ff425378a84776acf40",
+      "source_bytes": 44542,
+      "baseline_sha256": "f29d10b5725e0e9c31ca46c2d0b7d02899774072c2c6e72e7dc9b67640d22f5b"
+    },
+    {
+      "path": "src/cuda_runtime/launch_gate.cpp",
+      "group": "scoped",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/launch_gate.cpp",
+      "source_sha256": "19e149da779a5c31317507320138195bc88154d3c6dfe9fc88fe46cea265510e",
+      "source_bytes": 205891,
+      "baseline_sha256": "8db4ccc980e393d7583478658bb2ea12a259f2603980edcab1b61c934f624d1e"
+    },
+    {
+      "path": "src/cuda_runtime/scoped_accounting_policy.hpp",
+      "group": "scoped",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_accounting_policy.hpp",
+      "source_sha256": "3c7ef3d12efbccfca742aa05bd50f5e417883392d31c3d2b4d1ce67053d51b70",
+      "source_bytes": 570,
+      "baseline_sha256": null
+    },
+    {
+      "path": "src/cuda_runtime/scoped_aux_range.hpp",
+      "group": "scoped",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_aux_range.hpp",
+      "source_sha256": "d9bd13328caf234d8d5a7dac42e2dc6473933935b081d542c51d739a79fd711f",
+      "source_bytes": 1722,
+      "baseline_sha256": null
+    },
+    {
+      "path": "src/cuda_runtime/vmm.hpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/cuda_runtime/vmm.hpp",
+      "source_sha256": "828c4ad0936e40b5f48407bbf208fd2a3aa4a1752d66d402822c5e5ffb8b3085",
+      "source_bytes": 3674,
+      "baseline_sha256": "f42ad61ced568493465140ab55a7a272afff2dea9fa319685b1aaef4e77a13c2"
+    },
+    {
+      "path": "src/host_service/capacity_page_service.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/host_service/capacity_page_service.cpp",
+      "source_sha256": "43c42197d674938601f7da84ed11698d80a09d56f665bf9aecece069852d1796",
+      "source_bytes": 13758,
+      "baseline_sha256": "9ff8afaff7ae02b3927df7202680ca901065f27b43a9d8bbdea02976dcf69a4a"
+    },
+    {
+      "path": "src/host_service/capacity_page_service.hpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/host_service/capacity_page_service.hpp",
+      "source_sha256": "cc29d3e39336983cfcd606314551dcafa3408d968eee10dfd7b2b5218e8bc39d",
+      "source_bytes": 3402,
+      "baseline_sha256": "e14829206b121b1303e49ce46c7d5c15e6fedc240bb6a02c38271592ab4ac737"
+    },
+    {
+      "path": "src/host_service/control_layout.hpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/host_service/control_layout.hpp",
+      "source_sha256": "a8cd4bb07e54db3b534eda962203df08ca82204a4fff73603f3c88c53d9296d4",
+      "source_bytes": 30023,
+      "baseline_sha256": "434f72152ed78ca8999b878a9a3a7cb6c4649a166974cb97bdc532ccf7eefde3"
+    },
+    {
+      "path": "src/reporting/coverage_writer.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/src/reporting/coverage_writer.cpp",
+      "source_sha256": "33fec21888d42aa584d94f9d14ee67a12c0c88039173ccd1ab5126e0fe1244ae",
+      "source_bytes": 1891,
+      "baseline_sha256": "e979b0d6a5af16ccf52d32a1ba0eefd3d4c61b6d4b2b269725ff773ce753f953"
+    },
+    {
+      "path": "tests/cpu/capacity_page_service_test.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/cpu/capacity_page_service_test.cpp",
+      "source_sha256": "4e9230f344b7cc146019f4e2562d396f5931b2a9dd0aa95d69ae6dfda535810c",
+      "source_bytes": 14779,
+      "baseline_sha256": "ed5568072ae159579c48a661b45cce1f64cb644d75405a548ae25ab740aea739"
+    },
+    {
+      "path": "tests/cpu/context_lifecycle_test.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/cpu/context_lifecycle_test.cpp",
+      "source_sha256": "3d5b68f515f4428a696b0f3ec7014340b740da3a12efffaa08ff1adb145e1832",
+      "source_bytes": 16358,
+      "baseline_sha256": "f7462c86b7d1de47357784fd706386320d2f231bea4b62f4e6fbf3558125b3f6"
+    },
+    {
+      "path": "tests/cpu/coverage_gate_test.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/cpu/coverage_gate_test.cpp",
+      "source_sha256": "f10b404c6508c657954365b4f1473ebd7cd94170e9706b52dc5bd27b59ce0ed7",
+      "source_bytes": 24319,
+      "baseline_sha256": "70de015be82f5852ceec1924fe502f03a99c21cda1da9f9f9f1c537a4c2f5f67"
+    },
+    {
+      "path": "tests/cpu/device_helper_abi_test.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/cpu/device_helper_abi_test.cpp",
+      "source_sha256": "694292f582c5fc9cf2725fde048d31653c2e8e3acd58e2a7293082f1545c5c95",
+      "source_bytes": 22860,
+      "baseline_sha256": "2b2f4ad8036a56c7a6415751af7bd316bf0b71fff72e68266cbf9e5a6f2c0c85"
+    },
+    {
+      "path": "tests/cpu/strict_direct_policy_test.cpp",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/cpu/strict_direct_policy_test.cpp",
+      "source_sha256": "cef38889ee1608b3a42f2bdcc1697b995faddc0b50e2685a907becddddecb915",
+      "source_bytes": 940,
+      "baseline_sha256": null
+    },
+    {
+      "path": "tests/integration/auto_ptx_live_fixture.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/auto_ptx_live_fixture.py",
+      "source_sha256": "e13b96daa291751a410cab322ec921bbfd85bda0dac374a571cf492ebc139d78",
+      "source_bytes": 36544,
+      "baseline_sha256": null
+    },
+    {
+      "path": "tests/integration/fake_cuda_lookup.cpp",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/fake_cuda_lookup.cpp",
+      "source_sha256": "ef27ff8c23d2ed9599c7e16f035092bc933cd69874c76f628e14724edb5cb12c",
+      "source_bytes": 44829,
+      "baseline_sha256": "a15ab4885e144e95c5ad9aab6d2002fc468ef0ce2a76d386fa4f2c541d9a0d77"
+    },
+    {
+      "path": "tests/integration/test_aggregate_argument_readers.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/test_aggregate_argument_readers.py",
+      "source_sha256": "f33d599ab325d2e5f212546ef5f3bef7afecfc4c7e6baa56b099e0c8b1014b60",
+      "source_bytes": 3046,
+      "baseline_sha256": null
+    },
+    {
+      "path": "tests/integration/test_bpftime_activation_validator.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/test_bpftime_activation_validator.py",
+      "source_sha256": "b35a4b635d54aed273671ccc2f09d6cbf3fa4972939498460c1e3cf7c1337399",
+      "source_bytes": 2537,
+      "baseline_sha256": null
+    },
+    {
+      "path": "tests/integration/test_timing_gate_binding.py",
+      "group": "policy",
+      "mode": "replace",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/test_timing_gate_binding.py",
+      "source_sha256": "022797f516ddd977c180e9e00aadf13bb5a6baceeef6dd496e7804c9666b63c8",
+      "source_bytes": 27479,
+      "baseline_sha256": "61f0f73af8fc2f2261cb3dfa3f209d077ef6cc5bed7610c321ccfebc2531c844"
+    },
+    {
+      "path": "tests/integration/test_unbound_strict_handshake.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/integration/test_unbound_strict_handshake.py",
+      "source_sha256": "02e54227cfd60f8ef5a02406dcb528d3341cdb98848b05d500d285828e2c2ac4",
+      "source_bytes": 1778,
+      "baseline_sha256": null
+    },
+    {
+      "path": "tests/test_auto_prepare_ptx.py",
+      "group": "policy",
+      "mode": "add",
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-source-v1/tests/test_auto_prepare_ptx.py",
+      "source_sha256": "bb9eafd1a44e472fe5f64724d07ef80fa8de6f6ca2d512b95eb2d63368133920",
+      "source_bytes": 11454,
+      "baseline_sha256": null
+    }
+  ],
+  "excluded": [
+    {
+      "path": "scripts/__pycache__/validate_bpftime_activation.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/prepare_triton_ptx.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/triton_binding.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/run.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/auto_run.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/run.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/auto_prepare_ptx.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/auto_run.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/hbfsim_loader.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/hbfsim_loader.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/triton_binding.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/__pycache__/auto_prepare_ptx.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/.pytest_cache/.gitignore",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/.pytest_cache/README.md",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/.pytest_cache/CACHEDIR.TAG",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/.pytest_cache/v/cache/nodeids",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/.pytest_cache/v/cache/lastfailed",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_auto_run.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_weight_policy.cpython-313-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_run.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_triton_binding.cpython-313-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_hbfsim_loader.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_auto_run.cpython-314-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_run.cpython-314-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_hbfsim_loader.cpython-314-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_hbfsim_loader.cpython-313-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "adapters/vllm/tests/__pycache__/test_auto_run.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/__pycache__/test_auto_prepare_ptx.cpython-313-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/__pycache__/test_auto_prepare_ptx.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/__pycache__/test_auto_prepare_ptx.cpython-314-pytest-9.0.2.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/integration/__pycache__/auto_ptx_live_fixture.cpython-313.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/integration/__pycache__/test_bpftime_activation_validator.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    },
+    {
+      "path": "tests/integration/__pycache__/auto_ptx_live_fixture.cpython-314.pyc",
+      "reason": "generated cache or non-source artifact"
+    }
+  ],
+  "git_apply_check_rc": 0,
+  "restore_mismatches": [],
+  "full_closure": {
+    "include": {
+      "checked": 20,
+      "mismatches": []
+    },
+    "src": {
+      "checked": 63,
+      "mismatches": []
+    },
+    "CMake/cmake/scripts": {
+      "checked": 105,
+      "mismatches": []
+    }
+  },
+  "note": "Source-only isolated-index verification. No build or worktree mutation.",
+  "excluded_outside_domain_added": [
+    {
+      "path": "NATIVE_UNBOUND_POLICY.patch",
+      "reason": "historical source delta, superseded by exact per-file v2 patch"
+    },
+    {
+      "path": "validate_failstop_cpu_v2.py",
+      "reason": "standalone validation utility, not CMake input"
+    },
+    {
+      "path": "validate_failstop_cpu.py",
+      "reason": "standalone validation utility, not CMake input"
+    },
+    {
+      "path": "SOURCE_PROVENANCE.txt",
+      "reason": "provenance metadata, not CMake input"
+    },
+    {
+      "path": "BASE_SOURCE_SHA256SUMS",
+      "reason": "provenance metadata, not CMake input"
+    },
+    {
+      "path": "ACCEPTED_RUNTIME_BASE",
+      "reason": "provenance metadata, not CMake input"
+    },
+    {
+      "path": ".git",
+      "reason": "source-control pointer; not compiled"
+    },
+    {
+      "path": "__pycache__/validate_failstop_cpu.cpython-314.pyc",
+      "reason": "generated Python bytecode"
+    },
+    {
+      "path": "patches/bpftime/0002-strict-launch-bridge.patch",
+      "reason": "historical bpftime patch, not referenced by HBF CMake; actual bpftime source reconstructed separately"
+    }
+  ],
+  "outside_domain_tracked_unchanged_count": 699,
+  "outside_domain_tracked_changed": [],
+  "cmake_referenced_unchanged_examples": [
+    "patches/bpftime/0001-exact-module-load-provenance.patch",
+    "configs/profiles/nominal.json",
+    "benchmarks/mqsim/hbf_mqsim_bench.cpp",
+    "benchmarks/replay/hbf_mqsim_service.cpp"
+  ]
+}

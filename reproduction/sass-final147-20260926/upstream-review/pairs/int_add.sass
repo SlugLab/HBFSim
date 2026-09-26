@@ -1,0 +1,21 @@
+Function : int_add
+        /*0000*/                   LDC R1, c[0x0][0x37c]                      &wr=0x0          ?trans1;           /* 0x0000df00ff017b82 */
+        /*0010*/                   S2R R7, SR_TID.X                           &wr=0x1          ?trans7;           /* 0x0000000000077919 */
+        /*0020*/                   S2UR UR4, SR_CTAID.X                       &wr=0x1          ?trans1;           /* 0x00000000000479c3 */
+        /*0030*/                   LDCU UR5, c[0x0][0x390]                    &wr=0x2          ?trans7;           /* 0x00007200ff0577ac */
+        /*0040*/                   LDC R0, c[0x0][0x360]                      &wr=0x1          ?trans2;           /* 0x0000d800ff007b82 */
+        /*0050*/                   IMAD R7, R0, UR4, R7                       &req={1}         ?WAIT5_END_GROUP;  /* 0x0000000400077c24 */
+        /*0060*/                   ISETP.GE.U32.AND P0, PT, R7, UR5, PT       &req={2}         ?WAIT13_END_GROUP; /* 0x0000000507007c0c */
+        /*0070*/               @P0 EXIT                                       &req={0}         ?trans5;           /* 0x000000000000094d */
+        /*0080*/                   LDC.64 R2, c[0x0][0x388]                   &wr=0x0          ?trans1;           /* 0x0000e200ff027b82 */
+        /*0090*/                   LDCU.64 UR4, c[0x0][0x358]                 &wr=0x1          ?trans7;           /* 0x00006b00ff0477ac */
+        /*00a0*/                   LDC.64 R4, c[0x0][0x380]                   &wr=0x2          ?trans1;           /* 0x0000e000ff047b82 */
+        /*00b0*/                   IMAD.WIDE.U32 R2, R7, 0x4, R2              &req={0}         ?WAIT6_END_GROUP;  /* 0x0000000407027825 */
+        /*00c0*/                   LDG.E R2, desc[UR4][R2.64]                 &req={1} &wr=0x3 ?trans1;           /* 0x0000000402027981 */
+        /*00d0*/                   IMAD.WIDE.U32 R4, R7, 0x4, R4              &req={2}         ?trans1;           /* 0x0000000407047825 */
+        /*00e0*/                   IADD3 R0, PT, PT, R2, 0x11, RZ             &req={3}         ?WAIT4_END_GROUP;  /* 0x0000001102007810 */
+        /*00f0*/                   LOP3.LUT R7, R0, 0x5a5a5a5a, RZ, 0x3c, !PT                  ?WAIT5_END_GROUP;  /* 0x5a5a5a5a00077812 */
+        /*0100*/                   STG.E desc[UR4][R4.64], R7                                  ?trans1;           /* 0x0000000704007986 */
+        /*0110*/                   EXIT                                                        ?trans5;           /* 0x000000000000794d */
+        /*0120*/                   BRA 0x120;                                                                     /* 0xfffffffc00fc7947 */
+        /*0130*/                   NOP;                                                                           /* 0x0000000000007918 */

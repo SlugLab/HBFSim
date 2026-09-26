@@ -1,0 +1,1627 @@
+{
+  "schema": "hbfsim.publication_packet_inventory.v1",
+  "status": "SOURCE_AND_MANUAL_RECIPE_PREPARED_NOT_FRESH_REBUILT",
+  "publication_repo": "/root/hbfsim-exp/rebuttal_20260921/github-publication-final147-20260926",
+  "base_commit": "7bec0bf76d147ec449404c9ad0e7af065a6ebf61",
+  "files": [
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/MAIN_PUBLICATION_RECEIPT_20260923.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/MAIN_PUBLICATION_RECEIPT_20260923.json",
+      "role": "previous public main provenance",
+      "bytes": 345
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/core-constraints-v2.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/core-constraints-v2.txt",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 190
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/core-imports-v2-repair-r2.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/receipts/core-imports-v2-repair-r2.json",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 4020
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/native-fresh-v2-cache-selected.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/receipts/native-fresh-v2-cache-selected.txt",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 2293
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/python.sysconfig.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/receipts/python.sysconfig.txt",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 52501
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/python.version.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/receipts/python.version.txt",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 57
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/wheelhouse-v2.manifest.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/env-restore-v1/receipts/wheelhouse-v2.manifest.json",
+      "role": "frozen environment reconstruction declaration",
+      "bytes": 78698
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/FINAL_CPU_BUILD_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/FINAL_CPU_BUILD_RECEIPT.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 2850
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_HBFSIM_SOURCE_V2.patch",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_HBFSIM_SOURCE_V2.patch",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 501605
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_HBFSIM_SOURCE_V2_REMOTE_MANIFEST.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_HBFSIM_SOURCE_V2_REMOTE_MANIFEST.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 24930
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_SOURCE_PATCH_FROM_EC26.patch",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_SOURCE_PATCH_FROM_EC26.patch",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 110998
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/SOURCE_TREE_DELTA.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/SOURCE_TREE_DELTA.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 410
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build-receipt.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build-receipt.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 24203
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/check-receipt.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/check-receipt.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 636
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/configure-receipt.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/configure-receipt.json",
+      "role": "base HBF/bpftime source/build derivation",
+      "bytes": 17442
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/COMPLETION_AUDIT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/COMPLETION_AUDIT.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 3079
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 146566
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 915
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md",
+      "role": "actual interfaces/result boundaries",
+      "bytes": 42505
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md",
+      "role": "actual interfaces/result boundaries",
+      "bytes": 17338
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 46241
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/controller/controller-finish.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/controller/controller-finish.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 18246
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/live-capture-resolved-v1/path-join.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/live-capture-resolved-v1/path-join.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 1345
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/live-capture-resolved-v1/target-start-capture.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/live-capture-resolved-v1/target-start-capture.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 3005
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/plan.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/plan.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 18390
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/registration.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/registration.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 80772
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/result.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/result.json",
+      "role": "actual final147 compact evidence",
+      "bytes": 13949
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/all-weights-category-representatives-v1/li6_preflight_v2.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/all-weights-category-representatives-v1/li6_preflight_v2.py",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 20595
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/COMBINED_HOST_REVIEW_v1.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/COMBINED_HOST_REVIEW_v1.md",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 4287
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/COMBINED_INTERFACE_GAP.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/COMBINED_INTERFACE_GAP.md",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 2930
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/EXPANSION_AND_FINAL_ACCEPTANCE_v1.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/EXPANSION_AND_FINAL_ACCEPTANCE_v1.md",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 4680
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/FINAL_SINGLE_RUN_147_ACCEPTED_v1.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/FINAL_SINGLE_RUN_147_ACCEPTED_v1.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 2814
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_HEAD_v1.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_HEAD_v1.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 1265
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_OPROJ_v1.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_OPROJ_v1.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 1304
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 1174
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_ROUTER_v1.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_ROUTER_v1.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 1087
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/NATIVE_PROFILE_INITIAL_FAILURE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/NATIVE_PROFILE_INITIAL_FAILURE.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 390
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/NATIVE_PROFILE_REUSE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/NATIVE_PROFILE_REUSE.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 69218
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/PER_STORAGE_SERVICE_EVIDENCE_GAP.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/PER_STORAGE_SERVICE_EVIDENCE_GAP.md",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 4519
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/TARGET_LEDGER.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/TARGET_LEDGER.json",
+      "role": "target/acceptance/consumer limits evidence",
+      "bytes": 128787
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_BUILD_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_BUILD_RECEIPT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 2441
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_READINESS.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_READINESS.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4204
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_SOURCE_IDENTITY.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/CPU_SOURCE_IDENTITY.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1625
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/ROOT_CPU_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/ROOT_CPU_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1852
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/SELECT_END_REUSE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/SELECT_END_REUSE.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 229
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_link.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_link.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 24649
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_link.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_link.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_ranlib.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_ranlib.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 169
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_ranlib.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_ranlib.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_archive.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_archive.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 305
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_archive.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_archive.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2996
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/agent_setup_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/config_fixture_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/config_fixture_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 291
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.exports.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.exports.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 185
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.exports.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.exports.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.resolution.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.resolution.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 149
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.resolution.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so.resolution.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.exports.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.exports.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 187
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.exports.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.exports.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.resolution.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.resolution.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 151
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.resolution.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so.resolution.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 1033
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_fixture_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_fixture_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 1082
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_fixture_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/provider_fixture_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build_cpu.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4817
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.cpp",
+      "role": "exact host source overlay",
+      "bytes": 8598
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2275
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/nv_attach_impl_frida_setup.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/nv_attach_impl_frida_setup.cpp",
+      "role": "exact host source overlay",
+      "bytes": 108257
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/provider_router_exact.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/provider_router_exact.cpp",
+      "role": "exact host source overlay",
+      "bytes": 51782
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/qkv_exact_abi_adapter.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/qkv_exact_abi_adapter.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2011
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/qkv_live_identity_v1.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/qkv_live_identity_v1.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2331
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/test_config_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/test_config_cpu.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 3918
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/test_provider_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/test_provider_cpu.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4316
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/CPU_CONTRACT_RESULT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/CPU_CONTRACT_RESULT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 595
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/CPU_READINESS.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/CPU_READINESS.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 5999
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_LIVE_PLAN.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_LIVE_PLAN.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 16793
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.initial-draft.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.initial-draft.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 13440
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 13906
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.pre-portable-guard.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.pre-portable-guard.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 13757
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.pre-request-budget.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.pre-request-budget.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 13757
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.superseded-1500s.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/MIXED3_PLAN_TEMPLATE.superseded-1500s.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 13922
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/PREFLIGHT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/PREFLIGHT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4257
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/PREFLIGHT.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/PREFLIGHT.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4180
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_MIXED3_LAUNCHER_CPU_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_MIXED3_LAUNCHER_CPU_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1700
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_PLUGIN_CPU_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_PLUGIN_CPU_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1748
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_REVIEWED_MIXED3.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_REVIEWED_MIXED3.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1076
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_SCOPE_STAGE_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_SCOPE_STAGE_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 949
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_VALIDATOR_CPU_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_VALIDATOR_CPU_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1478
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_VALIDATOR_DRAFT_FINDINGS.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/ROOT_VALIDATOR_DRAFT_FINDINGS.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 2072
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/SELECTED_GPU_CPU_RESULT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/SELECTED_GPU_CPU_RESULT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 406
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/VALIDATOR_SYNTHETIC_RESULT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/VALIDATOR_SYNTHETIC_RESULT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 502
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/bundle-combined-v1/BUNDLE_JOIN.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/bundle-combined-v1/BUNDLE_JOIN.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 3658
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter-0.1.dist-info/METADATA",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter-0.1.dist-info/METADATA",
+      "role": "default-off model plugin and entrypoint",
+      "bytes": 128
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter-0.1.dist-info/entry_points.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter-0.1.dist-info/entry_points.txt",
+      "role": "default-off model plugin and entrypoint",
+      "bytes": 87
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter/__init__.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter/__init__.py",
+      "role": "default-off model plugin and entrypoint",
+      "bytes": 19148
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/cpu-fixture-duplicate.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/cpu-fixture-duplicate.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 2273
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_cpu_package.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_cpu_package.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 8474
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_mixed3_template.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_mixed3_template.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 6203
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_runtime_bundle.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepare_runtime_bundle.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 2196
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/STAGE_JOIN_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/STAGE_JOIN_RECEIPT.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 3010
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/native-bindings-union.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/native-bindings-union.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 5376
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/pass-manifests.jsonl",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/pass-manifests.jsonl",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 13191
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-added49.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-added49.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 42837
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-mixed3.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-mixed3.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 3049
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-remaining45.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/scope-remaining45.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 39393
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/0-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/0-relocated-provenance.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 556443
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/1-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/1-relocated-provenance.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 50532
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/2-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/2-relocated-provenance.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 13288
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/li7-model-sidecar.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/sidecars/li7-model-sidecar.json",
+      "role": "stage/source hash and binding joins; relocate together",
+      "bytes": 457
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/resource_guard_selected_gpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/resource_guard_selected_gpu.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 7200
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/root_mixed3_launcher.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/root_mixed3_launcher.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 16838
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/run_bounded_selected_gpu_stage.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/run_bounded_selected_gpu_stage.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 11195
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_cpu_contract.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_cpu_contract.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 10316
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_selected_gpu_portability.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_selected_gpu_portability.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 3377
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_validator_synthetic.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/test_validator_synthetic.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 6303
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/validate_combined_model.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/validate_combined_model.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 22360
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final-evidence-report-v1/RECIPE.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final-evidence-report-v1/RECIPE.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 2965
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final-evidence-report-v1/report_final.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final-evidence-report-v1/report_final.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 9872
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/CPU_READINESS.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/CPU_READINESS.md",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 4296
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_LIVE_PLAN.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_LIVE_PLAN.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 18390
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_PLAN_TEMPLATE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_PLAN_TEMPLATE.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 14889
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_PLAN_TEMPLATE.worker10800.superseded.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/FINAL147_PLAN_TEMPLATE.worker10800.superseded.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 14942
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/PREFLIGHT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/PREFLIGHT.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1774
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/ROOT_CPU_SCAFFOLD_REVIEW.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/ROOT_CPU_SCAFFOLD_REVIEW.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 659
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/ROOT_REVIEWED_FINAL147.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/ROOT_REVIEWED_FINAL147.json",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 1007
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/root_final147_launcher.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-final147-v1/root_final147_launcher.py",
+      "role": "build/launch/validation recipe or receipt",
+      "bytes": 18269
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-wait-boundary-v1/EXACT_HELPER_AND_OBSERVER_REVIEW.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-wait-boundary-v1/EXACT_HELPER_AND_OBSERVER_REVIEW.md",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 4903
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/qkv-io-abi-map-v7.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/qkv-io-abi-map-v7.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 12505
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/stage-v1/STAGE_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/stage-v1/STAGE_RECEIPT.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 757
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/reproduce_combined_v1.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/reproduce_combined_v1.py",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 40299
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/run_with_bpftime_combined.sh",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/run_with_bpftime_combined.sh",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 6685
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/Cargo.lock",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/Cargo.lock",
+      "role": "SASS lifter crate",
+      "bytes": 7578
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/Cargo.toml",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/Cargo.toml",
+      "role": "SASS lifter crate",
+      "bytes": 327
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/cs2r_repro.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/cs2r_repro.rs",
+      "role": "SASS lifter source",
+      "bytes": 1345
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/hi_repro.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/hi_repro.rs",
+      "role": "SASS lifter source",
+      "bytes": 1383
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/output_repro.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/output_repro.rs",
+      "role": "SASS lifter source",
+      "bytes": 1487
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/pair_repro.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/pair_repro.rs",
+      "role": "SASS lifter source",
+      "bytes": 1959
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/qnan_repro.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/bin/qnan_repro.rs",
+      "role": "SASS lifter source",
+      "bytes": 2289
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/main.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/main.rs",
+      "role": "SASS lifter source",
+      "bytes": 13633
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/cubin_parser.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/cubin_parser.rs",
+      "role": "SASS lifter source",
+      "bytes": 21792
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/disassembler.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/disassembler.rs",
+      "role": "SASS lifter source",
+      "bytes": 32000
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/instruction.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/instruction.rs",
+      "role": "SASS lifter source",
+      "bytes": 46779
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/lifter.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/lifter.rs",
+      "role": "SASS lifter source",
+      "bytes": 170087
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/mod.rs",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/src/sass/mod.rs",
+      "role": "SASS lifter source",
+      "bytes": 283
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json",
+      "role": "actual interfaces/result boundaries",
+      "bytes": 610
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/CPU_BUILD_RECEIPT_V2.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/CPU_BUILD_RECEIPT_V2.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 815
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/PROVIDER_V3_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/PROVIDER_V3_RECEIPT.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 645
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_archive.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_archive.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 309
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_archive.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_archive.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2988
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_impl_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_link.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_link.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 24689
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_link.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_link.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_ranlib.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_ranlib.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 177
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_ranlib.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_ranlib.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_archive.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_archive.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 321
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_archive.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_archive.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 3022
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/agent_setup_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/defined_symbols.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/defined_symbols.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 193
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/defined_symbols.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/defined_symbols.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/dynamic_resolution.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/dynamic_resolution.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 157
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/dynamic_resolution.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/dynamic_resolution.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/defined_symbols.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/defined_symbols.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 171
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/defined_symbols.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/defined_symbols.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/dynamic_resolution.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/dynamic_resolution.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 152
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/dynamic_resolution.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/dynamic_resolution.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_compile.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 1007
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_compile.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_compile.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_link.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_link.argv.json",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 804
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_link.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/gate_link.rc",
+      "role": "exact compile/object/archive/link command",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build_cpu.py",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 5073
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/agent.version.model",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/agent.version.model",
+      "role": "exact host source overlay",
+      "bytes": 623
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/launch_gate.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/launch_gate.cpp",
+      "role": "exact host source overlay",
+      "bytes": 211645
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/library_identity_core.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/library_identity_core.cpp",
+      "role": "exact host source overlay",
+      "bytes": 8598
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/library_identity_core.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/library_identity_core.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2275
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/nv_attach_impl_frida_setup.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/nv_attach_impl_frida_setup.cpp",
+      "role": "exact host source overlay",
+      "bytes": 100496
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/nv_attach_impl_router_scoped.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/nv_attach_impl_router_scoped.cpp",
+      "role": "exact host source overlay",
+      "bytes": 85370
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/provider_router_exact.cpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/provider_router_exact.cpp",
+      "role": "exact host source overlay",
+      "bytes": 49092
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/qkv_exact_abi_adapter.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/qkv_exact_abi_adapter.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2011
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/qkv_live_identity_v1.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/source/qkv_live_identity_v1.hpp",
+      "role": "exact host source overlay",
+      "bytes": 2082
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/CPU_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/CPU_RECEIPT.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 6823
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-byte-abi-map.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-byte-abi-map.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 5225
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/auto_prepare_ptx.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/auto_prepare_ptx.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 26767
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/auto_run.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/auto_run.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 42484
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/hbfsim_loader.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/hbfsim_loader.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 24981
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/prepare_triton_ptx.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/prepare_triton_ptx.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 6816
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/run.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/run.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 23633
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/triton_binding.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/triton_binding.py",
+      "role": "actual frozen vLLM caller source",
+      "bytes": 6933
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/RUNTIME_MATERIALIZATION.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/RUNTIME_MATERIALIZATION.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 8770
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/runtime-v3/payload/BUNDLE_MANIFEST.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/runtime-v3/payload/BUNDLE_MANIFEST.json",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 5603
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/runtime-v3/payload/hbfsim-bpftime.provenance",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/runtime-v3/payload/hbfsim-bpftime.provenance",
+      "role": "frozen source/build/interface dependency provenance",
+      "bytes": 151
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run_stage.sh",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run_stage.sh",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1925
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/source.sha256",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/source.sha256",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 644
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/command.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/command.txt",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 100
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/stage.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/stage.rc",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/staged.sha256",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/staged.sha256",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 162
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/manifest.sha256",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/manifest.sha256",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 172
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/pass-manifests.jsonl",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-stage-v1/run-v1/pass-manifests.jsonl",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1443
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/prepare_stage.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-hbf-replay-v1/prepare_stage.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 2797
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/reproduce_v7_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/reproduce_v7_cpu.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 7722
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/profile-giga-v7.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/profile-giga-v7.json",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 2904
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/README.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/README.md",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 4469
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-MIT",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-MIT",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1023
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-APACHE",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-source-delivery-v1/LICENSE-APACHE",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 9723
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_cpu.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_cpu.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 4440
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_metadata_v2.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/extract_li7_metadata_v2.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 4364
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/prepare_first_image_v2.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/prepare_first_image_v2.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 2718
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run_li7_cpu_v2.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run_li7_cpu_v2.py",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 9954
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/SLICE_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/input-v2/SLICE_RECEIPT.json",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1008
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/PAUSE_CHECKPOINT_20260925.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/PAUSE_CHECKPOINT_20260925.md",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 3061
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/li7-target-manifest.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/li7-target-manifest.json",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1466
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/pass-manifests.jsonl",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/pass-manifests.jsonl",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 1443
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/stage.rc",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/stage.rc",
+      "role": "exact stage/recovery source or historical receipt",
+      "bytes": 2
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PTX_STAGE_RECIPE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PTX_STAGE_RECIPE.json",
+      "role": "publication source audit or CPU verification",
+      "bytes": 18463
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PTX_STAGE_RECIPE.md",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PTX_STAGE_RECIPE.md",
+      "role": "publication source audit or CPU verification",
+      "bytes": 2823
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PUBLISHED_PLUGIN_CPU.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/PUBLISHED_PLUGIN_CPU.json",
+      "role": "publication source audit or CPU verification",
+      "bytes": 504
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/LICENSE",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/LICENSE",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 1082
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+      "packet_path": "evidence-tree/rebuttal_20260921/rebuttal_bpftime_cc_wrapper.sh",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 287
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/first-fault-build-v3/cudart-versions.map",
+      "packet_path": "evidence-tree/rebuttal_20260921/first-fault-build-v3/cudart-versions.map",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 58
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/worktree/adapters/vllm/prepare_triton_ptx.py",
+      "packet_path": "evidence-tree/rebuttal_20260921/worktree/adapters/vllm/prepare_triton_ptx.py",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 6816
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-build-v3/CPU_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-policy-build-v3/CPU_RECEIPT.json",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 6183
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-build-v3/SOURCE.patch",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-policy-build-v3/SOURCE.patch",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 32519
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-build-v3/focused-build-commands-v3.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-policy-build-v3/focused-build-commands-v3.json",
+      "role": "source dependency / license / exact build declaration",
+      "bytes": 6516
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-provider-v3/provider_compile.argv.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-provider-v3/provider_compile.argv.json",
+      "role": "historical package generator dependency",
+      "bytes": 1050
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-model-representative-v1/MODEL_TARGET_MANIFEST.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-model-representative-v1/MODEL_TARGET_MANIFEST.json",
+      "role": "historical package generator dependency",
+      "bytes": 1562
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-model-representative-v1/model-stage-v1/pass-manifests.jsonl",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/router-li7-model-representative-v1/model-stage-v1/pass-manifests.jsonl",
+      "role": "historical package generator dependency",
+      "bytes": 1443
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-oproj-only-v1/PLAN_TEMPLATE.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/li6-oproj-only-v1/PLAN_TEMPLATE.json",
+      "role": "historical package generator dependency",
+      "bytes": 12043
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/bpftime_compat_include/boost/process/v1.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/bpftime_compat_include/boost/process/v1.hpp",
+      "role": "historical package generator dependency",
+      "bytes": 621
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/native-bindings-union.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/native-bindings-union.json",
+      "role": "historical package generator dependency",
+      "bytes": 5344
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/pass-manifests.jsonl",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/pass-manifests.jsonl",
+      "role": "historical package generator dependency",
+      "bytes": 11748
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/STAGE_UNION_RECEIPT.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/STAGE_UNION_RECEIPT.json",
+      "role": "historical package generator dependency",
+      "bytes": 4277
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
+      "role": "historical package generator dependency",
+      "bytes": 556439
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+      "role": "historical package generator dependency",
+      "bytes": 13284
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
+      "role": "historical package generator dependency",
+      "bytes": 50528
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/coverage.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/coverage.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 7027
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/page_directory.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/page_directory.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1282
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/timing_future_abi.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/timing_future_abi.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 14008
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/profile.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/profile.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 3894
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/strict_direct_policy.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/strict_direct_policy.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 903
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/shadow_future.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/shadow_future.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 3814
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/protocol.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/protocol.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 5313
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/module_identity.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/module_identity.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1164
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/mqsim_online.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/mqsim_online.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 2212
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/hybrid_model.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/hybrid_model.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1616
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/api.h",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/api.h",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 3174
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/prefetch_model.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/prefetch_model.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 5143
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/durable_append.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/durable_append.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 334
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/timing_binding.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/timing_binding.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 5490
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/launch_gate_abi.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/launch_gate_abi.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 4593
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/thermal.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/thermal.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 5968
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/observer.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/observer.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 3026
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/mqsim_stack_map.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/mqsim_stack_map.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 6141
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/mqsim_observer.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/mqsim_observer.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 6625
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/cpu_service.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-unbound-handshake-gate-source-v3/include/hbfsim/eq3_thermal/cpu_service.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 964
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_accounting_policy.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_accounting_policy.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 570
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_aux_range.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/cuda_runtime/scoped_aux_range.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1722
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_memory_op.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_memory_op.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 520
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/transform.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/transform.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 966
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_async_op.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_async_op.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 2175
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_ir.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_ir.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 2482
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_source.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_source.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 899
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_analysis.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/ptx_analysis.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1359
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/future_transform.hpp",
+      "packet_path": "evidence-tree/rebuttal_20260921/native-moe-align-scoped-unbound-source-v2/src/ptxpass_hbf/future_transform.hpp",
+      "role": "exact frozen gate quoted-header closure",
+      "bytes": 1340
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/first-fault-compact-build-v2/CMakeCache.txt",
+      "packet_path": "evidence-tree/rebuttal_20260921/first-fault-compact-build-v2/CMakeCache.txt",
+      "role": "historical configure options; relocate all paths",
+      "bytes": 41513
+    },
+    {
+      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/MODEL_ACQUISITION.json",
+      "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/MODEL_ACQUISITION.json",
+      "role": "model acquisition revision observed at publication; not retroactive full-weight proof",
+      "bytes": 874
+    }
+  ],
+  "file_count": 268,
+  "total_bytes": 3759010,
+  "not_copied": [
+    "model checkpoints",
+    "CUBIN/SASS vendor binary/disassembly inputs",
+    "DSO/archive/object binaries",
+    "full GPU raw/cache trees",
+    "credentials",
+    "generated stage PTX (hash/recipe retained)"
+  ],
+  "copied_bytes": 4691253
+}

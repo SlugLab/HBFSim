@@ -1,0 +1,18 @@
+.version 8.7
+.target sm_120
+.address_size 64
+
+.visible .entry probe()
+{
+    .reg .b32 %r<7>;
+    .reg .pred %p<1>;
+    .reg .b64 %rd<16>;
+
+L_0000:
+    setp.eq.u32 %p0, %r1, %r2;
+L_0010:
+    selp.b32 %r5, 0xffc00000, %r6, %p0;
+L_0020:
+    ret;
+}
+

@@ -1,0 +1,10 @@
+{
+  "module_joins": [
+    {
+      "raw_sha256": "e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5",
+      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/stage/e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5.ptx",
+      "staged_sha256": "7ac0e8a61283376711e6b13e8af9e4d7e2e5621ab1cb6896e6791280476c689a"
+    }
+  ],
+  "schema": "hbfsim.li7_module_join.v1"
+}

@@ -1,0 +1,12 @@
+GLIBC_2.2.5 {
+};
+GLIBC_2.34 {
+} GLIBC_2.2.5;
+libcudart.so.12 {
+};
+libcudart.so.13 {
+} libcudart.so.12;
+BPFTIME_AGENT_1.0 {
+    global: injected_with_frida; bpftime_hooked_main; bpftime_agent_main; bpftime_agent_control; bpftime_nv_bind_ptx_variant; bpftime_nv_strict_bridge_capabilities_v1; bpftime_nv_strict_direct_cu_launch_kernel_v1; bpftime_nv_qkv_select_weight_storage_v1; bpftime_nv_qkv_end_selected_call_v1; bpftime_nv_qkv_pin_bound_identity_v1; bpftime_nv_qkv_is_exact_original_v1; bpftime_nv_qkv_exact_aggregate_launch_v1; syscall_callback; _bpftime__setup_syscall_trace_callback;
+    local: *;
+} libcudart.so.13;

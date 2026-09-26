@@ -1,0 +1,1 @@
+python3 prepare_triton_ptx.py --transform-one --pass-library <pinned plugin> --kernel <exact entry>

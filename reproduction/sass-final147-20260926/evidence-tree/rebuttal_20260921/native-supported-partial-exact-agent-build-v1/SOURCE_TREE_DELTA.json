@@ -1,0 +1,11 @@
+{
+  "changed": [
+    "attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp",
+    "attach/nv_attach_impl/nv_attach_impl.hpp",
+    "attach/nv_attach_impl/nv_attach_impl.cpp"
+  ],
+  "missing": [],
+  "added": [],
+  "base": "/root/hbfsim-exp/rebuttal_20260921/native-moe-optlevel-by-raw-agent-build-v1/source",
+  "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source"
+}

@@ -1,0 +1,19 @@
+[
+  "/usr/bin/g++-15",
+  "-fPIC",
+  "-O3",
+  "-DNDEBUG",
+  "-shared",
+  "-Wl,-soname,libhbfsim_launch_gate.so",
+  "-Wl,--version-script=/root/hbfsim-exp/rebuttal_20260921/first-fault-build-v3/cudart-versions.map",
+  "-o",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/libhbfsim_launch_gate.so",
+  "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/launch_gate.cpp.o",
+  "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-build-v3/libhbfsim_core.a",
+  "-ldl",
+  "/usr/lib/x86_64-linux-gnu/libcrypto.so",
+  "/usr/lib/x86_64-linux-gnu/libcudart.so",
+  "/usr/lib/x86_64-linux-gnu/libcuda.so",
+  "-lrt",
+  "/root/hbfsim-exp/rebuttal_20260921/native-unbound-policy-build-v3/libmqsim_hbf.a"
+]

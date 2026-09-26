@@ -1,0 +1,43 @@
+{
+  "schema": "hbfsim.combined_host_root_cpu_review.v1",
+  "status": "CPU_REVIEW_ACCEPTED_NOT_GPU_VALIDATED",
+  "reviewer": "root Astra6 medium",
+  "reviewed_utc": "2026-09-25T14:54:16Z",
+  "products": {
+    "libbpftime-agent.so": {
+      "bytes": 206752656,
+      "sha256": "5e6df07c1bdc7534b431e6b9f6d9e7d1b066550a059027fecc4df5e34ad13304"
+    },
+    "libbpftime_nv_attach_impl.a": {
+      "bytes": 2425328,
+      "sha256": "2801448ba868cc3f274bdb9d89793f0f8feed2070b138d9c14a025d59c2e8489"
+    },
+    "libprovider_router.so": {
+      "bytes": 174808,
+      "sha256": "9ffe4871b81d6fba2b139db10e7e3e6601bd4054ef09fc7629f060f268e4113f"
+    }
+  },
+  "review_scope": [
+    "Full setup/provider diff against router-li7-host-adapter-v1 source",
+    "Separate exact entry and source/staged identity maps; typed provider query preserves104B V1",
+    "Selected storage/context/token/module and metadata guard checked before one converted bridge",
+    "Immutable complete two-row configuration, missing/conflict refusals",
+    "Legacy provider proof restored for exported exact identity fallback",
+    "Li6 QKV/o_proj/head envelopes and Li7 router envelope",
+    "Actual thread/base/extent/profile/call ordinal logging; no invented request/API"
+  ],
+  "evidence_limits": [
+    "Provider and config fixtures are actual CPU checks",
+    "Mixed agent dispatch, missing-provider exported identity, GPU binding and service behavior are source-reviewed, not dynamically proven by those fixtures",
+    "SELECT_END_REUSE is source identity evidence only",
+    "No model coverage increment"
+  ],
+  "next_authorized_work": "Isolated CPU combined model packaging; no GPU launch before head representative MODEL_CONNECTED_PASS and complete run preflight",
+  "unchanged": [
+    "active6706",
+    "gate",
+    "PTX",
+    "device helper",
+    "old98/6603 raw evidence"
+  ]
+}

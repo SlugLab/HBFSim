@@ -1,0 +1,32 @@
+{
+  "schema": "hbfsim.model_coverage_increment.v1",
+  "evidence_class": "DOC_DERIVED",
+  "time_unix_ns": 1790350305389528079,
+  "target_storage_count": 147,
+  "target_storage_bytes": 13838323712,
+  "accepted_storage_count": 102,
+  "accepted_storage_bytes": 13331075072,
+  "baseline": {
+    "ledger": "task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_OPROJ_v1.json",
+    "storage_count": 101,
+    "storage_bytes": 13125029888,
+    "unchanged_reused": true
+  },
+  "increment": {
+    "alias": "lm_head.weight",
+    "storage_count": 1,
+    "storage_bytes": 206045184,
+    "validation": "runs/li6-head-progress-v1/MODEL_VALIDATION.json",
+    "controller_finish": "runs/li6-head-progress-v1/controller/controller-finish.json",
+    "epoch": 6706,
+    "level": "MODEL_CONNECTED_PASS_LM_HEAD",
+    "consumer_scope": "one scheduled decode compute_logits lm_head call; o_proj and other weights native unselected"
+  },
+  "remaining_storage_count": 45,
+  "remaining_storage_bytes": 507248640,
+  "limitations": [
+    "the head representative does not prove combined Li6/Li7 execution or all 147 storages",
+    "the earlier two-selector timeouts at epochs 6701 and 6703 remain failures",
+    "combined mixed3, remaining45 expansion, and final147 regression remain pending"
+  ]
+}

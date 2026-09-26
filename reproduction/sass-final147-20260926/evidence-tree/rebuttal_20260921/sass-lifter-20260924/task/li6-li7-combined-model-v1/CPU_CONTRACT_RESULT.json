@@ -1,0 +1,24 @@
+{
+  "schema": "hbfsim.combined_model_cpu_contract.v1",
+  "status": "PASS_NO_GPU",
+  "scope_counts": [
+    3,
+    45,
+    49
+  ],
+  "cases": [
+    "default_off_import_without_torch_vllm",
+    "entrypoint_discovery_default_off",
+    "manifest_count_and_duplicate",
+    "native_early_save_select_candidate_end",
+    "candidate_exception_end",
+    "native_candidate_device_mismatch",
+    "dual_candidate_and_end_failure_keeps_candidate",
+    "duplicate_child",
+    "head_thread_mismatch",
+    "missing_forward_child",
+    "head_postforward_completion",
+    "missing_head",
+    "wrong_request"
+  ]
+}

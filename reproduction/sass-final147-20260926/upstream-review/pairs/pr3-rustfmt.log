@@ -1,0 +1,23 @@
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr3/src/sass/lifter.rs:500:
+                 let dst = cs2r_srz_pair_destination(inst).unwrap();
+                 Some(format!(
+                     "{}mov.u32 %r{}, 0;\n    {}mov.u32 %r{}, 0;",
+[31m-                    pred, dst.number, pred, dst.number + 1
+(B[m[32m+                    pred,
+(B[m[32m+                    dst.number,
+(B[m[32m+                    pred,
+(B[m[32m+                    dst.number + 1
+(B[m                 ))
+             }
+             "CS2R" if !has_modifier(inst, "32") => self.unsupported(
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr3/src/sass/lifter.rs:3653:
+             .expect("bare CS2R SRZ pair should lift");
+         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+         assert!(result.ptx.contains(".reg .b32 %r<10>;"));
+[31m-        assert!(result
+(B[m[31m-            .ptx
+(B[m[31m-            .contains("mov.u32 %r8, 0;\n    mov.u32 %r9, 0;"));
+(B[m[32m+        assert!(result.ptx.contains("mov.u32 %r8, 0;\n    mov.u32 %r9, 0;"));
+(B[m         assert!(result.ptx.contains("mov.u32 %r2, 0;"));
+         assert!(!result.ptx.contains("mov.u32 %r3, 0;"));
+     }

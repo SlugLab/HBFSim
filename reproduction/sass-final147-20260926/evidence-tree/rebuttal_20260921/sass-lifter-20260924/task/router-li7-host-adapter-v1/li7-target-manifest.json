@@ -1,0 +1,12 @@
+{
+  "schema": "hbfsim.li7_exact_target.v1",
+  "status": "CPU_PREPARED_GPU_NOT_RUN",
+  "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+  "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_",
+  "native_aggregate": {"offset": 0, "bytes": 152, "semantic_roles": "RUNTIME_CAPTURE_REQUIRED"},
+  "candidate_abi_map": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7-byte-abi-map.json", "sha256": "bb00420b91dac15c735e30ad2fea52f71d21c583540dd18a8181cc34b2a4bd09"},
+  "source_ptx": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-lift-v1/run-v2/li7.quarantine.ptx", "sha256": "e70c7c4bb6429dba28291f4c22d9897b96de3d82e6d87b73689b9beff4bec2d5"},
+  "staged_ptx": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/staged.ptx", "sha256": "7ac0e8a61283376711e6b13e8af9e4d7e2e5621ab1cb6896e6791280476c689a"},
+  "pass_manifest": {"path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/stage-v1/pass-manifests.jsonl", "sha256": "21a18f62209eff935b4876866ffc4013f1345fb9628f58ea8b84eb0c9dc169a5"},
+  "sidecar": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/li7-sidecar.json"
+}

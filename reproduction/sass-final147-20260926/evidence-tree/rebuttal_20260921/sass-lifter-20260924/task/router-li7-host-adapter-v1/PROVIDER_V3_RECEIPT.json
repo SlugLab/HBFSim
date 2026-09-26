@@ -1,0 +1,13 @@
+{
+  "schema": "hbfsim.li7_provider_cpu_build.v3",
+  "status": "CPU_BUILD_PASS_NO_GPU",
+  "source": "source/provider_router_exact.cpp",
+  "source_sha256": "7b8cb8753cfa9767258702b8374b644d9d8ee9bff2a0b9780c9cbd345c4dbb68",
+  "compile_command": "build-provider-v3/provider_compile.argv.json",
+  "product": "build-provider-v3/libprovider_router.so",
+  "product_sha256": "38109741ae7961a53cb224d988f081bf86924f560a8e6f090bc58065f7118c80",
+  "exports": "build-provider-v3/defined_symbols.stdout",
+  "dynamic_resolution": "build-provider-v3/dynamic_resolution.stdout",
+  "cuda_domain": "framework CUDA 12.8 CUPTI/header domain",
+  "gpu_used": false
+}

@@ -1,0 +1,2 @@
+[vllm.general_plugins]
+hbfsim_combined_model_adapter = combined_model_adapter:register

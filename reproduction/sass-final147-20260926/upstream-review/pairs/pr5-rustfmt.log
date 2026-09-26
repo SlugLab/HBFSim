@@ -1,0 +1,311 @@
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:403:
+         if self.uses_cuda_param_abi || self.uses_shared_memory {
+             regs.max_b64 = regs.max_b64.max(16);
+         }
+[31m-        if instructions.iter().any(|inst| (inst.opcode == "IADD" && is_64bit_modifier(inst))
+(B[m[31m-            || (inst.opcode == "IMAD" && has_modifier(inst, "WIDE"))) {
+(B[m[32m+        if instructions.iter().any(|inst| {
+(B[m[32m+            (inst.opcode == "IADD" && is_64bit_modifier(inst))
+(B[m[32m+                || (inst.opcode == "IMAD" && has_modifier(inst, "WIDE"))
+(B[m[32m+        }) {
+(B[m             self.scratch_b64 = Some(format!("%rd{}", regs.max_b64));
+             regs.max_b64 += 1;
+         }
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:557:
+                 "mul.lo",
+                 &data_type_suffix(inst, SassDataType::S32),
+             )),
+[31m-            "IMAD" if has_modifier(inst, "WIDE") && !supported_imad_wide_pair_form(inst) =>
+(B[m[31m-                self.unsupported(inst, "IMAD.WIDE operand form is not supported by pair repair"),
+(B[m[32m+            "IMAD" if has_modifier(inst, "WIDE") && !supported_imad_wide_pair_form(inst) => self
+(B[m[32m+                .unsupported(
+(B[m[32m+                    inst,
+(B[m[32m+                    "IMAD.WIDE operand form is not supported by pair repair",
+(B[m[32m+                ),
+(B[m             "IMAD" if has_modifier(inst, "WIDE") => self
+                 .scratch_b64
+                 .as_deref()
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:653:
+                 "neg",
+                 &data_type_suffix(inst, SassDataType::F32),
+             )),
+[31m-            "LDG" if is_wide_memory_data(inst) => self.unsupported(inst, "wide global data load is not supported by pair repair"),
+(B[m[32m+            "LDG" if is_wide_memory_data(inst) => self.unsupported(
+(B[m[32m+                inst,
+(B[m[32m+                "wide global data load is not supported by pair repair",
+(B[m[32m+            ),
+(B[m             "LDG" | "LDS" | "LDL" => Some(load_op(inst, &pred)),
+             "LDC" | "LDCU" => Some(ldc_op(inst, &pred)),
+[31m-            "ST" | "STG" if is_wide_memory_data(inst) && is_global_memory_inst(inst) =>
+(B[m[31m-                self.unsupported(inst, "wide global data store is not supported by pair repair"),
+(B[m[32m+            "ST" | "STG" if is_wide_memory_data(inst) && is_global_memory_inst(inst) => self
+(B[m[32m+                .unsupported(
+(B[m[32m+                    inst,
+(B[m[32m+                    "wide global data store is not supported by pair repair",
+(B[m[32m+                ),
+(B[m             "ST" | "STG" | "STS" | "STL" => Some(store_op(inst, &pred)),
+             "ATOMG" | "ATOMS" => Some(atomic_op(inst, &pred)),
+             "IDP" if is_idp_4a_s8_s8(inst) => Some(idp_4a_s8_s8_op(inst, &pred)),
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:962:
+     let operands: Vec<&SassOperand> = if supported_imad_wide_pair_form(inst) {
+         // The destination and addend are 64-bit pairs; the two multiplicands
+         // are scalar U32 and must not acquire implicit upper-word declarations.
+[31m-        inst.dest_operands.iter().chain(inst.src_operands.iter().skip(2)).collect()
+(B[m[32m+        inst.dest_operands
+(B[m[32m+            .iter()
+(B[m[32m+            .chain(inst.src_operands.iter().skip(2))
+(B[m[32m+            .collect()
+(B[m     } else if is_64bit_modifier(inst) {
+[31m-        inst.dest_operands.iter().chain(inst.src_operands.iter()).collect()
+(B[m[32m+        inst.dest_operands
+(B[m[32m+            .iter()
+(B[m[32m+            .chain(inst.src_operands.iter())
+(B[m[32m+            .collect()
+(B[m     } else {
+         return;
+     };
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:983:
+     }
+ }
+ 
+[31m-fn collect_implicit_desc_address_pair_decl(inst: &EnhancedSassInstruction, decls: &mut RegisterDecls) {
+(B[m[32m+fn collect_implicit_desc_address_pair_decl(
+(B[m[32m+    inst: &EnhancedSassInstruction,
+(B[m[32m+    decls: &mut RegisterDecls,
+(B[m[32m+) {
+(B[m     for operand in inst.dest_operands.iter().chain(inst.src_operands.iter()) {
+         let SassOperand::Label(label) = operand else {
+             continue;
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1080:
+         SassOperand::Register(reg) if reg.is_zero => Some((String::new(), "0".to_string())),
+         SassOperand::Register(reg) if reg.prefix == "R" => {
+             let wide = format!("%rd{}", reg.number);
+[31m-            Some((format!("{}mov.b64 {}, {{%r{}, %r{}}};", pred, wide,
+(B[m[31m-                          reg.number, reg.number + 1), wide))
+(B[m[32m+            Some((
+(B[m[32m+                format!(
+(B[m[32m+                    "{}mov.b64 {}, {{%r{}, %r{}}};",
+(B[m[32m+                    pred,
+(B[m[32m+                    wide,
+(B[m[32m+                    reg.number,
+(B[m[32m+                    reg.number + 1
+(B[m[32m+                ),
+(B[m[32m+                wide,
+(B[m[32m+            ))
+(B[m         }
+         SassOperand::Register(reg) if reg.prefix == "UR" => Some((
+[31m-            format!("{}mov.b64 {}, {{%ur{}, %ur{}}};", pred, ur_scratch,
+(B[m[31m-                    reg.number, reg.number + 1),
+(B[m[32m+            format!(
+(B[m[32m+                "{}mov.b64 {}, {{%ur{}, %ur{}}};",
+(B[m[32m+                pred,
+(B[m[32m+                ur_scratch,
+(B[m[32m+                reg.number,
+(B[m[32m+                reg.number + 1
+(B[m[32m+            ),
+(B[m             ur_scratch.to_string(),
+         )),
+         _ => None,
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1096:
+     match operand {
+         SassOperand::Register(reg) if reg.prefix == "R" && !reg.is_zero => Some(format!(
+             "{}mov.b64 {{%r{}, %r{}}}, %rd{};",
+[31m-            pred, reg.number, reg.number + 1, reg.number
+(B[m[32m+            pred,
+(B[m[32m+            reg.number,
+(B[m[32m+            reg.number + 1,
+(B[m[32m+            reg.number
+(B[m         )),
+         _ => None,
+     }
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1103:
+ }
+ 
+ fn iadd_64_op(inst: &EnhancedSassInstruction, pred: &str, ur_scratch: &str) -> Option<String> {
+[31m-    if inst.modifiers.len() != 1 || !has_modifier(inst, "64")
+(B[m[31m-        || inst.dest_operands.len() != 1 || inst.src_operands.len() != 2
+(B[m[32m+    if inst.modifiers.len() != 1
+(B[m[32m+        || !has_modifier(inst, "64")
+(B[m[32m+        || inst.dest_operands.len() != 1
+(B[m[32m+        || inst.src_operands.len() != 2
+(B[m         || !matches!(inst.dest_operands.first()?, SassOperand::Register(reg)
+             if reg.prefix == "R" && !reg.is_zero)
+         || !matches!(inst.src_operands.first()?, SassOperand::Register(reg)
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1111:
+             if reg.prefix == "R" && !reg.is_zero)
+         || !matches!(inst.src_operands.get(1)?, SassOperand::Register(reg)
+[31m-            if (reg.prefix == "R" || reg.prefix == "UR") && !reg.is_zero) {
+(B[m[32m+            if (reg.prefix == "R" || reg.prefix == "UR") && !reg.is_zero)
+(B[m[32m+    {
+(B[m         return None;
+     }
+     let dst = inst.dest_operands.first()?;
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1117:
+[31m-    if inst.src_operands.iter().take(2).filter(|operand| matches!(operand,
+(B[m[31m-        SassOperand::Register(reg) if reg.prefix == "UR" && !reg.is_zero)).count() > 1 {
+(B[m[32m+    if inst
+(B[m[32m+        .src_operands
+(B[m[32m+        .iter()
+(B[m[32m+        .take(2)
+(B[m[32m+        .filter(|operand| {
+(B[m[32m+            matches!(operand,
+(B[m[32m+        SassOperand::Register(reg) if reg.prefix == "UR" && !reg.is_zero)
+(B[m[32m+        })
+(B[m[32m+        .count()
+(B[m[32m+        > 1
+(B[m[32m+    {
+(B[m         return None;
+     }
+     let (setup0, src0) = pair_read(inst.src_operands.first()?, pred, ur_scratch)?;
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1122:
+     let (setup1, src1) = pair_read(inst.src_operands.get(1)?, pred, ur_scratch)?;
+     let output = pair_write(dst, pred)?;
+     let wide_dst = dest_rd_operand(inst)?;
+[31m-    Some(format!("{}\n    {}\n    {}add.u64 {}, {}, {};\n    {}",
+(B[m[31m-                 setup0, setup1, pred, wide_dst, src0, src1, output))
+(B[m[32m+    Some(format!(
+(B[m[32m+        "{}\n    {}\n    {}add.u64 {}, {}, {};\n    {}",
+(B[m[32m+        setup0, setup1, pred, wide_dst, src0, src1, output
+(B[m[32m+    ))
+(B[m }
+ 
+ fn supported_imad_wide_pair_form(inst: &EnhancedSassInstruction) -> bool {
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1130:
+[31m-    inst.modifiers.len() == 2 && has_modifier(inst, "WIDE") && has_modifier(inst, "U32")
+(B[m[31m-        && inst.dest_operands.len() == 1 && inst.src_operands.len() == 3
+(B[m[32m+    inst.modifiers.len() == 2
+(B[m[32m+        && has_modifier(inst, "WIDE")
+(B[m[32m+        && has_modifier(inst, "U32")
+(B[m[32m+        && inst.dest_operands.len() == 1
+(B[m[32m+        && inst.src_operands.len() == 3
+(B[m         && matches!(inst.dest_operands.first(), Some(SassOperand::Register(reg))
+             if reg.prefix == "R" && !reg.is_zero)
+         && matches!(inst.src_operands.first(), Some(SassOperand::Register(reg))
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1601:
+         .map(|operand| wide_pair_base_operand_setup(operand, pred))
+         .unwrap_or_else(|| (String::new(), "0".to_string()));
+ 
+[31m-    let mut lines = format!("{}mul.wide.u32 {}, {}, {};", pred, product_scratch, src0, src1);
+(B[m[32m+    let mut lines = format!(
+(B[m[32m+        "{}mul.wide.u32 {}, {}, {};",
+(B[m[32m+        pred, product_scratch, src0, src1
+(B[m[32m+    );
+(B[m     if !base_setup.is_empty() {
+         lines.push_str("\n    ");
+         lines.push_str(&base_setup);
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1608:
+     }
+[31m-    lines.push_str(&format!("\n    {}add.u64 {}, {}, {};", pred, dst, base, product_scratch));
+(B[m[31m-    if let Some(unpack) = inst.dest_operands.first().and_then(|operand| pair_write(operand, pred)) {
+(B[m[32m+    lines.push_str(&format!(
+(B[m[32m+        "\n    {}add.u64 {}, {}, {};",
+(B[m[32m+        pred, dst, base, product_scratch
+(B[m[32m+    ));
+(B[m[32m+    if let Some(unpack) = inst
+(B[m[32m+        .dest_operands
+(B[m[32m+        .first()
+(B[m[32m+        .and_then(|operand| pair_write(operand, pred))
+(B[m[32m+    {
+(B[m         lines.push_str("\n    ");
+         lines.push_str(&unpack);
+     }
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1636:
+ fn wide_pair_base_operand_setup(operand: &SassOperand, pred: &str) -> (String, String) {
+     match operand {
+         SassOperand::Register(reg) if reg.prefix == "UR" && !reg.is_zero => (
+[31m-            format!("{}mov.b64 %rd{}, {{%ur{}, %ur{}}};", pred, reg.number, reg.number, reg.number + 1),
+(B[m[32m+            format!(
+(B[m[32m+                "{}mov.b64 %rd{}, {{%ur{}, %ur{}}};",
+(B[m[32m+                pred,
+(B[m[32m+                reg.number,
+(B[m[32m+                reg.number,
+(B[m[32m+                reg.number + 1
+(B[m[32m+            ),
+(B[m             format!("%rd{}", reg.number),
+         ),
+         SassOperand::Register(reg) if reg.prefix == "R" && !reg.is_zero => (
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:1643:
+[31m-            format!("{}mov.b64 %rd{}, {{%r{}, %r{}}};", pred, reg.number, reg.number, reg.number + 1),
+(B[m[32m+            format!(
+(B[m[32m+                "{}mov.b64 %rd{}, {{%r{}, %r{}}};",
+(B[m[32m+                pred,
+(B[m[32m+                reg.number,
+(B[m[32m+                reg.number,
+(B[m[32m+                reg.number + 1
+(B[m[32m+            ),
+(B[m             format!("%rd{}", reg.number),
+         ),
+         _ => (String::new(), format_rd_operand(operand)),
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:2720:
+         }
+         let wide = dest_rd_operand(inst).unwrap_or_else(|| "%rd0".to_string());
+         let load = format!("{}ld.param.u64 {}, [{}];", pred, wide, name);
+[31m-        return match inst.dest_operands.first().and_then(|operand| pair_write(operand, pred)) {
+(B[m[32m+        return match inst
+(B[m[32m+            .dest_operands
+(B[m[32m+            .first()
+(B[m[32m+            .and_then(|operand| pair_write(operand, pred))
+(B[m[32m+        {
+(B[m             Some(unpack) => format!("{}\n    {}", load, unpack),
+             None => load,
+         };
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:2767:
+ }
+ 
+ fn is_wide_memory_data(inst: &EnhancedSassInstruction) -> bool {
+[31m-    matches!(inst.data_type, Some(SassDataType::U64 | SassDataType::S64
+(B[m[31m-        | SassDataType::B64 | SassDataType::U128))
+(B[m[32m+    matches!(
+(B[m[32m+        inst.data_type,
+(B[m[32m+        Some(SassDataType::U64 | SassDataType::S64 | SassDataType::B64 | SassDataType::U128)
+(B[m[32m+    )
+(B[m }
+ 
+ fn is_extended_iadd3(inst: &EnhancedSassInstruction) -> bool {
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:3056:
+ }
+ 
+ fn desc_address_pair_setup(operand: &SassOperand, pred: &str) -> Option<String> {
+[31m-    let SassOperand::Label(label) = operand else { return None; };
+(B[m[31m-    if !label.contains(".64") { return None; }
+(B[m[32m+    let SassOperand::Label(label) = operand else {
+(B[m[32m+        return None;
+(B[m[32m+    };
+(B[m[32m+    if !label.contains(".64") {
+(B[m[32m+        return None;
+(B[m[32m+    }
+(B[m     let reg_num = desc_address_register_number(label)?;
+[31m-    Some(format!("{}mov.b64 %rd{}, {{%r{}, %r{}}};",
+(B[m[31m-                 pred, reg_num, reg_num, reg_num + 1))
+(B[m[32m+    Some(format!(
+(B[m[32m+        "{}mov.b64 %rd{}, {{%r{}, %r{}}};",
+(B[m[32m+        pred,
+(B[m[32m+        reg_num,
+(B[m[32m+        reg_num,
+(B[m[32m+        reg_num + 1
+(B[m[32m+    ))
+(B[m }
+ 
+ fn desc_address_to_ptx(label: &str) -> Option<String> {
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:4371:
+         shared.src_operands.push(reg(2));
+         let options = SassLiftOptions::default();
+         let mut context = LiftContext::new(&options);
+[31m-        let lowered = context.lift_instruction(&shared).expect("shared ST should retain its path");
+(B[m[32m+        let lowered = context
+(B[m[32m+            .lift_instruction(&shared)
+(B[m[32m+            .expect("shared ST should retain its path");
+(B[m         assert!(context.diagnostics.is_empty(), "{:?}", context.diagnostics);
+         assert!(lowered.contains("st.shared.u64"), "{lowered}");
+ 
+Diff in /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5/src/sass/lifter.rs:4380:
+         local.memory_space = Some(SassMemorySpace::Local);
+         local.dest_operands.push(mem(0, 0));
+         local.src_operands.push(reg(2));
+[31m-        let lowered = context.lift_instruction(&local).expect("local ST should retain its path");
+(B[m[32m+        let lowered = context
+(B[m[32m+            .lift_instruction(&local)
+(B[m[32m+            .expect("local ST should retain its path");
+(B[m         assert!(context.diagnostics.is_empty(), "{:?}", context.diagnostics);
+         assert!(lowered.contains("st.local.u64"), "{lowered}");
+     }

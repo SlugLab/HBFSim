@@ -203,20 +203,36 @@ the four capabilities. A cycle-accurate simulator does execute the workload, but
 finish one large language model inference run, so the check mark in the first column does
 not settle that row.
 
-## Named HBF profiles and build options
+## 4 KiB study baselines and build options
 
-| Profile | Page | Read | Program | Channels | Queue depth | Aggregate cap |
+For future paper evaluation, the chosen system input is **2 TiB of HBF across four
+stacks**, divided equally into 512 GiB per stack. The `nominal` row is the
+main study baseline. The table describes a settled design choice, **not runnable profiles or measured
+HBF hardware**; [the detailed design](docs/evaluation/hbf-4k-study-baseline.md)
+specifies the geometry, per-stack limits, and validation still required.
+
+| Study baseline | Page | Read | Program | Internal channels (total) | Page queue entries (total) | Aggregate cap (total) |
 |---|---:|---:|---:|---:|---:|---:|
-| `conservative` | 16 KiB | 20 us | 200 us | 16 | 64 | 128 GB/s |
-| `nominal` | 16 KiB | 10 us | 100 us | 32 | 128 | 512 GB/s |
-| `aggressive` | 16 KiB | 5 us | 50 us | 64 | 256 | 1 TB/s |
+| `conservative` | 4 KiB | 20 us | 200 us | 16 | 1024 | 128 GB/s |
+| `nominal` | 4 KiB | 10 us | 100 us | 32 | 2048 | 512 GB/s |
+| `aggressive` | 4 KiB | 5 us | 50 us | 64 | 4096 | 1000 GB/s |
 
-A fourth profile, `cd8p-vmem-p50`, is not synthetic: the values of `cd8p-vmem-p50` are
-calibrated from the measured latency curve of the Dell CD8P, and that curve measures a
-complete software path, software overhead included. The three profiles in the table are
-stated assumptions for design-space exploration; the Open Compute Project HBF specification
-being available does not establish that the three profiles are calibrated to HBF silicon.
-All four profiles live in `configs/profiles/`, checked by the typed loader against
+The `nominal` total cap is four independent 128 GB/s stack caps; a busy stack
+cannot borrow the unused cap of another. Total capacity and aggregate bandwidth
+are configured separately; page counts follow from capacity and page size.
+`capacity_bytes` is total HBF capacity and the aggregate cap is total bandwidth.
+Implementation, validation, and budget approval are still required
+before the formal matrix. The existing `configs/profiles/{conservative,nominal,aggressive}.json`
+files remain **legacy 1 TiB, 16 KiB synthetic profiles** and do not implement this
+four-stack design. Do not pass one of those files to a benchmark expecting the new
+baseline.
+
+A separate existing profile, `cd8p-vmem-p50`, is not synthetic: its values are
+calibrated from the measured latency curve of the Dell CD8P, including the complete
+software path and its overhead. The three new rows are research assumptions; the
+Open Compute Project HBF specification does not establish their modeled read-unit
+count or achievable throughput. Existing legacy JSON profiles live in
+`configs/profiles/` and are checked by the typed loader against
 `configs/schema/hbf-profile.schema.json`.
 
 | Build option | Default | Purpose |

@@ -172,19 +172,19 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 
 第二,cycle-accurate 模拟器确实执行负载,但是跑不完一次大语言模型推理,所以第一列上的那个对勾并不能替这一行下结论。
 
-## 命名 HBF profile 与构建选项
+## 后续 4 KiB 实验基准与构建选项
 
-| Profile | Page | 读 | 编程 | 通道数 | Queue depth | 总带宽上限 |
+后续论文实验确定先输入 HBF **总容量 2 TiB、堆叠数 4**，默认均分为每堆叠 512 GiB；`nominal` 是后续论文主基准。下表是**已确定的研究设计，不是现成可运行的配置或 HBF 实物测量**。容量、逐堆叠限制和待做的验证见[详细说明](docs/evaluation/hbf-4k-study-baseline.md)。
+
+| 研究档位 | 页大小 | 读 | 写 | 内部通道总数 | 总页请求队列条目 | 总带宽上限 |
 |---|---:|---:|---:|---:|---:|---:|
-| `conservative` | 16 KiB | 20 us | 200 us | 16 | 64 | 128 GB/s |
-| `nominal` | 16 KiB | 10 us | 100 us | 32 | 128 | 512 GB/s |
-| `aggressive` | 16 KiB | 5 us | 50 us | 64 | 256 | 1 TB/s |
+| `conservative` | 4 KiB | 20 us | 200 us | 16 | 1024 | 128 GB/s |
+| `nominal` | 4 KiB | 10 us | 100 us | 32 | 2048 | 512 GB/s |
+| `aggressive` | 4 KiB | 5 us | 50 us | 64 | 4096 | 1000 GB/s |
 
-第四个 profile `cd8p-vmem-p50` 不是合成的:`cd8p-vmem-p50` 的取值由 Dell CD8P 的实测延迟曲线标定而来,而这条曲线标定的是完整的实测软件路径,包含这条路径自身的软件开销。
+`nominal` 的总带宽来自四个各 128 GB/s 的独立堆叠，单个堆叠不能借用其他堆叠的空闲额度。`capacity_bytes` 是 HBF 总容量，aggregate cap 是系统总带宽，二者分别配置；页数由容量和页大小推导。程序实现、运行前验证和正式矩阵预算确认仍待完成。仓库现有 `configs/profiles/{conservative,nominal,aggressive}.json` **仍是每份 1 TiB、16 KiB 页的历史合成配置**，没有实现上表的四堆叠服务，不能直接拿它们启动新基准。
 
-表里那三个 profile 是为探索设计空间而明确标注出来的假设;Open Compute Project 的 HBF 规范已经发布,但是规范发布并不能说明这三个 profile 已经按 HBF 硅片标定过。
-
-四个 profile 都放在 `configs/profiles/` 下,由带类型的加载器对照 `configs/schema/hbf-profile.schema.json` 校验。
+另一份现有 profile `cd8p-vmem-p50` 不是合成的：它由 Dell CD8P 的实测延迟曲线标定，但该曲线包括完整软件路径及其开销。上表三档是研究假设；Open Compute Project 的 HBF 规范不证明这里假设的独立读取单元数量或可达速率。现有历史 JSON 均放在 `configs/profiles/`，由带类型的加载器对照 `configs/schema/hbf-profile.schema.json` 校验。
 
 | 构建选项 | 默认值 | 用途 |
 |---|---|---|

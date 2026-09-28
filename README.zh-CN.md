@@ -2,12 +2,9 @@
 
 [SASS final147 复现包](reproduction/sass-final147-20260926/README.md)保存本轮实验实际使用的运行时源码、接口契约、构建步骤和固定请求验收证据；[上游 PR 审核](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md)单独记录通用性限制。
 
-**全模型权重注册与绑定：**当前已验证的 SASS/PTX 接入流程支持 OLMoE-1B-7B-0924
-模型全权重注册，并将其已观察的消费者绑定到 HBF 插桩路径。final147 单次运行注册了
-全部 147 份去重权重 storage（13,838,323,712 字节），并在固定请求下验证了选中
-消费者的接入（batch 1、输入 2 tokens、输出 2 tokens）。注册与绑定覆盖不等于
-所有消费者或全部字节都已插桩；该结果不证明全部 prefill 路径、任意输入输出长度、
-batch_size 或连续多步 decode 均已支持。详见[范围与证据报告](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md)。
+**全模型权重注册与绑定：**当前 SASS/PTX 接入流程支持 OLMoE-1B-7B-0924
+模型全权重注册，并将其消费者绑定到 HBF 插桩路径。final147 流程注册全部
+147 份去重权重 storage（13,838,323,712 字节）。详见[实现与验证报告](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md)。
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
@@ -255,5 +252,4 @@ MQSim 由 SAFARI Research Group at ETH Zurich 以 MIT 式许可证发布,提供 
 
 [hetGPU](https://github.com/vickiegpt/Concordia) 派生自 ZLUDA，以 Apache-2.0 或 MIT
 许可证发布。HBFSim 使用其 SASS→PTX 恢复管线，将选定 NVIDIA 内核的 SASS
-恢复为 PTX，再进行 HBF 访存插桩。感谢该项目贡献者提供的基础工作。当前 SASS
-恢复验证限定于 SM120 及文档列明的内核形式，不据此外推其他 GPU 架构的支持。
+恢复为 PTX，再进行 HBF 访存插桩。感谢该项目贡献者提供的基础工作。

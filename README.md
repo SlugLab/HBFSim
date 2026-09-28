@@ -217,10 +217,11 @@ specifies the geometry, per-stack limits, and validation still required.
 | `nominal` | 4 KiB | 10 us | 100 us | 32 | 2048 | 512 GB/s |
 | `aggressive` | 4 KiB | 5 us | 50 us | 64 | 4096 | 1000 GB/s |
 
-The `nominal` total cap is four independent 128 GB/s stack caps; a busy stack
-cannot borrow the unused cap of another. Total capacity and aggregate bandwidth
-are configured separately; page counts follow from capacity and page size.
-`capacity_bytes` is total HBF capacity and the aggregate cap is total bandwidth.
+The aggregate cap is the only bandwidth input. For `stack_count = N`, each stack's
+cap is derived as `aggregate_cap / N` and enforced independently; `nominal` is
+512 / 4 = 128 GB/s per stack. A busy stack cannot borrow another stack's unused
+cap. Total capacity and aggregate bandwidth are configured separately; page
+counts follow from capacity and page size. `capacity_bytes` is total HBF capacity.
 Implementation, validation, and budget approval are still required
 before the formal matrix. The existing `configs/profiles/{conservative,nominal,aggressive}.json`
 files remain **legacy 1 TiB, 16 KiB synthetic profiles** and do not implement this

@@ -182,7 +182,7 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 | `nominal` | 4 KiB | 10 us | 100 us | 32 | 2048 | 512 GB/s |
 | `aggressive` | 4 KiB | 5 us | 50 us | 64 | 4096 | 1000 GB/s |
 
-`nominal` 的总带宽来自四个各 128 GB/s 的独立堆叠，单个堆叠不能借用其他堆叠的空闲额度。`capacity_bytes` 是 HBF 总容量，aggregate cap 是系统总带宽，二者分别配置；页数由容量和页大小推导。程序实现、运行前验证和正式矩阵预算确认仍待完成。仓库现有 `configs/profiles/{conservative,nominal,aggressive}.json` **仍是每份 1 TiB、16 KiB 页的历史合成配置**，没有实现上表的四堆叠服务，不能直接拿它们启动新基准。
+系统总带宽上限是唯一的带宽输入。若堆叠数为 `N`，每栈上限自动取“总上限 ÷ N”并分别执行；`nominal` 是 512 ÷ 4 = 128 GB/s/栈，繁忙栈不能借用其他栈的空闲额度。`capacity_bytes` 是 HBF 总容量，aggregate cap 是系统总带宽，二者分别配置；页数由容量和页大小推导。程序实现、运行前验证和正式矩阵预算确认仍待完成。仓库现有 `configs/profiles/{conservative,nominal,aggressive}.json` **仍是每份 1 TiB、16 KiB 页的历史合成配置**，没有实现上表的四堆叠服务，不能直接拿它们启动新基准。
 
 另一份现有 profile `cd8p-vmem-p50` 不是合成的：它由 Dell CD8P 的实测延迟曲线标定，但该曲线包括完整软件路径及其开销。上表三档是研究假设；Open Compute Project 的 HBF 规范不证明这里假设的独立读取单元数量或可达速率。现有历史 JSON 均放在 `configs/profiles/`，由带类型的加载器对照 `configs/schema/hbf-profile.schema.json` 校验。
 

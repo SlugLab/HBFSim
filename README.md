@@ -289,8 +289,15 @@ HBFSim is released under the Apache License 2.0. The full text is in [`LICENSE`]
 
 ## Acknowledgements
 
-HBFSim builds on two projects, kept as pinned submodules. bpftime, released under the MIT
+HBFSim builds on the following projects. bpftime and MQSim are kept as pinned submodules. bpftime, released under the MIT
 license, supplies the interception path the PTX rewriting is derived from. MQSim, released
 under an MIT-style license by the SAFARI Research Group at ETH Zurich, supplies the flash
 media model HBFSim drives online through an out-of-tree patch.
 
+
+[hetGPU](https://github.com/vickiegpt/Concordia), derived from ZLUDA and
+released under Apache-2.0 or MIT, provides the SASS-to-PTX recovery pipeline used
+by HBFSim to recover selected NVIDIA kernels for subsequent HBF memory-access
+instrumentation. We thank its contributors for this foundation. Our current
+SASS recovery validation is scoped to SM120 and the documented kernel forms;
+it does not establish support for other GPU architectures.

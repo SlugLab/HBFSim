@@ -36,7 +36,7 @@ DOC_DERIVED：epoch6706 ../runs/li6-head-progress-v1/MODEL_VALIDATION.json 验�
 
 副本路径问题属于本项目打包元数据，不是 hetGPU 的 SM120 指令转换缺陷。QKV lifter 的六项语义修复另见 `lifter-repair-attribution.md`。
 
-6603的成功仅覆盖旧98份加一份QKV的已验证消费者。当前扩展目标为147份，剩余48份见[分层验收与扩展计划](all-weights-expansion.md)。下方带6602/6610编号的故障定位段保留当时状态；其中“正在实现/未验证”不覆盖本表已注明的后续6611/6603结果。
+6603的成功仅覆盖旧98份加一份QKV的已验证消费者。当前扩展目标为147份，剩余48份见分层验收与扩展计划（历史来源路径 `all-weights-expansion.md`；未收录于本公开包）。下方带6602/6610编号的故障定位段保留当时状态；其中“正在实现/未验证”不覆盖本表已注明的后续6611/6603结果。
 
 ## 调用顺序与职责
 
@@ -132,7 +132,7 @@ agent同时有 `nv_attach_impl.cpp` 和 `nv_attach_impl_frida_setup.cpp`，不�
 
 ## 扩展权重时的接入验收
 
-用户要求全部原未覆盖类别接入后做一次全覆盖运行。每类记录`LIFT_OUTPUT_PASS`、`INSTRUMENTED_KERNEL_PASS`及`MODEL_CONNECTED_PASS`，只有真实模型消费者的精确函数、参数/地址、输出和服务闭合才能进入覆盖表。6603已满足layer0选中decode QKV的第三层；其它层/投影/router/lm_head不能仅因名称或形状接近而继承此状态。第一层已通过、第三层失败时直接定位入口/ABI/绑定/生命周期/服务，避免反复试跑未变化的仅恢复路径。具体扩展清单见[全部权重扩展](all-weights-expansion.md)。
+用户要求全部原未覆盖类别接入后做一次全覆盖运行。每类记录`LIFT_OUTPUT_PASS`、`INSTRUMENTED_KERNEL_PASS`及`MODEL_CONNECTED_PASS`，只有真实模型消费者的精确函数、参数/地址、输出和服务闭合才能进入覆盖表。6603已满足layer0选中decode QKV的第三层；其它层/投影/router/lm_head不能仅因名称或形状接近而继承此状态。第一层已通过、第三层失败时直接定位入口/ABI/绑定/生命周期/服务，避免反复试跑未变化的仅恢复路径。具体扩展清单见全部权重扩展（历史来源路径 `all-weights-expansion.md`；未收录于本公开包）。
 
 ## 错误诊断与修复入口
 

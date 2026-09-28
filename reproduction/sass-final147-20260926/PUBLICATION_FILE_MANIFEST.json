@@ -116,13 +116,15 @@
       "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md",
       "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md",
       "role": "actual interfaces/result boundaries",
-      "bytes": 42505
+      "bytes": 42605,
+      "publication_note": "2026-09-28: unavailable historical Markdown links rendered as explicit unbundled provenance paths; original source unchanged."
     },
     {
       "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md",
       "packet_path": "evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md",
       "role": "actual interfaces/result boundaries",
-      "bytes": 17338
+      "bytes": 17488,
+      "publication_note": "2026-09-28: unavailable historical Markdown links rendered as explicit unbundled provenance paths; original source unchanged."
     },
     {
       "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/MODEL_VALIDATION.json",

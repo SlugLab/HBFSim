@@ -242,6 +242,11 @@ HBFSim 以 Apache License 2.0 发布,完整条款见 [`LICENSE`](LICENSE)。
 
 ## 致谢
 
-HBFSim 建立在两个项目之上,并且把两个项目都作为固定版本的子模块保留。bpftime 以 MIT 许可证发布,提供了 PTX 改写所派生自的拦截路径。
+HBFSim 使用以下项目，其中 bpftime 和 MQSim 作为固定版本的子模块保留。bpftime 以 MIT 许可证发布,提供了 PTX 改写所派生自的拦截路径。
 
 MQSim 由 SAFARI Research Group at ETH Zurich 以 MIT 式许可证发布,提供 flash 介质模型,HBFSim 通过一个外部补丁在线驱动这个介质模型。
+
+[hetGPU](https://github.com/vickiegpt/Concordia) 派生自 ZLUDA，以 Apache-2.0 或 MIT
+许可证发布。HBFSim 使用其 SASS→PTX 恢复管线，将选定 NVIDIA 内核的 SASS
+恢复为 PTX，再进行 HBF 访存插桩。感谢该项目贡献者提供的基础工作。当前 SASS
+恢复验证限定于 SM120 及文档列明的内核形式，不据此外推其他 GPU 架构的支持。

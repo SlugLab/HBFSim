@@ -22,7 +22,7 @@ DOC_DERIVED：epoch6711 `runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json` 为 
 
 当前增量（2026-09-25 13:13UTC）：Li7 tier1 已 `LIFT_OUTPUT_PASS`，证据 `../runs/router-li7-lift-output-v2/DONE.json`；真实 layer0 router 模型 epoch6702 已启动，验收未完成，不能计覆盖。Li6 epoch6701 已 worker_timeout，o_proj局部BYTE_EQUAL但缺整体终态/服务闭合，lm_head第二次patched Driver调用未记录返回；原raw保留，见 `../task/all-weights-category-representatives-v1/LI6_TIMEOUT_DIAGNOSIS_v1.md`。接受模型覆盖仍99，以下CPU准备/未运行文字为对应时间的历史记录。
 
-本表用于扩层前核对已经成功的接口，配合 [接口契约](interface-binding-contract.md) 和 [三级验收](all-weights-expansion.md)。表中成功只指对应收据的消费者范围。新层的地址、句柄、context及生成器身份必须取自本次模型；未知项不由名称、形状或调用顺序推断。
+本表用于扩层前核对已经成功的接口，配合 [接口契约](interface-binding-contract.md) 和 三级验收（历史来源路径 `all-weights-expansion.md`；未收录于本公开包）。表中成功只指对应收据的消费者范围。新层的地址、句柄、context及生成器身份必须取自本次模型；未知项不由名称、形状或调用顺序推断。
 
 下列运行产品的 `task/…` 路径以 giga `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/` 为根；本地只收集必要证据，不保证存在全部远端产品。不能把这些相对运行路径直接解释为本地文件或复制成Windows绝对路径写入远端配置。
 
@@ -40,9 +40,9 @@ DOC_DERIVED：epoch6711 `runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json` 为 
 
 当前优先级按用户最新要求：先使o_proj、router、lm_head每个尚未覆盖类别都有MODEL_CONNECTED_PASS代表，再推广至各层。QKV已有layer0代表，扩16层暂缓。发现记录的phase只有LOAD_OR_PROFILE/SCHEDULED_EXECUTE；不得单凭CUTLASS名称将某条调用判为prefill，实际阶段需模型请求或输入证据关联。
 
-旧98份的逐module原始证据及实际metadata形状已整理在[复用审查](../task/weight-interface-reuse-audit-v1/REPORT.md)：MoE四种Triton变体为23/24参数；norm两个入口共享普通指针module；Embedding的indexSelect为三个216B聚合参数；Fill另含2B/8B聚合参数，不能互换。该报告直接链接6307配置/注册、6603 pass行与绑定、修复后sidecar。原始每module生成命令/profile文件名尚未从本地收据证明，明确留缺，不按类别编造。
+旧98份的逐module原始证据及实际metadata形状已整理在复用审查（历史来源路径 `../task/weight-interface-reuse-audit-v1/REPORT.md`；未收录于本公开包）：MoE四种Triton变体为23/24参数；norm两个入口共享普通指针module；Embedding的indexSelect为三个216B聚合参数；Fill另含2B/8B聚合参数，不能互换。该报告直接链接6307配置/注册、6603 pass行与绑定、修复后sidecar。原始每module生成命令/profile文件名尚未从本地收据证明，明确留缺，不按类别编造。
 
-原生发现v2已实际通过：147份storage清单中剩余48份均建立实际消费者关联，见[发现验收](../task/all-weights-discovery-run-v2/VALIDATION.json)。这只是确定后续适配入口；prefill与decode使用不同内核的情况分别保留，不提升为MODEL_CONNECTED_PASS。
+原生发现v2已实际通过：147份storage清单中剩余48份均建立实际消费者关联，见发现验收（历史来源路径 `../task/all-weights-discovery-run-v2/VALIDATION.json`；未收录于本公开包）。这只是确定后续适配入口；prefill与decode使用不同内核的情况分别保留，不提升为MODEL_CONNECTED_PASS。
 
 每个实际module/内核记录：权重别名与去重storage字节范围；消费者阶段；原image/entry及生成器；原参数布局→候选布局；metadata/pass profile；原PTX→staged PTX→manifest→sidecar精确引用；provider/agent/gate实际库与CUDA域；真实original→patched发射证据；输出和逐地址服务验收。引用已通过工件即可，不重复全量哈希或复制大文件。
 

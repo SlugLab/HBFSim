@@ -2,6 +2,13 @@
 
 [SASS final147 复现包](reproduction/sass-final147-20260926/README.md)保存本轮实验实际使用的运行时源码、接口契约、构建步骤和固定请求验收证据；[上游 PR 审核](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md)单独记录通用性限制。
 
+**全模型权重注册与绑定：**当前已验证的 SASS/PTX 接入流程支持 OLMoE-1B-7B-0924
+模型全权重注册，并将其已观察的消费者绑定到 HBF 插桩路径。final147 单次运行注册了
+全部 147 份去重权重 storage（13,838,323,712 字节），并在固定请求下验证了选中
+消费者的接入（batch 1、输入 2 tokens、输出 2 tokens）。注册与绑定覆盖不等于
+所有消费者或全部字节都已插桩；该结果不证明全部 prefill 路径、任意输入输出长度、
+batch_size 或连续多步 decode 均已支持。详见[范围与证据报告](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md)。
+
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)

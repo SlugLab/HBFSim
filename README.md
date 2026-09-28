@@ -2,6 +2,16 @@
 
 The [SASS final147 reproduction package](reproduction/sass-final147-20260926/README.md) preserves the experimental runtime sources, actual interface contracts, build recipes and fixed-request validation evidence. Its [upstream PR review](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md) records generality limits separately from the model result.
 
+**Full-model weight registration and binding:** the current validated SASS/PTX
+integration workflow supports registering all weights of OLMoE-1B-7B-0924 and
+binding their observed consumers to the HBF instrumentation path. The final147
+run registered all 147 distinct weight storages (13,838,323,712 bytes) and
+validated the selected consumers in one fixed request (batch 1, 2 input tokens,
+2 output tokens). Registration/binding coverage is distinct from instrumentation
+of every consumer or every byte: all prefill paths, arbitrary sequence lengths,
+batch sizes and repeated decode steps are not established by this result.
+See the [scope and evidence report](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md).
+
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)

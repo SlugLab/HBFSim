@@ -1,0 +1,24 @@
+{
+  "name": "corrected-remote-tests",
+  "argv": [
+    "bash",
+    "scripts/reproduce_ucie_current_cpu.sh",
+    "build-ucie-on",
+    "remote-tests-only"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3539851,
+    "start_ticks": 18590991,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/bash"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791258651315327635,
+  "finish_ns": 1791258652442762682,
+  "wall_s": 1.127435047,
+  "stdout_sha256": "9fd8c71250b69a4fe6029de2b8da13cd957509e6c95a1613ee15b4117f1d88d7",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

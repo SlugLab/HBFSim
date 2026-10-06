@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import copy
+import atexit
 import ctypes
 import dataclasses
 import json
 import os
 import pathlib
 import re
+import stat
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -26,6 +28,85 @@ _UINTPTR_LIMIT = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 _REGISTERED = False
 _STRICT_GATE_CAPABILITIES = 0x3
 _STRICT_BRIDGE_CAPABILITIES = 0x1
+_FIRST_FAULT_STARTED = False
+
+
+def _begin_first_fault_diagnostic(report_dir: str) -> None:
+    """Opt in to the existing gate's persistent first-fault record."""
+    global _FIRST_FAULT_STARTED
+    backing = os.environ.get("HBFSIM_FIRST_FAULT_BACKING_PATH")
+    raw_epoch = os.environ.get("HBFSIM_FIRST_FAULT_EPOCH")
+    if backing is None and raw_epoch is None:
+        return
+    if _FIRST_FAULT_STARTED or not backing or not raw_epoch:
+        raise HbfSimError("incomplete or repeated first-fault diagnostic")
+    try:
+        epoch = int(raw_epoch)
+    except ValueError as error:
+        raise HbfSimError("invalid first-fault epoch") from error
+    path = pathlib.Path(backing)
+    if not path.is_absolute() or not 0 < epoch <= (1 << 64) - 1:
+        raise HbfSimError("first-fault epoch or backing path is invalid")
+    report_backing = path.parent == pathlib.Path(report_dir).resolve()
+    tmpfs_backing = (path.parent == pathlib.Path("/dev/shm") and
+                     path.parent.resolve(strict=True) == path.parent and
+                     path.name == f"hbfsim-ucie-firstfault-{epoch}.bin")
+    if not (report_backing or tmpfs_backing):
+        raise HbfSimError("first-fault backing must be this run's report or exact epoch tmpfs path")
+    if os.path.lexists(path):
+        raise HbfSimError("first-fault epoch or exclusive backing is invalid")
+    gate = ctypes.CDLL(None)
+    try:
+        begin = gate.hbfsim_first_fault_begin_v1
+        snapshot = gate.hbfsim_first_fault_snapshot_v1
+    except AttributeError as error:
+        raise HbfSimError("loaded launch gate lacks first-fault capability") from error
+    begin.argtypes = [ctypes.c_uint64, ctypes.c_char_p]
+    begin.restype = ctypes.c_int
+    snapshot.argtypes = [ctypes.c_char_p, ctypes.c_size_t]
+    snapshot.restype = ctypes.c_longlong
+    status = begin(epoch, os.fsencode(path))
+    if status != 0:
+        raise HbfSimError(f"first-fault begin failed ({status})")
+    backing_stat = path.lstat()
+    if not stat.S_ISREG(backing_stat.st_mode) or backing_stat.st_size <= 0:
+        raise HbfSimError("first-fault backing is not a regular nonempty file")
+    _FIRST_FAULT_STARTED = True
+    receipt = pathlib.Path(report_dir) / "first-fault-begin.json"
+    with receipt.open("x", encoding="utf-8") as output:
+        json.dump({"epoch": epoch, "backing_path": str(path),
+                   "backing_device": backing_stat.st_dev,
+                   "backing_inode": backing_stat.st_ino,
+                   "backing_bytes": backing_stat.st_size,
+                   "status": "ACTIVE"},
+                  output, sort_keys=True)
+        output.write("\n")
+
+    def save_snapshot() -> None:
+        target = pathlib.Path(report_dir) / "first-fault-exit.json"
+        try:
+            needed = snapshot(None, 0)
+            if needed <= 0 or needed > 4 * 1024 * 1024:
+                payload = {"status": "SNAPSHOT_UNAVAILABLE", "required_bytes": needed}
+            else:
+                buffer = ctypes.create_string_buffer(needed)
+                received = snapshot(buffer, len(buffer))
+                payload = (json.loads(buffer.value.decode("utf-8"))
+                           if 0 < received <= len(buffer) else
+                           {"status": "SNAPSHOT_RACED", "required_bytes": received})
+            with target.open("x", encoding="utf-8") as output:
+                json.dump(payload, output, sort_keys=True)
+                output.write("\n")
+        except BaseException as error:
+            try:
+                with (pathlib.Path(report_dir) / "first-fault-snapshot-error.json").open(
+                        "x", encoding="utf-8") as output:
+                    json.dump({"status": "SNAPSHOT_ERROR", "error": repr(error)}, output)
+                    output.write("\n")
+            except BaseException:
+                pass  # Preserve the original model failure and persistent backing.
+
+    atexit.register(save_snapshot)
 
 
 class HbfSimError(RuntimeError):
@@ -146,9 +227,10 @@ class TimingConfig:
             "instrumentation_policy", "partial" if legacy_partial else "strict"))
         if weight_selection != "off" and (not profile or not report):
             raise ValueError("profile_path and report_dir are required")
-        if ring <= 0 or timeout <= 0:
+        if ring <= 0 or not 0 < timeout <= (1 << 64) - 1:
             raise ValueError(
-                "ring_capacity and request_timeout_ns must be positive"
+                "ring_capacity must be positive and request_timeout_ns "
+                "must be a positive uint64"
             )
         if not underlying or underlying == "hbfsim":
             raise ValueError("underlying_load_format must not be hbfsim")
@@ -490,9 +572,49 @@ def register_model_storages(
                 any(size < storage.size for storage, size in registered)):
             raise HbfSimError(
                 "strict instrumentation forbids truncated storage binding")
+        ucie_placement = None
+        ucie_env = (
+            "HBFSIM_UCIE_TOP_PROFILE",
+            "HBFSIM_UCIE_WORKER",
+            "HBFSIM_UCIE_WAIT_MODE",
+            "HBFSIM_UCIE_CANONICAL_LAYOUT",
+        )
+        if any(os.environ.get(name) for name in (*ucie_env,
+                                                  "HBFSIM_UCIE_PLACEMENT_MANIFEST")):
+            if any(not os.environ.get(name) for name in ucie_env):
+                raise HbfSimError("incomplete UCIe backend and canonical layout configuration")
+            if config.timing_model == "fast":
+                raise HbfSimError("UCIe model registration requires reference or hybrid mode")
+            if any(size != storage.size for storage, size in registered):
+                raise HbfSimError("UCIe placement requires complete selected storages")
+            if os.environ["HBFSIM_UCIE_WAIT_MODE"] not in {"nominal", "zero_injected"}:
+                raise HbfSimError("invalid UCIe wait mode")
+            from ucie_placement import generate_manifest
+            profile = json.loads(pathlib.Path(config.profile_path).read_text())
+            page_bytes = profile.get("page_bytes")
+            if type(page_bytes) is not int or page_bytes <= 0:
+                raise HbfSimError("UCIe profile requires a positive integer page_bytes")
+            placement_path = (pathlib.Path(config.report_dir).resolve() /
+                              "ucie-host-placement.json")
+            existing_path = os.environ.get("HBFSIM_UCIE_PLACEMENT_MANIFEST")
+            if existing_path and pathlib.Path(existing_path).resolve() != placement_path:
+                raise HbfSimError("UCIe placement path disagrees with this run's report directory")
+            ucie_placement = generate_manifest(
+                os.environ["HBFSIM_UCIE_CANONICAL_LAYOUT"], registered,
+                page_bytes, placement_path)
+            _write_manifest(pathlib.Path(config.report_dir) /
+                            "ucie-storage-bindings.json", {
+                                "schema": "hbfsim.ucie.storage_bindings.v1",
+                                "canonical_layout_sha256":
+                                    ucie_placement["canonical_layout_sha256"],
+                                "manifest_sha256": ucie_placement["manifest_sha256"],
+                                "bindings": ucie_placement["bindings"],
+                            })
+            os.environ["HBFSIM_UCIE_PLACEMENT_MANIFEST"] = str(placement_path)
         _activate_instrumentation_policy(config)
         if config.instrumentation_policy == "strict":
             _require_strict_runtime_capabilities()
+        _begin_first_fault_diagnostic(config.report_dir)
         session = session_factory(config)
         for storage, bytes_to_register in registered:
             session.register_storage(storage.address, bytes_to_register)
@@ -508,6 +630,11 @@ def register_model_storages(
             "registered_bytes": sum(size for _, size in registered),
             "profile_path": config.profile_path,
             "timing_model": config.timing_model,
+            "ucie_placement": ({
+                "canonical_layout_sha256":
+                    ucie_placement["canonical_layout_sha256"],
+                "manifest_sha256": ucie_placement["manifest_sha256"],
+            } if ucie_placement is not None else None),
             "selection": {
                 "mode": config.weight_selection,
                 "include_patterns": list(config.include_patterns),

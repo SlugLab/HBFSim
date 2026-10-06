@@ -1,0 +1,20 @@
+E
+======================================================================
+ERROR: setUpClass (__main__.PlacementTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/adapters/vllm/tests/test_ucie_placement.py", line 19, in setUpClass
+    cls.layout = json.loads(LAYOUT.read_text())
+                            ~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 788, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 772, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/adapters/vllm/tests/canonical-147.json'
+
+----------------------------------------------------------------------
+Ran 0 tests in 0.001s
+
+FAILED (errors=1)

@@ -1,0 +1,13 @@
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+COMPACT_CONSUME_WAVE_V1 enabled=1 attempts=0 published=0 validated=0 confirmed=0 unknown_pending=0 width1=0 width2=0 width3=0
+COMPACT_CONSUME_CLIENT stack=0 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=0 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=0 negotiated=0 queries=4096 hits=0 fallback=4096
+WORKER_RPC_COUNTS stack=0 typed=1 ipc=61019 advance=5796 peek=11571 close=0 close_advance=11571 reserve=19787 submit=4096 consume=4096 is_active=4096
+COMPACT_CONSUME_CLIENT stack=1 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=1 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=1 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=1 typed=1 ipc=28943 advance=5796 peek=11571 close=0 close_advance=11571 reserve=0 submit=0 consume=0 is_active=0

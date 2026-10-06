@@ -1,0 +1,6 @@
+WORKER_RPC_COUNTS stack=0 typed=0 ipc=4008 advance=291 peek=939 close=0 close_advance=939 reserve=1067 submit=256 consume=256 is_active=256
+WORKER_RPC_COUNTS stack=1 typed=0 ipc=9 advance=2 peek=1 close=0 close_advance=2 reserve=0 submit=0 consume=0 is_active=0
+WORKER_RPC_COUNTS stack=0 typed=0 ipc=4008 advance=291 peek=939 close=0 close_advance=939 reserve=1067 submit=256 consume=256 is_active=256
+WORKER_RPC_COUNTS stack=1 typed=0 ipc=9 advance=2 peek=1 close=0 close_advance=2 reserve=0 submit=0 consume=0 is_active=0
+WORKER_RPC_COUNTS stack=0 typed=0 ipc=4008 advance=291 peek=939 close=0 close_advance=939 reserve=1067 submit=256 consume=256 is_active=256
+WORKER_RPC_COUNTS stack=1 typed=0 ipc=9 advance=2 peek=1 close=0 close_advance=2 reserve=0 submit=0 consume=0 is_active=0

@@ -1,0 +1,15 @@
+{
+  "natural_returncode": 1,
+  "start_ns": 1791256541108841902,
+  "finish_ns": 1791256572827926622,
+  "identity": {
+    "pid": 2889961,
+    "start_ticks": 18379967,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "commands_completed": 12,
+  "last_stage": "public-entry-verification",
+  "first_error_preserved": true,
+  "all_direct_children_wait_reaped": true
+}

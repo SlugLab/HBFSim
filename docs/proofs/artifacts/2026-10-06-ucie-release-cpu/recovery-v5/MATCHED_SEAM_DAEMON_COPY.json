@@ -1,0 +1,31 @@
+{
+  "source_path": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd",
+  "source_sha256": "b1c3d2fb47000c0aa702be992cb3f9e84982c65d3a987b96e388ba682a6bb46c",
+  "copied_path": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd",
+  "copied_sha256": "b1c3d2fb47000c0aa702be992cb3f9e84982c65d3a987b96e388ba682a6bb46c",
+  "size": 2155304,
+  "mode": "0o755",
+  "ldd_receipt": {
+    "name": "ldd-copied-seam-daemon",
+    "argv": [
+      "ldd",
+      "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd"
+    ],
+    "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+    "identity": {
+      "pid": 3577458,
+      "start_ticks": 18821855,
+      "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+      "exe": "/usr/bin/bash"
+    },
+    "natural_rc": 0,
+    "wait_reaped": true,
+    "pid_absent": true,
+    "start_ns": 1791260959954203932,
+    "finish_ns": 1791260959960781870,
+    "wall_s": 0.006577938,
+    "stdout_sha256": "5ade89de3c277e6017c6694b35db4dcd1281af9ade93ee8f1a7799919c6839fd",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "scope": "Cold byte-identical actual naturally relinked ON daemon for new independent seam output; no production/test logic change"
+}

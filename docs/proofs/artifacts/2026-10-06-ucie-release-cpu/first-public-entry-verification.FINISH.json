@@ -1,0 +1,24 @@
+{
+  "name": "public-entry-verification",
+  "argv": [
+    "bash",
+    "scripts/reproduce_ucie_current_cpu.sh",
+    "build-ucie-on",
+    "focused"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 2889978,
+    "start_ticks": 18380043,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/bash"
+  },
+  "natural_rc": 8,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791256541837439282,
+  "finish_ns": 1791256572825171959,
+  "wall_s": 30.987732677,
+  "stdout_sha256": "17c78b942de1769aea3b8ad84954e61c423e2431056b987e7ee123f4120ec01c",
+  "stderr_sha256": "18e00877dc1071c85cd4f479d451bebeef8309022e46cf8c63b0bed5151984a4"
+}

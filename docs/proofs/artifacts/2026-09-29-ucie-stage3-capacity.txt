@@ -1,0 +1,10 @@
+one worker:
+capacity_one stack_bytes=549755813888 pid=802486 rss_kib=4331076 native=2 first_lpa=0 last_lpa=134217727 final_h=10314
+
+four workers:
+capacity_four stack=0 pid=803269 rss_kib=4332204 native=4
+capacity_four stack=1 pid=803304 rss_kib=4332340 native=1
+capacity_four stack=2 pid=803340 rss_kib=4331100 native=0
+capacity_four stack=3 pid=803375 rss_kib=4332300 native=1
+capacity_four total_bytes=2199023255552 final_h=10604 last_lpa=134217727 original=256 axi=384
+

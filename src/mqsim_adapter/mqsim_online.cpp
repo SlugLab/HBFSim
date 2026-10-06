@@ -3,7 +3,11 @@
 #include <Engine.h>
 #include <Flash_Parameter_Set.h>
 #include <Host_Interface_HBF.h>
+#include <FTL.h>
+#include <Flash_Command.h>
 #include <IO_Flow_Parameter_Set.h>
+#include <Logical_Address_Partitioning_Unit.h>
+#include <NVM_PHY_ONFI_NVDDR2.h>
 #include <SSD_Device.h>
 
 #include <algorithm>
@@ -13,6 +17,8 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -109,7 +115,8 @@ namespace hbfsim
             return start + bytes;
         }
 
-        void configure_mqsim(const Profile &profile)
+        void configure_mqsim(const Profile &profile,
+                             const MqsimGeometry &geometry)
         {
             Device_Parameter_Set::Seed = 123;
             Device_Parameter_Set::Enabled_Preconditioning = false;
@@ -126,11 +133,11 @@ namespace hbfsim
                 to_mqsim_scheme(profile.plane_allocation_scheme);
             Device_Parameter_Set::Ideal_Mapping_Table = true;
             Device_Parameter_Set::Overprovisioning_Ratio = 0.0;
-            Device_Parameter_Set::Flash_Channel_Count = profile.channels;
+            Device_Parameter_Set::Flash_Channel_Count = geometry.channels;
             Device_Parameter_Set::Flash_Channel_Width = profile.channel_width_bits / 8;
             Device_Parameter_Set::Channel_Transfer_Rate =
                 profile.channel_transfer_rate_mtps;
-            Device_Parameter_Set::Chip_No_Per_Channel = 1;
+            Device_Parameter_Set::Chip_No_Per_Channel = geometry.chips_per_channel;
             Device_Parameter_Set::Flash_Comm_Protocol =
                 SSD_Components::ONFI_Protocol::NVDDR2;
 
@@ -148,10 +155,10 @@ namespace hbfsim
             Flash_Parameter_Set::Block_Erase_Latency = profile.program_latency_ns * 10;
             Flash_Parameter_Set::Suspend_Erase_Time = 0;
             Flash_Parameter_Set::Suspend_Program_Time = 0;
-            Flash_Parameter_Set::Die_No_Per_Chip = profile.dies_per_channel;
-            Flash_Parameter_Set::Plane_No_Per_Die = profile.planes_per_die;
+            Flash_Parameter_Set::Die_No_Per_Chip = geometry.dies_per_chip;
+            Flash_Parameter_Set::Plane_No_Per_Die = geometry.planes_per_die;
             Flash_Parameter_Set::Block_No_Per_Plane =
-                static_cast<unsigned int>(blocks_per_plane(profile));
+                static_cast<unsigned int>(blocks_per_plane(profile, geometry));
             Flash_Parameter_Set::Page_No_Per_Block = profile.pages_per_block;
             Flash_Parameter_Set::Page_Capacity = profile.page_bytes;
             Flash_Parameter_Set::Page_Metadat_Capacity = 0;
@@ -187,24 +194,30 @@ namespace hbfsim
             bool readmitted{false};
         };
 
-        explicit Impl(const Profile &requested_profile)
+        explicit Impl(const Profile &requested_profile,
+                      std::optional<ucie::HbfBankLayout> requested_layout = std::nullopt)
             : profile(requested_profile),
+              hbf_layout(std::move(requested_layout)),
+              geometry(hbf_layout
+                  ? ucie::hbf_mqsim_geometry(profile, *hbf_layout)
+                  : MqsimGeometry{profile.channels, 1, profile.dies_per_channel,
+                                   profile.planes_per_die}),
               queue_depth(std::max<std::size_t>(1, requested_profile.queue_depth))
         {
-            validate_profile(profile);
+            validate_profile(profile, geometry);
             if (profile.channel_width_bits % 8 != 0)
             {
                 throw std::invalid_argument(
                     "channel_width_bits must be divisible by eight for MQSim");
             }
-            if (blocks_per_plane(profile) < 4)
+            if (blocks_per_plane(profile, geometry) < 4)
             {
                 throw std::invalid_argument(
                     "MQSim requires at least four blocks per plane");
             }
 
             Simulator->Reset();
-            configure_mqsim(profile);
+            configure_mqsim(profile, geometry);
 
             flow.Device_Level_Data_Caching_Mode =
                 SSD_Components::Caching_Mode::TURNED_OFF;
@@ -212,6 +225,10 @@ namespace hbfsim
             flow.Initial_Occupancy_Percentage = 0;
             flows.push_back(&flow);
             device = std::make_unique<SSD_Device>(&parameters, &flows);
+            if (hbf_layout &&
+                Utils::Logical_Address_Partitioning_Unit::Get_total_device_lha_count()
+                    != profile.capacity_bytes / kSectorBytes)
+                throw std::logic_error("native MQSim capacity differs from HBF stack profile");
             host = dynamic_cast<SSD_Components::Host_Interface_HBF *>(
                 device->Host_interface);
             if (host == nullptr)
@@ -241,6 +258,8 @@ namespace hbfsim
                 delete waiting;
             }
             admission_queue.clear();
+            if (native_sink_installed)
+                SSD_Components::NVM_PHY_ONFI_NVDDR2::Clear_hbf_command_observation_sink();
             Simulator->Reset();
             injector.reset();
             clock_injector.reset();
@@ -376,6 +395,8 @@ namespace hbfsim
         }
 
         Profile profile;
+        std::optional<ucie::HbfBankLayout> hbf_layout;
+        MqsimGeometry geometry;
         Device_Parameter_Set parameters;
         IO_Flow_Parameter_Set flow;
         std::vector<IO_Flow_Parameter_Set *> flows;
@@ -400,6 +421,13 @@ namespace hbfsim
         bool has_submitted{false};
         bool observations_enabled{false};
         std::vector<MqsimObservation> observations;
+        struct NativeExpected {
+            ucie::HbfReadBank bank;
+            NativeReadProof proof;
+            std::set<std::uint64_t> transaction_ids;
+        };
+        std::map<std::uint64_t,NativeExpected> native_expected;
+        bool native_sink_installed{false};
     };
 
     void ArrivalInjector::Execute_simulator_event(MQSimEngine::Sim_Event *event)
@@ -409,6 +437,12 @@ namespace hbfsim
 
     MqsimOnlineEngine::MqsimOnlineEngine(const Profile &profile)
         : impl_(std::make_unique<Impl>(profile))
+    {
+    }
+
+    MqsimOnlineEngine::MqsimOnlineEngine(
+        const Profile &profile, const ucie::HbfBankLayout &layout)
+        : impl_(std::make_unique<Impl>(profile, layout))
     {
     }
 
@@ -557,6 +591,133 @@ namespace hbfsim
         return Simulator->Has_started()
                    ? static_cast<std::uint64_t>(Simulator->Time())
                    : 0;
+    }
+
+    std::optional<std::uint64_t> MqsimOnlineEngine::next_event_ns()
+    {
+        // These are the same preparatory steps used by bounded execution.
+        // They may register events, but do not execute or advance any event.
+        impl_->flush_staged();
+        Simulator->Initialize_objects_once();
+        sim_time_type key{};
+        std::optional<std::uint64_t> next;
+        if (Simulator->Peek_next_event_time(key))
+            next=static_cast<std::uint64_t>(key);
+        if (!impl_->completions.empty()) {
+            const auto ready=impl_->completions.front().modeled_completion_ns;
+            if (!next || ready<*next) next=ready;
+        }
+        if (!next && impl_->pending_requests)
+            throw std::logic_error("pending MQSim request has no future event");
+        return next;
+    }
+
+    ucie::HbfReadBank MqsimOnlineEngine::inspect_read_bank(
+        std::uint64_t media_page_address) const
+    {
+        if (!impl_->hbf_layout)
+            throw std::logic_error("HBF bank inspection requires HBF layout");
+        if (media_page_address % impl_->profile.page_bytes != 0 ||
+            media_page_address >= impl_->profile.capacity_bytes)
+            throw std::out_of_range("HBF bank inspection requires an in-range aligned page");
+        const auto lpa = media_page_address / impl_->profile.page_bytes;
+        auto* ftl = dynamic_cast<SSD_Components::FTL*>(impl_->device->Firmware);
+        if (!ftl || !ftl->Address_Mapping_Unit ||
+            !ftl->Address_Mapping_Unit->Is_ideal_mapping_table() ||
+            lpa >= ftl->Address_Mapping_Unit->Get_logical_pages_count(0))
+            throw std::logic_error("HBF bank inspection requires in-range ideal page mapping");
+
+        auto predicted = ucie::hbf_cold_read_bank(lpa, *impl_->hbf_layout);
+        PPA_type ppa = NO_PPA;
+        page_status_type page_state = 0;
+        ftl->Address_Mapping_Unit->Get_data_mapping_info_for_gc(
+            0, lpa, ppa, page_state);
+        (void)page_state;
+        if (ppa == NO_PPA) return predicted;
+
+        const auto address = ftl->Address_Mapping_Unit->Convert_ppa_to_address(ppa);
+        if (address.ChannelID != predicted.native_channel ||
+            address.ChipID != predicted.native_chip ||
+            address.DieID != predicted.native_die ||
+            address.PlaneID != predicted.native_plane)
+            throw std::logic_error("mapped MQSim bank differs from HBF CWDP placement");
+        predicted.mapped = true;
+        return predicted;
+    }
+
+    void MqsimOnlineEngine::expect_native_read(
+        std::uint64_t request_id, std::uint64_t media_page_address,
+        const ucie::HbfReadBank& expected)
+    {
+        if (!impl_->hbf_layout || request_id==0 ||
+            impl_->native_expected.contains(request_id) ||
+            media_page_address%impl_->profile.page_bytes ||
+            media_page_address>=impl_->profile.capacity_bytes)
+            throw std::invalid_argument("invalid or duplicate native read expectation");
+        if (!impl_->native_sink_installed) {
+            SSD_Components::NVM_PHY_ONFI_NVDDR2::Set_hbf_command_observation_sink(
+                [state=impl_.get()](const SSD_Components::HBF_Command_Observation& o) {
+                    std::map<std::uint64_t,bool> seen;
+                    for (const auto& tr:o.transactions) {
+                        const auto it=state->native_expected.find(tr.external_request_id);
+                        if (it==state->native_expected.end()) continue;
+                        auto& proof=it->second.proof;
+                        const auto& bank=it->second.bank;
+                        if (o.command_code!=CMD_READ ||
+                            tr.channel!=bank.native_channel ||
+                            tr.chip!=bank.native_chip ||
+                            tr.die!=bank.native_die ||
+                            tr.plane!=bank.native_plane)
+                            proof.bank_match=false;
+                        if (!tr.logical_page_known ||
+                            tr.logical_page!=proof.expected_logical_page)
+                            proof.logical_page_match=false;
+                        if (proof.phase_events[0]==0)
+                            proof.observed_logical_page=tr.logical_page;
+                        if (o.phase==SSD_Components::HBF_Command_Observation_Phase::COMMAND_ISSUED &&
+                            it->second.transaction_ids.insert(tr.transaction_id).second)
+                            proof.observed_media_bytes+=tr.bytes;
+                        seen.emplace(tr.external_request_id,true);
+                    }
+                    for (const auto& [id,unused]:seen) {
+                        (void)unused;
+                        auto& proof=state->native_expected.at(id).proof;
+                        const auto phase=static_cast<std::size_t>(o.phase);
+                        if (phase>=proof.phase_events.size()) {
+                            proof.bank_match=false;
+                            continue;
+                        }
+                        ++proof.phase_events[phase];
+                        if (phase==0) {
+                            if (proof.issued_commands==0) proof.first_issued_ns=o.time;
+                            ++proof.issued_commands;
+                            proof.last_issued_ns=o.time;
+                        } else if (phase==1) {
+                            if (proof.phase_events[phase]==1)
+                                proof.first_media_begin_ns=o.time;
+                        } else if (phase==2) {
+                            proof.last_media_end_ns=o.time;
+                        }
+                    }
+                });
+            impl_->native_sink_installed=true;
+        }
+        impl_->native_expected.emplace(request_id,Impl::NativeExpected{
+            expected,NativeReadProof{.request_id=request_id,
+                .expected_logical_page=media_page_address/impl_->profile.page_bytes,
+                .logical_page_match=true,.bank_match=true}});
+    }
+
+    NativeReadProof MqsimOnlineEngine::finish_native_read(std::uint64_t request_id)
+    {
+        const auto it=impl_->native_expected.find(request_id);
+        if (it==impl_->native_expected.end())
+            throw std::invalid_argument("unknown native read expectation");
+        auto result=it->second.proof;
+        result.observer_failed=
+            SSD_Components::NVM_PHY_ONFI_NVDDR2::Hbf_command_observation_failed();
+        impl_->native_expected.erase(it);
+        return result;
     }
 
     void MqsimOnlineEngine::enable_observations()

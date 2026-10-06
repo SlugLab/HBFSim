@@ -1,0 +1,23 @@
+{
+  "names": [
+    "ucie_link",
+    "ucie_mqsim",
+    "ucie_bank_layout",
+    "ucie_device_coalescer",
+    "ucie_device_frontend",
+    "ucie_device_frontend_fake",
+    "ucie_device_profile",
+    "ucie_stack_frontend",
+    "ucie_worker_horizon",
+    "ucie_stack_router",
+    "ucie_multistack_profile",
+    "ucie_multistack_balanced",
+    "ucie_multistack_compare",
+    "ucie_multistack_frontend",
+    "ucie_multistack_reassembly",
+    "ucie_multistack_lifecycle",
+    "ucie_event_advance",
+    "ucie_backend_adapter"
+  ],
+  "count": 18
+}

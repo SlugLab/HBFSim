@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "tests/integration/test_ucie_loader_binding.py"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {},
+  "unset": [
+    "HBFSIM_TEST_REPO"
+  ],
+  "identity": {
+    "pid": 3548497,
+    "start_ticks": 18645114,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "utc_ns": 1791259192542254701
+}

@@ -1,0 +1,18 @@
+{
+  "name": "hbf-stage2-cpu-two-bank-coalescing-off",
+  "version": 1,
+  "link_profile": "configs/profiles/ucie/hbf-stage2-fixture-link.json",
+  "media_profile": "configs/profiles/nominal.json",
+  "stack_capacity_bytes": 8388608,
+  "host_channels": 1,
+  "ncdus": 1,
+  "banks_per_die": 2,
+  "buffers_per_bank": 2,
+  "stack_id": 0,
+  "module_id": 0,
+  "scenario_assumption": {
+    "reduced_topology": true,
+    "coalescing": false,
+    "buffer_cache": false
+  }
+}

@@ -1,0 +1,67 @@
+Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy
+      Start  1: build_smoke
+ 1/31 Test  #1: build_smoke ......................   Passed    0.00 sec
+      Start  2: profile
+ 2/31 Test  #2: profile ..........................   Passed    0.00 sec
+      Start  3: calibrator
+ 3/31 Test  #3: calibrator .......................   Passed    0.00 sec
+      Start  4: protocol
+ 4/31 Test  #4: protocol .........................   Passed    0.00 sec
+      Start  5: page_directory
+ 5/31 Test  #5: page_directory ...................   Passed    0.00 sec
+      Start  6: range_table
+ 6/31 Test  #6: range_table ......................   Passed    0.54 sec
+      Start  7: timing_binding
+ 7/31 Test  #7: timing_binding ...................   Passed    0.00 sec
+      Start  8: device_helper_abi
+ 8/31 Test  #8: device_helper_abi ................   Passed    0.00 sec
+      Start  9: backing_store
+ 9/31 Test  #9: backing_store ....................   Passed    0.00 sec
+      Start 10: capacity_backing_router
+10/31 Test #10: capacity_backing_router ..........   Passed    0.00 sec
+      Start 11: hbm_cache
+11/31 Test #11: hbm_cache ........................   Passed    0.00 sec
+      Start 12: vmm
+12/31 Test #12: vmm ..............................   Passed    0.00 sec
+      Start 13: capacity_page_service
+13/31 Test #13: capacity_page_service ............   Passed    0.00 sec
+      Start 14: capacity_handoff
+14/31 Test #14: capacity_handoff .................   Passed    0.00 sec
+      Start 15: capacity_dispatch
+15/31 Test #15: capacity_dispatch ................   Passed    0.00 sec
+      Start 16: capacity_worker
+16/31 Test #16: capacity_worker ..................   Passed    0.01 sec
+      Start 17: device_ordering_reference
+17/31 Test #17: device_ordering_reference ........   Passed    0.68 sec
+      Start 18: daemon_protocol
+18/31 Test #18: daemon_protocol ..................   Passed    1.13 sec
+      Start 19: coverage_gate
+19/31 Test #19: coverage_gate ....................   Passed    0.05 sec
+      Start 20: durable_append
+20/31 Test #20: durable_append ...................   Passed    0.10 sec
+      Start 21: module_identity
+21/31 Test #21: module_identity ..................   Passed    0.00 sec
+      Start 22: ptx_transform
+22/31 Test #22: ptx_transform ....................   Passed    0.09 sec
+      Start 23: ptx_async_copy_coverage
+23/31 Test #23: ptx_async_copy_coverage ..........   Passed    0.00 sec
+      Start 24: llama_cpp_adapter
+24/31 Test #24: llama_cpp_adapter ................   Passed    0.05 sec
+      Start 25: thermal_logp
+25/31 Test #25: thermal_logp .....................   Passed    0.08 sec
+      Start 26: bpftime_patch
+26/31 Test #26: bpftime_patch ....................   Passed    0.04 sec
+      Start 27: build_patched_bpftime
+27/31 Test #27: build_patched_bpftime ............   Passed    1.73 sec
+      Start 28: coverage_manifest_flow
+28/31 Test #28: coverage_manifest_flow ...........   Passed    0.10 sec
+      Start 29: mqsim_online
+29/31 Test #29: mqsim_online .....................   Passed    0.22 sec
+      Start 30: mqsim_queue_depth
+30/31 Test #30: mqsim_queue_depth ................   Passed    0.07 sec
+      Start 31: mqsim_benchmark
+31/31 Test #31: mqsim_benchmark ..................   Passed    0.46 sec
+
+100% tests passed, 0 tests failed out of 31
+
+Total Test time (real) =   5.39 sec

@@ -1,0 +1,18 @@
+{
+  "name": "hbf-stage2-reference-x64-grade2",
+  "version": 1,
+  "ucie_format": 6,
+  "aou_hbf_profile_id": 1,
+  "aou_hbf_revision": 0,
+  "aou_hbf_option": 0,
+  "lanes": 64,
+  "gt_per_second": 16,
+  "axi_ports": 1,
+  "local_capacity_bytes": 34359738368,
+  "scenario_assumption": {
+    "initial_ar_granules": 24,
+    "initial_r_granules": 112,
+    "max_accepted": 8,
+    "propagation_ns": 0
+  }
+}

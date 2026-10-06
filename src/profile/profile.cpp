@@ -151,10 +151,18 @@ namespace hbfsim
             }
         }
 
-        std::uint64_t calculate_blocks_per_plane(const Profile &profile)
+        MqsimGeometry legacy_geometry(const Profile &profile)
         {
-            if (profile.page_bytes == 0 || profile.channels == 0 ||
-                profile.dies_per_channel == 0 || profile.planes_per_die == 0 ||
+            return {profile.channels, 1, profile.dies_per_channel,
+                    profile.planes_per_die};
+        }
+
+        std::uint64_t calculate_blocks_per_plane(
+            const Profile &profile, const MqsimGeometry &geometry)
+        {
+            if (profile.page_bytes == 0 || geometry.channels == 0 ||
+                geometry.chips_per_channel == 0 ||
+                geometry.dies_per_chip == 0 || geometry.planes_per_die == 0 ||
                 profile.pages_per_block == 0)
             {
                 throw ProfileError(
@@ -162,8 +170,9 @@ namespace hbfsim
             }
 
             const auto denominator =
-                static_cast<unsigned __int128>(profile.page_bytes) * profile.channels *
-                profile.dies_per_channel * profile.planes_per_die *
+                static_cast<unsigned __int128>(profile.page_bytes) * geometry.channels *
+                geometry.chips_per_channel * geometry.dies_per_chip *
+                geometry.planes_per_die *
                 profile.pages_per_block;
             if (denominator > std::numeric_limits<std::uint64_t>::max() ||
                 profile.capacity_bytes % static_cast<std::uint64_t>(denominator) != 0)
@@ -312,6 +321,11 @@ namespace hbfsim
 
     void validate_profile(const Profile &profile)
     {
+        validate_profile(profile, legacy_geometry(profile));
+    }
+
+    void validate_profile(const Profile &profile, const MqsimGeometry &geometry)
+    {
         if (profile.capacity_bytes == 0)
         {
             throw ProfileError("capacity_bytes must be greater than zero");
@@ -357,7 +371,7 @@ namespace hbfsim
             throw ProfileError("reference_sample_rate must be in [0, 1]");
         }
         require_nonzero(profile.time_scale, "time_scale");
-        calculate_blocks_per_plane(profile);
+        calculate_blocks_per_plane(profile, geometry);
 
         if (profile.page_read_latency_lsb_ns == 0 ||
             profile.page_read_latency_csb_ns == 0 ||
@@ -455,7 +469,13 @@ namespace hbfsim
 
     std::uint64_t blocks_per_plane(const Profile &profile)
     {
-        return calculate_blocks_per_plane(profile);
+        return calculate_blocks_per_plane(profile, legacy_geometry(profile));
+    }
+
+    std::uint64_t blocks_per_plane(const Profile &profile,
+                                   const MqsimGeometry &geometry)
+    {
+        return calculate_blocks_per_plane(profile, geometry);
     }
 
 } // namespace hbfsim

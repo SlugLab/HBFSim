@@ -1,0 +1,7 @@
+{
+  "context_is_null": true,
+  "create_rc": 1,
+  "requested_mode": "invalid",
+  "scope": "Rejected before daemon spawn",
+  "status": "PASS"
+}

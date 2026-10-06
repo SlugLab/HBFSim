@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "cmake",
+    "--build",
+    "build-ucie-on",
+    "--target",
+    "hbfsimd",
+    "--parallel",
+    "8"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {},
+  "unset": [],
+  "identity": {
+    "pid": 3577377,
+    "start_ticks": 18821450,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/cmake"
+  },
+  "utc_ns": 1791260955897858942
+}

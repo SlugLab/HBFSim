@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hbfsim.local/schemas/ucie-stage3-top-proposed.json",
+  "title": "Proposed Stage 3 multistack top profile; not installed",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "stack_count", "modules_per_stack", "total_capacity_bytes", "total_service_bandwidth_bytes_per_s", "link_profile", "media_profile", "ncdus", "banks_per_die", "buffers_per_bank", "upstream_topology", "coalescing", "buffer_cache", "software_limits"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"type": "string", "minLength": 1},
+    "stack_count": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+    "modules_per_stack": {"type": "integer", "minimum": 1, "maximum": 16},
+    "total_capacity_bytes": {"type": "integer", "minimum": 4096},
+    "total_service_bandwidth_bytes_per_s": {"type": "integer", "minimum": 1},
+    "link_profile": {"type": "string", "minLength": 1},
+    "media_profile": {"type": "string", "minLength": 1},
+    "ncdus": {"enum": [1, 2, 4, 8, 16]},
+    "banks_per_die": {"type": "integer", "minimum": 1, "maximum": 16},
+    "buffers_per_bank": {"const": 2},
+    "upstream_topology": {"enum": ["independent", "shared"]},
+    "coalescing": {"type": "boolean"},
+    "buffer_cache": {"type": "boolean"},
+    "software_limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_parent_requests", "max_child_records", "max_read_bytes", "max_backing_ranges", "host_reassembly_capacity_bytes"],
+      "properties": {
+        "max_parent_requests": {"type": "integer", "minimum": 1},
+        "max_child_records": {"type": "integer", "minimum": 1},
+        "max_read_bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "max_backing_ranges": {"type": "integer", "minimum": 1},
+        "host_reassembly_capacity_bytes": {"type": "integer", "minimum": 64}
+      }
+    }
+  }
+}

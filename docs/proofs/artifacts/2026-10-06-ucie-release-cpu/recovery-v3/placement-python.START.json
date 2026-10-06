@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "python3",
+    "-B",
+    "adapters/vllm/tests/test_ucie_placement.py"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {},
+  "unset": [],
+  "identity": {
+    "pid": 3548496,
+    "start_ticks": 18645108,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "utc_ns": 1791259192479004674
+}

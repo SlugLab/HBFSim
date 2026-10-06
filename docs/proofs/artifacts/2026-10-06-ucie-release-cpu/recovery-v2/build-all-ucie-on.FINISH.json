@@ -1,0 +1,25 @@
+{
+  "name": "build-all-ucie-on",
+  "argv": [
+    "cmake",
+    "--build",
+    "build-ucie-on",
+    "--parallel",
+    "8"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3539178,
+    "start_ticks": 18589383,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/cmake"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791258635231988838,
+  "finish_ns": 1791258650963005235,
+  "wall_s": 15.731016397,
+  "stdout_sha256": "20ab1dc0e2e71bca346ad8bd52b22d097f61247927a306061447d881d38afb5a",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

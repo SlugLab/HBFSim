@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/release_cpu_recovery_giga_v3.py", line 91, in <module>
+    run(c['name'],c['argv'],env_patch=c.get('env'),unset=c.get('unset',[]))
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/release_cpu_recovery_giga_v3.py", line 28, in run
+    if required and rc:raise RuntimeError('FIRST_NATURAL_COMMAND_FAILURE '+name+' RC='+str(rc))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: FIRST_NATURAL_COMMAND_FAILURE loader-python RC=1

@@ -12,6 +12,8 @@ abstract: >-
   device rather than a parameter sheet, and junction temperature sets both the
   rate HBF sustains and the retention deadline that forces refresh writes.
 type: software
+version: 0.1.1
+date-released: 2026-10-06
 license: Apache-2.0
 repository-code: "https://github.com/SlugLab/HBFSim"
 url: "https://arxiv.org/abs/2609.09800"

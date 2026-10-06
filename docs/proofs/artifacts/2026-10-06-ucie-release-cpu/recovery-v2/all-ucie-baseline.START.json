@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "ctest",
+    "--test-dir",
+    "build-ucie-on",
+    "--output-on-failure",
+    "-R",
+    "^ucie_"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {
+    "HBFSIM_UCIE_COALESCER_EMPTY_WAIT": "0",
+    "HBFSIM_UCIE_RELEASABLE_CHILD_INDEX_V1": "0",
+    "HBFSIM_UCIE_ORDERED_ADMISSION_V1": "0",
+    "HBFSIM_UCIE_CAPACITY_ZERO_INACTIVE_V1": "0",
+    "HBFSIM_UCIE_COMPACT_CONSUME_ORDERED_V1": "0",
+    "HBFSIM_UCIE_COMPACT_CONSUME_WAVE_V1": "0",
+    "HBFSIM_UCIE_DEFERRED_INITIAL_HELLO_V1": "0",
+    "HBFSIM_UCIE_SHM_RPC": "0",
+    "HBFSIM_UCIE_TYPED_RPC": "0"
+  },
+  "unset": [
+    "HBFSIM_UCIE_LOCAL_STACK_ID",
+    "HBFSIM_SHORT_OBSERVER_MAILBOX",
+    "HBFSIM_SHORT_OBSERVER_REPORT"
+  ],
+  "identity": {
+    "pid": 3539877,
+    "start_ticks": 18591105,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/ctest"
+  },
+  "utc_ns": 1791258652453155865
+}

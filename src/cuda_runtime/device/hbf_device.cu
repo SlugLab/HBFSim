@@ -1,5 +1,7 @@
 #include "hbf_device.cuh"
 
+#include <hbfsim/control_flags.hpp>
+
 #include <cuda/atomic>
 #include <cuda_runtime.h>
 
@@ -787,6 +789,9 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     if (header->timing_model != kFast && header->timing_model != kHybrid) {
         return {.status = RequestStatus::Unsupported, .admitted = 0};
     }
+    const bool zero_injected_wait =
+        (system_acquire(&header->reserved0) &
+         hbfsim::control_flags::kZeroInjectedWait) != 0;
 
     if (empirical_enabled) {
         if (media.bytes != 4096 || range.page_bytes != 4096 ||
@@ -832,7 +837,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
         // doubled from 64 ns without consulting the target and overshot it by
         // 63 percent on a 10,000 ns target; wait_sleep_ns takes at most half
         // the remaining time, which the PTX ISA's [0, 2*t] bound makes safe.
-        while (gpu_time_ns() < target) {
+        while (!zero_injected_wait && gpu_time_ns() < target) {
             const auto now = gpu_time_ns();
             if (now >= deadline) {
                 FirstFaultObservation observed{};
@@ -906,7 +911,7 @@ __device__ CompletionResult resolve_fast_or_hybrid(
     const auto deadline = hbfsim::device::saturating_add(
         arrival, header->request_timeout_ns);
     // Same clamp as the empirical path above: never sleep past `target`.
-    while (gpu_time_ns() < target) {
+    while (!zero_injected_wait && gpu_time_ns() < target) {
         const auto now = gpu_time_ns();
         if (now >= deadline) {
             FirstFaultObservation observed{};

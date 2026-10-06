@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HBFSim Stage 1 UCIe/AoU HBF structural link profile",
+  "description": "Capacity/credit/propagation assumptions are structural scenarios, not normative UCIe timing or measured HBF throughput.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "ucie_format", "aou_hbf_profile_id", "aou_hbf_revision", "aou_hbf_option", "lanes", "gt_per_second", "axi_ports", "local_capacity_bytes", "scenario_assumption"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "version": {"const": 1},
+    "ucie_format": {"const": 6},
+    "aou_hbf_profile_id": {"const": 1},
+    "aou_hbf_revision": {"const": 0},
+    "aou_hbf_option": {"const": 0},
+    "lanes": {"const": 64},
+    "gt_per_second": {"enum": [8, 16, 32]},
+    "axi_ports": {"const": 1},
+    "local_capacity_bytes": {"type": "integer", "minimum": 4096, "maximum": 68719476736, "multipleOf": 4096},
+    "scenario_assumption": {
+      "description": "Steady-state initial credits and delay; not specified link-training values.",
+      "type": "object", "additionalProperties": false,
+      "required": ["initial_ar_granules", "initial_r_granules", "max_accepted", "propagation_ns"],
+      "properties": {
+        "initial_ar_granules": {"type": "integer", "minimum": 3, "maximum": 65535},
+        "initial_r_granules": {"type": "integer", "minimum": 14, "maximum": 65535},
+        "max_accepted": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "propagation_ns": {"type": "integer", "minimum": 0, "maximum": 1000000000}
+      }
+    }
+  }
+}

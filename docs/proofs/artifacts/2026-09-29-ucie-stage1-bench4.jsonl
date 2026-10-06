@@ -1,0 +1,5 @@
+{"request_id":1,"axi_id":1,"request_delivered_ns":2,"media_ready_ns":10312,"response_delivered_ns":10314,"application_bytes":64,"media_submit_bytes":4096}
+{"request_id":2,"axi_id":2,"request_delivered_ns":2,"media_ready_ns":10312,"response_delivered_ns":10314,"application_bytes":64,"media_submit_bytes":4096}
+{"request_id":3,"axi_id":3,"request_delivered_ns":2,"media_ready_ns":10312,"response_delivered_ns":10314,"application_bytes":64,"media_submit_bytes":4096}
+{"request_id":4,"axi_id":0,"request_delivered_ns":2,"media_ready_ns":10312,"response_delivered_ns":10316,"application_bytes":64,"media_submit_bytes":4096}
+{"summary":true,"accepted":4,"consumed":4,"application_bytes":256,"media_submit_bytes":16384,"mqsim_arrivals":4,"mqsim_admissions":4,"mqsim_callbacks":4,"callbacks_before_cap_ready":0,"ar_wire_bytes":1024,"r_wire_bytes":1024,"ar_flits":4,"r_flits":4,"flit_trace_dropped":0,"event_trace_dropped":0,"observation_trace_dropped":0,"credit_profile_evidence":"SCENARIO_ASSUMPTION"}

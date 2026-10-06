@@ -1,0 +1,16 @@
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- bpftime pinned commit: ec26daecc8e787fb80fd95dd596a576404a5e36e
+-- MQSim pinned commit: 51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.5.5") found components: Crypto
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0001-online-hbf-api.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0002-qlc-support.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0003-hbf-command-observer.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0004-next-event-peek.patch
+-- Configuring done (0.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy

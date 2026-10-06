@@ -32,6 +32,8 @@
 #include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <sys/mman.h>
@@ -412,6 +414,13 @@ std::uint64_t monotonic_ns()
         std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
 }
 
+std::uint64_t request_deadline_ns(std::uint64_t now,
+                                  std::uint64_t timeout) noexcept
+{
+    constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
+    return timeout > maximum - now ? maximum : now + timeout;
+}
+
 bool valid_options(const hbfsim_options* options,
                    hbfsim_context** out) noexcept
 {
@@ -421,6 +430,43 @@ bool valid_options(const hbfsim_options* options,
            options->mode <= HBFSIM_MODEL_HYBRID &&
            host_service::valid_ring_capacity(options->ring_capacity) &&
            options->request_timeout_ns != 0;
+}
+
+struct UcieLaunchOptions {
+    std::string top_profile;
+    std::string worker;
+    std::string placement_manifest;
+    std::string wait_mode;
+};
+
+std::optional<UcieLaunchOptions> configured_ucie_launch_options()
+{
+    const auto* top = std::getenv("HBFSIM_UCIE_TOP_PROFILE");
+    const auto* worker = std::getenv("HBFSIM_UCIE_WORKER");
+    const auto* placement = std::getenv("HBFSIM_UCIE_PLACEMENT_MANIFEST");
+    const auto* wait = std::getenv("HBFSIM_UCIE_WAIT_MODE");
+    if (top == nullptr && worker == nullptr && placement == nullptr &&
+        wait == nullptr) {
+        return std::nullopt;
+    }
+    if (top == nullptr || worker == nullptr || placement == nullptr ||
+        wait == nullptr ||
+        (std::string_view(wait) != "nominal" &&
+         std::string_view(wait) != "zero" &&
+         std::string_view(wait) != "zero_injected")) {
+        throw std::invalid_argument("incomplete UCIe backend configuration");
+    }
+    const auto valid_file = [](const char* path) {
+        return path[0] != '\0' && std::filesystem::path(path).is_absolute() &&
+               std::filesystem::is_regular_file(path);
+    };
+    if (!valid_file(top) || !valid_file(worker) ||
+        !valid_file(placement) || ::access(worker, X_OK) != 0) {
+        throw std::invalid_argument("invalid UCIe backend input path");
+    }
+    return UcieLaunchOptions{top, worker, placement,
+                             std::string_view(wait) == "zero_injected"
+                                 ? "zero" : wait};
 }
 
 int create_memfd()
@@ -738,7 +784,9 @@ bool daemon_environment_variable_is_instrumentation(
 }
 
 int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
-                 const std::string& executable, BeforeForkHook before_fork,
+                 const std::string& executable,
+                 const std::optional<UcieLaunchOptions>& ucie,
+                 BeforeForkHook before_fork,
                  void* hook_state)
 {
     const auto descriptor_flags = ::fcntl(context->control_fd, F_GETFD);
@@ -746,7 +794,7 @@ int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
         return HBFSIM_IO_ERROR;
     }
     const std::string fd_text = std::to_string(context->control_fd);
-    std::array<char*, 8> arguments{
+    std::vector<char*> arguments{
         const_cast<char*>(executable.c_str()),
         const_cast<char*>("--profile"),
         const_cast<char*>(options->profile_path),
@@ -754,8 +802,21 @@ int spawn_daemon(hbfsim_context* context, const hbfsim_options* options,
         const_cast<char*>(fd_text.c_str()),
         const_cast<char*>("--report-dir"),
         const_cast<char*>(options->report_dir),
-        nullptr,
     };
+    if (ucie) {
+        arguments.insert(arguments.end(), {
+            const_cast<char*>("--backend"), const_cast<char*>("ucie"),
+            const_cast<char*>("--ucie-top-profile"),
+            const_cast<char*>(ucie->top_profile.c_str()),
+            const_cast<char*>("--ucie-worker"),
+            const_cast<char*>(ucie->worker.c_str()),
+            const_cast<char*>("--ucie-placement-manifest"),
+            const_cast<char*>(ucie->placement_manifest.c_str()),
+            const_cast<char*>("--ucie-wait-mode"),
+            const_cast<char*>(ucie->wait_mode.c_str()),
+        });
+    }
+    arguments.push_back(nullptr);
     std::vector<std::string> environment_storage;
     for (char** item = environ; item != nullptr && *item != nullptr; ++item) {
         if (!daemon_environment_variable_is_instrumentation(*item)) {
@@ -807,6 +868,16 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
         *out = nullptr;
     }
     if (!valid_options(options, out)) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    std::optional<UcieLaunchOptions> ucie;
+    try {
+        ucie = configured_ucie_launch_options();
+    } catch (const std::exception&) {
+        return HBFSIM_INVALID_ARGUMENT;
+    }
+    if (ucie && options->mode != HBFSIM_MODEL_REFERENCE &&
+        options->mode != HBFSIM_MODEL_HYBRID) {
         return HBFSIM_INVALID_ARGUMENT;
     }
     hbfsim::Profile profile;
@@ -863,6 +934,12 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     if (!control.initialize(options->ring_capacity)) {
         release_context(context.release(), false);
         return HBFSIM_IO_ERROR;
+    }
+    if (ucie && ucie->wait_mode == "zero") {
+        hbfsim::host_service::atomic_store(
+            control.header()->reserved0,
+            hbfsim::host_service::kControlZeroInjectedWait,
+            std::memory_order_relaxed);
     }
     control.header()->request_timeout_ns = options->request_timeout_ns;
     control.header()->heartbeat_timeout_ns =
@@ -1085,17 +1162,25 @@ int create_context(const hbfsim_options* options, const char* daemon_path,
     }
 
     const auto spawn_status = spawn_daemon(context.get(), options, executable,
-                                           before_fork, hook_state);
+                                           ucie, before_fork, hook_state);
     if (spawn_status != HBFSIM_OK) {
         release_context(context.release(), false);
         return spawn_status;
     }
     const auto heartbeat_status =
-        wait_for_heartbeat(context.get(), kDaemonStartupTimeout);
+        wait_for_heartbeat(context.get(), ucie ? std::chrono::seconds(180)
+                                               : kDaemonStartupTimeout);
     if (heartbeat_status != HBFSIM_OK) {
         release_context(context.release(), true);
         return heartbeat_status == HBFSIM_DAEMON_LOST ? HBFSIM_IO_ERROR
                                                       : heartbeat_status;
+    }
+    if (ucie &&
+        (hbfsim::host_service::atomic_load(
+             control.header()->reserved0, std::memory_order_acquire) &
+         hbfsim::host_service::kControlCapabilityUcieBackend) == 0) {
+        release_context(context.release(), true);
+        return HBFSIM_IO_ERROR;
     }
     context->daemon_ready = true;
     if (!register_context_admission(context.get())) {
@@ -1116,7 +1201,8 @@ int enqueue_with_deadline(hbfsim_context* context, const HbfRequest& request,
         return HBFSIM_UNSUPPORTED;
     }
     ControlView control(context->control_mapping, context->control_bytes);
-    const auto deadline = monotonic_ns() + context->request_timeout_ns;
+    const auto deadline = request_deadline_ns(monotonic_ns(),
+                                              context->request_timeout_ns);
     std::chrono::nanoseconds backoff(1'000);
     for (;;) {
         const auto status = retirement_liveness(context);
@@ -1320,7 +1406,8 @@ int wait_for_completion_for_test(hbfsim_context* context,
         return HBFSIM_UNSUPPORTED;
     }
     ControlView control(context->control_mapping, context->control_bytes);
-    const auto deadline = monotonic_ns() + context->request_timeout_ns;
+    const auto deadline = request_deadline_ns(monotonic_ns(),
+                                              context->request_timeout_ns);
     std::chrono::nanoseconds backoff(1'000);
     for (;;) {
         if (control.try_consume_completion(ticket, *completion)) {

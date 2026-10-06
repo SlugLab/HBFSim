@@ -1,0 +1,69 @@
+[0/2] Re-checking globbed directories...
+[1/69] Building CXX object CMakeFiles/hbfsim_cpu_tests.dir/tests/cpu/build_smoke.cpp.o
+[2/69] Building CXX object CMakeFiles/hbfsim_protocol_tests.dir/tests/cpu/protocol_layout_test.cpp.o
+[3/69] Linking CXX static library libhbfsim_core.a
+[4/69] Building CXX object CMakeFiles/hbfsim_page_directory_tests.dir/tests/cpu/page_directory_test.cpp.o
+[5/69] Linking CXX shared library libhbfsim.so.0.1.1
+[6/69] Building CXX object CMakeFiles/hbfsim_calibrator_tests.dir/tests/cpu/calibrator_test.cpp.o
+[7/69] Building CXX object CMakeFiles/hbfsim_timing_binding_tests.dir/tests/cpu/timing_binding_test.cpp.o
+[8/69] Building CXX object CMakeFiles/hbfsim_device_helper_abi_tests.dir/tests/cpu/device_helper_abi_test.cpp.o
+[9/69] Building CXX object CMakeFiles/hbfsim_hbm_cache_tests.dir/tests/cpu/hbm_cache_test.cpp.o
+[10/69] Building CXX object CMakeFiles/hbfsim_profile_tests.dir/tests/cpu/profile_test.cpp.o
+[11/69] Building CXX object CMakeFiles/hbfsim_backing_store_tests.dir/tests/cpu/backing_store_test.cpp.o
+[12/69] Building CXX object CMakeFiles/hbfsim_vmm_tests.dir/tests/cpu/vmm_test.cpp.o
+[13/69] Building CXX object CMakeFiles/hbfsim_range_table_tests.dir/tests/cpu/range_table_test.cpp.o
+[14/69] Linking CXX shared library libhbfsim_marker_preload.so
+[15/69] Building CXX object CMakeFiles/hbfsim_device_ordering_reference_tests.dir/tests/cpu/device_ordering_reference_test.cpp.o
+[16/69] Building CXX object CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o
+[17/69] Linking CXX executable hbfsimd
+[18/69] Building CXX object CMakeFiles/hbfsim_capacity_handoff_tests.dir/tests/cpu/capacity_handoff_test.cpp.o
+[19/69] Building CXX object CMakeFiles/hbfsim_capacity_backing_router_tests.dir/tests/cpu/capacity_backing_router_test.cpp.o
+[20/69] Building CXX object CMakeFiles/hbfsim_capacity_dispatch_tests.dir/tests/cpu/capacity_dispatch_test.cpp.o
+[21/69] Building CXX object CMakeFiles/ptx_transform_test.dir/tests/cpu/ptx_transform_test.cpp.o
+[22/69] Building CXX object CMakeFiles/hbfsim_capacity_page_service_tests.dir/tests/cpu/capacity_page_service_test.cpp.o
+[23/69] Building CXX object CMakeFiles/hbfsim_capacity_worker_tests.dir/tests/cpu/capacity_worker_test.cpp.o
+[24/69] Building CXX object CMakeFiles/context_lifecycle_test.dir/tests/cpu/context_lifecycle_test.cpp.o
+[25/69] Building CXX object CMakeFiles/module_identity_test.dir/tests/cpu/module_identity_test.cpp.o
+[26/69] Building CXX object CMakeFiles/ptx_async_copy_coverage_test.dir/tests/cpu/ptx_async_copy_coverage_test.cpp.o
+[27/69] Building CXX object CMakeFiles/daemon_protocol_test.dir/tests/integration/daemon_protocol_test.cpp.o
+[28/69] Building CXX object CMakeFiles/durable_append_test.dir/tests/cpu/durable_append_test.cpp.o
+[29/69] Building CXX object CMakeFiles/mqsim_queue_depth_test.dir/tests/integration/mqsim_queue_depth_test.cpp.o
+[30/69] Creating library symlink libhbfsim.so.0 libhbfsim.so
+[31/69] Linking CXX executable hbfsim_cpu_tests
+[32/69] Building CXX object CMakeFiles/mqsim_online_test.dir/tests/integration/mqsim_online_test.cpp.o
+[33/69] Linking CXX executable hbfsim_profile_tests
+[34/69] Linking CXX executable hbfsim_calibrator_tests
+[35/69] Linking CXX executable hbfsim_protocol_tests
+[36/69] Linking CXX executable hbfsim_page_directory_tests
+[37/69] Linking CXX executable hbfsim_range_table_tests
+[38/69] Linking CXX executable hbfsim_device_helper_abi_tests
+[39/69] Linking CXX executable hbfsim_timing_binding_tests
+[40/69] Linking CXX executable hbfsim_backing_store_tests
+[41/69] Linking CXX executable hbfsim_capacity_backing_router_tests
+[42/69] Linking CXX executable hbfsim_hbm_cache_tests
+[43/69] Linking CXX executable hbfsim_vmm_tests
+[44/69] Linking CXX executable hbfsim_capacity_page_service_tests
+[45/69] Linking CXX executable hbfsim_capacity_handoff_tests
+[46/69] Linking CXX executable hbfsim_capacity_dispatch_tests
+[47/69] Linking CXX executable hbfsim_capacity_worker_tests
+[48/69] Linking CXX executable hbfsim_device_ordering_reference_tests
+[49/69] Linking CXX executable context_lifecycle_test
+[50/69] Linking CXX executable daemon_protocol_test
+[51/69] Linking CXX executable durable_append_test
+[52/69] Linking CXX executable module_identity_test
+[53/69] Building CXX object CMakeFiles/coverage_gate_test.dir/tests/cpu/coverage_gate_test.cpp.o
+[54/69] Linking CXX executable ptx_transform_test
+[55/69] Linking CXX executable ptx_async_copy_coverage_test
+[56/69] Linking CXX executable coverage_gate_test
+[57/69] Linking CXX executable mqsim_online_test
+[58/69] Linking CXX executable mqsim_queue_depth_test
+[59/69] Building CXX object CMakeFiles/coverage_manifest_flow_test.dir/tests/integration/coverage_manifest_flow_test.cpp.o
+[60/69] Linking CXX executable coverage_manifest_flow_test
+[61/69] Building CXX object CMakeFiles/ptxpass_hbf.dir/src/ptxpass_hbf/main.cpp.o
+[62/69] Linking CXX executable src/ptxpass_hbf/ptxpass_hbf
+[63/69] Building CXX object CMakeFiles/hbf_mqsim_bench.dir/benchmarks/mqsim/hbf_mqsim_bench.cpp.o
+[64/69] Linking CXX executable hbf_mqsim_bench
+[65/69] Building CXX object CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf/plugin.cpp.o
+[66/69] Linking CXX shared library libptxpass_hbf.so
+[67/69] Building CXX object CMakeFiles/ptxpass_hbf_aggregate_plugin.dir/src/ptxpass_hbf/plugin_aggregate_metadata.cpp.o
+[68/69] Linking CXX shared library libptxpass_hbf_aggregate.so

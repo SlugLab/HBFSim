@@ -1,0 +1,27 @@
+{
+  "name": "relink-on-daemon-boundary",
+  "argv": [
+    "cmake",
+    "--build",
+    "build-ucie-on",
+    "--target",
+    "hbfsimd",
+    "--parallel",
+    "8"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3577377,
+    "start_ticks": 18821450,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/cmake"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791260955897858942,
+  "finish_ns": 1791260959949162546,
+  "wall_s": 4.051303604,
+  "stdout_sha256": "069a6a44991522f126e09f3d024e2c57a10e08ecf0247b2ae6f86a0064fe2efc",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

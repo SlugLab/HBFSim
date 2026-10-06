@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "bash",
+    "scripts/reproduce_ucie_current_cpu.sh",
+    "build-ucie-on",
+    "focused"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {
+    "HBFSIM_BUILD_JOBS": "${JOBS}"
+  },
+  "unset": [],
+  "identity": {
+    "pid": 2889978,
+    "start_ticks": 18380043,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/bash"
+  },
+  "utc_ns": 1791256541837439282
+}

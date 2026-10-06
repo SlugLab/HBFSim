@@ -1,0 +1,24 @@
+{
+  "name": "readelf-off-daemon",
+  "argv": [
+    "readelf",
+    "-W",
+    "-d",
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3577501,
+    "start_ticks": 18821916,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/x86_64-linux-gnu-readelf"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791260960565461345,
+  "finish_ns": 1791260960567273346,
+  "wall_s": 0.001812001,
+  "stdout_sha256": "cc66a5041f72841975d9764dcb02140a773ee3fb2d33da290d5e153515d7bd64",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

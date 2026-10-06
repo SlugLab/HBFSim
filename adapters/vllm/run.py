@@ -223,10 +223,10 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.input_len + args.output_len > args.max_model_len:
         raise SystemExit("input plus output exceeds max model length")
     if (args.warmup_requests < 0 or args.eval_delay_ns < -1 or
-            args.request_timeout_ns <= 0):
+            not 0 < args.request_timeout_ns <= (1 << 64) - 1):
         raise SystemExit(
             "warmup-requests must be nonnegative, eval-delay-ns must be >= -1, "
-            "and request-timeout-ns must be positive")
+            "and request-timeout-ns must be positive and fit uint64")
     if args.accounting_epoch <= 0 or args.eval_trace_capacity <= 0:
         raise SystemExit("accounting epoch and trace capacity must be positive")
     if (args.request_accounting or args.eval_delay_ns >= 0) and args.mode != "timing":

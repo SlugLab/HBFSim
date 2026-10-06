@@ -109,6 +109,16 @@ namespace hbfsim
         std::optional<EmpiricalVmemProfile> empirical_vmem;
     };
 
+    // Effective MQSim geometry. The legacy Profile has one chip per channel;
+    // opt-in HBF layouts derive more chips without reinterpreting its die fields.
+    struct MqsimGeometry
+    {
+        std::uint32_t channels;
+        std::uint32_t chips_per_channel;
+        std::uint32_t dies_per_chip;
+        std::uint32_t planes_per_die;
+    };
+
     std::string to_string(NandTechnology technology);
     NandTechnology nand_technology_from_string(const std::string &text);
     std::string to_string(PlaneAllocationScheme scheme);
@@ -122,6 +132,9 @@ namespace hbfsim
 
     Profile load_profile(const std::filesystem::path &path);
     void validate_profile(const Profile &profile);
+    void validate_profile(const Profile &profile, const MqsimGeometry &geometry);
     std::uint64_t blocks_per_plane(const Profile &profile);
+    std::uint64_t blocks_per_plane(const Profile &profile,
+                                   const MqsimGeometry &geometry);
 
 } // namespace hbfsim

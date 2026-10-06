@@ -2,8 +2,10 @@
 
 #include <hbfsim/profile.hpp>
 #include <hbfsim/protocol.hpp>
+#include <hbfsim/ucie/bank_layout.hpp>
 
 #include <cstddef>
+#include <array>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -27,9 +29,29 @@ struct MqsimObservation {
     std::size_t device_outstanding;
 };
 
+// Per-active-read validation is independent of any bounded diagnostic trace.
+struct NativeReadProof {
+    std::uint64_t request_id{};
+    std::uint64_t issued_commands{};
+    std::uint64_t first_issued_ns{};
+    std::uint64_t last_issued_ns{};
+    // COMMAND_ISSUED, MEDIA_BEGIN, MEDIA_END, DATA_OUT_BEGIN, DATA_OUT_END.
+    std::array<std::uint64_t,5> phase_events{};
+    std::uint64_t first_media_begin_ns{};
+    std::uint64_t last_media_end_ns{};
+    std::uint64_t expected_logical_page{};
+    std::uint64_t observed_logical_page{};
+    std::uint64_t observed_media_bytes{};
+    bool logical_page_match{};
+    bool bank_match{};
+    bool observer_failed{};
+};
+
 class MqsimOnlineEngine {
 public:
     explicit MqsimOnlineEngine(const Profile& profile);
+    MqsimOnlineEngine(const Profile& profile,
+                      const ucie::HbfBankLayout& hbf_layout);
     ~MqsimOnlineEngine();
 
     MqsimOnlineEngine(const MqsimOnlineEngine&) = delete;
@@ -46,6 +68,16 @@ public:
     std::optional<HbfCompletion> run_next_completion_until(std::uint64_t deadline_ns);
     [[nodiscard]] std::size_t pending() const noexcept;
     [[nodiscard]] std::uint64_t current_time_ns() const noexcept;
+    // Prepares staged arrivals and MQSim objects, then reports the earliest
+    // queued event or modeled completion without executing an event.
+    [[nodiscard]] std::optional<std::uint64_t> next_event_ns();
+    // Opt-in HBF-only read query. Does not submit, allocate, or advance time.
+    [[nodiscard]] ucie::HbfReadBank inspect_read_bank(
+        std::uint64_t aligned_media_page_address) const;
+    void expect_native_read(std::uint64_t request_id,
+                            std::uint64_t media_page_address,
+                            const ucie::HbfReadBank& expected);
+    [[nodiscard]] NativeReadProof finish_native_read(std::uint64_t request_id);
 
     // Opt in before the first submission; disabled by default. Callers should
     // drain these CPU diagnostics after each returned completion.

@@ -1,0 +1,11 @@
+compare topology=independent placement=balanced final_h=10316 native=1,1,1,1 original=256 unique=256 axi=256 media=16384 upstream_ar_wire=0 upstream_r_wire=0 worker_ar_wire=2048 worker_r_wire=4096 B_total=512000000000
+compare topology=shared placement=balanced final_h=10324 native=1,1,1,1 original=256 unique=256 axi=256 media=16384 upstream_ar_wire=1024 upstream_r_wire=1792 worker_ar_wire=2304 worker_r_wire=4096 B_total=512000000000
+compare topology=independent placement=hotspot final_h=41246 native=4,0,0,0 original=256 unique=256 axi=256 media=16384 upstream_ar_wire=0 upstream_r_wire=0 worker_ar_wire=3840 worker_r_wire=3328 B_total=512000000000
+compare topology=shared placement=hotspot final_h=41252 native=4,0,0,0 original=256 unique=256 axi=256 media=16384 upstream_ar_wire=3840 upstream_r_wire=3328 worker_ar_wire=3840 worker_r_wire=3328 B_total=512000000000
+70/70 Testing: ucie_multistack_lifecycle
+70/70 Test: ucie_multistack_lifecycle
+Command: "/root/hbfsim-exp/ucie-interface-20260929/worktree/build-stage2-clean-a/ucie_multistack_lifecycle_test" "/root/hbfsim-exp/ucie-interface-20260929/worktree/build-stage2-clean-a/ucie_stack_worker"
+"ucie_multistack_lifecycle" start time: Sep 29 14:55 UTC
+multistack_lifecycle timeout/reuse child-terminal worker-reap PASS
+"ucie_multistack_lifecycle" end time: Sep 29 14:55 UTC
+"ucie_multistack_lifecycle" time elapsed: 00:00:02

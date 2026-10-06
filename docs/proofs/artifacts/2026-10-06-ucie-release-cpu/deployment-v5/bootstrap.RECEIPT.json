@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "ssh",
+    "giga",
+    "python3",
+    "-"
+  ],
+  "reader_pid": 24336,
+  "start_ns": 1791260611130041900,
+  "finish_ns": 1791260615413314300,
+  "natural_rc": 1,
+  "wait_reaped": true,
+  "payload_sha256": "c17d1b20656df545f0ecfddd91f8a26731c5c64d5baef0a832d9f5bfa5f60bcc",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "648c6f75097064c7bd2a53101483b10143adb0939b84114109f0d92958b38048"
+}

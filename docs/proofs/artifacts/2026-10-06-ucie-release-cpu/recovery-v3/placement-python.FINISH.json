@@ -1,0 +1,23 @@
+{
+  "name": "placement-python",
+  "argv": [
+    "python3",
+    "-B",
+    "adapters/vllm/tests/test_ucie_placement.py"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3548496,
+    "start_ticks": 18645108,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791259192479004674,
+  "finish_ns": 1791259192541997430,
+  "wall_s": 0.062992756,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "8eae2b9341a0dcb125032f79cad90f202e4eb531cdb3380fe7f24c8dd0b7dda6"
+}

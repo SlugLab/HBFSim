@@ -1,0 +1,106 @@
+{
+  "binaries": [
+    {
+      "path": "build-ucie-on/hbfsimd",
+      "size": 2155304,
+      "sha256": "b1c3d2fb47000c0aa702be992cb3f9e84982c65d3a987b96e388ba682a6bb46c"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim.so",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim.so.0",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim.so.0.1.1",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim_core.a",
+      "size": 2218720,
+      "sha256": "8f384e58a96507ce42765c3bf81d529b1d7d8a3825466e50341d9090af856366"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim_marker_preload.so",
+      "size": 15776,
+      "sha256": "146db0695bcd00886aa0285e99a378edb2098c5a7a39f9894365011dd41c1a87"
+    },
+    {
+      "path": "build-ucie-on/libhbfsim_ucie.a",
+      "size": 2696258,
+      "sha256": "dbd74714fb0c402d790c3adac4b8ad22e613610668275913ff18ea348445d959"
+    },
+    {
+      "path": "build-ucie-on/libmqsim_hbf.a",
+      "size": 1717798,
+      "sha256": "52cfdbb52f8ef30398fa2927d61edb510f771fe7ba83d53c5e2bb3a8dce62317"
+    },
+    {
+      "path": "build-ucie-on/ucie_16k_sustained_bench",
+      "size": 1888872,
+      "sha256": "009d66cc78a25e8c620c92d57729fa9f9b818332e7b9710e833e5df95d74d8c9"
+    },
+    {
+      "path": "build-ucie-on/ucie_stack_worker",
+      "size": 1509656,
+      "sha256": "9519c2daf7be5145bf4036377dca1dda960979389f9f1dc57393a81f7e575f61"
+    },
+    {
+      "path": "build-default-legacy/hbfsimd",
+      "size": 1065240,
+      "sha256": "078514167180f4907ed0cb5394f59f01e5dadf29853271d32c711dd3f7da9111"
+    },
+    {
+      "path": "build-default-legacy/libhbfsim.so",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-default-legacy/libhbfsim.so.0",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-default-legacy/libhbfsim.so.0.1.1",
+      "size": 1960608,
+      "sha256": "ff9db1deb8d98291bddac52a7e2174848ece967c5c3fec8111a5183f99f5d185"
+    },
+    {
+      "path": "build-default-legacy/libhbfsim_core.a",
+      "size": 2218720,
+      "sha256": "8f384e58a96507ce42765c3bf81d529b1d7d8a3825466e50341d9090af856366"
+    },
+    {
+      "path": "build-default-legacy/libhbfsim_marker_preload.so",
+      "size": 15776,
+      "sha256": "146db0695bcd00886aa0285e99a378edb2098c5a7a39f9894365011dd41c1a87"
+    },
+    {
+      "path": "build-default-legacy/libmqsim_hbf.a",
+      "size": 1717798,
+      "sha256": "52cfdbb52f8ef30398fa2927d61edb510f771fe7ba83d53c5e2bb3a8dce62317"
+    }
+  ],
+  "ucie14_members": [
+    "profile.cpp.o",
+    "link.cpp.o",
+    "engine_guard.cpp.o",
+    "backing_registry.cpp.o",
+    "device_coalescer.cpp.o",
+    "device_frontend.cpp.o",
+    "stack_frontend.cpp.o",
+    "stack_router.cpp.o",
+    "multistack_frontend.cpp.o",
+    "multistack_profile.cpp.o",
+    "worker_protocol.cpp.o",
+    "worker_handler.cpp.o",
+    "device_profile.cpp.o",
+    "mqsim_frontend.cpp.o"
+  ],
+  "dependency_evidence": "Actual ninja compiler .ninja_deps exports; original generated depfiles may be consumed/removed by Ninja"
+}

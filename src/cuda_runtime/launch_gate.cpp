@@ -416,7 +416,7 @@ constexpr std::uint64_t kFirstFaultConfigMagic = 0x4842464641554c54ULL;
 constexpr std::uint64_t kFirstFaultReadyMagic = 0x4842464646524459ULL;
 constexpr std::uint64_t kFirstFaultFileMagic = 0x4842464646494c45ULL;
 constexpr std::uint32_t kFirstFaultSchemaVersion = 1;
-constexpr std::size_t kFirstFaultSlotCapacity = 8;
+constexpr std::size_t kFirstFaultSlotCapacity = 16;
 struct FirstFaultConfig {
     std::uint64_t magic;
     std::uint32_t schema_version;

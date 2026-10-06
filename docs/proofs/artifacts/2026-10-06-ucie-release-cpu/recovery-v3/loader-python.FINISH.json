@@ -1,0 +1,23 @@
+{
+  "name": "loader-python",
+  "argv": [
+    "python3",
+    "-B",
+    "tests/integration/test_ucie_loader_binding.py"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3548497,
+    "start_ticks": 18645114,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "natural_rc": 1,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791259192542254701,
+  "finish_ns": 1791259192615786231,
+  "wall_s": 0.07353153,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "0a04f48cde6d394b47d4f9f8b66ba9d273b7c4a18e55f31c89757dd60cb8f97e"
+}

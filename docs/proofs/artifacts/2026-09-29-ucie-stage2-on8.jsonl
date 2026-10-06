@@ -1,0 +1,10 @@
+{"request_id":1,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10316,"consumed_ns":10316,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":2,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10316,"consumed_ns":10316,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":3,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10316,"consumed_ns":10316,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":4,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10318,"consumed_ns":10318,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":5,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10318,"consumed_ns":10318,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":6,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10318,"consumed_ns":10318,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":7,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10320,"consumed_ns":10320,"application_bytes":64,"axi_payload_bytes":64}
+{"request_id":8,"ar_delivered_ns":3,"media_ready_ns":10313,"r_delivered_ns":10320,"consumed_ns":10320,"application_bytes":64,"axi_payload_bytes":64}
+{"native_group":1,"stack_id":0,"module_id":0,"hbf_bank":0,"hbf_core_die":0,"native_channel":0,"native_chip":0,"logical_page":0,"native_media_bytes":4096,"command_issued_ns":3,"media_begin_ns":293,"media_end_ns":10313,"issued_count":1,"media_begin_count":1,"media_end_count":1,"data_out_begin_count":1,"data_out_end_count":1}
+{"summary":true,"accepted":8,"succeeded":8,"native_commands":1,"media_submits":1,"application_bytes":512,"axi_payload_bytes":512,"media_submit_bytes":4096,"ar_wire_bytes":1536,"r_wire_bytes":1280,"ar_flits":6,"r_flits":5,"media_misses":1,"inflight_joins":7,"buffer_hits":0,"peak_bank_slots":1,"peak_transport_outstanding":8,"peak_media_groups":1,"coalescing":true,"buffer_cache":false,"scenario_assumption":true,"request_records_dropped":0,"native_proofs_dropped":0,"trace_dropped":0,"legacy_hbm_cache":"NOT_USED"}

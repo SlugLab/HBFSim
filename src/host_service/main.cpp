@@ -1,5 +1,12 @@
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+#include "../ucie/private_observer_gate.hpp"
+#endif
 #include "control_layout.hpp"
 #include "request_dispatcher.hpp"
+
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+#include "ucie_backend_adapter.hpp"
+#endif
 
 #include <hbfsim/api.h>
 #include <hbfsim/profile.hpp>
@@ -16,8 +23,10 @@
 #include <deque>
 #include <filesystem>
 #include <fcntl.h>
+#include <functional>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -31,6 +40,11 @@ namespace {
 struct Arguments {
     std::string profile;
     std::string report_dir;
+    std::string backend{"legacy-hbf"};
+    std::string ucie_top_profile;
+    std::string ucie_worker;
+    std::string ucie_placement_manifest;
+    std::string ucie_wait_mode;
     int control_fd{-1};
 };
 
@@ -46,6 +60,16 @@ Arguments parse_arguments(int argc, char** argv)
             result.profile = argv[index + 1];
         } else if (option == "--report-dir") {
             result.report_dir = argv[index + 1];
+        } else if (option == "--backend") {
+            result.backend = argv[index + 1];
+        } else if (option == "--ucie-top-profile") {
+            result.ucie_top_profile = argv[index + 1];
+        } else if (option == "--ucie-worker") {
+            result.ucie_worker = argv[index + 1];
+        } else if (option == "--ucie-placement-manifest") {
+            result.ucie_placement_manifest = argv[index + 1];
+        } else if (option == "--ucie-wait-mode") {
+            result.ucie_wait_mode = argv[index + 1];
         } else if (option == "--control-fd") {
             std::size_t consumed = 0;
             const auto value = std::stoll(argv[index + 1], &consumed, 10);
@@ -61,6 +85,22 @@ Arguments parse_arguments(int argc, char** argv)
     if (result.profile.empty() || result.report_dir.empty() ||
         result.control_fd < 0) {
         throw std::invalid_argument("required daemon option is missing");
+    }
+    if (result.backend == "legacy-hbf") {
+        if (!result.ucie_top_profile.empty() || !result.ucie_worker.empty() ||
+            !result.ucie_placement_manifest.empty() ||
+            !result.ucie_wait_mode.empty()) {
+            throw std::invalid_argument("UCIe options require UCIe backend");
+        }
+    } else if (result.backend == "ucie") {
+        if (result.ucie_top_profile.empty() || result.ucie_worker.empty() ||
+            result.ucie_placement_manifest.empty() ||
+            (result.ucie_wait_mode != "nominal" &&
+             result.ucie_wait_mode != "zero")) {
+            throw std::invalid_argument("incomplete UCIe daemon options");
+        }
+    } else {
+        throw std::invalid_argument("unknown daemon backend");
     }
     return result;
 }
@@ -129,12 +169,61 @@ int main(int argc, char** argv)
         }
 
 #if defined(HBFSIM_ENABLE_MQSIM_RUNTIME)
-        hbfsim::MqsimOnlineEngine engine(profile);
+        std::unique_ptr<hbfsim::MqsimOnlineEngine> engine;
+#else
+        (void)profile;
+        std::deque<hbfsim::HbfCompletion> disabled_completions;
+#endif
+        std::unique_ptr<hbfsim::host_service::RequestDispatcher> dispatcher;
+        std::function<bool()> poll_once;
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+        std::unique_ptr<hbfsim::host_service::UcieBackendAdapter> ucie;
+#endif
+        if (arguments.backend == "ucie") {
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+            if (control.header()->timing_model != HBFSIM_MODEL_REFERENCE &&
+                control.header()->timing_model != HBFSIM_MODEL_HYBRID) {
+                throw std::invalid_argument("UCIe requires reference or hybrid timing mode");
+            }
+            const auto wait_mode = arguments.ucie_wait_mode == "zero"
+                ? hbfsim::host_service::UcieWaitMode::ZeroInjected
+                : hbfsim::host_service::UcieWaitMode::Nominal;
+            const auto control_flags = hbfsim::host_service::atomic_load(
+                control.header()->reserved0, std::memory_order_acquire);
+            if (((control_flags &
+                  hbfsim::host_service::kControlZeroInjectedWait) != 0) !=
+                (wait_mode == hbfsim::host_service::UcieWaitMode::ZeroInjected)) {
+                throw std::invalid_argument("UCIe zero-wait control mismatch");
+            }
+            ucie = std::make_unique<hbfsim::host_service::UcieBackendAdapter>(
+                control, hbfsim::host_service::UcieBackendOptions{
+                    .top_profile = arguments.ucie_top_profile,
+                    .worker_executable = arguments.ucie_worker,
+                    .placement_manifest = arguments.ucie_placement_manifest,
+                    .wait_mode = wait_mode,
+                });
+            hbfsim::host_service::atomic_store(
+                control.header()->reserved0,
+                control_flags |
+                    hbfsim::host_service::kControlCapabilityUcieBackend,
+                std::memory_order_release);
+            poll_once = [&ucie] { return ucie->poll_once(); };
+#else
+            throw std::invalid_argument("UCIe backend unavailable in this daemon");
+#endif
+        } else {
+            if ((hbfsim::host_service::atomic_load(
+                     control.header()->reserved0, std::memory_order_acquire) &
+                 hbfsim::host_service::kControlZeroInjectedWait) != 0) {
+                throw std::invalid_argument("zero wait requires UCIe backend");
+            }
+#if defined(HBFSIM_ENABLE_MQSIM_RUNTIME)
+        engine = std::make_unique<hbfsim::MqsimOnlineEngine>(profile);
         hbfsim::host_service::atomic_store(
             control.header()->reserved0,
             hbfsim::host_service::kControlCapabilityCapacityMedia,
             std::memory_order_release);
-        hbfsim::host_service::RequestDispatcher dispatcher(
+        dispatcher = std::make_unique<hbfsim::host_service::RequestDispatcher>(
             control, hbfsim::host_service::RequestDispatcher::Engine{
                          .prepare = [&control](
                                         const hbfsim::HbfRequest& request) {
@@ -148,17 +237,15 @@ int main(int argc, char** argv)
                              auto scheduled = request;
                              scheduled.arrival_ns = std::max(
                                  scheduled.arrival_ns,
-                                 engine.current_time_ns());
-                             engine.submit(scheduled);
+                                 engine->current_time_ns());
+                             engine->submit(scheduled);
                          },
                          .run_next_completion = [&engine] {
-                             return engine.run_next_completion();
+                             return engine->run_next_completion();
                          },
             });
 #else
-        (void)profile;
-        std::deque<hbfsim::HbfCompletion> disabled_completions;
-        hbfsim::host_service::RequestDispatcher dispatcher(
+        dispatcher = std::make_unique<hbfsim::host_service::RequestDispatcher>(
             control, hbfsim::host_service::RequestDispatcher::Engine{
                          .prepare = [&control](
                                         const hbfsim::HbfRequest& request) {
@@ -190,6 +277,8 @@ int main(int argc, char** argv)
                          },
             });
 #endif
+            poll_once = [&dispatcher] { return dispatcher->poll_once(); };
+        }
 
         hbfsim::host_service::atomic_store(
             control.header()->daemon_pid,
@@ -206,23 +295,49 @@ int main(int argc, char** argv)
                 std::this_thread::sleep_until(next);
             }
         });
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+        hbfsim::ucie::short_qkv_observer::MappedGate private_gate;
+        const auto gate_tick=[&] {
+            private_gate.tick(control.header(),[&] {
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+                if(!ucie)throw std::runtime_error("observer needs actual UCIe backend");
+                ucie->write_report(std::filesystem::path(arguments.report_dir)/"short-postgate-backend.json");
+#endif
+            });
+        };
+#else
+        const auto gate_tick=[] {};
+#endif
         for (;;) {
+            gate_tick();
             bool progressed = false;
-            while (dispatcher.poll_once()) {
+            while (poll_once()) {
                 progressed = true;
+                gate_tick();
             }
+            gate_tick();
             if (hbfsim::host_service::atomic_load(
                     control.header()->shutdown, std::memory_order_acquire) !=
                 0) {
                 break;
             }
             if (!progressed) {
+                gate_tick();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         }
 
         heartbeat.request_stop();
         heartbeat.join();
+#if defined(HBFSIM_ENABLE_UCIE_BACKEND)
+        if (ucie) {
+            if(private_gate.exported()) {
+                std::filesystem::copy_file(std::filesystem::path(arguments.report_dir)/"short-postgate-backend.json",
+                    std::filesystem::path(arguments.report_dir)/"ucie-backend-report.json");
+            } else ucie->write_report(std::filesystem::path(arguments.report_dir) /
+                               "ucie-backend-report.json");
+        }
+#endif
         ::munmap(mapping, mapping_bytes);
         ::close(arguments.control_fd);
         return 0;

@@ -1,0 +1,25 @@
+{
+  "name": "build-all-default-legacy",
+  "argv": [
+    "cmake",
+    "--build",
+    "build-default-legacy",
+    "--parallel",
+    "8"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3558733,
+    "start_ticks": 18713231,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/cmake"
+  },
+  "natural_rc": 1,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791259873708080358,
+  "finish_ns": 1791259883059525543,
+  "wall_s": 9.351445185,
+  "stdout_sha256": "1d3c7c01151135d3660e836d6eeb544020430261ba27f53866a0516a4583d336",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,11 +1,5 @@
 # HBFSim:让负载跑在真实 GPU 上,同时模拟 High-Bandwidth Flash
 
-[SASS final147 复现包](reproduction/sass-final147-20260926/README.md)保存本轮实验实际使用的运行时源码、接口契约、构建步骤和固定请求验收证据；[上游 PR 审核](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md)单独记录通用性限制。
-
-**全模型权重注册与绑定：**当前 SASS/PTX 接入流程支持 OLMoE-1B-7B-0924
-模型全权重注册，并将其消费者绑定到 HBF 插桩路径。final147 流程注册全部
-147 份去重权重 storage（13,838,323,712 字节）。详见[实现与验证报告](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md)。
-
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)
@@ -113,6 +107,10 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 
 把四种时间分开报告很要紧,因为 HBFSim 可以功能上完全正确,而 HBFSim 自身的软件开销比 HBFSim 正在建模的器件延迟还大。
 
+可选的 [UCIe 接口](docs/ucie/README.md)将主机请求环接入可配置的多栈 MQSim 后端，
+支持 AXI 读传输、页条带化、请求合并与共享内存 worker 通信，并提供事件驱动的时间推进
+和批量完成处理。通过 `HBFSIM_ENABLE_UCIE=ON` 显式启用，已有后端仍为默认路径。
+
 ## 两种模式
 
 | 模式 | 改变了什么 | 回答的问题 |
@@ -149,6 +147,12 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 - **时序模型由一台真实器件标定而来。** 标定源是一块通过 PCIe 5.0 32 GT/s x4 接入的 Dell DC NVMe CD8P E3.S 1.92TB。
 
   这块 Dell CD8P 是普通 PCIe NVMe 端点,不是 CXL 端点。
+
+**全模型权重注册与绑定：**当前 SASS/PTX 接入流程支持 OLMoE-1B-7B-0924
+模型全权重注册，并将其消费者绑定到 HBF 插桩路径。final147 流程注册全部
+147 份去重权重 storage（13,838,323,712 字节）。详见[实现与验证报告](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md)。
+
+[SASS final147 复现包](reproduction/sass-final147-20260926/README.md)保存本轮实验实际使用的运行时源码、接口契约、构建步骤和固定请求验收证据；[上游 PR 审核](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md)单独记录通用性限制。
 
 构建通过、CPU 测试通过、MQSim 回归通过,加上 PTX 汇编成功,这四件事都不构成真实 GPU 上的证据。
 
@@ -190,6 +194,7 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 |---|---|---|
 | `HBFSIM_ENABLE_CUDA` | `ON` | 构建 CUDA 插桩与运行时组件 |
 | `HBFSIM_ENABLE_MQSIM` | `ON` | 构建由 MQSim 支撑的主机服务 |
+| `HBFSIM_ENABLE_UCIE` | `OFF` | 构建 UCIe 多栈接口与主机后端 |
 | `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | 启用 llama.cpp 与 vLLM 集成测试 |
 | `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | 构建离线评估模型与回放工具 |
 
@@ -212,6 +217,8 @@ HBFSim 把四种时间分开报告:建模的器件时间、主机服务时间、
 
 ## 文档
 
+- [`docs/ucie/`](docs/ucie/README.md) — UCIe 接口、多栈配置、软件优化与 CPU 复现命令。
+- [`docs/releases/v0.1.1.md`](docs/releases/v0.1.1.md) — v0.1.1 实现更新与发布版本构建说明。
 - [`docs/proofs/`](docs/proofs/) — checkpoint 文档,每一个实验数字都在这里,每一个数字都连同命令与主张边界一起记录。
 - [`docs/eval/`](docs/eval/) — 评估计划、负载方法学、复现 runbook。
 - [`docs/skills/`](docs/skills/) — 一份阅读顺序,外加每个子系统一份文档,写给第一次读这套代码的人。

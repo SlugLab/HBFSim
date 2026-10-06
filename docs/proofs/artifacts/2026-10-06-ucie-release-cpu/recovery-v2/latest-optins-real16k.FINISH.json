@@ -1,0 +1,25 @@
+{
+  "name": "latest-optins-real16k",
+  "argv": [
+    "build-ucie-on/ucie_16k_sustained_bench",
+    "build-ucie-on/ucie_stack_worker",
+    "configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+    "16",
+    "4"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3541361,
+    "start_ticks": 18597475,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_16k_sustained_bench"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791258716157281102,
+  "finish_ns": 1791258716265576751,
+  "wall_s": 0.108295649,
+  "stdout_sha256": "30f5cada084318aba2460ad17150364527c27e20367756e263ec91f479759374",
+  "stderr_sha256": "f7ed5859f4fba5dee95fa6a2b587e1b344f821ea786eba1b7b1e735fcd8f9bbc"
+}

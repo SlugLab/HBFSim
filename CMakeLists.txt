@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(HBFSim VERSION 0.1.0 LANGUAGES CXX)
+project(HBFSim VERSION 0.1.1 LANGUAGES CXX)
 
 option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON)
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
@@ -124,7 +124,7 @@ target_link_libraries(
     hbfsim PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,hbfsim_core>"
 )
 set_target_properties(
-    hbfsim PROPERTIES OUTPUT_NAME hbfsim VERSION 0.1.0 SOVERSION 0
+    hbfsim PROPERTIES OUTPUT_NAME hbfsim VERSION 0.1.1 SOVERSION 0
 )
 
 add_executable(hbfsim_cpu_tests tests/cpu/build_smoke.cpp)
@@ -562,12 +562,15 @@ if(CUDAToolkit_FOUND)
             HBFSIM_DEVICE_PTX_HEADER
             "${CMAKE_BINARY_DIR}/generated/hbf_device_ptx.hpp"
         )
+        separate_arguments(HBFSIM_DEVICE_NVCC_FLAGS NATIVE_COMMAND
+                           "${CMAKE_CUDA_FLAGS}")
         add_custom_command(
             OUTPUT "${HBFSIM_DEVICE_PTX}" "${HBFSIM_DEVICE_PTX_HEADER}"
             COMMAND "${CMAKE_COMMAND}" -E make_directory
                     "${CMAKE_BINARY_DIR}/generated"
             COMMAND
-                "${CUDAToolkit_NVCC_EXECUTABLE}" --ptx --std=c++20
+                "${CUDAToolkit_NVCC_EXECUTABLE}" ${HBFSIM_DEVICE_NVCC_FLAGS}
+                --ptx --std=c++20
                 "--gpu-architecture=compute_${HBFSIM_CUDA_ARCHITECTURE}"
                 --relocatable-device-code=true --keep-device-functions
                 "--compiler-bindir=${HBFSIM_NVCC_HOST_COMPILER}"
@@ -585,6 +588,7 @@ if(CUDAToolkit_FOUND)
             DEPENDS
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cu"
                 "${CMAKE_CURRENT_SOURCE_DIR}/src/cuda_runtime/device/hbf_device.cuh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/include/hbfsim/control_flags.hpp"
                 "${CMAKE_CURRENT_SOURCE_DIR}/include/hbfsim/timing_future_abi.hpp"
                 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedDevicePtx.cmake"
             VERBATIM
@@ -901,7 +905,9 @@ if(HBFSIM_ENABLE_MQSIM)
     hbfsim_add_patched_mqsim(mqsim_hbf)
     set_target_properties(mqsim_hbf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-    target_sources(hbfsim_core PRIVATE src/mqsim_adapter/mqsim_online.cpp)
+    target_sources(hbfsim_core PRIVATE
+        src/mqsim_adapter/mqsim_online.cpp
+        src/ucie/bank_layout.cpp)
     target_link_libraries(hbfsim_core PRIVATE mqsim_hbf)
     target_compile_definitions(hbfsimd PRIVATE HBFSIM_ENABLE_MQSIM_RUNTIME=1)
     target_compile_definitions(
@@ -1114,5 +1120,194 @@ if(HBFSIM_ENABLE_EVAL_TOOLS)
                         "$<TARGET_FILE:hbf_trace_timing>")
             endforeach()
         endif()
+    endif()
+endif()
+
+# Optional, CPU-only AoU/UCIe front end. Never enters the default daemon.
+option(HBFSIM_ENABLE_UCIE "Build the optional AoU/UCIe multistack MQSim backend" OFF)
+if(HBFSIM_ENABLE_UCIE)
+    if(NOT HBFSIM_ENABLE_MQSIM)
+        message(FATAL_ERROR "HBFSIM_ENABLE_UCIE requires the real MQSim backend")
+    endif()
+    add_library(hbfsim_ucie STATIC
+        src/ucie/profile.cpp
+        src/ucie/link.cpp
+        src/ucie/engine_guard.cpp
+        src/ucie/backing_registry.cpp
+        src/ucie/device_coalescer.cpp
+        src/ucie/device_frontend.cpp
+        src/ucie/stack_frontend.cpp
+        src/ucie/stack_router.cpp
+        src/ucie/multistack_frontend.cpp
+        src/ucie/multistack_profile.cpp
+        src/ucie/worker_protocol.cpp
+        src/ucie/worker_handler.cpp
+        src/ucie/device_profile.cpp
+        src/ucie/mqsim_frontend.cpp)
+    target_include_directories(hbfsim_ucie PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    target_include_directories(hbfsim_ucie PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+    target_compile_features(hbfsim_ucie PUBLIC cxx_std_20)
+    target_link_libraries(hbfsim_ucie PUBLIC hbfsim_core)
+
+    target_sources(hbfsimd PRIVATE src/host_service/ucie_backend_adapter.cpp)
+    target_link_libraries(hbfsimd PRIVATE hbfsim_ucie)
+    target_include_directories(hbfsimd PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+    target_compile_definitions(hbfsimd PRIVATE HBFSIM_ENABLE_UCIE_BACKEND=1)
+    # Match the normal host control ABI used by the accepted daemon.
+    target_compile_options(hbfsimd PRIVATE
+        "-include${CMAKE_CURRENT_SOURCE_DIR}/normal_control_abi_checks.hpp")
+
+    add_executable(ucie_mqsim_bench benchmarks/mqsim/ucie_mqsim_bench.cpp)
+    target_link_libraries(ucie_mqsim_bench PRIVATE hbfsim_ucie)
+    add_executable(ucie_device_bench benchmarks/mqsim/ucie_device_bench.cpp)
+    target_link_libraries(ucie_device_bench PRIVATE hbfsim_ucie)
+    add_executable(ucie_stack_worker src/ucie/stack_worker.cpp)
+    target_include_directories(ucie_stack_worker PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+    target_link_libraries(ucie_stack_worker PRIVATE hbfsim_ucie)
+    add_executable(ucie_16k_sustained_bench
+        benchmarks/mqsim/ucie_16k_sustained.cpp)
+    target_link_libraries(ucie_16k_sustained_bench PRIVATE hbfsim_ucie)
+    add_dependencies(ucie_16k_sustained_bench ucie_stack_worker)
+    if(BUILD_TESTING)
+        add_executable(ucie_link_test tests/cpu/ucie_link_test.cpp)
+        target_link_libraries(ucie_link_test PRIVATE hbfsim_ucie)
+        add_test(NAME ucie_link COMMAND ucie_link_test)
+        add_executable(ucie_mqsim_test tests/integration/ucie_mqsim_test.cpp)
+        target_link_libraries(ucie_mqsim_test PRIVATE hbfsim_ucie mqsim_hbf)
+        add_test(NAME ucie_mqsim COMMAND ucie_mqsim_test)
+        set_tests_properties(ucie_mqsim PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+        add_executable(ucie_bank_layout_test
+            tests/integration/ucie_bank_layout_test.cpp)
+        target_link_libraries(ucie_bank_layout_test PRIVATE hbfsim_ucie mqsim_hbf)
+        add_test(NAME ucie_bank_layout COMMAND ucie_bank_layout_test)
+        set_tests_properties(ucie_bank_layout PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_device_coalescer_test
+            tests/cpu/ucie_device_coalescer_test.cpp)
+        target_link_libraries(ucie_device_coalescer_test PRIVATE hbfsim_ucie)
+        add_test(NAME ucie_device_coalescer COMMAND ucie_device_coalescer_test)
+        add_executable(ucie_device_frontend_test
+            tests/integration/ucie_device_frontend_test.cpp)
+        target_link_libraries(ucie_device_frontend_test PRIVATE hbfsim_ucie mqsim_hbf)
+        add_test(NAME ucie_device_frontend COMMAND ucie_device_frontend_test)
+        set_tests_properties(ucie_device_frontend PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_device_frontend_fake_test
+            tests/cpu/ucie_device_frontend_fake_test.cpp)
+        target_link_libraries(ucie_device_frontend_fake_test PRIVATE hbfsim_ucie)
+        add_test(NAME ucie_device_frontend_fake COMMAND ucie_device_frontend_fake_test)
+        set_tests_properties(ucie_device_frontend_fake PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_device_profile_test
+            tests/cpu/ucie_device_profile_test.cpp)
+        target_include_directories(ucie_device_profile_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        target_link_libraries(ucie_device_profile_test PRIVATE hbfsim_ucie)
+        add_test(NAME ucie_device_profile COMMAND ucie_device_profile_test)
+        set_tests_properties(ucie_device_profile PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_stack_frontend_test
+            tests/integration/ucie_stack_frontend_test.cpp)
+        target_link_libraries(ucie_stack_frontend_test PRIVATE hbfsim_ucie mqsim_hbf)
+        add_test(NAME ucie_stack_frontend COMMAND ucie_stack_frontend_test)
+        set_tests_properties(ucie_stack_frontend PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_worker_horizon_test
+            tests/integration/ucie_worker_horizon_test.cpp)
+        target_link_libraries(ucie_worker_horizon_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_worker_horizon_test ucie_stack_worker)
+        add_test(NAME ucie_worker_horizon COMMAND ucie_worker_horizon_test
+            "$<TARGET_FILE:ucie_stack_worker>")
+        set_tests_properties(ucie_worker_horizon PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_stack_router_test
+            tests/cpu/ucie_stack_router_test.cpp)
+        target_link_libraries(ucie_stack_router_test PRIVATE hbfsim_ucie)
+        add_test(NAME ucie_stack_router COMMAND ucie_stack_router_test)
+        add_executable(ucie_multistack_profile_test
+            tests/integration/ucie_multistack_profile_test.cpp)
+        target_include_directories(ucie_multistack_profile_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        target_link_libraries(ucie_multistack_profile_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_profile_test ucie_stack_worker)
+        add_test(NAME ucie_multistack_profile COMMAND ucie_multistack_profile_test
+            $<TARGET_FILE:ucie_stack_worker>)
+        set_tests_properties(ucie_multistack_profile PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_multistack_balanced_test
+            tests/integration/ucie_multistack_balanced_test.cpp)
+        target_link_libraries(ucie_multistack_balanced_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_balanced_test ucie_stack_worker)
+        add_test(NAME ucie_multistack_balanced COMMAND ucie_multistack_balanced_test
+            $<TARGET_FILE:ucie_stack_worker>)
+        set_tests_properties(ucie_multistack_balanced PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_multistack_compare
+            benchmarks/mqsim/ucie_multistack_compare.cpp)
+        target_link_libraries(ucie_multistack_compare PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_compare ucie_stack_worker)
+        add_test(NAME ucie_multistack_compare COMMAND ucie_multistack_compare
+            $<TARGET_FILE:ucie_stack_worker>)
+        set_tests_properties(ucie_multistack_compare PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_multistack_profile_resolve
+            benchmarks/mqsim/ucie_multistack_profile_resolve.cpp)
+        target_include_directories(ucie_multistack_profile_resolve PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        target_link_libraries(ucie_multistack_profile_resolve PRIVATE hbfsim_ucie)
+        add_executable(ucie_multistack_frontend_test
+            tests/integration/ucie_multistack_frontend_test.cpp)
+        target_link_libraries(ucie_multistack_frontend_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_frontend_test ucie_stack_worker)
+        add_test(NAME ucie_multistack_frontend COMMAND ucie_multistack_frontend_test
+            "$<TARGET_FILE:ucie_stack_worker>")
+        set_tests_properties(ucie_multistack_frontend PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_multistack_reassembly_test
+            tests/integration/ucie_multistack_reassembly_test.cpp)
+        target_link_libraries(ucie_multistack_reassembly_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_reassembly_test ucie_stack_worker)
+        add_test(NAME ucie_multistack_reassembly COMMAND ucie_multistack_reassembly_test
+            "$<TARGET_FILE:ucie_stack_worker>")
+        set_tests_properties(ucie_multistack_reassembly PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_stack_capacity_test
+            tests/integration/ucie_stack_capacity_test.cpp)
+        target_link_libraries(ucie_stack_capacity_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_stack_capacity_test ucie_stack_worker)
+        add_executable(ucie_multistack_lifecycle_test
+            tests/integration/ucie_multistack_lifecycle_test.cpp)
+        target_link_libraries(ucie_multistack_lifecycle_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_multistack_lifecycle_test ucie_stack_worker)
+        add_test(NAME ucie_multistack_lifecycle COMMAND ucie_multistack_lifecycle_test
+            "$<TARGET_FILE:ucie_stack_worker>")
+        set_tests_properties(ucie_multistack_lifecycle PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_event_advance_test
+            tests/integration/ucie_event_advance_test.cpp)
+        target_link_libraries(ucie_event_advance_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_event_advance_test ucie_stack_worker)
+        add_test(NAME ucie_event_advance COMMAND ucie_event_advance_test
+            "$<TARGET_FILE:ucie_stack_worker>")
+        set_tests_properties(ucie_event_advance PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        add_executable(ucie_backend_adapter_test
+            tests/integration/ucie_backend_adapter_test.cpp
+            src/host_service/ucie_backend_adapter.cpp)
+        target_include_directories(ucie_backend_adapter_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/host_service"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/bpftime/third_party")
+        target_link_libraries(ucie_backend_adapter_test PRIVATE hbfsim_ucie)
+        add_dependencies(ucie_backend_adapter_test ucie_stack_worker)
+        add_test(NAME ucie_backend_adapter COMMAND ucie_backend_adapter_test
+            "$<TARGET_FILE:ucie_stack_worker>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/configs/profiles/ucie/hbf-stage3-16k-small-top.json")
+        set_tests_properties(ucie_backend_adapter PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endif()

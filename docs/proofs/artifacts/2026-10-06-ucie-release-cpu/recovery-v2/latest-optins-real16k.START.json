@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "build-ucie-on/ucie_16k_sustained_bench",
+    "build-ucie-on/ucie_stack_worker",
+    "configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+    "16",
+    "4"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {
+    "HBFSIM_UCIE_COALESCER_EMPTY_WAIT": "1",
+    "HBFSIM_UCIE_RELEASABLE_CHILD_INDEX_V1": "1",
+    "HBFSIM_UCIE_ORDERED_ADMISSION_V1": "1",
+    "HBFSIM_UCIE_CAPACITY_ZERO_INACTIVE_V1": "1",
+    "HBFSIM_UCIE_COMPACT_CONSUME_ORDERED_V1": "1",
+    "HBFSIM_UCIE_COMPACT_CONSUME_WAVE_V1": "1",
+    "HBFSIM_UCIE_DEFERRED_INITIAL_HELLO_V1": "1",
+    "HBFSIM_UCIE_SHM_RPC": "1",
+    "HBFSIM_UCIE_TYPED_RPC": "1",
+    "HBFSIM_UCIE_LOCAL_STACK_ID": "0"
+  },
+  "unset": [],
+  "identity": {
+    "pid": 3541361,
+    "start_ticks": 18597475,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_16k_sustained_bench"
+  },
+  "utc_ns": 1791258716157281102
+}

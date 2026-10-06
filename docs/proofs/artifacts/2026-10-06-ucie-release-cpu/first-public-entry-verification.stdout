@@ -1,0 +1,238 @@
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- bpftime pinned commit: ec26daecc8e787fb80fd95dd596a576404a5e36e
+-- MQSim pinned commit: 51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.5.5") found components: Crypto
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0001-online-hbf-api.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0002-qlc-support.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0003-hbf-command-observer.patch
+-- MQSim HBF patch applied to clean build copy: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/mqsim/0004-next-event-peek.patch
+-- Configuring done (0.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+[0/2] Re-checking globbed directories...
+[1/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/Execution_Parameter_Set.cpp.o
+[2/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/Host_Parameter_Set.cpp.o
+[3/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/Host_System.cpp.o
+[4/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/Flash_Parameter_Set.cpp.o
+[5/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/IO_Flow_Synthetic.cpp.o
+[6/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/PCIe_Link.cpp.o
+[7/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/IO_Flow_Trace_Based.cpp.o
+[8/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/IO_Flow_Base.cpp.o
+[9/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/IO_Flow_Parameter_Set.cpp.o
+[10/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/PCIe_Root_Complex.cpp.o
+[11/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory/Block.cpp.o
+[12/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/PCIe_Switch.cpp.o
+[13/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/SSD_Device.cpp.o
+[14/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory/Die.cpp.o
+[15/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory/Physical_Page_Address.cpp.o
+[16/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory/Plane.cpp.o
+[17/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/sim/EventTree.cpp.o
+[18/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/host/SATA_HBA.cpp.o
+[19/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/sim/Engine.cpp.o
+[20/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory/Flash_Chip.cpp.o
+[21/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/exec/Device_Parameter_Set.cpp.o
+[22/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Address_Mapping_Unit_Base.cpp.o
+[23/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Address_Mapping_Unit_Hybrid.cpp.o
+[24/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Data_Cache_Manager_Base.cpp.o
+[25/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Data_Cache_Flash.cpp.o
+[26/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Flash_Block_Manager.cpp.o
+[27/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Flash_Block_Manager_Base.cpp.o
+[28/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Data_Cache_Manager_Flash_Simple.cpp.o
+[29/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Data_Cache_Manager_Flash_Advanced.cpp.o
+[30/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/GC_and_WL_Unit_Base.cpp.o
+[31/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Flash_Transaction_Queue.cpp.o
+[32/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/GC_and_WL_Unit_Page_Level.cpp.o
+[33/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Host_Interface_Base.cpp.o
+[34/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_PHY_Base.cpp.o
+[35/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Host_Interface_HBF.cpp.o
+[36/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_Firmware.cpp.o
+[37/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_PHY_ONFI.cpp.o
+[38/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Address_Mapping_Unit_Page_Level.cpp.o
+[39/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Host_Interface_NVMe.cpp.o
+[40/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_Transaction_Flash.cpp.o
+[41/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_Transaction_Flash_ER.cpp.o
+[42/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_Transaction_Flash_RD.cpp.o
+[43/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Host_Interface_SATA.cpp.o
+[44/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_Transaction_Flash_WR.cpp.o
+[45/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/TSU_FLIN.cpp.o
+[46/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/FTL.cpp.o
+[47/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/ONFI_Channel_Base.cpp.o
+[48/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/ONFI_Channel_NVDDR2.cpp.o
+[49/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Stats.cpp.o
+[50/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/CMRRandomGenerator.cpp.o
+[51/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/User_Request.cpp.o
+[52/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/TSU_Base.cpp.o
+[53/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/NVM_PHY_ONFI_NVDDR2.cpp.o
+[54/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/Queue_Probe.cpp.o
+[55/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/Helper_Functions.cpp.o
+[56/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/api.cpp.o
+[57/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/RandomGenerator.cpp.o
+[58/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/Logical_Address_Partitioning_Unit.cpp.o
+[59/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/StringTools.cpp.o
+[60/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/utils/XMLWriter.cpp.o
+[61/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/TSU_OutofOrder.cpp.o
+[62/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/module_identity.cpp.o
+[63/121] Building CXX object CMakeFiles/mqsim_hbf.dir/_deps/mqsim-hbf-src/src/ssd/TSU_Priority_OutOfOrder.cpp.o
+[64/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/hbm_cache.cpp.o
+[65/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/range_table.cpp.o
+[66/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/vmm.cpp.o
+[67/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/timing_binding.cpp.o
+[68/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/hybrid/calibrator.cpp.o
+[69/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/capacity_runtime.cpp.o
+[70/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/host_service/backing_store.cpp.o
+[71/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/host_service/capacity_backing_router.cpp.o
+[72/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/host_service/request_dispatcher.cpp.o
+[73/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/protocol/page_directory.cpp.o
+[74/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/host_service/capacity_page_service.cpp.o
+[75/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/context.cpp.o
+[76/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/reporting/durable_append.cpp.o
+[77/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/host_service/capacity_worker.cpp.o
+[78/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/ucie/bank_layout.cpp.o
+[79/121] Linking CXX static library libmqsim_hbf.a
+[80/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/link.cpp.o
+[81/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/engine_guard.cpp.o
+[82/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/mqsim_adapter/mqsim_online.cpp.o
+[83/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/reporting/coverage_writer.cpp.o
+[84/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/backing_registry.cpp.o
+[85/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/profile/profile.cpp.o
+[86/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/ptxpass_hbf/ptx_memory_op.cpp.o
+[87/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/ptxpass_hbf/transform.cpp.o
+[88/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/device_coalescer.cpp.o
+[89/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/stack_router.cpp.o
+[90/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/profile.cpp.o
+[91/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/device_frontend.cpp.o
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/device_frontend.cpp: In member function ‘void hbfsim::ucie::UcieDeviceFrontend::handle_media(hbfsim::HbfCompletion)’:
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/device_frontend.cpp:184:6: note: the ABI for passing parameters with 64-byte alignment has changed in GCC 4.6
+  184 | void UcieDeviceFrontend::handle_media(HbfCompletion completion)
+      |      ^~~~~~~~~~~~~~~~~~
+[92/121] Building CXX object CMakeFiles/hbfsim_core.dir/src/cuda_runtime/coverage.cpp.o
+[93/121] Linking CXX static library libhbfsim_core.a
+[94/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/stack_frontend.cpp.o
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/stack_frontend.cpp: In member function ‘void hbfsim::ucie::StackFrontend::handle_media(hbfsim::HbfCompletion)’:
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/stack_frontend.cpp:250:6: note: the ABI for passing parameters with 64-byte alignment has changed in GCC 4.6
+  250 | void StackFrontend::handle_media(HbfCompletion completion)
+      |      ^~~~~~~~~~~~~
+[95/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/mqsim_frontend.cpp.o
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/mqsim_frontend.cpp: In member function ‘void hbfsim::ucie::UcieMqsimFrontend::handle_media(hbfsim::HbfCompletion)’:
+/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/ucie/mqsim_frontend.cpp:140:6: note: the ABI for passing parameters with 64-byte alignment has changed in GCC 4.6
+  140 | void UcieMqsimFrontend::handle_media(HbfCompletion completion)
+      |      ^~~~~~~~~~~~~~~~~
+[96/121] Building CXX object CMakeFiles/ucie_stack_worker.dir/src/ucie/stack_worker.cpp.o
+[97/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/multistack_profile.cpp.o
+[98/121] Building CXX object CMakeFiles/ucie_bank_layout_test.dir/tests/integration/ucie_bank_layout_test.cpp.o
+[99/121] Building CXX object CMakeFiles/ucie_link_test.dir/tests/cpu/ucie_link_test.cpp.o
+[100/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/device_profile.cpp.o
+[101/121] Building CXX object CMakeFiles/ucie_device_coalescer_test.dir/tests/cpu/ucie_device_coalescer_test.cpp.o
+[102/121] Building CXX object CMakeFiles/ucie_stack_frontend_test.dir/tests/integration/ucie_stack_frontend_test.cpp.o
+[103/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/multistack_frontend.cpp.o
+[104/121] Building CXX object CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o
+[105/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/worker_handler.cpp.o
+[106/121] Building CXX object CMakeFiles/hbfsim_ucie.dir/src/ucie/worker_protocol.cpp.o
+[107/121] Linking CXX static library libhbfsim_ucie.a
+[108/121] Linking CXX executable ucie_device_coalescer_test
+[109/121] Linking CXX executable ucie_link_test
+[110/121] Linking CXX executable ucie_stack_frontend_test
+[111/121] Linking CXX executable ucie_stack_worker
+[112/121] Linking CXX executable ucie_bank_layout_test
+[113/121] Building CXX object CMakeFiles/ucie_worker_horizon_test.dir/tests/integration/ucie_worker_horizon_test.cpp.o
+[114/121] Linking CXX executable ucie_worker_horizon_test
+[115/121] Building CXX object CMakeFiles/hbfsimd.dir/src/host_service/ucie_backend_adapter.cpp.o
+[116/121] Linking CXX executable hbfsimd
+[117/121] Building CXX object CMakeFiles/ucie_multistack_frontend_test.dir/tests/integration/ucie_multistack_frontend_test.cpp.o
+[118/121] Building CXX object CMakeFiles/ucie_multistack_lifecycle_test.dir/tests/integration/ucie_multistack_lifecycle_test.cpp.o
+[119/121] Linking CXX executable ucie_multistack_frontend_test
+[120/121] Linking CXX executable ucie_multistack_lifecycle_test
+Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+    Start 35: ucie_link
+1/7 Test #35: ucie_link ........................   Passed    0.00 sec
+    Start 37: ucie_bank_layout
+2/7 Test #37: ucie_bank_layout .................   Passed    0.02 sec
+    Start 38: ucie_device_coalescer
+3/7 Test #38: ucie_device_coalescer ............   Passed    0.00 sec
+    Start 42: ucie_stack_frontend
+4/7 Test #42: ucie_stack_frontend ..............   Passed    0.00 sec
+    Start 43: ucie_worker_horizon
+5/7 Test #43: ucie_worker_horizon ..............   Passed    1.17 sec
+    Start 48: ucie_multistack_frontend
+6/7 Test #48: ucie_multistack_frontend .........   Passed    7.06 sec
+    Start 50: ucie_multistack_lifecycle
+7/7 Test #50: ucie_multistack_lifecycle ........   Passed    0.79 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =   9.06 sec
+Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+    Start 43: ucie_worker_horizon
+1/3 Test #43: ucie_worker_horizon ..............   Passed    0.16 sec
+    Start 48: ucie_multistack_frontend
+2/3 Test #48: ucie_multistack_frontend .........Subprocess aborted***Exception:   0.13 sec
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  parent did not own two independent real MQSim workers
+stack worker fatal: worker mailbox peer died
+
+    Start 50: ucie_multistack_lifecycle
+3/3 Test #50: ucie_multistack_lifecycle ........Subprocess aborted***Exception:   0.12 sec
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+COMPACT_CONSUME_WAVE_V1 enabled=1 attempts=0 published=0 validated=0 confirmed=0 unknown_pending=0 width1=0 width2=0 width3=0
+COMPACT_CONSUME_CLIENT stack=0 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=0 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=0 negotiated=0 queries=7 hits=0 fallback=7
+WORKER_RPC_COUNTS stack=0 typed=1 ipc=36 advance=11 peek=3 close=0 close_advance=5 reserve=2 submit=2 consume=2 is_active=7
+COMPACT_CONSUME_CLIENT stack=1 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=1 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=1 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=1 typed=1 ipc=21 advance=11 peek=3 close=0 close_advance=5 reserve=0 submit=0 consume=0 is_active=0
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+COMPACT_CONSUME_WAVE_V1 enabled=1 attempts=0 published=0 validated=0 confirmed=0 unknown_pending=0 width1=0 width2=0 width3=0
+COMPACT_CONSUME_CLIENT stack=0 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=0 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=0 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=0 typed=1 ipc=24 advance=9 peek=1 close=0 close_advance=2 reserve=1 submit=1 consume=1 is_active=5
+COMPACT_CONSUME_CLIENT stack=1 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=1 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=1 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=1 typed=1 ipc=20 advance=9 peek=1 close=0 close_advance=2 reserve=1 submit=1 consume=1 is_active=1
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+COMPACT_CONSUME_WAVE_V1 enabled=1 attempts=0 published=0 validated=0 confirmed=0 unknown_pending=0 width1=0 width2=0 width3=0
+COMPACT_CONSUME_CLIENT stack=0 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=0 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=0 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=0 typed=1 ipc=41 advance=7 peek=10 close=0 close_advance=11 reserve=1 submit=1 consume=1 is_active=5
+COMPACT_CONSUME_CLIENT stack=1 negotiated=0 commands=0 offered=0 confirmed=0 terminal=0 k0=0 k1=0 k2=0 k3=0 k4=0 k5=0 k6=0 k7=0 k8=0 k9=0 k10=0 k11=0 k12=0 k13=0 k14=0 k15=0 k16=0 result0=0 result1=0 result2=0 result3=0
+ORDERED_ADMISSION_CLIENT stack=1 negotiated=0 commands=0 reserved=0 denied=0 accepted=0 released=0 terminal=0
+CAPACITY_ZERO_INACTIVE_V1 stack=1 negotiated=0 queries=0 hits=0 fallback=0
+WORKER_RPC_COUNTS stack=1 typed=1 ipc=30 advance=7 peek=10 close=0 close_advance=11 reserve=0 submit=0 consume=0 is_active=0
+LOCAL_STACK_V1_ACTIVE stack=0
+TYPED_RPC_V1_ACTIVE stack=1
+SHM_RPC_V1_ACTIVE stack=1
+STARTUP_DEFERRED_HELLO_V1 enabled=1 published=1 validated=1 pending_unknown=0 peak_pending=1
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  worker failure fixture lacks two owned processes
+stack worker fatal: worker mailbox peer died
+
+
+33% tests passed, 2 tests failed out of 3
+
+Total Test time (real) =   0.42 sec
+
+The following tests FAILED:
+	 48 - ucie_multistack_frontend (Subprocess aborted)
+	 50 - ucie_multistack_lifecycle (Subprocess aborted)

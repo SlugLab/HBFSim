@@ -1,0 +1,505 @@
+{
+  "files": [
+    {
+      "path": "CMakeLists.txt",
+      "sha256": "e6370da5f88d75eabf7db3afe7a995cd7a04d30f36e62467d9505d66e48b34d3"
+    },
+    {
+      "path": "adapters/vllm/canonical-147.json",
+      "sha256": "f17794781aa8b649576dfdee10d6cd87138a727dc73b1b00e07ed65c2879810d"
+    },
+    {
+      "path": "adapters/vllm/hbfsim_loader.py",
+      "sha256": "aad71a1955a7abc22732c635bef789d0597c6a9a8f29b474dad75dc9425c6277"
+    },
+    {
+      "path": "adapters/vllm/pyproject.toml",
+      "sha256": "909f037110e81b81b1bcbb88088038f0fbbdb21b90e3a9654e1d655a53184c98"
+    },
+    {
+      "path": "adapters/vllm/run.py",
+      "sha256": "997291320686a71c629defe38b3b43e23b77c7a1b948609766d0a80831cca833"
+    },
+    {
+      "path": "adapters/vllm/tests/test_ucie_placement.py",
+      "sha256": "94d5e0275dbc0cb062ed7abee7760eaf5fe579dc4a9f96e2775d511ff7e10986"
+    },
+    {
+      "path": "adapters/vllm/ucie_placement.py",
+      "sha256": "53c1a9b6d315fadd76ae389d692205a683a6a22b5573cbccef9c5844069656c6"
+    },
+    {
+      "path": "benchmarks/mqsim/ucie_16k_sustained.cpp",
+      "sha256": "a395956e528fbc8a071d87f4dadb48c7fe75c71eedae162177c466a12b76725c"
+    },
+    {
+      "path": "benchmarks/mqsim/ucie_device_bench.cpp",
+      "sha256": "8775983e88ea20e94c78683ae11289ba9b04d77d56915f467ea2b86ffde7af90"
+    },
+    {
+      "path": "benchmarks/mqsim/ucie_mqsim_bench.cpp",
+      "sha256": "89055711cbe1c490b99d02d8465e87cc0a4d088e097683fb6036389677771a20"
+    },
+    {
+      "path": "benchmarks/mqsim/ucie_multistack_compare.cpp",
+      "sha256": "d01d12a65b41b057b6dc1c87b8de2993f18d4519b3beef18d32a19ce25cab221"
+    },
+    {
+      "path": "benchmarks/mqsim/ucie_multistack_profile_resolve.cpp",
+      "sha256": "117c5c3b3bec55a74be0348baff915b8b248d20f5be51bbf1ca0a0ba06d6354c"
+    },
+    {
+      "path": "cmake/MQSimPatchedBuild.cmake",
+      "sha256": "fab61bbdb6413cf7f5672a092ab12b8a179541bcc70552f0782ba19e82c5b010"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-grade2-single-module.json",
+      "sha256": "3e1d44ef5ddeea59e1b6a3ea849552f1c6258b4c13dff87937614503210e29f7"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage2-fixture-link.json",
+      "sha256": "7751621580d830807f70f5f89c67f34c07e267bb5b86c395d93e221f8ccd7e27"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage2-fixture-off.json",
+      "sha256": "11888cfccfa8ab5550a518d152e4b0d7615fb79e338978819f103b3f5b4a0210"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage2-fixture-on.json",
+      "sha256": "56fe8dab688804a2184b33b4b728ad5c8c53a657ad76270c8d757eaa8a4dd05f"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage2-reference-link.json",
+      "sha256": "485b18e7872660a98cdb17a5dda112961abaf0223aa96dd783c12c666a558e2d"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage2-reference.json",
+      "sha256": "f7f61c03609a3f5b03fa25cf583789b05df1e69bb92382d72e2df40ca755dee3"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-16k-small-link.json",
+      "sha256": "2efffa98437f8fa7c04264c1487eda450f4609067efa5cd2cc1499fd7485b066"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+      "sha256": "c684931289c85d642b8d0ac7eb75a793c6d146c84efb89a00e3fa96b55315e8c"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-4x512gib-top.json",
+      "sha256": "5f4502b1d8a14362345f2e10b8b12c22e82a8f577156c2933f328799a4076c81"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-balanced-independent-top.json",
+      "sha256": "fd52040b66c73d4f72db403cfa18cc9457388bfbd9aa5883dad954d8ba99a99c"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-balanced-top.json",
+      "sha256": "d8e47a3fcbebf247b1c9b5e6ece7f4ffd72d04e0f7225add361ee40c9fd6e3bf"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-cache-stack.json",
+      "sha256": "01c7dfa7a2aebd1c66494791fb3cf8244ad0399c25c76f4598bbd822bd5fa599"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-small-link.json",
+      "sha256": "2aa06efcdc6dedeafb2c4d85448fdbfe959053576765313c1bb952d927c13005"
+    },
+    {
+      "path": "configs/profiles/ucie/hbf-stage3-small-stack.json",
+      "sha256": "ab9b5d4cad9846a0440182fc3385b3ba5485519b5b8d28b47c63b5bcd26b9122"
+    },
+    {
+      "path": "configs/schema/ucie-device.schema.json",
+      "sha256": "2636b679ada1d2e06c8b512a322d4ea9208098d6381aa872aade7b7833ebf395"
+    },
+    {
+      "path": "configs/schema/ucie-link.schema.json",
+      "sha256": "b0c66ed000cf77c1272d1d568e809b4b648cd14cfe497b958cfdadc259f38838"
+    },
+    {
+      "path": "configs/schema/ucie-multistack.schema.json",
+      "sha256": "090118ab4f7e8173a8f500fb067f516bddecbe50b61e7b2a81a24cb3f4297ac6"
+    },
+    {
+      "path": "docs/proofs/2026-09-29-ucie-stage1-cpu.md",
+      "sha256": "3e7cb3e84a6cbc4f9473f05f55e4f2097bfaf2cfbc6c99c08fdb5ce159faa541"
+    },
+    {
+      "path": "docs/proofs/2026-09-29-ucie-stage2-cpu.md",
+      "sha256": "35c02a508a3f4ffd582b2e242226f623056f1b65c2bbd17c47ae5589088594b8"
+    },
+    {
+      "path": "docs/proofs/2026-09-29-ucie-stage3-cpu.md",
+      "sha256": "6630e2f1e4a2c3e1fb34cd9d9e40edb881aaa2d92151bfa1a06935ff479c1d98"
+    },
+    {
+      "path": "docs/proofs/artifacts/2026-09-29-ucie-stage1-bench4.jsonl",
+      "sha256": "c520ca01687faab1a72734d85a46c2d2c7cd0b4a67edfa41a4c81b8d23011b81"
+    },
+    {
+      "path": "docs/proofs/artifacts/2026-09-29-ucie-stage2-off8.jsonl",
+      "sha256": "a67492364cd3af662d0a1e2f94b6e34b767bf5628ccf3d44dc9bfa41d3ecc153"
+    },
+    {
+      "path": "docs/proofs/artifacts/2026-09-29-ucie-stage2-on8.jsonl",
+      "sha256": "a94eab43ec117a8068e6b55f1a0fa99af4c89bea47ada32023c0eb78eebdfdb7"
+    },
+    {
+      "path": "docs/proofs/artifacts/2026-09-29-ucie-stage3-capacity.txt",
+      "sha256": "ffa1b6d8cb488df01e4cdd5b609d427c2e1b773811b7ad6afebe6d8f61721c5a"
+    },
+    {
+      "path": "docs/proofs/artifacts/2026-09-29-ucie-stage3-compare.txt",
+      "sha256": "2659a6322842dacb467b9e82ea3624f34e360c7e6e5157daedb24a49c2df6987"
+    },
+    {
+      "path": "docs/ucie/README.md",
+      "sha256": "6d88af7783e3b160de1a27338976a83b45a56b7350fa339af599fac66caa86e1"
+    },
+    {
+      "path": "docs/ucie/STAGE1_CPU_INTERFACE.md",
+      "sha256": "c3d5171cc2a7b159890ec23536f97f010dc90cbf7ba63ae5307b1d75fa491802"
+    },
+    {
+      "path": "docs/ucie/STAGE2_DEVICE_COALESCING.md",
+      "sha256": "262a3e93689e9a5eb0951b7849c2b125f28e44537daaae578bb3963cebcc60d0"
+    },
+    {
+      "path": "docs/ucie/STAGE3_MULTISTACK.md",
+      "sha256": "e8ee04f85eb97acc407df153bfa6aedcd30a3c88bc2de5ff1a23a8f6e5df71f7"
+    },
+    {
+      "path": "include/hbfsim/control_flags.hpp",
+      "sha256": "d4f398351ff26c429d101414f39e51d893a8b602ec5b6447d5c84f6bcc6817ee"
+    },
+    {
+      "path": "include/hbfsim/mqsim_online.hpp",
+      "sha256": "96e84e5967565465e7970f0453c703d7afeda0df22f825a119b21c69e55725c2"
+    },
+    {
+      "path": "include/hbfsim/profile.hpp",
+      "sha256": "e6a5f8a6bbb9c6821ce81faf1a9c917fa7b15acbe8a3b81906680ec92d476e1b"
+    },
+    {
+      "path": "include/hbfsim/ucie/backing_registry.hpp",
+      "sha256": "e4af18fabcbdda82922e1c9c563e26da02cc4cb5b7418c1ebb9f8cd78d37633a"
+    },
+    {
+      "path": "include/hbfsim/ucie/bank_layout.hpp",
+      "sha256": "dfc7214f9f6ae7647c4059a036307efc9779e8fbf535f63c92036d3db3a5fe41"
+    },
+    {
+      "path": "include/hbfsim/ucie/compact_consume.hpp",
+      "sha256": "0a26116ac05738943ff5a84d7a2956556de0566b36f9dbbbf8a4ffb17cbacf54"
+    },
+    {
+      "path": "include/hbfsim/ucie/device_coalescer.hpp",
+      "sha256": "3d57c4965319a9be3086c9209b32574cc3c5eb2cab5acb1fa007609dd24a0425"
+    },
+    {
+      "path": "include/hbfsim/ucie/device_frontend.hpp",
+      "sha256": "650cc4b9267e4350adf42061f5e11cb2949c9132198bdb460b5bf383c81c6aaa"
+    },
+    {
+      "path": "include/hbfsim/ucie/device_profile.hpp",
+      "sha256": "c32b06a8f2d2c2a8a6683e1abfa39bcf09a37e7a9ec8cc14ba76ea532a6dd559"
+    },
+    {
+      "path": "include/hbfsim/ucie/engine_guard.hpp",
+      "sha256": "d9c253a0e530c9a6fa9f362483d325b4e9258c814c9ad3a0c54ca8b2610dca50"
+    },
+    {
+      "path": "include/hbfsim/ucie/link.hpp",
+      "sha256": "0b1ec54c8049cc11a714ab4c8b67a0b37c1b5b83a89f8922a7a10e01c38180e0"
+    },
+    {
+      "path": "include/hbfsim/ucie/mqsim_frontend.hpp",
+      "sha256": "bbe8813f6e2932e526dd457328a5654bf8ef7c2ecc0262138e16e25673935f90"
+    },
+    {
+      "path": "include/hbfsim/ucie/multistack_frontend.hpp",
+      "sha256": "6c02a2751456343f8dbafd219b6a746d367291a6a645c25296727b54ec39d812"
+    },
+    {
+      "path": "include/hbfsim/ucie/multistack_profile.hpp",
+      "sha256": "82a2d5154cff923b4e1f1eb0c569ac94eaee49a2346d0ee296cd31cf081e34bd"
+    },
+    {
+      "path": "include/hbfsim/ucie/ordered_admission.hpp",
+      "sha256": "5c32941ef641da765830d96839855d923b21bf3cab99e4cf553c14f3992bcba7"
+    },
+    {
+      "path": "include/hbfsim/ucie/profile.hpp",
+      "sha256": "3da49bc0c197d2bef31a8d7df1fcf4f3c8bd858c618bc4dfa291d31c458ab99c"
+    },
+    {
+      "path": "include/hbfsim/ucie/stack_frontend.hpp",
+      "sha256": "2f5fde337e20e8eb46890066c5ed335dd9f7ef6f81a87b11789a69b339e7b69d"
+    },
+    {
+      "path": "include/hbfsim/ucie/stack_router.hpp",
+      "sha256": "3ad3ed63eef9146d67a04589e6c9ab1fab894be2c06cf5fed16c0662cc876c8e"
+    },
+    {
+      "path": "include/hbfsim/ucie/worker_protocol.hpp",
+      "sha256": "11f2f65c8cf0e94e6cce5e49ee9c9daf7833813a2a60e08c9491c0f5821c19e9"
+    },
+    {
+      "path": "normal_control_abi_checks.hpp",
+      "sha256": "45fc12284b58b34356a5c6929f25462d112e215218480bbf34032d284f9e8062"
+    },
+    {
+      "path": "patches/mqsim/0004-next-event-peek.patch",
+      "sha256": "2e8c372d3ac607c84b431ee260f8fcac5ddddbcfb88ce4521c89b8f2faaf517c"
+    },
+    {
+      "path": "scripts/reproduce_ucie_current_cpu.sh",
+      "sha256": "fb7c272d8bb4925fd16349772ecbdd6ab27d9e838c3564b22aa8d15c45d0bfcc"
+    },
+    {
+      "path": "scripts/reproduce_ucie_stage1_cpu.sh",
+      "sha256": "74d53c5b2f7fd2ca3d02356d596f7029c7dad3e5abc01c2900b9f59f95301ddd"
+    },
+    {
+      "path": "scripts/reproduce_ucie_stage2_cpu.sh",
+      "sha256": "bdd17c40ee4085582cf0b23857dd8faaf713226f90e4e4c77405d44d0cc7b6ef"
+    },
+    {
+      "path": "scripts/reproduce_ucie_stage3_cpu.sh",
+      "sha256": "3fbda44165a738dbdec5110d35b0c0fcb727571058509f2f140647a1f53cf022"
+    },
+    {
+      "path": "src/cuda_runtime/context.cpp",
+      "sha256": "d29a1f90142f592a1190359f152f322f57f14448bc91cc239502a448f88c407b"
+    },
+    {
+      "path": "src/cuda_runtime/device/hbf_device.cu",
+      "sha256": "7b59083009406285a21419dd313abe8cf611948d99f941111f7dfe11224d6b68"
+    },
+    {
+      "path": "src/cuda_runtime/launch_gate.cpp",
+      "sha256": "d72d5002e331407f1b6f649ca08df18ec7e34cfbae83bafa11c753df55ae42b7"
+    },
+    {
+      "path": "src/host_service/control_layout.hpp",
+      "sha256": "99bde76c020c82715b41db2b3eef8d1fe8df74d8e20e47d2baf593389890fd68"
+    },
+    {
+      "path": "src/host_service/main.cpp",
+      "sha256": "2af8fd50ef933ed4f65ce42c0e0f2d77503023d2ce9a2fcd472982fa8ebf44ea"
+    },
+    {
+      "path": "src/host_service/page_striped_parser_v3.inc",
+      "sha256": "741169135aa54d4e174f3b8bc8d417af1482eb9515d5e0bf12cc816b9ae44155"
+    },
+    {
+      "path": "src/host_service/ucie_backend_adapter.cpp",
+      "sha256": "5afead76c81c67ca67d6861d14c83216e7fdd0489f0fb6fd7243504c0febad85"
+    },
+    {
+      "path": "src/host_service/ucie_backend_adapter.hpp",
+      "sha256": "5245c6378a31da0f9edc984b894587f3ca1ed55c47d82d9edcc67ae78ed3ffbb"
+    },
+    {
+      "path": "src/mqsim_adapter/mqsim_online.cpp",
+      "sha256": "3496f51a5e0ee00efbcd857e9bdfd660ca77b0dc3e60df76fe260202ffd8f7e7"
+    },
+    {
+      "path": "src/profile/profile.cpp",
+      "sha256": "60beb2c0af17ecf59d1e49802d6a345b6f90a3153bf6057d7201572a60c2b295"
+    },
+    {
+      "path": "src/ucie/advance_gather_diagnostics_v1.hpp",
+      "sha256": "fcfd2181ddd3d04cde46a7426aa23fd8565d7b607359090d171357758d242f63"
+    },
+    {
+      "path": "src/ucie/backing_registry.cpp",
+      "sha256": "7c0073ef731ffaf7dd916931b55f188030073c9abc6fcea899caf98ca440a149"
+    },
+    {
+      "path": "src/ucie/bank_layout.cpp",
+      "sha256": "47220f1e491d19192db468f4ddc83d72acb375b676e399ff4fcc2435eeb3cf2d"
+    },
+    {
+      "path": "src/ucie/compact_consume_v1.hpp",
+      "sha256": "f77a1948afe44af723ca7023e292d3a3ff87dcd96a1f159f293dca8e2c6f7e6c"
+    },
+    {
+      "path": "src/ucie/device_coalescer.cpp",
+      "sha256": "49617fa6fab8cdf5f6662fea82930a3a3e31f22f3fd5929e990abaaefa047271"
+    },
+    {
+      "path": "src/ucie/device_frontend.cpp",
+      "sha256": "b5ed2e200be0ec86cf68d115ee974af075298394f221cf69fae4d0d51c900e9b"
+    },
+    {
+      "path": "src/ucie/device_profile.cpp",
+      "sha256": "cb55b03ba6e5f47a8d5dd023480b5c69aa4fde92499ea4c497fa8866fefe84c1"
+    },
+    {
+      "path": "src/ucie/engine_guard.cpp",
+      "sha256": "ba8094f39d963eb70373a7e0319861d76dedc36acf7e6ce89d61197bbe1bf451"
+    },
+    {
+      "path": "src/ucie/link.cpp",
+      "sha256": "44bd70281e5037804daec75c2ad8e940a00e0b82e32c59776ed84debdbd95377"
+    },
+    {
+      "path": "src/ucie/mqsim_frontend.cpp",
+      "sha256": "1cbc7a59faaa52ae01e6fec17e6344d8f46cc226696c08531c470a8b15d6f97a"
+    },
+    {
+      "path": "src/ucie/multistack_frontend.cpp",
+      "sha256": "49c758abe0555a5030b7ed4ffab13e4afa48ec850731ffaa52997d10092f64e5"
+    },
+    {
+      "path": "src/ucie/multistack_profile.cpp",
+      "sha256": "18d3b0dec668e5f4ee4eca9b5e9f8268f7370c8b25e5d774ddebb71c63f65d50"
+    },
+    {
+      "path": "src/ucie/next_event_snapshot_v1.hpp",
+      "sha256": "c7e74fe61f73da1cc45781f4de7ac5a8043791363fcf4805c26596fc2c79b925"
+    },
+    {
+      "path": "src/ucie/ordered_admission_v1.hpp",
+      "sha256": "f04e5ed49fd273efabe8820e2b78c3b1d04d56127ff5ae2ff24c4b6306de14c2"
+    },
+    {
+      "path": "src/ucie/parallel_component_accounting_v1.hpp",
+      "sha256": "be3f30a96f0513c9c921858306010fa9c46984f258a685a42bca8cf1a9239f20"
+    },
+    {
+      "path": "src/ucie/private_observer_gate.hpp",
+      "sha256": "74fb4352252a63c9d9fb672f5c59eafa60c5f2b9dd5bafbcf5fa412eb8fc73e2"
+    },
+    {
+      "path": "src/ucie/profile.cpp",
+      "sha256": "247320e3edab7e24029bcb51c1de1a2a40bfcabbd9584450e3cf3b680621a8fa"
+    },
+    {
+      "path": "src/ucie/reserve_submit_single_v1.hpp",
+      "sha256": "d5dfb9fe5ccf8befc327a342e72c241ff9b24eb5eb0eb962711faf39b1d0757b"
+    },
+    {
+      "path": "src/ucie/shm_rpc.hpp",
+      "sha256": "5aa55598ee253f51796e587975cb7ec1571cea3e401547572005b312beb8786b"
+    },
+    {
+      "path": "src/ucie/stack_frontend.cpp",
+      "sha256": "ff0bf833d36dba434e3fd8349d8c7b42334249ebaab4fb0592977fdc723dbbe7"
+    },
+    {
+      "path": "src/ucie/stack_router.cpp",
+      "sha256": "dd503c0b1565e0c1344f99a3a0c6114c8ea1ff2eeb6fbc2df379fd926f8ac213"
+    },
+    {
+      "path": "src/ucie/stack_worker.cpp",
+      "sha256": "aa3b9804459664c29f7aae5f0b40f7bcb3100a82f6b00b3b61ff5dda21e3ee5b"
+    },
+    {
+      "path": "src/ucie/typed_rpc.hpp",
+      "sha256": "75970b8cb6bfd6a9be4a3b7ee7cc6acb7e660d3e9f18a1e27414eb6a9ffed7d7"
+    },
+    {
+      "path": "src/ucie/worker_handler.cpp",
+      "sha256": "eb0b78e3f3edc16498441f6328f12ecae4f413648a9a0ac8e36611cb222b83e8"
+    },
+    {
+      "path": "src/ucie/worker_handler.hpp",
+      "sha256": "4a506c31d39809f76ffa1ed13ea839ac2aa3536c9524e0d812a8c2a8641f56a4"
+    },
+    {
+      "path": "src/ucie/worker_io.hpp",
+      "sha256": "80077939717d4fef69ca1eab07dcbe9f00a7c8a69c043255879877e0ec68e93c"
+    },
+    {
+      "path": "src/ucie/worker_protocol.cpp",
+      "sha256": "9bd3e4f5e574ea570a3d397ec0c80b5dca78af0ad0843f5ac3c0080f3a1654be"
+    },
+    {
+      "path": "tests/cpu/device_helper_abi_test.cpp",
+      "sha256": "4f394fa63f980e99b8a65666bda6546e11f772fd4d955994144f183172716917"
+    },
+    {
+      "path": "tests/cpu/ucie_device_coalescer_test.cpp",
+      "sha256": "8df284e736e60531e1503fb36df39bb8706a84190fcef256edc8489933ccec48"
+    },
+    {
+      "path": "tests/cpu/ucie_device_frontend_fake_test.cpp",
+      "sha256": "adb1ef33a5969f506ca210c7886a24d275a1d9d4f66e3a3a6ce3cd8ff55f3abc"
+    },
+    {
+      "path": "tests/cpu/ucie_device_profile_test.cpp",
+      "sha256": "808205e316140a27f8b3c23c3887985496b6421932ecf3178182cc42edd9ca7b"
+    },
+    {
+      "path": "tests/cpu/ucie_link_test.cpp",
+      "sha256": "17000f44dd6410b75616308e4edc35828e3c687893365ad628f31985c5dbf9bd"
+    },
+    {
+      "path": "tests/cpu/ucie_stack_router_test.cpp",
+      "sha256": "839f89d94aafd8f0d62e82d9686a567b480a9fdfbc0cf2ce5a116d59a987c607"
+    },
+    {
+      "path": "tests/integration/test_ucie_loader_binding.py",
+      "sha256": "9dd06b0b36c1b611c0d1d4f4d2d6cd0cc0a2a3ed30192fd3861145f857d4f77e"
+    },
+    {
+      "path": "tests/integration/ucie_backend_adapter_test.cpp",
+      "sha256": "4e0947de91f1d4e142bb9a1f946c0d9ffdab45c235c0ef99cc412415e3ee08c3"
+    },
+    {
+      "path": "tests/integration/ucie_bank_layout_test.cpp",
+      "sha256": "ab31f679d8bc9115976c009123ca970945f77841dc038232f3b04b6846335c0a"
+    },
+    {
+      "path": "tests/integration/ucie_device_frontend_test.cpp",
+      "sha256": "a08f21614cd54fce27004a603949622d4b931a9cc17846e231c93ea125fddecf"
+    },
+    {
+      "path": "tests/integration/ucie_event_advance_test.cpp",
+      "sha256": "76826e3acef30d398ecb56087e486963cef528e4db90498c7503d305fc8d61c1"
+    },
+    {
+      "path": "tests/integration/ucie_mqsim_test.cpp",
+      "sha256": "5d0ab5cda672bfbca3c809cc518e51f06736150f0a1c0c9905ab1cf5bfe55cf5"
+    },
+    {
+      "path": "tests/integration/ucie_multistack_balanced_test.cpp",
+      "sha256": "a7d9faab80ead23f920954094c1c01ee8ec99a412964ce5fa214bb0f8fa209a7"
+    },
+    {
+      "path": "tests/integration/ucie_multistack_frontend_test.cpp",
+      "sha256": "ddb2702941bdd474bb57b97ea6b46b2bed3b55c8a13744ad7fe96d2a6631fe1d"
+    },
+    {
+      "path": "tests/integration/ucie_multistack_lifecycle_test.cpp",
+      "sha256": "56d2beb02a919b2cbd0d2ecd258c424b689c6f7d81b81e47f2203facc8972958"
+    },
+    {
+      "path": "tests/integration/ucie_multistack_profile_test.cpp",
+      "sha256": "620153e359e382c5a178ec8b086b3cfc80e3a66c64d48105b1c2315a31f5c4d2"
+    },
+    {
+      "path": "tests/integration/ucie_multistack_reassembly_test.cpp",
+      "sha256": "af668299e06dddc365cadc74e22a139165e3d53c5be169be8717d6bf978bade7"
+    },
+    {
+      "path": "tests/integration/ucie_stack_capacity_test.cpp",
+      "sha256": "c444d338be3e39a95471edd9c4c2d45089d2747deff74fdc578b2902b0b0efdc"
+    },
+    {
+      "path": "tests/integration/ucie_stack_frontend_test.cpp",
+      "sha256": "91303f331ee78a37fbba0ecda695f2bafdc9e62b3a662f580526d4e537d2f691"
+    },
+    {
+      "path": "tests/integration/ucie_worker_horizon_test.cpp",
+      "sha256": "6cb6908975afd7c5eace7908eb7b3a49ccf89ad6582366e895a3476ee3f836f5"
+    },
+    {
+      "path": "tests/integration/ucie_context_wait_seam.hpp",
+      "sha256": "c524363b3249b59a50e189c811c7dfaf6641da2c562d1b4ff4751a4cee331c55"
+    }
+  ],
+  "all_match": true
+}

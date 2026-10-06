@@ -1,0 +1,12 @@
+{
+  "exact_executable_set": [
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd",
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_frontend_test",
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_lifecycle_test",
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+  ],
+  "matching_live_identities": [],
+  "all_absent": true,
+  "utc_ns": 1791258635215848679,
+  "scope": "Only original isolated release targets; no signal or generic match; original aborted fixture worker parent-death/source contract retained"
+}

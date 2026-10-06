@@ -1,0 +1,14 @@
+{
+  "utc_ns": 1791260938302552405,
+  "identity": {
+    "pid": 3576421,
+    "start_ticks": 18819686,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "host": "threadripper",
+  "go_sha256": "15d23da17a46b78c893a7a68832a1fd3c457b088541e0a27b2f44ea622c25610",
+  "manifest_sha256": "4ee1ee85438e3de7d4f601e67c48b35d73c842da38177acced6e152a75bd3770",
+  "plan_sha256": "e9801c4f74fcee799b7b1a75624f61caa9044061fcd81be80c4991450c68c7f7",
+  "scope": "publication clean CPU, no GPU query/use/service action"
+}

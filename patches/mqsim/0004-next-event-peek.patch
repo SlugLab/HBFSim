@@ -1,0 +1,29 @@
+diff --git a/src/sim/Engine.cpp b/src/sim/Engine.cpp
+--- a/src/sim/Engine.cpp
++++ b/src/sim/Engine.cpp
+@@ -105,6 +105,15 @@ namespace MQSimEngine
+ 		return !stop && _EventList->Count != 0;
+ 	}
+ 
++	bool Engine::Peek_next_event_time(sim_time_type& next) const
++	{
++		if (stop || _EventList->Count == 0) {
++			return false;
++		}
++		next = _EventList->Get_min_key();
++		return true;
++	}
++
+ 	void Engine::Start_simulation()
+ 	{
+ 		Initialize_objects_once();
+diff --git a/src/sim/Engine.h b/src/sim/Engine.h
+--- a/src/sim/Engine.h
++++ b/src/sim/Engine.h
+@@ -34,5 +34,6 @@ namespace MQSimEngine {
+ 		void Initialize_objects_once();
+ 		bool Run_next_event();
+ 		bool Has_pending_events() const;
++		bool Peek_next_event_time(sim_time_type& next) const;
+ 		void Stop_simulation();
+ 		bool Has_started();

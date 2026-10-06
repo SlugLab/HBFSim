@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "name": "stage3-four-stack-balanced-cpu-fixture",
+  "stack_count": 4,
+  "modules_per_stack": 1,
+  "total_capacity_bytes": 16777216,
+  "total_service_bandwidth_bytes_per_s": 512000000000,
+  "link_profile": "hbf-stage3-small-link.json",
+  "media_profile": "../nominal.json",
+  "ncdus": 1,
+  "banks_per_die": 1,
+  "buffers_per_bank": 2,
+  "upstream_topology": "independent",
+  "coalescing": true,
+  "buffer_cache": false,
+  "software_limits": {
+    "max_parent_requests": 4,
+    "max_child_records": 4,
+    "max_read_bytes": 64,
+    "max_backing_ranges": 4,
+    "host_reassembly_capacity_bytes": 256
+  }
+}

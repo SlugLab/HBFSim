@@ -1,0 +1,22 @@
+{
+  "name": "ldd-off-daemon",
+  "argv": [
+    "ldd",
+    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3577502,
+    "start_ticks": 18821916,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/bash"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791260960567544668,
+  "finish_ns": 1791260960573589828,
+  "wall_s": 0.00604516,
+  "stdout_sha256": "1d6af7ace2d9acef23eed238ff943cdfe80e03bfcb1b57b949a8e56484b8ce68",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

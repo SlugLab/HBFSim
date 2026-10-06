@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "ctest",
+    "--test-dir",
+    "build-default-legacy",
+    "--show-only=json-v1"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {},
+  "unset": [],
+  "identity": {
+    "pid": 3576911,
+    "start_ticks": 18820900,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/ctest"
+  },
+  "utc_ns": 1791260950402196421
+}

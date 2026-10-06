@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "cmake",
+    "-S",
+    ".",
+    "-B",
+    "build-default-legacy",
+    "-G",
+    "Ninja",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DHBFSIM_ENABLE_CUDA=OFF",
+    "-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=TRUE",
+    "-DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=TRUE",
+    "-DHBFSIM_ENABLE_MQSIM=ON",
+    "-DBUILD_TESTING=ON",
+    "-DHBFSIM_ENABLE_LLM_TESTS=OFF",
+    "-DHBFSIM_ENABLE_EVAL_TOOLS=OFF",
+    "-DHBFSIM_ENABLE_TIMING_FUTURES=OFF"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "env_patch": {},
+  "unset": [],
+  "identity": {
+    "pid": 3558678,
+    "start_ticks": 18713187,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/cmake"
+  },
+  "utc_ns": 1791259873272781324
+}

@@ -1,0 +1,41 @@
+Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+      Start 35: ucie_link
+ 1/18 Test #35: ucie_link ........................   Passed    0.00 sec
+      Start 36: ucie_mqsim
+ 2/18 Test #36: ucie_mqsim .......................   Passed    0.18 sec
+      Start 37: ucie_bank_layout
+ 3/18 Test #37: ucie_bank_layout .................   Passed    0.01 sec
+      Start 38: ucie_device_coalescer
+ 4/18 Test #38: ucie_device_coalescer ............   Passed    0.00 sec
+      Start 39: ucie_device_frontend
+ 5/18 Test #39: ucie_device_frontend .............   Passed    0.00 sec
+      Start 40: ucie_device_frontend_fake
+ 6/18 Test #40: ucie_device_frontend_fake ........   Passed    0.00 sec
+      Start 41: ucie_device_profile
+ 7/18 Test #41: ucie_device_profile ..............   Passed    0.00 sec
+      Start 42: ucie_stack_frontend
+ 8/18 Test #42: ucie_stack_frontend ..............   Passed    0.00 sec
+      Start 43: ucie_worker_horizon
+ 9/18 Test #43: ucie_worker_horizon ..............   Passed    1.03 sec
+      Start 44: ucie_stack_router
+10/18 Test #44: ucie_stack_router ................   Passed    0.00 sec
+      Start 45: ucie_multistack_profile
+11/18 Test #45: ucie_multistack_profile ..........   Passed    1.73 sec
+      Start 46: ucie_multistack_balanced
+12/18 Test #46: ucie_multistack_balanced .........   Passed    1.49 sec
+      Start 47: ucie_multistack_compare
+13/18 Test #47: ucie_multistack_compare ..........   Passed   15.00 sec
+      Start 48: ucie_multistack_frontend
+14/18 Test #48: ucie_multistack_frontend .........   Passed    6.96 sec
+      Start 49: ucie_multistack_reassembly
+15/18 Test #49: ucie_multistack_reassembly .......   Passed    3.46 sec
+      Start 50: ucie_multistack_lifecycle
+16/18 Test #50: ucie_multistack_lifecycle ........   Passed    0.88 sec
+      Start 51: ucie_event_advance
+17/18 Test #51: ucie_event_advance ...............   Passed   26.38 sec
+      Start 52: ucie_backend_adapter
+18/18 Test #52: ucie_backend_adapter .............   Passed    0.44 sec
+
+100% tests passed, 0 tests failed out of 18
+
+Total Test time (real) =  57.58 sec

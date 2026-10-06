@@ -1,0 +1,9 @@
+Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+    Start 48: ucie_multistack_frontend
+1/2 Test #48: ucie_multistack_frontend .........   Passed    0.75 sec
+    Start 50: ucie_multistack_lifecycle
+2/2 Test #50: ucie_multistack_lifecycle ........   Passed    0.20 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.95 sec

@@ -1,0 +1,25 @@
+{
+  "name": "context-wait-alias-seam",
+  "argv": [
+    "build-ucie-on/ucie_backend_adapter_test",
+    "build-ucie-on/ucie_stack_worker",
+    "configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+    "build-ucie-on/hbfsimd",
+    "--context-wait-seam"
+  ],
+  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "identity": {
+    "pid": 3539838,
+    "start_ticks": 18590956,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
+  },
+  "natural_rc": 0,
+  "wait_reaped": true,
+  "pid_absent": true,
+  "start_ns": 1791258650963735944,
+  "finish_ns": 1791258651314508291,
+  "wall_s": 0.350772347,
+  "stdout_sha256": "c79bb6b263f11215c1805cfe757efef0ff7a17867c654924727a4885bac4669a",
+  "stderr_sha256": "51b358be6437a206d871f02693ee9ee5918a8dd43c3b1c507e865b41595f99ac"
+}

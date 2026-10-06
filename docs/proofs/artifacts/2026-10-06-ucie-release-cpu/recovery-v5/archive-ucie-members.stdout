@@ -1,0 +1,14 @@
+profile.cpp.o
+link.cpp.o
+engine_guard.cpp.o
+backing_registry.cpp.o
+device_coalescer.cpp.o
+device_frontend.cpp.o
+stack_frontend.cpp.o
+stack_router.cpp.o
+multistack_frontend.cpp.o
+multistack_profile.cpp.o
+worker_protocol.cpp.o
+worker_handler.cpp.o
+device_profile.cpp.o
+mqsim_frontend.cpp.o

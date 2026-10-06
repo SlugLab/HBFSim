@@ -1,0 +1,15 @@
+{
+  "natural_returncode": 1,
+  "start_ns": 1791259873228696400,
+  "finish_ns": 1791259883150114855,
+  "identity": {
+    "pid": 3558677,
+    "start_ticks": 18713178,
+    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "exe": "/usr/bin/python3.14"
+  },
+  "commands_completed": 2,
+  "last_stage": "build-all-default-legacy",
+  "first_error_preserved": true,
+  "all_direct_children_wait_reaped": true
+}

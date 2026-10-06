@@ -1,13 +1,5 @@
 # HBFSim: simulating High-Bandwidth Flash while the workload runs on a real GPU
 
-The [SASS final147 reproduction package](reproduction/sass-final147-20260926/README.md) preserves the experimental runtime sources, actual interface contracts, build recipes and fixed-request validation evidence. Its [upstream PR review](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md) records generality limits separately from the model result.
-
-**Full-model weight registration and binding:** the current SASS/PTX integration
-workflow supports registering all weights of OLMoE-1B-7B-0924 and binding their
-consumers to the HBF instrumentation path. The final147 workflow registers all
-147 distinct weight storages (13,838,323,712 bytes).
-See the [implementation and validation report](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md).
-
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)
@@ -130,6 +122,12 @@ wall-clock time, and the overhead of HBFSim itself. That separation matters, bec
 can be functionally correct while the software overhead of HBFSim is larger than the device
 delay HBFSim is modeling.
 
+The optional [UCIe interface](docs/ucie/README.md) connects the host request ring
+to a configurable multistack MQSim backend. It provides AXI read transport,
+page striping, request coalescing and shared-memory worker communication, with
+event-driven advancement and batched completion handling. Enable it explicitly
+with `HBFSIM_ENABLE_UCIE=ON`; the existing backend remains the default.
+
 ## Two modes
 
 | Mode | What changes | Question answered |
@@ -179,6 +177,14 @@ that page return to the backing file.
 - **The timing model is calibrated from a real device.** The calibration source is a Dell DC
   NVMe CD8P E3.S 1.92TB attached over PCIe 5.0 32 GT/s x4. The Dell CD8P is an ordinary PCIe
   NVMe endpoint, not a CXL endpoint.
+
+**Full-model weight registration and binding:** the current SASS/PTX integration
+workflow supports registering all weights of OLMoE-1B-7B-0924 and binding their
+consumers to the HBF instrumentation path. The final147 workflow registers all
+147 distinct weight storages (13,838,323,712 bytes).
+See the [implementation and validation report](reproduction/sass-final147-20260926/evidence-tree/rebuttal_20260921/sass-lifter-20260924/reports/final147-20260926-v1/REPORT.md).
+
+The [SASS final147 reproduction package](reproduction/sass-final147-20260926/README.md) preserves the experimental runtime sources, actual interface contracts, build recipes and fixed-request validation evidence. Its [upstream PR review](reproduction/sass-final147-20260926/upstream-review/REVIEW_SUMMARY.md) records generality limits separately from the model result.
 
 Builds, CPU tests, MQSim regressions, and successful PTX assembly are not live GPU proof.
 
@@ -240,6 +246,7 @@ count or achievable throughput. Existing legacy JSON profiles live in
 |---|---|---|
 | `HBFSIM_ENABLE_CUDA` | `ON` | Build CUDA instrumentation and runtime components |
 | `HBFSIM_ENABLE_MQSIM` | `ON` | Build the MQSim-backed host service |
+| `HBFSIM_ENABLE_UCIE` | `OFF` | Build the UCIe multistack interface and host backend |
 | `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | Enable llama.cpp and vLLM integration tests |
 | `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | Build offline evaluation models and replay tools |
 
@@ -268,6 +275,10 @@ count or achievable throughput. Existing legacy JSON profiles live in
 
 ## Documentation
 
+- [`docs/ucie/`](docs/ucie/README.md) — UCIe interfaces, multistack configuration,
+  software optimizations and CPU reproduction commands.
+- [`docs/releases/v0.1.1.md`](docs/releases/v0.1.1.md) — the v0.1.1 implementation
+  changes and release build instructions.
 - [`docs/proofs/`](docs/proofs/) — the checkpoint documents that hold every experiment
   number, each with the commands and the boundaries of the claim.
 - [`docs/eval/`](docs/eval/) — the evaluation plan, the workload methodology, and the

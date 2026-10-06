@@ -1,0 +1,490 @@
+{
+  "status": "PASS",
+  "commands": [
+    {
+      "name": "build-all-default-legacy",
+      "argv": [
+        "cmake",
+        "--build",
+        "build-default-legacy",
+        "--parallel",
+        "8"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3576422,
+        "start_ticks": 18819703,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/cmake"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260938436641005,
+      "finish_ns": 1791260950401676461,
+      "wall_s": 11.965035456,
+      "stdout_sha256": "e733fa71e4490d697df979b47cb739acf2b744be4ae700ad156a883604a55e23",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "inventory-tests-off",
+      "argv": [
+        "ctest",
+        "--test-dir",
+        "build-default-legacy",
+        "--show-only=json-v1"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3576911,
+        "start_ticks": 18820900,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ctest"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260950402196421,
+      "finish_ns": 1791260950502122934,
+      "wall_s": 0.099926513,
+      "stdout_sha256": "398a9e23dc946798fc79843bd4cacf41d1076e4c7491c0776c104cc34eea8098",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cpu-regression-default-legacy",
+      "argv": [
+        "ctest",
+        "--test-dir",
+        "build-default-legacy",
+        "--output-on-failure",
+        "-E",
+        "^(vmem_tuning|run_with_bpftime|context_lifecycle)$"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3576912,
+        "start_ticks": 18820910,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ctest"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260950502585166,
+      "finish_ns": 1791260955897281435,
+      "wall_s": 5.394696269,
+      "stdout_sha256": "20c9fd21e5bf1e47236d9077e9e00dd98d0eac391aeac9d643c09cdeef3487a9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "relink-on-daemon-boundary",
+      "argv": [
+        "cmake",
+        "--build",
+        "build-ucie-on",
+        "--target",
+        "hbfsimd",
+        "--parallel",
+        "8"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577377,
+        "start_ticks": 18821450,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/cmake"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260955897858942,
+      "finish_ns": 1791260959949162546,
+      "wall_s": 4.051303604,
+      "stdout_sha256": "069a6a44991522f126e09f3d024e2c57a10e08ecf0247b2ae6f86a0064fe2efc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ldd-copied-seam-daemon",
+      "argv": [
+        "ldd",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577458,
+        "start_ticks": 18821855,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/bash"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260959954203932,
+      "finish_ns": 1791260959960781870,
+      "wall_s": 0.006577938,
+      "stdout_sha256": "5ade89de3c277e6017c6694b35db4dcd1281af9ade93ee8f1a7799919c6839fd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "context-wait-boundary-seam",
+      "argv": [
+        "build-ucie-on/ucie_backend_adapter_test",
+        "build-ucie-on/ucie_stack_worker",
+        "configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+        "validation-seam-recovery-v5/hbfsimd",
+        "--context-wait-seam"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577465,
+        "start_ticks": 18821856,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260959964503903,
+      "finish_ns": 1791260960299599140,
+      "wall_s": 0.335095237,
+      "stdout_sha256": "d4f1a69a92953fc2bb9b3706f8d19fae8d63dfabc1abd1c6ced03d5435823f60",
+      "stderr_sha256": "51b358be6437a206d871f02693ee9ee5918a8dd43c3b1c507e865b41595f99ac"
+    },
+    {
+      "name": "deps-build-ucie-on",
+      "argv": [
+        "ninja",
+        "-C",
+        "build-ucie-on",
+        "-t",
+        "deps"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577478,
+        "start_ticks": 18821890,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ninja"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960300682776,
+      "finish_ns": 1791260960356267234,
+      "wall_s": 0.055584458,
+      "stdout_sha256": "2a0267eeaa1aac14089e8daaa9db12c95a04237ee961680e63fe58935bf7c524",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "commands-build-ucie-on",
+      "argv": [
+        "ninja",
+        "-C",
+        "build-ucie-on",
+        "-t",
+        "commands"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577479,
+        "start_ticks": 18821896,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ninja"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960359035768,
+      "finish_ns": 1791260960363816347,
+      "wall_s": 0.004780579,
+      "stdout_sha256": "500a05a42a222a61445ddfb6a397d6d9a13e5aa30e935f0fcad0d38325f14be3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "deps-build-default-legacy",
+      "argv": [
+        "ninja",
+        "-C",
+        "build-default-legacy",
+        "-t",
+        "deps"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577480,
+        "start_ticks": 18821896,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ninja"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960365078424,
+      "finish_ns": 1791260960404362378,
+      "wall_s": 0.039283954,
+      "stdout_sha256": "890565e371a373c9166f9b40c2e5f20503c0026a24c495bf6af0ec6ac9cfdc06",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "commands-build-default-legacy",
+      "argv": [
+        "ninja",
+        "-C",
+        "build-default-legacy",
+        "-t",
+        "commands"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577481,
+        "start_ticks": 18821900,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/ninja"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960406816936,
+      "finish_ns": 1791260960410691409,
+      "wall_s": 0.003874473,
+      "stdout_sha256": "eeaaa6d1e99dc17813a9a5142ceb1af72e436d026010668aa67f7dc22140f04d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "archive-ucie-members",
+      "argv": [
+        "ar",
+        "t",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/libhbfsim_ucie.a"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577482,
+        "start_ticks": 18821901,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-ar"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960412150725,
+      "finish_ns": 1791260960413721220,
+      "wall_s": 0.001570495,
+      "stdout_sha256": "40d51fd0e69023a7990d6f6de1a8536188d30bf584c45116c1086dc916450964",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "readelf-on-daemon",
+      "argv": [
+        "readelf",
+        "-W",
+        "-d",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577483,
+        "start_ticks": 18821903,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-readelf"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960437548713,
+      "finish_ns": 1791260960448711705,
+      "wall_s": 0.011162992,
+      "stdout_sha256": "9228129a8b9f845fde409b6e74db08d33fde410cf9037e3a1ddb70c2fdfdf720",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ldd-on-daemon",
+      "argv": [
+        "ldd",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577484,
+        "start_ticks": 18821905,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/bash"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960449169019,
+      "finish_ns": 1791260960455571111,
+      "wall_s": 0.006402092,
+      "stdout_sha256": "9a0665cb040fff55a9d0f4321eaef8eb874c472a058563bb2dddb52e9faa434d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "nm-on-daemon",
+      "argv": [
+        "nm",
+        "-C",
+        "--defined-only",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577491,
+        "start_ticks": 18821905,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-nm"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960456115838,
+      "finish_ns": 1791260960509708241,
+      "wall_s": 0.053592403,
+      "stdout_sha256": "c365663275e42e2dec13721c29f60bda2b6910ce11b8d59a1b998f7ec755eab3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "readelf-on-worker",
+      "argv": [
+        "readelf",
+        "-W",
+        "-d",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577492,
+        "start_ticks": 18821911,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-readelf"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960510789843,
+      "finish_ns": 1791260960512158261,
+      "wall_s": 0.001368418,
+      "stdout_sha256": "494ba94e3a992db89472986c763fbfe4b1e972aec5971d0ba0b7d3f21613e85f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ldd-on-worker",
+      "argv": [
+        "ldd",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577493,
+        "start_ticks": 18821911,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/bash"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960512424165,
+      "finish_ns": 1791260960517825638,
+      "wall_s": 0.005401473,
+      "stdout_sha256": "014fde9614a0855a913a3c87b811cb38c94d5dd0224bc4350277381db3538b2f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "nm-on-worker",
+      "argv": [
+        "nm",
+        "-C",
+        "--defined-only",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577500,
+        "start_ticks": 18821912,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-nm"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960518090920,
+      "finish_ns": 1791260960564755503,
+      "wall_s": 0.046664583,
+      "stdout_sha256": "4fcccdce0a501d98e8571140131d60c499e607c510b15feb64b56def6b4294fb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "readelf-off-daemon",
+      "argv": [
+        "readelf",
+        "-W",
+        "-d",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577501,
+        "start_ticks": 18821916,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-readelf"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960565461345,
+      "finish_ns": 1791260960567273346,
+      "wall_s": 0.001812001,
+      "stdout_sha256": "cc66a5041f72841975d9764dcb02140a773ee3fb2d33da290d5e153515d7bd64",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "ldd-off-daemon",
+      "argv": [
+        "ldd",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577502,
+        "start_ticks": 18821916,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/bash"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960567544668,
+      "finish_ns": 1791260960573589828,
+      "wall_s": 0.00604516,
+      "stdout_sha256": "1d6af7ace2d9acef23eed238ff943cdfe80e03bfcb1b57b949a8e56484b8ce68",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "nm-off-daemon",
+      "argv": [
+        "nm",
+        "-C",
+        "--defined-only",
+        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+      ],
+      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "identity": {
+        "pid": 3577509,
+        "start_ticks": 18821917,
+        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "exe": "/usr/bin/x86_64-linux-gnu-nm"
+      },
+      "natural_rc": 0,
+      "wait_reaped": true,
+      "pid_absent": true,
+      "start_ns": 1791260960573900229,
+      "finish_ns": 1791260960619102321,
+      "wall_s": 0.045202092,
+      "stdout_sha256": "756b371195e3ef6d175fe41099c779575549b5418b3e9d1a3371b5967bf76c10",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "tests": "Actual test logs/inventories; historical baseline exclusions retained",
+  "models_gpu": "NOT_RUN",
+  "source_manifest_sha256": "4ee1ee85438e3de7d4f601e67c48b35d73c842da38177acced6e152a75bd3770"
+}

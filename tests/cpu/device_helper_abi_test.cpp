@@ -44,6 +44,11 @@ int main()
     static_assert(offsetof(SharedControlHeader, request_timeout_ns) ==
                   offsetof(host_service::SharedControlHeader,
                            request_timeout_ns));
+    static_assert(offsetof(SharedControlHeader, reserved0) == 164);
+    static_assert(offsetof(SharedControlHeader, reserved0) ==
+                  offsetof(host_service::SharedControlHeader, reserved0));
+    static_assert(host_service::kControlZeroInjectedWait ==
+                  control_flags::kZeroInjectedWait);
     static_assert(offsetof(SharedControlHeader, control_generation) ==
                   offsetof(host_service::SharedControlHeader,
                            control_generation));

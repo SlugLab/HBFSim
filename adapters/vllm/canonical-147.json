@@ -1,0 +1,1482 @@
+{
+  "modules_per_stack": 16,
+  "page_bytes": 16384,
+  "placements": [
+    {
+      "aliases": [
+        "lm_head.weight"
+      ],
+      "canonical_physical_address": 1786706395136,
+      "media_extent_bytes": 206045184,
+      "module_id": 4,
+      "stack_id": 3,
+      "storage_bytes": 206045184
+    },
+    {
+      "aliases": [
+        "model.embed_tokens.weight"
+      ],
+      "canonical_physical_address": 687194767360,
+      "media_extent_bytes": 206045184,
+      "module_id": 4,
+      "stack_id": 1,
+      "storage_bytes": 206045184
+    },
+    {
+      "aliases": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 0,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 16384,
+      "media_extent_bytes": 536870912,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 536887296,
+      "media_extent_bytes": 268435456,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.0.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 805322752,
+      "media_extent_bytes": 262144,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 805584896,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 805601280,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 805617664,
+      "media_extent_bytes": 8388608,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 814006272,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.0.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 814022656,
+      "media_extent_bytes": 25165824,
+      "module_id": 0,
+      "stack_id": 0,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.1.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 549755813888,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 549755830272,
+      "media_extent_bytes": 536870912,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 550292701184,
+      "media_extent_bytes": 268435456,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.1.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 550561136640,
+      "media_extent_bytes": 262144,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.1.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 550561398784,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 550561415168,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 550561431552,
+      "media_extent_bytes": 8388608,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 550569820160,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.1.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 550569836544,
+      "media_extent_bytes": 25165824,
+      "module_id": 0,
+      "stack_id": 1,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.10.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1168231104512,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1168231120896,
+      "media_extent_bytes": 536870912,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1168767991808,
+      "media_extent_bytes": 268435456,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.10.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1169036427264,
+      "media_extent_bytes": 262144,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.10.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1169036689408,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1169036705792,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1169036722176,
+      "media_extent_bytes": 8388608,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1169045110784,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.10.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1169045127168,
+      "media_extent_bytes": 25165824,
+      "module_id": 2,
+      "stack_id": 2,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.11.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1717986918400,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1717986934784,
+      "media_extent_bytes": 536870912,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1718523805696,
+      "media_extent_bytes": 268435456,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.11.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1718792241152,
+      "media_extent_bytes": 262144,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.11.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1718792503296,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1718792519680,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1718792536064,
+      "media_extent_bytes": 8388608,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1718800924672,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.11.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1718800941056,
+      "media_extent_bytes": 25165824,
+      "module_id": 2,
+      "stack_id": 3,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.12.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 103079215104,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 103079231488,
+      "media_extent_bytes": 536870912,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 103616102400,
+      "media_extent_bytes": 268435456,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.12.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 103884537856,
+      "media_extent_bytes": 262144,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.12.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 103884800000,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 103884816384,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 103884832768,
+      "media_extent_bytes": 8388608,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 103893221376,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.12.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 103893237760,
+      "media_extent_bytes": 25165824,
+      "module_id": 3,
+      "stack_id": 0,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.13.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 652835028992,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 652835045376,
+      "media_extent_bytes": 536870912,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 653371916288,
+      "media_extent_bytes": 268435456,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.13.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 653640351744,
+      "media_extent_bytes": 262144,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.13.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 653640613888,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 653640630272,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 653640646656,
+      "media_extent_bytes": 8388608,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 653649035264,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.13.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 653649051648,
+      "media_extent_bytes": 25165824,
+      "module_id": 3,
+      "stack_id": 1,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.14.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1202590842880,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1202590859264,
+      "media_extent_bytes": 536870912,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1203127730176,
+      "media_extent_bytes": 268435456,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.14.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1203396165632,
+      "media_extent_bytes": 262144,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.14.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1203396427776,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1203396444160,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1203396460544,
+      "media_extent_bytes": 8388608,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1203404849152,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.14.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1203404865536,
+      "media_extent_bytes": 25165824,
+      "module_id": 3,
+      "stack_id": 2,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.15.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1752346656768,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1752346673152,
+      "media_extent_bytes": 536870912,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1752883544064,
+      "media_extent_bytes": 268435456,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.15.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1753151979520,
+      "media_extent_bytes": 262144,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.15.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1753152241664,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1753152258048,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1753152274432,
+      "media_extent_bytes": 8388608,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1753160663040,
+      "media_extent_bytes": 16384,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.15.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1753160679424,
+      "media_extent_bytes": 25165824,
+      "module_id": 3,
+      "stack_id": 3,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.2.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1099511627776,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1099511644160,
+      "media_extent_bytes": 536870912,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1100048515072,
+      "media_extent_bytes": 268435456,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.2.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1100316950528,
+      "media_extent_bytes": 262144,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.2.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1100317212672,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1100317229056,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1100317245440,
+      "media_extent_bytes": 8388608,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1100325634048,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.2.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1100325650432,
+      "media_extent_bytes": 25165824,
+      "module_id": 0,
+      "stack_id": 2,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.3.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1649267441664,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1649267458048,
+      "media_extent_bytes": 536870912,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1649804328960,
+      "media_extent_bytes": 268435456,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.3.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1650072764416,
+      "media_extent_bytes": 262144,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.3.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1650073026560,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1650073042944,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1650073059328,
+      "media_extent_bytes": 8388608,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1650081447936,
+      "media_extent_bytes": 16384,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.3.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1650081464320,
+      "media_extent_bytes": 25165824,
+      "module_id": 0,
+      "stack_id": 3,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.4.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 34359738368,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 34359754752,
+      "media_extent_bytes": 536870912,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 34896625664,
+      "media_extent_bytes": 268435456,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.4.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 35165061120,
+      "media_extent_bytes": 262144,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.4.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 35165323264,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 35165339648,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 35165356032,
+      "media_extent_bytes": 8388608,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 35173744640,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.4.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 35173761024,
+      "media_extent_bytes": 25165824,
+      "module_id": 1,
+      "stack_id": 0,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.5.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 584115552256,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 584115568640,
+      "media_extent_bytes": 536870912,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 584652439552,
+      "media_extent_bytes": 268435456,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.5.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 584920875008,
+      "media_extent_bytes": 262144,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.5.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 584921137152,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 584921153536,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 584921169920,
+      "media_extent_bytes": 8388608,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 584929558528,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.5.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 584929574912,
+      "media_extent_bytes": 25165824,
+      "module_id": 1,
+      "stack_id": 1,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.6.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1133871366144,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1133871382528,
+      "media_extent_bytes": 536870912,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1134408253440,
+      "media_extent_bytes": 268435456,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.6.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1134676688896,
+      "media_extent_bytes": 262144,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.6.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1134676951040,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1134676967424,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1134676983808,
+      "media_extent_bytes": 8388608,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1134685372416,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.6.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1134685388800,
+      "media_extent_bytes": 25165824,
+      "module_id": 1,
+      "stack_id": 2,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.7.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 1683627180032,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 1683627196416,
+      "media_extent_bytes": 536870912,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 1684164067328,
+      "media_extent_bytes": 268435456,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.7.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 1684432502784,
+      "media_extent_bytes": 262144,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.7.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 1684432764928,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 1684432781312,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 1684432797696,
+      "media_extent_bytes": 8388608,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 1684441186304,
+      "media_extent_bytes": 16384,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.7.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 1684441202688,
+      "media_extent_bytes": 25165824,
+      "module_id": 1,
+      "stack_id": 3,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.8.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 68719476736,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 68719493120,
+      "media_extent_bytes": 536870912,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 69256364032,
+      "media_extent_bytes": 268435456,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.8.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 69524799488,
+      "media_extent_bytes": 262144,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.8.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 69525061632,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 69525078016,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 69525094400,
+      "media_extent_bytes": 8388608,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 69533483008,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.8.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 69533499392,
+      "media_extent_bytes": 25165824,
+      "module_id": 2,
+      "stack_id": 0,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.layers.9.input_layernorm.weight"
+      ],
+      "canonical_physical_address": 618475290624,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w13_weight"
+      ],
+      "canonical_physical_address": 618475307008,
+      "media_extent_bytes": 536870912,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 536870912
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.experts.w2_weight"
+      ],
+      "canonical_physical_address": 619012177920,
+      "media_extent_bytes": 268435456,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 268435456
+    },
+    {
+      "aliases": [
+        "model.layers.9.mlp.gate.weight"
+      ],
+      "canonical_physical_address": 619280613376,
+      "media_extent_bytes": 262144,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 262144
+    },
+    {
+      "aliases": [
+        "model.layers.9.post_attention_layernorm.weight"
+      ],
+      "canonical_physical_address": 619280875520,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.k_norm.weight"
+      ],
+      "canonical_physical_address": 619280891904,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.o_proj.weight"
+      ],
+      "canonical_physical_address": 619280908288,
+      "media_extent_bytes": 8388608,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 8388608
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.q_norm.weight"
+      ],
+      "canonical_physical_address": 619289296896,
+      "media_extent_bytes": 16384,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 4096
+    },
+    {
+      "aliases": [
+        "model.layers.9.self_attn.qkv_proj.weight"
+      ],
+      "canonical_physical_address": 619289313280,
+      "media_extent_bytes": 25165824,
+      "module_id": 2,
+      "stack_id": 1,
+      "storage_bytes": 25165824
+    },
+    {
+      "aliases": [
+        "model.norm.weight"
+      ],
+      "canonical_physical_address": 1236950581248,
+      "media_extent_bytes": 16384,
+      "module_id": 4,
+      "stack_id": 2,
+      "storage_bytes": 4096
+    }
+  ],
+  "schema": "hbfsim.ucie.canonical_layout.v1",
+  "source_ledger_sha256": "666fb5bb13bb4206f30bd74986708ec0dc6a34d01ebd22d0e470c76dc10b4fda",
+  "stack_capacity_bytes": 549755813888,
+  "stack_count": 4,
+  "total_storage_bytes": 13838323712,
+  "total_storage_count": 147
+}

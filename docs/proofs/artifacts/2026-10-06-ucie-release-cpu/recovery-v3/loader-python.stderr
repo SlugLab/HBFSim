@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_ucie_loader_binding.py", line 15, in <module>
+    import hbfsim_loader as loader  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/adapters/vllm/hbfsim_loader.py", line 17, in <module>
+    from vllm.config.load import LoadConfig
+ModuleNotFoundError: No module named 'vllm'

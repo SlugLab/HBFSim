@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UCIe Stage 2 HBF CPU device profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "link_profile", "media_profile", "stack_capacity_bytes", "host_channels", "ncdus", "banks_per_die", "buffers_per_bank", "stack_id", "module_id", "scenario_assumption"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "version": {"const": 1},
+    "link_profile": {"type": "string", "minLength": 1},
+    "media_profile": {"type": "string", "minLength": 1},
+    "stack_capacity_bytes": {"type": "integer", "minimum": 4096, "multipleOf": 4096},
+    "host_channels": {"type": "integer", "minimum": 1, "maximum": 16},
+    "ncdus": {"enum": [1, 2, 4, 8, 16]},
+    "banks_per_die": {"enum": [1, 2, 4, 8, 16]},
+    "buffers_per_bank": {"const": 2},
+    "stack_id": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+    "module_id": {"type": "integer", "minimum": 0, "maximum": 15},
+    "scenario_assumption": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reduced_topology", "coalescing", "buffer_cache"],
+      "properties": {
+        "reduced_topology": {"type": "boolean"},
+        "coalescing": {"type": "boolean"},
+        "buffer_cache": {"type": "boolean"}
+      }
+    }
+  }
+}

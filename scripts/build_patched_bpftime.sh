@@ -4,6 +4,7 @@ set -euo pipefail
 HBFSIM_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 BPFTIME_SOURCE="$HBFSIM_ROOT/third_party/bpftime"
 BPFTIME_PATCH="$HBFSIM_ROOT/patches/bpftime/0001-exact-module-load-provenance.patch"
+BPFTIME_COMPATIBILITY_PATCH="$HBFSIM_ROOT/patches/bpftime/0002-ptx-target-compatibility-and-diagnostics.patch"
 BPFTIME_COMMIT=ec26daecc8e787fb80fd95dd596a576404a5e36e
 
 actual_commit=$(git -C "$BPFTIME_SOURCE" rev-parse HEAD)
@@ -20,16 +21,18 @@ if [[ -n $source_status ]]; then
     echo "build_patched_bpftime: pinned bpftime source worktree is dirty" >&2
     exit 65
 fi
-if ! git -C "$BPFTIME_SOURCE" apply --check "$BPFTIME_PATCH"; then
-    echo "build_patched_bpftime: patch does not apply to pinned source" >&2
-    exit 65
-fi
 if [[ ${1:-} == --check ]]; then
     if [[ $# -ne 1 ]]; then
         echo "usage: $0 --check" >&2
         exit 64
     fi
-    echo "bpftime patch applies to pinned source"
+    check_root=$(mktemp -d "${TMPDIR:-/tmp}/hbfsim-bpftime-check.XXXXXX")
+    trap 'rm -rf -- "$check_root"' EXIT
+    cmake -DBPFTIME_SOURCE="$BPFTIME_SOURCE" -DPATCH="$BPFTIME_PATCH" \
+        -DCOMPATIBILITY_PATCH="$BPFTIME_COMPATIBILITY_PATCH" \
+        -DOUTPUT_SOURCE="$check_root/bpftime-hbfsim-src" \
+        -P "$HBFSIM_ROOT/cmake/PreparePatchedBpftime.cmake"
+    echo "bpftime patch applies to pinned source (ordered compatibility chain)"
     exit 0
 fi
 
@@ -52,6 +55,7 @@ source_copy="$build_dir/_deps/bpftime-hbfsim-src"
 cmake \
     -DBPFTIME_SOURCE="$BPFTIME_SOURCE" \
     -DPATCH="$BPFTIME_PATCH" \
+    -DCOMPATIBILITY_PATCH="$BPFTIME_COMPATIBILITY_PATCH" \
     -DOUTPUT_SOURCE="$source_copy" \
     -P "$HBFSIM_ROOT/cmake/PreparePatchedBpftime.cmake"
 
@@ -73,14 +77,15 @@ for artifact in \
 done
 
 patch_digest=$(sha256sum "$BPFTIME_PATCH" | awk '{print $1}')
+compatibility_digest=$(sha256sum "$BPFTIME_COMPATIBILITY_PATCH" | awk '{print $1}')
 stamp="$build_dir/hbfsim-bpftime.provenance"
 temporary_stamp=$(mktemp "$build_dir/.hbfsim-bpftime.provenance.XXXXXX")
 cleanup() {
     rm -f -- "$temporary_stamp"
 }
 trap cleanup EXIT
-printf 'bpftime_commit=%s\npatch_sha256=%s\nbridge_version=2\n' \
-    "$BPFTIME_COMMIT" "$patch_digest" > "$temporary_stamp"
+printf 'bpftime_commit=%s\npatch_sha256=%s\ncompatibility_patch_sha256=%s\nbridge_version=3\n' \
+    "$BPFTIME_COMMIT" "$patch_digest" "$compatibility_digest" > "$temporary_stamp"
 mv -f -- "$temporary_stamp" "$stamp"
 trap - EXIT
 echo "build_patched_bpftime: wrote $stamp"

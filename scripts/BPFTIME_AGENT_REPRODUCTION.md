@@ -1,10 +1,13 @@
 # Rebuild the supported-weights bpftime agent
 
 Use `scripts/reproduce_bpftime_agent.py` on giga. Its source starts at the pinned
-bpftime commit `ec26daecc8e787fb80fd95dd596a576404a5e36e` and applies only
+bpftime commit `ec26daecc8e787fb80fd95dd596a576404a5e36e` and applies
 `patches/bpftime/0002-supported-weights-from-ec26.patch` (SHA-256
 `63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f`).
-Do not first apply the older `0001` patch. The script clones all recursively
+It then applies `patches/bpftime/0003-supported-weights-ptx-compatibility.patch`
+for target/PTX version compatibility and complete compiler diagnostics. The
+script verifies both patch hashes and records their order and the resulting
+source inputs. Do not first apply the ordinary `0001` patch. The script clones all recursively
 pinned submodule commits from a local, populated bpftime source and rejects
 missing, dirty, or mismatched submodule objects. It does not modify that source.
 
@@ -39,6 +42,18 @@ On a host with different absolute toolchain paths, create and validate a new
 lock profile first; changing the paths is not equivalent to this tested build.
 The older `scripts/build_patched_bpftime.sh`
 belongs to the pre-integration patch profile and is not this build entry.
+
+That ordinary builder has its own ordered `0001` plus
+`0002-ptx-target-compatibility-and-diagnostics.patch` profile. The two profiles
+preserve different binding implementations and must not be combined. Both use
+the same PTX metadata rules. The compatibility fix preserves higher PTX versions
+and required target suffixes; it does not rewrite kernel instructions.
+
+Prepare a **new** source/build directory after this change. Old preparation
+receipts remain historical evidence and are not accepted as a build of the new
+compatibility profile. The current script reports missing or changed inputs
+before starting a build. For toolkit roles and the recorded giga environment,
+see [the build environment guide](../docs/build/giga-environment.md).
 
 The first independent source preparation passed with all 20 nested gitlinks in
 `main-reproduction-agent-recipe-prepare-v1/source.prepare.json`. The separate

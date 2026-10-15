@@ -32,6 +32,14 @@ HBFSim 在负载于真实 GPU 上执行的同时,对这个真实的推理负载�
 
 ## 快速开始
 
+研究环境的编译器、依赖版本和完整构建命令见
+[giga 构建环境文档](docs/build/giga-environment.md)。遇到构建或运行问题，可按
+[排错说明和报错表单](docs/troubleshooting.md)提供环境、命令及首个完整错误。
+
+SASS 恢复为实验功能，普通用户入口**默认关闭**。需要使用时，可按
+[SASS 运行工具说明](tools/sass_runtime/)显式开启，并查看实际完成绑定且运行过的
+层。原生 PTX 插桩有独立路径，不依赖此开关。
+
 HBFSim 需要 Native Linux、CMake 3.25 或更新、Ninja、支持 C++20 的编译器、OpenSSL、Python 3。CUDA 部分需要 CUDA 12.8 或更新。
 
 介质模拟器与介质模拟器的基准不装 CUDA 也能构建:

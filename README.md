@@ -38,6 +38,15 @@ the retention deadline that forces refresh writes.
 
 ## Quick start
 
+For the recorded research setup, see the [giga build environment and full build
+commands](docs/build/giga-environment.md). For a build or runtime problem, use the
+[troubleshooting guide and report forms](docs/troubleshooting.md).
+
+SASS recovery is experimental and is **off by default** in the user entry point.
+The [SASS runtime tools](tools/sass_runtime/) explain how to opt in and how to
+report the layers whose bindings actually ran. Native PTX instrumentation is
+independent of this option.
+
 HBFSim needs native Linux, CMake 3.25 or newer, Ninja, a compiler with C++20 support,
 OpenSSL, and Python 3. The CUDA components need CUDA 12.8 or newer. The media simulator and
 the benchmark of the media simulator build without CUDA, which is the configuration below.

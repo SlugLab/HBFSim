@@ -10,10 +10,12 @@ import signal
 import subprocess
 import sys
 import time
+import re
 from pathlib import Path
 
 COMMIT = "ec26daecc8e787fb80fd95dd596a576404a5e36e"
 PATCH_SHA = "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f"
+COMPATIBILITY_PATCH_SHA = "9d7c957f62e3626140e09f8bb8cacb7acd8052c582dfcf937436fa6a310244fd"
 FRIDA = {
     "core": "45a7e47c4181662611ce89c2891e5327676aaaf9e53ee205ef98f8d58a312a00",
     "gum": "c20af106e089bbbdb9ed4d5dfc63ce9ae8f6643bbb76a6b0afb196726d9a241a",
@@ -106,11 +108,68 @@ def submodules(source, dest):
     return completed
 
 
-def prepare(args, patch):
+def source_inputs(source, patches, module_rows):
+    """Bind tracked inputs and overlay additions.
+
+    Generated build outputs are excluded; pinned submodules remain independent
+    Git identities. Every initial source/header input is checked before building.
+    """
+    names = set()
+    roots = [source] + [source / row["path"] for row in module_rows]
+    for tree in roots:
+        for name in run(["git", "-C", str(tree), "ls-files", "-z"]).split("\0"):
+            path = tree / name
+            if name and path.is_file():
+                names.add(path.relative_to(source).as_posix())
+    for patch in patches:
+        names.update(re.findall(r"^\+\+\+ b/(.+)$", patch.read_text(), re.M))
+    rows = []
+    for name in sorted(names):
+        path = source / name
+        if not path.is_file():
+            raise RuntimeError(f"prepared source input missing: {name}")
+        rows.append({"path": name, "sha256": digest(path), "bytes": path.stat().st_size})
+    return rows
+
+
+def verify_prepared_source(source, patch, compatibility):
+    receipt_path = source.parent / f"{source.name}.prepare.json"
+    if not receipt_path.is_file():
+        raise RuntimeError("compatibility preparation receipt missing; prepare a new source directory")
+    receipt = json.loads(receipt_path.read_text())
+    if (receipt.get("schema") != "hbfsim.bpftime_source_prepare.v2"
+            or receipt.get("commit") != COMMIT
+            or receipt.get("source") != str(source)
+            or receipt.get("patch_sha256") != digest(patch)
+            or receipt.get("compatibility_patch_sha256") != digest(compatibility)):
+        raise RuntimeError("old or mismatched source profile; prepare a new source directory (historical sources are preserved)")
+    if run(["git", "-C", str(source), "rev-parse", "HEAD"]) != COMMIT:
+        raise RuntimeError("prepared source Git identity drift")
+    for row in receipt["submodules"]:
+        tree = source / row["path"]
+        if run(["git", "-C", str(tree), "rev-parse", "HEAD"]) != row["gitlink"]:
+            raise RuntimeError(f"prepared source submodule identity drift: {tree}")
+    # CMake may download these after prepare. Hash their known identities when
+    # present without treating that expected download as source-manifest drift.
+    for kind, expected in FRIDA.items():
+        archive = source / f"third_party/frida/frida-{kind}-devkit-16.1.2-linux-x86_64.tar.xz"
+        if archive.exists() and digest(archive) != expected:
+            raise RuntimeError(f"prepared Frida archive drift: {archive}")
+    actual = source_inputs(source, (patch, compatibility), receipt["submodules"])
+    if actual != receipt.get("source_inputs"):
+        raise RuntimeError("prepared source input drift; prepare a new source directory")
+    return {"path": str(receipt_path), "sha256": digest(receipt_path),
+            "compatibility_patch_sha256": digest(compatibility), "inputs": len(actual)}
+
+
+def prepare(args, patch, compatibility):
     pinned = args.local_pin.resolve()
     dest = args.source.resolve()
     if dest.exists():
         raise RuntimeError(f"source destination already exists: {dest}")
+    receipt_path = dest.parent / f"{dest.name}.prepare.json"
+    if receipt_path.exists():
+        raise RuntimeError(f"preparation receipt already exists: {receipt_path}")
     for kind, expected in FRIDA.items():
         archive = getattr(args, f"frida_{kind}")
         if archive is None and not args.allow_frida_download:
@@ -121,8 +180,9 @@ def prepare(args, patch):
         raise RuntimeError("local bpftime source is not pinned ec26 commit")
     run(["git", "clone", "--local", "--no-checkout", str(pinned), str(dest)])
     run(["git", "-C", str(dest), "checkout", "--detach", COMMIT])
-    run(["git", "-C", str(dest), "apply", "--check", str(patch)])
-    run(["git", "-C", str(dest), "apply", str(patch)])
+    for item in (patch, compatibility):
+        run(["git", "-c", "core.autocrlf=false", "-C", str(dest), "apply", "--check", str(item)])
+        run(["git", "-c", "core.autocrlf=false", "-C", str(dest), "apply", str(item)])
     rows = submodules(pinned, dest)
     frida_dir = dest / "third_party/frida"
     frida_dir.mkdir(parents=True, exist_ok=True)
@@ -132,20 +192,26 @@ def prepare(args, patch):
             continue
         path = path.resolve()
         shutil.copyfile(path, frida_dir / f"frida-{kind}-devkit-16.1.2-linux-x86_64.tar.xz")
-    receipt = {"schema": "hbfsim.bpftime_source_prepare.v1", "commit": COMMIT,
+    receipt = {"schema": "hbfsim.bpftime_source_prepare.v2", "commit": COMMIT,
                "patch_sha256": digest(patch), "source": str(dest), "submodules": rows,
+               "compatibility_patch_sha256": digest(compatibility),
+               "patch_order": [patch.name, compatibility.name],
+               "source_inputs": source_inputs(dest, (patch, compatibility), rows),
                "frida": {k: (str(getattr(args, f"frida_{k}")) if getattr(args, f"frida_{k}") else "CMake URL_HASH download") for k in FRIDA}}
-    (dest.parent / f"{dest.name}.prepare.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    with receipt_path.open("x", encoding="utf-8") as stream:
+        stream.write(json.dumps(receipt, indent=2) + "\n")
     return receipt
 
 
-def build(args, lock_script):
+def build(args, lock_script, patch, compatibility):
     source = args.source.resolve()
     build_dir = args.build.resolve()
     receipts = args.receipts.resolve()
+    preparation = verify_prepared_source(source, patch, compatibility)
     receipts.mkdir(parents=True, exist_ok=True)
     rows = []
     for mode in ("configure", "build", "check"):
+        verify_prepared_source(source, patch, compatibility)
         receipt = receipts / f"agent-{mode}.json"
         if receipt.exists():
             raise RuntimeError(f"refusing existing receipt: {receipt}")
@@ -166,7 +232,9 @@ def build(args, lock_script):
         if not path.is_file():
             raise RuntimeError(f"missing artifact: {path}")
         artifacts[name] = {"path": str(path), "sha256": digest(path), "bytes": path.stat().st_size}
-    return {"status": "PASS", "locked_steps": rows, "artifacts": artifacts}
+    verify_prepared_source(source, patch, compatibility)
+    return {"status": "PASS", "locked_steps": rows, "artifacts": artifacts,
+            "source_preparation": preparation}
 
 
 def main():
@@ -184,18 +252,21 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     patch = root / "patches/bpftime/0002-supported-weights-from-ec26.patch"
+    compatibility = root / "patches/bpftime/0003-supported-weights-ptx-compatibility.patch"
     lock_script = root / "scripts/bpftime_build_lock/locked_build.py"
     verify_lock_helpers(root, args.provision_lock_helpers)
     if digest(patch) != PATCH_SHA:
         raise RuntimeError("full ec26 patch SHA mismatch")
+    if digest(compatibility) != COMPATIBILITY_PATCH_SHA:
+        raise RuntimeError("supported-weights compatibility patch SHA mismatch")
     if args.mode == "prepare":
         if args.local_pin is None:
             parser.error("--local-pin is required for prepare")
-        result = prepare(args, patch)
+        result = prepare(args, patch, compatibility)
     else:
         if args.build is None or args.receipts is None:
             parser.error("--build and --receipts are required for build")
-        result = build(args, lock_script)
+        result = build(args, lock_script, patch, compatibility)
     print(json.dumps(result, indent=2))
 
 

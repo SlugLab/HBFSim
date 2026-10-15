@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Setup and usage questions
+    url: https://github.com/SlugLab/HBFSim/discussions/new?category=q-a
+    about: Ask a question using the environment and error report form.
   - name: Read the paper first
     url: https://arxiv.org/abs/2609.09800
     about: >-

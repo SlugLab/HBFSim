@@ -70,11 +70,13 @@ def require_dirty_refusal(
 
     output_source = scratch / f"prepare-{label}" / "bpftime-hbfsim-src"
     patch = helper.parent.parent / "patches/bpftime/0001-exact-module-load-provenance.patch"
+    compatibility = helper.parent.parent / "patches/bpftime/0002-ptx-target-compatibility-and-diagnostics.patch"
     prepared = subprocess.run(
         [
             real_cmake,
             f"-DBPFTIME_SOURCE={bpftime}",
             f"-DPATCH={patch}",
+            f"-DCOMPATIBILITY_PATCH={compatibility}",
             f"-DOUTPUT_SOURCE={output_source}",
             "-P", str(prepare),
         ],
@@ -112,6 +114,9 @@ def copy_test_layout(
         / "patches/bpftime/0001-exact-module-load-provenance.patch",
         isolated_patch,
     )
+    compatibility_name = "0002-ptx-target-compatibility-and-diagnostics.patch"
+    shutil.copy2(helper.parent.parent / "patches/bpftime" / compatibility_name,
+                 isolated_patch.parent / compatibility_name)
     revision = subprocess.run(
         ["git", "-C", str(bpftime), "rev-parse", "HEAD"],
         check=True,
@@ -154,6 +159,21 @@ def run_isolated_worker(
                 f"isolated helper check failed: {checked.stderr}")
         require("bpftime patch applies to pinned source" in checked.stdout,
                 f"isolated helper reported wrong result: {checked.stdout}")
+
+        compatibility = isolated_helper.parent.parent / "patches/bpftime/0002-ptx-target-compatibility-and-diagnostics.patch"
+        original_patch = compatibility.read_bytes()
+        compatibility.write_bytes(b"not a patch\n")
+        invalid_chain = subprocess.run(
+            [str(isolated_helper), "--check"], text=True, capture_output=True)
+        require(invalid_chain.returncode != 0,
+                "helper accepted an invalid compatibility patch")
+        compatibility.write_bytes(original_patch)
+        compatibility.rename(compatibility.with_suffix(".missing"))
+        missing_chain = subprocess.run(
+            [str(isolated_helper), "--check"], text=True, capture_output=True)
+        require(missing_chain.returncode != 0,
+                "helper accepted a missing compatibility patch")
+        compatibility.with_suffix(".missing").rename(compatibility)
 
         tracked = isolated_bpftime / "CMakeLists.txt"
         original = tracked.read_bytes()

@@ -1,0 +1,88 @@
+{
+  "date_utc": "2026-10-15",
+  "public_base_commit": "d2e6ce239c117c640fe68c8b5b2a7c77cf184da6",
+  "host": "giga, x86-64 RTX 5090 host; maintenance checks did not use GPU",
+  "patches_sha256": {
+    "0001-exact-module-load-provenance.patch": "c10ef6129615d4f1183043eee43ba0f159d14604f4e6d18470416016dfdb640f",
+    "0002-ptx-target-compatibility-and-diagnostics.patch": "eb15c83ed77cc96565554ce81151f824a0ec658236564c568d4bb9069be70278",
+    "0002-supported-weights-from-ec26.patch": "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f",
+    "0003-supported-weights-ptx-compatibility.patch": "9d7c957f62e3626140e09f8bb8cacb7acd8052c582dfcf937436fa6a310244fd"
+  },
+  "validation_receipts": [
+    {
+      "receipt": "compatibility-v5/evidence/FINAL.json",
+      "sha256": "d6489e681b4e4e021d012e1ef532f01f1e4ccb523e0572b13b820c9d96428124",
+      "result": {
+        "active_r15_mutations": 0,
+        "bpftime_head": "ec26daecc8e787fb80fd95dd596a576404a5e36e",
+        "gpu_calls": 0,
+        "manifest_sha256": "bc8e50fa5c63055021b6ee22cb5cc8582bd7a7c5fbf441291afdf31e144d6d69",
+        "model_starts": 0,
+        "ordinary_patch_sha256": [
+          "c10ef6129615d4f1183043eee43ba0f159d14604f4e6d18470416016dfdb640f",
+          "eb15c83ed77cc96565554ce81151f824a0ec658236564c568d4bb9069be70278"
+        ],
+        "packet_sha256": "96d8848f836128961bed4d23bfcd61911b0d4c970cded4073e6b12b9b1efae00",
+        "passed": [
+          "ordinary_wrapper_worker",
+          "supported_wrapper_worker",
+          "source_prepare",
+          "bootstrap_toolkit",
+          "runner_structure_v2",
+          "builder_prepare_structure_v2",
+          "bash_n_bootstrap",
+          "bash_n_build_patched_bpftime",
+          "bash_n_run_with_bpftime",
+          "bash_n_run_with_sass_research"
+        ],
+        "preserved_failures": [
+          "compatibility-v4 non-git source preflight refusal",
+          "runner_structure initial packet missing support validator",
+          "builder initial copy inherited invalid worktree gitdir; corrected with independent clone"
+        ],
+        "scope": "isolated host-only compatibility fixtures; no GPU/model/current experiment mutation",
+        "status": "PASS",
+        "support_validator_sha256": "ea1b3c8947c90a94f68fe47dbd97b3978bc6c0c04a516ece230853e93af94d89",
+        "supported_patch_sha256": [
+          "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f",
+          "9d7c957f62e3626140e09f8bb8cacb7acd8052c582dfcf937436fa6a310244fd"
+        ]
+      }
+    },
+    {
+      "receipt": "compatibility-v6-final-runner/evidence/FINAL.json",
+      "sha256": "9536bb954e8e184d7abcf526aba1fb12e9d47a96630b97411da97c0d5c6f22fc",
+      "result": {
+        "active_r15_mutations": 0,
+        "base_packet_sha256": "96d8848f836128961bed4d23bfcd61911b0d4c970cded4073e6b12b9b1efae00",
+        "gpu_calls": 0,
+        "model_starts": 0,
+        "overlay_manifest_sha256": "4e8b4bae1fda05e7a91b04e874ad93b8cc7f5ac1b396c25593b0c1b371449247",
+        "readme_sha256": "6c9d76ee89c0d14a306d55721ce08e8f1e04b51a535be0568ee497f550397530",
+        "runner_sha256": "7cabf07d2981d78803de6f30e81b39930828d66e070829be5246d31ba0cd2282",
+        "sass_test_sha256": "894b38af01d7e58602027cfa94ba746abb6e18d8a0998a17c18612b39b29515c",
+        "scope": "final runner cleanup Linux syntax/structure and SASS host units; no compiled binary/GPU/model",
+        "status": "PASS"
+      }
+    }
+  ],
+  "sass_rebuild": {
+    "receipt_sha256": "6621b4440245aa0424913d0b463504e9a037a656ed736f9dec9c76044dfd5ebd",
+    "agent_sha256": "2491ef34a19104bc8cd609c9dbcfa04608fdf43eed109c01b56ce25397c104f8",
+    "provider_sha256": "e63ea4d315ea63d09df637916059b4de5dba99ca46d0663e56204e5ed9d7a1fd",
+    "scope": "Actual isolated source/object/archive/link and provider compilation, symbol checks and host branch tests. Uses an existing pinned dependency build; not a complete fresh rebuild of every dependency."
+  },
+  "layer_report_check": {
+    "input": "completed r15 N MODEL_VALIDATION.json",
+    "input_sha256": "0c4f1aebb18ce10f9bbd1f54118e39b6f3209679270c319b85fde057f1e4f82b",
+    "output": "layers 0-15 and embedding/final norm/head from address-matched active-complete module joins",
+    "scope": "Reader verification of existing accepted correctness evidence; no new GPU run or timing acceptance."
+  },
+  "limits": [
+    "GB10/aarch64 full model path was not executed.",
+    "Compiler API is substituted in wrapper fixtures; these checks do not establish linked CUDA compiler support for every target.",
+    "SASS enabled/disabled branch selection is software evidence, not proof of recovered GPU semantics.",
+    "Original r15 runtime, inputs, libraries and collector were not changed.",
+    "Initial transport/setup refusals remain preserved alongside successful independent test attempts."
+  ]
+}

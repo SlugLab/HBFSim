@@ -1,72 +1,59 @@
 name: Bug report
-description: Something builds, runs, or measures differently than documented.
+description: Report a build failure, crash, incorrect result, or missing instrumentation.
+title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: >
-        Before filing: HBFSim reports modeled device time separately from host
-        service time, wall-clock time, and emulator overhead. A wall-clock number
-        that looks wrong is often the emulator's own overhead rather than the
-        modeled delay. Please say which of the four you are looking at.
-
+      value: |
+        Please include what you know. Write "unknown" for information you cannot obtain.
+        Remove access tokens, passwords, private model URLs, and personal data from logs.
+        For help getting started, use the Q&A Discussion form instead.
   - type: textarea
-    id: what-happened
+    id: problem
     attributes:
-      label: What happened
-      description: What you ran, what you expected, and what you got instead.
+      label: What happened?
+      description: Describe the expected result and what happened instead. For a timing problem, name the time field you are comparing.
     validations:
       required: true
-
+  - type: input
+    id: revision
+    attributes:
+      label: HBFSim version
+      description: Paste git rev-parse HEAD and mention any local changes. Include submodule revisions if available.
+    validations:
+      required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: How to reproduce
-      description: The exact commands, in order, starting from a clean clone.
+      label: Commands and settings
+      description: Include the configure/build commands, run command, relevant environment variables, HBF profile, and SASS lifter setting. Replace private paths with consistent placeholders.
       render: shell
     validations:
       required: true
-
-  - type: input
-    id: commit
-    attributes:
-      label: Commit
-      description: Output of `git rev-parse HEAD`.
-    validations:
-      required: true
-
-  - type: textarea
-    id: build-options
-    attributes:
-      label: Build configuration
-      description: >
-        The values you set for HBFSIM_ENABLE_CUDA, HBFSIM_ENABLE_MQSIM,
-        HBFSIM_ENABLE_LLM_TESTS, and CMAKE_CUDA_ARCHITECTURES.
-      render: shell
-    validations:
-      required: true
-
   - type: textarea
     id: environment
     attributes:
-      label: Environment
-      description: >
-        Linux distribution and kernel, CMake version, compiler version, CUDA
-        toolkit version, NVIDIA driver version, and GPU model. `nvidia-smi` output
-        is ideal.
-      render: shell
+      label: Machine and software
+      description: Include Linux distribution, CPU architecture, GPU model, driver, CUDA build roots, nvcc/ptxas versions, CMake and C++ compiler. For model runs, also include Python, PyTorch, vLLM and Triton versions.
+      render: text
     validations:
       required: true
-
-  - type: input
-    id: profile
+  - type: textarea
+    id: model
     attributes:
-      label: HBF profile
-      description: Which file under configs/profiles/ the run used.
-
+      label: Model and input
+      description: Model ID and revision, data type, selected weights/layers, prompt/input lengths, output length, seed, and whether the same input works without HBFSim. Do not upload model weights.
   - type: textarea
     id: logs
     attributes:
-      label: Output
-      description: The failing output, the coverage manifest, or the ctest log.
-      render: shell
+      label: Complete first error and surrounding log
+      description: Start before the first error and include its full diagnostic text, not only the final abort. For PTX compilation, include the compiler version, target, PTX version, options and compiler error log. Attach a text file if the log is long.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Coverage report or small reproducer
+      description: Attach available coverage/pass manifests, binding report, ctest output, or a small reproducer. Say whether instrumentation is missing, binding failed, or a bound kernel actually ran. Missing files are useful information too.

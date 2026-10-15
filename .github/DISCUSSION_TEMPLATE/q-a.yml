@@ -1,0 +1,42 @@
+title: "[Help] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for setup questions and problems you are still diagnosing.
+        For a reproducible defect, the Bug report Issue form asks for the same key details.
+        Write "unknown" where needed. Remove secrets and private data from logs.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question or problem
+      description: What are you trying to do? What did you expect, and what happened?
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: HBFSim version
+      description: Paste git rev-parse HEAD and mention local changes.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Machine and software
+      description: GPU, CPU architecture, Linux, NVIDIA driver, CUDA build roots and compiler versions. For model runs, add model/revision, Python, PyTorch, vLLM and Triton versions.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands and settings
+      description: Include build/run commands, relevant environment variables, HBF profile, selected layers, input/output lengths, and SASS lifter setting. Say if the same input works without HBFSim.
+      render: shell
+  - type: textarea
+    id: logs
+    attributes:
+      label: First error and relevant output
+      description: Include the full first diagnostic and nearby output. A final "Aborted" line alone does not show the cause. Attach available coverage or binding reports; long logs can be text attachments.
+      render: text

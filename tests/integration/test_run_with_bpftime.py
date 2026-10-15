@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import hashlib
+import math  # Ensure the host libm fixture is mapped on either CPU architecture.
 import os
 import pathlib
 import stat
@@ -30,7 +31,12 @@ def main() -> int:
         (bpftime_build / "runtime/syscall-server").mkdir(parents=True)
         hbfsim_build.mkdir()
 
-        preload = pathlib.Path("/usr/lib/x86_64-linux-gnu/libm.so.6")
+        # Resolve an existing host DSO instead of assuming an x86-64 layout.
+        candidates = [pathlib.Path(line.split()[-1])
+                      for line in pathlib.Path("/proc/self/maps").read_text().splitlines()
+                      if "/libm.so" in line and line.split()[-1].startswith("/")]
+        require(bool(candidates), "cannot locate the host libm preload fixture")
+        preload = candidates[0]
         for artifact in [
             hbfsim_build / "libhbfsim_launch_gate.so",
             hbfsim_build / "libptxpass_hbf.so",
@@ -106,20 +112,23 @@ def main() -> int:
 
         commit = "ec26daecc8e787fb80fd95dd596a576404a5e36e"
         digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+        compatibility = patch.with_name("0002-ptx-target-compatibility-and-diagnostics.patch")
+        compatibility_digest = hashlib.sha256(compatibility.read_bytes()).hexdigest()
         stamp = bpftime_build / "hbfsim-bpftime.provenance"
 
         def write_stamp(stamp_commit: str, stamp_digest: str,
-                        version: str) -> None:
+                        version: str, compatibility_sha: str = compatibility_digest) -> None:
             stamp.write_text(
                 f"bpftime_commit={stamp_commit}\n"
                 f"patch_sha256={stamp_digest}\n"
+                f"compatibility_patch_sha256={compatibility_sha}\n"
                 f"bridge_version={version}\n"
             )
 
         for label, stamp_commit, stamp_digest, version in (
-            ("commit", "0" * 40, digest, "2"),
-            ("digest", commit, "0" * 64, "2"),
-            ("version", commit, digest, "1"),
+            ("commit", "0" * 40, digest, "3"),
+            ("digest", commit, "0" * 64, "3"),
+            ("version", commit, digest, "2"),
         ):
             write_stamp(stamp_commit, stamp_digest, version)
             rejected_stamp = subprocess.run(
@@ -134,7 +143,22 @@ def main() -> int:
             require(not loader_started.exists(),
                     f"wrapper started loader before rejecting wrong {label}")
 
-        write_stamp(commit, digest, "2")
+        write_stamp(commit, digest, "3", "0" * 64)
+        stale_compatibility = subprocess.run(
+            [str(wrapper), "--", str(command), str(output)],
+            env=env, text=True, capture_output=True)
+        require(stale_compatibility.returncode == 66 and not loader_started.exists(),
+                "wrapper accepted stale compatibility patch provenance")
+        write_stamp(commit, digest, "3")
+        invalid_sass = env.copy()
+        invalid_sass["HBFSIM_ENABLE_SASS_LIFTER"] = "invalid"
+        invalid_switch = subprocess.run(
+            [str(wrapper), "--", str(command), str(output)],
+            env=invalid_sass, text=True, capture_output=True)
+        require(invalid_switch.returncode == 64
+                and "HBFSIM_ENABLE_SASS_LIFTER must be 0 or 1" in invalid_switch.stderr
+                and not loader_started.exists(),
+                "wrapper started loader with an invalid SASS switch")
         completed = subprocess.run(
             [str(wrapper), "--", str(command), str(output)],
             env=env,

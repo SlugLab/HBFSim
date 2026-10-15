@@ -1,0 +1,423 @@
+diff --git a/attach/nv_attach_impl/nv_attach_utils.cpp b/attach/nv_attach_impl/nv_attach_utils.cpp
+--- a/attach/nv_attach_impl/nv_attach_utils.cpp
++++ b/attach/nv_attach_impl/nv_attach_utils.cpp
+@@ -1,4 +1,5 @@
+ #include "nv_attach_utils.hpp"
++#include "nv_attach_ptx_compatibility.hpp"
+ #include "trampoline_ptx.h"
+ #include <cstring>
+ #include <iterator>
+@@ -21,42 +22,9 @@
+ 	return get_default_trampoline_ptx() + input;
+ }
+ 
+-std::string rewrite_ptx_target(std::string ptx,
+-			       const std::string &sm_arch)
++std::string rewrite_ptx_target(std::string ptx, const std::string &sm_arch)
+ {
+-	if (sm_arch.empty())
+-		return ptx;
+-
+-	// Rewrite .version based on SM arch (sm_120+ needs 8.7, sm_100+ needs 8.5)
+-	int sm_num = (sm_arch.size() > 3) ? std::atoi(sm_arch.c_str() + 3) : 0;
+-	const char *ptx_ver = (sm_num >= 120) ? "8.7" : (sm_num >= 100) ? "8.5" : nullptr;
+-	if (ptx_ver) {
+-		auto vpos = ptx.find(".version");
+-		if (vpos != std::string::npos) {
+-			vpos += 8;
+-			while (vpos < ptx.size() && ptx[vpos] == ' ') vpos++;
+-			auto vstart = vpos;
+-			while (vpos < ptx.size() && ptx[vpos] != '\n' && ptx[vpos] != ' ') vpos++;
+-			if (vpos > vstart)
+-				ptx.replace(vstart, vpos - vstart, ptx_ver);
+-		}
+-	}
+-
+-	// Rewrite .target
+-	auto pos = ptx.find(".target");
+-	if (pos == std::string::npos)
+-		return ptx;
+-	pos += strlen(".target");
+-	while (pos < ptx.size() && (ptx[pos] == ' ' || ptx[pos] == '\t'))
+-		pos++;
+-	auto start = pos;
+-	while (pos < ptx.size() && ptx[pos] != ' ' && ptx[pos] != '\t' &&
+-	       ptx[pos] != '\n' && ptx[pos] != '\r' && ptx[pos] != ',')
+-		pos++;
+-	if (pos <= start)
+-		return ptx;
+-	ptx.replace(start, pos - start, sm_arch);
+-	return ptx;
++    return prepare_ptx_for_target(ptx, sm_arch).text;
+ }
+ 
+ std::string wrap_ptx_with_trampoline_for_sm(std::string input,
+diff --git a/attach/nv_attach_impl/nv_attach_ptx_compatibility.hpp b/attach/nv_attach_impl/nv_attach_ptx_compatibility.hpp
+new file mode 100644
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_ptx_compatibility.hpp
+@@ -0,0 +1,139 @@
++#pragma once
++// PTX header metadata only. No instruction, memory, or helper rewriting.
++#include <algorithm>
++#include <map>
++#include <regex>
++#include <stdexcept>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace bpftime::attach {
++struct ptx_target_name { int number; char feature; std::string text; };
++struct prepared_ptx { std::string text, target, original_version, original_target, effective_version; };
++
++inline ptx_target_name parse_ptx_target(const std::string &text)
++{
++    std::smatch match;
++    if (!std::regex_match(text, match, std::regex("sm_([0-9]+)([af]?)")))
++        throw std::runtime_error("Invalid PTX target: " + text);
++    return {std::stoi(match[1]), match[2].str().empty() ? '\0' : match[2].str()[0], text};
++}
++inline std::pair<int, int> ptx_minimum(const std::string &target)
++{
++    static const std::map<std::string, std::pair<int, int>> known = {
++        {"sm_70",{6,0}}, {"sm_72",{6,1}}, {"sm_75",{6,3}},
++        {"sm_80",{7,0}}, {"sm_86",{7,1}}, {"sm_87",{7,4}},
++        {"sm_89",{7,8}}, {"sm_90",{7,8}},
++        {"sm_90a",{8,0}}, {"sm_100",{8,6}}, {"sm_100a",{8,6}},
++        {"sm_101",{8,6}}, {"sm_101a",{8,6}},
++        {"sm_100f",{8,8}}, {"sm_101f",{8,8}},
++        {"sm_103",{8,8}}, {"sm_103a",{8,8}}, {"sm_103f",{8,8}},
++        {"sm_120",{8,7}}, {"sm_120a",{8,7}}, {"sm_120f",{8,8}},
++        {"sm_121",{8,8}}, {"sm_121a",{8,8}}, {"sm_121f",{8,8}}
++    };
++    auto it = known.find(target);
++    return it == known.end() ? std::pair<int,int>{0,0} : it->second;
++}
++inline int ptx_family(int number)
++{
++    if (number == 100 || number == 103) return 100;
++    if (number == 101) return 101;
++    if (number == 120 || number == 121) return 120;
++    return -1;
++}
++inline std::string compatible_ptx_target(const ptx_target_name &source,
++                                          const ptx_target_name &destination)
++{
++    auto refuse = [&]() -> std::string {
++        throw std::runtime_error("Incompatible PTX source target " + source.text +
++                                 " for destination " + destination.text);
++    };
++    if (source.text == destination.text) return destination.text;
++    if ((source.feature && ptx_minimum(source.text).first == 0) ||
++        (destination.feature && ptx_minimum(destination.text).first == 0))
++        return refuse();
++    // Unknown modern targets may pass through unchanged, never by a guessed range.
++    if ((source.number >= 100 && ptx_minimum(source.text).first == 0) ||
++        (destination.number >= 100 && ptx_minimum(destination.text).first == 0))
++        return refuse();
++    if (source.number > destination.number) return refuse();
++    if (source.feature == 'a') {
++        if (source.number != destination.number || destination.feature == 'f') return refuse();
++        return source.text; // generic capability detection must not erase a
++    }
++    if (source.feature == 'f') {
++        if (ptx_family(source.number) < 0 ||
++            ptx_family(source.number) != ptx_family(destination.number)) return refuse();
++        if (destination.feature == 'a') return destination.text;
++        return "sm_" + std::to_string(destination.number) + "f";
++    }
++    return destination.text;
++}
++inline std::string mask_ptx_comments(std::string text)
++{
++    bool line = false, block = false, quoted = false;
++    for (std::size_t i = 0; i < text.size(); ++i) {
++        if (line) { if (text[i] == '\n') line = false; else text[i] = ' '; continue; }
++        if (block) {
++            if (text[i] == '*' && i + 1 < text.size() && text[i+1] == '/') {
++                text[i] = text[i+1] = ' '; ++i; block = false;
++            } else if (text[i] != '\n' && text[i] != '\r') text[i] = ' ';
++            continue;
++        }
++        if (text[i] == '"' && (i == 0 || text[i-1] != '\\')) quoted = !quoted;
++        if (!quoted && i + 1 < text.size() && text[i] == '/' &&
++            (text[i+1] == '/' || text[i+1] == '*')) {
++            block = text[i+1] == '*'; line = !block;
++            text[i] = text[i+1] = ' '; ++i;
++        }
++    }
++    if (block) throw std::runtime_error("Unterminated PTX block comment");
++    return text;
++}
++inline prepared_ptx prepare_ptx_for_target(const std::string &ptx,
++                                            const std::string &requested)
++{
++    if (requested.empty()) return {ptx, requested, "", "", ""};
++    auto masked = mask_ptx_comments(ptx);
++    const std::regex version_re(R"((^|\n)[ \t]*\.version[ \t]+([0-9]+)\.([0-9]+)([ \t\r]*(?=\n|$)))");
++    std::vector<std::smatch> versions;
++    for (auto it = std::sregex_iterator(masked.begin(), masked.end(), version_re);
++         it != std::sregex_iterator(); ++it) versions.push_back(*it);
++    if (versions.size() != 1) throw std::runtime_error("PTX needs one valid .version directive");
++    auto version = std::pair<int,int>{std::stoi(versions[0][2]), std::stoi(versions[0][3])};
++    const auto original_version = std::to_string(version.first) + "." + std::to_string(version.second);
++    const std::regex target_re(R"((^|\n)[ \t]*\.target[ \t]+([^ \t\r\n,;]+))");
++    std::vector<std::smatch> targets;
++    for (auto it = std::sregex_iterator(masked.begin(), masked.end(), target_re);
++         it != std::sregex_iterator(); ++it) targets.push_back(*it);
++    if (targets.empty()) throw std::runtime_error("PTX needs a .target directive");
++    auto effective = parse_ptx_target(requested);
++    for (const auto &match : targets)
++        effective = parse_ptx_target(compatible_ptx_target(parse_ptx_target(match[2]), effective));
++    // Validate all requirements against the final effective feature target.
++    for (const auto &match : targets) {
++        auto source = parse_ptx_target(match[2]);
++        if (compatible_ptx_target(source, effective) != effective.text)
++            throw std::runtime_error("Conflicting PTX target feature directives");
++        version = std::max(version, ptx_minimum(source.text));
++    }
++    version = std::max(version, ptx_minimum(effective.text));
++    struct replacement { std::size_t position, length; std::string value; };
++    const auto first = targets.front();
++    const auto ver = versions.front();
++    std::vector<replacement> changes = {
++        {static_cast<std::size_t>(ver.position(2)),
++         static_cast<std::size_t>(ver.position(3) + ver.length(3) - ver.position(2)),
++         std::to_string(version.first) + "." + std::to_string(version.second)}
++    };
++    for (const auto &target : targets)
++        changes.push_back({static_cast<std::size_t>(target.position(2)),
++                           static_cast<std::size_t>(target.length(2)), effective.text});
++    std::sort(changes.begin(), changes.end(), [](const auto &a, const auto &b) { return a.position > b.position; });
++    auto output = ptx;
++    for (const auto &change : changes) output.replace(change.position, change.length, change.value);
++    return {output, effective.text, original_version, first[2],
++            std::to_string(version.first) + "." + std::to_string(version.second)};
++}
++} // namespace bpftime::attach
+diff --git a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+@@ -2,6 +2,9 @@
+ #include "cuda.h"
+ #include "nvPTXCompiler.h"
+ #include "nv_attach_utils.hpp"
++#include "nv_attach_ptx_compatibility.hpp"
++#include <memory>
++#include <sstream>
+ #include "spdlog/spdlog.h"
+ #include "nv_attach_impl.hpp"
+ #include <boost/asio/post.hpp>
+@@ -110,21 +113,27 @@
+ 	unsigned major, minor;
+ 	NVPTXCOMPILER_CHECK_EXCEPTION(nvPTXCompilerGetVersion(&major, &minor),
+ 				      "Unable to get compiler version");
+-	SPDLOG_INFO("Compiler version: {}.{}", major, minor);
++	SPDLOG_INFO("Agent-linked compiler version: {}.{} (wrapper reports its own version)", major, minor);
+ 
+ 	std::map<std::string, std::vector<uint8_t>> compiled_ptx;
+ 	const auto &handler = impl.ptx_compiler;
++	std::mutex map_lock;
++	std::map<std::string, std::string> failures;
++	// Destroy/join workers before any referenced shared local on unwind.
+ 	boost::asio::thread_pool pool(std::thread::hardware_concurrency());
+-	std::mutex map_lock;
+ 	for (const auto &[name, ptx_and_trampoline_flag] : patched_ptx) {
+ 		const auto &ptx = std::get<0>(ptx_and_trampoline_flag);
+ 
+ 			boost::asio::post(
+ 				pool,
+-				[&handler, ptx, name, &compiled_ptx, &map_lock, this,
++				[&handler, ptx, name, &compiled_ptx, &map_lock, &failures, this,
+ 				 sm_arch]() -> void {
+-					const auto ptx_fixed =
+-						rewrite_ptx_target(ptx, sm_arch);
++                    try {
++                    const auto prepared = prepare_ptx_for_target(ptx, sm_arch);
++                    const auto &ptx_fixed = prepared.text;
++                    SPDLOG_INFO("PTX {}: input version={} target={}, effective version={} target={}, sha256={}",
++                        name, prepared.original_version, prepared.original_target,
++                        prepared.effective_version, prepared.target, sha256(ptx_fixed.data(), ptx_fixed.size()));
+ 					auto sha256_string =
+ 						sha256(ptx_fixed.data(), ptx_fixed.size());
+ 					if (auto itr =
+@@ -140,19 +149,19 @@
+ 					SPDLOG_INFO(
+ 						"Start compiling {}, not found in cache",
+ 						name);
+-					auto compiler = handler.create();
++					std::unique_ptr<nv_attach_impl_ptx_compiler, decltype(handler.destroy)> compiler(handler.create(), handler.destroy);
+ 					if (!compiler) {
+ 						throw std::runtime_error(
+ 							"Unable to create nv_attach_impl_ptx_compiler");
+ 					}
+ 						std::string gpu_name =
+-							"--gpu-name=" + sm_arch;
++							"--gpu-name=" + prepared.target;
+ 							const char *compile_options[] = {
+ 								gpu_name.c_str(), "--verbose",
+ 								"-O3"
+ 							};
+ 						if (auto err = handler.compile(
+-							    compiler, ptx_fixed.c_str(),
++							    compiler.get(), ptx_fixed.c_str(),
+ 							    compile_options,
+ 							    std::size(compile_options));
+ 						    err != 0) {
+@@ -160,20 +169,21 @@
+ 								"Unable to compile: {}, error = {}",
+ 							err,
+ 							handler.get_error_log(
+-								compiler));
+-						throw std::runtime_error(
+-							"Unable to compile");
++								compiler.get()));
++						throw std::runtime_error("Unable to compile module " + name +
++                            " target=" + prepared.target + " PTX_SHA256=" + sha256_string +
++                            ": " + handler.get_error_log(compiler.get()));
+ 					}
+ 					SPDLOG_DEBUG(
+ 						"Info: {}",
+-						handler.get_info_log(compiler));
++						handler.get_info_log(compiler.get()));
+ 					uint8_t *data;
+ 					size_t size;
+ 					handler.get_compiled_program(
+-						compiler, &data, &size);
++						compiler.get(), &data, &size);
+ 					std::vector<uint8_t> compiled_program(
+ 						data, data + size);
+-					handler.destroy(compiler);
++					compiler.reset();
+ 					std::lock_guard<std::mutex> _guard(
+ 						map_lock);
+ 					compiled_ptx[name] = compiled_program;
+@@ -181,11 +191,24 @@
+ 						sha256_string,
+ 						compiled_program));
+ 					SPDLOG_INFO("Compile of {} done", name);
+-				}
+-			});
+-	}
+-	pool.join();
+-	return compiled_ptx;
++                }
++                } catch (const std::exception &error) {
++                    std::lock_guard<std::mutex> guard(map_lock);
++                    failures[name] = error.what();
++                } catch (...) {
++                    std::lock_guard<std::mutex> guard(map_lock);
++                    failures[name] = "unknown PTX compilation exception";
++                }
++            });
++	}
++    pool.join();
++    if (!failures.empty()) {
++        std::ostringstream message;
++        message << "PTX compilation failed before module loading";
++        for (const auto &[name, error] : failures) message << "\n" << name << ": " << error;
++        throw std::runtime_error(message.str());
++    }
++    return compiled_ptx;
+ }
+ void fatbin_record::try_loading_ptxs(class nv_attach_impl &impl)
+ {
+diff --git a/attach/nv_attach_impl/ptx_compiler/ptx_compiler.cpp b/attach/nv_attach_impl/ptx_compiler/ptx_compiler.cpp
+--- a/attach/nv_attach_impl/ptx_compiler/ptx_compiler.cpp
++++ b/attach/nv_attach_impl/ptx_compiler/ptx_compiler.cpp
+@@ -7,6 +7,8 @@
+ #include <spdlog/spdlog.h>
+ #include <string>
+ #include <vector>
++#include <sstream>
++#include <dlfcn.h>
+ 
+ struct nv_attach_impl_ptx_compiler {
+ 	nvPTXCompilerHandle compiler = nullptr;
+@@ -71,26 +73,43 @@
+ 		return -1;
+ 	}
+ 
+-	if (auto err = nvPTXCompilerCompile(ptr->compiler, arg_count, args);
+-	    err != NVPTXCOMPILE_SUCCESS) {
+-		SPDLOG_ERROR("Unable to compile: {}", static_cast<int>(err));
+-		size_t error_size = 0;
+-		if (nvPTXCompilerGetErrorLogSize(ptr->compiler, &error_size) ==
+-			    NVPTXCOMPILE_SUCCESS &&
+-		    error_size > 0) {
+-			auto *error_log = (char *)malloc(error_size + 1);
+-			if (error_log) {
+-				error_log[0] = '\0';
+-				if (nvPTXCompilerGetErrorLog(ptr->compiler,
+-							     error_log) ==
+-				    NVPTXCOMPILE_SUCCESS) {
+-					ptr->error_log = error_log;
+-				}
+-				free(error_log);
+-			}
+-		}
+-		return -1;
+-	}
++
++    unsigned compiler_major = 0, compiler_minor = 0;
++    auto version_status = nvPTXCompilerGetVersion(&compiler_major, &compiler_minor);
++    Dl_info wrapper_info{};
++    dladdr(reinterpret_cast<const void *>(&nv_attach_impl_compile), &wrapper_info);
++    Dl_info compiler_info{}, version_info{};
++    dladdr(reinterpret_cast<const void *>(&nvPTXCompilerCompile), &compiler_info);
++    dladdr(reinterpret_cast<const void *>(&nvPTXCompilerGetVersion), &version_info);
++    std::ostringstream context;
++    context << "wrapper=" << (wrapper_info.dli_fname ? wrapper_info.dli_fname : "unknown")
++            << " compiler_owner=" << (compiler_info.dli_fname ? compiler_info.dli_fname : "unknown")
++            << " version_owner=" << (version_info.dli_fname ? version_info.dli_fname : "unknown")
++            << " nvPTXCompiler=" << compiler_major << "." << compiler_minor
++            << " version_status=" << static_cast<int>(version_status) << " options=";
++    for (int i = 0; i < arg_count; ++i) context << (i ? " " : "") << args[i];
++    SPDLOG_INFO("{}", context.str());
++    if (auto err = nvPTXCompilerCompile(ptr->compiler, arg_count, args);
++        err != NVPTXCOMPILE_SUCCESS) {
++        size_t error_size = 0;
++        auto size_status = nvPTXCompilerGetErrorLogSize(ptr->compiler, &error_size);
++        std::string error_text;
++        int log_status = -1;
++        if (size_status == NVPTXCOMPILE_SUCCESS && error_size > 0) {
++            std::vector<char> body(error_size + 1, '\0');
++            log_status = static_cast<int>(nvPTXCompilerGetErrorLog(ptr->compiler, body.data()));
++            if (log_status == static_cast<int>(NVPTXCOMPILE_SUCCESS)) error_text = body.data();
++        }
++        std::ostringstream error;
++        error << "nvPTXCompilerCompile result=" << static_cast<int>(err) << " " << context.str()
++              << " error_log_size=" << error_size
++              << " size_status=" << static_cast<int>(size_status)
++              << " log_status=" << log_status << " error_log="
++              << (error_text.empty() ? "<no compiler diagnostic retrieved>" : error_text);
++        ptr->error_log = error.str();
++        SPDLOG_ERROR("{}", ptr->error_log);
++        return -1;
++    }
+ 
+ 	size_t elf_size = 0;
+ 	nvPTXCompilerGetCompiledProgramSize(ptr->compiler, &elf_size);
+diff --git a/attach/nv_attach_impl/ptx_compiler/CMakeLists.txt b/attach/nv_attach_impl/ptx_compiler/CMakeLists.txt
+--- a/attach/nv_attach_impl/ptx_compiler/CMakeLists.txt
++++ b/attach/nv_attach_impl/ptx_compiler/CMakeLists.txt
+@@ -12,5 +12,5 @@
+ 
+ target_link_directories(nv_attach_impl_ptx_compiler PUBLIC ${CUDA_LIBRARY_PATH} )
+ 
+-target_link_libraries(nv_attach_impl_ptx_compiler PUBLIC ${CUDA_LIBS} spdlog::spdlog)
++target_link_libraries(nv_attach_impl_ptx_compiler PUBLIC ${CUDA_LIBS} spdlog::spdlog ${CMAKE_DL_LIBS})
+ set_property(TARGET nv_attach_impl_ptx_compiler PROPERTY CXX_STANDARD 20)
+diff --git a/cmake/cuda.cmake b/cmake/cuda.cmake
+--- a/cmake/cuda.cmake
++++ b/cmake/cuda.cmake
+@@ -59,6 +59,8 @@
+     find_library(NVPTXCOMPILER_LIB NAMES nvptxcompiler_static nvptxcompiler
+         PATHS ${BPFTIME_CUDA_ROOT}/targets/${CUDA_TARGET_ARCH}/lib/ ${BPFTIME_CUDA_ROOT}/lib64 NO_DEFAULT_PATH)
+     if(NVPTXCOMPILER_LIB)
++        file(SHA256 "${NVPTXCOMPILER_LIB}" NVPTXCOMPILER_SHA256)
++        message(STATUS "nvPTXCompiler library: ${NVPTXCOMPILER_LIB} SHA256=${NVPTXCOMPILER_SHA256}; CUDA root=${BPFTIME_CUDA_ROOT}; target=${CUDA_TARGET_ARCH}")
+         set(CUDA_LIBS cuda cudart ${NVPTXCOMPILER_LIB} ${CUDA_CUPTI_LIB} nvrtc PARENT_SCOPE)
+     else()
+         message(WARNING "nvptxcompiler library not found; targets using nvPTXCompiler API may fail to link")

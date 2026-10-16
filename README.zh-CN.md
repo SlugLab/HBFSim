@@ -8,7 +8,7 @@
 
 [English](README.md) | **简体中文**
 
-HBFSim 是一个全面评估 High-Bandwidth Flash（**HBF**）的平台，HBF 是一个把 NAND flash 堆叠在加速器封装内的内存层，有着媲美 HBM 的带宽和 SSD 的容量。首批 HBF 器件预计在 2027 年初送样。HBFSim 以极低的模拟代价在真实 GPU 上正常执行完整 LLM（如 Qwen3-30B），并在执行过程中对这个应用施加 HBF 的延时、容量与热效应。
+HBFSim 是一个全面评估 High-Bandwidth Flash（**HBF**）的平台，HBF 是第一个把 NAND flash 堆叠在加速器封装内的内存层，有着媲美 HBM 的带宽和 SSD 的容量。首批 HBF 器件预计在 2027 年初送样。HBFSim 以极低的模拟代价在真实 GPU 上正常执行完整 LLM（如 Qwen3-30B），并在执行过程中对这个应用施加 HBF 的延时、容量与热效应。
 
 📖 [HBF 快速介绍](#hbf-intro) \
 📦 [主要特性](#features) \
@@ -20,36 +20,39 @@ HBFSim 是一个全面评估 High-Bandwidth Flash（**HBF**）的平台，HBF �
 <a id="question"></a>
 ## 为什么是 HBFSim？设计目标是什么？
 
-LLM 推理服务受显存容量限制。设计者需要决定 HBM 与 HBF 各配多少容量、把哪些张量放进 HBF，但这些决定等不到 HBF 器件上市。下表中的现有方法都给不出答案：
+内存墙问题在 LLM 推理阶段越来越严重。LLM 服务受限制于 HBM 有限的容量和高昂的价格。因此工业界寄希望于 HBF。系统设计者需要评估 HBM 与 HBF 之间的组织架构，决定把哪些数据放进 HBF。传统的模拟器方法给不出答案：
 
-| 现有方法 | 为什么不够 |
-|---|---|
-| 固定 trace 回放 | HBF 的架构及其与 HBM 的组织关系都并无定论，换一种配置可能改变 LLM 的 KV 分配、数据迁移和 kernel 调用，而原配置下录制的 trace 不包含这些变化；重新采集或扩展 trace 要花大量时间，trace 回放本身也有很大的开销，因此无法快速模拟 HBF 下不同的架构选择。 |
-| 全 GPU 周期级模拟 | 完整 GPU 微架构模拟带来的开销不可接受：Accel-Sim 单线程模拟 lavaMD 的墙上时间超过 5 天（数据表见[为什么不能沿用传统评估方法](#methodology)一节）。 |
-| CPU / NVMe 拦截 | 拦截点不在 GPU 封装内访存路径上，不能直接移植等待时间。 |
-| 固定延迟与峰值带宽 | 无法单独说明运行中的排队、stack 负载、温度和刷新反馈。 |
+| 现有方法 | 执行真实负载 | 跑在真实硬件上 | 建模介质 | 建模温度 | 为什么不够 |
+|---|:---:|:---:|:---:|:---:|---|
+| 固定 trace 回放 | ✗ | ✗ | ✓ | ✗ | HBF 的架构及其与 HBM 的组织关系都并无定论，换一种配置可能改变 LLM 的 KV 分配、数据迁移和 kernel 调用，而原配置下录制的 trace 不包含这些变化；重新采集或扩展 trace 要花大量时间，trace 回放本身也有很大的开销，因此无法快速模拟 HBF 下不同的架构选择。 |
+| 全 GPU 周期级模拟 | ✓ | ✗ | ✓ | ✗ | 完整 GPU 微架构模拟带来的开销不可接受：Accel-Sim 单线程模拟 lavaMD 的墙上时间超过 5 天（数据表见[为什么不能沿用传统评估方法](#methodology)一节）。 |
+| CPU / NVMe 拦截 | ✓ | ✓ | ✓ | ✗ | 拦截点不在 GPU 封装内访存路径上。 |
+| 厂商参数表 | ✗ | ✗ | ✗ | ✗ | HBF 的时序参数尚未公布：规范把所有带时间量纲的数值都留给各厂商的产品数据表。参数表本身也不运行负载。 |
+| HBFSim | ✓ | ✓ | ✓ | ✓ | — |
+
+每一行写的是一类办法，不是某个具体产品，所以某个具体工具可能多出表里的某一项能力。
 
 HBFSim 的设计目标有下面四条：
 
 - **只模拟 HBF，计算交给真实 GPU**：[我们的论文](https://arxiv.org/abs/2609.09800)的核心判断是，评估 HBF 不需要模拟 GPU，只需要建模 HBF 对程序可见的影响。HBFSim 改写应用 kernel 的 PTX（NVIDIA 编译器生成的中间代码），只把注册为 HBF 的地址区间内的访问接入 HBF 模型；计算仍由真实 GPU 执行，普通显存访问保留原生路径。
-- **模拟速度快**：HBFSim 不在软件里重新模拟 GPU，因此不需要像周期级模拟器那样逐条模拟 warp 指令。GPU 本地快速路径还避免了逐请求的主机往返：同一个 Qwen3-30B 确定性用例，参考路径的模拟墙上时间是 44.469 s，快速路径是 2.014352 s（见[示例与验证](#examples)）。
+- **模拟速度快**：HBFSim 不在软件里重新模拟 GPU，因此不需要像周期级模拟器那样逐条模拟 warp 指令。GPU 本地快速路径还避免了逐请求的主机往返。按量级估算，HBFSim 的模拟速度约是基于 GPGPU-Sim 的 Accel-Sim 的 **4,650 倍**（766,423 ÷ 164.70）：**在 vLLM 上运行 Qwen3-30B、只注册一个权重张量的前 16,384 字节时，HBFSim 参考路径的端到端墙上时间是不带时序注入的基线的 164.70 倍**（基线 0.269996 s，带时序注入 44.469084 s；这个倍数包含注入的建模介质延迟，见[实验记录](docs/proofs/2026-08-11-vllm-exact-live-delay.md)）；**Accel-Sim 用 16 线程模拟 lavaMD，比真实硬件慢 766,423 倍**（见[为什么不能沿用传统评估方法](#methodology)一节的表格）。两者负载不同，这是量级对比，不是同一负载上的实测；Accel-Sim 的这个数也没有挂载 HBF 模块。
 - **改配置就能比较不同 HBF 架构，不用重录 trace**：每次实验都在真实 GPU 上重新运行负载本身，不回放旧的访问序列。HBF 参数写在 profile（`configs/profiles/` 下的 JSON 配置文件）里，换一组介质参数只需要换一份 profile；同一套地址注册既可以用 Timing-only 模式只研究延迟，也可以用 Capacity 模式研究超出物理显存的容量。
-- **回答具体的设计问题**：HBFSim 用来在真实 LLM 负载上评估下面几类问题：
-  - **HBM 与 HBF 的容量划分**：例如 GPU 显存留多少给 KV cache、多少权重放进 HBF；Capacity 模式让超出物理显存的逻辑容量也能运行，显存放不下的配置也能评估。
-  - **张量放置**：对象是权重、MoE expert 权重、共享前缀的 KV cache 这类读多写少的数据；例如 vLLM 运行 Qwen3-30B 时，把 MoE expert 权重放进 HBF 后推理会慢多少。
-  - **HBF 介质参数**：包括读写延迟、带宽与 stack 数；可选的 UCIe 多 stack 后端把 page 条带化到多个 stack 上。
-  - **温度带来的降速**：例如结温升高后可持续服务速率的下降，以及数据保持期限缩短后增加的刷新流量；这部分由可选的 EQ3 模块建模。
+- **回答具体的设计问题**：HBFSim 用来在真实 LLM 负载上评估各种问题，例如：
+  - **HBM 与 HBF 的容量划分**：HBF 和 HBM 的组织架构目前并无定论。目前至少有 4 种架构：HBM 作 HBF cache 的菊花链架构、HBF 和 HBM 并排放置占用 GPU 引脚的架构、全 HBF 架构以及 HBF 和 HBM 交织架构。如何衡量不同架构、不同 HBF 和 HBM 容量划分比例，是我们模拟器努力的方向之一。
+  - **数据放置**：权重、不同生命周期的 KV cache，哪些放到 HBM 上，哪些放到 HBF 上。
+  - **HBF 物理参数如何反过来影响架构设置**：HBF 高于 HBM 两个数量级的读写延迟极大地考验 LLM 的预取算法。此外，HBF 的 stack 数、UCIe 模拟以及 page 条带化也是我们的目标之一。
+  - **温度带来的降速**：例如结温升高后可持续服务速率的下降，以及数据保持期限缩短后增加的刷新流量。结温指芯片内部晶体管所在处的温度，比封装表面的温度高。HBF 与 GPU、HBM 同在一个封装里，GPU 发热会抬高 HBF 的温度；按 HBF 规范，结温达到阈值后，器件降低功耗，读写变慢。NAND 温度越高，数据保持期限越短，需要更频繁地刷新，而刷新也要占用带宽。模拟器如果不建模温度，报出的就是一个不随时间变化的速率，会高估 HBF 在长时间运行中的可持续服务速率。
 
 <a id="features"></a>
 ## 主要特性
 
-- **自动改写 PTX，无需手工修改 kernel**：HBFSim 使用派生自 bpftime / eGPU 的拦截路径，自动改写受支持的 PTX global load/store，不需要逐个手工修改 CUDA kernel。
-- **闭源 kernel 的 SASS→PTX 恢复（可选）**：让缺少 PTX 的闭源预编译 kernel 也能进入同一套插桩流程；普通入口默认关闭。
+- **自动改写 PTX，无需手工修改 kernel**：HBFSim 使用 eBPF 拦截 GPU 执行路径，自动改写受支持的 PTX global load/store，不需要逐个手工修改 CUDA kernel。
+- **闭源 kernel 的 SASS→PTX 恢复（可选）**：让缺少 PTX 的闭源预编译 kernel 也能进入同一套插桩流程。
 - **按地址注册，只给 HBF 地址计时**：应用通过 [C API](include/hbfsim/api.h) 注册 HBF 地址范围；未注册的地址保持原生访存路径，不注入 HBF 延迟。
 - **Timing-only 与 Capacity 两种模式**：Timing-only 模式下数据留在 GPU 显存中，只对已注册访问注入模拟延迟。Capacity 模式用文件承载逻辑数据，GPU 显存中的有界 page cache 保存常驻页面，让超出物理显存的逻辑容量也能运行；已在显存为 98 GB 的 GPU 上验证 110 GiB 逻辑地址范围的稀疏访问。
 - **两种时序后端**：`reference` 把请求交给在线 MQSim，使用详细介质服务模型；`fast` 根据所选 profile 在 GPU 本地计算时序，避免逐请求的主机往返；另有结合两者的 `hybrid` 模式。
 - **UCIe 多 stack（可选）**：建模 AXI 读传输、跨 stack 的 page 条带化与请求合并，通过 `HBFSIM_ENABLE_UCIE=ON` 启用；当前为只读接口，已完成 CPU 侧验证。
-- **热学与可靠性（可选 EQ3 模块）**：把结温、服务策略、数据保持期限与刷新连接起来。
+- **热学与可靠性（可选）**：把结温、服务策略、数据保持期限与刷新连接起来。
 - **启动前的覆盖检查**：coverage gate 在每次 kernel 启动前检查该次执行是否处于可建模范围；Capacity 地址可能进入无法证明安全的代码时，拒绝 kernel 启动。
 - **建模时间与墙上时间分开报告**：介质基准与 CUDA 微基准分别输出建模的器件时间和墙上时间，不把模拟器自身的开销算成 HBF 延迟。
 - **接入真实推理框架**：提供 vLLM 与 llama.cpp 适配器。
@@ -118,7 +121,7 @@ HBF 把 NAND flash 堆叠在加速器封装内，位于 HBM 之下、SSD 之上�
   <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim 架构：主机侧注册与 PTX 改写；真实 GPU 上的访问按是否落在已注册的 HBF 地址范围分成两支，已注册的在 Capacity 模式下由 GPU 显存里的 Frame cache 供给、未命中时由主机容量服务从 HBF 数据文件读页，未注册的照原路径访问；下方是在线 HBF 时序与热学模型" width="900">
 </div>
 
-**主机侧确定哪些访问需要建模，真实 GPU 执行计算，HBF 模型提供介质服务时间与容量行为。** 图中的实线框表示默认运行时组件，虚线框表示可选或实验组件；具体启用条件见[功能与配置](#configuration)。图中 registered 一支连到 Frame cache，对应 Capacity 模式；Timing-only 模式下，已注册访问的数据同样留在 GPU 显存原处，只由 Device helpers 的等待加上模拟延迟。
+**主机侧确定哪些访问需要建模，真实 GPU 执行计算，HBF 模型提供介质服务时间与容量行为。** 图中的实线框表示默认运行时组件，虚线框表示可选或实验组件；具体启用条件见[默认配置](#configuration)。图中 registered 一支连到 Frame cache，对应 Capacity 模式；Timing-only 模式下，已注册访问的数据同样留在 GPU 显存原处，只由 Device helpers 的等待加上模拟延迟。
 
 <a id="methodology"></a>
 ## 为什么不能沿用传统评估方法
@@ -224,10 +227,26 @@ EQ3 记录服务与维护相关统计，并在成功擦除时累加磨损计数�
 
 介质基准与 CUDA 微基准已分别输出建模时间和墙上时间，覆盖日志记录哪些启动实际经过了建模。当前尚无统一拆分四类时间的报告，因此性能比较应连同所用路径、profile 和原始记录一起解读。[实验记录](docs/proofs/) · [评估方法](docs/eval/)
 
+<a id="configuration"></a>
+## 默认配置
+
+默认构建提供地址注册、受支持 PTX 访存改写与覆盖检查、Timing / Capacity 两种模式，以及 MQSim 参考路径和 GPU 本地快速路径。以下选项用于控制额外组件；功能是否经过 GPU 验证，应结合对应模块文档判断。
+
+| 选项 | 默认值 | 用途 |
+|---|---|---|
+| `HBFSIM_ENABLE_CUDA` | `ON` | CUDA 插桩与运行时组件 |
+| `HBFSIM_ENABLE_MQSIM` | `ON` | MQSim 主机服务 |
+| `HBFSIM_ENABLE_UCIE` | `OFF` | UCIe 多 stack 只读后端，当前已验证 CPU 路径 |
+| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | llama.cpp 与 vLLM 集成测试 |
+| `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | 离线评估、预取敏感性模型与回放工具 |
+| `HBFSIM_ENABLE_TIMING_FUTURES` | `OFF` | 依赖点等待实验路径，要求 CUDA 13 与 `sm_120` |
+
+选项的传递方式、SASS 恢复与 EQ3 的启用、profile、4 KiB 研究基准与当前实现范围，见[配置细节](docs/reference/configuration-details.md)。
+
 <a id="integration"></a>
 ## 接入应用
 
-需要 Native Linux、CMake ≥ 3.25、Ninja、支持 C++20 的编译器、OpenSSL、Python 3 和 Git。GPU 组件需要 CUDA ≥ 12.8；特定实验路径的额外要求见[功能与配置](#configuration)。完整环境配置见 [RTX 5090 构建文档](docs/build/rtx-5090-environment.md)。
+需要 Native Linux、CMake ≥ 3.25、Ninja、支持 C++20 的编译器、OpenSSL、Python 3 和 Git。GPU 组件需要 CUDA ≥ 12.8；特定实验路径的额外要求见[默认配置](#configuration)。完整环境配置见 [RTX 5090 构建文档](docs/build/rtx-5090-environment.md)。
 
 ### 构建 GPU 组件并接入应用
 
@@ -296,22 +315,6 @@ HBFSim 的公开验证覆盖真实推理框架接入、权重注册与消费者�
 
 </details>
 
-<a id="configuration"></a>
-## 功能与配置
-
-默认构建提供地址注册、受支持 PTX 访存改写与覆盖检查、Timing / Capacity 两种模式，以及 MQSim 参考路径和 GPU 本地快速路径。以下选项用于控制额外组件；功能是否经过 GPU 验证，应结合对应模块文档判断。
-
-| 选项 | 默认值 | 用途 |
-|---|---|---|
-| `HBFSIM_ENABLE_CUDA` | `ON` | CUDA 插桩与运行时组件 |
-| `HBFSIM_ENABLE_MQSIM` | `ON` | MQSim 主机服务 |
-| `HBFSIM_ENABLE_UCIE` | `OFF` | UCIe 多 stack 只读后端，当前已验证 CPU 路径 |
-| `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | llama.cpp 与 vLLM 集成测试 |
-| `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | 离线评估、预取敏感性模型与回放工具 |
-| `HBFSIM_ENABLE_TIMING_FUTURES` | `OFF` | 依赖点等待实验路径，要求 CUDA 13 与 `sm_120` |
-
-选项的传递方式、SASS 恢复与 EQ3 的启用、profile、4 KiB 研究基准与当前实现范围，见[配置细节](docs/reference/configuration-details.md)。
-
 <a id="roadmap"></a>
 ## 路线图
 
@@ -327,11 +330,9 @@ HBFSim 的公开验证覆盖真实推理框架接入、权重注册与消费者�
 
 ### 正在推进
 
-- [ ] **完善等待与并发建模：** 提供满足准入条件的 profile，完成发射点 / 依赖点等待对照，推进运行时预取。
 - [ ] **修复写入与淘汰语义：** 按 4 KiB 编程单元建模写入，遵守顺序编程约束，修复 frame 生命周期竞争。
 - [ ] **完善介质数据复用：** 引入 page buffer 与跨 warp 页面驻留过滤，避免将重复访问重复计为介质读取。
 - [ ] **扩展多 stack 能力：** 增加写路径、GPU 验证及不同 stack 数量下的容量与带宽扫描。
-- [ ] **补齐验证与测量：** 留出点标定验证、fast/reference 同输入对照、四类时间拆分，以及端到端 prefill/decode 和正式工作负载评估。
 
 <a id="documentation"></a>
 ## 文档与代码导航
@@ -392,7 +393,7 @@ HBFSim/
 
 贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。提交性能或正确性结果时，请同时提供可复现命令、环境、profile、覆盖记录和原始输出，并明确数字对应建模时间还是墙上时间。
 
-使用问题可在 [Q&A](https://github.com/SlugLab/HBFSim/discussions/new?category=q-a)讨论；缺陷报告使用 [Issue 模板](https://github.com/SlugLab/HBFSim/issues/new?template=bug_report.yml)，代码贡献使用 [PR 模板](.github/pull_request_template.md)。参与者请遵守[行为准则](CODE_OF_CONDUCT.md)；安全漏洞按 [SECURITY.md](SECURITY.md) 私下报告。
+使用问题可在 [Q&A](https://github.com/SlugLab/HBFSim/discussions/new?category=q-a)讨论；缺陷报告使用 [Issue 模板](https://github.com/SlugLab/HBFSim/issues/new?template=bug_report.yml)，代码贡献使用 [PR 模板](.github/pull_request_template.md)。参与者请遵守[行为准则](CODE_OF_CONDUCT.md)。
 
 <a id="acknowledgements"></a>
 ## 许可证与致谢

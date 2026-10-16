@@ -8,24 +8,131 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-LLM inference is constrained by GPU memory capacity. High-Bandwidth Flash (HBF) brings high-capacity NAND into the accelerator package, providing a new capacity tier for HBM. However, more capacity does not automatically mean faster inference: how capacity is split between HBM and HBF, which data should go into HBF, and thermal throttling after long runs all change how the system behaves. Evaluating these design decisions cannot wait until the hardware is on the market.
+HBFSim is an evaluation platform for High-Bandwidth Flash (**HBF**), a memory tier that
+stacks NAND flash inside the accelerator package, one tier below high-bandwidth memory. HBF
+parts cannot be bought today: the first technical specification was published by SanDisk and
+SK hynix through the Open Compute Project on August 3, 2026, and the first inference devices
+are expected to sample in early 2027. HBFSim lets an application execute normally on a real
+GPU and applies HBF timing, capacity, and thermal effects to that application during
+execution, instead of recording an access sequence and replaying the recorded sequence
+afterwards.
 
-**HBFSim is an open-source simulator that models HBF timing, capacity, and thermal effects online, during execution on a real GPU.** We do not re-simulate the entire GPU in software, nor do we treat a prerecorded access sequence as the workload itself. HBFSim rewrites the PTX of application kernels and routes accesses within registered address ranges into the HBF model; computation is still executed by the real GPU, and ordinary GPU memory accesses keep their native path. With HBFSim, researchers can explore how HBM–HBF capacity configurations, tensor placement, and media parameters affect real workloads. [Paper](https://arxiv.org/abs/2609.09800)
+🚀 [Quick start](#quickstart) \
+⚙️ [How it works](#mechanisms) \
+📊 [What HBFSim has measured](#examples) \
+📄 [Paper on arXiv](https://arxiv.org/abs/2609.09800) \
+📝 [Open work in TODO.md](TODO.md)
 
-## Contents
+<a id="question"></a>
+## The question HBFSim answers
 
-[Introduction to HBF](#hbf-intro) · [Overall architecture](#architecture) · [Why traditional evaluation methods cannot be reused](#methodology) · [Core mechanisms](#mechanisms)
+Serving a large language model is limited by memory capacity, and a designer choosing how
+much HBF capacity to buy, or which tensors to place in HBF, cannot wait for silicon. Three
+existing methods do not settle that decision:
 
-[Quick start](#quickstart) · [Examples and validation](#examples) · [Features and configuration](#configuration) · [Roadmap](#roadmap)
+- a storage simulator that replays a recorded access sequence never executes the workload;
+- a GPU simulator does not run the real compute kernels; and
+- a cycle-accurate simulator cannot finish one large language model inference run in an acceptable time, so the simulator can only simulate one layer and extrapolate.
 
-[Documentation and code guide](#documentation) · [Paper and citation](#citation) · [Contributing](#contributing) · [License and acknowledgements](#acknowledgements)
+The core judgment of the [paper on arXiv](https://arxiv.org/abs/2609.09800) is that evaluating HBF does not require simulating the GPU; evaluating HBF requires modeling only the program-visible effects of HBF. HBFSim therefore applies HBF timing, capacity, and thermal effects to a real inference workload while that workload executes on a real GPU; HBFSim neither re-simulates the entire GPU in software nor treats a prerecorded access sequence as the workload itself. HBFSim rewrites the PTX (the intermediate code that the NVIDIA compiler generates) of application kernels so that only accesses within address ranges registered as HBF go into the HBF model; computation still runs on the real GPU, and ordinary GPU memory accesses keep their native path.
+
+Timing parameters come from a profile, which is a JSON configuration file under `configs/profiles/`. Only the `cd8p-vmem-p50` profile is calibrated from measurements of a real device: the measurements cover the complete software path on a Dell CD8P NVMe SSD, not HBF. The `conservative`, `nominal`, and `aggressive` profiles are synthetic and serve hypothetical sweeps. In the optional EQ3 thermal and reliability module, junction temperature sets both the rate HBF sustains and the retention deadline that forces refresh writes.
+
+HBFSim also provides:
+
+- Capacity mode, which backs logical data with a file so that logical capacity beyond physical GPU memory can run; sparse accesses to a 110 GiB logical address range have been validated on a GPU with 97,887 MiB of memory;
+- an optional UCIe multi-stack backend, currently a read-only interface;
+- optional SASS→PTX recovery, which lets precompiled kernels that lack PTX enter the same instrumentation flow;
+- adapters for vLLM and llama.cpp.
+
+<a id="quickstart"></a>
+## Quick start
+
+For the recorded research setup, see the [RTX 5090 build environment and full build
+commands](docs/build/rtx-5090-environment.md). For a build or runtime problem, use the
+[troubleshooting guide and report forms](docs/troubleshooting.md).
+
+SASS recovery is experimental and is **off by default** in the user entry point.
+The [SASS runtime tools](tools/sass_runtime/) explain how to opt in and how to
+report the layers whose bindings actually ran. Native PTX instrumentation is
+independent of this option.
+
+HBFSim needs native Linux, CMake 3.25 or newer, Ninja, a compiler with C++20 support,
+OpenSSL, and Python 3. The CUDA components need CUDA 12.8 or newer. The media simulator and
+the benchmark of the media simulator build without CUDA, which is the configuration below.
+
+```bash
+git clone https://github.com/SlugLab/HBFSim.git
+cd HBFSim
+
+HBFSIM_ENABLE_CUDA=OFF HBFSIM_ENABLE_MQSIM=ON ./scripts/bootstrap.sh
+cmake --build build -j"$(nproc)"
+ctest --test-dir build --output-on-failure
+```
+
+Configure succeeds, all 152 build targets build, and 31 of the 34 tests pass on a machine
+without CUDA. [TODO.md](TODO.md) records the three tests that do not pass and the reason for
+each of those three.
+
+
+### See one run
+
+The media benchmark runs without a GPU. It drives the online MQSim reference model with
+deterministic sequential requests and emits one JSON document:
+
+```console
+$ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
+    --requests 1024 --bytes 16384 --operation read --arrival-gap-ns 0
+{
+  "effective_profile": {
+    "aggregate_bandwidth_bytes_per_s": 512000000000,
+    "blocks_per_plane": 16,
+    "capacity_bytes": 68719476736,
+    "channels": 32,
+    "hbm_cache_bytes": 67108864,
+    "nand_technology": "SLC",
+    "plane_allocation_scheme": "CWDP",
+    "program_latency_ns": 100000,
+    "read_latency_ns": 10000
+  },
+  "engine": "mqsim-hbf-media-only",
+  "latency_ns": { "average": 170115, "p50": 164960, "p99": 329920 },
+  "modeled_bandwidth_bytes_per_s": 50852376333.65665,
+  "requests": { "completed": 1024, "submitted": 1024 },
+  "simulator_requests_per_s": 6557.51045857279,
+  "timing_ns": { "modeled": 329920, "wall": 156156823 }
+}
+```
+
+Read the last two fields together. `timing_ns.modeled` is the device time HBFSim computed;
+`timing_ns.wall` is how long the computation itself took. The two are reported separately
+everywhere in HBFSim, because an emulator can be functionally correct while its own overhead
+exceeds the delay it models.
+
+<details>
+<summary>Test scope and CPU build troubleshooting</summary>
+
+CI runs the tests with the additional exclusion list `-E 'vmem_tuning|run_with_bpftime|context_lifecycle'`, so CI does not run all tests. `vmem_tuning` and `run_with_bpftime` involve a specific environment or external inputs, and `context_lifecycle` corresponds to a problem that has not been fixed yet; for details, see the [CI configuration](.github/workflows/ci.yml) and [TODO](TODO.md#validation). When the external calibration CSV is missing, `vmem_tuning` skips the byte-for-byte reproduction subtest that depends on the CSV.
+
+If the libbpf development package and clang are installed, a build without CUDA may report `CMake can not determine linker language for target: hbfsim_llama_probe_module`. Call CMake directly as described in the [environment runbook](docs/eval/runbooks/environment_setup.md) and add `-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON`; `bootstrap.sh` does not forward this option.
+
+When `--capacity-bytes` is not passed, the media benchmark limits capacity to 16 blocks per plane. The run shown in "See one run" above had an effective capacity of 64 GiB and a cache of 64 MiB, not the full configured values in `nominal.json`. Save `effective_profile` when comparing experiments.
+
+</details>
 
 <a id="hbf-intro"></a>
 ## Introduction to HBF
 
-> Already familiar with HBF? You can skip directly to [Overall architecture](#architecture).
+HBF stacks NAND flash inside the accelerator package, below HBM and above SSDs. According to Chapter 3 of the [v0.7.0 specification](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf), HBF has 8 to 16 times the capacity of HBM with the same read bandwidth as HBM; Section 4.1 and Table 4 of the specification give **512 GiB** as an example capacity per stack and **3.072 TB/s** as the user bandwidth per stack at the highest speed grade. HBF cannot be bought yet: SanDisk plans to ship samples of its first HBF inference products in 2027 (according to [StorageReview's report on the SanDisk investor day in August 2026](https://www.storagereview.com/news/sandisk-tapes-out-its-first-hbf-memory-die-targets-2027-for-inference-product-samples)), while the timeline SK hynix showed at FMS 2026 places HBF samples in early 2028 (according to an article by Forbes contributor Thomas Coughlin, [reprinted by Yahoo](https://ca.news.yahoo.com/high-bandwidth-flash-advances-2026-040711224.html)).
 
-HBF stacks NAND flash inside the accelerator package and is positioned between HBM and SSDs: it holds part of the data with higher capacity, while aiming for read bandwidth close to that of HBM. The OCP v0.7.0 specification gives **512 GiB** as an example capacity per stack, and the user bandwidth of the highest speed grade is **3.072 TB/s**. But HBF is not a cheaper HBM: longer read latency, limited writes and endurance, plus temperature-dependent service rates and refresh overhead, make data placement, prefetching, and capacity management critical. Model weights, MoE expert weights, and reusable prefix KV are worth studying; not all data should be migrated into HBF. See the [OCP specification](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf) and the [background in the paper](https://arxiv.org/abs/2609.09800).
+Temperature slows HBF down: the specification defines thermal throttling, in which the device lowers its power once the junction temperature reaches a threshold, so reads and writes slow down and, in severe cases, operations pause. The specification also guarantees 24 hours of data retention at 85 °C while the device is powered on, and refresh is typically needed every 24 to 48 hours (Chapter 9 and Section 11.5). HBF shares the package with the GPU and HBM, so heat from the GPU raises the temperature of HBF. The thermal state of the GPU also changes performance: we measured the same BF16 8192x8192 matrix multiply running alone on the same GPU at 379.117 TFLOP/s with the GPU cold and at 348.427 TFLOP/s with the GPU hot, 8.10% lower; the drop comes from the GPU compute chip lowering its own clock, not from the HBF rate ([experiment record](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)).
+
+Industry evaluations of HBF do not agree, and each draws its conclusions from its own testing or models: SanDisk's HBF fact sheet from July 2025 states that its numbers come from internal testing and simulation; the [H³ paper](https://doi.org/10.1109/LCA.2026.3660969) by SK hynix researchers uses an internal simulator; a HotInfra '26 workshop [paper](https://hotinfra.org/2026/papers/hotinfra26-final83.pdf) by three Micron researchers uses a roofline analytical model, which the authors say does not necessarily represent Micron's official position; Oxmiq Labs used rack-scale simulation at Hot Chips 2026 ([ServeTheHome report](https://www.servethehome.com/oxmiq-labs-hbf-in-ai-compute-at-hot-chips-2026/)). Design decisions such as how much capacity to give HBM versus HBF, or which tensors to place in HBF, cannot wait for the devices to reach the market. HBFSim is used to evaluate the following on real LLM workloads:
+
+- the capacity split between HBM and HBF;
+- tensor placement, for read-mostly data such as weights, MoE expert weights, and the KV cache of shared prefixes;
+- HBF media parameters, including read and write latency, bandwidth, and the number of stacks;
+- slowdown caused by temperature.
 
 <a id="architecture"></a>
 ## Overall architecture
@@ -41,6 +148,13 @@ HBF stacks NAND flash inside the accelerator package and is positioned between H
 
 **Evaluating HBF cannot mean only swapping in a new set of memory parameters for an existing GPU model, nor substituting a fixed trace for real execution after the capacity configuration changes.** The question we need to answer is how the same inference system runs under a different HBM–HBF configuration, not only how long the same sequence of requests takes in another media model.
 
+| Problem | Why it is not enough |
+|---|---|
+| Fixed trace | **Replaying an old access sequence with new parameters is not the same as executing a system that uses the new capacity configuration.** |
+| Full-GPU cycle-level simulation | The variable under study is HBF; re-simulating the entire GPU should not be a prerequisite for every experiment. |
+| CPU / NVMe interception | The interception point is not on the in-package GPU memory-access path, so the wait time measured at the interception point cannot be carried over directly. |
+| Fixed latency and peak bandwidth | Fixed latency and peak bandwidth alone cannot account for queueing, stack load, temperature, and refresh feedback during a run. |
+
 ### Fixed trace replay cannot generate execution behavior under a new configuration by itself
 
 A change in HBM capacity can change resident tensors, KV allocation, data migration, and kernel invocations. A trace recorded under the original configuration does not automatically gain the instructions that the new configuration needs to execute, nor does it automatically drop migrations that are no longer needed. **Replaying the same trace with new parameters is not the same as rerunning the system with the new capacity configuration.** Re-collecting traces, extending traces, or adding a feedback mechanism requires separately solving how the changes caused by the new configuration are generated. [Analysis in the paper](https://arxiv.org/abs/2609.09800)
@@ -53,28 +167,9 @@ If the variables under study are HBF capacity, service time, and data placement,
 
 Host page tables, CPU performance counters, and NVMe queues are valid interception locations in their respective systems, but **in-package HBF loads/stores issued by the GPU do not pass through these locations**. Moving the wait time of a host-side I/O directly onto a GPU memory access does not mean that HBF has been simulated. HBFSim places the hook point for supported accesses inside the GPU kernel. [PTX instrumentation design](docs/skills/02-ptx-instrumentation.md)
 
-### Peak bandwidth and fixed latency cannot replace runtime contention and thermal feedback
-
-The same total capacity and peak bandwidth can correspond to different request queueing, stack load, temperature, and refresh overhead. Ignoring the variation in queueing, stack load, temperature, and refresh overhead yields only an estimate under the configured parameters, and that estimate cannot answer how the system behaves during sustained operation. Measurement-based calibration must also separate media time from software-path overhead, and must not treat the latency of the NVMe software stack as the raw media latency of HBF. [Documentation index](docs/README.md)
-
-```mermaid
-flowchart TB
-    subgraph Trace["Fixed trace replay"]
-        T1["Run the workload under the original capacity configuration"] --> T2["Record the access sequence"]
-        T2 --> T3["Change media parameters and replay offline"]
-        T3 --> T4["Get new timing for the original access sequence"]
-    end
-    subgraph Cycle["Full-GPU cycle-level simulation"]
-        C1["Program or GPU instruction trace"] --> C2["Simulate the GPU and memory system in software"]
-        C2 --> C3["Execution cost limits model scale and parameter sweeps"]
-    end
-    subgraph Live["HBFSim: real execution and online modeling"]
-        H1["Choose capacity, placement policy, and HBF profile"] --> H2["Run the workload on a real GPU"]
-        H2 --> H3["Model HBF online from actual accesses"]
-        H3 --> H4["Complete the access and continue execution"]
-        H4 --> H2
-    end
-```
+<div align="center">
+  <img src="docs/assets/hbfsim-comparison.png" alt="Three evaluation routes: fixed trace replay computes new timing for the old access sequence; full-GPU cycle-level simulation re-simulates the whole GPU for every experiment; HBFSim runs the workload on a real GPU and models HBF online only for the accesses that actually happen" width="900">
+</div>
 
 The choice HBFSim makes is: **keep the real computation and the accesses as they happen, and model only the program-visible effects of HBF.** HBFSim does not replace the whole system with a simpler formula; HBFSim limits the part that must be simulated to HBF and avoids reimplementing GPU execution.
 
@@ -104,23 +199,7 @@ After a real GPU issues a load, the GPU can keep executing instructions that do 
 
 The **experimental dependency-point waiting path** of HBFSim separates issue from consumption: at issue, the path records a device future; at the first instruction that uses the result, the path waits for any simulated service that has not yet finished.
 
-```mermaid
-sequenceDiagram
-    participant W as GPU warp
-    participant F as HBF device future
-    Note over W,F: Dependency-point waiting path (illustration)
-    W->>F: Issue the access and record the simulated completion time
-    W->>W: Keep executing instructions that do not depend on the result
-    W->>F: Reach the first instruction that uses the result
-    alt Simulated service already finished
-        F-->>W: No extra wait
-    else Simulated service not yet finished
-        F-->>W: Wait for the remaining time
-    end
-    W->>W: Use the result and continue execution
-```
-
-**The default build still uses issue-point waiting; the diagram above corresponds to the experimental path, which must be enabled explicitly.** Dependency-point waiting requires `HBFSIM_ENABLE_TIMING_FUTURES=ON`, CUDA 13, and `sm_120`, and currently covers loads in Timing ranges and the `fast` scalar model. On an RTX 5090, 6 wait-semantics cases have passed; for the admission conditions of the matching profiles and the limits of the existing configurations, see the [implementation and validation notes](docs/52-main-gpu-thermal-integration/README.md) and the [defect review](docs/51-defect-review-and-fixes.md).
+**The default build still uses issue-point waiting; dependency-point waiting is an experimental path that must be enabled explicitly.** Dependency-point waiting requires `HBFSIM_ENABLE_TIMING_FUTURES=ON`, CUDA 13, and `sm_120`, and currently covers loads in Timing ranges and the `fast` scalar model. On an RTX 5090, 6 wait-semantics cases have passed; for the admission conditions of the matching profiles and the limits of the existing configurations, see the [implementation and validation notes](docs/52-main-gpu-thermal-integration/README.md) and the [defect review](docs/51-defect-review-and-fixes.md).
 
 ### 3. GPU memory and capacity service: studying "slower memory" and "larger memory" separately
 
@@ -130,22 +209,6 @@ sequenceDiagram
 | **Capacity** | A file backs the logical data, and a bounded page cache in GPU memory holds resident pages | Logical capacity beyond physical GPU memory, paging, and cache behavior |
 
 The two modes share address registration, coverage rules, and profiles. In Capacity mode, file mappings in the same context share one bounded page cache: a hit accesses a resident frame; on a miss, the host capacity service reads the exact page bytes from the backing file and counts a simulated media read; evicting a dirty page involves a write-back to the backing file and a simulated media program.
-
-```mermaid
-flowchart TB
-    A["GPU kernel issues a memory access"] --> B{"Address registered as HBF?"}
-    B -->|No| N["Native GPU memory access"]
-    B -->|Yes| M{"Registration mode"}
-    M -->|Timing-only| T["Data stays in GPU memory<br/>Inject modeled HBF timing"]
-    M -->|Capacity| C{"GPU page cache hit?"}
-    C -->|Yes| F["Access the resident frame"]
-    C -->|No| P["Host capacity service reads the backing page<br/>Evicts and handles dirty pages when needed"]
-    P --> Q["Fill the frame<br/>Count MQSim media service"]
-    Q --> F
-    N --> R["Return data and continue real execution"]
-    T --> R
-    F --> R
-```
 
 > **The Capacity eviction path still has known correctness problems:** a frame may be reused before the GPU finishes consuming the frame, and rewriting dirty pages in place also violates the sequential programming constraint of HBF. Experiments that involve eviction or writes should first check the [defect description](docs/51-defect-review-and-fixes.md) and the [fix plan](TODO.md#correctness-and-fidelity). The published 110 GiB sparse-access validation did not go through the eviction path.
 
@@ -169,18 +232,6 @@ The optional **UCIe multi-stack backend** further models AXI read transfers, pag
 
 The optional **EQ3 module** connects junction temperature, service policy, data retention deadlines, and refresh. Temperature is not just a column at the end of a report: temperature affects the sustainable service rate and also shortens data retention deadlines; the refresh performed to retain data in turn adds read/write traffic and maintenance overhead.
 
-```mermaid
-flowchart LR
-    A["Workload and thermal inputs"] --> T["Junction temperature model"]
-    T --> S["Service policy<br/>rate and admission"]
-    T --> D["Data retention deadline"]
-    D --> R["Refresh demand<br/>read, then rewrite"]
-    R --> Q["Foreground requests and maintenance traffic"]
-    Q --> T
-    S --> E["Service time and statistics output"]
-    Q --> E
-```
-
 EQ3 records service and maintenance statistics and increments a wear count on each successful erase; there is currently no lifetime model for outputting MTBF. For the module design, how to enable the module, and validation records, see the [EQ3 thermal documentation](docs/eq3_thermal/README.md) and the [system thermal experiments](experiments/eq3_system_thermal/README.md).
 
 ### 6. Coverage and reporting: separating device behavior from simulator overhead
@@ -189,55 +240,12 @@ When interpreting results, distinguish **modeled device time, host service time,
 
 The media benchmark and the CUDA microbenchmarks already output modeled time and wall-clock time separately, and the coverage log records which launches were actually modeled. No report yet splits all four kinds of time in one place, so performance comparisons should be read together with the path used, the profile, and the raw records. [Experiment records](docs/proofs/) · [Evaluation methods](docs/eval/)
 
-<a id="quickstart"></a>
-## Quick start
+<a id="integration"></a>
+## Integrating an application
 
 Requires native Linux, CMake ≥ 3.25, Ninja, a compiler with C++20 support, OpenSSL, Python 3, and Git. The GPU components require CUDA ≥ 12.8; for the additional requirements of specific experimental paths, see [Features and configuration](#configuration). For the complete environment setup, see the [RTX 5090 build documentation](docs/build/rtx-5090-environment.md).
 
-### 1. Build and run the media benchmark, no GPU required
-
-```bash
-git clone https://github.com/SlugLab/HBFSim.git
-cd HBFSim
-
-HBFSIM_ENABLE_CUDA=OFF HBFSIM_ENABLE_MQSIM=ON ./scripts/bootstrap.sh
-cmake --build build -j"$(nproc)"
-
-# Same test scope as the current CI
-ctest --test-dir build --output-on-failure \
-  -E 'vmem_tuning|run_with_bpftime|context_lifecycle'
-
-./build/hbf_mqsim_bench \
-  --profile configs/profiles/nominal.json \
-  --requests 1024 --bytes 16384 \
-  --operation read --arrival-gap-ns 0
-```
-
-The benchmark outputs JSON containing the effective configuration, the number of completed requests, simulated latency, and wall-clock time. Check `requests.completed` first, then interpret the results using `timing_ns.modeled` together with `timing_ns.wall`. `nominal.json` uses synthetic parameters and does not represent measured values from an HBF device.
-
-<details>
-<summary>Test scope, CPU build troubleshooting, and example output</summary>
-
-The test command above reuses the CI exclusion list and does not mean that all tests were run. `vmem_tuning` and `run_with_bpftime` involve a specific environment or external inputs, and `context_lifecycle` corresponds to a problem that has not been fixed yet; for details, see the [CI configuration](.github/workflows/ci.yml) and [TODO](TODO.md#validation). When the external calibration CSV is missing, `vmem_tuning` skips the byte-for-byte reproduction subtest that depends on the CSV.
-
-If the libbpf development package and clang are installed, a build without CUDA may report `CMake can not determine linker language for target: hbfsim_llama_probe_module`. Call CMake directly as described in the [environment runbook](docs/eval/runbooks/environment_setup.md) and add `-DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON`; `bootstrap.sh` does not forward this option.
-
-The following is an excerpt of a historical output from commit `0a0ae42` (2026-09-19), shown only to explain the fields:
-
-```json
-{
-  "engine": "mqsim-hbf-media-only",
-  "latency_ns": { "average": 170115, "p50": 164960, "p99": 329920 },
-  "requests": { "completed": 1024, "submitted": 1024 },
-  "timing_ns": { "modeled": 329920, "wall": 156156823 }
-}
-```
-
-When `--capacity-bytes` is not passed, the media benchmark limits capacity to 16 blocks per plane. The historical run above had an effective capacity of 64 GiB and a cache of 64 MiB, not the full configured values in `nominal.json`. Save `effective_profile` when comparing experiments.
-
-</details>
-
-### 2. Build the GPU components and connect an application
+### Build the GPU components and connect an application
 
 The following commands use a separate build directory; replace the CUDA path with the actual installation location on your machine.
 

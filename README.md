@@ -420,11 +420,10 @@ GPU run.
   <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: host-side SASS recovery, a PTX pass, and a registry of HBF address ranges; a real GPU running vLLM, where rewritten accesses wait for the modeled device time through the Device ABI; a GPU memory tier (labeled HBM tier) with a native path and a frame cache; a host capacity service with a backing file and a prefetcher; and HBF modeling with online MQSim, the UCIe multistack interface, and the thermal and reliability model" width="900">
 </div>
 
-The parts of the figure fall into three status classes, and the legend shows how each class is
-drawn. The first class is part of the default runtime; the second class is an option that must be
-turned on explicitly; the third class is an offline model and is not
-in the runtime (in the figure, only the Prefetcher belongs to the third class). The D1–D6 labels next to boxes refer to the six subsections of the
-Design section in the arXiv paper.
+The parts of the figure fall into two status classes, and the legend shows how each class is
+drawn: a solid box is part of the default runtime, and a dashed box is an option that must be
+turned on explicitly. The D1–D6 labels next to boxes refer to the six subsections of the Design
+section in the arXiv paper.
 
 - **Host-side preparation.** The PTX pass rewrites a module, and the coverage gate uses the result
   to decide whether a kernel launch is admitted or rejected; the Registry records which address ranges are registered as HBF. SASS
@@ -442,8 +441,9 @@ Design section in the arXiv paper.
   capacity-mode page cache held in GPU memory. The RTX PRO 6000 used in the experiments has GDDR7
   memory, which plays the role of HBM in the experiments.
 - **Host capacity service.** The host capacity service supplies exact page bytes from a backing
-  file. The Prefetcher belongs to the third class: `main` has only an offline sensitivity model
-  that is not built by default, and runtime prefetching is not on `main`.
+  file. The Prefetcher is opt-in: `main` has only an offline sensitivity model, built only when
+  the build option `HBFSIM_ENABLE_EVAL_TOOLS` (off by default) is on, and runtime prefetching is not
+  on `main`.
 - **HBF modeling: timing.** The MQSim reference path (labeled Online MQSim in the figure) produces
   timing. UCIe multistack is opt-in. The UCIe multistack interface carries reads over the Advanced eXtensible Interface
   (**AXI**, the protocol layer that the specification runs on top of UCIe), stripes pages across

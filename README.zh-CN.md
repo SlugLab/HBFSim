@@ -180,12 +180,12 @@ HBFSim 区分四种时间：建模的器件时间、主机服务时间（HBFSim 
   <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim 架构：主机侧的 SASS 恢复、PTX pass 与 HBF 地址区间注册表，运行 vLLM 的真实 GPU（改写后的访问经 Device ABI 等待建模的器件时间），带原生路径与 frame cache 的 GPU 显存层（图中标为 HBM tier），带承载文件与 prefetcher 的主机容量服务，以及包含在线 MQSim、UCIe 多 stack 接口和热学与可靠性模型的 HBF 建模部分" width="900">
 </div>
 
-图里的部件按状态分三类，图例给出了每一类的画法：第一类是默认运行时的一部分；第二类是需要显式打开的选项；第三类是离线模型，不在运行时里（图中只有 Prefetcher 属于这一类）。框旁的 D1–D6 指 arXiv 论文 Design 一节的六个小节。
+图里的部件按状态分两类，图例给出了每一类的画法：实线框是默认运行时的一部分，虚线框是需要显式打开的选项。框旁的 D1–D6 指 arXiv 论文 Design 一节的六个小节。
 
 - **主机侧准备。** PTX pass 改写模块，覆盖检查据此决定放行还是拒绝；Registry 记下哪些地址区间注册成了 HBF。SASS 恢复（图中标为 SASS recovery）是需要显式打开的选项：SASS 是 NVIDIA GPU 实际执行的机器码，对只有 SASS、没有 PTX 的闭源或预编译 kernel，HBFSim 先把选定的 kernel 从 SASS 恢复成 PTX，再交给 PTX pass。
 - **真实 GPU。** vLLM 在真实 GPU 上服务 Qwen3-30B。改写过的 load/store 会调用 HBFSim 嵌进 PTX 模块里的设备端辅助函数，图中的 Device ABI 就是这组辅助函数的调用接口；Device ABI 按 Registry 判断地址有没有注册成 HBF。改写过的 load/store 访问注册过的地址时，等待建模的器件时间；timing 区间里不能改写的访问照常执行，所在的那次启动记为没有建模（`opaque_unmodeled_timing`）。
 - **GPU 显存这一层（图中标为 HBM tier）。** 访问未注册的地址留在原生路径上，访问 capacity 区间由图中的 frame cache 供给，frame cache 就是 Capacity 模式里放在 GPU 显存里的 page cache。做实验的 RTX PRO 6000 显存是 GDDR7，在实验里扮演 HBM 的角色。
-- **主机容量服务。** 从承载文件里取出准确的 page 字节。Prefetcher 属于第三类：`main` 上只有一个默认不编译的离线敏感性模型，运行时预取不在 `main` 上。
+- **主机容量服务。** 从承载文件里取出准确的 page 字节。Prefetcher 是需要显式打开的选项：`main` 上只有一个离线敏感性模型，只在构建选项 `HBFSIM_ENABLE_EVAL_TOOLS`（默认关闭）打开时编译，运行时预取不在 `main` 上。
 - **HBF 建模：时序。** MQSim 参考路径（图中标为 Online MQSim）给出时序。UCIe 多 stack 接口（图中标为 UCIe multistack）是需要显式打开的选项，在 Advanced eXtensible Interface（**AXI**，规范在 UCIe 之上使用的协议层）上做读传输，把 page 跨 stack 条带化并合并请求，每个 stack 一个 MQSim worker。快速路径（时序模式名 `fast`）在 GPU 上直接计算，图中没有单独画出。
 - **HBF 建模：热学与可靠性。** 结温决定 HBF 能维持的速率与数据保持期限；期限逼近就必须刷新，也就是先读一遍再重写一遍；服务策略决定速率与准入；证据输出记录字节数、磨损与平均无故障时间（**MTBF**）。图中 Junction temp、Service policy、Retention、Refresh、Evidence 五个框就是热学与可靠性模型，仓库里名为 EQ3。EQ3 只在擦除成功时累加磨损计数，没有寿命模型，所以还不输出 MTBF。
 

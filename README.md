@@ -138,10 +138,10 @@ Industry evaluations of HBF do not agree, and each draws its conclusions from it
 ## Overall architecture
 
 <div align="center">
-  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: host-side registration and PTX instrumentation, real GPU execution, GPU memory and the file-backed capacity tier, and online HBF timing and thermal models" width="900">
+  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: host-side registration and PTX rewriting; on the real GPU, accesses split into two branches by whether they fall in a registered HBF address range: in Capacity mode a registered access is served by the frame cache in GPU memory, which the host capacity service fills from the HBF data file on a miss, and an unregistered access keeps its native path; below are the online HBF timing and thermal models" width="900">
 </div>
 
-**The host side determines which accesses need to be modeled, the real GPU executes the computation, and the HBF model provides media service time and capacity behavior.** In the figure, solid boxes denote default runtime components and dashed boxes denote optional or experimental components; for the specific conditions to enable each component, see [Features and configuration](#configuration).
+**The host side determines which accesses need to be modeled, the real GPU executes the computation, and the HBF model provides media service time and capacity behavior.** In the figure, solid boxes denote default runtime components and dashed boxes denote optional or experimental components; for the specific conditions to enable each component, see [Features and configuration](#configuration). In the figure, the registered branch to Frame cache applies to Capacity mode; in Timing-only mode, a registered access also keeps its data in place in GPU memory, and only the wait in Device helpers adds the modeled delay.
 
 <a id="methodology"></a>
 ## Why traditional evaluation methods cannot be reused

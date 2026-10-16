@@ -32,7 +32,10 @@ this file says where each kind of document lives.
   entry states what goes wrong concretely if the defect is not fixed.
 - [`eq3_thermal/`](eq3_thermal/) — the thermal and reliability model: design, verification against
   the specification, and its current status.
-- [`reference/`](reference/) — reference notes, including the CUDA architecture compatibility audit.
+- [`reference/`](reference/) — reference notes, including the CUDA architecture compatibility audit
+  and the [configuration details](reference/configuration-details.md) behind the README's option table.
+- [`build/`](build/) — the recorded RTX 5090 build environment, and the
+  [CPU-only build and test notes](build/cpu-build-and-tests.md) behind the README's Quick start.
 - [`ref_article/`](ref_article/) — the papers and specification captures HBFSim's claims are checked
   against. [`ref_article/README.md`](ref_article/README.md) records, for each one, the full citation,
   the open-access link, the file hash, and which part of it this project actually uses.

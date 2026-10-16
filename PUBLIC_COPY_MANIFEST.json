@@ -26,8 +26,8 @@
     },
     {
       "public_path": "README.zh-CN.md",
-      "bytes": 33625,
-      "sha256": "d847f63d30b6c031e9aa2918d80f1a32f2dc860c35c704876c629848c8b5a08e",
+      "bytes": 35289,
+      "sha256": "f54270babdaac2a93463a1ccb76f2e98d9612dde813c3d50b9dcc65e78c1a83d",
       "source_original_sha256": null,
       "kind": "new public documentation"
     },
@@ -383,10 +383,17 @@
     },
     {
       "public_path": "docs/README.md",
-      "bytes": 5526,
-      "sha256": "558650a94ad2667668e6c62e5085b165ce6c178474c974736ffa855db7dea5e3",
+      "bytes": 5800,
+      "sha256": "853ef6102afbe696ba06fdcb908442f5bc4da8d7eb4e3e87795c1ad08308ae1c",
       "source_original_sha256": "dabc2a0a31cac657de434d725ddd7363144f75128b0b553a0fa2ff015bf8ae36",
       "kind": "path-normalized public derivative"
+    },
+    {
+      "public_path": "docs/build/cpu-build-and-tests.md",
+      "bytes": 2093,
+      "sha256": "91cd3db3279f170774e15e6d5266bcdec6eaa9a6bc7a291c9215848e36422bd2",
+      "source_original_sha256": null,
+      "kind": "new public documentation"
     },
     {
       "public_path": "docs/build/rtx-5090-build-commands-20261015.json",
@@ -1402,6 +1409,13 @@
       "sha256": "8b0e8916e7ba091067665b4c729917f018f84e6351507bf77c91fb8dbb889a58",
       "source_original_sha256": "780a4b705d323ed362ce7ad9aa623e8b92f74a437b64abd44117974012eb8826",
       "kind": "path-normalized public derivative"
+    },
+    {
+      "public_path": "docs/reference/configuration-details.md",
+      "bytes": 3780,
+      "sha256": "fbbfd07446b6674daf81ad950b6220d66b30d31c4f807a3a213b45268865c817",
+      "source_original_sha256": null,
+      "kind": "new public documentation"
     },
     {
       "public_path": "docs/resume-contract.md",

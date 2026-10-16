@@ -17,8 +17,9 @@ entry. A known defect is a repair with a paper trail, not a new idea.
 
 ## Status at a glance
 
-No tagged release exists yet. The first tagged release is the repository presentation work listed
-under Done at the bottom of this file.
+Two releases are tagged: `v0.1.0`, the repository presentation work listed under Done at the bottom
+of this file, and `v0.1.1`, the UCIe multistack interface described in
+[docs/releases/v0.1.1.md](docs/releases/v0.1.1.md).
 
 HBFSim applies High-Bandwidth Flash (**HBF**) timing, capacity and thermal effects to an inference
 workload while the workload executes on a real GPU. Timing-only mode runs on a real GPU today:
@@ -156,6 +157,9 @@ Each entry below names the artifact inline, so the artifact is the evidence.
 - [x] Rewrite `README.md` around a runnable quick start, and add `README.zh-CN.md`, `TODO.md`, `CONTRIBUTING.md` and `docs/README.md`.
 - [x] Verify the public clone path end to end. On a machine holding no credential for the private Overleaf repository, `git clone --recurse-submodules https://github.com/SlugLab/HBFSim.git` checked out bpftime and MQSim and skipped `paper`; `HBFSIM_ENABLE_CUDA=OFF HBFSIM_ENABLE_MQSIM=ON ./scripts/bootstrap.sh` configured, all 152 targets built, and `ctest` reported 31 of 31 passing with the three environment-bound tests excluded.
 - [x] Tag the first release, `v0.1.0`, covering the repository presentation work in this section.
+- [x] Add the UCIe multi-stack interface and release `v0.1.1`, in commit `d2e6ce2`. `HBFSIM_ENABLE_UCIE` is off by default, the interface is read-only, and validation is CPU-side; the artifacts are `docs/releases/v0.1.1.md`, `docs/ucie/README.md` and `docs/proofs/2026-10-06-ucie-release-cpu.md`.
+- [x] Make SASS→PTX recovery optional and fix PTX target compatibility, in commit `fccfd23`. The ordinary entry point defaults to `HBFSIM_ENABLE_SASS_LIFTER=0`. Both bpftime build paths keep the PTX target features and report the compiler diagnostics. The artifacts are the "PTX compilation failures" section of `docs/troubleshooting.md` and `tests/integration/test_bpftime_ptx_compatibility.py`.
+- [x] Rewrite `README.md` and `README.zh-CN.md` around why an HBF simulator is needed, adding a Key features section and a Roadmap section. Redraw the architecture figure and the comparison figure in draw.io, as `docs/assets/hbfsim-architecture.drawio` and `docs/assets/hbfsim-comparison.drawio`.
 
 ## How to claim an entry
 

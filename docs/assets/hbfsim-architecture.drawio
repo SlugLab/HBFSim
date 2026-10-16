@@ -50,7 +50,7 @@
         <mxCell id="c4" value="HBM tier" style="text;html=1;whiteSpace=wrap;fontFamily=Helvetica;fontSize=22;fontStyle=1;fontColor=#397566;align=left;verticalAlign=middle;spacing=0;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="857" y="266" width="501" height="28" />
         </mxCell>
-        <mxCell id="app" value="&lt;b&gt;vLLM&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:18px&quot;&gt;Qwen3-30B&lt;/font&gt;" style="rounded=1;arcSize=7;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=22;fontColor=#192532;spacing=2;align=center;verticalAlign=middle;fillColor=#E8F0FC;strokeColor=#3D648F;strokeWidth=1.5;" vertex="1" parent="1">
+        <mxCell id="app" value="&lt;b&gt;vLLM&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:18px&quot;&gt;(Qwen3-30B ...)&lt;/font&gt;" style="rounded=1;arcSize=7;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=22;fontColor=#192532;spacing=2;align=center;verticalAlign=middle;fillColor=#E8F0FC;strokeColor=#3D648F;strokeWidth=1.5;" vertex="1" parent="1">
           <mxGeometry as="geometry" x="38" y="308" width="216" height="62" />
         </mxCell>
         <mxCell id="abi" value="&lt;b&gt;Device ABI&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:18px&quot;&gt;modeled wait per access&lt;/font&gt;" style="rounded=1;arcSize=7;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=22;fontColor=#192532;spacing=2;align=center;verticalAlign=middle;fillColor=#E8F0FC;strokeColor=#3D648F;strokeWidth=1.5;" vertex="1" parent="1">

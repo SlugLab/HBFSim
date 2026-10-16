@@ -32,14 +32,40 @@ The memory wall problem is becoming more and more severe in the LLM inference st
 
 HBFSim has the following four design goals:
 
-- **Simulate only HBF, and leave computation to the real GPU**: the core judgment of [our paper](https://arxiv.org/abs/2609.09800) is that evaluating HBF does not require simulating the GPU, only modeling the program-visible effects of HBF. HBFSim rewrites the PTX (the intermediate code that the NVIDIA compiler generates) of application kernels and routes only the accesses within address ranges registered as HBF into the HBF model; computation still runs on the real GPU, and ordinary GPU memory accesses keep their native path.
-- **Fast simulation**: HBFSim does not re-simulate the GPU in software, so HBFSim does not need to simulate warp instructions one by one the way a cycle-level simulator does. The GPU-local fast path also avoids a host round trip per request. HBFSim simulates about **4,650 times** as fast as HBF simulation based on GPGPU-Sim.
-- **Compare different HBF architectures by changing the configuration, without re-recording a trace**: every experiment reruns the workload itself on the real GPU and does not replay an old access sequence. HBF parameters are written in a profile (a JSON configuration file under `configs/profiles/`), and switching to another set of parameters only requires switching to another profile; the same address registration can be used either in Timing-only mode to study latency alone or in Capacity mode to study capacity beyond physical GPU memory.
-- **Answer concrete design questions**: HBFSim is used to evaluate various questions on real LLM workloads, for example:
-  - **Capacity split between HBM and HBF**: the organizational architecture of HBF and HBM is not settled yet. There are currently at least 4 architectures: a daisy-chain architecture in which HBM serves as a cache for HBF, an architecture in which HBF and HBM sit side by side and take up GPU pins, an all-HBF architecture, and an architecture that interleaves HBF and HBM. How to measure different architectures and different HBF-to-HBM capacity split ratios is one of the directions our simulator is working toward.
-  - **Data placement**: for weights and KV cache with different lifetimes, which to place on HBM and which to place on HBF.
-  - **How HBF physical parameters in turn affect architecture settings**: the read/write latency of HBF, two orders of magnitude higher than that of HBM, puts LLM KV prefetching algorithms to a severe test. In addition, the number of HBF stacks, UCIe simulation, and page striping are also among our goals.
-  - **Slowdown caused by temperature**: the temperature where the transistors sit inside the chip is higher than the temperature of the package surface. HBF shares the package with the GPU and HBM, so heat from the GPU raises the temperature of HBF; under the HBF specification, once the junction temperature reaches a threshold, the device lowers its power and reads and writes slow down. The hotter NAND gets, the shorter its data retention period, so refresh has to run more often, and refresh also takes bandwidth. A simulator that does not model temperature reports a rate that does not change over time, and so overestimates the sustainable service rate of HBF over a long run.
+**1. Simulate only HBF, and leave computation to the real GPU**
+
+- The core judgment of [our paper](https://arxiv.org/abs/2609.09800) is that evaluating HBF does not require simulating the GPU, only modeling the program-visible effects of HBF.
+- HBFSim routes only the accesses within address ranges registered as HBF into the HBF model; computation still runs on the real GPU, and ordinary GPU memory accesses keep their native path.
+
+**2. Fast simulation**
+
+- HBFSim does not re-simulate the GPU in software, so HBFSim does not need to simulate warp instructions one by one the way a cycle-level simulator does.
+- The GPU-local fast path also avoids a host round trip per request.
+- HBFSim simulates about **4,650 times** as fast as HBF simulation based on GPGPU-Sim.
+
+**3. Compare different HBF architectures by changing the configuration, without re-recording a trace**
+
+- Every experiment reruns the workload itself on the real GPU and does not replay an old access sequence.
+- HBF parameters are written in a profile (a JSON configuration file under `configs/profiles/`), and switching to another set of parameters only requires switching to another profile.
+- The same address registration can be used either in Timing-only mode to study latency alone or in Capacity mode to study capacity beyond physical GPU memory.
+
+**4. Answer concrete design questions**
+
+HBFSim is used to evaluate various questions on real LLM workloads, for example:
+
+- **Capacity split between HBM and HBF**: the organizational architecture of HBF and HBM is not settled yet. There are currently at least 4 architectures:
+  - a daisy-chain architecture in which HBM serves as a cache for HBF
+  - an architecture in which HBF and HBM sit side by side and take up GPU pins
+  - an all-HBF architecture
+  - an architecture that interleaves HBF and HBM
+
+  How to measure different architectures and different HBF-to-HBM capacity split ratios is one of the directions our simulator is working toward.
+- **Data placement**: for weights and KV cache with different lifetimes, which to place on HBM and which to place on HBF.
+- **How HBF physical parameters in turn affect architecture settings**: the read/write latency of HBF, two orders of magnitude higher than that of HBM, puts LLM KV prefetching algorithms to a severe test. In addition, the number of HBF stacks, UCIe simulation, and page striping are also among our goals.
+- **Slowdown caused by temperature**: the temperature where the transistors sit inside the chip is higher than the temperature of the package surface.
+  - The hotter NAND gets, the shorter its data retention period, so refresh has to run more often, and refresh also takes bandwidth.
+  - A simulator that does not model temperature reports a rate that does not change over time, and so overestimates the sustainable service rate of HBF over a long run.
+  - How heat slows HBF down is explained in the [HBF primer](#hbf-intro).
 
 <a id="features"></a>
 ## Key features

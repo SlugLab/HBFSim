@@ -1,6 +1,6 @@
      Locking 50 packages to latest compatible versions
 warning: use of deprecated enum `winnow::error::ErrorKind`
-  --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:10:30
+  --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:10:30
    |
 10 | use winnow::error::{ErrMode, ErrorKind};
    |                              ^^^^^^^^^
@@ -8,397 +8,397 @@ warning: use of deprecated enum `winnow::error::ErrorKind`
    = note: `#[warn(deprecated)]` on by default
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-  --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:16:5
+  --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:16:5
    |
 16 |     PResult,
    |     ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:158:61
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:158:61
     |
 158 | fn ident<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<&'input str> {
     |                                                             ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:174:65
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:174:65
     |
 174 | fn dot_ident<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<&'input str> {
     |                                                                 ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:188:59
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:188:59
     |
 188 | fn num<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(&'input str, u32, bool)> {
     |                                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:229:68
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:229:68
     |
 229 | fn int_immediate<'a, 'input>(input: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
     |                                                                    ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:256:59
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:256:59
     |
 256 | fn f32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<f32> {
     |                                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:267:59
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:267:59
     |
 267 | fn f64<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<f64> {
     |                                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:278:59
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:278:59
     |
 278 | fn s32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<i32> {
     |                                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:289:58
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:289:58
     |
 289 | fn u8<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u8> {
     |                                                          ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:300:59
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:300:59
     |
 300 | fn u32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u32> {
     |                                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:314:64
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:314:64
     |
 314 | fn constant<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
     |                                                                ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:327:71
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:327:71
     |
 327 | fn immediate_value<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::ImmediateValue> {
     |                                                                       ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:342:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:342:6
     |
 342 | ) -> PResult<ast::RegOrImmediate<&'input str>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:465:62
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:465:62
     |
 465 | fn module<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::Module<'input>> {
     |                                                              ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:486:68
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:486:68
     |
 486 | fn address_size<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                                    ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:492:63
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:492:63
     |
 492 | fn version<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u8, u8)> {
     |                                                               ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:498:62
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:498:62
     |
 498 | fn target<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u32, Option<char>)> {
     |                                                              ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:511:43
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:511:43
     |
 511 | fn shader_model<'a>(stream: &mut &str) -> PResult<(u32, Option<char>)> {
     |                                           ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:524:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:524:6
     |
 524 | ) -> PResult<Option<ast::Directive<'input, ast::ParsedOperand<&'input str>>>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:565:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:565:6
     |
 565 | ) -> PResult<(ast::LinkingDirective, ast::Variable<&'input str>)> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:581:60
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:581:60
     |
 581 | fn file<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                            ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:595:63
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:595:63
     |
 595 | fn section<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                               ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:610:74
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:610:74
     |
 610 | fn section_dwarf_line<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                                          ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:624:68
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:624:68
     |
 624 | fn any_bit_type<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                                    ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:630:69
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:630:69
     |
 630 | fn section_label<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                                     ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:638:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:638:6
     |
 638 | ) -> PResult<(
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:668:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:668:6
     |
 668 | ) -> PResult<ast::LinkingDirective> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:687:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:687:6
     |
 687 | ) -> PResult<ast::TuningDirective> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:700:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:700:6
     |
 700 | ) -> PResult<ast::MethodDeclaration<'input, &'input str>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:717:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:717:6
     |
 717 | ) -> PResult<Vec<ast::Variable<&'input str>>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:728:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:728:6
     |
 728 | ) -> PResult<Vec<ast::Variable<&'input str>>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:739:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:739:6
     |
 739 | ) -> PResult<ast::Variable<&'input str>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:743:64
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:743:64
     |
 743 | fn fn_input<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::Variable<&'input str>> {
     |                                                                ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:752:69
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:752:69
     |
 752 | fn tuple1to3_u32<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<(u32, u32, u32)> {
     |                                                                     ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:792:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:792:6
     |
 792 | ) -> PResult<Option<Vec<ast::Statement<ParsedOperandStr<'input>>>>> {
     |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:803:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:803:6
     |
 803 | ) -> PResult<Option<Statement<ParsedOperandStr<'input>>>> {
     |      ^^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Token`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:843:55
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:843:55
     |
 843 | ...                   winnow::error::ErrorKind::Token,
     |                                                 ^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:26
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:26
     |
 860 |         Err(ParserError::from_error_kind(stream, ErrorKind::Eof))
     |                          ^^^^^^^^^^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Eof`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:61
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:860:61
     |
 860 |         Err(ParserError::from_error_kind(stream, ErrorKind::Eof))
     |                                                             ^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:896:62
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:896:62
     |
 896 | fn pragma<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
     |                                                              ^^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:76
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:76
     |
 938 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
     |                                                                            ^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:910:10
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:910:10
     |
 910 |     ) -> PResult<((Option<u32>, Option<NonZeroU8>, ScalarType), &'input str)> {
     |          ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:957:6
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:957:6
     |
 957 | ) -> PResult<(Option<u32>, Option<NonZeroU8>, ScalarType)> {
     |      ^^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:76
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:76
     |
 986 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
     |                                                                            ^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:76
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:76
      |
 1016 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                                                            ^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:72
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:72
      |
 1044 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                                                        ^^^^^^
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Verify`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:72
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:72
      |
 1083 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                                                        ^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1104:72
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1104:72
      |
 1104 | fn array_dimensions<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<Vec<u32>> {
      |                                                                        ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1135:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1135:6
      |
 1135 | ) -> PResult<R, E>
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1162:68
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1162:68
      |
 1162 | fn global_space<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<StateSpace> {
      |                                                                    ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1171:68
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1171:68
      |
 1171 | fn method_space<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<StateSpace> {
      |                                                                    ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1181:61
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1181:61
      |
 1181 | fn align<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<u32> {
      |                                                             ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1185:69
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1185:69
      |
 1185 | fn vector_prefix<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<Option<NonZeroU8>> {
      |                                                                     ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1194:67
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1194:67
      |
 1194 | fn scalar_type<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ScalarType> {
      |                                                                   ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1227:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1227:6
      |
 1227 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1236:63
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1236:63
      |
 1236 | fn pred_at<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<ast::PredAt<&'input str>> {
      |                                                               ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1249:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1249:6
      |
 1249 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1255:71
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1255:71
      |
 1255 | fn debug_directive<'a, 'input>(stream: &mut PtxParser<'a, 'input>) -> PResult<()> {
      |                                                                       ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1278:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1278:6
      |
 1278 | ) -> PResult<ast::Statement<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1357:14
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1357:14
      |
 1357 |         ) -> PResult<ast::ParsedOperand<&'input str>> {
      |              ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1373:14
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1373:14
      |
 1373 |         ) -> PResult<Vec<ast::RegOrImmediate<&'input str>>> {
      |              ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1557:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1557:6
      |
 1557 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1572:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1572:6
      |
 1572 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1646:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1646:6
      |
 1646 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1686:6
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1686:6
      |
 1686 | ) -> PResult<ast::Instruction<ParsedOperandStr<'input>>> {
      |      ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
      |
 1846 | / derive_parser!(
 1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
@@ -412,7 +412,7 @@ warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResu
      = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 warning: use of deprecated unit variant `winnow::error::ErrorKind::Token`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
      |
 1846 | / derive_parser!(
 1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
@@ -426,55 +426,55 @@ warning: use of deprecated unit variant `winnow::error::ErrorKind::Token`
      = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1343:10
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1343:10
      |
 1343 |     ) -> PResult<ast::ParsedOperand<&'input str>> {
      |          ^^^^^^^
 
 warning: use of deprecated type alias `winnow::PResult`: Replaced with ModalResult
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1550:48
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1550:48
      |
 1550 |     fn parse_next(&mut self, input: &mut I) -> PResult<(Self, X), E> {
      |                                                ^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:841:45
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:841:45
     |
 841 |                         return Err(ErrMode::from_error_kind(
     |                                             ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:41
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:938:41
     |
 938 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
     |                                         ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-   --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:41
+   --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:986:41
     |
 986 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
     |                                         ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:41
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1016:41
      |
 1016 |                     return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                         ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:37
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1044:37
      |
 1044 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                     ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:37
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1083:37
      |
 1083 |                 return Err(ErrMode::from_error_kind(stream, ErrorKind::Verify));
      |                                     ^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `winnow::error::ParserError::from_error_kind`: replaced with `ParserError::from_input`
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:1846:1
      |
 1846 | / derive_parser!(
 1847 | |     #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy)]
@@ -488,7 +488,7 @@ warning: use of deprecated associated function `winnow::error::ParserError::from
      = note: this warning originates in the macro `derive_parser` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 warning: variable `nCols` should have a snake case name
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
      |
 4171 |     tcgen05.alloc.cta_group.sync.aligned taddr, [saddr], nCols => {
      |                                                          ^^^^^ help: convert the identifier to snake case: `n_cols`
@@ -496,19 +496,19 @@ warning: variable `nCols` should have a snake case name
      = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
 
 warning: variable `nCols` should have a snake case name
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4180:51
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4180:51
      |
 4180 |     tcgen05.dealloc.cta_group.sync.aligned taddr, nCols => {
      |                                                   ^^^^^ help: convert the identifier to snake case: `n_cols`
 
 warning: variable `nCols` should have a snake case name
-    --> /root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
+    --> ${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ptx_parser/src/lib.rs:4171:58
      |
 4171 |     tcgen05.alloc.cta_group.sync.aligned taddr, [saddr], nCols => {
      |                                                          ^^^^^ help: convert the identifier to snake case: `n_cols`
 
 warning: `ptx_parser` (lib) generated 82 warnings (2 duplicates)
-   Compiling pair_review_3 v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr3)
+   Compiling pair_review_3 v0.0.0 (${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr3)
 warning: unused import: `std::collections::HashMap`
   --> src/sass/instruction.rs:10:5
    |

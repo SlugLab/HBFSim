@@ -1,6 +1,6 @@
 {
   "schema": "hbfsim.supported_weights.source_freeze.v1",
-  "source_tree": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1",
+  "source_tree": "${HBFSIM_SOURCE}",
   "base_main_commit": "17d0fc58c0444789650ab40b4641802b5b6c2db8",
   "scope": "HBF/agent integration files owned by CPU source agent; root docs and execution tools separately owned",
   "historical_source_delta": "REPRODUCTION_HBFSIM_SOURCE_V2.patch includes preexisting successful helper changes; this integration did not introduce a new PTX rewrite or helper algorithm",
@@ -172,5 +172,5 @@
     "auto_prepare_ptx": 14,
     "strict_direct_policy_compile_and_run": "PASS"
   },
-  "test_raw_dir": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-cpu-tests-v1"
+  "test_raw_dir": "${EXPERIMENT_ROOT}/rebuttal_20260921/main-reproduction-cpu-tests-v1"
 }

@@ -24,14 +24,14 @@ historical inventory-generator invocation is required.
 ## Current source-grounded facts
 
 The checkpoint directory is
-`/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B`. Its model files link through
+`${EXPERIMENT_ROOT}/phase3/models/Qwen3-30B-A3B`. Its model files link through
 snapshot `ad44e777bcd18fa416d9da3bd8f70d33ebb85d39` into the existing read-only
 cache under
-`/home/victoryang00/.cache/huggingface/hub/models--Qwen--Qwen3-30B-A3B`.
+`${HF_HOME}/hub/models--Qwen--Qwen3-30B-A3B`.
 The directory name and cache blob names are identity hints, not authentication.
 
 The frozen donor is
-`/root/hbfsim-exp/results/hbm-hbf-capacity-qwen/20260901T023111Z/05-model-manifest.json`.
+`${EXPERIMENT_ROOT}/results/hbm-hbf-capacity-qwen/20260901T023111Z/05-model-manifest.json`.
 It has schema version 1 and is 15,545,674 bytes. Its historical
 `ModelFingerprint` is
 `af52de6efe45aa0e0fe9fe393985a25daa16306c440effe493a12ba10e03dda9`.
@@ -39,7 +39,7 @@ The definition includes full shard SHA-256 values. A header-only refresh cannot
 reissue that value as a newly verified payload fingerprint.
 
 The historical generator was located read-only at
-`/root/hbfsim-exp/results/hbm-hbf-capacity-qwen/20260901T023111Z/scripts/model_inventory.py`.
+`${EXPERIMENT_ROOT}/results/hbm-hbf-capacity-qwen/20260901T023111Z/scripts/model_inventory.py`.
 Do not invoke it: its `main` hashes complete shard payloads. Lines 31–32 and
 164–165 establish this exact metadata-only donor consistency calculation:
 

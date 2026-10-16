@@ -40,7 +40,7 @@ targets build, and 31 of the 34 ctest tests pass. Three tests do not pass on suc
 machine, for three separate reasons:
 
 - `vmem_tuning` reads a hard-coded absolute path,
-  `/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv`,
+  `${NVME_MEM_SOURCE}/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv`,
   which is one author's calibration CSV, so `vmem_tuning` passes only on the machine
   holding that file.
 - `run_with_bpftime` requires the directory `/usr/local/cuda-12.8` to exist.

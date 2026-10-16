@@ -10,7 +10,7 @@ D3 runner、运行固定测试、求稳态或生成/求解 `DOMAIN_V2_IN_RANGE`�
   筛选上限、train/development 原生 reference 与 RC 完整轨迹，以及 D1 的串行 CPU、
   GPU0/cloud0 和逐点合理资源约束。
 - `DOC_DERIVED`：现存
-  `/root/hbfsim-exp/eq3_thermal/generated/campaign-RC2MM-{train,development}` 的
+  `${EXPERIMENT_ROOT}/eq3_thermal/generated/campaign-RC2MM-{train,development}` 的
   `model.txt` 与 `rc_grid.json` 分别逐字节相同（SHA-256
   `ecc7d24a...c62559`、`b8e611d0...e5a23`），可作为一次 2 mm steady envelope 的
   匹配 model/grid。steady 解不使用其旧 workload events，也不依赖 `dt`。
@@ -24,7 +24,7 @@ D3 runner、运行固定测试、求稳态或生成/求解 `DOMAIN_V2_IN_RANGE`�
 ## 串行命令顺序
 
 所有命令从
-`/root/hbfsim-exp/eq3_thermal/integration/main-20260920` 执行，由
+`${EXPERIMENT_ROOT}/eq3_thermal/integration/main-20260920` 执行，由
 `eq3_thermal/plans/decision-execution-v2/run_check.py` 或既有完整 thermal launcher
 保存元信息与限额。先等待当前 R03 退出；实际 point ID 不得复用已有目录。
 
@@ -33,17 +33,17 @@ D3 runner、运行固定测试、求稳态或生成/求解 `DOMAIN_V2_IN_RANGE`�
 ```text
 /usr/bin/g++ -std=c++20 -O3 -DNDEBUG -Wall -Wextra -Wpedantic \
   -Iinclude -I/usr/include/eigen3 tools/eq3_campaign_rc_runner.cpp \
-  /root/hbfsim-exp/eq3_thermal/plans/minimal-repair-v1/build/libhbfsim_eq3_thermal.a \
-  -o /root/hbfsim-exp/eq3_thermal/plans/decision-execution-v2/build/rc_runner_d3
+  ${EXPERIMENT_ROOT}/eq3_thermal/plans/minimal-repair-v1/build/libhbfsim_eq3_thermal.a \
+  -o ${EXPERIMENT_ROOT}/eq3_thermal/plans/decision-execution-v2/build/rc_runner_d3
 ```
 
 2. 在 600 s fixed-test 点中运行：
 
 ```text
 env PYTHONPATH=tools \
-  EQ3_CAMPAIGN_RC_RUNNER=/root/hbfsim-exp/eq3_thermal/plans/decision-execution-v2/build/rc_runner_d3 \
-  EQ3_LAYERED_RC_RUNNER=/root/hbfsim-exp/eq3_thermal/build/converter-core-relocated/eq3_layered_rc_runner \
-  EQ3_GENERATED_ROOT=/root/hbfsim-exp/eq3_thermal/generated \
+  EQ3_CAMPAIGN_RC_RUNNER=${EXPERIMENT_ROOT}/eq3_thermal/plans/decision-execution-v2/build/rc_runner_d3 \
+  EQ3_LAYERED_RC_RUNNER=${EXPERIMENT_ROOT}/eq3_thermal/build/converter-core-relocated/eq3_layered_rc_runner \
+  EQ3_GENERATED_ROOT=${EXPERIMENT_ROOT}/eq3_thermal/generated \
   python3 -B -m unittest tools.test_eq3_all_source_cap \
     tools.test_eq3_domain_v2_input tools.test_eq3_campaign_rc_runner -v
 ```
@@ -55,7 +55,7 @@ env PYTHONPATH=tools \
 env PYTHONPATH=tools python3 -B tools/eq3_all_source_cap.py \
   --profile configs/eq3_thermal/research/candidate_profile.json \
   --power configs/eq3_thermal/research/calibration_power.json \
-  --rc-grid /root/hbfsim-exp/eq3_thermal/generated/campaign-RC2MM-development/rc_grid.json \
+  --rc-grid ${EXPERIMENT_ROOT}/eq3_thermal/generated/campaign-RC2MM-development/rc_grid.json \
   --events-output <d3-cap-2mm>/cap_events.txt \
   --receipt-output <d3-cap-2mm>/cap_receipt.json
 ```
@@ -68,7 +68,7 @@ manifest 中先计算并原样传入，stdout 即唯一 steady receipt：
 
 ```text
 <rc_runner_d3> \
-  --model /root/hbfsim-exp/eq3_thermal/generated/campaign-RC2MM-development/model.txt \
+  --model ${EXPERIMENT_ROOT}/eq3_thermal/generated/campaign-RC2MM-development/model.txt \
   --events <d3-cap-2mm>/cap_events.txt \
   --step-s 0.5 --slot-s 0.5 --end-s 0.5 --sample-s 0.5 \
   --min-k 300 --max-k 400 --envelope-limit-k 380 \

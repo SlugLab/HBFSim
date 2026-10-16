@@ -2,7 +2,7 @@
 
 > 分享副本：审计事实、数值和原执行路径保持原记录；仅调整导航。大模型、完整 raw、部分本机清单与可执行二进制未随仓库发布，范围见 [审阅包说明](README.md)。
 
-审计基线：`/root/hbfsim-exp/eval-base-integration`，`eval/eq1-eq4-implementation@254d65a66279fbaffc5c185d04fbe41dc8dbba44`。本文是本轮只读代码审计与 CPU 最小检查，不是 GPU/完整 EQ1 验收报告。审计时 tracked tree 干净，`figures/`、`results/` 未跟踪；本代理未更改仓库代码、canonical 文档、历史证据或 Git refs，未运行 GPU。未发现从 `/` 到 repo 的 AGENTS.md；已读取现有 async skill、evaluation audit、execution/claim/source ledger 与精确相关历史 review。
+审计基线：`${HBFSIM_SOURCE}`，`eval/eq1-eq4-implementation@254d65a66279fbaffc5c185d04fbe41dc8dbba44`。本文是本轮只读代码审计与 CPU 最小检查，不是 GPU/完整 EQ1 验收报告。审计时 tracked tree 干净，`figures/`、`results/` 未跟踪；本代理未更改仓库代码、canonical 文档、历史证据或 Git refs，未运行 GPU。未发现从 `/` 到 repo 的 AGENTS.md；已读取现有 async skill、evaluation audit、execution/claim/source ledger 与精确相关历史 review。
 
 ## 当前结论
 
@@ -92,8 +92,8 @@
 原始命令、每源SHA256、耗时、stderr均在`eq1-build.json`、`eq1-build-complete.json`、`eq1-emitter-tests.json`。首次命令漏了已有`ptx_async_op.cpp`翻译单元，链接失败；已保留失败记录，补齐依赖后无代码修改编译成功，11.80s；测试1.73s/19项通过。CPU编译用-O0仅便于快速host工具检查，不是GPU优化证据。
 
 ```bash
-g++ -std=c++20 -O0 -Isrc/ptxpass_hbf tests/cpu/ptx_future_emit_driver.cpp src/ptxpass_hbf/ptx_ir.cpp src/ptxpass_hbf/ptx_async_op.cpp src/ptxpass_hbf/ptx_analysis.cpp src/ptxpass_hbf/future_transform.cpp -o /root/hbfsim-exp/reports/eq-replan-20260908/eq1-future-driver
-PYTHONDONTWRITEBYTECODE=1 TMPDIR=/root/hbfsim-exp/reports/eq-replan-20260908/eq1-tmp python3 tests/integration/test_future_emitter.py /root/hbfsim-exp/reports/eq-replan-20260908/eq1-future-driver -v
+g++ -std=c++20 -O0 -Isrc/ptxpass_hbf tests/cpu/ptx_future_emit_driver.cpp src/ptxpass_hbf/ptx_ir.cpp src/ptxpass_hbf/ptx_async_op.cpp src/ptxpass_hbf/ptx_analysis.cpp src/ptxpass_hbf/future_transform.cpp -o ${EXPERIMENT_ROOT}/reports/eq-replan-20260908/eq1-future-driver
+PYTHONDONTWRITEBYTECODE=1 TMPDIR=${EXPERIMENT_ROOT}/reports/eq-replan-20260908/eq1-tmp python3 tests/integration/test_future_emitter.py ${EXPERIMENT_ROOT}/reports/eq-replan-20260908/eq1-future-driver -v
 ```
 
 三个真实runner的`--help`均exit0，输出在`eq1-entrypoints.json`，本轮未传`--execute`。`eq1-delta-stall-oracle.json`为附件三例数学输出。迁移后旧逻辑前缀仍保留时上述命令可通过兼容链接运行；若不保留，应由父任务的路径映射转换命令，不改写历史记录。

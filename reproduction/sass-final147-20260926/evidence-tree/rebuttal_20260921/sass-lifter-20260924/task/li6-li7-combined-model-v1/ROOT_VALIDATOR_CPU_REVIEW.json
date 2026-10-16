@@ -1,7 +1,7 @@
 {
   "schema": "hbfsim.combined_validator_root_review.v1",
   "status": "CPU_VALIDATOR_REVIEW_ACCEPTED_PENDING_CONCRETE_LAUNCH_JOIN",
-  "utc": "2026-09-25T15:19:23.311177+00:00",
+  "utc": "2026-09-25T15:${PCI_ADDRESS}11177+00:00",
   "validator_sha256": "b4aee45f89849a6ff89224e0b61fa77088f6581afea5b31801443cbb15091bbf",
   "reviewed_real_evidence": "runs/li6-oproj-only-v1 logs/correlation.jsonl and selected ABI decision; original EXACT durable FATBIN vs patched TOPOLOGY_ONLY verified",
   "closed_findings": [

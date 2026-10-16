@@ -25,7 +25,7 @@ GUARD=TASK/"resource_guard_selected_gpu.py"
 VALIDATOR=TASK/"validate_combined_model.py"
 HELPER=ROOT/"task/all-weights-category-representatives-v1/li6_preflight_v2.py"
 RUNNER=ROOT/"workspace-freeze-copy-v5/B-weight-binding-config-source-v1/adapters/vllm/run.py"
-OWNER_LOCK=ROOT/"task/resume-giga-20260925-v1/gpu-owner.lock"
+OWNER_LOCK=ROOT/"task/resume-rtx-5090-20260925-v1/gpu-owner.lock"
 _owner_lock_fd=None
 
 def need(ok,msg):

@@ -6,7 +6,7 @@ Date: 2026-08-11 UTC
 
 Tune HBFSim's fast and hybrid timing paths to reproduce the measured
 end-to-end behavior of the software vmem path in
-`/home/victoryang00/nvme-mem2nvm`, including page faults, 4 KiB NVMe reads,
+`${NVME_MEM_SOURCE}`, including page faults, 4 KiB NVMe reads,
 cache insertion, and the userspace scan cost represented by the source
 benchmark.
 
@@ -19,7 +19,7 @@ that the empirical model follows the source curve.
 The immutable tuning source is:
 
 ```text
-/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv
+${NVME_MEM_SOURCE}/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv
 sha256 4fb6d2847c3ce4a09b7f2ce07dcb4cf8254145243c1985bce2848261b8d0724f
 ```
 
@@ -45,7 +45,7 @@ cold path. They do not isolate raw NAND latency, hardware CXL latency, or a
 multi-queue saturation limit. The tuned profile must therefore be named and
 documented as an end-to-end vmem model rather than a CD8P media-only model.
 
-The current live `/dev/vmem0` has a full 4 GiB dirty cache. This work consumes
+The current live `${VMEM_DEVICE}` has a full 4 GiB dirty cache. This work consumes
 the committed CSV only. It must not run a new vmem workload, flush the live
 device, unload its module, or access the raw namespace.
 

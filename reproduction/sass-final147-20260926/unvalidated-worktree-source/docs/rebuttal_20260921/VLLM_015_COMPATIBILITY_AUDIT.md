@@ -1,7 +1,7 @@
 # vLLM 0.15.1 Host Compatibility Audit
 
 Date: 2026-09-21
-Scope: read-only source/API audit for the restored giga host route. No build or GPU run was performed.
+Scope: read-only source/API audit for the restored rtx-5090 host route. No build or GPU run was performed.
 
 ## Route under review
 

@@ -5,7 +5,7 @@
     {
       "argv": [
         "python3",
-        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/collector/collect_native_ptx.py",
+        "./tools/native_ptx_reproduction/collector/collect_native_ptx.py",
         "--help"
       ],
       "returncode": 0,
@@ -15,7 +15,7 @@
     {
       "argv": [
         "python3",
-        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/scoped_join/join_scoped_staging_provenance.py",
+        "./tools/native_ptx_reproduction/scoped_join/join_scoped_staging_provenance.py",
         "--help"
       ],
       "returncode": 0,
@@ -25,7 +25,7 @@
     {
       "argv": [
         "python3",
-        "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-integration-cpu-v1/tools/native_ptx_reproduction/scoped_join/test_scoped_join.py"
+        "./tools/native_ptx_reproduction/scoped_join/test_scoped_join.py"
       ],
       "returncode": 0,
       "stdout": "",

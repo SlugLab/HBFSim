@@ -39,7 +39,7 @@ both runs:
 ```bash
 python3 adapters/vllm/run.py \
   --mode baseline \
-  --model /home/victoryang00/Qwen3-30B-A3B \
+  --model ${MODEL_ROOT}/Qwen3-30B-A3B \
   --report-dir /dev/shm/hbfsim-vllm-baseline \
   --num-prompts 4 --input-len 32 --output-len 32 \
   --max-model-len 256 --seed 0
@@ -48,7 +48,7 @@ mkdir -p /dev/shm/hbfsim-vllm-timing
 HBFSIM_COVERAGE_PATH=/dev/shm/hbfsim-vllm-timing/coverage.jsonl \
 HBFSIM_PASS_MANIFEST_PATH=/dev/shm/hbfsim-vllm-timing/pass-manifests.jsonl \
 adapters/vllm/run_timing.sh \
-    --model /home/victoryang00/Qwen3-30B-A3B \
+    --model ${MODEL_ROOT}/Qwen3-30B-A3B \
     --profile configs/profiles/nominal.json \
     --report-dir /dev/shm/hbfsim-vllm-timing \
     --num-prompts 1 --input-len 32 --output-len 8 \

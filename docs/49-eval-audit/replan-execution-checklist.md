@@ -2,7 +2,7 @@
 
 User-approved design: `HBFSim_Codex_迁移与EQ重规划_2026-09-08.md`, adopted explicitly in this task. This checklist implements that design; it does not authorize the long campaign or runtime/ABI integration.
 
-Baseline: `eval/eq1-eq4-implementation@254d65a66279fbaffc5c185d04fbe41dc8dbba44`. Source is `/root/hbfsim-exp`; destination `/mnt/disk0/hbfsim-exp`; logical compatibility prefix is retained. Existing untracked figures/results, history and paused controllers must be preserved.
+Baseline: `eval/eq1-eq4-implementation@254d65a66279fbaffc5c185d04fbe41dc8dbba44`. Source is `${EXPERIMENT_ROOT}`; destination `${ARCHIVE_ROOT}`; logical compatibility prefix is retained. Existing untracked figures/results, history and paused controllers must be preserved.
 
 - [x] Locate live checkout and canonical documents; save original document bytes under `history/20260905/` and pre-existing Git state under workspace `reports/eq-replan-20260908/`.
 - [x] Inventory all source files, sparse/hardlinks/external links, repos/environments and writers; verify PM1733a UUID and capacity budget.

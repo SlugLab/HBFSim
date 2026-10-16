@@ -10,7 +10,7 @@
   "instruction_count": 1984,
   "last_instruction": "0x7bf0",
   "schema": "hbfsim.li7_first_image_slice.v1",
-  "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v1/li7-sm120.sass",
+  "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/router-li7-cpu-extract-v1/output-v1/li7-sm120.sass",
   "source_bytes": 623396,
   "source_sha256": "c9ba206e63d61c4e6e4c96e8603863beb20bd6f3460b7e0c3f7cee2f6e2dcf2a",
   "trailing_byte_range": [

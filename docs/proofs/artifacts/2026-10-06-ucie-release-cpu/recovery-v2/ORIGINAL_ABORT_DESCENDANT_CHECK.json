@@ -1,9 +1,9 @@
 {
   "exact_executable_set": [
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_frontend_test",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_lifecycle_test",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_frontend_test",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_multistack_lifecycle_test",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
   ],
   "matching_live_identities": [],
   "all_absent": true,

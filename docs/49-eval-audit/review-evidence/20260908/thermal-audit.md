@@ -2,7 +2,7 @@
 
 > 分享副本：审计事实、数值和原执行路径保持原记录；仅调整导航。大模型、完整 raw、部分本机清单与可执行二进制未随仓库发布，范围见 [审阅包说明](README.md)。
 
-本报告只读核查当前实现和冻结历史工件，并执行小型 CPU 检查。没有启动 GPU、热负载、完整矩阵、重编译或合并；原始结果保持原字节。路径采用迁移兼容逻辑前缀 `/root/hbfsim-exp`，物理路径以父任务迁移 manifest 为准。本文是 canonical 文档的审计依据，不另立规范源。
+本报告只读核查当前实现和冻结历史工件，并执行小型 CPU 检查。没有启动 GPU、热负载、完整矩阵、重编译或合并；原始结果保持原字节。路径采用迁移兼容逻辑前缀 `${EXPERIMENT_ROOT}`，物理路径以父任务迁移 manifest 为准。本文是 canonical 文档的审计依据，不另立规范源。
 
 ## 1. 决策与源码边界
 
@@ -86,7 +86,7 @@ BW0全窗：573 × 1,048,576B / 8s=75,104,256B/s；尾窗 `stationarity.json` 2.
 已存在的独立CPU runner：
 
 ```text
-/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner
+${EXPERIMENT_ROOT}/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner
   --device-profile FILE --package-profile FILE --model FILE --output DIR
   --duration-ns N --offered-byte-rate N --peak-byte-rate N
   --request-bytes N --queue-depth N --seed N

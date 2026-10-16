@@ -1,6 +1,6 @@
 {
   "state": "VERIFIED_SOURCE_COPY_REMOVED",
-  "exact_removed_directory": "/root/hbfsim-exp.migration-source-20260908",
+  "exact_removed_directory": "${EXPERIMENT_ROOT}.migration-source-20260908",
   "entries_rechecked": 615503,
   "source_metadata_errors": [],
   "source_users": [],

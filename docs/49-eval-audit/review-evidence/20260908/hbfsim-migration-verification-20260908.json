@@ -1,9 +1,9 @@
 {
   "state": "VERIFIED_QUIESCENT_COPY",
   "mount": {
-    "target": "/mnt/disk0",
-    "source": "/dev/nvme2n1p1",
-    "uuid": "37be6892-a8aa-4fae-885d-5feed3b28fab",
+    "target": "${DATA_ROOT}",
+    "source": "${STORAGE_DEVICE}",
+    "uuid": "${BOOT_OR_RUN_ID}",
     "options": "rw,relatime"
   },
   "commands": [
@@ -15,8 +15,8 @@
         "--numeric-ids",
         "--stats",
         "--",
-        "/root/hbfsim-exp/",
-        "/mnt/disk0/hbfsim-exp/"
+        "${EXPERIMENT_ROOT}/",
+        "${DATA_ROOT}/hbfsim-exp/"
       ],
       "exit_code": 0,
       "wall_seconds": 17.085033412004123,
@@ -33,8 +33,8 @@
         "--dry-run",
         "--itemize-changes",
         "--",
-        "/root/hbfsim-exp/",
-        "/mnt/disk0/hbfsim-exp/"
+        "${EXPERIMENT_ROOT}/",
+        "${DATA_ROOT}/hbfsim-exp/"
       ],
       "exit_code": 0,
       "wall_seconds": 218.44445436800015,

@@ -8,7 +8,7 @@
       "bytes": 5583,
       "sha256": "c7d33b3d857001c8bc71d9327a3b5fa68c482f775e9e1649641fd84f6113a28d"
     },
-    "bundle-inputs.example.giga.json": {
+    "bundle-inputs.example.rtx-5090.json": {
       "bytes": 3839,
       "sha256": "14c5f1e2e89f56ffefb8c09eecf0724485bbb9947c4070bfa8f2672688617e7a"
     },
@@ -32,27 +32,27 @@
       "bytes": 9851,
       "sha256": "ef16497d178ed0c0a9da6219d247fa72e66ecf237413911de2395d2a5ba5dfbd"
     },
-    "example.giga.json": {
+    "example.rtx-5090.json": {
       "bytes": 8663,
       "sha256": "7c2bb7e324a3868c2179c878da087bab20a7422717305f3b4766e02330b7539c"
     },
-    "example.source-built-layer0.giga.json": {
+    "example.source-built-layer0.rtx-5090.json": {
       "bytes": 10181,
       "sha256": "9a3a7cd2f2698b2733c56e03cc3618a5ef62f2ee19a8a90c13b0b4c950b55849"
     },
-    "fixtures/collector-references.giga.json": {
+    "fixtures/collector-references.rtx-5090.json": {
       "bytes": 791,
       "sha256": "e6c0ca1a0b9f2bf81ac734a4cf08206f56a040edb2a0ce87dfc4efa365085c20"
     },
-    "fixtures/expected-all98.giga.json": {
+    "fixtures/expected-all98.rtx-5090.json": {
       "bytes": 21952,
       "sha256": "6c748aa34e1554ad9d277fdebf332a0dd33212f87bdf378312443b31347d25c6"
     },
-    "fixtures/expected-layer0.giga.json": {
+    "fixtures/expected-layer0.rtx-5090.json": {
       "bytes": 1519,
       "sha256": "644abdbff31648ceb130b5e86ad479a98e817724b3bae0ddb7347d07cddab505"
     },
-    "fixtures/native-bindings-template.giga.json": {
+    "fixtures/native-bindings-template.rtx-5090.json": {
       "bytes": 4933,
       "sha256": "fbfa512f0f6e385fd738ed677d30187f44b091f78d547d3edc2145edfe87389d"
     },
@@ -64,7 +64,7 @@
       "bytes": 27895,
       "sha256": "017114084b1f99e14bbb52edf42b97ce36a0db7e521d5fb6f3e94c600facde97"
     },
-    "stage-inputs.example.giga.json": {
+    "stage-inputs.example.rtx-5090.json": {
       "bytes": 1863,
       "sha256": "891d284fd49dc945a711a6a9966fd1a55f72c1ea5de6d55d97c98c2e441c43aa"
     },

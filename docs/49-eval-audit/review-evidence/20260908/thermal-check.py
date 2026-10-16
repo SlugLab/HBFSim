@@ -2,7 +2,7 @@
 """Read-only selected historical hash/content audit; outputs only under report root."""
 import csv, hashlib, json, pathlib, resource, subprocess, sys, time
 resource.setrlimit(resource.RLIMIT_AS,(512*1024*1024,512*1024*1024))
-ROOT=pathlib.Path('/root/hbfsim-exp')
+ROOT=pathlib.Path('${EXPERIMENT_ROOT}')
 OUT=ROOT/'reports/eq-replan-20260908'
 SOURCE=ROOT/'prototype-revalidation/sources/diagnostics/cell-c-phase2-adaptation-001'
 RESULTS=ROOT/'prototype-revalidation/results'

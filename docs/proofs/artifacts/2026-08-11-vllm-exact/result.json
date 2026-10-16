@@ -16,7 +16,7 @@
   "max_model_len": 64,
   "max_num_batched_tokens": 64,
   "mode": "timing",
-  "model": "/home/victoryang00/Qwen3-30B-A3B",
+  "model": "${MODEL_ROOT}/Qwen3-30B-A3B",
   "num_prompts": 1,
   "output_len": 8,
   "output_token_ids": [

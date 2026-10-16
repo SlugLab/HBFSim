@@ -6,6 +6,6 @@
   ],
   "missing": [],
   "added": [],
-  "base": "/root/hbfsim-exp/rebuttal_20260921/native-moe-optlevel-by-raw-agent-build-v1/source",
-  "source": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source"
+  "base": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-moe-optlevel-by-raw-agent-build-v1/source",
+  "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source"
 }

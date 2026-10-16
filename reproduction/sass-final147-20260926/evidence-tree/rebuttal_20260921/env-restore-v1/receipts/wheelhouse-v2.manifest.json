@@ -795,12 +795,12 @@
     },
     {
       "bytes": 63619976,
-      "name": "nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl",
+      "name": "nvidia_curand_cu12-${HOST_ADDRESS}-py3-none-manylinux_2_27_x86_64.whl",
       "package": "nvidia-curand-cu12",
       "sha256": "b32331d4f4df5d6eefa0554c565b626c7216f87a06a4f56fab27c3b68a830ec9",
       "status": "DOWNLOADED_VERIFIED",
-      "url": "https://pypi.nvidia.com/nvidia-curand-cu12/nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl",
-      "version": "10.3.9.90"
+      "url": "https://pypi.nvidia.com/nvidia-curand-cu12/nvidia_curand_cu12-${HOST_ADDRESS}-py3-none-manylinux_2_27_x86_64.whl",
+      "version": "${HOST_ADDRESS}"
     },
     {
       "bytes": 267506905,
@@ -1544,7 +1544,7 @@
   "classification": "RECONSTRUCTED_TRANSITIVE_HISTORICAL_CORE_VERSION_MATCH_HISTORICAL_BYTES_NOT_PROVEN",
   "elapsed_seconds": 53.525596141815186,
   "schema_version": 1,
-  "source_report": "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/receipts/pip-dry-run-v2-report.json",
+  "source_report": "${EXPERIMENT_ROOT}/rebuttal_20260921/env-restore-v1/receipts/pip-dry-run-v2-report.json",
   "source_report_sha256": "3bdcfd8e084ce0d68a7198d5889ebb5d8c03303be77559c50566f194a3f7e06d",
   "total_bytes": 5418414306
 }

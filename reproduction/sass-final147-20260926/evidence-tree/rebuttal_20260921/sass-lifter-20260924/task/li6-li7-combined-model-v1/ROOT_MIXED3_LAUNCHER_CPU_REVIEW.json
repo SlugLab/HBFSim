@@ -1,7 +1,7 @@
 {
   "schema": "hbfsim.combined_mixed3_cpu_root_review.v1",
   "status": "ROOT_CPU_REVIEW_ACCEPTED_NO_GPU_AUTHORIZATION_RECORD",
-  "observed_utc": "2026-09-25T15:31:15.333205+00:00",
+  "observed_utc": "2026-09-25T15:${PCI_ADDRESS}33205+00:00",
   "scope": "Portable future mixed3 launcher, guard, controller and template; CPU package only",
   "evidence": [
     "CPU_READINESS.md",

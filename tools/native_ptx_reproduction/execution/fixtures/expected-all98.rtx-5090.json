@@ -1,6 +1,6 @@
 {
   "status": "HISTORICAL_EXPECTATION_NOT_CURRENT_REGISTRATION",
-  "source": "/root/hbfsim-exp/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/registration.json",
+  "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/all-model-binding-v1/epoch-3320/registration.json",
   "source_sha256": "601c60150f6abed81f30fda492e5f732da9593fd15d26b01f0c9aef8cdfbef11",
   "patterns": {
     "embedding": "^model\\.embed_tokens\\.weight$",
@@ -1009,7 +1009,7 @@
       "storage_bytes": 25165824
     }
   ],
-  "profile_path": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "profile_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/worktree/configs/profiles/nominal.json",
   "profile_sha256": "d4b009fded6f2b78218d4a99f8acf8cd5154a4660f1030c9bab85bba4b1f35a0",
   "profile": {
     "name": "nominal",

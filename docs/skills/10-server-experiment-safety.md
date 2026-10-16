@@ -6,7 +6,7 @@ Preserve the user's workspace, device and process boundaries while preparing rev
 
 ## Scope
 
-The current approved work is inside `/root/hbfsim-exp`, including this authorized integration worktree. Documentation and CPU-only preparation are permitted; this knowledge-pack task authorizes no GPU workload, storage payload acquisition, other-clone edits or system changes. Future collectors must apply the current user contract, not inherit permissions from a historical runbook.
+The current approved work is inside `${EXPERIMENT_ROOT}`, including this authorized integration worktree. Documentation and CPU-only preparation are permitted; this knowledge-pack task authorizes no GPU workload, storage payload acquisition, other-clone edits or system changes. Future collectors must apply the current user contract, not inherit permissions from a historical runbook.
 
 ## Key concepts
 

@@ -21,6 +21,8 @@ afterwards.
 📄 [Paper on arXiv](https://arxiv.org/abs/2609.09800) \
 📝 [Open work in TODO.md](TODO.md)
 
+Historical documents, logs and input examples use public path-normalized copies. See [how to configure paths and verify these copies](PUBLIC_COPY_NOTICE.md).
+
 ## The question HBFSim answers
 
 Serving a large language model is limited by memory capacity, and a designer choosing how
@@ -38,8 +40,8 @@ the retention deadline that forces refresh writes.
 
 ## Quick start
 
-For the recorded research setup, see the [giga build environment and full build
-commands](docs/build/giga-environment.md). For a build or runtime problem, use the
+For the recorded research setup, see the [RTX 5090 build environment and full build
+commands](docs/build/rtx-5090-environment.md). For a build or runtime problem, use the
 [troubleshooting guide and report forms](docs/troubleshooting.md).
 
 SASS recovery is experimental and is **off by default** in the user entry point.

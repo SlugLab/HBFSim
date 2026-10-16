@@ -1,5 +1,7 @@
 # Phase-two implementation checkpoint — ongoing
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 ## Routing continuation batch — 2026-09-07
 
 At execution HEAD `aa5af1d125bbd5c758a0393a099e51e17e7fff51`, four additional
@@ -296,7 +298,7 @@ known-delay controls ran and exposed a timing defect. No formal handler is activ
 
 ## Provenance
 
-- Working checkout: `/root/hbfsim-exp/eval-base-integration`, inside the
+- Working checkout: `${HBFSIM_SOURCE}`, inside the
   user-authorized experiment container.
 - Starting runtime SHA: `fc829992ecdc3ca68881656722b67a31067c5d33`.
 - Pre-document source checkpoint HEAD: `5d73bdd9317ce43cc3eacd80cdfbffeebed5cee0`.
@@ -493,7 +495,7 @@ The dated units below retain their original conclusions. HF010 generation and
 the subsequent route-only experiment now supplement them; timed HF-to-P7 and
 physical storage validation remain open.
 
-The existing `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf`
+The existing `${EXPERIMENT_ROOT}/phase3/models/Qwen3-30B-A3B-f16.gguf`
 contains 579 tensors, 48 layers, E=128 and k=8. All 6,144 expert identities
 reconcile at 9,437,184 bytes each: 57,982,058,496 eligible bytes and
 3,107,774,464 resident non-offloaded bytes. Config/tensor metadata is hashed;
@@ -616,10 +618,10 @@ hypothetical total device budgets, not observed GPU capacity.
 
 The selected storage candidate is
 `results/storage-inputs/read-only-benchmark.bin`. It was not created or read:
-the project resides on root NVMe `/dev/nvme4n1p2`, and exclusivity is unproven.
+the project resides on root NVMe `${STORAGE_DEVICE}`, and exclusivity is unproven.
 Sandbox queries cannot communicate with the GPU, but host queries and real
 controls succeeded on RTX PRO 6000 Blackwell Server Edition (595.84), UUID
-`GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174`, 97,887 MiB total. No driver or GPU
+`${GPU_UUID}`, 97,887 MiB total. No driver or GPU
 settings were changed. The root-SSD restriction remains unchanged.
 
 Every matrix condition now has one of the five requested resource classes.
@@ -648,7 +650,7 @@ no thermal runtime stack was added.
 These are historical command records, not a request to repeat the suites.
 The latest bounded executions and observed costs are in the current checkpoint.
 
-Run from `/root/hbfsim-exp/eval-base-integration`:
+Run from `${HBFSIM_SOURCE}`:
 
 ```sh
 cmake -S . -B build-eval-implementation -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHBFSIM_ENABLE_CUDA=OFF -DHBFSIM_ENABLE_MQSIM=ON -DHBFSIM_ENABLE_EVAL_TOOLS=ON -DHBFSIM_ENABLE_LLM_TESTS=OFF -DBUILD_TESTING=ON -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
@@ -658,7 +660,7 @@ python -m unittest discover -s scripts/eval -p test_eval_pipeline.py
 python -m unittest discover -s scripts/eval -p test_inventory_checkpoint.py
 python -m unittest discover -s scripts/eval -p test_run_matrix.py
 python -m unittest discover -s scripts/eval -p test_replay_arrivals.py
-python scripts/eval/inventory_checkpoint.py /root/hbfsim-exp/phase3/models/Qwen3-30B-A3B-f16.gguf --output results/manifests/qwen3-30b-a3b-inventory.json
+python scripts/eval/inventory_checkpoint.py ${EXPERIMENT_ROOT}/phase3/models/Qwen3-30B-A3B-f16.gguf --output results/manifests/qwen3-30b-a3b-inventory.json
 python -m unittest discover -s scripts/eval -p test_storage_split.py
 python -m unittest discover -s scripts/eval -p test_collect_storage.py
 python -m unittest discover -s scripts/eval -p test_routing_metrics.py
@@ -897,7 +899,7 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 Actual guarded diagnostic runs and their failures are now recorded in the
 [latest standalone checkpoint](50-run-status.md#standalone-real-experiment-checkpoint-2026-09-06).
-HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
+HF008 started2026-09-06T18:${GPU_PCI_ADDRESS}57470Z on c7ee007 and completed after
 128.635422801 s, exit1. It passed device/import/preconstruction checks and
 actually loaded the BF16 model: stdout records56.88 GiB and39.138985 s for
 model loading, then5.18 s for engine initialization. The subsequent

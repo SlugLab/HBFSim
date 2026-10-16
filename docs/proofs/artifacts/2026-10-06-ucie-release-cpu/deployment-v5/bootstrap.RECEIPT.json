@@ -1,7 +1,7 @@
 {
   "argv": [
     "ssh",
-    "giga",
+    "rtx-5090",
     "python3",
     "-"
   ],

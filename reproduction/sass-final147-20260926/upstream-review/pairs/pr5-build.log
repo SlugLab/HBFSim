@@ -3,7 +3,7 @@
    Compiling syn v3.0.6
    Compiling serde_derive v1.0.229
    Compiling serde v1.0.229
-   Compiling pair_review_5 v0.0.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5)
+   Compiling pair_review_5 v0.0.0 (${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/pairs/pr5)
 warning: unused import: `std::collections::HashMap`
   --> src/sass/instruction.rs:10:5
    |

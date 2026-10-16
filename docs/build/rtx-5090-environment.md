@@ -1,13 +1,13 @@
-# giga build environment and components
+# RTX 5090 build environment and components
 
 This document records the environment used by our OLMoE research builds on
 **2026-10-15**. It explains which compiler built each component and where the
 build commands came from. Use fresh source and build directories when following
 the commands. The original experiment continues to use its existing files.
 
-The [command appendix](giga-build-commands-20261015.json) contains the full recorded
-argument lists, including compile, archive and link commands. Its absolute paths
-describe the original machine; they are not required installation paths.
+The [command appendix](rtx-5090-build-commands-20261015.json) contains the recorded argument lists for compile, archive and link commands,
+with private paths replaced by configurable variables. It is a public derivative;
+the original report and receipt hashes remain unchanged.
 
 ## Machine and software
 
@@ -47,17 +47,17 @@ HBF and agent builds also use a CUDA 13 toolkit. The target correlation provider
 uses **CUDA 12 CUPTI**, so its build and runtime search paths differ from the
 private agent's paths.
 
-The recorded roots are:
+Configure separate toolkit roots, for example:
 
 ```text
 Framework toolchain:
-  /root/hbfsim-exp/rebuttal_20260921/cuda128-toolchain-prep-v1/root/cuda-12.8
+  ${FRAMEWORK_CUDA_ROOT}
 Private HBF toolchain:
-  /root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0
+  ${AGENT_CUDA_ROOT}
 ```
 
-Other historical agent commands reference the downloaded CUDA 13 toolkit under
-`env-restore-v1/toolchain-download-v1/root/`. Keep the exact compiler, include,
+Historical agent commands also use a separately configured CUDA 13 dependency
+toolkit (`AGENT_DEP_CUDA_ROOT`). Keep the compiler, include,
 library and rpath choices together when reading those commands. Do not combine
 fragments from different builds or globally redirect CUDA 12 libraries to CUDA 13.
 
@@ -128,16 +128,15 @@ by the process, and validate the model output and measured coverage.
 
 ## Build commands and their limits
 
-The command appendix preserves the backend configure/build, final agent compile,
+The path-normalized command appendix retains the backend configure/build, final agent compile,
 archive/link, and provider compile commands. The final agent command is a
 **partial rebuild/relink** using an existing dependency build. For a fresh machine,
 first build those dependencies using the reconstruction recipe; the final link
 line alone does not rebuild them.
 
-The saved backend configure command refers to the original `local-stack-workset`
-source/build paths, while later deployment uses a separate `hybrid-phase-diag`
-build location. Both are retained as their recorded roles; a directory name is
-not proof of identical contents.
+The backend configure/build directories and the later deployment build directory
+have separate roles in the saved commands. The appendix keeps these roles
+separate through named variables; a shared filename does not prove identical contents.
 
 Some original recovery commands and parts of the historical syscall-server build
 were not retained completely. They are identified as gaps in the reconstruction
@@ -146,7 +145,7 @@ a verified historical command, or claim GB10 support from an x86-64/sm_120 build
 
 ## Validation of the maintenance changes
 
-The 2026-10-15 checks ran in separate directories on giga. Both public and
+The 2026-10-15 checks ran in separate directories on the RTX 5090 build host. Both public and
 supported-weights compatibility patches applied to their intended source
 versions. C++ fixtures exercised the actual metadata policy, compiler wrapper and
 worker function, including compiler failures and worker cleanup. The compiler API

@@ -61,3 +61,23 @@ internal defect register, an evaluation design draft. Those are the project's ow
 rather than published artifacts, and the citation is kept so the provenance of a number stays
 traceable for the authors. Where one of those citations points at a path that no longer resolves at
 the current commit, the path was correct at the commit the document names.
+
+## Paths in public examples
+
+The [RTX 5090 build guide](build/rtx-5090-environment.md) records hardware and
+toolchain versions. Its command appendix replaces private directories with named
+variables while retaining the source receipt hashes.
+
+Set path variables to directories on your own machine before using an example:
+`HBFSIM_SOURCE` is the project checkout, `MODEL_ROOT` holds model files,
+`EXPERIMENT_ROOT` holds research inputs and outputs, and `OUTPUT_ROOT` is a fresh
+output directory. `ARCHIVE_ROOT`, `BACKUP_ROOT`, `LOCAL_EVIDENCE_ROOT`, `HF_HOME`,
+`NVME_MEM_SOURCE` and `RESEARCH_ROOT` name the corresponding local archives,
+cache or source inputs. `STORAGE_DEVICE`, `VMEM_DEVICE` and `GPU_PCI_ADDRESS`
+stand for locally verified device nodes and PCI addresses. `GPU_UUID` selects your own device where a command
+requires an exact device identity. These variables do not establish that the
+external inputs are available or that a past experiment has been reproduced.
+
+Original records are retained privately. Published documents, logs and examples
+are path-normalized derivatives. Their embedded historical hashes describe the
+original records; verify public bytes with [the public-copy manifest](../PUBLIC_COPY_NOTICE.md).

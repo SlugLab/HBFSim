@@ -15,5 +15,5 @@
   "head_dependency": "runs/li6-head-progress-v1/MODEL_VALIDATION.json",
   "fresh_resource": "acquisition-20260926-v1/START_RECEIPT.json",
   "scope": "Three layer0 sequential consumers only; no old98 rerun or expansion yet",
-  "reviewed_utc": "2026-09-26T01:03:53.005428+00:00"
+  "reviewed_utc": "2026-09-26T01:${PCI_ADDRESS}05428+00:00"
 }

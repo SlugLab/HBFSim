@@ -1,5 +1,5 @@
-error: failed to load manifest for workspace member `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/comgr`
-referenced by workspace at `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/Cargo.toml`
+error: failed to load manifest for workspace member `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/comgr`
+referenced by workspace at `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/Cargo.toml`
 
 Caused by:
   failed to load manifest for dependency `ptx`
@@ -11,7 +11,7 @@ Caused by:
   failed to load manifest for dependency `llvm-sys`
 
 Caused by:
-  failed to read `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ext/llvm-project/llvm-sys/Cargo.toml`
+  failed to read `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/third_party/Concordia/ext/llvm-project/llvm-sys/Cargo.toml`
 
 Caused by:
   No such file or directory (os error 2)

@@ -1,20 +1,20 @@
 {
   "actual_daemon_argv": [
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd",
     "--profile",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/configs/profiles/nominal.json",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/configs/profiles/nominal.json",
     "--control-fd",
     "3",
     "--report-dir",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/ucie-context-wait-seam/nominal/report",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/ucie-context-wait-seam/nominal/report",
     "--backend",
     "ucie",
     "--ucie-top-profile",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/configs/profiles/ucie/hbf-stage3-16k-small-top.json",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/configs/profiles/ucie/hbf-stage3-16k-small-top.json",
     "--ucie-worker",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker",
     "--ucie-placement-manifest",
-    "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/ucie-context-wait-seam/nominal/placement.json",
+    "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/ucie-context-wait-seam/nominal/placement.json",
     "--ucie-wait-mode",
     "nominal"
   ],
@@ -130,7 +130,7 @@
     "worker_ar_wire_bytes": 103424,
     "worker_r_wire_bytes": 104448
   },
-  "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+  "boot": "${BOOT_OR_RUN_ID}",
   "completion": {
     "modeled_completion_ns": 1000000021078,
     "modeled_ns": 21078,

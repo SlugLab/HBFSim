@@ -3,7 +3,7 @@
     "command": [
       "python3",
       "-B",
-      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_c6_future_delay_overlap.py",
+      "./scripts/eval/run_c6_future_delay_overlap.py",
       "--help"
     ],
     "returncode": 0,
@@ -15,7 +15,7 @@
     "command": [
       "python3",
       "-B",
-      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_c6_future_lifecycle_correctness.py",
+      "./scripts/eval/run_c6_future_lifecycle_correctness.py",
       "--help"
     ],
     "returncode": 0,
@@ -27,7 +27,7 @@
     "command": [
       "python3",
       "-B",
-      "/root/hbfsim-exp/eval-base-integration/scripts/eval/run_known_delay_per_chain_abba.py",
+      "./scripts/eval/run_known_delay_per_chain_abba.py",
       "--help"
     ],
     "returncode": 0,

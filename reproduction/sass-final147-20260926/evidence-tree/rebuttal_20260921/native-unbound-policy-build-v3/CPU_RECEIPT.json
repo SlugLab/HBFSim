@@ -2,9 +2,9 @@
   "schema_version": 1,
   "status": "CPU_REVIEW_READY_NOT_RUNTIME_BUNDLE",
   "gpu_used": false,
-  "accepted_base": "/root/hbfsim-exp/rebuttal_20260921/native-bridge-failstop-source-v1",
-  "source": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1",
-  "build": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1",
+  "accepted_base": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-bridge-failstop-source-v1",
+  "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-source-v1",
+  "build": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1",
   "accepted_base_launch_gate_sha256": "74a4fc3b7fc2a5fc8b290dbd8040093407ae64913585431e3b6dd47b8a5fd8de",
   "source_files": [
     {
@@ -39,14 +39,14 @@
     }
   ],
   "source_patch": {
-    "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/SOURCE.patch",
+    "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/SOURCE.patch",
     "sha256": "de582a265324b949257d56c2207f7e7539abbf45350465016160dfaffe2422ba"
   },
   "build_binding": {
-    "build_ninja_source_root": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1",
-    "focused_commands": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-build-commands-v2.json",
-    "focused_gate_commands": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-gate-build-v4.json",
-    "first_regeneration_failure": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/build-v2.stdout",
+    "build_ninja_source_root": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-source-v1",
+    "focused_commands": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-build-commands-v2.json",
+    "focused_gate_commands": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/focused-gate-build-v4.json",
+    "first_regeneration_failure": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/build-v2.stdout",
     "failure_reason": "unchanged CUDA helper regeneration hit known CUDA13/GCC rsqrt noexcept conflict",
     "resolution": "reused byte-identical accepted generated helper PTX/header, then ran exact C++ compile/archive/link commands emitted by this build for modified source",
     "accepted_helper_ptx_sha256": "07f01c00ea462efe195922a11b9467fab8c76d6091e5ae9d80d69fd7957aad7e",
@@ -54,12 +54,12 @@
   },
   "artifacts": {
     "gate": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so",
       "size": 593896,
       "sha256": "df719bfa75f9cecbe8da02be54a63b9b7aa3a1c2bc086ce25a85867f2e449b33"
     },
     "coverage_gate_test": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test",
       "sha256": "5ee41ff15e634679dbc6da3091f51ae0de01462bec3b2840c35690d840eff509"
     }
   },
@@ -67,7 +67,7 @@
     {
       "name": "coverage_gate_test",
       "command": [
-        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test"
+        "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/coverage_gate_test"
       ],
       "returncode": 0,
       "stdout": "",
@@ -77,8 +77,8 @@
       "name": "aggregate_argument_readers",
       "command": [
         "python3",
-        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-source-v1/tests/integration/test_aggregate_argument_readers.py",
-        "/root/hbfsim-exp/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so"
+        "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-source-v1/tests/integration/test_aggregate_argument_readers.py",
+        "${EXPERIMENT_ROOT}/rebuttal_20260921/aggregate-pointer-gate-build-v1/libhbfsim_launch_gate.so"
       ],
       "returncode": 0,
       "stdout": "",

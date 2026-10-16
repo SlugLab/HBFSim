@@ -1,6 +1,6 @@
 {
   "status": "ROOT_SCOPE_AND_STAGE_PATH_AUDIT_PASS_NO_GPU",
-  "utc": "2026-09-25T15:03:32.538511+00:00",
+  "utc": "2026-09-25T15:${PCI_ADDRESS}38511+00:00",
   "prepared_version": "prepared-v2",
   "scope_counts": {
     "mixed3": 3,

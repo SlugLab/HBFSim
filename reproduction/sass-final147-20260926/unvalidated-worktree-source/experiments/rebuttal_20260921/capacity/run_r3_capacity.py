@@ -2,7 +2,7 @@
 """Future gated launcher for R3 and page-size capacity fixtures.
 
 The default command is preflight. GPU execution requires --execute and must be
-invoked only by the single giga GPU coordinator after R1 and R2 pass.
+invoked only by the single rtx-5090 GPU coordinator after R1 and R2 pass.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 {
   "schema": "hbfsim.goal_completion_audit.v1",
-  "observed_utc": "2026-09-26T04:57:31.306443+00:00",
+  "observed_utc": "2026-09-26T04:${PCI_ADDRESS}06443+00:00",
   "status": "COMPLETE_WITH_DECLARED_CONSUMER_SCOPE",
   "checks": [
     {
@@ -47,15 +47,15 @@
     {
       "requirement": "singleGPUowner_finitewatchdog_cleanup",
       "evidence": [
-        "task/resume-giga-20260925-v1/OWNER.json",
-        "task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
+        "task/resume-rtx-5090-20260925-v1/OWNER.json",
+        "task/resume-rtx-5090-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
       ],
       "status": "PROVEN"
     },
     {
       "requirement": "portable_identity_not_historicalUUIDgate",
       "evidence": [
-        "task/resume-giga-20260925-v1/portable-acquire-v1/ROOT_CPU_REVIEW.json",
+        "task/resume-rtx-5090-20260925-v1/portable-acquire-v1/ROOT_CPU_REVIEW.json",
         "task/li6-li7-final147-v1/ROOT_CPU_SCAFFOLD_REVIEW.json"
       ],
       "status": "PROVEN_FOR_SUCCESSOR_LAUNCHERS_NOT_CROSS_MACHINE_TEST_CLAIM"
@@ -68,9 +68,9 @@
         "reports/interface-binding-contract.md",
         "reports/weight-integration-matrix.md",
         "task/full-coverage-ledger-v1/FINAL_SINGLE_RUN_147_ACCEPTED_v1.json",
-        "/root/hbfsim-exp/docs/codex/PROJECT_HANDOFF.md",
-        "/root/hbfsim-exp/docs/codex/PROJECT_STATE.md",
-        "/root/hbfsim-exp/docs/codex/EXPERIMENT_REGISTRY.md"
+        "${EXPERIMENT_ROOT}/docs/codex/PROJECT_HANDOFF.md",
+        "${EXPERIMENT_ROOT}/docs/codex/PROJECT_STATE.md",
+        "${EXPERIMENT_ROOT}/docs/codex/EXPERIMENT_REGISTRY.md"
       ]
     }
   ],
@@ -78,5 +78,5 @@
   "no_device_algorithm_change": "FinalsamefrozenPTX/helper; hostbinding changesrecordedseparately",
   "old98_6603": "No unchangedstandalone rerun; requiredfinalcombinedregression includesold98",
   "remaining": [],
-  "completed_utc": "2026-09-26T05:06:01.157876+00:00"
+  "completed_utc": "2026-09-26T05:${PCI_ADDRESS}57876+00:00"
 }

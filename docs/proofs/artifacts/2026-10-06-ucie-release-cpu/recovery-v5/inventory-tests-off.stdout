@@ -7,7 +7,7 @@
     ],
     "files" : 
     [
-      "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/CMakeLists.txt"
+      "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/CMakeLists.txt"
     ],
     "nodes" : 
     [
@@ -326,14 +326,14 @@
       "backtrace" : 1,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_cpu_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_cpu_tests"
       ],
       "name" : "build_smoke",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -341,14 +341,14 @@
       "backtrace" : 3,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_profile_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_profile_tests"
       ],
       "name" : "profile",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -356,14 +356,14 @@
       "backtrace" : 5,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_calibrator_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_calibrator_tests"
       ],
       "name" : "calibrator",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -371,14 +371,14 @@
       "backtrace" : 7,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_protocol_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_protocol_tests"
       ],
       "name" : "protocol",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -386,14 +386,14 @@
       "backtrace" : 9,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_page_directory_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_page_directory_tests"
       ],
       "name" : "page_directory",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -401,14 +401,14 @@
       "backtrace" : 11,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_range_table_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_range_table_tests"
       ],
       "name" : "range_table",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -416,14 +416,14 @@
       "backtrace" : 13,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_timing_binding_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_timing_binding_tests"
       ],
       "name" : "timing_binding",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -431,14 +431,14 @@
       "backtrace" : 15,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_device_helper_abi_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_device_helper_abi_tests"
       ],
       "name" : "device_helper_abi",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -446,14 +446,14 @@
       "backtrace" : 17,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_backing_store_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_backing_store_tests"
       ],
       "name" : "backing_store",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -461,14 +461,14 @@
       "backtrace" : 19,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_backing_router_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_backing_router_tests"
       ],
       "name" : "capacity_backing_router",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -476,14 +476,14 @@
       "backtrace" : 21,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_hbm_cache_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_hbm_cache_tests"
       ],
       "name" : "hbm_cache",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -491,14 +491,14 @@
       "backtrace" : 23,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_vmm_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_vmm_tests"
       ],
       "name" : "vmm",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -506,14 +506,14 @@
       "backtrace" : 25,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_page_service_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_page_service_tests"
       ],
       "name" : "capacity_page_service",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -521,14 +521,14 @@
       "backtrace" : 27,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_handoff_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_handoff_tests"
       ],
       "name" : "capacity_handoff",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -536,14 +536,14 @@
       "backtrace" : 29,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_dispatch_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_dispatch_tests"
       ],
       "name" : "capacity_dispatch",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -551,14 +551,14 @@
       "backtrace" : 31,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_worker_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_capacity_worker_tests"
       ],
       "name" : "capacity_worker",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -566,14 +566,14 @@
       "backtrace" : 33,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_device_ordering_reference_tests"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsim_device_ordering_reference_tests"
       ],
       "name" : "device_ordering_reference",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -581,16 +581,16 @@
       "backtrace" : 35,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/context_lifecycle_test",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/libhbfsim_marker_preload.so"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/context_lifecycle_test",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/libhbfsim_marker_preload.so"
       ],
       "name" : "context_lifecycle",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -598,15 +598,15 @@
       "backtrace" : 37,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/daemon_protocol_test",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/daemon_protocol_test",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
       ],
       "name" : "daemon_protocol",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -614,14 +614,14 @@
       "backtrace" : 39,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/coverage_gate_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/coverage_gate_test"
       ],
       "name" : "coverage_gate",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -629,14 +629,14 @@
       "backtrace" : 41,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/durable_append_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/durable_append_test"
       ],
       "name" : "durable_append",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -644,14 +644,14 @@
       "backtrace" : 43,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/module_identity_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/module_identity_test"
       ],
       "name" : "module_identity",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -659,14 +659,14 @@
       "backtrace" : 45,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/ptx_transform_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/ptx_transform_test"
       ],
       "name" : "ptx_transform",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -674,14 +674,14 @@
       "backtrace" : 47,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/ptx_async_copy_coverage_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/ptx_async_copy_coverage_test"
       ],
       "name" : "ptx_async_copy_coverage",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -690,14 +690,14 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_llama_cpp.py"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_llama_cpp.py"
       ],
       "name" : "llama_cpp_adapter",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -706,14 +706,14 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_thermal_logp.py"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_thermal_logp.py"
       ],
       "name" : "thermal_logp",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -722,14 +722,14 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_vmem_tuning.py"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_vmem_tuning.py"
       ],
       "name" : "vmem_tuning",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -738,16 +738,16 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_bpftime_patch.py",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/bpftime/0001-exact-module-load-provenance.patch",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/third_party/bpftime"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_bpftime_patch.py",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/patches/bpftime/0001-exact-module-load-provenance.patch",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/third_party/bpftime"
       ],
       "name" : "bpftime_patch",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -756,17 +756,17 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_build_patched_bpftime.py",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/scripts/build_patched_bpftime.sh",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/third_party/bpftime",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/cmake/PreparePatchedBpftime.cmake"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_build_patched_bpftime.py",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/scripts/build_patched_bpftime.sh",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/third_party/bpftime",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/cmake/PreparePatchedBpftime.cmake"
       ],
       "name" : "build_patched_bpftime",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -774,16 +774,16 @@
       "backtrace" : 59,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/coverage_manifest_flow_test",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/libptxpass_hbf.so",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/fixtures/ptx/unsupported_pointer.ptx"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/coverage_manifest_flow_test",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/libptxpass_hbf.so",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/fixtures/ptx/unsupported_pointer.ptx"
       ],
       "name" : "coverage_manifest_flow",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -792,16 +792,16 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_run_with_bpftime.py",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/scripts/run_with_bpftime.sh",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/patches/bpftime/0001-exact-module-load-provenance.patch"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_run_with_bpftime.py",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/scripts/run_with_bpftime.sh",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/patches/bpftime/0001-exact-module-load-provenance.patch"
       ],
       "name" : "run_with_bpftime",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy"
         }
       ]
     },
@@ -809,14 +809,14 @@
       "backtrace" : 63,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/mqsim_online_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/mqsim_online_test"
       ],
       "name" : "mqsim_online",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -824,14 +824,14 @@
       "backtrace" : 65,
       "command" : 
       [
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/mqsim_queue_depth_test"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/mqsim_queue_depth_test"
       ],
       "name" : "mqsim_queue_depth",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     },
@@ -840,15 +840,15 @@
       "command" : 
       [
         "/usr/bin/python3",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_mqsim_benchmark.py",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbf_mqsim_bench"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/tests/integration/test_mqsim_benchmark.py",
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbf_mqsim_bench"
       ],
       "name" : "mqsim_benchmark",
       "properties" : 
       [
         {
           "name" : "WORKING_DIRECTORY",
-          "value" : "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1"
+          "value" : "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1"
         }
       ]
     }

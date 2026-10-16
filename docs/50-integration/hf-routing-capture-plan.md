@@ -24,12 +24,12 @@ ResourceGuard/run_child process lifecycle, and CPU-only unittest fixtures.
 
 ## Source-grounded starting point
 
-The active checkout is `/root/hbfsim-exp/eval-base-integration`. Installed
+The active checkout is `${HBFSIM_SOURCE}`. Installed
 distribution metadata reports vLLM `0.15.1` at
 `/opt/miniconda3/lib/python3.13/site-packages/vllm`; this plan did not import
 vLLM or torch. Use this installation, not a historical phase3 environment.
 
-The checkpoint is `/root/hbfsim-exp/phase3/models/Qwen3-30B-A3B`.
+The checkpoint is `${EXPERIMENT_ROOT}/phase3/models/Qwen3-30B-A3B`.
 The input must include a published bundle accepted by
 `verify_hf_metadata.validate_refresh`. The parent completed the real refresh at
 `results/manifests/hf-qwen3-30b-a3b-metadata-20260905` in this checkout, using

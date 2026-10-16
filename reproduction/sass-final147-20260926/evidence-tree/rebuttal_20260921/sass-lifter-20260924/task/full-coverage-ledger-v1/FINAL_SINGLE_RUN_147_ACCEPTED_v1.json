@@ -47,7 +47,7 @@
     "report": "reports/final147-20260926-v1/REPORT.json",
     "controller_finish": "runs/li6-li7-final147-v1/controller/controller-finish.json",
     "historical_union": "task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
-    "resource_release": "task/resume-giga-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
+    "resource_release": "task/resume-rtx-5090-20260925-v1/FINAL147_RESOURCE_RELEASE.json"
   },
   "historical_union_substituted_for_run": false,
   "limits": {

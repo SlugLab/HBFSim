@@ -3,8 +3,8 @@
   "status": "TARGET_SET_PREPARED_NOT_FULL_COVERAGE",
   "evidence_class": "DOC_DERIVED",
   "inputs": {
-    "native_inventory": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2/result/observer/worker-1961849.jsonl",
-    "accepted6603_registration": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/qkv-model-combined-v3/result/cell/registration.json"
+    "native_inventory": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2/result/observer/worker-1961849.jsonl",
+    "accepted6603_registration": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/qkv-model-combined-v3/result/cell/registration.json"
   },
   "total_storage_count": 147,
   "total_storage_bytes": 13838323712,

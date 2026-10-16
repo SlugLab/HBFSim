@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Work only in `/root/hbfsim/HBFSim/.worktrees/hybrid` on branch `hybrid`.
+- Work only in `${HBFSIM_SOURCE}/.worktrees/hybrid` on branch `hybrid`.
 - Treat `docs/superpowers/specs/2026-08-09-hbfsim-hybrid-design.md` as the implementation contract.
 - Pin bpftime to `ec26daecc8e787fb80fd95dd596a576404a5e36e`.
 - Pin MQSim to `51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16`.

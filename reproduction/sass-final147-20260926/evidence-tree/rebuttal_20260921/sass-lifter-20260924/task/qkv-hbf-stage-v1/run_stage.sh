@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-base=/root/hbfsim-exp/rebuttal_20260921
+base=${EXPERIMENT_ROOT}/rebuttal_20260921
 task="$base/sass-lifter-20260924/task/qkv-hbf-stage-v1"
 out="$task/run-v1"
 source_ptx="$base/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv.quarantine.ptx"

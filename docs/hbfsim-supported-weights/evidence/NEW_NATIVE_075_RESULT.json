@@ -2,7 +2,7 @@
   "access_accounting": null,
   "accounting_epoch": 1,
   "attention_backend": "FLASHINFER",
-  "cache_root": "/root/hbfsim-exp/rebuttal_20260921/results/new-cohort-layer0-native-075-v1/cache/vllm",
+  "cache_root": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/new-cohort-layer0-native-075-v1/cache/vllm",
   "compiler": {
     "CC": "/usr/bin/gcc-13",
     "CXX": "/usr/bin/g++-13"
@@ -20,7 +20,7 @@
   "max_model_len": 256,
   "max_num_batched_tokens": 256,
   "mode": "baseline",
-  "model": "/root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
+  "model": "${EXPERIMENT_ROOT}/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
   "moe_backend": "triton",
   "moe_backend_control": "VLLM_0_15_DEFAULT_TRITON_RUNTIME_BINDING_REQUIRED",
   "num_prompts": 1,
@@ -33,7 +33,7 @@
   ],
   "output_token_ids_sha256": "06df4d1df2181aa0d792324ce4dd007c7f3f6cb63015eb345ea26a3b9e0460a7",
   "output_tokens_per_second": 6.331013107335907,
-  "profile": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "profile": "${EXPERIMENT_ROOT}/rebuttal_20260921/worktree/configs/profiles/nominal.json",
   "prompt_token_ids": [
     [
       25347,

@@ -4,7 +4,7 @@
       "device": 66310,
       "inode": 1995318,
       "mtime_ns": 1790102907736202061,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
       "sha256": "4a4ca37804fd80df03c799b3147be95a73a42cdfcb56cbc993bb38cfda56b132",
       "size_bytes": 12477
     },
@@ -12,11 +12,11 @@
       "device": 66310,
       "inode": 1882647,
       "mtime_ns": 1790107646316768707,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
       "sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
       "size_bytes": 589843592
     },
-    "manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-embedding-scoped-join-v1/collector-v3/native-ptx-manifest.json",
+    "manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-embedding-scoped-join-v1/collector-v3/native-ptx-manifest.json",
     "manifest_sha256": "6125f7ca3fcf14f942d808ca98ac4cc2c73bafba39d083879343fb0a9b3ae7da"
   },
   "module_joins": [
@@ -186,7 +186,7 @@
       "selected_entries": [
         "_ZN2at6native29vectorized_elementwise_kernelILi4ENS0_11FillFunctorIN3c108BFloat16EEESt5arrayIPcLm1EEEEviT0_T1_"
       ],
-      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+      "staged_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/prepared-v2/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
       "staged_sha256": "733f94c523dc2459db04ca7141f667c72270ec97c54ffe10c7b3a5872fc6811f",
       "unselected_entries": [
         "_ZN2at6native29vectorized_elementwise_kernelILi8ENS0_11FillFunctorIhEESt5arrayIPcLm1EEEEviT0_T1_",
@@ -363,9 +363,9 @@
     "unselected_entry_policy": "STRICT_REJECT"
   },
   "staging": {
-    "directory": "/root/hbfsim-exp/rebuttal_20260921/native-moe-fill-e3-combined-stage-v2",
+    "directory": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-moe-fill-e3-combined-stage-v2",
     "manifest_sha256": "3d7a719072d5ab300c07f8d3bf748c5a225341af4b1c9dc3fe46a4b460ed677e",
-    "pass_manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-moe-fill-e3-combined-stage-v2/pass-manifests.jsonl",
+    "pass_manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-moe-fill-e3-combined-stage-v2/pass-manifests.jsonl",
     "pass_manifest_sha256": "b9c5a35097878c5b7580b48721754ff12e09501ffcc2464b8d50ca42c6473ec9",
     "policy": "partial",
     "status": "PARTIAL_READY"

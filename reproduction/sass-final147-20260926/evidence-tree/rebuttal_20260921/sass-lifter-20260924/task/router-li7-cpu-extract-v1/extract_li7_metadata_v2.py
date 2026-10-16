@@ -9,7 +9,7 @@ import resource
 import subprocess
 import time
 
-ROOT = Path('/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924')
+ROOT = Path('${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924')
 TASK = ROOT / 'task/router-li7-cpu-extract-v1'
 OUT = TASK / 'output-v2'
 SOURCE = ROOT / 'runs/all-weights-discovery-v2/result'

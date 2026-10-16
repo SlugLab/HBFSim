@@ -88,7 +88,7 @@ Capacity frame leases, reference/hybrid async service, TensorMap publication and
 
 ## Dependency and file map
 
-Paths are relative to `/root/hbfsim-exp/eval-base-integration`. New names below are proposed files; the others already exist. Do not edit unrelated runtime, storage, MQSim, capture or prefetch components.
+Paths are relative to `${HBFSIM_SOURCE}`. New names below are proposed files; the others already exist. Do not edit unrelated runtime, storage, MQSim, capture or prefetch components.
 
 | Files | Responsibility |
 |---|---|
@@ -385,7 +385,7 @@ Read-only command verification used the existing `build-eval-implementation/CMak
 The frozen CUDA cache records both `HBFSIM_CUDA_ARCHITECTURE=120` and `CMAKE_CUDA_ARCHITECTURES=120`. The custom helper/benchmark command uses `HBFSIM_CUDA_ARCHITECTURE`; the top-level CMake currently derives it from `CMAKE_CUDA_ARCHITECTURES`. Pass both consistently, and inspect the generated command for `--gpu-architecture=compute_120` before compiling. The existing target names `hbfsim_device_ptx`, `ptxpass_hbf_plugin` and `hbfsim_launch_gate` were verified in source and the frozen target directory listing. `timing_future_correctness`, `timing_future_unit_compile` and the other future-specific target/test names below are **new names to register in C6**, not targets claimed to exist now.
 
 ```bash
-cd /root/hbfsim-exp/eval-base-integration
+cd ${HBFSIM_SOURCE}
 cmake -S . -B build-eval-timing-future-cpu \
   -DHBFSIM_ENABLE_CUDA=OFF -DHBFSIM_ENABLE_EVAL_TOOLS=ON \
   -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON \

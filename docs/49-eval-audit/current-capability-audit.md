@@ -47,7 +47,7 @@ Timing registration 要求真实显存地址；数据继续驻留 GDDR7，超显
 
 历史 `docs/proofs/2026-08-11-cd8p-vmem-tuning.md` 的六点是拟合输入，结果不能重标 VALIDATED_MODEL。`2026-08-11-vllm-exact-live-delay.md` 的选择性范围和 token 一致性是其历史快照范围，不能扩成全模型覆盖。110 GiB 证据是 sparse logical address span / checksum，不是 110 GiB 物理读取。旧 NAND/geometry 扫描须保留其 QD 修复前 provenance，正式矩阵必须用本次 frozen head 重跑。
 
-本地 experiment archive 中存在 Qwen staging、E6 attempt、CUDA cache 等文件，名称本身不是通过证据；本轮未把它们升级成正式数据。`environment/models/qwen3-30b-a3b-current-model-bytes.json` 记的是 gpu01 在 2026-08-28 的外部 checkpoint inventory，自己声明 historical byte identity NOT_PROVEN。真实 checkpoint 尚未在本轮主机重验，因此 MOCK 使用明确的虚构 E/k fixture，完全不填充 Qwen 实测曲线。
+本地 experiment archive 中存在 Qwen staging、E6 attempt、CUDA cache 等文件，名称本身不是通过证据；本轮未把它们升级成正式数据。`environment/models/qwen3-30b-a3b-current-model-bytes.json` 记的是 ${BUILD_HOST} 在 2026-08-28 的外部 checkpoint inventory，自己声明 historical byte identity NOT_PROVEN。真实 checkpoint 尚未在本轮主机重验，因此 MOCK 使用明确的虚构 E/k fixture，完全不填充 Qwen 实测曲线。
 
 ## Required-document reconciliation
 

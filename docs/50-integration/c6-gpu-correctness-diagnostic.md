@@ -189,7 +189,7 @@ the existing one-second future token liveness deadline is unchanged.
 Build from the already reviewed future-capable configuration:
 
 ```text
-cd /root/hbfsim-exp/eval-base-integration
+cd ${HBFSIM_SOURCE}
 cmake -S . -B build-eval-c6-unit-cuda \
   -DHBFSIM_BUILD_C6_GPU_DIAGNOSTIC=ON
 cmake --build build-eval-c6-unit-cuda \
@@ -211,10 +211,10 @@ the following command records the already completed first acquisition. Do not re
   scripts/eval/run_c6_future_correctness_candidate.py \
   --execute \
   --out results/gold/timing-future-unit/c6-correctness/attempt-001 \
-  --build-dir /root/hbfsim-exp/eval-base-integration/build-eval-c6-unit-cuda \
-  --profile /root/hbfsim-exp/eval-base-integration/results/gold/timing-future-unit/c6-correctness/inputs-attempt-001/nominal-4096-timescale1.json \
-  --ptx /root/hbfsim-exp/eval-base-integration/benchmarks/cuda/c6_u32_future_gold_candidate.ptx \
-  --gpu-uuid GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174
+  --build-dir ${HBFSIM_SOURCE}/build-eval-c6-unit-cuda \
+  --profile ${HBFSIM_SOURCE}/results/gold/timing-future-unit/c6-correctness/inputs-attempt-001/nominal-4096-timescale1.json \
+  --ptx ${HBFSIM_SOURCE}/benchmarks/cuda/c6_u32_future_gold_candidate.ptx \
+  --gpu-uuid ${GPU_UUID}
 ```
 
 The runner inserts only its resolved `scripts/eval` directory for fixed project

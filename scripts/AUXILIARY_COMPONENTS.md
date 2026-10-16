@@ -3,7 +3,7 @@
 The current execution bundle carries three pre-existing files in addition to
 the newly built HBFSim runtime, pass, gate, and agent. Their presence in a
 bundle is not evidence that this integration rebuilt them. All paths below
-refer to the giga project root, `/root/hbfsim-exp/rebuttal_20260921`.
+refer to the research workspace, `${EXPERIMENT_ROOT}/rebuttal_20260921`.
 
 | File in the retained bundle | SHA-256 | Source and actual provenance |
 | --- | --- | --- |

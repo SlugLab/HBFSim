@@ -3,7 +3,7 @@
   "evidence_class": "DOC_DERIVED",
   "status": "REPORT_OF_EXISTING_FINAL_SINGLE_RUN_PASS_NOT_NEW_VALIDATION",
   "final_single_run": {
-    "run": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1",
+    "run": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1",
     "epoch": 6712,
     "acceptance_status": "MODEL_CONNECTED_PASS_COMBINED_ADDED49",
     "registered_storages": 147,
@@ -20,7 +20,7 @@
     "request_terminal_status": "success"
   },
   "historical_union": {
-    "receipt": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
+    "receipt": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_REMAINING45_v1.json",
     "record": {
       "schema": "hbfsim.model_coverage_increment.v1",
       "evidence_class": "DOC_DERIVED",
@@ -43,7 +43,7 @@
         "storage_count": 45,
         "storage_bytes": 507248640,
         "level": "MODEL_CONNECTED_PASS_COMBINED_REMAINING45",
-        "consumer_scope": "layers1\u201315 QKV/o_proj/router scheduled decode selected calls"
+        "consumer_scope": "layers1–15 QKV/o_proj/router scheduled decode selected calls"
       },
       "remaining_storage_count": 0,
       "remaining_storage_bytes": 0,
@@ -3872,16 +3872,16 @@
     "all_possible_shapes_and_consumers_covered": false
   },
   "sources": {
-    "plan": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/plan.json",
-    "validation": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
-    "controller_finish": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/controller/controller-finish.json",
-    "registration": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/registration.json",
-    "result": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/result.json",
-    "coverage": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/logs/coverage.jsonl",
-    "plugin": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/combined-plugin/worker-4011197.jsonl",
-    "plugin_source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter/__init__.py",
+    "plan": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/plan.json",
+    "validation": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/MODEL_VALIDATION.json",
+    "controller_finish": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/controller/controller-finish.json",
+    "registration": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/registration.json",
+    "result": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/cell/result.json",
+    "coverage": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/logs/coverage.jsonl",
+    "plugin": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/li6-li7-final147-v1/result/combined-plugin/worker-4011197.jsonl",
+    "plugin_source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-model-v1/combined_model_adapter/__init__.py",
     "plugin_source_sha256": "86f8d30d5a36040807b2610dbff576b8707d00d96b0cb0d0cc3717c62ef04a71",
-    "target_ledger": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/TARGET_LEDGER.json"
+    "target_ledger": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/full-coverage-ledger-v1/TARGET_LEDGER.json"
   },
   "plan_scope": "added49"
 }

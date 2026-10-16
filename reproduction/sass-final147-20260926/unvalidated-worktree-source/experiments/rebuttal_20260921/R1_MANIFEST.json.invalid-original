@@ -2,8 +2,8 @@
   "schema_version": 1,
   "experiment_id": "REBUTTAL-20260921-R1-v1",
   "status": "AUTHORIZED_PREPARATION",
-  "host": "giga",
-  "gpu_uuid": "GPU-45044e90-a553-930c-b950-ba660acb37fc",
+  "host": "rtx-5090",
+  "gpu_uuid": "${GPU_UUID}",
   "gpu_count": 1,
   "source_base": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
   "environment": {
@@ -47,7 +47,7 @@
     "opaque_audit.json", "service_accounting.json", "correctness.json",
     "stdout.log", "stderr.log", "R1_SUMMARY.md"
   ],
-  "raw_output_root": "/root/hbfsim-exp/rebuttal_20260921/results/R1_access_coverage",
+  "raw_output_root": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/R1_access_coverage",
   "r2_r3_gate": "R1 accepted",
   "known_limits": [
     "not whole-program memory coverage",

@@ -4,7 +4,7 @@
   "discovered_storage_count": 147,
   "mode": "timing_backed",
   "parameter_count": 147,
-  "profile_path": "/root/hbfsim-exp/rebuttal_20260921/worktree/configs/profiles/nominal.json",
+  "profile_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/worktree/configs/profiles/nominal.json",
   "registered_bytes": 13838323712,
   "schema_version": 2,
   "selection": {

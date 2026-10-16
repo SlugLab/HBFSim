@@ -29,7 +29,7 @@ The initial live target is:
 - NVIDIA driver 595.84;
 - CUDA toolkit 12.9;
 - compute capability 12.0;
-- `/home/victoryang00/Qwen3-30B-A3B` using
+- `${MODEL_ROOT}/Qwen3-30B-A3B` using
   `Qwen3MoeForCausalLM`.
 
 The real-GPU baseline uses FlashInfer, GCC/G++ 13 for FlashInfer JIT builds,

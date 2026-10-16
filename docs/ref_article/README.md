@@ -187,7 +187,7 @@ here. Add the HPDC PDF if someone with access can export it.
 
 What this project uses: it is the closest model for how to write and evaluate a
 "the hardware does not exist yet, so we emulate it on unmodified applications"
-paper. See `/root/hbfsim/34-CXLMemSim与合作者论文的启示-2026-08-11.md`.
+paper. The accompanying internal research note is not included in this repository.
 
 ---
 

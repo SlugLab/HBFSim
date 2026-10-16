@@ -36,7 +36,7 @@ directory when changing toolkits, and keep the failed log for comparison.
 
 Our framework CUDA 12.8 and private HBF CUDA 13 components have different roles.
 Do not redirect every CUDA library to a newer toolkit as a workaround. The
-[giga build environment](build/giga-environment.md) describes these roles and the
+[RTX 5090 build environment](build/rtx-5090-environment.md) describes these roles and the
 recorded build commands.
 
 ## Missing model coverage

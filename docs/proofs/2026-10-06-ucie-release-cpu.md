@@ -1,5 +1,7 @@
 # UCIe release CPU checkpoint — 2026-10-06
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 This checkpoint records the source integration and CPU interface validation
 used for HBFSim v0.1.1. The interface contract and runtime selection are
 documented in [docs/ucie](../ucie/README.md); the release changes are described
@@ -7,7 +9,7 @@ in [v0.1.1](../releases/v0.1.1.md).
 
 ## Source provenance
 
-The source snapshot was collected from giga's current HBFSim worktree at
+The source snapshot was collected from the RTX 5090 build host's HBFSim worktree at
 `70b1f93998ff142a8ab21f1a1cb75b7db84b8b90`, including its uncommitted UCIe
 implementation. The accepted normal-backend source supplied 54 files. The
 publication also includes the current MQSim patches, configuration schemas,
@@ -183,7 +185,7 @@ failed batches into passing runs.
 
 ## Build and reproduction
 
-The recorded giga toolchain was GCC 15.2.0, CMake 4.2.3, Ninja 1.13.2 and
+The recorded host toolchain was GCC 15.2.0, CMake 4.2.3, Ninja 1.13.2 and
 Python 3.14.4. The UCIe build used `HBFSIM_ENABLE_CUDA=OFF`,
 `HBFSIM_ENABLE_MQSIM=ON`, `HBFSIM_ENABLE_UCIE=ON` and `BUILD_TESTING=ON`.
 PkgConfig and CUDAToolkit discovery were explicitly disabled for this CPU

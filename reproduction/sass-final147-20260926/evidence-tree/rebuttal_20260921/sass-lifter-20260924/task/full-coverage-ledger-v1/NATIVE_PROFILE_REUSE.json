@@ -1,6 +1,6 @@
 {
   "status": "NATIVE_PROFILE_REUSE_AUDIT_COMPLETE_NOT_HBF_COVERAGE",
-  "source_run": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2",
+  "source_run": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/all-weights-discovery-v2",
   "evidence_class": "DOC_DERIVED",
   "scope": "all observed scheduled BLAS n=1 input-consumers per target storage, with repeated lm_head calls preserved; exact identity and geometry joined by CUPTI correlation and thread",
   "limits": [

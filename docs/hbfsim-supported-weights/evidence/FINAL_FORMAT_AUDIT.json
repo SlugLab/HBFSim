@@ -5,7 +5,7 @@
   "exceptions": {
     "adapters/vllm/tests/test_weight_policy.py": "retained source blank line at EOF",
     "tools/native_ptx_reproduction/execution/entry_proof.py": "retained exact proof source blank line at EOF",
-    "tools/native_ptx_reproduction/execution/example.giga.json": "retained archived CRLF example",
+    "tools/native_ptx_reproduction/execution/example.rtx-5090.json": "retained archived CRLF example",
     "docs/hbfsim-supported-weights/evidence/framework-build/native-source-prep-v1__VLLM_PTX_RETENTION_v0.15.1.patch": "original hash-bound unified patch context blank lines"
   },
   "remaining_files_check_exit": 0,

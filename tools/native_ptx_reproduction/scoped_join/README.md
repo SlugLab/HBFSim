@@ -25,7 +25,7 @@ Usage for the first plain BF16 RMSNorm entry:
 
 ```sh
 python3 join_scoped_staging_provenance.py \
-  --collector-manifest /root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-v2/vllm-C-attempt-2/native-ptx-manifest.json \
+  --collector-manifest ${EXPERIMENT_ROOT}/rebuttal_20260921/native-ptx-collector-v2/vllm-C-attempt-2/native-ptx-manifest.json \
   --staging-dir /absolute/path/to/existing/norm-stage \
   --pass-manifest /absolute/path/to/existing/norm-stage/pass-manifest.jsonl \
   --selected-entries-json selected-plain-bf16.json \

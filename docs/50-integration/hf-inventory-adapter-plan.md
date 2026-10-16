@@ -16,7 +16,7 @@ Carry the same explicit model binding through budget, routing, and projection.
 
 ## Frozen evidence and current interfaces
 
-Paths are relative to `/root/hbfsim-exp/eval-base-integration`; planning read only sources and frozen metadata.
+Paths are relative to `${HBFSIM_SOURCE}`; planning read only sources and frozen metadata.
 Starting bundle: `results/manifests/hf-qwen3-30b-a3b-metadata-20260905`:
 
 ```text

@@ -4,7 +4,7 @@
       "device": 66310,
       "inode": 1995318,
       "mtime_ns": 1790102907736202061,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
       "sha256": "4a4ca37804fd80df03c799b3147be95a73a42cdfcb56cbc993bb38cfda56b132",
       "size_bytes": 12477
     },
@@ -12,11 +12,11 @@
       "device": 66310,
       "inode": 1882647,
       "mtime_ns": 1790107646316768707,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-configure-v4/lib/libtorch_cuda.so",
       "sha256": "e3bdd95609b45a5ac3049b037beebfa4885044aac11408d7ccf58fe06739f9fe",
       "size_bytes": 589843592
     },
-    "manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-embedding-scoped-join-v1/collector-v3/native-ptx-manifest.json",
+    "manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-embedding-scoped-join-v1/collector-v3/native-ptx-manifest.json",
     "manifest_sha256": "6125f7ca3fcf14f942d808ca98ac4cc2c73bafba39d083879343fb0a9b3ae7da"
   },
   "module_joins": [
@@ -1317,7 +1317,7 @@
       "selected_entries": [
         "_ZN2at6native44_GLOBAL__N__cf70cbee_11_Indexing_cu_89862edb21indexSelectSmallIndexIN3c108BFloat16EljLi2ELi2ELin2EEEvNS_4cuda6detail10TensorInfoIT_T1_EENS7_IKS8_S9_EENS7_IKT0_S9_EEiiS9_l"
       ],
-      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+      "staged_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
       "staged_sha256": "2a42261fbf8dbbe8d27dce2af8a1713a29021db2c479012714eaa2edac67f821",
       "unselected_entries": [
         "_ZN2at6native19indexFuncSmallIndexIhijLi1ELi1ELin2ENS0_44_GLOBAL__N__cf70cbee_11_Indexing_cu_89862edb9ReduceAddEEEvNS_4cuda6detail10TensorInfoIT_T1_EENS6_IKS7_S8_EENS6_IKT0_S8_EEiiS8_llRKT5_S7_",
@@ -2626,9 +2626,9 @@
   },
   "staging": {
     "complete_sha256": "55a980fdaa575e13d4885311e6d5e3e5e0dbe5164e445d231d4d6fe7167277e7",
-    "directory": "/root/hbfsim-exp/rebuttal_20260921/native-embedding-scoped-stage-v1/stage-v10",
+    "directory": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-embedding-scoped-stage-v1/stage-v10",
     "manifest_sha256": "43f3ed2d27b49d12d15db675366a779a67c549076ea2132ddd64d6a42b43adcc",
-    "pass_manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-embedding-scoped-stage-v1/stage-v10/pass-manifest.jsonl",
+    "pass_manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-embedding-scoped-stage-v1/stage-v10/pass-manifest.jsonl",
     "pass_manifest_sha256": "a984e81c1c1c0ba6421029c746967c5a6004bf5b3f1319488c267eec753d11cb",
     "policy": "partial",
     "status": "PARTIAL_READY"

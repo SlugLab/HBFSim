@@ -1,5 +1,7 @@
 # CD8P vmem tuning and real-GPU proof
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 Date: 2026-08-11 UTC
 
 ## Outcome
@@ -16,7 +18,7 @@ device.
 
 ## Source provenance and safety boundary
 
-- Source repository checkout: `/home/victoryang00/nvme-mem2nvm`, current HEAD
+- Source repository checkout: `${NVME_MEM_SOURCE}`, current HEAD
   `d79c1481697cb4cc188b9c8a3985d6274512bdc4`.
 - Source data commit: `bf6ab23c2ef970f3b1410ea88c24621a6f5a86ff`.
 - Source CSV:
@@ -27,7 +29,7 @@ device.
 - Geometry-aligned HBFSim capacity: 1,919,850,381,312 bytes; the
   533,028,864-byte delta is 0.0278%.
 
-The proof did not open `/dev/vmem0` or any raw NVMe namespace. At the proof
+The proof did not open `${VMEM_DEVICE}` or any raw NVMe namespace. At the proof
 checkpoint, `/sys/class/vmem/vmem0/cache_used` and `dirty_bytes` both reported
 4,294,967,296 bytes. The GPU benchmark used only a fresh `cudaMalloc` range of
 at most 2 MiB and consumed the committed CSV as read-only calibration input.
@@ -69,7 +71,7 @@ deterministic calibration check, not cross-validation.
 ## Real-GPU replay
 
 Hardware: GPU 0, NVIDIA RTX PRO 6000 Blackwell Server Edition, UUID
-`GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174`, driver 595.84, 97,887 MiB.
+`${GPU_UUID}`, driver 595.84, 97,887 MiB.
 
 The kernel used one thread and one volatile byte load from the first byte of
 each 4 KiB page. Each tuned process created a fast-mode context, registered the
@@ -97,7 +99,7 @@ and synchronization overhead. It is not a projected HBF device latency.
 
 ```bash
 python3 scripts/tune_vmem_profile.py \
-  --input-csv /home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv \
+  --input-csv ${NVME_MEM_SOURCE}/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv \
   --base-profile configs/profiles/nominal.json \
   --output-profile configs/profiles/cd8p-vmem-p50.json \
   --output-report configs/tuning/cd8p-vmem-comparison.json \
@@ -110,11 +112,11 @@ HBFSIM_BUILD_DIR=/dev/shm/hbfsim-vllm-gpu13 \
 HBFSIM_BPFTIME_BUILD_DIR=/dev/shm/hbfsim-bpftime-variant-gcc14 \
 python3 scripts/run_vmem_tuning_bench.py \
   --profile configs/profiles/cd8p-vmem-p50.json \
-  --output /mnt/disk2/hbfsim-cd8p-vmem-tuning-20260811/summary.json
+  --output ${OUTPUT_ROOT}/hbfsim-cd8p-vmem-tuning-20260811/summary.json
 ```
 
 - Full live artifact directory:
-  `/mnt/disk2/hbfsim-cd8p-vmem-tuning-20260811` (25 files, 168 KiB).
+  `${OUTPUT_ROOT}/hbfsim-cd8p-vmem-tuning-20260811` (25 files, 168 KiB).
 - Summary SHA256:
   `d4e7976abdcc9e1e7160ee5cccb3d0e957096a8c90fd9117c5cff8cb942f010e`.
 - Profile SHA256:

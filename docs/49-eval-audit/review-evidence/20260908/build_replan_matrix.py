@@ -2,7 +2,7 @@
 """Generate reviewed planning cells; never launches experiments or fabricates results."""
 import csv,json,hashlib,itertools
 from pathlib import Path
-root=Path('/root/hbfsim-exp/eval-base-integration'); report=root.parent/'reports/eq-replan-20260908'; rows=[]
+root=Path('${HBFSIM_SOURCE}'); report=root.parent/'reports/eq-replan-20260908'; rows=[]
 SHA='254d65a66279fbaffc5c185d04fbe41dc8dbba44'
 def add(cid,eq,group,status,entry=None,params=None,gate='REPLAN_REGISTRATION',resource='CPU_ONLY',repeats=1,formal=3,cap=120,out_mib=100,**extra):
     p=Path(entry) if entry else None

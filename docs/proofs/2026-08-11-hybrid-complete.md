@@ -1,5 +1,7 @@
 # Hybrid HBFSim real-GPU completion checkpoint
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 Date: 2026-08-11 UTC
 
 This checkpoint closes the fast/hybrid timing, public over-VRAM capacity,
@@ -10,7 +12,7 @@ keeps physical observations separate from extrapolated overheat scenarios.
 
 - GPU: NVIDIA RTX PRO 6000 Blackwell Server Edition, driver 595.84, compute
   capability 12.0, 97,887 MiB.
-- Flash proxy: `/dev/nvme1n2`, Dell DC NVMe CD8P E3.S 1.92TB, serial
+- Flash proxy: `${STORAGE_DEVICE}`, Dell DC NVMe CD8P E3.S 1.92TB, serial
   `7EU0A01P0XK1`.
 - CUDA toolkit used for HBFSim and llama.cpp: 13.0.88.
 - bpftime commit: `ec26daecc8e787fb80fd95dd596a576404a5e36e` with the repository
@@ -89,6 +91,6 @@ temperature.
 
 Full live artifacts remain at:
 
-- `/mnt/disk2/hbfsim-thermal-logp-20260811`
-- `/mnt/disk2/hbfsim-llama-proof-20260811`
-- `/mnt/disk2/hbfsim-over-vram-proof-20260811-nYKfkJ`
+- `${OUTPUT_ROOT}/hbfsim-thermal-logp-20260811`
+- `${OUTPUT_ROOT}/hbfsim-llama-proof-20260811`
+- `${OUTPUT_ROOT}/hbfsim-over-vram-proof-20260811-nYKfkJ`

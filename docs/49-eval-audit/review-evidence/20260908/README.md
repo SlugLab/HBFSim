@@ -1,6 +1,6 @@
 # 2026-09-08 审阅依据包
 
-这是从原执行环境 `/root/hbfsim-exp/reports/eq-replan-20260908/` 选拷的小型报告和收据，供 GitHub 上审阅；不是完整实验数据集。[中文审阅指南](../../REVIEW_GUIDE.md)给出阅读顺序，发布摘要 (an internal working document, not published in this repository)概括已经完成与仍待验证的范围。
+这是从原执行环境 `${EXPERIMENT_ROOT}/reports/eq-replan-20260908/` 选拷的小型报告和收据，供 GitHub 上审阅；不是完整实验数据集。[中文审阅指南](../../REVIEW_GUIDE.md)给出阅读顺序，发布摘要 (an internal working document, not published in this repository)概括已经完成与仍待验证的范围。
 
 | 主题 | 入口与收据 |
 |---|---|
@@ -21,6 +21,6 @@
 
 ## 路径与脚本
 
-正文代码块、CSV/JSON 中 `/root/hbfsim-exp/...`、`/mnt/disk0/...` 等路径属于原执行环境的 provenance，未替换为虚构的可下载 URL。Markdown 导航已经改成仓库内相对链接，源码行号改用 GitHub `#L...`。
+普通说明中的私有目录已改为用途明确的路径变量。公开 CSV/JSON、日志和报告也是路径归一化副本；其中保留的历史哈希描述私有原件，不校验归一化后的字节。公共副本使用仓库根目录的新清单校验。Markdown 导航已经改成仓库内相对链接，源码行号改用 GitHub `#L...`。
 
 小型 Python 文件是当轮检查或生成记录的副本。除独立算术 fixture 外，部分脚本固定了原主机路径、UUID、外部输入或输出位置；保存脚本不代表任意 clone 可直接执行，也不提供完整环境复现。审阅阶段应先读源码、输入绑定和 [执行计划](../../execution-plan.md)，满足门禁后再准备独立运行目录。分享本包不启动原控制器或实验队列。

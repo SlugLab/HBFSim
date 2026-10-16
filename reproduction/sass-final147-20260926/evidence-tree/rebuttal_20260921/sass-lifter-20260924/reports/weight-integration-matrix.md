@@ -12,7 +12,7 @@ DOC_DERIVED：epoch6711 `runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json` 为 
 
 当前状态（2026-09-26，DOC_DERIVED）：epoch6706 lm_head 真实scheduled decode compute_logits代表已MODEL_CONNECTED_PASS，参见 ../runs/li6-head-progress-v1/MODEL_VALIDATION.json 及 ../task/li6-head-progress-v1/TERMINAL_EVIDENCE_INTERPRETATION.md。与旧98、QKV layer0、o_proj layer0、router layer0合计102/147、13,331,075,072B；剩45/507,248,640B。账本 ../task/full-coverage-ledger-v1/MODEL_COVERAGE_AFTER_HEAD_v1.json。此前6701/6703/6705失败保留，统一mixed3、扩45及最终147回归未执行。旧保留已过期且GPU由Qwen vLLM占用，root须重新核资源身份后才可决定启动；下方13:50状态为历史。
 
-当前状态（13:50UTC）：接受模型覆盖100/147。router layer0 MODEL_CONNECTED_PASS；lm_head 精确profile LIFT_OUTPUT_PASS，但6701/6703插桩候选超时，未计模型覆盖；o_proj局部BYTE_EQUAL尚缺独立整轮服务闭合。下一步隔离o_proj-only和head-only真实模型代表，仍保留最终组合147回归目标。实际进程/计划入口 `../task/resume-giga-20260925-v1/OWNER.json`。下方有时间戳的准备段属于历史，不能覆盖实际终态。
+当前状态（13:50UTC）：接受模型覆盖100/147。router layer0 MODEL_CONNECTED_PASS；lm_head 精确profile LIFT_OUTPUT_PASS，但6701/6703插桩候选超时，未计模型覆盖；o_proj局部BYTE_EQUAL尚缺独立整轮服务闭合。下一步隔离o_proj-only和head-only真实模型代表，仍保留最终组合147回归目标。实际进程/计划入口 `../task/resume-rtx-5090-20260925-v1/OWNER.json`。下方有时间戳的准备段属于历史，不能覆盖实际终态。
 
 最新验收（2026-09-25 13:14UTC）：Li7 layer0 router epoch6702 已通过完整模型接入验收，唯一storage262144B，固定decode消费者。接受覆盖100；尚未证明其余router15层。实际工件与路径见 `../task/router-li7-model-representative-v1/LIVE_PLAN.json`、`BUNDLE_JOIN.json`、`MODEL_TARGET_MANIFEST.json`、`model-sidecar.json` 和运行 `MODEL_VALIDATION.json`。其余未通过类别优先，以下13:13记录为验收前历史。
 
@@ -24,7 +24,7 @@ DOC_DERIVED：epoch6711 `runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json` 为 
 
 本表用于扩层前核对已经成功的接口，配合 [接口契约](interface-binding-contract.md) 和 三级验收（历史来源路径 `all-weights-expansion.md`；未收录于本公开包）。表中成功只指对应收据的消费者范围。新层的地址、句柄、context及生成器身份必须取自本次模型；未知项不由名称、形状或调用顺序推断。
 
-下列运行产品的 `task/…` 路径以 giga `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/` 为根；本地只收集必要证据，不保证存在全部远端产品。不能把这些相对运行路径直接解释为本地文件或复制成Windows绝对路径写入远端配置。
+下列运行产品的 `task/…` 路径以 rtx-5090 `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/` 为根；本地只收集必要证据，不保证存在全部远端产品。不能把这些相对运行路径直接解释为本地文件或复制成Windows绝对路径写入远端配置。
 
 | 类别 | 已有依据与参数边界 | 注册、路径及扩层注意事项 |
 |---|---|---|
@@ -64,9 +64,9 @@ DOC_DERIVED：epoch6711 `runs/li6-li7-remaining45-v1/MODEL_VALIDATION.json` 为 
 
 ## 2026-09-25 giga恢复增量
 
-Li7 v2已经在固定六修复lifter下完成CPU离线汇编，并从自己的候选ELF提取ABI：19槽、bank148B，槽9/14/18为4B，其余8B；原函数仍是152B单聚合。证据 `../task/router-li7-lift-v1/run-v2/CPU_RECEIPT.json`、独立 `li7-byte-abi-map.json`。13条同步诊断与quarantine身份不变，v1原失败保留。此项只解决候选产物与布局准备，不是LIFT_OUTPUT_PASS、INSTRUMENTED_KERNEL_PASS或MODEL_CONNECTED_PASS。Li7 host精确接口准备遵 `../task/resume-giga-20260925-v1/LI7_HOST_DECISION.md`，保留Li6。
+Li7 v2已经在固定六修复lifter下完成CPU离线汇编，并从自己的候选ELF提取ABI：19槽、bank148B，槽9/14/18为4B，其余8B；原函数仍是152B单聚合。证据 `../task/router-li7-lift-v1/run-v2/CPU_RECEIPT.json`、独立 `li7-byte-abi-map.json`。13条同步诊断与quarantine身份不变，v1原失败保留。此项只解决候选产物与布局准备，不是LIFT_OUTPUT_PASS、INSTRUMENTED_KERNEL_PASS或MODEL_CONNECTED_PASS。Li7 host精确接口准备遵 `../task/resume-rtx-5090-20260925-v1/LI7_HOST_DECISION.md`，保留Li6。
 
-Li6当前CPU准备要求：真实env构造与147清单上两selector检验；o_proj输出[1,2048]/BF16/4096B；lm_head比较实际compute_logits后的最终有效logits，关联org_vocab、dtype、字节数；installed/selected/registration地址和进程身份一致；模块与全局错误分别验收。审查入口 `../task/resume-giga-20260925-v1/ASTRA_REVIEW.md`。当前模型覆盖仍99，尚无新GPU代表终态。
+Li6当前CPU准备要求：真实env构造与147清单上两selector检验；o_proj输出[1,2048]/BF16/4096B；lm_head比较实际compute_logits后的最终有效logits，关联org_vocab、dtype、字节数；installed/selected/registration地址和进程身份一致；模块与全局错误分别验收。审查入口 `../task/resume-rtx-5090-20260925-v1/ASTRA_REVIEW.md`。当前模型覆盖仍99，尚无新GPU代表终态。
 
 
 2026-09-25 Li6代表6701已实际启动，尚待终态；CPU准备已不再是最新状态。精确147-storage目标清单由原生inventory及6603 registration生成于 `../task/full-coverage-ledger-v1/TARGET_LEDGER.json`，其中历史通过99、待证48，地址不可复用。最终Li6/Li7同组件绑定缺口见同目录COMBINED_INTERFACE_GAP.md；分类通过不得替代最终回归。

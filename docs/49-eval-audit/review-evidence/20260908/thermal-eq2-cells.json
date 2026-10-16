@@ -8,17 +8,17 @@
       "status": "READY_NOT_RUN",
       "executed_this_turn": false,
       "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
-      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint": "${EXPERIMENT_ROOT}/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
       "entrypoint_exists": true,
       "argv": [
         "--device-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
         "--package-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
         "--model",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
         "--output",
-        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-8hi-shadow",
+        "${EXPERIMENT_ROOT}/results/eq2-replan-future/eq2-test-only-8hi-shadow",
         "--duration-ns",
         "4000000000",
         "--offered-byte-rate",
@@ -41,15 +41,15 @@
       "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
       "input_files": {
         "device_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/device-8hi.json",
           "sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335"
         },
         "package_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/package-8hi-shadow.json",
           "sha256": "c6a143b6be10de240804314d6fe4fd1a87464a9c056318bab167a47a69cdeb52"
         },
         "rom": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-shadow/rom-8hi-runtime.json",
           "sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524"
         }
       },
@@ -78,17 +78,17 @@
       "status": "READY_NOT_RUN",
       "executed_this_turn": false,
       "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
-      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint": "${EXPERIMENT_ROOT}/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
       "entrypoint_exists": true,
       "argv": [
         "--device-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
         "--package-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
         "--model",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
         "--output",
-        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-8hi-active",
+        "${EXPERIMENT_ROOT}/results/eq2-replan-future/eq2-test-only-8hi-active",
         "--duration-ns",
         "4000000000",
         "--offered-byte-rate",
@@ -111,15 +111,15 @@
       "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
       "input_files": {
         "device_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/device-8hi.json",
           "sha256": "6cb05ce7623bc9e8620c2f7639e2272201352d94ff79b6644369c20c2cc37335"
         },
         "package_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/package-8hi-active.json",
           "sha256": "af55f556048e6220a1e648d200a3ce92f5cb8eaab5b87f17c1fc3680dd90f9ee"
         },
         "rom": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-8hi-cl2-active/rom-8hi-runtime.json",
           "sha256": "cc935171db2725b351cd7adc057d46c34e7472d6ba48656f2426839c14792524"
         }
       },
@@ -148,17 +148,17 @@
       "status": "READY_NOT_RUN",
       "executed_this_turn": false,
       "scope": "CONTROLLED_TEST_ONLY_MODEL_NOT_MAIN_FIGURE",
-      "entrypoint": "/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
+      "entrypoint": "${EXPERIMENT_ROOT}/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner",
       "entrypoint_exists": true,
       "argv": [
         "--device-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
         "--package-profile",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
         "--model",
-        "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+        "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
         "--output",
-        "/root/hbfsim-exp/results/eq2-replan-future/eq2-test-only-16hi-active",
+        "${EXPERIMENT_ROOT}/results/eq2-replan-future/eq2-test-only-16hi-active",
         "--duration-ns",
         "8000000000",
         "--offered-byte-rate",
@@ -181,15 +181,15 @@
       "source_sha": "49f9b2daa60271b39085de8cbc98180b6aead297",
       "input_files": {
         "device_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/device-16hi.json",
           "sha256": "0bd39f11255ce0b2cec771b23c91d8d576d9e91342eed672a75d5eac3a575e11"
         },
         "package_profile": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/package-16hi-active.json",
           "sha256": "7c977fe4ef9c20c91d2c514f6ba5b4d4caf05325c815bccd1be36e437b37a8aa"
         },
         "rom": {
-          "path": "/root/hbfsim-exp/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
+          "path": "${EXPERIMENT_ROOT}/phase2-runtime-inputs-20260827T095943Z/g1-16hi-bw-active/rom-16hi-runtime.json",
           "sha256": "7634f3fa010a22262a4330b6a438a8222fd8005a06c7b5354bb09b64a3759d65"
         }
       },

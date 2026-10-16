@@ -21,37 +21,37 @@
   },
   "outputs": {
     "binding_manifest": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/native-bindings-union.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/native-bindings-union.json",
       "sha256": "37494798acdf790d945cef65f27d6ef4e9f8660a26091f6254e89e65d7f0d210"
     },
     "pass_manifest": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/pass-manifests.jsonl",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/pass-manifests.jsonl",
       "sha256": "73f7673784bdaed1fc348127e95e279601de845a8e9f06ee9d890104312805f1"
     },
     "sidecars": [
       {
-        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
-        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
-        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
+        "new_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+        "old_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/91046f1b755317ca1b8bc03b99c682515f65e339f7df2d077de48bb3edfe3fe1.ptx",
+        "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/0-relocated-provenance.json",
         "sha256": "bb925908109713031a669a94420479cf9d2968143336ff5cd8d5474cb4d82449",
-        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/0-relocated-provenance.json"
+        "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/0-relocated-provenance.json"
       },
       {
-        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
-        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
-        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
+        "new_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+        "old_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/2a6bd98ac6ef980ff32048860926e16fdfc9bc805e2e6e3a892dd98cc0897ef6.ptx",
+        "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/1-relocated-provenance.json",
         "sha256": "17c6a73468d1b229b02bc397cd663de7b9e71b4e19730b66c453bf39884c1b82",
-        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/1-relocated-provenance.json"
+        "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/1-relocated-provenance.json"
       },
       {
-        "new_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
-        "old_stage_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
-        "path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
+        "new_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+        "old_stage_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/runs/copied-regression-v1/prepared/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+        "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/sidecars/2-relocated-provenance.json",
         "sha256": "6e4bf81f7778d681f5506411ec368035cf661563e693f29a160129a17aa57370",
-        "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/2-relocated-provenance.json"
+        "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/copied-provenance-relocation-fix-v1/package-v1/sidecars/2-relocated-provenance.json"
       }
     ],
-    "stage_dir": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage"
+    "stage_dir": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage"
   },
   "schema": "hbfsim.qkv_model_combined_stage.v1",
   "status": "CPU_STAGE_UNION_PASS_NO_GPU",

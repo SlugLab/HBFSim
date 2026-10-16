@@ -1,5 +1,7 @@
 # Real vLLM exact-PTX live-delay proof
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 Date: 2026-08-11
 
 Branch: `hybrid`
@@ -63,7 +65,7 @@ export HBFSIM_BPFTIME_BUILD_DIR=/dev/shm/hbfsim-bpftime-variant-gcc14
 export HBFSIM_VLLM_CACHE=/dev/shm/hbfsim-vllm-live-cache
 
 adapters/vllm/run_timing.sh \
-  --model /home/victoryang00/Qwen3-30B-A3B \
+  --model ${MODEL_ROOT}/Qwen3-30B-A3B \
   --profile configs/profiles/nominal.json \
   --report-dir /dev/shm/hbfsim-vllm-exact \
   --num-prompts 1 --input-len 32 --output-len 8 \
@@ -78,7 +80,7 @@ zero.
 
 ## Dell CD8P read-only comparison
 
-The storage endpoint was positively identified live as `/dev/nvme1n2`, Dell DC
+The storage endpoint was positively identified live as `${STORAGE_DEVICE}`, Dell DC
 NVMe CD8P E3.S 1.92TB, serial `7EU0A01P0XK1`. It had no filesystem, mount, or
 holder. The CD8P is a PCIe 5.0 NVMe device; it is not itself a CXL endpoint, so
 this result is a storage/thermal validation input rather than evidence of a CXL

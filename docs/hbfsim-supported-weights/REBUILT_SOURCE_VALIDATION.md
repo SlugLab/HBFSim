@@ -2,7 +2,7 @@
 
 The isolated integration tree starts at upstream main `17d0fc58c0444789650ab40b4641802b5b6c2db8`. It carries the successful HBF source, scoped native gate and CVTA-aware parameter metadata implementation. It does not import the unrelated thermal branch changes.
 
-The following command actually completed both configure/build profiles on giga. The output directory must be new; substitute your absolute source, toolchain and output paths.
+The following command actually completed both configure/build profiles on the RTX 5090 build host. The output directory must be new; substitute your absolute source, toolchain and output paths.
 
 ```sh
 python3 scripts/reproduce_hbfsim_cpu_build.py \
@@ -44,13 +44,13 @@ A fresh native baseline at GPU memory utilization 0.75 completed successfully wi
 
 ## Explicitly retained auxiliary components
 
-The new runtime combination retains three unchanged auxiliary binaries from the successful archive: attach loader `823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72`, syscall server `0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d`, and BPF probe `11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5`. Their exact paths and hashes are explicit in `tools/native_ptx_reproduction/execution/bundle-inputs.example.giga.json`. They are not claimed as clean rebuilds from this integration turn. Framework overlays and checkpoint files are likewise pinned external inputs; the source and original build evidence are recorded in ENVIRONMENT.md.
+The new runtime combination retains three unchanged auxiliary binaries from the successful archive: attach loader `823ec55914c5a31522cc9645e2ee821fa736dff16854a58829d3bd149d34af72`, syscall server `0b9b0d61f07b2fc10eb1644fde51a9ab47835991e4e0a3864fe956f78cf3781d`, and BPF probe `11dbc6a0724912c54a9ef5facb0219942ff9c0fbc87d4a996db9e3a9f9c6c7f5`. The retained hashes and parameter structure are shown in the [public bundle-input template](../../tools/native_ptx_reproduction/execution/bundle-inputs.example.rtx-5090.json). They are not claimed as clean rebuilds from this integration turn. Framework overlays and checkpoint files are likewise pinned external inputs; the source and original build evidence are recorded in ENVIRONMENT.md.
 
 See [auxiliary component provenance and build targets](../../scripts/AUXILIARY_COMPONENTS.md). Loader and probe sources match main and their original compile commands were recovered. The historical syscall-server byte hash is pinned, but its precise original producer command was not recovered; the new agent-only build did not rebuild that server. This is an explicit source-rebuild boundary, not a GPU coverage failure.
 
 ## Source-built representative model acceptance
 
-Epoch 5801 completed with `PASS_8_OF_8_ADDRESSED_ACTIVE`, worker exit 0 and no remaining children. The full selected range total is 1,011,372,032 bytes across eight storages. In-range, admitted and completed counters are identical: 14,962,944 accesses / 239,149,056 intersection bytes; all recorded error classes are zero, all seven modules are COMPLETE, and accounting disable completed. Output `[[70,13]]` matches the new 0.75 native baseline exactly. Load took 507.014 seconds and generation 203.072 seconds. The worker completed at 2026-09-23 18:40:28.593 UTC, within the 1,800-second allowance.
+Epoch 5801 completed with `PASS_8_OF_8_ADDRESSED_ACTIVE`, worker exit 0 and no remaining children. The full selected range total is 1,011,372,032 bytes across eight storages. In-range, admitted and completed counters are identical: 14,962,944 accesses / 239,149,056 intersection bytes; all recorded error classes are zero, all seven modules are COMPLETE, and accounting disable completed. Output `[[70,13]]` matches the new 0.75 native baseline exactly. Load took 507.014 seconds and generation 203.072 seconds. The worker completed at 2026-09-23 18:${GPU_PCI_ADDRESS}93 UTC, within the 1,800-second allowance.
 
 See the actual [result](evidence/NEW_STAGED_075_RESULT.json), [dynamic storage validation](evidence/NEW_STAGED_075_DYNAMIC_VALIDATION.json), [worker finish](evidence/NEW_STAGED_075_WORKER_FINISH.json) and [controller finish](evidence/NEW_STAGED_075_FINISH.json). The source-built representative run and historical full98 run remain distinct; no second full98 execution is claimed. This short deterministic request validates the selected paths, not all possible prompts or individual storage latency.
 

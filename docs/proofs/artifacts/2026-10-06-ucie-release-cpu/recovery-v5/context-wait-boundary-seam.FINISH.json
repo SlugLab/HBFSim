@@ -7,12 +7,12 @@
     "validation-seam-recovery-v5/hbfsimd",
     "--context-wait-seam"
   ],
-  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
   "identity": {
     "pid": 3577465,
     "start_ticks": 18821856,
-    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
-    "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
+    "boot": "${BOOT_OR_RUN_ID}",
+    "exe": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
   },
   "natural_rc": 0,
   "wait_reaped": true,

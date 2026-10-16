@@ -14,4 +14,6 @@ Use the actual filenames emitted by your collection/staging attempt. Extraction 
 
 Use `adapters/vllm/auto_prepare_ptx.py` with the CVTA-aware pass for transformation. Rebuild the binding and combined-stage manifests from actual new artifacts; do not reuse the older experimental `build_union.py`, which selected an obsolete five-module fixture. The successful supported-weight run used seven raw modules/eight selected pass rows, including four actual MoE variants and both normalization entries from the joint module.
 
-The relocated CLI checks and four scoped-join tests passed on giga; see `docs/hbfsim-supported-weights/evidence/NATIVE_TOOLS_RELOCATION_CHECK.json`. This checks relocation and provenance behavior, not a new model run.
+The relocated CLI checks and four scoped-join tests passed on the RTX 5090 build host; see `docs/hbfsim-supported-weights/evidence/NATIVE_TOOLS_RELOCATION_CHECK.json`. This checks relocation and provenance behavior, not a new model run.
+
+For a new source-built run, use the [public reproduction guide](execution/README.md) and its neutral path templates. Archived inputs remain historical evidence and must not supply current runtime identities.

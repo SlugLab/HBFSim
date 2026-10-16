@@ -6,7 +6,7 @@
   "command": [
     "python3",
     "-B",
-    "/root/hbfsim-exp/reports/eq-replan-20260908/migration-guard-test.py"
+    "${EXPERIMENT_ROOT}/reports/eq-replan-20260908/migration-guard-test.py"
   ],
   "scope": "CPU mocks against installed launcher; no GPU and all killpg mocked",
   "test_sha256": "394075874b1cdbf1bab880377fa3bf26da5761e68c41eec0f9b63355de77b438",

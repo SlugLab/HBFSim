@@ -1,5 +1,7 @@
 # Live GPU and Dell CD8P Hardware Checkpoint
 
+> Public documentation uses configurable path variables and omits device identifiers. Recorded results and artifact hashes are unchanged.
+
 Date: 2026-08-10
 
 Branch: `hybrid`
@@ -31,19 +33,19 @@ The live GPU was:
 
 ```text
 NVIDIA RTX PRO 6000 Blackwell Server Edition
-GPU UUID GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174
+GPU UUID ${GPU_UUID}
 driver 595.84, compute capability 12.0, 97,887 MiB
-PCI BDF 0000:8a:00.0
+PCI BDF ${GPU_PCI_ADDRESS}
 ```
 
 The requested SSD was positively identified from block sysfs, NVMe identify,
 and PCI configuration space:
 
 ```text
-/dev/nvme1n2
+${STORAGE_DEVICE}
 Dell DC NVMe CD8P E3.S 1.92TB
 serial 7EU0A01P0XK1, firmware 2.0.0
-PCI BDF 0000:d8:00.0, KIOXIA 1e0f:002c
+PCI BDF ${GPU_PCI_ADDRESS}, KIOXIA 1e0f:002c
 PCIe 5.0, 32 GT/s x4, NUMA node 1
 ```
 
@@ -88,7 +90,7 @@ The reproducible fio shape was:
 
 ```bash
 fio --name=cd8p-seq-read \
-  --filename=/dev/nvme1n2 --readonly --rw=read \
+  --filename=${STORAGE_DEVICE} --readonly --rw=read \
   --bs=128k --iodepth=64 --ioengine=io_uring --direct=1 \
   --time_based=1 --runtime=20 --size=64G --offset=0 \
   --group_reporting=1 --eta=never
@@ -153,7 +155,7 @@ sample while either PID is live, and then wait for both:
 
 ```bash
 fio --name=cd8p-seq-read-concurrent \
-  --filename=/dev/nvme1n2 --readonly --rw=read \
+  --filename=${STORAGE_DEVICE} --readonly --rw=read \
   --bs=128k --iodepth=64 --ioengine=io_uring --direct=1 \
   --time_based=1 --runtime=20 --size=64G --offset=0 \
   --group_reporting=1 --eta=never &
@@ -167,7 +169,7 @@ while kill -0 "$gemm_pid" 2>/dev/null || kill -0 "$fio_pid" 2>/dev/null; do
   nvidia-smi \
     --query-gpu=temperature.gpu,power.draw,utilization.gpu,clocks.sm,clocks.mem,memory.used \
     --format=csv,noheader,nounits
-  nvme smart-log /dev/nvme1n2 -o json |
+  nvme smart-log ${STORAGE_DEVICE} -o json |
     jq '{temperature_c:(.temperature-273),critical_warning,media_errors}'
   sleep 2
 done
@@ -217,8 +219,8 @@ timeout 600s vllm bench throughput \
   --random-input-len 32 \
   --random-output-len 32 \
   --num-prompts 4 \
-  --model /home/victoryang00/Qwen3-30B-A3B \
-  --tokenizer /home/victoryang00/Qwen3-30B-A3B \
+  --model ${MODEL_ROOT}/Qwen3-30B-A3B \
+  --tokenizer ${MODEL_ROOT}/Qwen3-30B-A3B \
   --dtype bfloat16 \
   --max-model-len 256 \
   --gpu-memory-utilization 0.85 \

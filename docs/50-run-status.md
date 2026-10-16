@@ -184,7 +184,7 @@ All records in this section are standalone diagnostics. Formal DONE remains 0.
 
 The HF010 and earlier sections below remain dated history.
 
-Formal scheduler snapshot: 2026-09-05T13:15:22.591549+00:00.
+Formal scheduler snapshot: 2026-09-05T13:${GPU_PCI_ADDRESS}91549+00:00.
 Latest standalone update: HF010 returned three real arms; single-member decode
 metrics, native four-case C6 and native conditional-consumer GPU diagnostics ran.
 The new per-chain D0/D500 pair still failed G2; see the
@@ -333,7 +333,7 @@ controls pass26/26 and adapter regression57/57. Evidence:
 `results/gold/hf-routing-runner/imports-phase-attempt-001/`. No real vLLM/Torch
 import, model arm or formal matrix cell was launched.
 
-Standalone CPU update,2026-09-05T18:42:36.162441+00:00: owned HF request
+Standalone CPU update,2026-09-05T18:${GPU_PCI_ADDRESS}62441+00:00: owned HF request
 composition passes both reviews and95 related tests (38 worker/source/import,
 57 adapters). Evidence: `results/gold/hf-routing-runner/loaded-arm-phase-attempt-001/`.
 This uses CPU runtime fixtures, creates no real model arm or POSIX segment, and
@@ -487,7 +487,7 @@ and the separate diagnosis are both retained, without a test rerun. Acceptance:
 
 ## Standalone real-experiment checkpoint, 2026-09-06
 
-Historical HF008 run: HF008 started2026-09-06T18:03:21.357470Z on c7ee007 and completed after
+Historical HF008 run: HF008 started2026-09-06T18:${GPU_PCI_ADDRESS}57470Z on c7ee007 and completed after
 128.635422801 s, exit1. It passed device/import/preconstruction checks and
 actually loaded the BF16 model: stdout records56.88 GiB and39.138985 s for
 model loading, then5.18 s for engine initialization. The subsequent
@@ -503,7 +503,7 @@ Launch MemAvailable22,157,448 kB, CommitLimit70,960,824 kB and
 Committed_AS27,573,236 kB. Preserve prior failures; investigate the actual
 construction-time environment delta before a fresh guarded run.
 
-Historical HF007 started at 2026-09-06T17:55:45.041093Z on HEAD
+Historical HF007 started at 2026-09-06T17:${GPU_PCI_ADDRESS}41093Z on HEAD
 `c7ee00758c195798e4554268429f9a63868bcf7a` and stopped after0.566955839 s.
 The launch guard returned `ResourceBusy` for foreign GPU PID1291679. `arms=[]`;
 no owned child, import, runtime report, model, generated token or route started.

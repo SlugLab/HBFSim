@@ -716,7 +716,7 @@ Run:
 
 ```bash
 python3 scripts/tune_vmem_profile.py \
-  --input-csv /home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv \
+  --input-csv ${NVME_MEM_SOURCE}/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv \
   --base-profile configs/profiles/nominal.json \
   --output-profile configs/profiles/cd8p-vmem-p50.json \
   --output-report configs/tuning/cd8p-vmem-comparison.json \
@@ -819,11 +819,11 @@ HBFSIM_BUILD_DIR=/dev/shm/hbfsim-vllm-gpu13 \
 HBFSIM_BPFTIME_BUILD_DIR=/dev/shm/hbfsim-bpftime-variant-gcc14 \
 python3 scripts/run_vmem_tuning_bench.py \
   --profile configs/profiles/cd8p-vmem-p50.json \
-  --output /mnt/disk2/hbfsim-cd8p-vmem-tuning-20260811/summary.json
+  --output ${OUTPUT_ROOT}/hbfsim-cd8p-vmem-tuning-20260811/summary.json
 ```
 
 Expected: six exact checksum/model matches on the real GPU, one modeled launch
-per tuned case, and zero unsafe launches. Do not touch `/dev/vmem0` or the raw
+per tuned case, and zero unsafe launches. Do not touch `${VMEM_DEVICE}` or the raw
 NVMe namespace.
 
 - [ ] **Step 5: Write proof documentation**

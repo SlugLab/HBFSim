@@ -10,11 +10,11 @@
         "--parallel",
         "8"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3576422,
         "start_ticks": 18819703,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/cmake"
       },
       "natural_rc": 0,
@@ -34,11 +34,11 @@
         "build-default-legacy",
         "--show-only=json-v1"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3576911,
         "start_ticks": 18820900,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ctest"
       },
       "natural_rc": 0,
@@ -60,11 +60,11 @@
         "-E",
         "^(vmem_tuning|run_with_bpftime|context_lifecycle)$"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3576912,
         "start_ticks": 18820910,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ctest"
       },
       "natural_rc": 0,
@@ -87,11 +87,11 @@
         "--parallel",
         "8"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577377,
         "start_ticks": 18821450,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/cmake"
       },
       "natural_rc": 0,
@@ -107,13 +107,13 @@
       "name": "ldd-copied-seam-daemon",
       "argv": [
         "ldd",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/validation-seam-recovery-v5/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577458,
         "start_ticks": 18821855,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/bash"
       },
       "natural_rc": 0,
@@ -134,12 +134,12 @@
         "validation-seam-recovery-v5/hbfsimd",
         "--context-wait-seam"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577465,
         "start_ticks": 18821856,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
-        "exe": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
+        "boot": "${BOOT_OR_RUN_ID}",
+        "exe": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_backend_adapter_test"
       },
       "natural_rc": 0,
       "wait_reaped": true,
@@ -159,11 +159,11 @@
         "-t",
         "deps"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577478,
         "start_ticks": 18821890,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ninja"
       },
       "natural_rc": 0,
@@ -184,11 +184,11 @@
         "-t",
         "commands"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577479,
         "start_ticks": 18821896,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ninja"
       },
       "natural_rc": 0,
@@ -209,11 +209,11 @@
         "-t",
         "deps"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577480,
         "start_ticks": 18821896,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ninja"
       },
       "natural_rc": 0,
@@ -234,11 +234,11 @@
         "-t",
         "commands"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577481,
         "start_ticks": 18821900,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/ninja"
       },
       "natural_rc": 0,
@@ -255,13 +255,13 @@
       "argv": [
         "ar",
         "t",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/libhbfsim_ucie.a"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/libhbfsim_ucie.a"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577482,
         "start_ticks": 18821901,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-ar"
       },
       "natural_rc": 0,
@@ -279,13 +279,13 @@
         "readelf",
         "-W",
         "-d",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577483,
         "start_ticks": 18821903,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-readelf"
       },
       "natural_rc": 0,
@@ -301,13 +301,13 @@
       "name": "ldd-on-daemon",
       "argv": [
         "ldd",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577484,
         "start_ticks": 18821905,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/bash"
       },
       "natural_rc": 0,
@@ -325,13 +325,13 @@
         "nm",
         "-C",
         "--defined-only",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577491,
         "start_ticks": 18821905,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-nm"
       },
       "natural_rc": 0,
@@ -349,13 +349,13 @@
         "readelf",
         "-W",
         "-d",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577492,
         "start_ticks": 18821911,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-readelf"
       },
       "natural_rc": 0,
@@ -371,13 +371,13 @@
       "name": "ldd-on-worker",
       "argv": [
         "ldd",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577493,
         "start_ticks": 18821911,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/bash"
       },
       "natural_rc": 0,
@@ -395,13 +395,13 @@
         "nm",
         "-C",
         "--defined-only",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on/ucie_stack_worker"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577500,
         "start_ticks": 18821912,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-nm"
       },
       "natural_rc": 0,
@@ -419,13 +419,13 @@
         "readelf",
         "-W",
         "-d",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577501,
         "start_ticks": 18821916,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-readelf"
       },
       "natural_rc": 0,
@@ -441,13 +441,13 @@
       "name": "ldd-off-daemon",
       "argv": [
         "ldd",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577502,
         "start_ticks": 18821916,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/bash"
       },
       "natural_rc": 0,
@@ -465,13 +465,13 @@
         "nm",
         "-C",
         "--defined-only",
-        "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
+        "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-default-legacy/hbfsimd"
       ],
-      "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+      "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
       "identity": {
         "pid": 3577509,
         "start_ticks": 18821917,
-        "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+        "boot": "${BOOT_OR_RUN_ID}",
         "exe": "/usr/bin/x86_64-linux-gnu-nm"
       },
       "natural_rc": 0,

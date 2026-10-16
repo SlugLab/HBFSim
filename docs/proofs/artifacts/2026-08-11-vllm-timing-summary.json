@@ -8,7 +8,7 @@
     "compute_capability": "12.0"
   },
   "workload": {
-    "model": "/home/victoryang00/Qwen3-30B-A3B",
+    "model": "${MODEL_ROOT}/Qwen3-30B-A3B",
     "architecture": "Qwen3MoeForCausalLM",
     "num_prompts": 4,
     "input_tokens_per_prompt": 32,

@@ -30,7 +30,7 @@ def check_runtime(root, mount, reserve_gib):
         ['findmnt','-J','-T',str(root),'-o','TARGET,SOURCE,UUID,OPTIONS'],
         text=True))['filesystems'][0]
     free_now=shutil.disk_usage(root).free
-    if (current['uuid']!=mount['uuid'] or current['target']!='/mnt/disk0'
+    if (current['uuid']!=mount['uuid'] or current['target']!='${DATA_ROOT}'
             or 'rw' not in current['options'].split(',')
             or free_now<reserve_gib*2**30):
         print(json.dumps({'state':'STOP_SPACE_OR_MOUNT','free_bytes':free_now,
@@ -66,9 +66,9 @@ def main():
     a=p.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]{8,100}',a.stack): p.error('invalid stack fingerprint')
     if a.reserve_gib<128 or a.max_output_gib<0: p.error('reserve must be >=128 GiB and output bound nonnegative')
-    root=Path('/mnt/disk0/hbfsim-exp'); logical=Path('/root/hbfsim-exp')
+    root=Path('${DATA_ROOT}/hbfsim-exp'); logical=Path('${EXPERIMENT_ROOT}')
     mount=json.loads(subprocess.check_output(['findmnt','-J','-T',str(root),'-o','TARGET,SOURCE,UUID,OPTIONS'],text=True))['filesystems'][0]
-    if (mount['target']!='/mnt/disk0' or mount['source']!='/dev/nvme2n1p1' or mount['uuid']!='37be6892-a8aa-4fae-885d-5feed3b28fab' or 'rw' not in mount['options'].split(',')):
+    if (mount['target']!='${DATA_ROOT}' or mount['source']!='${STORAGE_DEVICE}' or mount['uuid']!='${BOOT_OR_RUN_ID}' or 'rw' not in mount['options'].split(',')):
         raise SystemExit('BLOCKED_MOUNT: expected writable PM1733a UUID')
     if logical.resolve()!=root or not logical.is_symlink(): raise SystemExit('BLOCKED_PREFIX: migration compatibility link absent')
     free=shutil.disk_usage(root).free

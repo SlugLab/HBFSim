@@ -3,7 +3,7 @@
   "discovered_storage_count": 435,
   "mode": "timing_backed",
   "parameter_count": 435,
-  "profile_path": "/root/hbfsim/HBFSim/.worktrees/hybrid/configs/profiles/nominal.json",
+  "profile_path": "./.worktrees/hybrid/configs/profiles/nominal.json",
   "registered_bytes": 16384,
   "schema_version": 1,
   "selection": {

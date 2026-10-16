@@ -4,7 +4,7 @@
   "fake_cudart13_sha256": "a8ce89706ff756f3e04f9b5ab0d980e516ddd81276111aad7576b23f6f51c3a7",
   "returncode": 0,
   "stderr": "",
-  "ld_library_path": "/root/hbfsim-exp/rebuttal_20260921/main-reproduction-gate-cpu-v3:/root/hbfsim-exp/rebuttal_20260921/native-unbound-handshake-real-dso-cpu-v1",
+  "ld_library_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/main-reproduction-gate-cpu-v3:${EXPERIMENT_ROOT}/rebuttal_20260921/native-unbound-handshake-real-dso-cpu-v1",
   "status": "PASS",
   "rows": 12
 }

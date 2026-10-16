@@ -13,7 +13,7 @@ from pathlib import Path
 from contextlib import redirect_stdout, redirect_stderr
 
 OUT = Path(__file__).resolve().parent
-REPO = Path('/root/hbfsim-exp/eval-base-integration')
+REPO = Path('${HBFSIM_SOURCE}')
 sys.dont_write_bytecode = True
 os.environ.update(CUDA_VISIBLE_DEVICES='', OMP_NUM_THREADS='1',
                   OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1',

@@ -1,8 +1,8 @@
 {
   "command": [
     "python3",
-    "/root/hbfsim-exp/eval-base-integration/tests/integration/test_future_emitter.py",
-    "/root/hbfsim-exp/reports/eq-replan-20260908/eq1-future-driver",
+    "./tests/integration/test_future_emitter.py",
+    "${EXPERIMENT_ROOT}/reports/eq-replan-20260908/eq1-future-driver",
     "-v"
   ],
   "returncode": 0,

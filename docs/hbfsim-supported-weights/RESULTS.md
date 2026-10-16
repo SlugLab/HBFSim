@@ -31,13 +31,13 @@ The other two staged MoE variants and the auxiliary Fill module contributed zero
 
 Complete storage registration does not mean that this short request traversed every byte or every expert. Intersection bytes are accumulated accesses, not unique-byte coverage. Addressed launch evidence plus module-level completion does not provide an independent latency measurement for each storage. Native fallback is excluded from modeled coverage.
 
-Measured load time was 762.933 s and generation time was 1424.058 s. Worker wall time was 2235.056 s (2026-09-23 15:44:19.742–16:21:34.798 UTC). These include framework, host authentication, and simulator overhead and are not a hardware latency-accuracy or speedup result. The outer allowance was 10,800 s; it did not cause termination.
+Measured load time was 762.933 s and generation time was 1424.058 s. Worker wall time was 2235.056 s (2026-09-23 15:${GPU_PCI_ADDRESS}42–16:${GPU_PCI_ADDRESS}98 UTC). These include framework, host authentication, and simulator overhead and are not a hardware latency-accuracy or speedup result. The outer allowance was 10,800 s; it did not cause termination.
 
 The approximately 5% resource-margin target was briefly undershot: the 30-minute observation showed 3.83% free VRAM. The fixed 4 GiB reservation process had no hot-resize interface. The original run completed without OOM; this deviation is retained rather than claimed as full resource-policy compliance.
 
 ## Evidence identities
 
-The original run directory is `results/native-supported-all98-staged-v1` under the giga experiment archive. It contains 76 preserved raw files, indexed by SHA256; the byte inventory totals 20,051,095 bytes.
+The original run directory is `results/native-supported-all98-staged-v1` under the experiment archive. It contains 76 preserved raw files, indexed by SHA256; the byte inventory totals 20,051,095 bytes.
 
 | Artifact | SHA256 |
 |---|---|

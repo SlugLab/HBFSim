@@ -1,7 +1,7 @@
 # Resume contract — 2026-09-07
 
 Execution request: `results/batches/20260907-formal-matrix-resume/execution-request.txt`.
-Worktree: `/root/hbfsim-exp/eval-base-integration`, branch
+Worktree: `${HBFSIM_SOURCE}`, branch
 `eval/eq1-eq4-implementation`, starting HEAD
 `aa5af1d125bbd5c758a0393a099e51e17e7fff51`. Three preexisting documentation
 changes are preserved in the batch's `preexisting.patch`; untracked results and
@@ -14,7 +14,7 @@ contracts; current 50 status, blockers, budgets and integration descriptions;
 the preceding routing batch's receipts; scheduler and affected implementation.
 The two original histories were read in this task's prior turn. Their known
 empty recent items remain unread, rather than reclassified as recovered history.
-The backup task `01a07b84-1d9e-72d2-b14a-367657fd4afd` was read once; its latest
+The backup task `${BOOT_OR_RUN_ID}` was read once; its latest
 turn also returned no items. Its actual stream script and host process supplied
 current evidence. No unrelated session or credential scan was performed.
 
@@ -76,10 +76,10 @@ exit notification, with low-frequency user-level progress checks.
 
 ## Initial resource observation
 
-Host gpu01, RTX PRO 6000 Blackwell, UUID
-`GPU-f07ea2df-1b6f-9a02-b534-5090abf3c174`, driver 595.84, 97,887 MiB total.
+Host the recorded build host, RTX PRO 6000 Blackwell, UUID
+`${GPU_UUID}`, driver 595.84, 97,887 MiB total.
 GPU empty at preflight. MemAvailable 19,632,524 KiB; CommitLimit/Committed_AS
 70,960,824/51,357,180 KiB. These are observations, not reservations.
-Root is shared Lexar `/dev/nvme1n1p2`; last host free bytes 10,971,521,024.
-`/mnt/disk0` contains the backup, not an authorized experiment output target.
+Root is shared Lexar `${STORAGE_DEVICE}`; last host free bytes 10,971,521,024.
+`${BACKUP_ROOT}` contains the backup, not an authorized experiment output target.
 Unmounted CD8P devices are not implicit permission for payload I/O or mounting.

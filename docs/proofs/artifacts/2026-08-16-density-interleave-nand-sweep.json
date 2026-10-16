@@ -41,7 +41,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -99,7 +99,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc02.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -157,7 +157,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -215,7 +215,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc04.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -273,7 +273,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -331,7 +331,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc08.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -389,7 +389,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -447,7 +447,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc128.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -505,7 +505,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -563,7 +563,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc16.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -621,7 +621,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -679,7 +679,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc32.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -737,7 +737,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -795,7 +795,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
+        "${HOME}/HBFSim/configs/profiles/density-sweep/hbf-density-dpc64.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -855,7 +855,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -913,7 +913,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-cwdp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -971,7 +971,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1029,7 +1029,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-dwcp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1087,7 +1087,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1145,7 +1145,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-pdwc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1203,7 +1203,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1261,7 +1261,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
+        "${HOME}/HBFSim/configs/profiles/interleave-sweep/hbf-interleave-wcdp.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1321,7 +1321,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1379,7 +1379,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-mlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1437,7 +1437,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1495,7 +1495,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-qlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1553,7 +1553,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1611,7 +1611,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-slc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1669,7 +1669,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",
@@ -1727,7 +1727,7 @@
       "command": [
         "build/hbf_mqsim_bench",
         "--profile",
-        "/root/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
+        "${HOME}/HBFSim/configs/profiles/nand-sweep/hbf-nand-tlc.json",
         "--capacity-bytes",
         "1099511627776",
         "--operation",

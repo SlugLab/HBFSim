@@ -1,6 +1,6 @@
 {
   "schema": "hbfsim.model_file_identity.v1",
-  "source_directory": "/root/hbfsim-exp/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
+  "source_directory": "${EXPERIMENT_ROOT}/rebuttal_20260921/model/OLMoE-1B-7B-0924-6d84c485",
   "files": [
     {
       "name": "config.json",

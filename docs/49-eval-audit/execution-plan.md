@@ -60,7 +60,7 @@ pilot冻结最小可分辨D、absolute error ns/us阈值、paired重复数和hel
 
 ## EQ2：独立device-only先行，真三臂缺口明确
 
-P=`prototype-revalidation/sources/diagnostics/cell-c-phase2-adaptation-001@49f9b2daa60271b39085de8cbc98180b6aead297`，与C无共同祖先。真实CPU入口为`/root/hbfsim-exp/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner`，参数为`--device-profile --package-profile --model --output --duration-ns --offered-byte-rate --peak-byte-rate --request-bytes --queue-depth --seed --arrival-mode --workload --pattern`。stage在package JSON，**没有--thermal-stage runner flag**。完整argv/input哈希见[thermal cells](review-evidence/20260908/thermal-eq2-cells.json)，精确范围见[thermal audit](review-evidence/20260908/thermal-audit.md)。
+P=`prototype-revalidation/sources/diagnostics/cell-c-phase2-adaptation-001@49f9b2daa60271b39085de8cbc98180b6aead297`，与C无共同祖先。真实CPU入口为`${EXPERIMENT_ROOT}/prototype-revalidation/builds/cell-c-phase2-adaptation-001/phase2_thermal_load_runner`，参数为`--device-profile --package-profile --model --output --duration-ns --offered-byte-rate --peak-byte-rate --request-bytes --queue-depth --seed --arrival-mode --workload --pattern`。stage在package JSON，**没有--thermal-stage runner flag**。完整argv/input哈希见[thermal cells](review-evidence/20260908/thermal-eq2-cells.json)，精确范围见[thermal audit](review-evidence/20260908/thermal-audit.md)。
 
 | 组 | 入口/状态 | initial、参数与配对 | 重复、预算和停止 |
 |---|---|---|---|

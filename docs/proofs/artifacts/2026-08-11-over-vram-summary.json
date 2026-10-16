@@ -10,5 +10,5 @@
   "modeled_launches": 1,
   "unsafe_launches": 0,
   "wall_ns": 178981713,
-  "full_artifact": "/mnt/disk2/hbfsim-over-vram-proof-20260811-nYKfkJ"
+  "full_artifact": "${DATA_ROOT}/hbfsim-over-vram-proof-20260811-nYKfkJ"
 }

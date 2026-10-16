@@ -7,7 +7,7 @@ if [[ $# -lt 2 || $1 != "--" ]]; then
 fi
 shift
 
-HBFSIM_ROOT=/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1
+HBFSIM_ROOT=${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/workspace-freeze-copy-v5/B-weight-binding-config-source-v1
 if [[ ! -d $HBFSIM_ROOT ]]; then
     echo "run_with_bpftime_combined: frozen copied B root missing: $HBFSIM_ROOT" >&2
     exit 66

@@ -216,7 +216,7 @@ tolerance.
 For the smallest same-network pilot, use the existing mixed Q1--Q3 model:
 
 ```text
-/root/hbfsim-exp/eq3_thermal/generated/campaign-RC2MM-train
+${EXPERIMENT_ROOT}/eq3_thermal/generated/campaign-RC2MM-train
 ```
 
 It contains 64,512 cells, 255 entities and 275 sensors.  The locked SHA-256

@@ -6,11 +6,11 @@
     "build-ucie-on",
     "remote-tests-only"
   ],
-  "cwd": "/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1",
+  "cwd": "${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1",
   "identity": {
     "pid": 3539851,
     "start_ticks": 18590991,
-    "boot": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+    "boot": "${BOOT_OR_RUN_ID}",
     "exe": "/usr/bin/bash"
   },
   "natural_rc": 0,

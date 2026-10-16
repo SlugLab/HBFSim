@@ -75,7 +75,7 @@ assigned in the internal defect register described at the top of this file.
   - Evidence that closes it: a proof document reporting error at page counts that did not enter the fit.
 - [ ] Compare the fast path against the detailed MQSim path on the same input. Nothing in the code puts the two outputs side by side, and `tests/cpu/calibrator_test.cpp` is 63 lines, asserting nothing about the two paths together. Known defect, severity C, `14-C-no-consistency-check-between-paths.md`. One concrete symptom: in the three named profiles the channel fields give 25.6, 51.2 and 102.4 GB/s while `aggregate_bandwidth_bytes_per_s` declares 128, 512 and 1000 GB/s, factors of 5, 10 and 9.8 apart, so the two paths may not be modeling the same device. About one week for the harness. No GPU hardware.
   - Evidence that closes it: a test that runs one request stream through both paths and asserts a stated agreement bound.
-- [ ] Make `vmem_tuning` pass on a machine other than the calibration host. The test reads the absolute path `/home/victoryang00/nvme-mem2nvm/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv`, which exists only on that host. No GPU hardware.
+- [ ] Make `vmem_tuning` pass on a machine other than the calibration host. The test reads the absolute path `${NVME_MEM_SOURCE}/docs/superpowers/results/2026-07-30-vmem-sw-performance.csv`, which exists only on that host. No GPU hardware.
   - Evidence that closes it: `ctest` green on a clean checkout, with the CSV either committed or fetched by a script.
 - [ ] Make `run_with_bpftime` skip cleanly instead of failing when `/usr/local/cuda-12.8` is absent. No GPU hardware.
   - Evidence that closes it: `ctest` on a machine without CUDA reporting a skip rather than a failure.

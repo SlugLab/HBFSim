@@ -1,6 +1,6 @@
 # Rebuild the supported-weights bpftime agent
 
-Use `scripts/reproduce_bpftime_agent.py` on giga. Its source starts at the pinned
+Use `scripts/reproduce_bpftime_agent.py` on the RTX 5090 build host. Its source starts at the pinned
 bpftime commit `ec26daecc8e787fb80fd95dd596a576404a5e36e` and applies
 `patches/bpftime/0002-supported-weights-from-ec26.patch` (SHA-256
 `63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f`).
@@ -52,8 +52,8 @@ and required target suffixes; it does not rewrite kernel instructions.
 Prepare a **new** source/build directory after this change. Old preparation
 receipts remain historical evidence and are not accepted as a build of the new
 compatibility profile. The current script reports missing or changed inputs
-before starting a build. For toolkit roles and the recorded giga environment,
-see [the build environment guide](../docs/build/giga-environment.md).
+before starting a build. For toolkit roles and the recorded RTX 5090 environment,
+see [the build environment guide](../docs/build/rtx-5090-environment.md).
 
 The first independent source preparation passed with all 20 nested gitlinks in
 `main-reproduction-agent-recipe-prepare-v1/source.prepare.json`. The separate

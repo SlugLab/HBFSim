@@ -73,7 +73,7 @@ rsync 3.4.1 的 `-a` 等于 `-rlptgoD`，不包含 ACL/xattr/hardlink；`-H -A -
 
 最终静止状态可用同一过滤规则的 `rsync -aHAXSnci --numeric-ids -- SOURCE/ DEST/` 做一次 checksum dry-run，并独立核对关键 SHA256、路径清单、Git/worktree 状态、元数据和实际稀疏占用。`-c` 读取内容产生校验和来决定是否需传输，成本包括全文件 I/O；它不是对所有文件的 SHA256 证明。没有 `--delete` 时它不会暴露所有目标额外路径，需另比对相对路径 manifest。socket/lock 要按停机与重建规则处理，不列作持久内容等同项。
 
-保留 `/root/hbfsim-exp` 兼容前缀是本次优先策略。Git `repair` 仅在管理链接确实失效时使用，备份管理元数据；主仓库和 linked trees 都改名时从主树传新路径进行 repair。不得将独立 checkout 误作 worktree，也不得因迁移直接重写工作区外的共享主仓库。[Git 2.53.0](https://git-scm.com/docs/git-worktree/2.53.0)
+保留 `${EXPERIMENT_ROOT}` 兼容前缀是本次优先策略。Git `repair` 仅在管理链接确实失效时使用，备份管理元数据；主仓库和 linked trees 都改名时从主树传新路径进行 repair。不得将独立 checkout 误作 worktree，也不得因迁移直接重写工作区外的共享主仓库。[Git 2.53.0](https://git-scm.com/docs/git-worktree/2.53.0)
 
 只有需要真实更换环境 prefix 时才考虑隔离的 conda-pack 流程；工具要求同 OS，依赖可用 package cache，执行 conda-unpack 后不能再任意移动已解包环境。当前旧 prefix 兼容且 smoke 成功时没有重打包需求。[conda-pack 0.8.1](https://conda.github.io/conda-pack/)
 

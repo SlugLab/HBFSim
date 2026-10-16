@@ -1,7 +1,7 @@
 {
   "date_utc": "2026-10-15",
   "public_base_commit": "d2e6ce239c117c640fe68c8b5b2a7c77cf184da6",
-  "host": "giga, x86-64 RTX 5090 host; maintenance checks did not use GPU",
+  "host": "x86-64 host with NVIDIA GeForce RTX 5090; maintenance checks did not use GPU",
   "patches_sha256": {
     "0001-exact-module-load-provenance.patch": "c10ef6129615d4f1183043eee43ba0f159d14604f4e6d18470416016dfdb640f",
     "0002-ptx-target-compatibility-and-diagnostics.patch": "eb15c83ed77cc96565554ce81151f824a0ec658236564c568d4bb9069be70278",
@@ -84,5 +84,6 @@
     "SASS enabled/disabled branch selection is software evidence, not proof of recovered GPU semantics.",
     "Original r15 runtime, inputs, libraries and collector were not changed.",
     "Initial transport/setup refusals remain preserved alongside successful independent test attempts."
-  ]
+  ],
+  "publication_note": "Public validation summary; machine alias omitted. Embedded receipt and artifact hashes continue to identify unchanged original evidence."
 }

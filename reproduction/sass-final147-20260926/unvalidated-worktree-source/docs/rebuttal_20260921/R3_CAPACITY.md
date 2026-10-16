@@ -1,6 +1,6 @@
 # R3 capacity preparation
 
-Status: **READY_NOT_RUN**. R1 and R2 must pass before the single giga GPU
+Status: **READY_NOT_RUN**. R1 and R2 must pass before the single rtx-5090 GPU
 coordinator may use `--execute`.
 
 Two evidence paths remain separate:
@@ -53,7 +53,7 @@ The runner defaults to no execution and requires explicit R1 and R2 PASS gates. 
 
 ## 2026-09-21 current R3 packet (CPU-built, GPU not run)
 
-Status remains **READY_NOT_RUN / BLOCKED_BY_R1_THEN_R2**. The current packet is independently built in `build/rebuttal-r3-stats-v1`; it does not replace or relabel the frozen R1 runtime. The non-executing campaign receipt is `/root/hbfsim-exp/rebuttal_20260921/results/r3-preflight-v1/campaign-plan.json` (SHA-256 `48024696e00ddbb4c2429b68223274edac077871294179c18c3253c223317283`). It records `gpu_execution_requested=false`, and no R3 result root was created.
+Status remains **READY_NOT_RUN / BLOCKED_BY_R1_THEN_R2**. The current packet is independently built in `build/rebuttal-r3-stats-v1`; it does not replace or relabel the frozen R1 runtime. The non-executing campaign receipt is `${EXPERIMENT_ROOT}/rebuttal_20260921/results/r3-preflight-v1/campaign-plan.json` (SHA-256 `48024696e00ddbb4c2429b68223274edac077871294179c18c3253c223317283`). It records `gpu_execution_requested=false`, and no R3 result root was created.
 
 The fixed-work matrix uses the same 65 common 64 KiB-aligned regions for all five logical HBF page sizes. Dense reads and returns every u64 in each 64 KiB region; sparse reads and returns every u64 in the first contiguous 4 KiB. CPU validation compares every returned word against a non-uniform value derived from the absolute logical byte offset and also records a checksum. Fixed cells run cold then warm in the same runtime and order. The relative-page matrix reads the first actual page at P/16, P/4 and P coverage, cold only. This yields 20 fixed stage records plus 15 relative cells; the 64 KiB/full relative cell reuses the identical dense-cold stage, so 14 relative stages are new.
 

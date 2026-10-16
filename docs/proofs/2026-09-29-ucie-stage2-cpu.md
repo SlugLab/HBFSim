@@ -1,18 +1,18 @@
 # UCIe Stage 2 CPU device checkpoint
 
-Date: 2026-09-29. Source is the uncommitted `feature/ucie-interface-20260929` worktree at `70b1f93998ff142a8ab21f1a1cb75b7db84b8b90`; `origin/main` resolved to the same commit at final verification. Nothing was committed or pushed. Host `threadripper` on giga has GPU UUID `GPU-45044e90-a553-930c-b950-ba660acb37fc`; this CPU-only run did not use it or stop the existing vLLM. GCC 15.2.0, CMake 4.2.3, Ninja 1.13.2, Python 3.14.4, OpenSSL 3.5.5. Pinned bpftime `ec26daecc8e787fb80fd95dd596a576404a5e36e` and MQSim `51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16`; existing MQSim patches 0001–0003 applied in the private build copy.
+Date: 2026-09-29. Source is the uncommitted `feature/ucie-interface-20260929` worktree at `70b1f93998ff142a8ab21f1a1cb75b7db84b8b90`; `origin/main` resolved to the same commit at final verification. Nothing was committed or pushed. Host `${BUILD_HOST}` on rtx-5090 has GPU UUID `${GPU_UUID}`; this CPU-only run did not use it or stop the existing vLLM. GCC 15.2.0, CMake 4.2.3, Ninja 1.13.2, Python 3.14.4, OpenSSL 3.5.5. Pinned bpftime `ec26daecc8e787fb80fd95dd596a576404a5e36e` and MQSim `51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16`; existing MQSim patches 0001–0003 applied in the private build copy.
 
 Stage 2 adds the separate [CPU device frontend](../ucie/STAGE2_DEVICE_COALESCING.md), complete-span backing registry, in-flight page coalescer, bounded two-slot bank buffer, and strict native MQSim proof. It leaves Stage 1, daemon/GPU integration, PTX/helpers, public ABI, and MQSim core scheduling unchanged. The 512 GiB/stack configuration is parsed and its 16-module bank geometry validated, but a 512 GiB high-address real-engine run and four-stack service are Stage 3 work. AoU v0.8 Appendix D labels the HBF profile under development. A native MQSim chip per HBF bank is a service-resource abstraction, not physical die equivalence.
 
 ## Exact build and verification
 
-From `/root/hbfsim-exp/ucie-interface-20260929/worktree` on giga:
+From `${HBFSIM_SOURCE}` on rtx-5090:
 
 ```bash
 HBFSIM_BUILD_JOBS=4 bash scripts/reproduce_ucie_stage2_cpu.sh build-stage2-clean-a full \
-  > /root/hbfsim-exp/ucie-interface-20260929/build-stage2-clean-a.full.log 2>&1
+  > ${EXPERIMENT_ROOT}/ucie-interface-20260929/build-stage2-clean-a.full.log 2>&1
 HBFSIM_BUILD_JOBS=4 bash scripts/reproduce_ucie_stage2_cpu.sh build-stage2-clean-a full \
-  > /root/hbfsim-exp/ucie-interface-20260929/build-stage2-clean-a.final.log 2>&1
+  > ${EXPERIMENT_ROOT}/ucie-interface-20260929/build-stage2-clean-a.final.log 2>&1
 python3 build-stage2-clean-a/validate_schema.py
 git diff --check
 ```

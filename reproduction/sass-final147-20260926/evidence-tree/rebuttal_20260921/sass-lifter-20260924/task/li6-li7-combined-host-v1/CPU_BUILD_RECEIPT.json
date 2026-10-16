@@ -20,22 +20,22 @@
     "provider": {
       "archive": null,
       "command": "provider_compile.argv.json",
-      "companion_source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.cpp",
-      "final_dso": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so",
-      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/provider_router_exact.cpp"
+      "companion_source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/library_identity_core.cpp",
+      "final_dso": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libprovider_router.so",
+      "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/provider_router_exact.cpp"
     },
     "setup": {
-      "archive": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime_nv_attach_impl.a",
+      "archive": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime_nv_attach_impl.a",
       "command": "agent_setup_compile.argv.json",
-      "final_dso": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so",
-      "object": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/nv_attach_impl_frida_setup.cpp.o",
-      "source": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/nv_attach_impl_frida_setup.cpp"
+      "final_dso": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime-agent.so",
+      "object": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/nv_attach_impl_frida_setup.cpp.o",
+      "source": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/source/nv_attach_impl_frida_setup.cpp"
     },
-    "unchanged_gate": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/libhbfsim_launch_gate.so",
+    "unchanged_gate": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-gate-v2/libhbfsim_launch_gate.so",
     "unchanged_impl_member": {
-      "actual_archive": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime_nv_attach_impl.a",
-      "base_archive": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/libbpftime_nv_attach_impl.a",
-      "object": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/nv_attach_impl.cpp.o"
+      "actual_archive": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/li6-li7-combined-host-v1/build-v5/libbpftime_nv_attach_impl.a",
+      "base_archive": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/libbpftime_nv_attach_impl.a",
+      "object": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/router-li7-host-adapter-v1/build-agent-v2/nv_attach_impl.cpp.o"
     }
   },
   "status": "CPU_BUILD_PASS_NO_GPU"

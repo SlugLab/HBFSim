@@ -6,7 +6,7 @@
   "argv": [
     "ninja",
     "-C",
-    "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-nvrtc128-v2",
+    "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/vllm-configure-nvrtc128-v2",
     "-j4",
     "_C.abi3.so",
     "_moe_C.abi3.so"
@@ -17,12 +17,12 @@
   "cmake_cache_sha256": "db26d667157c9eeeb5bd04cb178921bcd1441433226fe9797bc20bf2fd97b700",
   "build_ninja_sha256": "ae723a578bb78601dcf156e975816568be74c7a47abe0540791e18f70a073d7a",
   "environment": {
-    "PATH": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1/bin:/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/bin:/usr/bin:/bin",
-    "CUDA_HOME": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1",
-    "CUDAToolkit_ROOT": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1",
-    "NVCC_PREPEND_FLAGS": "-I/root/hbfsim-exp/rebuttal_20260921/cuda128-toolchain-prep-v1/cuda-include-overlay",
+    "PATH": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1/bin:${EXPERIMENT_ROOT}/rebuttal_20260921/env-restore-v1/runtime-v2/bin:/usr/bin:/bin",
+    "CUDA_HOME": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1",
+    "CUDAToolkit_ROOT": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1",
+    "NVCC_PREPEND_FLAGS": "-I${EXPERIMENT_ROOT}/rebuttal_20260921/cuda128-toolchain-prep-v1/cuda-include-overlay",
     "CMAKE_BUILD_PARALLEL_LEVEL": "4",
     "MAX_JOBS": "4",
-    "LD_LIBRARY_PATH": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1/lib64:/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/lib/python3.13/site-packages/torch/lib"
+    "LD_LIBRARY_PATH": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/pytorch-cuda128-view-v1/lib64:${EXPERIMENT_ROOT}/rebuttal_20260921/env-restore-v1/runtime-v2/lib/python3.13/site-packages/torch/lib"
   }
 }

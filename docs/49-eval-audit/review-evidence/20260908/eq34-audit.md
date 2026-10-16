@@ -2,7 +2,7 @@
 
 > 分享副本：审计事实、数值和原执行路径保持原记录；仅调整导航。大模型、完整 raw、部分本机清单与可执行二进制未随仓库发布，范围见 [审阅包说明](README.md)。
 
-审计日期：2026-09-08 UTC。当前源码：`/root/hbfsim-exp/eval-base-integration`，HEAD `254d65a66279fbaffc5c185d04fbe41dc8dbba44`。本报告只读审计现有实现与冻结证据，并运行现有 CPU 单元测试；没有新捕获、GPU 操作、模型下载、模型权重载荷读取或正式实验。新增文件仅在本报告目录，完成后冻结供迁移最终同步。
+审计日期：2026-09-08 UTC。当前源码：`${HBFSIM_SOURCE}`，HEAD `254d65a66279fbaffc5c185d04fbe41dc8dbba44`。本报告只读审计现有实现与冻结证据，并运行现有 CPU 单元测试；没有新捕获、GPU 操作、模型下载、模型权重载荷读取或正式实验。新增文件仅在本报告目录，完成后冻结供迁移最终同步。
 
 **结论：当前代码支持 whole-expert 容量记账、真实捕获路由的离线统计和受限前缀预取投影。物理 HBM:HBF 比例扫描、独立 KV reservation/staging 分配、dense 对照及 live serving 性能没有通过本次审计成为可执行或已验证实验。** 不能用任意新 matrix 参数代替已有入口的实际限制。
 
@@ -10,15 +10,15 @@
 
 | 用途 | 精确路径 | 当前 SHA256 / 状态 |
 |---|---|---|
-| HF BF16 统一 evaluation inventory | `/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json` | `c1822bf88f432d3cfd44ef0994730803ab60a963e1d495c8b181054ac75422d6`；9,625,635 B；CHECKPOINT_METADATA |
-| 上项绑定的冻结 HF 元数据 | `/root/hbfsim-exp/eval-base-integration/results/manifests/hf-qwen3-30b-a3b-metadata-20260905/` | receipt、COMPLETE、tensors、config 四项 hash 与 inventory 的 model_binding 全部匹配；只证明冻结文件绑定 |
-| B16 路由组合索引 | `/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/members.json` | `45dc43f48a8e39c2ae279710201766ae5919d7c448bd8b6d6cbaaa2b273dd1b7`；16 个成员 |
-| **B16 真正绑定的旧 HF BF16 inventory** | `/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/inventory.json` | **`ed64d4c0bd11ee75cb4cd1de4e82ed1b0071fbc4389b8b974e9275382a1e912a`**；15,545,674 B；旧 ModelFingerprint/expert_weights schema；这是该路由 CLI 可用的冻结输入 |
-| **当前同名 GGUF/F16 inventory，不能替代上一行** | `/root/hbfsim-exp/eval-base-integration/results/manifests/qwen3-30b-a3b-inventory.json` | **`56ce87191bd02e8b21c08bef2dcf66421becfb761b3a961459e80fcf30a8a1a8`**；4,097,136 B；format=GGUF、checkpoint=`Qwen3-30B-A3B-f16.gguf` |
-| 原始 16 成员捕获 | `/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0000-routing.jsonl` 至 `member-0015-routing.jsonl` | 16/16 逐文件 hash 与 B16 索引一致；member-0000=`0131160ef0988ec8cdb0eb5b9569564bc83329933a28e08f3881d6228fb67cdc` |
-| 路由派生结果及其 manifest | `/root/hbfsim-exp/eval-base-integration/results/batches/20260907-routing-continuation/composition/B16-group0/metrics/` | real=`d7bc3b7ba29230aea9d9e5c16d19003f61a253dd98cb4500b2af5071d8ab060a`；shuffled=`0df1324406980a8588ada54db87c800f03631c3f27ff70248a6630c53b905c33`；null=`23222fdb1482d64f3d55f8b6da98dead7e4cc3f8ce468493cb0aab7e7fd7821f`；3/3 与 manifest 一致 |
-| 历史 HF 容量记账 | `/root/hbfsim-exp/eval-base-integration/results/gold/hf-inventory-adapter/real-frozen-accounting/summary.json` | CPU_ACCOUNTING_CONTROL_ONLY、PROJECTED、hardware_validated=false；不能作为 GPU 实际驻留 |
-| HF012 受限时钟投影输入索引 | `/root/hbfsim-exp/eval-base-integration/results/gold/hf-routing-runner/route-horizon-hf012-inputs-attempt-001/route-horizon.json` | 已定位并读取索引；kind=HF_ROUTE_HORIZON_INPUTS_V1、member=hf012-request0；本轮未重跑其原生 service 或重认证捕获 |
+| HF BF16 统一 evaluation inventory | `./results/manifests/hf-qwen3-30b-a3b-evaluation-inventory-20260905.json` | `c1822bf88f432d3cfd44ef0994730803ab60a963e1d495c8b181054ac75422d6`；9,625,635 B；CHECKPOINT_METADATA |
+| 上项绑定的冻结 HF 元数据 | `./results/manifests/hf-qwen3-30b-a3b-metadata-20260905/` | receipt、COMPLETE、tensors、config 四项 hash 与 inventory 的 model_binding 全部匹配；只证明冻结文件绑定 |
+| B16 路由组合索引 | `./results/batches/20260907-routing-continuation/composition/B16-group0/members.json` | `45dc43f48a8e39c2ae279710201766ae5919d7c448bd8b6d6cbaaa2b273dd1b7`；16 个成员 |
+| **B16 真正绑定的旧 HF BF16 inventory** | `./results/batches/20260907-routing-continuation/composition/B16-group0/metrics/inventory.json` | **`ed64d4c0bd11ee75cb4cd1de4e82ed1b0071fbc4389b8b974e9275382a1e912a`**；15,545,674 B；旧 ModelFingerprint/expert_weights schema；这是该路由 CLI 可用的冻结输入 |
+| **当前同名 GGUF/F16 inventory，不能替代上一行** | `./results/manifests/qwen3-30b-a3b-inventory.json` | **`56ce87191bd02e8b21c08bef2dcf66421becfb761b3a961459e80fcf30a8a1a8`**；4,097,136 B；format=GGUF、checkpoint=`Qwen3-30B-A3B-f16.gguf` |
+| 原始 16 成员捕获 | `./results/gold/hf-routing-runner/real-sixteen-member-capture-attempt-001/arms/capture/member-0000-routing.jsonl` 至 `member-0015-routing.jsonl` | 16/16 逐文件 hash 与 B16 索引一致；member-0000=`0131160ef0988ec8cdb0eb5b9569564bc83329933a28e08f3881d6228fb67cdc` |
+| 路由派生结果及其 manifest | `./results/batches/20260907-routing-continuation/composition/B16-group0/metrics/` | real=`d7bc3b7ba29230aea9d9e5c16d19003f61a253dd98cb4500b2af5071d8ab060a`；shuffled=`0df1324406980a8588ada54db87c800f03631c3f27ff70248a6630c53b905c33`；null=`23222fdb1482d64f3d55f8b6da98dead7e4cc3f8ce468493cb0aab7e7fd7821f`；3/3 与 manifest 一致 |
+| 历史 HF 容量记账 | `./results/gold/hf-inventory-adapter/real-frozen-accounting/summary.json` | CPU_ACCOUNTING_CONTROL_ONLY、PROJECTED、hardware_validated=false；不能作为 GPU 实际驻留 |
+| HF012 受限时钟投影输入索引 | `./results/gold/hf-routing-runner/route-horizon-hf012-inputs-attempt-001/route-horizon.json` | 已定位并读取索引；kind=HF_ROUTE_HORIZON_INPUTS_V1、member=hf012-request0；本轮未重跑其原生 service 或重认证捕获 |
 
 HF BF16 inventory：L=48、E=128、k=8；eligible expert bytes=57,982,058,496；resident non-offloaded bytes=3,082,186,752；tensor bytes=61,064,245,248；page=16,384 B。当前 GGUF/F16 的 eligible bytes 恰好相等，但 resident bytes=3,107,774,464、tensor bytes=61,089,832,960，布局、dtype 与 tensor 身份不同；相同模型名和 eligible 总量不能建立格式等价关系。统一 HF inventory 的 model_binding.legacy_inventory_sha256 恰好指向上表冻结 BF16 旧 inventory，因此新记账与旧路由的联系应通过这个显式桥接字段和正确元数据观察身份表达，不能替换 index hash。
 

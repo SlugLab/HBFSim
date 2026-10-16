@@ -81,10 +81,10 @@
 [80/156] Building CXX object CMakeFiles/hbfsim.dir/src/cuda_runtime/shared_library.cpp.o
 [81/156] Building CXX object CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o
 FAILED: [code=1] CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o 
-/usr/bin/c++ -DHBFSIM_ENABLE_MQSIM_RUNTIME=1 -I/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/host_service -I/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/include -O3 -DNDEBUG -std=gnu++20 -MD -MT CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o -MF CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o.d -o CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o -c /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/host_service/main.cpp
-In file included from /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/host_service/../ucie/private_observer_gate.hpp:2,
-                 from /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/host_service/main.cpp:1:
-/root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/src/host_service/../ucie/parallel_component_accounting_v1.hpp:12:10: fatal error: json.hpp: No such file or directory
+/usr/bin/c++ -DHBFSIM_ENABLE_MQSIM_RUNTIME=1 -I${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/src/host_service -I${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/include -O3 -DNDEBUG -std=gnu++20 -MD -MT CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o -MF CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o.d -o CMakeFiles/hbfsimd.dir/src/host_service/main.cpp.o -c ${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/src/host_service/main.cpp
+In file included from ${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/src/host_service/../ucie/private_observer_gate.hpp:2,
+                 from ${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/src/host_service/main.cpp:1:
+${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/src/host_service/../ucie/parallel_component_accounting_v1.hpp:12:10: fatal error: json.hpp: No such file or directory
    12 | #include <json.hpp>
       |          ^~~~~~~~~~
 compilation terminated.

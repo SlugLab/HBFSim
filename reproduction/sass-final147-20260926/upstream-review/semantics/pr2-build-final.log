@@ -1,4 +1,4 @@
-   Compiling pr2_semantics v0.1.0 (/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-crate)
+   Compiling pr2_semantics v0.1.0 (${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/github-sync-review-20260926-v1/pr-review/semantics/pr2-crate)
 warning: unused variable: `label`
    --> src/sass/disassembler.rs:762:47
     |

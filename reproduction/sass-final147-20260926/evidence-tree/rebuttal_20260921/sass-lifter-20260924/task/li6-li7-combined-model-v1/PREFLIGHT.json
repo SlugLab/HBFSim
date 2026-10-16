@@ -48,5 +48,5 @@
   "figure_contract": "No performance figure; categorical evidence ledger and diagnostic walltime only",
   "observation": "No completion callback configured; one check near estimated completion, if running long then ~30min cadence; internal watchdog remains active",
   "reviewer": "root, Astra decision reviewer",
-  "created_utc": "2026-09-26T00:55:18.279270+00:00"
+  "created_utc": "2026-09-26T00:${PCI_ADDRESS}79270+00:00"
 }

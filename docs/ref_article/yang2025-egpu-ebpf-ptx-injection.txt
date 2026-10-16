@@ -95,7 +95,7 @@ enabling adaptive runtime kernel optimizations, dynamic GPU resource management,
 
 other novel runtime GPU modifications previously inaccessible to
 existing static or high-overhead instrumentation approaches. The
-code is open-sourced under the https://github.com/victoryang00/
+code is open-sourced under the https://github.com/${USER}/
 bpftime-super repo.
 In summary, we make the following core contributions:
 • We introduce eGPU, the first system to dynamically offload eBPF

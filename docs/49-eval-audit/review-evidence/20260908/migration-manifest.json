@@ -2,26 +2,26 @@
   "schema_version": 2,
   "state": "COMPLETE_VERIFIED_AND_SOURCE_CLEANED",
   "completed_utc": "2026-09-08T11:29:03.852631+00:00",
-  "logical_source": "/root/hbfsim-exp",
-  "original_physical_source": "/root/hbfsim-exp",
-  "target": "/mnt/disk0/hbfsim-exp",
+  "logical_source": "${EXPERIMENT_ROOT}",
+  "original_physical_source": "${EXPERIMENT_ROOT}",
+  "target": "${DATA_ROOT}/hbfsim-exp",
   "path_mapping": {
-    "/root/hbfsim-exp": "/mnt/disk0/hbfsim-exp"
+    "${EXPERIMENT_ROOT}": "${DATA_ROOT}/hbfsim-exp"
   },
   "source_backing_before": {
-    "source": "/dev/nvme1n1p2",
+    "source": "${STORAGE_DEVICE}",
     "device_family": "Lexar root filesystem"
   },
   "target_mount": {
-    "target": "/mnt/disk0",
-    "source": "/dev/nvme2n1p1",
-    "uuid": "37be6892-a8aa-4fae-885d-5feed3b28fab",
+    "target": "${DATA_ROOT}",
+    "source": "${STORAGE_DEVICE}",
+    "uuid": "${BOOT_OR_RUN_ID}",
     "options": "rw,relatime"
   },
   "target_device_serial": "S6USNE0TA08224",
   "verified_complete": true,
   "source_cleaned": true,
-  "quarantine": "/root/hbfsim-exp.migration-source-20260908",
+  "quarantine": "${EXPERIMENT_ROOT}.migration-source-20260908",
   "quarantine_exists": false,
   "rollback_full_source_retained": false,
   "automatic_experiment_restart": false,
@@ -39,7 +39,7 @@
     "git_repositories": 660,
     "git_mismatches": 0,
     "git_worktree_path_normalization": {
-      "/root/hbfsim-exp": "/mnt/disk0/hbfsim-exp"
+      "${EXPERIMENT_ROOT}": "${DATA_ROOT}/hbfsim-exp"
     },
     "smoke": {
       "state": "PASS",

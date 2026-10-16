@@ -5,7 +5,7 @@ Experiment ID: `REBUTTAL-20260921-R1-v1`
 Status: `AUTHORIZED_PREPARATION`; GPU execution remains gated on the model,
 instrumentation, exclusive-GPU, and metadata checks below.  The user's
 2026-09-21 rebuttal instruction authorizes R1--R3 and the five page-size
-checks on the single giga RTX 5090.  This record is the run record requested
+checks on the single rtx-5090 RTX 5090.  This record is the run record requested
 by the user; it does not modify or replace an older project ledger.
 
 ## Question and claim
@@ -18,8 +18,8 @@ and output correctness.  It does not claim whole-program memory coverage.
 
 ## Frozen environment
 
-- Host: giga `threadripper`; GPU UUID
-  `GPU-45044e90-a553-930c-b950-ba660acb37fc`, one RTX 5090 only.
+- Host: rtx-5090 `${BUILD_HOST}`; GPU UUID
+  `${GPU_UUID}`, one RTX 5090 only.
 - Source base: `eabc5c2c0820ac0d84c2f16ea3460b219f11ff83` in the isolated
   `rebuttal/access-accounting-20260921` worktree.
 - Driver 610.57.04; vLLM `0.19.2rc1.dev134+gfe9c3d6c5.cu130`;

@@ -13,7 +13,7 @@ Overall: **R1 PENDING; R2 and R3 BLOCKED_BY_R1.** This is an evidence index, not
 
 ## Frozen environment
 
-- giga `threadripper`; RTX 5090 UUID `GPU-45044e90-a553-930c-b950-ba660acb37fc`; driver 610.57.04.
+- rtx-5090 `${BUILD_HOST}`; RTX 5090 UUID `${GPU_UUID}`; driver 610.57.04.
 - Source base `eabc5c2c0820ac0d84c2f16ea3460b219f11ff83`.
 - OLMoE-1B-7B-0924 revision `6d84c48581ece794365f2b8e9cfb043c68ade9c5`, BF16, 16 layers, 64 experts, top-8; three shards total 13,838,721,960 bytes.
 - vLLM `0.19.2rc1.dev134+gfe9c3d6c5.cu130`, torch `2.11.0+cu130`, Triton 3.6.0, CUDA runtime 13.0, flashinfer 0.6.8.post1. No upgrade.

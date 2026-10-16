@@ -1,7 +1,7 @@
 # Build provenance and target-ABI audit
 
 Date: 2026-09-21
-Host inspected: giga
+Host inspected: rtx-5090
 Scope: read-only audit of the current R1 candidate artifacts. No build or runtime environment was changed.
 
 ## Decision
@@ -24,7 +24,7 @@ The immediate failure is not a GPU failure. Container preflight rejects the host
 | `bpftime-v6/runtime/agent/libbpftime-agent.so` | `05b54921e6feeed82da63a42ca72649c949e7c742796219469e9e2d33dcccaf0` | `libcudart.so.13`, `libcuda.so.1` | 2.38 | 3.4.32 |
 | `bpftime-v6/runtime/syscall-server/libbpftime-syscall-server.so` | `3e1a939b88d1ab4e7c7a907beb6848271e7c80d7201969b8fde9ec2157e77ec3` | `libcudart.so.13`, `libcuda.so.1` | 2.38 | 3.4.32 |
 
-The host `ldd` resolves all of these because giga has GLIBC 2.43, GCC 13 libstdc++, system CUDA 12 libraries, the CUDA 13.1 toolkit, and a host driver library. That host success does not establish target-container compatibility.
+The host `ldd` resolves all of these because rtx-5090 has GLIBC 2.43, GCC 13 libstdc++, system CUDA 12 libraries, the CUDA 13.1 toolkit, and a host driver library. That host success does not establish target-container compatibility.
 
 The preserved container preflight at
 `results/r1-zero-v1/preflight.stdout.log` reports:
@@ -51,7 +51,7 @@ However, the same cache records:
 - `CUDA_cudart_LIBRARY=/usr/lib/x86_64-linux-gnu/libcudart.so`;
 - `CUDA_cuda_driver_LIBRARY=/usr/lib/x86_64-linux-gnu/libcuda.so`.
 
-On giga, `/usr/lib/x86_64-linux-gnu/libcudart.so` resolves to
+On rtx-5090, `/usr/lib/x86_64-linux-gnu/libcudart.so` resolves to
 `libcudart.so.12.4.127`. The generated link commands for the PTX plugin,
 launch gate and vLLM extension use that absolute system path. Therefore the
 gate and extension have `DT_NEEDED libcudart.so.12` even though device PTX
@@ -200,10 +200,10 @@ Only after these checks pass may the artifacts be called a runtime candidate.
 GPU validation and R1 scientific acceptance remain separate.
 
 
-## 2026-09-21 route clarification: restored giga host ABI
+## 2026-09-21 route clarification: restored rtx-5090 host ABI
 
 The host-ABI incompatibility findings above apply to loading the audited
-artifacts in the old vLLM container. They do not make the giga host ABI
+artifacts in the old vLLM container. They do not make the rtx-5090 host ABI
 intrinsically invalid. The restored host Python 3.13.9/vLLM 0.15.1 route can
 legitimately use host GLIBC/GLIBCXX requirements when every Python and native
 component is loaded on that same recorded host ABI.

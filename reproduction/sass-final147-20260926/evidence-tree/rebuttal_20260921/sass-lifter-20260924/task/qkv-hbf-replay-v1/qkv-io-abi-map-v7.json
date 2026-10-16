@@ -6,7 +6,7 @@
     "cuobjdump_argv": [
       "/usr/local/cuda-13.1/bin/cuobjdump",
       "--dump-elf",
-      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+      "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
     ],
     "cuobjdump_stdout_sha256": "c8bc3308bff6e71cdd5bbbe8d330f82eb9ca1fdaa0c8ee0f7f7add752d7666fe",
     "declared_params": [
@@ -112,14 +112,14 @@
       "/usr/bin/readelf",
       "-W",
       "--hex-dump=.nv.info",
-      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+      "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
     ],
     "readelf_nvinfo_stdout_sha256": "bb28159965dacb2a068200c8358a5da4e79f95ef9e2650eea8a57cdebacda7e3",
     "readelf_sections_argv": [
       "/usr/bin/readelf",
       "-W",
       "-S",
-      "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
+      "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-output-repair-v1/cpu-build-v1/qkv-assembled.cubin"
     ],
     "readelf_sections_stdout_sha256": "9654adbde08064f988a1c8d8c70808dbca51c9f41c4593d93270757ebe606f75"
   },

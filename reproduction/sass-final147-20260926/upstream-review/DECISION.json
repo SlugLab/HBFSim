@@ -1,5 +1,5 @@
 {
-  "observed_utc": "2026-09-26T05:17:37.558092+00:00",
+  "observed_utc": "2026-09-26T05:${PCI_ADDRESS}58092+00:00",
   "repo": "vickiegpt/Concordia",
   "base_sha": "c60cfd8ab54fd1ec4512f749ad61cccc4a390a05",
   "permission": "ADMIN",
@@ -112,7 +112,7 @@
   ],
   "schema": "hbfsim.upstream_pr_review_decision.v1",
   "decision_reviewer": "root / GPT-6 Astra medium",
-  "decision_utc": "2026-09-26T05:20:47.020313+00:00",
+  "decision_utc": "2026-09-26T05:${PCI_ADDRESS}20313+00:00",
   "final_decision": "NO_PR_MEETS_ALL_USER_MERGE_CONDITIONS",
   "gpu_used": false,
   "upstream_modified": false,

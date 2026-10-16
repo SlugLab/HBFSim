@@ -7,5 +7,5 @@
   "injected_ns": 500000000,
   "generated_text": "The author suggests that the fastest route",
   "exact_output_match": true,
-  "full_artifact": "/mnt/disk2/hbfsim-llama-proof-20260811"
+  "full_artifact": "${DATA_ROOT}/hbfsim-llama-proof-20260811"
 }

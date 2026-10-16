@@ -4,7 +4,7 @@
       "device": 66310,
       "inode": 1995318,
       "mtime_ns": 1790102907736202061,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-ptx-collector-source-v2/collect_native_ptx.py",
       "sha256": "4a4ca37804fd80df03c799b3147be95a73a42cdfcb56cbc993bb38cfda56b132",
       "size_bytes": 12477
     },
@@ -12,11 +12,11 @@
       "device": 66310,
       "inode": 1609740,
       "mtime_ns": 1790101589099817275,
-      "path": "/root/hbfsim-exp/rebuttal_20260921/native-source-prep-v1/vllm-configure-nvrtc128-v2/_C.abi3.so",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-source-prep-v1/vllm-configure-nvrtc128-v2/_C.abi3.so",
       "sha256": "4cb19bba649cc1364f2f52ef281d5ec879e86c555800808355bea7d8e0950d1a",
       "size_bytes": 184914048
     },
-    "manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-ptx-collector-v2/vllm-C-attempt-2/native-ptx-manifest.json",
+    "manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-ptx-collector-v2/vllm-C-attempt-2/native-ptx-manifest.json",
     "manifest_sha256": "44584c4126fd63fd0c1b64cb2a22650919c9b70f70ecce5c81380ed5043d327b"
   },
   "module_joins": [
@@ -92,7 +92,7 @@
         "_ZN4vllm15rms_norm_kernelIN3c108BFloat16ELi8ELi2EEEvPT_PKS3_lllllS6_fii",
         "_ZN4vllm25fused_add_rms_norm_kernelIN3c108BFloat16ELi8EEENSt9enable_ifIXaagtT0_Li0Esr4vllm12_typeConvertIT_EE6existsEvE4typeEPS4_lS7_PKS4_fii"
       ],
-      "staged_path": "/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
+      "staged_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/task/qkv-model-combined-v1/prepared-v1/stage/553830cec46afe2195fdd9ae660b700b32ce3460270eb1f07c3801985ba8ef2e.ptx",
       "staged_sha256": "5c4cf1843497d1651bd55e98fccafe6cca8d38647fa18b48df16f30d79caa2b3",
       "unselected_entries": [
         "_ZN3cub18CUB_200700_1200_NS11EmptyKernelIvEEvv",
@@ -186,9 +186,9 @@
   },
   "staging": {
     "complete_sha256": "7c45f9966e80ab8b635cd65ddb9dcd67d09b9c9c053d6ff71d138e7a9a229597",
-    "directory": "/root/hbfsim-exp/rebuttal_20260921/native-norm-joint-cpu-prep-v1/stage",
+    "directory": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-norm-joint-cpu-prep-v1/stage",
     "manifest_sha256": "ceebb3e5e22c297dfaca1bd9cd5e274216a9387fcbe24faf64ba40ef3071127f",
-    "pass_manifest_path": "/root/hbfsim-exp/rebuttal_20260921/native-norm-joint-cpu-prep-v1/stage/pass-manifests.jsonl",
+    "pass_manifest_path": "${EXPERIMENT_ROOT}/rebuttal_20260921/native-norm-joint-cpu-prep-v1/stage/pass-manifests.jsonl",
     "pass_manifest_sha256": "21fa004ce807b3c5ed254fe03c2313c609c4f763684f89c880b6e51dde4563b1",
     "policy": "partial",
     "status": "PARTIAL_READY"

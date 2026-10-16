@@ -797,7 +797,7 @@ We implement and evaluate a proof-of-concept CXLMemSim
 on two machines. Server A is a single-socket Intel Xeon w32525 with 128 GB of DDR5 4800 MHz memory with 101.4
 ns latency, 22.5 MB LLC, with a CXL Agilex R-Tile FPGA
 AGIB027R29A1E2VR3 with 16 GB of DDR4 memory. Server
-B is a single-socket Intel Xeon 6787P with 256GB of DDR5
+B is a single-socket Intel Xeon ${BUILD_HOST} with 256GB of DDR5
 6400 MHz memory with 116.1 ns latency, 336 MB LLC, with
 a Smart CXL Module[30].
 We seek to answer the following questions: (1) How accurately does CXLMemSim perform latency and bandwidth

@@ -2834,7 +2834,7 @@ std::optional<ScopedAlignProof> prove_m1_align_unbound(
     static constexpr char kKernel[] =
         "_ZN4vllm3moe46moe_align_block_size_small_batch_expert_kernelIiLi256EEEvPKT_PiS5_S5_S5_iimiib";
     static constexpr char kDso[] =
-        "/root/hbfsim-exp/rebuttal_20260921/env-restore-v1/runtime-v2/lib/python3.13/site-packages/vllm/_moe_C.abi3.so";
+        "${EXPERIMENT_ROOT}/rebuttal_20260921/env-restore-v1/runtime-v2/lib/python3.13/site-packages/vllm/_moe_C.abi3.so";
     Dl_info dso{};
     const bool has_dso = symbol != nullptr && ::dladdr(symbol, &dso) != 0 &&
                          dso.dli_fname != nullptr;

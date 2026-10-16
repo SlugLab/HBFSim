@@ -237,7 +237,7 @@ for changes at boundaries explicitly reserved for user approval, including new
 PTX memory-rewrite or device-helper algorithms. This model policy does not
 expand scientific scope, override a phase's GPU restrictions, or itself start,
 stop, or renew a process. The current continuation and model-policy records are
-in `rebuttal_20260921/sass-lifter-20260924/task/resume-giga-20260925-v1/`;
+in `rebuttal_20260921/sass-lifter-20260924/task/resume-rtx-5090-20260925-v1/`;
 consult them with the matching `CURRENT_HANDOFF.md` for live task state.
 
 ## 实验元信息与用户确认（强制）
@@ -377,7 +377,7 @@ wall time 与剩余工作估算 ETA，到预计完成时再检查。不要逐波
 - 修改接入接口时，同步记录实际 C ABI/参数布局、返回码含义、调用先后、句柄与 context 生命周期、配置及 manifest/sidecar 路径关系；规划伪签名不代替已实现头文件。区分已构建、CPU 已验证、GPU 已验证和未部署。
 - 一个运行版本的解释必须使用对应源码/构建收据，不能用另一候选版本的同名文件解释旧二进制。复制路径时同步核对精确来源 join；不得靠放宽匹配或删断言解决路径错误。错误码需沿实际调用链解释，不能把自定义码直接当 CUDA 错误码。
 - 接口修复先定位身份、ABI、路径、绑定时序或生命周期层次，再做独立最小修改和直接相关验证；保留原失败，不机械追加全量测试、哈希或补传。实际地址、PID、句柄、期限只保存在各运行收据，不作为固定配置复用。
-- 当前 SASS/QKV 接口记录入口：`/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md`。后续实现变更须同步更新对应条目及真实验证状态；文档不能替代运行证据。
+- 当前 SASS/QKV 接口记录入口：`${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/reports/interface-binding-contract.md`。后续实现变更须同步更新对应条目及真实验证状态；文档不能替代运行证据。
 - 多源码文件的局部重编译/重链接须记录「源码文件 → 编译命令 → 对象成员 → 实际基准 archive → 最终库」对应关系。不能因文件名相似而替换另一个编译单元；编译/链接返回 0 仍需核对受影响导出及动态解析，不把字符串存在检查当成完整接口验证。
 - 启动接口须核对真实调用链和实际生效策略：动态符号拦截、Driver函数指针、Frida替换、runtime/Driver及Ex/PTSZ入口可能走不同路径，不能仅凭预加载顺序认定适配器被调用。局部strict检查与全局partial策略必须明确衔接，不能把配置中的名称相似当作策略兼容，也不能为新目标切换全局策略破坏旧路径。相关日志需要记录能区分实际入口的API/CBID及线程；缺失字段不得靠函数名猜测。
 
@@ -391,4 +391,4 @@ wall time 与剩余工作估算 ETA，到预计完成时再检查。不要逐波
 
 ## HBFSim 各类权重接入对照复用（2026-09-25 用户要求）
 
-- 各类权重维护可复用接入对照表，记录已成功版本的真实消费者、参数/metadata profile、去重storage注册范围、原PTX与staged PTX角色、manifest/sidecar引用及实际加载路径。后续同类扩层先对照成功记录，核真实差异；不得照抄历史地址或把普通指针、聚合参数及不同生成器的profile混用。接入故障与修复应回填对应类别，避免每层重复定位同一种错误。当前对照表见 `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md`。
+- 各类权重维护可复用接入对照表，记录已成功版本的真实消费者、参数/metadata profile、去重storage注册范围、原PTX与staged PTX角色、manifest/sidecar引用及实际加载路径。后续同类扩层先对照成功记录，核真实差异；不得照抄历史地址或把普通指针、聚合参数及不同生成器的profile混用。接入故障与修复应回填对应类别，避免每层重复定位同一种错误。当前对照表见 `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924/reports/weight-integration-matrix.md`。

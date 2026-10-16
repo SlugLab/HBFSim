@@ -7,7 +7,7 @@ There is no active Li7 CPU build/stage process at this checkpoint.
 ## Completed and durable
 
 - Approved boundary read from
-  `task/resume-giga-20260925-v1/LI7_HOST_DECISION.md` and the archived
+  `task/resume-rtx-5090-20260925-v1/LI7_HOST_DECISION.md` and the archived
   `task/router-li7-host-interface-audit-v1/REPORT.md`.
 - Implementation plan: `IMPLEMENTATION_PLAN.md`, SHA-256
   `1986b3a817f310a717d53a5db6c6e40a09c51034191d3152d155bd1e73c3b39a`.

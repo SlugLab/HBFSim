@@ -1,4 +1,4 @@
-Test project /root/hbfsim-exp/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
+Test project ${EXPERIMENT_ROOT}/publication-v0.1.1-20261006/release-source-v1/build-ucie-on
       Start 35: ucie_link
  1/18 Test #35: ucie_link ........................   Passed    0.00 sec
       Start 36: ucie_mqsim

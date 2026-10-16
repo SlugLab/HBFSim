@@ -400,7 +400,7 @@
     "target-processes.json",
     "mapped-libraries.json"
   ],
-  "root": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1",
+  "root": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1",
   "schema": "hbfsim.full98_raw_inventory.v1",
   "status": "FROZEN_AFTER_TERMINAL",
   "time_unix_ns": 1790182368307873838,

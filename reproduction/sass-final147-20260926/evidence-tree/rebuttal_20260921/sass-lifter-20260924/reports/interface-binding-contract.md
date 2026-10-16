@@ -89,7 +89,7 @@ context 销毁使用 CUDA12.8 的 `CUPTI_CBID_RESOURCE_CONTEXT_DESTROY_STARTING`
 
 恢复工具的输入镜像范围也必须对齐：对fatbin使用官方`cuobjdump --function`可能仍输出大量无目标函数的镜像头。Li7首轮已解析1984条目标指令，却因后附1347个空镜像段被单镜像检查拒绝。后续优先对已证明来源的具体sm120 cubin导出；若复用已有dump，则独立保存唯一目标image的原字节切片及边界，核其余段无指令，保留完整原件。不能以放宽解析断言或删除真实指令处理此问题。
 
-本地资料根为 `E:/project/ssd/hbfsim-exp/sass-lifter-20260924`；giga 任务根为 `/root/hbfsim-exp/rebuttal_20260921/sass-lifter-20260924`。两者是资料收集与运行位置的对应关系，不能把本地绝对路径写进远端 manifest。公共接入代码应通过配置接收根路径。
+本地资料根为 `${LOCAL_EVIDENCE_ROOT}/sass-lifter-20260924`；rtx-5090 任务根为 `${EXPERIMENT_ROOT}/rebuttal_20260921/sass-lifter-20260924`。两者是资料收集与运行位置的对应关系，不能把本地绝对路径写进远端 manifest。公共接入代码应通过配置接收根路径。
 
 | 内容 | 当前路径与约束 |
 |---|---|

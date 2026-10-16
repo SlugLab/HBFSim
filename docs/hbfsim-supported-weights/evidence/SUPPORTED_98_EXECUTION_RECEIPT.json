@@ -15,39 +15,39 @@
   "discovered_storage_count": 147,
   "files": {
     "cell/registration.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/registration.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/registration.json",
       "sha256": "3913704263061e246c411d27ce22e6fd9f7d20c8ed2f3f82695ebb039565a05c"
     },
     "cell/result.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/result.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/cell/result.json",
       "sha256": "ed051170d9748b3e06d08addf056af3b4c3267777a6c0d3a5a68e1879028f479"
     },
     "coverage.jsonl": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/coverage.jsonl",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/coverage.jsonl",
       "sha256": "6b1ac64f8459ee9526054b123d0c7e52cd44bfb38b52d1756dec02d34d411cef"
     },
     "dynamic-coverage-validation.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/dynamic-coverage-validation.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/dynamic-coverage-validation.json",
       "sha256": "b8fe03ef82b3725087953d1590622f4aeac65b70a06c6a7882457d494d5be156"
     },
     "finish.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/finish.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/finish.json",
       "sha256": "f1ea8dbdcf15c01fce3df5c5246dd33d7766b07bce4849202263399f45da1aac"
     },
     "mapped-libraries.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/mapped-libraries.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/mapped-libraries.json",
       "sha256": "7b47eb6c3d3964ced2d962509fdff9ce5ab7062de4be85ce02017e685a54b1af"
     },
     "start.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/start.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/start.json",
       "sha256": "ff36f7bb223a6b282ae0ecd20161b499582cf87d6960ae5f3533f9962ff1c4d5"
     },
     "worker-finish.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-finish.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-finish.json",
       "sha256": "1c642cf69d900de6441535e3bf9662f5933c98853de5fd3282c4a58c19117848"
     },
     "worker-start.json": {
-      "path": "/root/hbfsim-exp/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-start.json",
+      "path": "${EXPERIMENT_ROOT}/rebuttal_20260921/results/native-supported-all98-staged-v1/worker-start.json",
       "sha256": "3c5798a6fb42b2e1bb002019b12cd2e64faeebcf795b3fbc9e048cbd1027cf2a"
     }
   },

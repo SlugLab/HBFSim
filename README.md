@@ -24,10 +24,10 @@ The memory wall problem is becoming more and more severe in the LLM inference st
 
 | Existing method | Executes the real workload | Runs on real hardware | Models the medium | Models temperature | Why it is not enough |
 |---|:---:|:---:|:---:|:---:|---|
-| Fixed trace replay | ✗ | ✗ | ✓ | ✗ | Neither the architecture of HBF nor the way HBF is organized with HBM is settled; a different configuration can change the KV allocation, data migration, and kernel invocations of an LLM, changes that a trace recorded under the original configuration does not contain; re-collecting or extending a trace takes a large amount of time, and trace replay itself also has a large overhead, so fixed trace replay cannot quickly simulate different architecture choices for HBF. |
-| Full-GPU cycle-level simulation | ✓ | ✗ | ✓ | ✗ | The overhead brought by full GPU microarchitecture simulation is unacceptable: single-threaded Accel-Sim takes more than 5 days of wall-clock time to simulate lavaMD (data table in the [Why traditional evaluation methods cannot be reused](#methodology) section). |
+| Fixed trace replay | ✗ | ✗ | ✓ | ✗ | A different HBF configuration can change the KV allocation, data migration, and kernel invocations; the trace recorded under the original configuration does not contain these changes, and re-collecting it takes a large amount of time. |
+| Full-GPU cycle-level simulation | ✓ | ✗ | ✓ | ✗ | The simulation overhead is unacceptable: single-threaded Accel-Sim takes [more than 5 days](#methodology) to simulate lavaMD. |
 | CPU / NVMe interception | ✓ | ✓ | ✓ | ✗ | The interception point is not on the in-package GPU memory-access path. |
-| Vendor parameter sheet | ✗ | ✗ | ✗ | ✗ | The timing parameters of HBF have not been published: the specification defers every quantity with the dimension of time to each vendor's product datasheet. A parameter sheet also does not run the workload. |
+| Vendor parameter sheet | ✗ | ✗ | ✗ | ✗ | The timing parameters of HBF have not been published, and the specification defers them all to each vendor's product datasheet. |
 | HBFSim | ✓ | ✓ | ✓ | ✓ | — |
 
 Each row describes a class of methods, not a specific product, so a specific tool may have one of the capabilities in the table that its row does not mark.

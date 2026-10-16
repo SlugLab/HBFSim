@@ -19,17 +19,17 @@
     },
     {
       "public_path": "README.md",
-      "bytes": 20485,
-      "sha256": "97a1bb7b93be2a7740e2d1e3a03059f72e2c3f6d7e3dfe0b0be6c0aa2967aeb4",
-      "source_original_sha256": "93829193b125d540c2d938215f145d9c24149c118f62acd0c08efc03d0778618",
-      "kind": "path-normalized public derivative"
+      "bytes": 70102,
+      "sha256": "25f9dbfa3cb1ad975ab521c4bb38858c0cb43baf003356a7ea534ee612e12b58",
+      "source_original_sha256": null,
+      "kind": "new public documentation"
     },
     {
       "public_path": "README.zh-CN.md",
-      "bytes": 18801,
-      "sha256": "5a9c2c94aae9877655128106df45f713a01f781c6de2e96b0c29a66422b0347e",
-      "source_original_sha256": "b7a37aeae4710469fa01ad773ce8dc9c131b90eebc1976d97f8016eda8d8ac0a",
-      "kind": "path-normalized public derivative"
+      "bytes": 62688,
+      "sha256": "6ce01a0807faf5c16c54f651bc9cf5086a6d1c1c58b913c5121963dcefc3f374",
+      "source_original_sha256": null,
+      "kind": "new public documentation"
     },
     {
       "public_path": "TODO.md",

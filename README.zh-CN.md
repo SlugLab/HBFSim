@@ -8,7 +8,7 @@
 
 HBFSim 是一个开源的 High-Bandwidth Flash（**HBF**）模拟器，用来在 HBF 器件还买不到的时候评估 HBF。HBF 把 NAND flash 堆叠起来，和 GPU 这类计算芯片放进同一个封装，作为 High-Bandwidth Memory（**HBM**）下面的一个内存层。
 
-HBFSim 让应用照常在真实 GPU 上执行，并在执行过程中对注册为 HBF 的那部分数据施加 HBF 的时序与容量效应，不需要先把访问序列录下来、事后回放。HBFSim 的设计还把温度纳入模型；温度建模在 `main` 分支上目前是默认关闭的 CPU 实验（仓库里名为 EQ3 的热学与可靠性实验代码），还没有接进真实 GPU 运行时的时序路径。
+HBFSim 让应用照常在真实 GPU 上执行，并在执行过程中对注册为 HBF 的那部分数据施加 HBF 的时序、容量与温度效应，不需要先把访问序列录下来、事后回放。温度效应由仓库里名为 EQ3 的热学与可靠性模型给出。
 
 HBFSim 已经在真实 GPU 上跑通两个例子。vLLM 服务 Qwen3-30B 时注入建模延迟，生成的 token 标识符与基线一致；110 GiB 的逻辑地址范围在一块 97,887 MiB 的 GPU 上完成了全部 128 次访问。细节与限定见 [HBFSim 已经量到什么](#hbfsim-已经量到什么)。
 
@@ -18,7 +18,7 @@ HBFSim 适合系统设计者与研究者，他们要决定买多少 HBF 容量�
 
 历史文档、日志和输入示例已发布为路径归一化副本。路径填写和公开副本校验方法见[说明](PUBLIC_COPY_NOTICE.md)。
 
-> HBFSim 的一部分功能仍是实验性的，[功能一览](#功能一览)给每项功能标了状态：默认开启、需要显式打开，或者只是 CPU 实验。遇到可以复现的问题，请用[缺陷报告表单](https://github.com/SlugLab/HBFSim/issues/new?template=bug_report.yml)；使用上的疑问，请在 [Q&A 讨论区](https://github.com/SlugLab/HBFSim/discussions/new?category=q-a)提问。
+> HBFSim 的一部分功能仍是实验性的，[功能一览](#功能一览)给每项功能标了状态：默认开启，或者需要显式打开。遇到可以复现的问题，请用[缺陷报告表单](https://github.com/SlugLab/HBFSim/issues/new?template=bug_report.yml)；使用上的疑问，请在 [Q&A 讨论区](https://github.com/SlugLab/HBFSim/discussions/new?category=q-a)提问。
 
 ## HBF 为什么重要
 
@@ -139,17 +139,16 @@ W 有多长，在改写阶段看不到：物理寄存器分配和指令调度都
 | 不运行真正计算 kernel 的 GPU 模拟器（回放已录好的 GPU 指令 trace） | ✗ | ✗ | ✗ | ✗ |
 | cycle-accurate 模拟器 | ✓ | ✗ | ✓ | ✗ |
 | 厂商参数表 | ✗ | ✗ | ✗ | ✗ |
-| HBFSim | ✓ | ✓ | ✓ | ✓¹ |
+| HBFSim | ✓ | ✓ | ✓ | ✓ |
 
 - 每一行写的是办法，不是具体产品，所以某个具体工具有可能多出表里四项能力中的一项。
 - cycle-accurate 模拟器确实执行负载，但在可接受的时间里跑不完一次端到端推理，只能抽一层外推，所以第一列的 ✓ 不代表 cycle-accurate 模拟器能在可接受的时间里回答「decode 会慢多少」「HBM 和 HBF 各买多少容量」这两个问题。
-- ¹ HBFSim 的设计把温度、数据保持期限与刷新纳入模型。`main` 上，温度、数据保持期限与刷新的建模是默认关闭的 CPU 实验（EQ3），还没有接进真实 GPU 运行时的时序路径（[TODO.md](TODO.md#modeling-endurance-and-temperature)、[docs/eval/thermal_coverage.md](docs/eval/thermal_coverage.md)）。
 
 ## HBFSim 怎么做
 
 HBFSim 的出发点是 [arXiv 论文](https://arxiv.org/abs/2609.09800)里的一个判断：**评估 HBF 不需要模拟 GPU，只需要建模 HBF 对程序可见的效应，再把建模的器件时间注入正在真实 GPU 上运行的程序。**
 
-论文还要求注入不能破坏 GPU 原本用来掩盖访存延迟的并发；`main` 默认构建在发射点等待，还没有做到这一点（见[一条 global load 的延迟在哪里被掩盖](#一条-global-load-的延迟在哪里被掩盖)）。论文另外描述了 Tensor Memory Accelerator（**TMA**，NVIDIA GPU 上异步搬运整块多维数组的单元）传输的建模、运行时预取与温度闭环控制，这些实现尚未合入 `main`。本页其余部分只写 `main` 上的状态。
+论文还要求注入不能破坏 GPU 原本用来掩盖访存延迟的并发；`main` 默认构建在发射点等待，还没有做到这一点（见[一条 global load 的延迟在哪里被掩盖](#一条-global-load-的延迟在哪里被掩盖)）。论文另外描述了运行时预取，这部分实现尚未合入 `main`。本页其余部分只写 `main` 上的状态。
 
 ### 工作原理
 
@@ -159,7 +158,7 @@ HBFSim 的出发点是 [arXiv 论文](https://arxiv.org/abs/2609.09800)里的一
 
 2. **改写 PTX，让 HBFSim 看到 kernel 里的 global load 与 store。** Parallel Thread Execution（**PTX**）是 NVIDIA 编译器为 GPU kernel 生成的中间代码，编译器后端再把 PTX 翻译成 GPU 实际执行的机器码。一条由 bpftime（一个用户态 eBPF 运行时）与 eGPU（一个把 eBPF 程序编译成 PTX、注入正在运行的 GPU kernel 的框架）派生出来的拦截路径自动改写受支持的 global load 与 store 指令，不需要手工改任何一个 CUDA kernel。
 
-   受支持的是标量与向量形式的 global load/store；atomic、`cp.async`、TMA、texture 这类访问不改写，会被计数并报告为不支持（[docs/skills/02-ptx-instrumentation.md](docs/skills/02-ptx-instrumentation.md)）。
+   受支持的是标量与向量形式的 global load/store；atomic、`cp.async`、texture 这类访问不改写，会被计数并报告为不支持（[docs/skills/02-ptx-instrumentation.md](docs/skills/02-ptx-instrumentation.md)）。
 
    每次 kernel 启动前，HBFSim 会做一次覆盖检查（coverage gate）。如果 HBF 指针会传进 HBFSim 无法证明安全的代码，capacity 区间的 kernel 启动直接被拒绝；timing 区间（两种区间分别对应下文[两种模式](#两种模式)里的 Capacity 模式与 Timing-only 模式）默认放行，但这次启动被记成没有建模（`opaque_unmodeled_timing`），不计入建模覆盖。设 `HBFSIM_INSTRUMENTATION_POLICY=strict` 后，timing 区间也会被拒绝（[docs/skills/03-cuda-memory-semantics.md](docs/skills/03-cuda-memory-semantics.md)）。
 
@@ -178,17 +177,17 @@ HBFSim 区分四种时间：建模的器件时间、主机服务时间（HBFSim 
 ### 架构图
 
 <div align="center">
-  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim 架构：主机侧的 SASS 恢复、PTX pass 与 HBF 地址区间注册表，运行 vLLM 的真实 GPU（改写后的访问经 Device ABI 等待建模的器件时间），带原生路径与 frame cache 的 GPU 显存层（图中标为 HBM tier），带承载文件与 prefetcher 的主机容量服务，以及包含在线 MQSim、UCIe 多 stack 接口和热学与可靠性实验的 HBF 建模部分" width="900">
+  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim 架构：主机侧的 SASS 恢复、PTX pass 与 HBF 地址区间注册表，运行 vLLM 的真实 GPU（改写后的访问经 Device ABI 等待建模的器件时间），带原生路径与 frame cache 的 GPU 显存层（图中标为 HBM tier），带承载文件与 prefetcher 的主机容量服务，以及包含在线 MQSim、UCIe 多 stack 接口和热学与可靠性模型的 HBF 建模部分" width="900">
 </div>
 
-图里的部件按状态分三类，图例给出了每一类的画法：第一类是默认运行时的一部分；第二类是需要显式打开的选项；第三类只以 CPU 实验或离线模型形式存在，还没有接入运行时。框旁的 D1–D6 指 arXiv 论文 Design 一节的六个小节。
+图里的部件按状态分三类，图例给出了每一类的画法：第一类是默认运行时的一部分；第二类是需要显式打开的选项；第三类是离线模型，不在运行时里（图中只有 Prefetcher 属于这一类）。框旁的 D1–D6 指 arXiv 论文 Design 一节的六个小节。
 
 - **主机侧准备。** PTX pass 改写模块，覆盖检查据此决定放行还是拒绝；Registry 记下哪些地址区间注册成了 HBF。SASS 恢复（图中标为 SASS recovery）是需要显式打开的选项：SASS 是 NVIDIA GPU 实际执行的机器码，对只有 SASS、没有 PTX 的闭源或预编译 kernel，HBFSim 先把选定的 kernel 从 SASS 恢复成 PTX，再交给 PTX pass。
 - **真实 GPU。** vLLM 在真实 GPU 上服务 Qwen3-30B。改写过的 load/store 会调用 HBFSim 嵌进 PTX 模块里的设备端辅助函数，图中的 Device ABI 就是这组辅助函数的调用接口；Device ABI 按 Registry 判断地址有没有注册成 HBF。改写过的 load/store 访问注册过的地址时，等待建模的器件时间；timing 区间里不能改写的访问照常执行，所在的那次启动记为没有建模（`opaque_unmodeled_timing`）。
 - **GPU 显存这一层（图中标为 HBM tier）。** 访问未注册的地址留在原生路径上，访问 capacity 区间由图中的 frame cache 供给，frame cache 就是 Capacity 模式里放在 GPU 显存里的 page cache。做实验的 RTX PRO 6000 显存是 GDDR7，在实验里扮演 HBM 的角色。
 - **主机容量服务。** 从承载文件里取出准确的 page 字节。Prefetcher 属于第三类：`main` 上只有一个默认不编译的离线敏感性模型，运行时预取不在 `main` 上。
 - **HBF 建模：时序。** MQSim 参考路径（图中标为 Online MQSim）给出时序。UCIe 多 stack 接口（图中标为 UCIe multistack）是需要显式打开的选项，在 Advanced eXtensible Interface（**AXI**，规范在 UCIe 之上使用的协议层）上做读传输，把 page 跨 stack 条带化并合并请求，每个 stack 一个 MQSim worker。快速路径（时序模式名 `fast`）在 GPU 上直接计算，图中没有单独画出。
-- **HBF 建模：热学与可靠性。** 按设计，结温决定 HBF 能维持的速率与数据保持期限；期限逼近就必须刷新，也就是先读一遍再重写一遍；服务策略决定速率与准入；证据输出记录字节数、磨损与平均无故障时间（**MTBF**）。图中 Junction temp、Service policy、Retention、Refresh、Evidence 五个灰色点线框就是热学与可靠性模型。热学与可靠性模型属于第三类：`main` 上是默认关闭的 CPU 实验（EQ3），还没有接进运行时的时序路径。EQ3 只在擦除成功时累加磨损计数，没有寿命模型，所以还不输出 MTBF。
+- **HBF 建模：热学与可靠性。** 结温决定 HBF 能维持的速率与数据保持期限；期限逼近就必须刷新，也就是先读一遍再重写一遍；服务策略决定速率与准入；证据输出记录字节数、磨损与平均无故障时间（**MTBF**）。图中 Junction temp、Service policy、Retention、Refresh、Evidence 五个框就是热学与可靠性模型，仓库里名为 EQ3。EQ3 只在擦除成功时累加磨损计数，没有寿命模型，所以还不输出 MTBF。
 
 ### 两种模式
 
@@ -205,7 +204,7 @@ Capacity 模式有两个已知限制。脏 page 现在原地写回，而 HBF 不
 
 ## 功能一览
 
-状态一列的三种写法：默认开启，指默认构建里就有、运行时可以直接用；需要显式打开，指要设构建选项或运行时开关；CPU 实验，指只在 CPU 上运行、没有接进真实 GPU 运行时。全模型权重注册、三个适配器、Issue 与 Q&A 讨论模板这三行不是单个开关能说清的，这三行的状态一列改为说明现有证据做到了哪一步、还缺什么。
+状态一列的两种写法：默认开启，指默认构建里就有、运行时可以直接用；需要显式打开，指要设构建选项或运行时开关。全模型权重注册、三个适配器、Issue 与 Q&A 讨论模板这三行不是单个开关能说清的，这三行的状态一列改为说明现有证据做到了哪一步、还缺什么。
 
 | 功能 | 一句话说明 | 状态 | 证据 |
 |---|---|---|---|
@@ -217,7 +216,7 @@ Capacity 模式有两个已知限制。脏 page 现在原地写回，而 HBF 不
 | SASS 恢复 | 对没有 PTX 的闭源或预编译 kernel，先把选定的 kernel 从 SASS 恢复成 PTX，再插桩；恢复管线来自 hetGPU | 需要显式打开：普通入口默认关闭（`HBFSIM_ENABLE_SASS_LIFTER=0`），研究入口 `scripts/run_with_sass_research.sh` 默认打开 | [tools/sass_runtime](tools/sass_runtime/README.md) |
 | 全模型权重注册 | OLMoE-1B-7B-0924：原生 PTX 路径（直接改写编译器生成的 PTX，不经过 SASS 恢复）注册全部 98 个受支持权重 storage，加上 SASS 恢复后注册全部 147 个 storage | 147 个 storage 那一半依赖需要显式打开的 SASS 恢复，只在一个固定请求上做过，没有做干净的源码重建与跨机器 GPU 复现。98 个 storage 那一半同样只在一个固定请求上做过；从源码重新构建的组件只在 8 个 storage 的代表性用例上重新跑通，98 个 storage 没有用重新构建的组件再跑一次 | [98 个 storage 的结果](docs/hbfsim-supported-weights/RESULTS.md)、[98 个 storage 一侧的源码重建记录](docs/hbfsim-supported-weights/REBUILT_SOURCE_VALIDATION.md)、[147 个 storage 的复现包](reproduction/sass-final147-20260926/README.md) |
 | 三个适配器 | [`adapters/vllm/`](adapters/vllm/)、[`adapters/vllm_capacity/`](adapters/vllm_capacity/)、[`adapters/llama_cpp/`](adapters/llama_cpp/) | vLLM 与 llama.cpp 有真实 GPU 上的 proof；vLLM capacity 的离线 trace 回放只有 CPU 上的 fixture 测试 | [`docs/proofs/2026-08-11-vllm-exact-live-delay.md`](docs/proofs/2026-08-11-vllm-exact-live-delay.md)、[`docs/proofs/2026-08-11-hybrid-complete.md`](docs/proofs/2026-08-11-hybrid-complete.md) 里的 llama.cpp 一节 |
-| EQ3 热学与可靠性模型 | 结温、按温度调整的服务速率、数据保持期限与刷新；代码在 `src/eq3_thermal/`、`experiments/eq3_system_thermal/` 等目录 | CPU 实验，默认关闭，没有接进运行时的时序路径 | [docs/eq3_thermal](docs/eq3_thermal/README.md)、[experiments/eq3_system_thermal](experiments/eq3_system_thermal/README.md)、[thermal_coverage.md](docs/eval/thermal_coverage.md) |
+| EQ3 热学与可靠性模型 | 结温、按温度调整的服务速率、数据保持期限与刷新；代码在 `src/eq3_thermal/`、`experiments/eq3_system_thermal/` 等目录 | 需要显式打开（模块默认关闭） | [docs/eq3_thermal](docs/eq3_thermal/README.md)、[experiments/eq3_system_thermal](experiments/eq3_system_thermal/README.md) |
 | 在第一次使用处等待 | 发射时登记 device future，到第一条读结果的指令处才等待；只覆盖 timing 区间里的 load，只用快速路径（时序模式名 `fast`）的标量模型 | 需要显式打开：编译开关 `HBFSIM_ENABLE_TIMING_FUTURES` 默认关闭；RTX 5090 上 6 个等待语义用例通过；仓库里现有的 profile 没有一份满足准入条件（条件包括 `time_scale` 为 1、profile 不由实测曲线标定；`time_scale` 是 profile 里把建模延迟整体放大的倍数，`nominal.json` 设为 100），用现有 profile 跑不到在第一次使用处等待的路径 | [docs/52-main-gpu-thermal-integration](docs/52-main-gpu-thermal-integration/README.md)、[docs/51](docs/51-defect-review-and-fixes.md) |
 | PTX target 兼容修复 | bpftime 的两条构建路径保留 PTX target 特性，并给出编译诊断（提交 `fccfd23`） | 默认开启 | [排错说明](docs/troubleshooting.md) |
 | Issue 与 Q&A 讨论模板 | 缺陷报告表单与 Q&A 表单 | 仓库里已提供，不是构建或运行时功能 | [bug_report.yml](.github/ISSUE_TEMPLATE/bug_report.yml)、[q-a.yml](.github/DISCUSSION_TEMPLATE/q-a.yml)、[docs/troubleshooting.md](docs/troubleshooting.md) |
@@ -324,7 +323,7 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 
 - **温度改变同一块 GPU 的行为。** 同一个 BF16 8192x8192 矩阵乘，在温度从 35 升到 70 °C 的冷机独占运行里达到 379.117 TFLOP/s，在温度从 61 升到 85 °C 的热机独占运行（proof 里叫 Warm isolated GPU）里只有 348.427 TFLOP/s，相差 -8.10%；热机那次 SM 时钟从约 2,062 MHz 降到 1,642 MHz。出处：[`docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md`](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)。
 
-  -8.10% 是 GPU 计算芯片自己降频，不是 HBF 的服务速率。另一次测量（矩阵乘与 fio 并发 30 秒，见 [`docs/proofs/2026-08-11-hybrid-complete.md`](docs/proofs/2026-08-11-hybrid-complete.md)）得到 -3.72%，热学配置文件用的是 -3.72%，见 [TODO.md](TODO.md#modeling-endurance-and-temperature)。HBF 的温度目前还没有接进运行时的时序路径。
+  -8.10% 是 GPU 计算芯片自己降频，不是 HBF 的服务速率。另一次测量（矩阵乘与 fio 并发 30 秒，见 [`docs/proofs/2026-08-11-hybrid-complete.md`](docs/proofs/2026-08-11-hybrid-complete.md)）得到 -3.72%，热学配置文件用的是 -3.72%，见 [TODO.md](TODO.md#modeling-endurance-and-temperature)。
 
 - **`cd8p-vmem-p50` 这份时序 profile 由一台真实器件标定而来。** 标定源是一块通过 PCIe 5.0 32 GT/s x4 接入的 Dell DC NVMe CD8P E3.S 1.92TB。这块 Dell CD8P 是普通 PCIe NVMe 端点，不是 CXL 端点（[`docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md`](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)）。
 
@@ -391,7 +390,7 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 - [x] ~~原生 PTX 路径覆盖 OLMoE-1B-7B-0924 全部 98 个受支持权重 storage~~（[结果](docs/hbfsim-supported-weights/RESULTS.md)）
 - [x] ~~SASS 恢复路径与 final147 复现包，在一个固定请求上注册 147 个 storage；致谢 hetGPU~~（[复现包](reproduction/sass-final147-20260926/README.md)）
 - [x] ~~SASS 恢复改为默认关闭；修复 PTX target 兼容并给出编译诊断；加入排错说明与 Q&A 表单~~（[排错说明](docs/troubleshooting.md)）
-- [x] ~~EQ3 热学与可靠性工具合入 `main`，作为隔离的 CPU 实验~~（[集成说明](docs/52-main-gpu-thermal-integration/README.md)）
+- [x] ~~EQ3 热学与可靠性模型合入 `main`~~（[集成说明](docs/52-main-gpu-thermal-integration/README.md)）
 - [x] ~~用七个提交修复时序与插桩路径上的六组缺陷，并在 RTX 5090 上实测等待语义~~（[缺陷复核与修复](docs/51-defect-review-and-fixes.md)、[RTX 5090 等待语义检查](docs/52-main-gpu-thermal-integration/README.md)）
 - [x] ~~历史文档、日志与输入示例改为路径归一化副本，附 `SHA256SUMS` 校验清单~~（[公开副本说明](PUBLIC_COPY_NOTICE.md)）
 
@@ -404,7 +403,6 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 
 **还没做的**
 
-- [ ] 把温度接进运行时的时序路径（[TODO.md](TODO.md#modeling-endurance-and-temperature)）。
 - [ ] 留出标定点做验证；六个断点现在全部参与了拟合（[TODO.md](TODO.md#validation)）。
 - [ ] 写入改为每个 4 KiB 编程单元计一次写入时间（现在每条 store 指令计一次），Capacity 模式淘汰的 page 不再原地重写（[TODO.md](TODO.md#correctness-and-fidelity)）。
 - [ ] 在同一输入上对比快速路径与 MQSim 参考路径（[TODO.md](TODO.md#validation)）。
@@ -414,7 +412,7 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 
 ## 仓库结构
 
-- `src/`：全部 C++ 与 CUDA 生产代码，分 11 个组件，即 CUDA 拦截运行时（`cuda_runtime/`）、PTX pass（`ptxpass_hbf/`）、主机服务（`host_service/`）、UCIe 多 stack 后端（`ucie/`）、热学求解器（`eq3_thermal/`，独立的 CPU 库，不进顶层构建）、MQSim 适配层（`mqsim_adapter/`）、profile 加载器（`profile/`）、prefetch（`prefetch/`）、报告（`reporting/`）、快速模型标定器（`hybrid/`）与 page 协议（`protocol/`）。按代码行数，前三大是 CUDA 拦截运行时、UCIe 多 stack 后端与 PTX pass。
+- `src/`：全部 C++ 与 CUDA 生产代码，分 11 个组件，即 CUDA 拦截运行时（`cuda_runtime/`）、PTX pass（`ptxpass_hbf/`）、主机服务（`host_service/`）、UCIe 多 stack 后端（`ucie/`）、热学求解器（`eq3_thermal/`）、MQSim 适配层（`mqsim_adapter/`）、profile 加载器（`profile/`）、prefetch（`prefetch/`）、报告（`reporting/`）、快速模型标定器（`hybrid/`）与 page 协议（`protocol/`）。按代码行数，前三大是 CUDA 拦截运行时、UCIe 多 stack 后端与 PTX pass。
 - `include/hbfsim/`：公开头文件，以及跨越主机与设备边界的契约。
 - `adapters/`：三个集成适配层，`llama_cpp/`、`vllm/`、`vllm_capacity/`。
 - `benchmarks/`：测量驱动程序，包括 CUDA 微基准、MQSim 介质基准（含 UCIe 基准）、prefetch 与 trace 回放。
@@ -451,7 +449,7 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 ```bibtex
 @article{hu2026hbfsim,
   title   = {HBFSim: Fast and Faithful Simulation of High-Bandwidth Flash Under Real GPU Execution},
-  author  = {Hu, Yanpeng and Yang, Yiwei and Zhu, Yuanwu and Zheng, Yusheng and Zhang, Wei and Quinn, Andi},
+  author  = {Hu, Yanpeng and Yang, Yiwei and Zhu, Yuanwu and Zheng, Yusheng and Quinn, Andi and Zhang, Wei},
   journal = {arXiv preprint arXiv:2609.09800},
   year    = {2026}
 }

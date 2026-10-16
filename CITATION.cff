@@ -34,10 +34,10 @@ authors:
     given-names: Yuanwu
   - family-names: Zheng
     given-names: Yusheng
-  - family-names: Zhang
-    given-names: Wei
   - family-names: Quinn
     given-names: Andi
+  - family-names: Zhang
+    given-names: Wei
 identifiers:
   - type: other
     value: "arXiv:2609.09800"
@@ -57,7 +57,7 @@ preferred-citation:
       given-names: Yuanwu
     - family-names: Zheng
       given-names: Yusheng
-    - family-names: Zhang
-      given-names: Wei
     - family-names: Quinn
       given-names: Andi
+    - family-names: Zhang
+      given-names: Wei

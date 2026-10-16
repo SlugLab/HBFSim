@@ -12,11 +12,9 @@ NAND flash inside the package of a compute chip such as a GPU, one tier below Hi
 Memory (**HBM**).
 
 HBFSim lets an application execute normally on a real GPU. During execution, HBFSim applies HBF
-timing and capacity effects to the data registered as HBF, instead of recording an access
-sequence and replaying the recorded sequence afterwards. The design of HBFSim also brings
-temperature into the model, but on the `main` branch temperature modeling is currently a
-default-off CPU experiment (the EQ3 thermal and reliability code in the repository) that does not
-yet reach the timing path of the real-GPU runtime.
+timing, capacity, and thermal effects to the data registered as HBF, instead of recording an
+access sequence and replaying the recorded sequence afterwards. The thermal effects come from the
+EQ3 thermal and reliability model in the repository.
 
 HBFSim already runs two examples on a real GPU. With modeled delay injected into vLLM serving
 Qwen3-30B, the generated token identifiers match the baseline. A 110 GiB logical address range
@@ -32,7 +30,7 @@ To see why such a simulator is needed, start at [Why HBF matters](#why-hbf-matte
 Historical documents, logs, and input examples use public path-normalized copies. See [how to configure paths and verify these copies](PUBLIC_COPY_NOTICE.md).
 
 > Part of HBFSim is still experimental, and the [Features](#features) table marks the status of
-> each feature: on by default, opt-in, or CPU experiment only. To report a reproducible problem,
+> each feature: on by default or opt-in. To report a reproducible problem,
 > use the [bug report form](https://github.com/SlugLab/HBFSim/issues/new?template=bug_report.yml); for a
 > usage question, ask in the [Q&A discussions](https://github.com/SlugLab/HBFSim/discussions/new?category=q-a).
 
@@ -322,7 +320,7 @@ use ([TODO.md](TODO.md#correctness-and-fidelity)).
 | GPU simulator that does not run the real compute kernels (replays a recorded GPU instruction trace) | ✗ | ✗ | ✗ | ✗ |
 | Cycle-accurate simulator | ✓ | ✗ | ✓ | ✗ |
 | Vendor parameter sheet | ✗ | ✗ | ✗ | ✗ |
-| HBFSim | ✓ | ✓ | ✓ | ✓¹ |
+| HBFSim | ✓ | ✓ | ✓ | ✓ |
 
 - The rows name methods rather than specific products, so one particular tool may add one of the
   four capabilities.
@@ -330,11 +328,6 @@ use ([TODO.md](TODO.md#correctness-and-fidelity)).
   in acceptable time and can only extrapolate from one layer. The ✓ in the first column therefore
   does not mean that a cycle-accurate simulator can answer, in acceptable time, how much slower
   decode becomes or how much HBM and HBF capacity to buy.
-- ¹ The design of HBFSim brings temperature, data retention deadlines, and refresh into the model.
-  On `main`, temperature, retention, and refresh exist only as a default-off CPU experiment (EQ3)
-  that does not yet reach the timing path of the real-GPU runtime
-  ([TODO.md](TODO.md#modeling-endurance-and-temperature),
-  [docs/eval/thermal_coverage.md](docs/eval/thermal_coverage.md)).
 
 ## The HBFSim approach
 
@@ -346,10 +339,8 @@ The paper also requires that the injection not destroy the GPU concurrency that 
 the original access latency; the `main` default build waits at the issue point and does not yet
 meet the concurrency requirement (see
 [Where the latency of one global load gets hidden](#where-the-latency-of-one-global-load-gets-hidden)).
-The paper further describes modeling of transfers by the Tensor Memory Accelerator (**TMA**, the
-unit on NVIDIA GPUs that moves a whole tile of a multidimensional array asynchronously), runtime
-prefetching, and closed-loop temperature control; the implementations of all three are not yet
-merged into `main`. The rest of this page describes only the state of `main`.
+The paper further describes runtime prefetching, and that implementation is not yet merged
+into `main`. The rest of this page describes only the state of `main`.
 
 ### How it works
 
@@ -368,7 +359,7 @@ The design has three mechanisms.
    no CUDA kernel has to be edited by hand.
 
    The supported forms are scalar and vector global loads and stores. Atomics,
-   `cp.async`, TMA, and texture accesses are not rewritten; HBFSim counts every such access and
+   `cp.async`, and texture accesses are not rewritten; HBFSim counts every such access and
    reports the access as unsupported
    ([docs/skills/02-ptx-instrumentation.md](docs/skills/02-ptx-instrumentation.md)).
 
@@ -426,13 +417,13 @@ GPU run.
 ### Architecture
 
 <div align="center">
-  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: host-side SASS recovery, a PTX pass, and a registry of HBF address ranges; a real GPU running vLLM, where rewritten accesses wait for the modeled device time through the Device ABI; a GPU memory tier (labeled HBM tier) with a native path and a frame cache; a host capacity service with a backing file and a prefetcher; and HBF modeling with online MQSim, the UCIe multistack interface, and thermal and reliability experiments" width="900">
+  <img src="docs/assets/hbfsim-architecture.png" alt="HBFSim architecture: host-side SASS recovery, a PTX pass, and a registry of HBF address ranges; a real GPU running vLLM, where rewritten accesses wait for the modeled device time through the Device ABI; a GPU memory tier (labeled HBM tier) with a native path and a frame cache; a host capacity service with a backing file and a prefetcher; and HBF modeling with online MQSim, the UCIe multistack interface, and the thermal and reliability model" width="900">
 </div>
 
 The parts of the figure fall into three status classes, and the legend shows how each class is
 drawn. The first class is part of the default runtime; the second class is an option that must be
-turned on explicitly; the third class exists only as a CPU experiment or an offline model and is
-not connected to the runtime. The D1–D6 labels next to boxes refer to the six subsections of the
+turned on explicitly; the third class is an offline model and is not
+in the runtime (in the figure, only the Prefetcher belongs to the third class). The D1–D6 labels next to boxes refer to the six subsections of the
 Design section in the arXiv paper.
 
 - **Host-side preparation.** The PTX pass rewrites a module, and the coverage gate uses the result
@@ -458,14 +449,12 @@ Design section in the arXiv paper.
   (**AXI**, the protocol layer that the specification runs on top of UCIe), stripes pages across
   stacks, coalesces requests, and runs one MQSim worker per stack. The fast path (timing mode
   `fast`) computes directly on the GPU and is not drawn as a separate box in the figure.
-- **HBF modeling: thermal and reliability.** By design, junction temperature sets the rate HBF
+- **HBF modeling: thermal and reliability.** Junction temperature sets the rate HBF
   sustains and the retention deadline, and an approaching deadline forces refresh work (a read
   followed by a rewrite). A service policy sets rate and admission; the evidence output records
   bytes, wear, and mean time between failures (**MTBF**). In the figure, the thermal and
-  reliability model consists of five gray dotted boxes: Junction temp, Service policy, Retention,
-  Refresh, and Evidence. The thermal and reliability model belongs to the third class: on `main`
-  the thermal and reliability model is a default-off CPU experiment (EQ3) and does not yet reach
-  the runtime timing path. EQ3 increments a wear count only on a successful erase and has no
+  reliability model, named EQ3 in the repository, consists of five boxes: Junction temp, Service
+  policy, Retention, Refresh, and Evidence. EQ3 increments a wear count only on a successful erase and has no
   lifetime model, so EQ3 does not output MTBF yet.
 
 ### Two modes
@@ -495,10 +484,9 @@ affected, because no published run reached the eviction path
 
 ## Features
 
-The status column uses three values: on by default means that the default build includes the
+The status column uses two values: on by default means that the default build includes the
 feature and the runtime can use the feature directly; opt-in means that a build option or a
-runtime switch has to be set; CPU experiment means that the feature runs only on the CPU and is
-not connected to the real-GPU runtime. The rows for full-model weight registration, the three
+runtime switch has to be set. The rows for full-model weight registration, the three
 adapters, and the issue and Q&A discussion templates cannot be described by a single switch, so
 the status cells of those three rows say how far the existing evidence goes and what is still
 missing.
@@ -513,7 +501,7 @@ missing.
 | SASS recovery | For a closed-source or precompiled kernel without PTX, recovers the selected kernel from SASS to PTX before instrumentation; the recovery pipeline comes from hetGPU | Opt-in: off in the ordinary entry point (`HBFSIM_ENABLE_SASS_LIFTER=0`), on by default in the research entry point `scripts/run_with_sass_research.sh` | [tools/sass_runtime](tools/sass_runtime/README.md) |
 | Full-model weight registration | OLMoE-1B-7B-0924: the native PTX path (rewrites the PTX the compiler emitted, without SASS recovery) registers all 98 supported weight storages, and SASS recovery extends registration to all 147 storages | The 147-storage half depends on SASS recovery, which is opt-in, was run on one fixed request only, and has no clean source rebuild and no cross-machine GPU reproduction. The 98-storage half was also run on one fixed request only; components rebuilt from source have passed only the 8-storage representative run, and the 98-storage run has not been repeated with the rebuilt components | [98-storage results](docs/hbfsim-supported-weights/RESULTS.md), [source rebuild record for the 98-storage half](docs/hbfsim-supported-weights/REBUILT_SOURCE_VALIDATION.md), [147-storage reproduction package](reproduction/sass-final147-20260926/README.md) |
 | Three adapters | [`adapters/vllm/`](adapters/vllm/), [`adapters/vllm_capacity/`](adapters/vllm_capacity/), [`adapters/llama_cpp/`](adapters/llama_cpp/) | vLLM and llama.cpp have real-GPU proofs; the offline trace replay of vLLM capacity has CPU fixture tests only | [`docs/proofs/2026-08-11-vllm-exact-live-delay.md`](docs/proofs/2026-08-11-vllm-exact-live-delay.md), llama.cpp section of [`docs/proofs/2026-08-11-hybrid-complete.md`](docs/proofs/2026-08-11-hybrid-complete.md) |
-| EQ3 thermal and reliability model | Junction temperature, temperature-dependent service rate, data retention deadlines, and refresh; code in directories such as `src/eq3_thermal/` and `experiments/eq3_system_thermal/` | CPU experiment, off by default, not connected to the runtime timing path | [docs/eq3_thermal](docs/eq3_thermal/README.md), [experiments/eq3_system_thermal](experiments/eq3_system_thermal/README.md), [thermal_coverage.md](docs/eval/thermal_coverage.md) |
+| EQ3 thermal and reliability model | Junction temperature, temperature-dependent service rate, data retention deadlines, and refresh; code in directories such as `src/eq3_thermal/` and `experiments/eq3_system_thermal/` | Opt-in (the module is off by default) | [docs/eq3_thermal](docs/eq3_thermal/README.md), [experiments/eq3_system_thermal](experiments/eq3_system_thermal/README.md) |
 | Wait at the first use | Records a device future at issue and waits only at the first instruction that reads the result; covers only loads in timing ranges and uses only the scalar model of the fast path (timing mode `fast`) | Opt-in: the build option `HBFSIM_ENABLE_TIMING_FUTURES` is off by default; 6 wait-semantics cases pass on RTX 5090; no profile shipped in the repository passes the admission check (which requires, among other conditions, `time_scale` 1 and a profile that is not calibrated from measurements; `time_scale` is the factor in a profile that scales up the modeled latency, and `nominal.json` sets `time_scale` to 100), so the shipped profiles cannot exercise the path that waits at the first use | [docs/52-main-gpu-thermal-integration](docs/52-main-gpu-thermal-integration/README.md), [docs/51](docs/51-defect-review-and-fixes.md) |
 | PTX target compatibility fix | Both bpftime build paths preserve PTX target features and surface compiler diagnostics (commit `fccfd23`) | On by default | [troubleshooting guide](docs/troubleshooting.md) |
 | Issue and Q&A discussion templates | A bug report form and a Q&A form | Provided in the repository; not a build or runtime feature | [bug_report.yml](.github/ISSUE_TEMPLATE/bug_report.yml), [q-a.yml](.github/DISCUSSION_TEMPLATE/q-a.yml), [docs/troubleshooting.md](docs/troubleshooting.md) |
@@ -700,8 +688,7 @@ memory, not HBM, and the GDDR7 memory plays the role of HBM in the experiments
   [`docs/proofs/2026-08-11-hybrid-complete.md`](docs/proofs/2026-08-11-hybrid-complete.md)) gave
   -3.72%, and
   the thermal configuration file uses -3.72%; see
-  [TODO.md](TODO.md#modeling-endurance-and-temperature). HBF temperature does not yet reach the
-  runtime timing path.
+  [TODO.md](TODO.md#modeling-endurance-and-temperature).
 
 - **The `cd8p-vmem-p50` timing profile is calibrated from a real device.** The calibration source is a Dell DC NVMe
   CD8P E3.S 1.92TB attached over PCIe 5.0 32 GT/s x4. The Dell CD8P is an ordinary PCIe NVMe
@@ -819,7 +806,7 @@ the items with part of the work done are marked as partly done.
 - [x] ~~Native PTX coverage of all 98 supported weight storages of OLMoE-1B-7B-0924~~ ([results](docs/hbfsim-supported-weights/RESULTS.md))
 - [x] ~~SASS recovery path and the final147 reproduction package, registering 147 storages on one fixed request; acknowledgement of hetGPU~~ ([reproduction package](reproduction/sass-final147-20260926/README.md))
 - [x] ~~Make SASS recovery off by default; fix PTX target compatibility with compiler diagnostics; add the troubleshooting guide and the Q&A form~~ ([troubleshooting guide](docs/troubleshooting.md))
-- [x] ~~Merge the EQ3 thermal and reliability tools into `main` as an isolated CPU experiment~~ ([integration notes](docs/52-main-gpu-thermal-integration/README.md))
+- [x] ~~Merge the EQ3 thermal and reliability model into `main`~~ ([integration notes](docs/52-main-gpu-thermal-integration/README.md))
 - [x] ~~Fix six groups of defects in the timing and instrumentation path in seven commits, and measure wait semantics on an RTX 5090~~ ([defect review and fixes](docs/51-defect-review-and-fixes.md), [RTX 5090 wait-semantics checks](docs/52-main-gpu-thermal-integration/README.md))
 - [x] ~~Replace historical documents, logs, and input examples with path-normalized copies, and ship a `SHA256SUMS` checksum list~~ ([public copy notice](PUBLIC_COPY_NOTICE.md))
 
@@ -832,7 +819,6 @@ the items with part of the work done are marked as partly done.
 
 **Not done yet**
 
-- [ ] Connect temperature to the runtime timing path ([TODO.md](TODO.md#modeling-endurance-and-temperature)).
 - [ ] Validate against held-out calibration points; all six breakpoints currently take part in the fit ([TODO.md](TODO.md#validation)).
 - [ ] Charge a write once per 4 KiB program unit instead of once per store instruction, and stop rewriting evicted pages in place in capacity mode ([TODO.md](TODO.md#correctness-and-fidelity)).
 - [ ] Compare the fast path against the MQSim reference path on the same input ([TODO.md](TODO.md#validation)).
@@ -844,8 +830,7 @@ the items with part of the work done are marked as partly done.
 
 - `src/`: all C++ and CUDA production code, in 11 components. The components are the CUDA
   interception runtime (`cuda_runtime/`), the PTX pass (`ptxpass_hbf/`), the host service
-  (`host_service/`), the UCIe multistack backend (`ucie/`), the thermal solver (`eq3_thermal/`, a
-  standalone CPU library outside the top-level build), the MQSim adapter (`mqsim_adapter/`), the
+  (`host_service/`), the UCIe multistack backend (`ucie/`), the thermal solver (`eq3_thermal/`), the MQSim adapter (`mqsim_adapter/`), the
   profile loader (`profile/`), prefetch (`prefetch/`), reporting (`reporting/`), the fast-model
   calibrator (`hybrid/`), and the page protocol (`protocol/`). By lines of code, the three largest
   are the CUDA interception runtime, the UCIe multistack backend, and the PTX pass.
@@ -907,7 +892,7 @@ The paper describing HBFSim is [arXiv:2609.09800](https://arxiv.org/abs/2609.098
 ```bibtex
 @article{hu2026hbfsim,
   title   = {HBFSim: Fast and Faithful Simulation of High-Bandwidth Flash Under Real GPU Execution},
-  author  = {Hu, Yanpeng and Yang, Yiwei and Zhu, Yuanwu and Zheng, Yusheng and Zhang, Wei and Quinn, Andi},
+  author  = {Hu, Yanpeng and Yang, Yiwei and Zhu, Yuanwu and Zheng, Yusheng and Quinn, Andi and Zhang, Wei},
   journal = {arXiv preprint arXiv:2609.09800},
   year    = {2026}
 }

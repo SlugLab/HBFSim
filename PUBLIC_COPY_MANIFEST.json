@@ -19,15 +19,15 @@
     },
     {
       "public_path": "README.md",
-      "bytes": 70102,
-      "sha256": "25f9dbfa3cb1ad975ab521c4bb38858c0cb43baf003356a7ea534ee612e12b58",
+      "bytes": 68682,
+      "sha256": "bed4ea09ac423432d38e19d7062f7621f6974b4b08cbce174c0da0c5cd492465",
       "source_original_sha256": null,
       "kind": "new public documentation"
     },
     {
       "public_path": "README.zh-CN.md",
-      "bytes": 62688,
-      "sha256": "6ce01a0807faf5c16c54f651bc9cf5086a6d1c1c58b913c5121963dcefc3f374",
+      "bytes": 61515,
+      "sha256": "1b20078176751bff8b48ae03a987bdb4042a47733cc9c9b8098eb18213dfdbc0",
       "source_original_sha256": null,
       "kind": "new public documentation"
     },

@@ -61,7 +61,7 @@ HBFSim 用来在真实 LLM 负载上评估各种问题，例如：
 
   如何衡量不同架构、不同 HBF 和 HBM 容量划分比例，是我们模拟器努力的方向之一。
 - **数据放置**：权重、不同生命周期的 KV cache，哪些放到 HBM 上，哪些放到 HBF 上。
-- **HBF 物理参数如何反过来影响架构设置**：HBF 高于 HBM 两个数量级的读写延迟极大地考验 LLM KV 的预取算法。此外，HBF 的 stack 数、UCIe 模拟以及 page 条带化也是我们的目标之一。
+- **HBF 物理参数如何反过来影响架构设置**：HBF 高于 HBM 两个数量级的读写延迟极大地考验 LLM KV 的预取算法。此外，一个 GPU 连接的 HBF device 数、UCIe 模拟以及 page 条带化也是我们的目标之一。
 - **温度带来的降速**：芯片内部晶体管所在处的温度，比封装表面的温度高。
   - NAND 温度越高，数据保持期限越短，需要更频繁地刷新，而刷新也要占用带宽。
   - 模拟器如果不建模温度，报出的就是一个不随时间变化的速率，会高估 HBF 在长时间运行中的可持续服务速率。
@@ -75,7 +75,7 @@ HBFSim 用来在真实 LLM 负载上评估各种问题，例如：
 - **按地址注册，只给 HBF 地址计时**：应用通过 [C API](include/hbfsim/api.h) 注册 HBF 地址范围；未注册的地址保持原生访存路径，不注入 HBF 延迟。
 - **Timing-only 与 Capacity 两种模式**：Timing-only 模式下数据留在 GPU 显存中，只对已注册访问注入模拟延迟。Capacity 模式用文件承载逻辑数据，GPU 显存中的有界 page cache 保存常驻页面，让超出物理显存的逻辑容量也能运行；已在显存为 98 GB 的 GPU 上验证 110 GiB 逻辑地址范围的稀疏访问。
 - **两种时序后端**：`reference` 把请求交给在线 MQSim，使用详细介质服务模型；`fast` 根据所选 profile 在 GPU 本地计算时序，避免逐请求的主机往返；另有结合两者的 `hybrid` 模式。
-- **UCIe 多 stack（可选）**：建模 AXI 读传输、跨 stack 的 page 条带化与请求合并，通过 `HBFSIM_ENABLE_UCIE=ON` 启用；当前为只读接口，已完成 CPU 侧验证。
+- **一个 GPU 连接多个 HBF device（UCIe，可选）**：建模 AXI 读传输、跨 HBF device 的 page 条带化与请求合并，每个 HBF device 对应一个 MQSim worker；通过 `HBFSIM_ENABLE_UCIE=ON` 启用；当前为只读接口，已完成 CPU 侧验证。
 - **热学与可靠性（可选）**：把结温、服务策略、数据保持期限与刷新连接起来。
 - **启动前的覆盖检查**：coverage gate 在每次 kernel 启动前检查该次执行是否处于可建模范围；Capacity 地址可能进入无法证明安全的代码时，拒绝 kernel 启动。
 - **建模时间与墙上时间分开报告**：介质基准与 CUDA 微基准分别输出建模的器件时间和墙上时间，不把模拟器自身的开销算成 HBF 延迟。
@@ -132,9 +132,9 @@ $ ./build/hbf_mqsim_bench --profile configs/profiles/nominal.json \
 <a id="hbf-intro"></a>
 ## HBF 简介
 
-HBF 把 NAND flash 堆叠在加速器封装内，位于 HBM 之下、SSD 之上。按 [v0.7.0 规范](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf)第 3 章，HBF 的容量是 HBM 的 8 到 16 倍，读带宽与 HBM 相同；规范第 4.1 节与表 4 给出的单 stack 容量示例是 **512 GiB**，最高速度档的单 stack 用户带宽是 **3.072 TB/s**。HBF 目前还买不到：SanDisk 计划在 2027 年送出首批 HBF 推理产品的样品（据 [StorageReview 对 SanDisk 2026 年 8 月投资者日的报道](https://www.storagereview.com/news/sandisk-tapes-out-its-first-hbf-memory-die-targets-2027-for-inference-product-samples)），SK hynix 在 FMS 2026 上展示的时间线则把 HBF 样品放在 2028 年初。
+HBF 把 NAND flash 堆叠在加速器封装内，位于 HBM 之下、SSD 之上。按 [v0.7.0 规范](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf)第 3 章，HBF 的容量是 HBM 的 8 到 16 倍，读带宽与 HBM 相同；规范第 4.1 节与表 4 给出的单个 HBF device 的容量示例是 **512 GiB**（一个 HBF device 内堆叠 16 层 NAND die，即 16-Hi），最高速度档单个 HBF device 的用户带宽是 **3.072 TB/s**。HBF 目前还买不到：SanDisk 计划在 2027 年送出首批 HBF 推理产品的样品（据 [StorageReview 对 SanDisk 2026 年 8 月投资者日的报道](https://www.storagereview.com/news/sandisk-tapes-out-its-first-hbf-memory-die-targets-2027-for-inference-product-samples)），SK hynix 在 FMS 2026 上展示的时间线则把 HBF 样品放在 2028 年初。
 
-因为 NAND 对温度敏感，在 20 到 70 °C 之间，每升温 10 °C 就会让数据保存周期缩短到原来的约 1/4 到 1/3（这是我们按 [HeatWatch](https://www.cs.cmu.edu/~yixinluo/index_files/heatwatch_hpca18.pdf) 在 3D NAND 上测得的激活能 1.04 eV、用 Arrhenius 公式推算的结果）。发热会让 HBF 无法持续达到峰值速度，产生严重的热节流问题：规范定义了 thermal throttling，结温达到阈值后，器件降低功耗，读写变慢，严重时暂停操作。规范还规定，通电时在 85 °C 下保证数据保持 24 小时，一般每 24 到 48 小时要刷新一次（第 9 章与第 11.5 节）。HBF 与 GPU、HBM 同在一个封装里，GPU 发热会抬高 HBF 的温度。GPU 自身的热状态也会改变性能：我们在同一块 GPU 上实测单独运行的同一个 BF16 8192x8192 矩阵乘，GPU 冷态时为 379.117 TFLOP/s，GPU 热态时为 348.427 TFLOP/s，低 8.10%；这个降幅来自 GPU 计算芯片自身降频，不是 HBF 的速率（[实验记录](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)）。
+因为 NAND 对温度敏感，在 20 到 70 °C 之间，每升温 10 °C 就会让数据保存周期缩短到原来的约 1/4 到 1/3（这是我们按 [HeatWatch](https://www.cs.cmu.edu/~yixinluo/index_files/heatwatch_hpca18.pdf) 在 3D NAND 上测得的激活能 1.04 eV、用 Arrhenius 公式推算的结果）。发热会让 HBF 无法持续达到峰值速度，产生严重的热节流问题：规范定义了 thermal throttling，结温达到阈值后，器件降低功耗，读写变慢，严重时暂停操作。规范还规定，通电时在 85 °C 下保证数据保持 24 小时，一般每 24 到 48 小时要刷新一次（第 9 章与第 11.5 节）。HBF device 与 GPU、HBM 同在一个封装里；一个 GPU 连接多个 HBF device 时，GPU、相邻的 HBM 与相邻的 HBF device 发出的热都会抬高每个 HBF device 的温度。GPU 自身的热状态也会改变性能：我们在同一块 GPU 上实测单独运行的同一个 BF16 8192x8192 矩阵乘，GPU 冷态时为 379.117 TFLOP/s，GPU 热态时为 348.427 TFLOP/s，低 8.10%；这个降幅来自 GPU 计算芯片自身降频，不是 HBF 的速率（[实验记录](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)）。
 
 业界对 HBF 的评估结论并不一致，而且各方的结论都来自自己的测试或模型：SanDisk 2025 年 7 月的 HBF 事实页标明其数字来自内部测试与模拟；SK hynix 研究者的 [H³ 论文](https://doi.org/10.1109/LCA.2026.3660969)使用内部模拟器；三位 Micron 研究者在 HotInfra '26 研讨会上的[论文](https://hotinfra.org/2026/papers/hotinfra26-final83.pdf)使用 roofline 解析模型，作者声明该论文不一定代表 Micron 的官方立场；Oxmiq Labs 在 Hot Chips 2026 上使用机架级模拟（[ServeTheHome 报道](https://www.servethehome.com/oxmiq-labs-hbf-in-ai-compute-at-hot-chips-2026/)）。HBM 与 HBF 各配多少容量、哪些张量放进 HBF，这类设计决策等不到器件上市。
 
@@ -237,11 +237,13 @@ HBFSim 将 **MQSim 用作 flash 介质模型，而不是 SSD 主机软件栈模�
 
 **Capacity 模式始终走参考路径。** `fast` 的参数由 profile 决定：合成 profile 用于假设扫描，`cd8p-vmem-p50` 则来自实测软件路径的标定曲线，二者不能混同。[后端实现与实验](docs/proofs/2026-08-11-hybrid-complete.md)
 
-可选的 **UCIe 多 stack 后端**进一步建模 AXI 读传输、跨 stack 的 page 条带化、请求合并与独立服务上限，每个 stack 对应一个 MQSim worker。该路径通过 `HBFSIM_ENABLE_UCIE=ON` 启用，当前为只读接口，已完成 CPU 侧验证。[UCIe 文档](docs/ucie/README.md) · [v0.1.1 发布说明](docs/releases/v0.1.1.md)
+可选的 **UCIe 多 HBF device 后端**（代码与配置中称 multistack）模拟一个 GPU 连接多个 HBF device 的情形，进一步建模 AXI 读传输、跨 HBF device 的 page 条带化、请求合并与独立服务上限，每个 HBF device 对应一个 MQSim worker。该路径通过 `HBFSIM_ENABLE_UCIE=ON` 启用，当前为只读接口，已完成 CPU 侧验证。[UCIe 文档](docs/ucie/README.md) · [v0.1.1 发布说明](docs/releases/v0.1.1.md)
 
 ### 5. 热学与可靠性：让温度反馈到介质服务
 
 可选的 **EQ3 模块**将结温、服务策略、数据保持期限与刷新连接起来。温度不只是报告末尾的一列：它会影响可持续服务速率，也会缩短数据保持期限；为保持数据而执行的刷新，又会增加读写流量与维护开销。
+
+EQ3 模拟一个 GPU 连接多个存储器件时封装内的发热：[`configs/eq3_thermal/topologies/`](configs/eq3_thermal/topologies/) 下的四个拓扑配置都在一个 GPU 周围排布 8 个存储器件（HBM 或 HBF device），对应[设计目标第 4 条](#question)列出的四种架构，其中 HBF device 为 8-Hi（一个 HBF device 内堆叠 8 层 NAND die）或 16-Hi。这四个拓扑的参数都是假设值，热阻与热容是未经标定的测试取值。
 
 EQ3 记录服务与维护相关统计，并在成功擦除时累加磨损计数；当前尚无用于输出 MTBF 的寿命模型。模块设计、启用方式与验证记录见 [EQ3 热学文档](docs/eq3_thermal/README.md)和[系统热学实验](experiments/eq3_system_thermal/README.md)。
 
@@ -260,7 +262,7 @@ EQ3 记录服务与维护相关统计，并在成功擦除时累加磨损计数�
 |---|---|---|
 | `HBFSIM_ENABLE_CUDA` | `ON` | CUDA 插桩与运行时组件 |
 | `HBFSIM_ENABLE_MQSIM` | `ON` | MQSim 主机服务 |
-| `HBFSIM_ENABLE_UCIE` | `OFF` | UCIe 多 stack 只读后端，当前已验证 CPU 路径 |
+| `HBFSIM_ENABLE_UCIE` | `OFF` | UCIe 多 HBF device 只读后端，当前已验证 CPU 路径 |
 | `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | llama.cpp 与 vLLM 集成测试 |
 | `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | 离线评估、预取敏感性模型与回放工具 |
 | `HBFSIM_ENABLE_TIMING_FUTURES` | `OFF` | 依赖点等待实验路径，要求 CUDA 13 与 `sm_120` |
@@ -349,14 +351,14 @@ HBFSim 的公开验证覆盖真实推理框架接入、权重注册与消费者�
 - [x] **GPU 访存接入与容量层：** 显式地址注册、PTX 自动改写、启动覆盖检查，以及 Timing / Capacity 两种模式。
 - [x] **在线介质建模：** MQSim 参考路径、GPU 本地快速路径和混合模式，以及可选 EQ3 热学与维护模块。
 - [x] **推理框架与权重接入：** vLLM、llama.cpp 适配；OLMoE 原生 PTX 的 98-storage 验证与可选 SASS 路径的 147-storage 固定请求验证。
-- [x] **多 stack 扩展：** UCIe 只读接口、独立 MQSim worker、条带化与请求合并，完成 CPU 侧验证。
+- [x] **多 HBF device 扩展：** UCIe 只读接口、独立 MQSim worker、条带化与请求合并，完成 CPU 侧验证。
 - [x] **等待与兼容性改进：** 依赖点等待实验实现及 RTX 5090 语义检查，修复 PTX target 兼容与多组时序、插桩缺陷。
 
 ### 正在推进
 
 - [ ] **修复写入与淘汰语义：** 按 4 KiB 编程单元建模写入，遵守顺序编程约束，修复 frame 生命周期竞争。
 - [ ] **完善介质数据复用：** 引入 page buffer 与跨 warp 页面驻留过滤，避免将重复访问重复计为介质读取。
-- [ ] **扩展多 stack 能力：** 增加写路径、GPU 验证及不同 stack 数量下的容量与带宽扫描。
+- [ ] **扩展多 HBF device 能力：** 增加写路径、GPU 验证及不同 HBF device 数量下的容量与带宽扫描。
 
 <a id="documentation"></a>
 ## 文档与代码导航
@@ -366,7 +368,7 @@ HBFSim 的公开验证覆盖真实推理框架接入、权重注册与消费者�
 | 构建、运行和排错 | [构建环境](docs/build/rtx-5090-environment.md) · [排错](docs/troubleshooting.md) |
 | 理解内部实现 | [文档索引](docs/README.md) · [子系统阅读指南](docs/skills/) |
 | 运行与复现实验 | [实验记录](docs/proofs/) · [评估 runbook](docs/eval/) · [复现包](reproduction/) |
-| 使用扩展模块 | [UCIe / 多 stack](docs/ucie/README.md) · [EQ3](docs/eq3_thermal/README.md) · [SASS 恢复](tools/sass_runtime/README.md) |
+| 使用扩展模块 | [UCIe / 多 HBF device](docs/ucie/README.md) · [EQ3](docs/eq3_thermal/README.md) · [SASS 恢复](tools/sass_runtime/README.md) |
 | 查看计划和版本 | [TODO](TODO.md) · [v0.1.1](docs/releases/v0.1.1.md) |
 
 历史文档、日志与输入示例使用路径归一化的公开副本，填写路径和校验副本的方法见 [PUBLIC_COPY_NOTICE.md](PUBLIC_COPY_NOTICE.md)。

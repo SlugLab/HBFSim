@@ -61,7 +61,7 @@ HBFSim is used to evaluate various questions on real LLM workloads, for example:
 
   How to measure different architectures and different HBF-to-HBM capacity split ratios is one of the directions our simulator is working toward.
 - **Data placement**: for weights and KV cache with different lifetimes, which to place on HBM and which to place on HBF.
-- **How HBF physical parameters in turn affect architecture settings**: the read/write latency of HBF, two orders of magnitude higher than that of HBM, puts LLM KV prefetching algorithms to a severe test. In addition, the number of HBF stacks, UCIe simulation, and page striping are also among our goals.
+- **How HBF physical parameters in turn affect architecture settings**: the read/write latency of HBF, two orders of magnitude higher than that of HBM, puts LLM KV prefetching algorithms to a severe test. In addition, the number of HBF devices connected to one GPU, UCIe simulation, and page striping are also among our goals.
 - **Slowdown caused by temperature**: the temperature where the transistors sit inside the chip is higher than the temperature of the package surface.
   - The hotter NAND gets, the shorter its data retention period, so refresh has to run more often, and refresh also takes bandwidth.
   - A simulator that does not model temperature reports a rate that does not change over time, and so overestimates the sustainable service rate of HBF over a long run.
@@ -75,7 +75,7 @@ HBFSim is used to evaluate various questions on real LLM workloads, for example:
 - **Registration by address, timing only for HBF addresses**: an application registers HBF address ranges through the [C API](include/hbfsim/api.h); unregistered addresses keep the native memory-access path and receive no injected HBF latency.
 - **Two modes, Timing-only and Capacity**: in Timing-only mode, data stays in GPU memory, and simulated latency is injected only for registered accesses. Capacity mode backs logical data with a file and holds resident pages in a bounded page cache in GPU memory, so that logical capacity beyond physical GPU memory can run; sparse accesses to a 110 GiB logical address range have been validated on a GPU with 98 GB of memory.
 - **Two timing backends**: `reference` hands requests to online MQSim, which uses a detailed media service model; `fast` computes timing locally on the GPU from the selected profile, avoiding a host round trip per request; a `hybrid` mode combines `reference` and `fast`.
-- **UCIe multi-stack (optional)**: models AXI read transfers, page striping across stacks, and request coalescing, enabled with `HBFSIM_ENABLE_UCIE=ON`; currently a read-only interface, with CPU-side validation completed.
+- **One GPU connected to multiple HBF devices (UCIe, optional)**: models AXI read transfers, page striping across HBF devices, and request coalescing, with one MQSim worker per HBF device; enabled with `HBFSIM_ENABLE_UCIE=ON`; currently a read-only interface, with CPU-side validation completed.
 - **Thermal behavior and reliability (optional)**: connects junction temperature, service policy, data retention deadlines, and refresh.
 - **Coverage check before launch**: before every kernel launch, the coverage gate checks whether that execution is within the modelable scope; when a Capacity address may reach code that cannot be proven safe, the coverage gate rejects the kernel launch.
 - **Modeled time and wall-clock time reported separately**: the media benchmark and the CUDA microbenchmarks output modeled device time and wall-clock time separately, and do not count the simulator's own overhead as HBF latency.
@@ -141,9 +141,9 @@ media benchmark, see the [CPU build and test notes](docs/build/cpu-build-and-tes
 <a id="hbf-intro"></a>
 ## Introduction to HBF
 
-HBF stacks NAND flash inside the accelerator package, below HBM and above SSDs. According to Chapter 3 of the [v0.7.0 specification](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf), HBF has 8 to 16 times the capacity of HBM with the same read bandwidth as HBM; Section 4.1 and Table 4 of the specification give **512 GiB** as an example capacity per stack and **3.072 TB/s** as the user bandwidth per stack at the highest speed grade. HBF cannot be bought yet: SanDisk plans to ship samples of its first HBF inference products in 2027 (according to [StorageReview's report on the SanDisk investor day in August 2026](https://www.storagereview.com/news/sandisk-tapes-out-its-first-hbf-memory-die-targets-2027-for-inference-product-samples)), while the timeline SK hynix showed at FMS 2026 places HBF samples in early 2028.
+HBF stacks NAND flash inside the accelerator package, below HBM and above SSDs. According to Chapter 3 of the [v0.7.0 specification](docs/HBF_OCP/ocp2026-hbf-architecture-specification-v0-7-0.pdf), HBF has 8 to 16 times the capacity of HBM with the same read bandwidth as HBM; Section 4.1 and Table 4 of the specification give **512 GiB** as an example capacity per HBF device (16 NAND dies stacked inside one HBF device, that is, 16-Hi) and **3.072 TB/s** as the user bandwidth per HBF device at the highest speed grade. HBF cannot be bought yet: SanDisk plans to ship samples of its first HBF inference products in 2027 (according to [StorageReview's report on the SanDisk investor day in August 2026](https://www.storagereview.com/news/sandisk-tapes-out-its-first-hbf-memory-die-targets-2027-for-inference-product-samples)), while the timeline SK hynix showed at FMS 2026 places HBF samples in early 2028.
 
-Because NAND is sensitive to temperature, every 10 °C rise between 20 and 70 °C shortens the data retention period to about 1/4 to 1/3 of the original period (the range is our calculation with the Arrhenius equation, using the activation energy of 1.04 eV that [HeatWatch](https://www.cs.cmu.edu/~yixinluo/index_files/heatwatch_hpca18.pdf) measured on 3D NAND). Heat keeps HBF from sustaining peak speed and causes a severe thermal throttling problem: the specification defines thermal throttling, in which the device lowers its power once the junction temperature reaches a threshold, so reads and writes slow down and, in severe cases, operations pause. The specification also guarantees 24 hours of data retention at 85 °C while the device is powered on, and refresh is typically needed every 24 to 48 hours (Chapter 9 and Section 11.5). HBF shares the package with the GPU and HBM, so heat from the GPU raises the temperature of HBF. The thermal state of the GPU also changes performance: we measured the same BF16 8192x8192 matrix multiply running alone on the same GPU at 379.117 TFLOP/s with the GPU cold and at 348.427 TFLOP/s with the GPU hot, 8.10% lower; the drop comes from the GPU compute chip lowering its own clock, not from the HBF rate ([experiment record](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)).
+Because NAND is sensitive to temperature, every 10 °C rise between 20 and 70 °C shortens the data retention period to about 1/4 to 1/3 of the original period (the range is our calculation with the Arrhenius equation, using the activation energy of 1.04 eV that [HeatWatch](https://www.cs.cmu.edu/~yixinluo/index_files/heatwatch_hpca18.pdf) measured on 3D NAND). Heat keeps HBF from sustaining peak speed and causes a severe thermal throttling problem: the specification defines thermal throttling, in which the device lowers its power once the junction temperature reaches a threshold, so reads and writes slow down and, in severe cases, operations pause. The specification also guarantees 24 hours of data retention at 85 °C while the device is powered on, and refresh is typically needed every 24 to 48 hours (Chapter 9 and Section 11.5). HBF devices share the package with the GPU and HBM; when one GPU connects to multiple HBF devices, heat from the GPU, the neighboring HBM, and the neighboring HBF devices raises the temperature of each HBF device. The thermal state of the GPU also changes performance: we measured the same BF16 8192x8192 matrix multiply running alone on the same GPU at 379.117 TFLOP/s with the GPU cold and at 348.427 TFLOP/s with the GPU hot, 8.10% lower; the drop comes from the GPU compute chip lowering its own clock, not from the HBF rate ([experiment record](docs/proofs/2026-08-10-live-gpu-cd8p-thermal.md)).
 
 Industry evaluations of HBF do not agree, and each draws its conclusions from its own testing or models: SanDisk's HBF fact sheet from July 2025 states that its numbers come from internal testing and simulation; the [H³ paper](https://doi.org/10.1109/LCA.2026.3660969) by SK hynix researchers uses an internal simulator; a HotInfra '26 workshop [paper](https://hotinfra.org/2026/papers/hotinfra26-final83.pdf) by three Micron researchers uses a roofline analytical model, which the authors say does not necessarily represent Micron's official position; Oxmiq Labs used rack-scale simulation at Hot Chips 2026 ([ServeTheHome report](https://www.servethehome.com/oxmiq-labs-hbf-in-ai-compute-at-hot-chips-2026/)). Design decisions such as how much capacity to give HBM versus HBF, or which tensors to place in HBF, cannot wait for the devices to reach the market.
 
@@ -246,11 +246,13 @@ HBFSim uses **MQSim as a flash media model, not as a model of the SSD host softw
 
 **Capacity mode always uses the reference path.** The parameters of `fast` are determined by the profile: synthetic profiles are for hypothetical sweeps, whereas `cd8p-vmem-p50` comes from a calibration curve of a measured software path, and synthetic profiles must not be confused with `cd8p-vmem-p50`. [Backend implementation and experiments](docs/proofs/2026-08-11-hybrid-complete.md)
 
-The optional **UCIe multi-stack backend** further models AXI read transfers, page striping across stacks, request coalescing, and independent service limits, with one MQSim worker per stack. The UCIe backend is enabled with `HBFSIM_ENABLE_UCIE=ON`, is currently a read-only interface, and has completed CPU-side validation. [UCIe documentation](docs/ucie/README.md) · [v0.1.1 release notes](docs/releases/v0.1.1.md)
+The optional **UCIe backend for multiple HBF devices** (called multistack in the code and configuration) simulates one GPU connected to multiple HBF devices; the backend further models AXI read transfers, page striping across HBF devices, request coalescing, and independent service limits, with one MQSim worker per HBF device. The UCIe backend is enabled with `HBFSIM_ENABLE_UCIE=ON`, is currently a read-only interface, and has completed CPU-side validation. [UCIe documentation](docs/ucie/README.md) · [v0.1.1 release notes](docs/releases/v0.1.1.md)
 
 ### 5. Thermal behavior and reliability: feeding temperature back into media service
 
 The optional **EQ3 module** connects junction temperature, service policy, data retention deadlines, and refresh. Temperature is not just a column at the end of a report: temperature affects the sustainable service rate and also shortens data retention deadlines; the refresh performed to retain data in turn adds read/write traffic and maintenance overhead.
+
+EQ3 simulates the heat inside a package where one GPU connects to multiple memory devices: each of the four topology configurations under [`configs/eq3_thermal/topologies/`](configs/eq3_thermal/topologies/) places 8 memory devices (HBM or HBF devices) around one GPU, matching the four architectures listed under [design goal 4](#question), with HBF devices that are 8-Hi (8 NAND dies stacked inside one HBF device) or 16-Hi. The parameters of the four topologies are assumed values, and the thermal resistances and capacitances are uncalibrated test values.
 
 EQ3 records service and maintenance statistics and increments a wear count on each successful erase; there is currently no lifetime model for outputting MTBF. For the module design, how to enable the module, and validation records, see the [EQ3 thermal documentation](docs/eq3_thermal/README.md) and the [system thermal experiments](experiments/eq3_system_thermal/README.md).
 
@@ -269,7 +271,7 @@ The default build provides address registration, supported PTX memory-access rew
 |---|---|---|
 | `HBFSIM_ENABLE_CUDA` | `ON` | CUDA instrumentation and runtime components |
 | `HBFSIM_ENABLE_MQSIM` | `ON` | MQSim host service |
-| `HBFSIM_ENABLE_UCIE` | `OFF` | UCIe multi-stack read-only backend; the CPU path is currently validated |
+| `HBFSIM_ENABLE_UCIE` | `OFF` | Read-only UCIe backend for multiple HBF devices; the CPU path is currently validated |
 | `HBFSIM_ENABLE_LLM_TESTS` | `OFF` | llama.cpp and vLLM integration tests |
 | `HBFSIM_ENABLE_EVAL_TOOLS` | `OFF` | Offline evaluation, prefetch-sensitivity model, and replay tools |
 | `HBFSIM_ENABLE_TIMING_FUTURES` | `OFF` | Experimental dependency-point waiting path; requires CUDA 13 and `sm_120` |
@@ -358,14 +360,14 @@ This section keeps only the feature milestones that affect usage and research ca
 - [x] **GPU memory-access integration and capacity tier:** explicit address registration, automatic PTX rewriting, launch coverage checks, and the two modes Timing / Capacity.
 - [x] **Online media modeling:** the MQSim reference path, the GPU-local fast path, and the hybrid mode, plus the optional EQ3 thermal and maintenance module.
 - [x] **Inference framework and weight integration:** vLLM and llama.cpp adapters; 98-storage validation of OLMoE on native PTX and 147-storage fixed-request validation on the optional SASS path.
-- [x] **Multi-stack extension:** the UCIe read-only interface, independent MQSim workers, striping, and request coalescing, with CPU-side validation completed.
+- [x] **Extension to multiple HBF devices:** the UCIe read-only interface, independent MQSim workers, striping, and request coalescing, with CPU-side validation completed.
 - [x] **Waiting and compatibility improvements:** the experimental implementation of dependency-point waiting with RTX 5090 semantics checks; fixes for PTX target compatibility and for several groups of timing and instrumentation defects.
 
 ### In progress
 
 - [ ] **Fix write and eviction semantics:** model writes in 4 KiB program units, respect the sequential programming constraint, and fix the frame lifetime race.
 - [ ] **Improve media data reuse:** introduce a page buffer and cross-warp page-residency filtering, so that repeated accesses are not counted repeatedly as media reads.
-- [ ] **Extend multi-stack capability:** add a write path, GPU validation, and capacity and bandwidth sweeps across different stack counts.
+- [ ] **Extend support for multiple HBF devices:** add a write path, GPU validation, and capacity and bandwidth sweeps across different numbers of HBF devices.
 
 <a id="documentation"></a>
 ## Documentation and code guide
@@ -375,7 +377,7 @@ This section keeps only the feature milestones that affect usage and research ca
 | Build, run, and troubleshoot | [Build environment](docs/build/rtx-5090-environment.md) · [Troubleshooting](docs/troubleshooting.md) |
 | Understand the internal implementation | [Documentation index](docs/README.md) · [Subsystem reading guide](docs/skills/) |
 | Run and reproduce experiments | [Experiment records](docs/proofs/) · [Evaluation runbooks](docs/eval/) · [Reproduction packages](reproduction/) |
-| Use extension modules | [UCIe / multi-stack](docs/ucie/README.md) · [EQ3](docs/eq3_thermal/README.md) · [SASS recovery](tools/sass_runtime/README.md) |
+| Use extension modules | [UCIe / multiple HBF devices](docs/ucie/README.md) · [EQ3](docs/eq3_thermal/README.md) · [SASS recovery](tools/sass_runtime/README.md) |
 | View plans and releases | [TODO](TODO.md) · [v0.1.1](docs/releases/v0.1.1.md) |
 
 Historical documents, logs, and input examples use public copies with normalized paths; for how to fill in paths and verify the copies, see [PUBLIC_COPY_NOTICE.md](PUBLIC_COPY_NOTICE.md).

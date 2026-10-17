@@ -15,7 +15,7 @@ They were moved out of the README so that the README keeps only the option table
 
 ## Planned 4 KiB baseline
 
-The follow-up study design uses a total capacity of 2 TiB across 4 stacks, with 512 GiB per stack by default. The values below are study parameters; the values are not configurations implemented in the existing JSON files, and they are not measured values from an HBF device.
+The follow-up study design uses a total capacity of 2 TiB across 4 HBF devices, with 512 GiB per device by default. The values below are study parameters; the values are not configurations implemented in the existing JSON files, and they are not measured values from an HBF device.
 
 | Grade | Page | Read / write latency | Total internal channels | Total queue entries | Total bandwidth cap |
 |---|---:|---:|---:|---:|---:|
@@ -23,7 +23,7 @@ The follow-up study design uses a total capacity of 2 TiB across 4 stacks, with 
 | `nominal` | 4 KiB | 10 / 100 μs | 32 | 2048 | 512 GB/s |
 | `aggressive` | 4 KiB | 5 / 50 μs | 64 | 4096 | 1000 GB/s |
 
-Each stack independently enforces 1/4 of the total bandwidth cap and does not borrow unused allowance from other stacks. The program implementation, pre-run validation, and the budget for the formal experiment matrix are still to be done, so the historical JSON files with the same names cannot be used directly to launch the 4 KiB baseline. [Full design](../evaluation/hbf-4k-study-baseline.md)
+Each HBF device independently enforces 1/4 of the total bandwidth cap and does not borrow unused allowance from other HBF devices. The program implementation, pre-run validation, and the budget for the formal experiment matrix are still to be done, so the historical JSON files with the same names cannot be used directly to launch the 4 KiB baseline. [Full design](../evaluation/hbf-4k-study-baseline.md)
 
 ## Current implementation scope
 
@@ -31,4 +31,4 @@ Each stack independently enforces 1/4 of the total bandwidth cap and does not bo
 
 **Writes and paging.** Timing writes are still timed per store instruction rather than merged into 4 KiB program units; for the in-place dirty-page rewrite of Capacity, see the [correctness TODO](../../TODO.md#correctness-and-fidelity), and for early frame reuse, see the [defect review](../51-defect-review-and-fixes.md). Success with sparse read-only access cannot be extrapolated to correctness in arbitrary writable paging scenarios.
 
-**Extension paths.** The UCIe backend currently supports reads only, with no GPU run records and no 2/8-stack sweeps yet; EQ3 has thermal and maintenance models but no MTBF lifetime prediction. Runtime prefetching in the paper prototype should not automatically be considered a capability of the `main` default build.
+**Extension paths.** The UCIe backend currently supports reads only, with no GPU run records and no sweeps over 2 and 8 HBF devices yet; EQ3 has thermal and maintenance models but no MTBF lifetime prediction. Runtime prefetching in the paper prototype should not automatically be considered a capability of the `main` default build.

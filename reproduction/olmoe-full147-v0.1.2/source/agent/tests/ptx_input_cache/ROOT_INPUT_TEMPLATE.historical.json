@@ -1,0 +1,24 @@
+{
+  "schema": "hbfsim.binding_auth.ptx_input_cache_CPU_inputs.v1",
+  "compiler": "REQUIRED_REAL_COMPILER_PATH",
+  "spdlog_include": "REQUIRED_REAL_HEADER_ROOT_FROM_ACTUAL_BUILD",
+  "json_include": "REQUIRED_REAL_NLOHMANN_HEADER_ROOT_FROM_ACTUAL_BUILD",
+  "sha_source": {
+    "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_utils.cpp",
+    "sha256": "d9e7ac4bbf5e74be6d079950693a50c74b3127b4974f1cb3c0df63ea9de06da2"
+  },
+  "scope": "NEW_ACTUAL_EXTRACTED_AUTO_BIND_AND_BIND_SYNTHETIC_CUDA_HANDLES",
+  "resource_prefix": [
+    "taskset",
+    "-c",
+    "6",
+    "numactl",
+    "--membind=1",
+    "nice",
+    "-n",
+    "19"
+  ],
+  "source_manifest": "REQUIRED_CURRENT_SOURCE_MF_EXACT2",
+  "source_review": "REQUIRED_GENUINE_CURRENT_SOURCE_REVIEW",
+  "root_resource_admitted": false
+}

@@ -1,0 +1,247 @@
+{
+  "parent_build_receipt": {
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-postlink-verification-actual-v1/BUILD_RECEIPT.json",
+    "sha256": "f0c8b8051622861ef92c869662bd9747962c6448ebda25b6e2e144c133213b20",
+    "bytes": 157480
+  },
+  "source_object_archive_plugin": {
+    "source": {
+      "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/transform.cpp",
+      "sha256": "7d3962d4df6ecc9ea2118dfd598194badd1d4719280428dda4302b4c7437c365"
+    },
+    "object": {
+      "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o",
+      "sha256": "12e4e124105f10d2994f003df33629d79dbf3c11381b57013d74cbc779368ccc",
+      "bytes": 648976
+    },
+    "archive": {
+      "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+      "sha256": "a839f7d9f779b38b04f6ffdab66c1fd3362d87656730cd79818f41d1c503d100",
+      "bytes": 2603222
+    },
+    "archive_baseline_members": {
+      "api.cpp.o": "0820f8957165eed48dcdd67b6aafd4fc6e3c6b1e61162fbfed9a205b9ff4ef48",
+      "context.cpp.o": "c32d42889eaa363eee5ec24a29e0b7e5c7aa3b96e17395f1db395c6990bf880d",
+      "capacity_runtime.cpp.o": "0f4e4dcfebd273ef14f698c7894b5b1cf42b3ddc70c0c192e9d045394861c2de",
+      "coverage.cpp.o": "dc040f09280bc78d282305b99c6de30476805b94dc79a9b77ccedb806f9f3ee1",
+      "hbm_cache.cpp.o": "90b9909a0a662e338d68d908f64245d20b4c9ad3afd885f1abc35da232e88798",
+      "module_identity.cpp.o": "b036d79b2f89afba535b937ae5bc52d3d988337d7dec353e8b0488e979adde14",
+      "range_table.cpp.o": "e80db3692cbec97e9b24e371eb9c0384986082407ec97b85304e7de44d8bafd6",
+      "timing_binding.cpp.o": "85043d565e564e1880ff807b6883f1edd684a4021ada2ce8cce3a4b1395cb684",
+      "vmm.cpp.o": "e3046cf88d18437d0e3fd5ff36c4039f379f8325e93c49ae89ac38b795e36b69",
+      "calibrator.cpp.o": "c152a07af47e5f3c40ec72ba88500edf2b1c6204fa63b9d098bcc9ea92776ff1",
+      "profile.cpp.o": "874a32f30a0a37f94cc9695bd121747e43dfabc088cb077e8a481ac67abfc354",
+      "request_dispatcher.cpp.o": "0f862264def00ff636334ae6e136710a89062764de8913a322c5602bf22d973b",
+      "backing_store.cpp.o": "717e08a20e6e71b0b4c67f3a61fc378af18ff034a3d8c9de9048eb5b0c2c8ddf",
+      "capacity_backing_router.cpp.o": "8bcc40907d92b4aacc2821797ba70ca661d1add9e12f13573fcccaafc5754f51",
+      "capacity_page_service.cpp.o": "d42db690316ff26e131e0bcd7475a433d3c564f79c9b040ab82d464be16f481d",
+      "capacity_worker.cpp.o": "cb8d9bdfc0760f9add6e3749f16dc0cccd70549d11c87a04eaa3656494b4a2a0",
+      "page_directory.cpp.o": "186b2fec40600612ba55f2ba3518c4185c5922606e258095b99cec433c31a23e",
+      "ptx_memory_op.cpp.o": "88f2c012fe91969c6b4bcd008bb9c11a5bc0e1ffea06328db5ee93aed3c4095b",
+      "transform.cpp.o": "d972b8062d518e1c59e79aa7f20fcc27d5fd27d3e43269c61fc80f752ac69d98",
+      "coverage_writer.cpp.o": "cdfe06b198b283789938fefb76f094c5f72a912f6d9d130a989d309215b16dba",
+      "durable_append.cpp.o": "bfa4de4f6c7767464ec38c77f8e60bbc0a92d9e5cbdd8c68c71561d4a4b6beed",
+      "mqsim_online.cpp.o": "79c6f042adba39d4582a2ff6a80ae00a190a371c7227d06f872b4c5c83c00cba",
+      "bank_layout.cpp.o": "83c474446d07cb95f81dd935f613ac8fb6cbfe53233a78584878aa0c744bf555"
+    },
+    "archive_after_members": {
+      "api.cpp.o": "0820f8957165eed48dcdd67b6aafd4fc6e3c6b1e61162fbfed9a205b9ff4ef48",
+      "context.cpp.o": "c32d42889eaa363eee5ec24a29e0b7e5c7aa3b96e17395f1db395c6990bf880d",
+      "capacity_runtime.cpp.o": "0f4e4dcfebd273ef14f698c7894b5b1cf42b3ddc70c0c192e9d045394861c2de",
+      "coverage.cpp.o": "dc040f09280bc78d282305b99c6de30476805b94dc79a9b77ccedb806f9f3ee1",
+      "hbm_cache.cpp.o": "90b9909a0a662e338d68d908f64245d20b4c9ad3afd885f1abc35da232e88798",
+      "module_identity.cpp.o": "b036d79b2f89afba535b937ae5bc52d3d988337d7dec353e8b0488e979adde14",
+      "range_table.cpp.o": "e80db3692cbec97e9b24e371eb9c0384986082407ec97b85304e7de44d8bafd6",
+      "timing_binding.cpp.o": "85043d565e564e1880ff807b6883f1edd684a4021ada2ce8cce3a4b1395cb684",
+      "vmm.cpp.o": "e3046cf88d18437d0e3fd5ff36c4039f379f8325e93c49ae89ac38b795e36b69",
+      "calibrator.cpp.o": "c152a07af47e5f3c40ec72ba88500edf2b1c6204fa63b9d098bcc9ea92776ff1",
+      "profile.cpp.o": "874a32f30a0a37f94cc9695bd121747e43dfabc088cb077e8a481ac67abfc354",
+      "request_dispatcher.cpp.o": "0f862264def00ff636334ae6e136710a89062764de8913a322c5602bf22d973b",
+      "backing_store.cpp.o": "717e08a20e6e71b0b4c67f3a61fc378af18ff034a3d8c9de9048eb5b0c2c8ddf",
+      "capacity_backing_router.cpp.o": "8bcc40907d92b4aacc2821797ba70ca661d1add9e12f13573fcccaafc5754f51",
+      "capacity_page_service.cpp.o": "d42db690316ff26e131e0bcd7475a433d3c564f79c9b040ab82d464be16f481d",
+      "capacity_worker.cpp.o": "cb8d9bdfc0760f9add6e3749f16dc0cccd70549d11c87a04eaa3656494b4a2a0",
+      "page_directory.cpp.o": "186b2fec40600612ba55f2ba3518c4185c5922606e258095b99cec433c31a23e",
+      "ptx_memory_op.cpp.o": "88f2c012fe91969c6b4bcd008bb9c11a5bc0e1ffea06328db5ee93aed3c4095b",
+      "transform.cpp.o": "12e4e124105f10d2994f003df33629d79dbf3c11381b57013d74cbc779368ccc",
+      "coverage_writer.cpp.o": "cdfe06b198b283789938fefb76f094c5f72a912f6d9d130a989d309215b16dba",
+      "durable_append.cpp.o": "bfa4de4f6c7767464ec38c77f8e60bbc0a92d9e5cbdd8c68c71561d4a4b6beed",
+      "mqsim_online.cpp.o": "79c6f042adba39d4582a2ff6a80ae00a190a371c7227d06f872b4c5c83c00cba",
+      "bank_layout.cpp.o": "83c474446d07cb95f81dd935f613ac8fb6cbfe53233a78584878aa0c744bf555"
+    },
+    "pass": {
+      "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/hbf-on/libptxpass_hbf.so",
+      "sha256": "ce2c6d5185a600753baa7d9a43f99e49b5e6a32c08842818a34497346e898154",
+      "bytes": 1087000
+    },
+    "actual_flags_source": {
+      "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/CMakeFiles/hbfsim_core.dir/flags.make",
+      "sha256": "4d45ba528871c1971ff817ff9e4bd830058331e464f8e9ce01eb189f8edc474d"
+    },
+    "only_header_payload_changed": true,
+    "header_representation": "exactStageA333982byte chararray/stringviewexplicit-size",
+    "serialization_source_manifest": {
+      "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/same-page-helper-serialization-source-v1/SOURCE_MANIFEST.json",
+      "sha256": "aaceac6fa1fb418d5bf46aba21d3e7712df8c76f57632f48f83f6987cb3e6696",
+      "bytes": 2303
+    },
+    "generated_header": {
+      "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-actual-artifacts-v1/generated/hbf_device_ptx.hpp",
+      "sha256": "99abe09bfae1520b2d65bf6458535772cdb832508f85094ceed683989aae1670",
+      "bytes": 334269
+    }
+  },
+  "actual_commands": [
+    {
+      "argv": [
+        "/usr/bin/ar",
+        "p",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+        "transform.cpp.o"
+      ],
+      "cwd": null,
+      "returncode": 0,
+      "wall_seconds": 0.003355777822434902,
+      "stdout": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/21.stdout",
+      "stderr": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/21.stderr",
+      "process": {
+        "pid": 3631325,
+        "pgid": 3631325,
+        "start_ticks": 145355927
+      },
+      "maxrss_children_KiB": 27212
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "2",
+        "nice",
+        "-n",
+        "19",
+        "/usr/bin/g++-15",
+        "-DHBFSIM_DEVICE_PTX_ARCHITECTURE=120",
+        "-DHBFSIM_ENABLE_CUDA_RUNTIME=1",
+        "-DHBFSIM_HAVE_DEVICE_HELPER_PTX=1",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-actual-artifacts-v1/generated",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/third_party/bpftime/third_party",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/generated",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/exec",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/host",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/nvm_chip",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/nvm_chip/flash_memory",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/sim",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/ssd",
+        "-I/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1/_deps/mqsim-hbf-src/src/utils",
+        "-isystem",
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/targets/x86_64-linux/include",
+        "-isystem",
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/targets/x86_64-linux/include/cccl",
+        "-O2",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "-std=gnu++20",
+        "-fPIC",
+        "-MD",
+        "-MT",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o",
+        "-MF",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o.d",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o",
+        "-c",
+        "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/transform.cpp"
+      ],
+      "cwd": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1",
+      "returncode": 0,
+      "wall_seconds": 4.957541904877871,
+      "stdout": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/26.stdout",
+      "stderr": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/26.stderr",
+      "process": {
+        "pid": 3631330,
+        "pgid": 3631330,
+        "start_ticks": 145355929
+      },
+      "maxrss_children_KiB": 281988
+    },
+    {
+      "argv": [
+        "/usr/bin/ar",
+        "r",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o"
+      ],
+      "cwd": null,
+      "returncode": 0,
+      "wall_seconds": 0.8185935169458389,
+      "stdout": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/27.stdout",
+      "stderr": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/27.stderr",
+      "process": {
+        "pid": 3631662,
+        "pgid": 3631662,
+        "start_ticks": 145356424
+      },
+      "maxrss_children_KiB": 281988
+    },
+    {
+      "argv": [
+        "/usr/bin/ar",
+        "p",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+        "transform.cpp.o"
+      ],
+      "cwd": null,
+      "returncode": 0,
+      "wall_seconds": 0.0029854560270905495,
+      "stdout": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/47.stdout",
+      "stderr": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/47.stderr",
+      "process": {
+        "pid": 3631766,
+        "pgid": 3631766,
+        "start_ticks": 145356513
+      },
+      "maxrss_children_KiB": 281988
+    },
+    {
+      "argv": [
+        "taskset",
+        "-c",
+        "2",
+        "nice",
+        "-n",
+        "19",
+        "/usr/bin/g++-15",
+        "-fPIC",
+        "-O2",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "-shared",
+        "-Wl,--dependency-file=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/link.d",
+        "-Wl,-soname,libptxpass_hbf.so",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/hbf-on/libptxpass_hbf.so",
+        "CMakeFiles/ptxpass_hbf_plugin.dir/src/ptxpass_hbf/plugin.cpp.o",
+        "-Wl,-rpath,/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+        "/usr/lib/x86_64-linux-gnu/libcrypto.so",
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/lib64/libcudart.so",
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/targets/x86_64-linux/lib/stubs/libcuda.so",
+        "-ldl",
+        "/usr/lib/x86_64-linux-gnu/librt.a",
+        "libmqsim_hbf.a"
+      ],
+      "cwd": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/build-o2-v1",
+      "returncode": 0,
+      "wall_seconds": 0.2681169961579144,
+      "stdout": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/52.stdout",
+      "stderr": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/evidence/52.stderr",
+      "process": {
+        "pid": 3631771,
+        "pgid": 3631771,
+        "start_ticks": 145356515
+      },
+      "maxrss_children_KiB": 281988
+    }
+  ],
+  "interpretation": "extracted immutable provenance fields, not new standalonebuild or finalagent receipt"
+}

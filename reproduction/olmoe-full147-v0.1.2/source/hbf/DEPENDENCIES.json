@@ -1,0 +1,37 @@
+{
+  "base_repo": "https://github.com/SlugLab/HBFSim.git",
+  "blocking_before_reproduction_claim": [
+    "freshconfigure compatible compiler/CUDA/dependencyavailability and sourceparentpatch application must be verified",
+    "freshsourcebuild must regenerate helper/PTXheader and rebuildall archive/pluginobject dependencies; historical partial relink not portablebycopyarchive",
+    "new portable recipes notexecuted, no binaryidenticaloutput/crossmachine/modelPASS claim",
+    "license/provenance of recovered/native/modelPTX assets handledseparately; none includedhere"
+  ],
+  "first_parent_patch": "parent-reproduction/first-fault-runtime-from-eabc5c2.patch",
+  "hbf_base_revision": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
+  "include_closure": "helper/source/include containsboth actual ABI/controlheaders; pass/source/include complete35actualheaders plus all localptxpasshpp; generatedPTXheader intentionally regenerated, notcopied",
+  "parent_reproduction": "reproduction/sass-final147-20260926 existing publicrelease lineage",
+  "schema": "hbfsim.release.helper_pass_source_dependencies.v1",
+  "source_roles": "actual helper compileTU and passcompileTU independentlyproven; unchanged plugin.cpp/otherarchiveobjects require genuineparent source rebuild, notcopyold .o/.a",
+  "status": "FROZEN_SOURCE_NOT_REBUILT",
+  "submodule_refs": {
+    "MQSim": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16",
+    "bpftime": "ec26daecc8e787fb80fd95dd596a576404a5e36e"
+  },
+  "system_headers_not_vendored": [
+    "CUDA toolkit cuda_runtime.h",
+    "CCCL cuda/atomic",
+    "C++ standardlibrary",
+    "OpenSSL sha.h"
+  ],
+  "toolchain_historical": {
+    "helper_nvcc": "CUDA13 glibc-rsqrt-overlay configuredsource; compute_120 C++20 RDC keepdevicefunctions g++13",
+    "library_dependencies": [
+      "CUDA13runtime/private driverstub",
+      "OpenSSLcrypto",
+      "rt/dl",
+      "newly rebuilt HBFcore/future-emitter/PTXIR",
+      "MQSimstatic frompinnedparent source"
+    ],
+    "pass_CXX": "g++15 C++20 -O2 -fPIC"
+  }
+}

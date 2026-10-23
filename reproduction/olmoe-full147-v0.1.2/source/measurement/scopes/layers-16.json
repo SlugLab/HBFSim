@@ -1,0 +1,1935 @@
+{
+  "evidence_class": "CPU_HOST_ONLY_NOT_GPU_APPROVED",
+  "global_aliases": [
+    "model.embed_tokens.weight",
+    "model.norm.weight",
+    "lm_head.weight"
+  ],
+  "hbf_weight_selection": "include",
+  "include_patterns": [
+    "^lm_head\\.weight$",
+    "^model\\.embed_tokens\\.weight$",
+    "^model\\.layers\\.0\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.0\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.0\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.0\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.0\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.0\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.0\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.0\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.0\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.1\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.1\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.1\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.1\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.1\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.1\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.1\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.1\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.1\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.10\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.10\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.10\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.10\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.10\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.10\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.10\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.10\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.10\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.11\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.11\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.11\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.11\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.11\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.11\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.11\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.11\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.11\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.12\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.12\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.12\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.12\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.12\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.12\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.12\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.12\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.12\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.13\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.13\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.13\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.13\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.13\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.13\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.13\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.13\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.13\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.14\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.14\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.14\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.14\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.14\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.14\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.14\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.14\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.14\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.15\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.15\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.15\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.15\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.15\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.15\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.15\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.15\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.15\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.2\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.2\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.2\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.2\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.2\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.2\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.2\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.2\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.2\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.3\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.3\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.3\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.3\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.3\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.3\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.3\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.3\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.3\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.4\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.4\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.4\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.4\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.4\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.4\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.4\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.4\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.4\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.5\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.5\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.5\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.5\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.5\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.5\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.5\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.5\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.5\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.6\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.6\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.6\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.6\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.6\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.6\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.6\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.6\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.6\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.7\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.7\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.7\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.7\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.7\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.7\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.7\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.7\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.7\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.8\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.8\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.8\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.8\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.8\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.8\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.8\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.8\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.8\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.layers\\.9\\.input_layernorm\\.weight$",
+    "^model\\.layers\\.9\\.mlp\\.experts\\.w13_weight$",
+    "^model\\.layers\\.9\\.mlp\\.experts\\.w2_weight$",
+    "^model\\.layers\\.9\\.mlp\\.gate\\.weight$",
+    "^model\\.layers\\.9\\.post_attention_layernorm\\.weight$",
+    "^model\\.layers\\.9\\.self_attn\\.k_norm\\.weight$",
+    "^model\\.layers\\.9\\.self_attn\\.o_proj\\.weight$",
+    "^model\\.layers\\.9\\.self_attn\\.q_norm\\.weight$",
+    "^model\\.layers\\.9\\.self_attn\\.qkv_proj\\.weight$",
+    "^model\\.norm\\.weight$"
+  ],
+  "layer_count": 16,
+  "model_total_storage_bytes": 13838323712,
+  "registered_bytes": 13838323712,
+  "registered_count": 147,
+  "registration_aliases": [
+    "lm_head.weight",
+    "model.embed_tokens.weight",
+    "model.layers.0.input_layernorm.weight",
+    "model.layers.0.mlp.experts.w13_weight",
+    "model.layers.0.mlp.experts.w2_weight",
+    "model.layers.0.mlp.gate.weight",
+    "model.layers.0.post_attention_layernorm.weight",
+    "model.layers.0.self_attn.k_norm.weight",
+    "model.layers.0.self_attn.o_proj.weight",
+    "model.layers.0.self_attn.q_norm.weight",
+    "model.layers.0.self_attn.qkv_proj.weight",
+    "model.layers.1.input_layernorm.weight",
+    "model.layers.1.mlp.experts.w13_weight",
+    "model.layers.1.mlp.experts.w2_weight",
+    "model.layers.1.mlp.gate.weight",
+    "model.layers.1.post_attention_layernorm.weight",
+    "model.layers.1.self_attn.k_norm.weight",
+    "model.layers.1.self_attn.o_proj.weight",
+    "model.layers.1.self_attn.q_norm.weight",
+    "model.layers.1.self_attn.qkv_proj.weight",
+    "model.layers.10.input_layernorm.weight",
+    "model.layers.10.mlp.experts.w13_weight",
+    "model.layers.10.mlp.experts.w2_weight",
+    "model.layers.10.mlp.gate.weight",
+    "model.layers.10.post_attention_layernorm.weight",
+    "model.layers.10.self_attn.k_norm.weight",
+    "model.layers.10.self_attn.o_proj.weight",
+    "model.layers.10.self_attn.q_norm.weight",
+    "model.layers.10.self_attn.qkv_proj.weight",
+    "model.layers.11.input_layernorm.weight",
+    "model.layers.11.mlp.experts.w13_weight",
+    "model.layers.11.mlp.experts.w2_weight",
+    "model.layers.11.mlp.gate.weight",
+    "model.layers.11.post_attention_layernorm.weight",
+    "model.layers.11.self_attn.k_norm.weight",
+    "model.layers.11.self_attn.o_proj.weight",
+    "model.layers.11.self_attn.q_norm.weight",
+    "model.layers.11.self_attn.qkv_proj.weight",
+    "model.layers.12.input_layernorm.weight",
+    "model.layers.12.mlp.experts.w13_weight",
+    "model.layers.12.mlp.experts.w2_weight",
+    "model.layers.12.mlp.gate.weight",
+    "model.layers.12.post_attention_layernorm.weight",
+    "model.layers.12.self_attn.k_norm.weight",
+    "model.layers.12.self_attn.o_proj.weight",
+    "model.layers.12.self_attn.q_norm.weight",
+    "model.layers.12.self_attn.qkv_proj.weight",
+    "model.layers.13.input_layernorm.weight",
+    "model.layers.13.mlp.experts.w13_weight",
+    "model.layers.13.mlp.experts.w2_weight",
+    "model.layers.13.mlp.gate.weight",
+    "model.layers.13.post_attention_layernorm.weight",
+    "model.layers.13.self_attn.k_norm.weight",
+    "model.layers.13.self_attn.o_proj.weight",
+    "model.layers.13.self_attn.q_norm.weight",
+    "model.layers.13.self_attn.qkv_proj.weight",
+    "model.layers.14.input_layernorm.weight",
+    "model.layers.14.mlp.experts.w13_weight",
+    "model.layers.14.mlp.experts.w2_weight",
+    "model.layers.14.mlp.gate.weight",
+    "model.layers.14.post_attention_layernorm.weight",
+    "model.layers.14.self_attn.k_norm.weight",
+    "model.layers.14.self_attn.o_proj.weight",
+    "model.layers.14.self_attn.q_norm.weight",
+    "model.layers.14.self_attn.qkv_proj.weight",
+    "model.layers.15.input_layernorm.weight",
+    "model.layers.15.mlp.experts.w13_weight",
+    "model.layers.15.mlp.experts.w2_weight",
+    "model.layers.15.mlp.gate.weight",
+    "model.layers.15.post_attention_layernorm.weight",
+    "model.layers.15.self_attn.k_norm.weight",
+    "model.layers.15.self_attn.o_proj.weight",
+    "model.layers.15.self_attn.q_norm.weight",
+    "model.layers.15.self_attn.qkv_proj.weight",
+    "model.layers.2.input_layernorm.weight",
+    "model.layers.2.mlp.experts.w13_weight",
+    "model.layers.2.mlp.experts.w2_weight",
+    "model.layers.2.mlp.gate.weight",
+    "model.layers.2.post_attention_layernorm.weight",
+    "model.layers.2.self_attn.k_norm.weight",
+    "model.layers.2.self_attn.o_proj.weight",
+    "model.layers.2.self_attn.q_norm.weight",
+    "model.layers.2.self_attn.qkv_proj.weight",
+    "model.layers.3.input_layernorm.weight",
+    "model.layers.3.mlp.experts.w13_weight",
+    "model.layers.3.mlp.experts.w2_weight",
+    "model.layers.3.mlp.gate.weight",
+    "model.layers.3.post_attention_layernorm.weight",
+    "model.layers.3.self_attn.k_norm.weight",
+    "model.layers.3.self_attn.o_proj.weight",
+    "model.layers.3.self_attn.q_norm.weight",
+    "model.layers.3.self_attn.qkv_proj.weight",
+    "model.layers.4.input_layernorm.weight",
+    "model.layers.4.mlp.experts.w13_weight",
+    "model.layers.4.mlp.experts.w2_weight",
+    "model.layers.4.mlp.gate.weight",
+    "model.layers.4.post_attention_layernorm.weight",
+    "model.layers.4.self_attn.k_norm.weight",
+    "model.layers.4.self_attn.o_proj.weight",
+    "model.layers.4.self_attn.q_norm.weight",
+    "model.layers.4.self_attn.qkv_proj.weight",
+    "model.layers.5.input_layernorm.weight",
+    "model.layers.5.mlp.experts.w13_weight",
+    "model.layers.5.mlp.experts.w2_weight",
+    "model.layers.5.mlp.gate.weight",
+    "model.layers.5.post_attention_layernorm.weight",
+    "model.layers.5.self_attn.k_norm.weight",
+    "model.layers.5.self_attn.o_proj.weight",
+    "model.layers.5.self_attn.q_norm.weight",
+    "model.layers.5.self_attn.qkv_proj.weight",
+    "model.layers.6.input_layernorm.weight",
+    "model.layers.6.mlp.experts.w13_weight",
+    "model.layers.6.mlp.experts.w2_weight",
+    "model.layers.6.mlp.gate.weight",
+    "model.layers.6.post_attention_layernorm.weight",
+    "model.layers.6.self_attn.k_norm.weight",
+    "model.layers.6.self_attn.o_proj.weight",
+    "model.layers.6.self_attn.q_norm.weight",
+    "model.layers.6.self_attn.qkv_proj.weight",
+    "model.layers.7.input_layernorm.weight",
+    "model.layers.7.mlp.experts.w13_weight",
+    "model.layers.7.mlp.experts.w2_weight",
+    "model.layers.7.mlp.gate.weight",
+    "model.layers.7.post_attention_layernorm.weight",
+    "model.layers.7.self_attn.k_norm.weight",
+    "model.layers.7.self_attn.o_proj.weight",
+    "model.layers.7.self_attn.q_norm.weight",
+    "model.layers.7.self_attn.qkv_proj.weight",
+    "model.layers.8.input_layernorm.weight",
+    "model.layers.8.mlp.experts.w13_weight",
+    "model.layers.8.mlp.experts.w2_weight",
+    "model.layers.8.mlp.gate.weight",
+    "model.layers.8.post_attention_layernorm.weight",
+    "model.layers.8.self_attn.k_norm.weight",
+    "model.layers.8.self_attn.o_proj.weight",
+    "model.layers.8.self_attn.q_norm.weight",
+    "model.layers.8.self_attn.qkv_proj.weight",
+    "model.layers.9.input_layernorm.weight",
+    "model.layers.9.mlp.experts.w13_weight",
+    "model.layers.9.mlp.experts.w2_weight",
+    "model.layers.9.mlp.gate.weight",
+    "model.layers.9.post_attention_layernorm.weight",
+    "model.layers.9.self_attn.k_norm.weight",
+    "model.layers.9.self_attn.o_proj.weight",
+    "model.layers.9.self_attn.q_norm.weight",
+    "model.layers.9.self_attn.qkv_proj.weight",
+    "model.norm.weight"
+  ],
+  "schema": "hbfsim.coverage_sweep_measurement_scope.v1",
+  "scope": "layers-16",
+  "selected_count": 49,
+  "source_frozen_scope_sha256": "857a66c8ad34ab7a624894bb38426c106256a5eb43fa1516ad3f7f9909793ea1",
+  "source_ledger_sha256": "666fb5bb13bb4206f30bd74986708ec0dc6a34d01ebd22d0e470c76dc10b4fda",
+  "targets": [
+    {
+      "alias": "lm_head.weight",
+      "category": "lm_head",
+      "layer": null,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          12576,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 100608,
+      "output_shape": [
+        1,
+        50304
+      ],
+      "profile": "li6",
+      "shape": [
+        50304,
+        2048
+      ],
+      "storage_bytes": 206045184
+    },
+    {
+      "alias": "model.layers.0.mlp.gate.weight",
+      "category": "router",
+      "layer": 0,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.0.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 0,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.0.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 0,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.1.mlp.gate.weight",
+      "category": "router",
+      "layer": 1,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.1.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 1,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.1.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 1,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.10.mlp.gate.weight",
+      "category": "router",
+      "layer": 10,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.10.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 10,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.10.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 10,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.11.mlp.gate.weight",
+      "category": "router",
+      "layer": 11,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.11.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 11,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.11.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 11,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.12.mlp.gate.weight",
+      "category": "router",
+      "layer": 12,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.12.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 12,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.12.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 12,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.13.mlp.gate.weight",
+      "category": "router",
+      "layer": 13,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.13.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 13,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.13.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 13,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.14.mlp.gate.weight",
+      "category": "router",
+      "layer": 14,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.14.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 14,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.14.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 14,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.15.mlp.gate.weight",
+      "category": "router",
+      "layer": 15,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.15.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 15,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.15.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 15,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.2.mlp.gate.weight",
+      "category": "router",
+      "layer": 2,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.2.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 2,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.2.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 2,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.3.mlp.gate.weight",
+      "category": "router",
+      "layer": 3,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.3.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 3,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.3.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 3,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.4.mlp.gate.weight",
+      "category": "router",
+      "layer": 4,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.4.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 4,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.4.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 4,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.5.mlp.gate.weight",
+      "category": "router",
+      "layer": 5,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.5.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 5,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.5.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 5,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.6.mlp.gate.weight",
+      "category": "router",
+      "layer": 6,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.6.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 6,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.6.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 6,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.7.mlp.gate.weight",
+      "category": "router",
+      "layer": 7,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.7.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 7,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.7.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 7,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.8.mlp.gate.weight",
+      "category": "router",
+      "layer": 8,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.8.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 8,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.8.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 8,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    },
+    {
+      "alias": "model.layers.9.mlp.gate.weight",
+      "category": "router",
+      "layer": 9,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          32,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 528,
+        "grid": [
+          16,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi7ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 128,
+      "output_shape": [
+        1,
+        64
+      ],
+      "profile": "li7",
+      "shape": [
+        64,
+        2048
+      ],
+      "storage_bytes": 262144
+    },
+    {
+      "alias": "model.layers.9.self_attn.o_proj.weight",
+      "category": "o_proj",
+      "layer": 9,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          512,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 4096,
+      "output_shape": [
+        1,
+        2048
+      ],
+      "profile": "li6",
+      "shape": [
+        2048,
+        2048
+      ],
+      "storage_bytes": 8388608
+    },
+    {
+      "alias": "model.layers.9.self_attn.qkv_proj.weight",
+      "category": "qkv_proj",
+      "layer": 9,
+      "native_driver": {
+        "api": "cuLaunchKernel",
+        "block": [
+          16,
+          4,
+          1
+        ],
+        "cbid": 307,
+        "dynamic_shared_bytes": 272,
+        "grid": [
+          1536,
+          1,
+          1
+        ],
+        "image_sha256": "d15cf2497649902226341d260eee82160e485d38e76cdcb9cb581eca82167eb0",
+        "symbol": "_ZN8internal5gemvx6kernelIii13__nv_bfloat16S2_S2_fLb0ELb1ELb1ELb0ELi6ELb0E18cublasGemvParamsExIi30cublasGemvTensorStridedBatchedIKS2_ES6_S4_IS2_EfEEENSt9enable_ifIXntT5_EvE4typeET11_"
+      },
+      "output_bytes": 12288,
+      "output_shape": [
+        1,
+        6144
+      ],
+      "profile": "li6",
+      "shape": [
+        6144,
+        2048
+      ],
+      "storage_bytes": 25165824
+    }
+  ]
+}

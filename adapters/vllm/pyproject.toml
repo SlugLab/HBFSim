@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hbfsim-vllm"
-version = "0.1.0"
+version = "0.1.2"
 description = "HBFSim timing-only model loader for vLLM"
 requires-python = ">=3.11"
 

@@ -1,0 +1,324 @@
+{
+  "schema": "hbfsim.root.helper_cpu_compile.v1",
+  "status": "COMPILED_ONLY_NO_GPU_OR_MODEL_VALIDATION",
+  "source_manifest_sha256": "521f530ef0749dd24b4fc3161dfd14a71b5c06d28c950c37673ecbf295aa4042",
+  "boot_id": "23cc5223-80f5-4f3c-a768-7fa790ec61ce",
+  "pid_namespace": "pid:[4026534902]",
+  "driver": {
+    "pid": 2,
+    "state": "R",
+    "ppid": 1,
+    "pgid": 1,
+    "nice": 10,
+    "start_ticks": 131541532,
+    "rss_bytes": 19185664
+  },
+  "GPU_count": 0,
+  "output_dir": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4",
+  "started_utc": "2026-10-19T05:35:56.773668+00:00",
+  "commands": [
+    {
+      "id": "baseline-nvcc",
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "--ptx",
+        "--std=c++20",
+        "--gpu-architecture=compute_120",
+        "--relocatable-device-code=true",
+        "--keep-device-functions",
+        "--compiler-bindir=/usr/bin/g++-13",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=0",
+        "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=0",
+        "-DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=0",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/baseline/hbf_device.cu",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/baseline.ptx"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 4,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 4,
+        "nice": 10,
+        "start_ticks": 131541537,
+        "rss_bytes": 5427200
+      },
+      "pgid": 4,
+      "peak_tree_RSS_bytes_sampled": 366940160,
+      "returncode": 0,
+      "wall_s": 2.5512685058638453,
+      "user_s": 1.199133,
+      "system_s": 0.24201399999999998,
+      "max_individual_descendant_RSS_KiB": 354244,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "baseline-embed",
+      "argv": [
+        "/usr/bin/cmake",
+        "-DINPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/baseline.ptx",
+        "-DOUTPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/baseline_ptx.hpp",
+        "-P",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/cmake/EmbedDevicePtx.cmake"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 14,
+        "state": "D",
+        "ppid": 2,
+        "pgid": 14,
+        "nice": 10,
+        "start_ticks": 131541792,
+        "rss_bytes": 0
+      },
+      "pgid": 14,
+      "peak_tree_RSS_bytes_sampled": 16920576,
+      "returncode": 0,
+      "wall_s": 0.4181592920795083,
+      "user_s": 0.009953,
+      "system_s": 0.008076999999999999,
+      "max_individual_descendant_RSS_KiB": 19712,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "default0-nvcc",
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "-DHBFSIM_ENABLE_UNIFORM_ACCOUNT_AGGREGATION=0",
+        "--ptx",
+        "--std=c++20",
+        "--gpu-architecture=compute_120",
+        "--relocatable-device-code=true",
+        "--keep-device-functions",
+        "--compiler-bindir=/usr/bin/g++-13",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=0",
+        "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=0",
+        "-DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=0",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/hbf_device.cu",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/default0.ptx"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 15,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 15,
+        "nice": 10,
+        "start_ticks": 131541834,
+        "rss_bytes": 5459968
+      },
+      "pgid": 15,
+      "peak_tree_RSS_bytes_sampled": 355336192,
+      "returncode": 0,
+      "wall_s": 1.4325289719272405,
+      "user_s": 1.17972,
+      "system_s": 0.215524,
+      "max_individual_descendant_RSS_KiB": 357736,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "default0-embed",
+      "argv": [
+        "/usr/bin/cmake",
+        "-DINPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/default0.ptx",
+        "-DOUTPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/default0_ptx.hpp",
+        "-P",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/cmake/EmbedDevicePtx.cmake"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 25,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 25,
+        "nice": 10,
+        "start_ticks": 131541977,
+        "rss_bytes": 1212416
+      },
+      "pgid": 25,
+      "peak_tree_RSS_bytes_sampled": 0,
+      "returncode": 0,
+      "wall_s": 0.0855401570443064,
+      "user_s": 0.004967,
+      "system_s": 0.007948,
+      "max_individual_descendant_RSS_KiB": 19904,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "enabled1-nvcc",
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "-DHBFSIM_ENABLE_UNIFORM_ACCOUNT_AGGREGATION=1",
+        "--ptx",
+        "--std=c++20",
+        "--gpu-architecture=compute_120",
+        "--relocatable-device-code=true",
+        "--keep-device-functions",
+        "--compiler-bindir=/usr/bin/g++-13",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=0",
+        "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=0",
+        "-DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=0",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/hbf_device.cu",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.ptx"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 26,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 26,
+        "nice": 10,
+        "start_ticks": 131541986,
+        "rss_bytes": 5459968
+      },
+      "pgid": 26,
+      "peak_tree_RSS_bytes_sampled": 363569152,
+      "returncode": 0,
+      "wall_s": 1.751362011069432,
+      "user_s": 1.335934,
+      "system_s": 0.210195,
+      "max_individual_descendant_RSS_KiB": 357728,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "enabled1-embed",
+      "argv": [
+        "/usr/bin/cmake",
+        "-DINPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.ptx",
+        "-DOUTPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1_ptx.hpp",
+        "-P",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/cmake/EmbedDevicePtx.cmake"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 36,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 36,
+        "nice": 10,
+        "start_ticks": 131542161,
+        "rss_bytes": 1982464
+      },
+      "pgid": 36,
+      "peak_tree_RSS_bytes_sampled": 4407296,
+      "returncode": 0,
+      "wall_s": 0.10688246204517782,
+      "user_s": 0.013411,
+      "system_s": 0.002131,
+      "max_individual_descendant_RSS_KiB": 20096,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "enabled1-ptxas-object",
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/ptxas",
+        "--gpu-name=sm_120",
+        "--compile-only",
+        "--verbose",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.ptx",
+        "--output-file",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.o"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 37,
+        "state": "R",
+        "ppid": 2,
+        "pgid": 37,
+        "nice": 10,
+        "start_ticks": 131542172,
+        "rss_bytes": 5042176
+      },
+      "pgid": 37,
+      "peak_tree_RSS_bytes_sampled": 110518272,
+      "returncode": 0,
+      "wall_s": 0.8192450050264597,
+      "user_s": 0.537362,
+      "system_s": 0.040875,
+      "max_individual_descendant_RSS_KiB": 108328,
+      "abort_reason": null,
+      "remaining_group_members": []
+    },
+    {
+      "id": "enabled1-sass-readonly",
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/cuobjdump",
+        "--dump-sass",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.o"
+      ],
+      "status": "COMPLETED",
+      "identity": {
+        "pid": 38,
+        "state": "D",
+        "ppid": 2,
+        "pgid": 38,
+        "nice": 10,
+        "start_ticks": 131542254,
+        "rss_bytes": 2138112
+      },
+      "pgid": 38,
+      "peak_tree_RSS_bytes_sampled": 92659712,
+      "returncode": 0,
+      "wall_s": 0.516366935102269,
+      "user_s": 0.38011999999999996,
+      "system_s": 0.034841,
+      "max_individual_descendant_RSS_KiB": 97588,
+      "abort_reason": null,
+      "remaining_group_members": []
+    }
+  ],
+  "tree_RSS_limit_bytes": 8589934592,
+  "stage_disk_limit_bytes": 134217728,
+  "total_safety_seconds": 600,
+  "wall_s": 7.68419746006839,
+  "stage_disk_bytes": 6816949,
+  "ended_utc": "2026-10-19T05:36:04.458609+00:00",
+  "outputs": {
+    "baseline.ptx": {
+      "bytes": 208567,
+      "sha256": "7cdeaba7ef7b2cde3caafcc627e741da210843cd4fed3157f91f99a19f166051"
+    },
+    "enabled1_ptx.hpp": {
+      "bytes": 334158,
+      "sha256": "56895995e8de4cd5f283e3f763ca618d0da1bbf56737b759a06149800690c902"
+    },
+    "default0.ptx": {
+      "bytes": 208567,
+      "sha256": "1b79eb6aa263161b9a883e632fc08ec9a5cf3780db4cdd9749808e7f2b800c99"
+    },
+    "default0_ptx.hpp": {
+      "bytes": 208698,
+      "sha256": "0770cec68820835677406848a0d829c5e7b0e1266a85303933587270ade71572"
+    },
+    "enabled1.ptx": {
+      "bytes": 334027,
+      "sha256": "6fdadac5aa36216917d76acb8fe9c71d3d6bac5aa437f9d1da243b6a1902edf7"
+    },
+    "enabled1.o": {
+      "bytes": 440992,
+      "sha256": "13d63416afb985d7fa0c7007d0bd5cfcefe0bb32116411870d9506d2ba1f7550"
+    },
+    "baseline_ptx.hpp": {
+      "bytes": 208698,
+      "sha256": "0d40c2f6a4ed5327a707b4b45b4aae6615cc9cc1aba70fc1a524d85ea7b957cc"
+    }
+  }
+}

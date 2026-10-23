@@ -1,0 +1,100 @@
+{
+  "schema": "hbfsim.release.derived_result_index.v1",
+  "derivation": "Compact public index derived from immutable local originals; this file is not an original ACK or raw-result replacement.",
+  "current_attempt": "20261023T032050Z-bf277ec386cbd7a2",
+  "baseline_attempt": "20261018T160927Z_7e0882ec_diag1-r24",
+  "current_original_result_sha256": "892c4c65a1e08fd5ad5a79e9374bd77cc8db19a0e7d7fbe93453571f8bc11731",
+  "baseline_original_result_sha256": "ce7f88471351e4a03ee4516d6196cac268115b5498244ad4b2b7c309f46af4ef",
+  "current_root_scope_acceptance_sha256": "de2086336bd2eba8b26168ed9b4e39aa84f74bb2e8bf26ab1f45672f0135c615",
+  "original_ACK_sha256": "aa7233897a3b70b64f497e1aa92569883c883c36f71c1067845e6a8fc98ecd0c",
+  "ACK_verified_files": 199,
+  "raw_manifest_sha256": "605ca5589034b508dbce200797006fa5f16a1be62c50f5a933762aa139abd6f1",
+  "scientific_review_sha256": "194baff5dd61ee9cb9cef80a75328f362576f9d0bbbd5f429e6734d47847ca29",
+  "final_metadata_sha256": "61c29a68cdb35a9c395be91c15aeedaccb500cae919a26164ad2330029718a91",
+  "final_metadata_review_sha256": "eb552fc882a3b256b4c57651419a0f0df212903b3807fbb6070ed57e6416b8a6",
+  "final_resource_release_sha256": "7e3ea00676790bd33fc32bfadc66e67602edc73536067c7e42a421f2d983be94",
+  "original_model_exit_code": 0,
+  "original_batch_status": "FAILED_POST_MODEL_CONSUMER_SOURCE_PIN_PRESERVED",
+  "offline_repair": "Only exact-source terminal pin adaptation, derive/posthoc/full scoped consumer ran once; no model/collector rerun.",
+  "scoped_result_status": "ROOT_ACCEPTED_SCOPED_FULL147_TIMING_AND_MODELED_ADDRESS_SERVICE_POSTPROCESSED_ORIGINAL_BATCH_FAILED_PRESERVED",
+  "scientific_scope": {
+    "model": "OLMoE-1B-7B-0924 snapshot6d84c485",
+    "prompts": 1,
+    "input_len": 2,
+    "output_len": 2,
+    "prompt_token_ids": [
+      [
+        25347,
+        49773
+      ]
+    ],
+    "output_token_ids": [
+      [
+        70,
+        13
+      ]
+    ],
+    "registered_storages": 147,
+    "registered_bytes": 13838323712,
+    "selected_changed_consumers": 49,
+    "existing_registered_storages": 98,
+    "module_inventory": 9,
+    "active_modeled_modules": 6,
+    "timing_regions": 19,
+    "calls_per_region": 2,
+    "head_boundary": "logits_processor_including_lm_head_projection_and_postprocessing",
+    "wait_mode": "NOMINAL_NOT_ZERO_INJECTION",
+    "same_page_merge": "LEGACY_OFF",
+    "backend": "original legacy HBF/MQSim; UCIe frozen"
+  },
+  "timings": {
+    "initialization_seconds": 363.54291126294993,
+    "generation_seconds": 108.2130856430158,
+    "initialization_plus_generation_seconds": 471.75599690596573,
+    "worker_start_to_controller_observed_finish_seconds": 522.375550112,
+    "layers16_seconds": 91.87589379,
+    "head_including_logits_seconds": 15.683615164,
+    "regions19_sum_seconds": 107.618390333,
+    "core_minus_regions19_residual_seconds": 0.594136091
+  },
+  "original_HBF_service": {
+    "submitted": 884119,
+    "completed": 884119,
+    "physical_pending": 0,
+    "zero_injected": false,
+    "physical_modeled_ns_sum": 9946480098,
+    "returned_injected_ns_sum": 9946480098,
+    "physical_service_ns_sum": 0,
+    "physical_service_ns_sum_interpretation": "Producer does not populate this field; zero is not evidence of no physical/model wait. Native NAND counts not exported."
+  },
+  "same15scientific_cohort_fields": {
+    "model": true,
+    "versions": true,
+    "attention_backend": true,
+    "moe_backend": true,
+    "num_prompts": true,
+    "input_len": true,
+    "output_len": true,
+    "max_model_len": true,
+    "max_num_batched_tokens": true,
+    "seed": true,
+    "warmup_requests": true,
+    "prompt_token_ids": true,
+    "model_file_identity": true,
+    "output_token_ids": true,
+    "output_token_ids_sha256": true
+  },
+  "limits": [
+    "One historical and one current observation; not repeated trials, a confidence interval or clean single-factor causal attribution.",
+    "Same fixed prompt and two output tokens; not a general workload or steady-state throughput result.",
+    "Host initialization/generation boundaries; head includes logits projection and processing. Layer/head rows are inside generation and must not be added again.",
+    "147 registered storages with representative actual modeled address/service joins, 49 selected and 98 existing; not proof every byte or all experts were read.",
+    "Original batch post-hook FAILED remains FAILED. Acceptance is a separate scoped postterminal result, supported by the unchanged original ACK and independent reviews.",
+    "Nominal HBF waits and original simulator parameters retained. Counters are concurrent request sums, not exclusive wall-time fractions or proof of physical NAND trace identity.",
+    "No fresh full-tensor numerical comparison in timing scope; exact promised output tokens agree. Original PTX conversion/instrumentation artifacts reused, not fresh measurements.",
+    "Independent original data-predicate review and actual pure timing consumer replace the interrupted original terminal callback only for this new scoped root acceptance. Original validate_pair/terminal_join are not claimed to have completed.",
+    "Earlier r18 U/N controls and old R24 comparison retain their original cross-attempt identities; no same-attempt synthetic N4/N8/N12 created here.",
+    "No change to production libraries, simulator parameters, model, original PTX inputs or CUDA domain separation; no new accuracy/calibration claim for physical NAND hardware."
+  ],
+  "raw_retention": "Complete original archive, original failures/ACK and unique raw evidence retained with authors; large raws and binaries not included in this release."
+}

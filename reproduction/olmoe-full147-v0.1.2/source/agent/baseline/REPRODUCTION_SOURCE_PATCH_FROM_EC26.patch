@@ -1,0 +1,2936 @@
+--- a/attach/nv_attach_impl/CMakeLists.txt
++++ b/attach/nv_attach_impl/CMakeLists.txt
+@@ -28,6 +28,7 @@
+     nv_attach_impl_patcher.cpp
+     nv_attach_utils.cpp
+     nv_attach_fatbin_record.cpp
++    nv_attach_module_load_provenance.cpp
+     nv_elf_introspect.cpp
+ )
+ 
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.cpp
+@@ -1,4 +1,6 @@
+ #include "nv_attach_fatbin_record.hpp"
++#include "nvptx_opt_policy.hpp"
++#include "nv_attach_module_load_provenance.hpp"
+ #include "cuda.h"
+ #include "nvPTXCompiler.h"
+ #include "nv_attach_utils.hpp"
+@@ -8,6 +10,7 @@
+ #include <boost/asio/thread_pool.hpp>
+ #include <cstddef>
+ #include <cstdint>
++#include <cstdlib>
+ #include <cstring>
+ #include <cstdio>
+ #include <dlfcn.h>
+@@ -102,7 +105,8 @@
+ 
+ std::map<std::string, std::vector<uint8_t>> fatbin_record::compile_ptxs(
+ 	class nv_attach_impl &impl,
+-	std::map<std::string, std::tuple<std::string, bool>> patched_ptx)
++	std::map<std::string, std::tuple<std::string, bool>> patched_ptx,
++	bool prepatched)
+ {
+ 	std::string sm_arch = get_gpu_sm_arch();
+ 	SPDLOG_INFO("Compiling PTXs with sm_arch {}", sm_arch);
+@@ -114,19 +118,56 @@
+ 
+ 	std::map<std::string, std::vector<uint8_t>> compiled_ptx;
+ 	const auto &handler = impl.ptx_compiler;
++	const auto opt_config = nvptx_opt_policy::from_environment();
++	SPDLOG_INFO("nvPTXCompiler default option -O{}; raw overrides {}",
++		    opt_config.fallback, opt_config.by_raw_sha256.size());
++	std::string max_register_option;
++	if (const char *value = std::getenv("HBFSIM_NVPTX_MAX_REGISTERS");
++	    value != nullptr && value[0] != '\0') {
++		char *end = nullptr;
++		const long parsed = std::strtol(value, &end, 10);
++		if (end == value || *end != '\0' || parsed < 1 || parsed > 255)
++			throw std::runtime_error(
++				"HBFSIM_NVPTX_MAX_REGISTERS must be an integer in [1,255]");
++		max_register_option = "--maxrregcount=" + std::to_string(parsed);
++		SPDLOG_INFO("Using explicit nvPTXCompiler option {}",
++			    max_register_option);
++	}
+ 	boost::asio::thread_pool pool(std::thread::hardware_concurrency());
+ 	std::mutex map_lock;
+ 	for (const auto &[name, ptx_and_trampoline_flag] : patched_ptx) {
+ 		const auto &ptx = std::get<0>(ptx_and_trampoline_flag);
++		const auto original_name = nvptx_opt_policy::original_name(name);
++		const auto original_itr = original_ptx.find(original_name);
++		if (original_itr == original_ptx.end())
++			throw std::runtime_error("Unable to associate compiled module with original PTX");
++		const auto &raw_ptx = original_itr->second;
++		const auto raw_digest = nvptx_opt_policy::raw_digest_for_module(
++			original_name, raw_ptx, prepatched,
++			[](std::string_view bytes) {
++				return sha256(bytes.data(), bytes.size());
++			});
++		const auto opt_level_option = opt_config.option_for_raw(raw_digest);
++		SPDLOG_INFO("nvPTXCompiler module={} raw_sha256={} option={}",
++			    name, raw_digest, opt_level_option);
+ 
+ 			boost::asio::post(
+ 				pool,
+ 				[&handler, ptx, name, &compiled_ptx, &map_lock, this,
+-				 sm_arch]() -> void {
++				 sm_arch, max_register_option, opt_level_option]() -> void {
+ 					const auto ptx_fixed =
+ 						rewrite_ptx_target(ptx, sm_arch);
++					const std::string gpu_name = "--gpu-name=" + sm_arch;
++					std::vector<std::string> effective_options = {
++						gpu_name, "--verbose", opt_level_option};
++					if (!max_register_option.empty())
++						effective_options.push_back(max_register_option);
++					std::string cache_material = ptx_fixed;
++					for (const auto &option : effective_options)
++						cache_material +=
++							"\n// hbfsim nvPTXCompiler option: " + option;
+ 					auto sha256_string =
+-						sha256(ptx_fixed.data(), ptx_fixed.size());
++						sha256(cache_material.data(), cache_material.size());
+ 					if (auto itr =
+ 						    this->ptx_pool->find(sha256_string);
+ 					    itr != this->ptx_pool->end()) {
+@@ -145,16 +186,20 @@
+ 						throw std::runtime_error(
+ 							"Unable to create nv_attach_impl_ptx_compiler");
+ 					}
+-						std::string gpu_name =
+-							"--gpu-name=" + sm_arch;
+-							const char *compile_options[] = {
+-								gpu_name.c_str(), "--verbose",
+-								"-O3"
+-							};
++						std::vector<const char *> compile_options;
++						compile_options.reserve(effective_options.size());
++						for (const auto &option : effective_options)
++							compile_options.push_back(option.c_str());
++						SPDLOG_INFO(
++							"nvPTXCompiler effective options: {} {} {} {}",
++							effective_options[0], effective_options[1],
++							effective_options[2],
++							max_register_option.empty() ? "(no maxrregcount)" :
++							max_register_option);
+ 						if (auto err = handler.compile(
+ 							    compiler, ptx_fixed.c_str(),
+-							    compile_options,
+-							    std::size(compile_options));
++							    compile_options.data(),
++							    compile_options.size());
+ 						    err != 0) {
+ 							SPDLOG_ERROR(
+ 								"Unable to compile: {}, error = {}",
+@@ -191,26 +236,71 @@
+ {
+ 	if (ptx_loaded)
+ 		return;
++	if (original_ptx.empty()) {
++		SPDLOG_INFO("Skipping fatbin without extractable PTX");
++		ptx_loaded = true;
++		return;
++	}
+ 	if (impl.shared_mem_ptr == 0) {
+ 		throw std::runtime_error(
+ 			"shared_mem_ptr is not initialized before loading PTX");
+ 	}
+ 	SPDLOG_INFO("Loading & patching current fatbin..");
+ 
+-	auto patched_ptx = *impl.hack_fatbin(original_ptx);
+-
+-	auto compiled_ptx = compile_ptxs(impl, patched_ptx);
++	const char *prepatched_env =
++		getenv("BPFTIME_CUDA_LATE_PTX_PREPATCHED");
++	const bool prepatched = prepatched_env != nullptr &&
++		prepatched_env[0] == '1' && prepatched_env[1] == '\0';
++	std::map<std::string, std::tuple<std::string, bool>> patched_ptx;
++	if (prepatched) {
++		SPDLOG_INFO("Using prepatched external PTX ({} file(s))",
++			    original_ptx.size());
++		for (const auto &[name, ptx] : original_ptx) {
++			patched_ptx.emplace("patched." + name,
++					    std::make_tuple(ptx, false));
++		}
++	} else {
++		patched_ptx = *impl.hack_fatbin(original_ptx);
++	}
++	auto compiled_ptx = compile_ptxs(impl, patched_ptx, prepatched);
+ 
+ 	for (const auto &[name, ptx_and_trampoline_flag] : patched_ptx) {
+ 		const auto &ptx = std::get<0>(ptx_and_trampoline_flag);
+ 		bool added_trampoline = std::get<1>(ptx_and_trampoline_flag);
+ 		const auto &compiled_elf = compiled_ptx.at(name);
++		const std::string patched_prefix = "patched.";
++		const auto original_name = name.rfind(patched_prefix, 0) == 0 ?
++			name.substr(patched_prefix.size()) : name;
++		auto original_itr = original_ptx.find(original_name);
++		if (original_itr == original_ptx.end()) {
++			throw std::runtime_error(
++				"Unable to associate patched module with original PTX");
++		}
++		const auto &original_ptx = original_itr->second;
++		auto original_ptx_sha256 =
++			sha256(original_ptx.data(), original_ptx.size());
++		if (prepatched) {
++			// Preserve the original PTX digest from staged filename; the
++			// file contents are the automatically rewritten PTX.
++			auto staged_digest = original_name;
++			if (staged_digest.ends_with(".ptx"))
++				staged_digest.resize(staged_digest.size() - 4);
++			if (staged_digest.size() == 64 &&
++			    staged_digest.find_first_not_of("0123456789abcdef") ==
++				    std::string::npos)
++				original_ptx_sha256 = staged_digest;
++			else
++				throw std::runtime_error(
++					"Prepatched PTX filename must be a lowercase SHA256 digest");
++		}
+ 		auto sha256_string =
+ 			sha256(compiled_elf.data(), compiled_elf.size());
+ 		if (auto itr = module_pool->find(sha256_string);
+ 		    itr != module_pool->end()) {
+ 			SPDLOG_INFO("Module {} found in cache", name);
+ 			ptxs.push_back(itr->second);
++			original_ptx_sha256_by_module.push_back(
++				original_ptx_sha256);
+ 		} else {
+ 			CUmodule module;
+ 			SPDLOG_INFO("Loading module: {}, not found in cache",
+@@ -226,12 +316,24 @@
+ 				(void *)info_buf, (void *)std::size(info_buf),
+ 				(void *)error_buf, (void *)std::size(error_buf)
+ 			};
+-			if (auto err = cuModuleLoadDataEx(
+-				    &module, compiled_elf.data(),
+-				    std::size(options), options, option_values);
+-			    err != CUDA_SUCCESS) {
++			CUresult load_result;
++			{
++				module_load_provenance_scope provenance(
++					ptx, find_module_load_provenance_hooks());
++				if (!provenance.permits_load()) {
++					SPDLOG_ERROR(
++						"Module {} load provenance rejected",
++						name);
++					throw std::runtime_error(
++						"Module load provenance rejected");
++				}
++				load_result = cuModuleLoadDataEx(
++					&module, compiled_elf.data(),
++					std::size(options), options, option_values);
++			}
++			if (load_result != CUDA_SUCCESS) {
+ 				SPDLOG_ERROR("Unable to compile module {}: {}",
+-					     name, (int)err);
++					     name, (int)load_result);
+ 				SPDLOG_ERROR("Info: {}", info_buf);
+ 				SPDLOG_ERROR("Error: {}", error_buf);
+ 				throw std::runtime_error(
+@@ -273,6 +375,8 @@
+ 			auto ptr = std::make_shared<ptx_in_module>(module);
+ 			module_pool->insert(std::make_pair(sha256_string, ptr));
+ 			ptxs.push_back(ptr);
++			original_ptx_sha256_by_module.push_back(
++				original_ptx_sha256);
+ 			SPDLOG_INFO("Loaded module: {}", name);
+ 		}
+ 	}
+--- a/attach/nv_attach_impl/nv_attach_fatbin_record.hpp
++++ b/attach/nv_attach_impl/nv_attach_fatbin_record.hpp
+@@ -34,6 +34,8 @@
+ 		module_pool;
+ 	std::shared_ptr<std::map<std::string, std::vector<uint8_t>>> ptx_pool;
+ 	std::vector<std::shared_ptr<ptx_in_module>> ptxs;
++	// SHA256 of the original PTX corresponding to each entry in ptxs.
++	std::vector<std::string> original_ptx_sha256_by_module;
+ 	std::map<void *, variable_info> variable_addr_to_symbol;
+ 	std::map<void *, kernel_info> function_addr_to_symbol;
+ 	std::map<std::string, std::string> original_ptx;
+@@ -46,7 +48,8 @@
+ 
+     private:
+ 	std::map<std::string, std::vector<uint8_t>>
+-	compile_ptxs(class nv_attach_impl &impl,std::map<std::string, std::tuple<std::string, bool>>);
++	compile_ptxs(class nv_attach_impl &impl,
++		std::map<std::string, std::tuple<std::string, bool>>, bool prepatched);
+ };
+ 
+ } // namespace attach
+--- a/attach/nv_attach_impl/nv_attach_impl.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl.cpp
+@@ -15,12 +15,7 @@
+ #include <boost/asio/io_context.hpp>
+ #include <boost/asio/post.hpp>
+ #include <boost/asio/thread_pool.hpp>
+-#include <boost/process.hpp>
+-#include <boost/process/detail/child_decl.hpp>
+-#include <boost/process/env.hpp>
+-#include <boost/process/io.hpp>
+-#include <boost/process/pipe.hpp>
+-#include <boost/process/start_dir.hpp>
++#include <boost/process/v1.hpp>
+ #include <chrono>
+ #include <cstdlib>
+ #include <cstring>
+@@ -244,11 +239,28 @@
+ cudaError_t cuda_runtime_function__cudaLaunchKernel_ptsz(
+ 	const void *func, dim3 gridDim, dim3 blockDim, void **args,
+ 	size_t sharedMem, cudaStream_t stream);
++cudaError_t cuda_runtime_function__cudaLaunchKernel_12(
++	const void *func, dim3 gridDim, dim3 blockDim, void **args,
++	size_t sharedMem, cudaStream_t stream);
++cudaError_t cuda_runtime_function___cudaLaunchKernel_12(
++	cudaKernel_t, dim3, dim3, void **, size_t, cudaStream_t);
++cudaError_t cuda_runtime_function___cudaLaunchKernel_13(
++	cudaKernel_t, dim3, dim3, void **, size_t, cudaStream_t);
++cudaError_t cuda_runtime_function___cudaLaunchKernel_ptsz_12(
++	cudaKernel_t, dim3, dim3, void **, size_t, cudaStream_t);
++cudaError_t cuda_runtime_function___cudaLaunchKernel_ptsz_13(
++	cudaKernel_t, dim3, dim3, void **, size_t, cudaStream_t);
+ CUresult cuda_driver_function__cuLaunchKernel(
+ 	CUfunction f, unsigned int gridDimX, unsigned int gridDimY,
+ 	unsigned int gridDimZ, unsigned int blockDimX, unsigned int blockDimY,
+ 	unsigned int blockDimZ, unsigned int sharedMemBytes, CUstream hStream,
+ 	void **kernelParams, void **extra);
++CUresult cuda_driver_function__cuLaunchKernelEx(
++	const CUlaunchConfig *config, CUfunction f, void **kernelParams,
++	void **extra);
++CUresult cuda_driver_function__cuLaunchKernelEx_ptsz(
++	const CUlaunchConfig *config, CUfunction f, void **kernelParams,
++	void **extra);
+ CUresult cuda_driver_function__cuGraphAddKernelNode_v1(
+ 	CUgraphNode *phGraphNode, CUgraph hGraph,
+ 	const CUgraphNode *dependencies, size_t numDependencies,
+@@ -315,7 +327,9 @@
+ 
+ 	gum_interceptor_begin_transaction(interceptor);
+ 
+-	auto register_hook = [&](AttachedToFunction func, void *addr) {
++	auto register_hook = [&](AttachedToFunction func, void *addr,
++				 RuntimeRegistrationDomain domain =
++					 RuntimeRegistrationDomain::Unknown) {
+ 		if (addr == nullptr) {
+ 			SPDLOG_WARN(
+ 				"Skipping hook registration for function {} - symbol not found",
+@@ -325,6 +339,7 @@
+ 		auto ctx = std::make_unique<CUDARuntimeFunctionHookerContext>();
+ 		ctx->to_function = func;
+ 		ctx->impl = this;
++		ctx->runtime_domain = domain;
+ 		auto ctx_ptr = ctx.get();
+ 		this->hooker_contexts.push_back(std::move(ctx));
+ 		if (auto result = gum_interceptor_attach(
+@@ -363,33 +378,110 @@
+ 		}
+ 		SPDLOG_ERROR("Unable to replace {}: {}", symbol_name, (int)err);
+ 	};
+-
+-	{
+-		void *register_fatbin_addr =
+-			dlsym(RTLD_NEXT, "__cudaRegisterFatBinary");
+-		register_hook(AttachedToFunction::RegisterFatbin,
+-			      register_fatbin_addr);
+-	}
+-	{
+-		void *register_function_addr =
+-			GSIZE_TO_POINTER(gum_module_find_export_by_name(
+-				nullptr, "__cudaRegisterFunction"));
+-		register_hook(AttachedToFunction::RegisterFunction,
+-			      register_function_addr);
+-	}
+-	{
+-		void *register_variable_addr =
+-			GSIZE_TO_POINTER(gum_module_find_export_by_name(
+-				nullptr, "__cudaRegisterVar"));
+-		register_hook(AttachedToFunction::RegisterVariable,
+-			      register_variable_addr);
+-	}
+-	{
+-		void *register_fatbin_end_addr =
+-			GSIZE_TO_POINTER(gum_module_find_export_by_name(
+-				nullptr, "__cudaRegisterFatBinaryEnd"));
+-		register_hook(AttachedToFunction::RegisterFatbinEnd,
+-			      register_fatbin_end_addr);
++	auto replace_hook_address_once = [&](const char *label, void *addr,
++					     gpointer replacement,
++					     std::atomic<void *> &original_slot) {
++		if (addr == nullptr) {
++			SPDLOG_WARN("Strict versioned hook target missing: {}", label);
++			return;
++		}
++		if (original_slot.load(std::memory_order_acquire) != nullptr)
++			return;
++		Dl_info info{};
++		dladdr(addr, &info);
++		SPDLOG_INFO("Strict versioned hook {} target={} dso={}", label,
++			    addr, info.dli_fname ? info.dli_fname : "UNKNOWN");
++		gpointer original_tmp = nullptr;
++		auto err = gum_interceptor_replace(interceptor, addr, replacement,
++						   &hook_state,
++						   (gpointer *)&original_tmp);
++		if (err != GUM_REPLACE_OK) {
++			SPDLOG_ERROR("Unable to replace {}: {}", label, (int)err);
++			return;
++		}
++		original_slot.store(original_tmp, std::memory_order_release);
++		SPDLOG_INFO(
++			"Strict versioned hook installed {} result=OK target={} trampoline={}",
++			label, addr, original_tmp);
++	};
++	auto gate_versioned_symbol = [&](const char *symbol,
++					 const char *version) -> void * {
++		const char *build = std::getenv("HBFSIM_BUILD_DIR");
++		if (build == nullptr || build[0] == '\0')
++			return nullptr;
++		static void *gate_handle = nullptr;
++		if (gate_handle == nullptr) {
++			auto path = std::filesystem::path(build) /
++				    "libhbfsim_launch_gate.so";
++			gate_handle = dlopen(path.c_str(), RTLD_NOW | RTLD_NOLOAD |
++							 RTLD_LOCAL);
++		}
++		return gate_handle == nullptr ? nullptr
++					      : dlvsym(gate_handle, symbol, version);
++	};
++
++	auto runtime_registration_symbol = [](const char *soname,
++					       const char *symbol,
++					       const char *version) -> void * {
++		void *handle = dlopen(soname, RTLD_NOW | RTLD_NOLOAD | RTLD_LOCAL);
++		return handle == nullptr ? nullptr : dlvsym(handle, symbol, version);
++	};
++	struct RegistrationHookCandidate {
++		AttachedToFunction kind;
++		const char *symbol;
++		const char *version;
++		void *address;
++		RuntimeRegistrationDomain domain;
++	};
++	std::vector<RegistrationHookCandidate> registration_candidates;
++	auto collect_runtime_domain = [&](const char *soname,
++					  const char *version,
++					  RuntimeRegistrationDomain domain) {
++		const std::pair<AttachedToFunction, const char *> hooks[] = {
++			{ AttachedToFunction::RegisterFatbin,
++			  "__cudaRegisterFatBinary" },
++			{ AttachedToFunction::UnregisterFatbin,
++			  "__cudaUnregisterFatBinary" },
++			{ AttachedToFunction::RegisterFunction,
++			  "__cudaRegisterFunction" },
++			{ AttachedToFunction::RegisterVariable,
++			  "__cudaRegisterVar" },
++			{ AttachedToFunction::RegisterFatbinEnd,
++			  "__cudaRegisterFatBinaryEnd" },
++		};
++		for (const auto &[kind, symbol] : hooks) {
++			void *address = runtime_registration_symbol(soname, symbol,
++							    version);
++			if (address == nullptr) {
++				SPDLOG_INFO("Native identity hook unavailable {}@{}",
++					    symbol, version);
++				continue;
++			}
++			registration_candidates.push_back(
++				{ kind, symbol, version, address, domain });
++		}
++	};
++	collect_runtime_domain("libcudart.so.12", "libcudart.so.12",
++				RuntimeRegistrationDomain::Cudart12);
++	collect_runtime_domain("libcudart.so.13", "libcudart.so.13",
++				RuntimeRegistrationDomain::Cudart13);
++	std::set<void *> installed_registration_addresses;
++	for (const auto &candidate : registration_candidates) {
++		if (!installed_registration_addresses.insert(candidate.address).second)
++			continue;
++		const bool ambiguous = std::any_of(
++			registration_candidates.begin(), registration_candidates.end(),
++			[&](const auto &other) {
++				return other.address == candidate.address &&
++				       other.domain != candidate.domain;
++			});
++		if (ambiguous)
++			SPDLOG_WARN(
++				"Native identity hook address is cross-domain ambiguous {} addr={}",
++				candidate.symbol, candidate.address);
++		register_hook(candidate.kind, candidate.address,
++			      ambiguous ? RuntimeRegistrationDomain::Unknown
++					: candidate.domain);
+ 	}
+ 
+ 	{
+@@ -418,16 +510,60 @@
+ 		register_hook(AttachedToFunction::CudaMemcpyToSymbolAsync,
+ 			      cuda_memcpy_to_symbol_async_addr);
+ 	}
+-	replace_hook_once("cudaLaunchKernel",
+-			  (gpointer)&cuda_runtime_function__cudaLaunchKernel,
+-			  hook_state.orig_cuda_launch_kernel);
++	void *public_launch_12 =
++		gate_versioned_symbol("cudaLaunchKernel", "libcudart.so.12");
++	void *global_public_launch = GSIZE_TO_POINTER(
++		gum_module_find_export_by_name(nullptr, "cudaLaunchKernel"));
++	// The global lookup can resolve to the exact CUDA 12 entry depending on
++	// DSO load order.  In that case install only the versioned wrapper so Gum
++	// never replaces the same address twice or leaves its exact slot empty.
++	if (global_public_launch != public_launch_12) {
++		replace_hook_once("cudaLaunchKernel",
++			(gpointer)&cuda_runtime_function__cudaLaunchKernel,
++			hook_state.orig_cuda_launch_kernel);
++	} else {
++		SPDLOG_INFO(
++			"Skipping unversioned cudaLaunchKernel hook because it aliases exact libcudart.so.12 target {}",
++			public_launch_12);
++	}
+ 	replace_hook_once(
+ 		"cudaLaunchKernel_ptsz",
+ 		(gpointer)&cuda_runtime_function__cudaLaunchKernel_ptsz,
+ 		hook_state.orig_cuda_launch_kernel_ptsz);
++	replace_hook_address_once(
++		"cudaLaunchKernel@libcudart.so.12",
++		public_launch_12,
++		(gpointer)&cuda_runtime_function__cudaLaunchKernel_12,
++		hook_state.orig_public_launch_kernel_12);
++	replace_hook_address_once(
++		"__cudaLaunchKernel@libcudart.so.12",
++		gate_versioned_symbol("__cudaLaunchKernel", "libcudart.so.12"),
++		(gpointer)&cuda_runtime_function___cudaLaunchKernel_12,
++		hook_state.orig_private_launch_kernel_12);
++	replace_hook_address_once(
++		"__cudaLaunchKernel@libcudart.so.13",
++		gate_versioned_symbol("__cudaLaunchKernel", "libcudart.so.13"),
++		(gpointer)&cuda_runtime_function___cudaLaunchKernel_13,
++		hook_state.orig_private_launch_kernel_13);
++	replace_hook_address_once(
++		"__cudaLaunchKernel_ptsz@libcudart.so.12",
++		gate_versioned_symbol("__cudaLaunchKernel_ptsz", "libcudart.so.12"),
++		(gpointer)&cuda_runtime_function___cudaLaunchKernel_ptsz_12,
++		hook_state.orig_private_launch_kernel_ptsz_12);
++	replace_hook_address_once(
++		"__cudaLaunchKernel_ptsz@libcudart.so.13",
++		gate_versioned_symbol("__cudaLaunchKernel_ptsz", "libcudart.so.13"),
++		(gpointer)&cuda_runtime_function___cudaLaunchKernel_ptsz_13,
++		hook_state.orig_private_launch_kernel_ptsz_13);
+ 	replace_hook_once("cuLaunchKernel",
+ 			  (gpointer)&cuda_driver_function__cuLaunchKernel,
+ 			  hook_state.orig_cu_launch_kernel);
++	replace_hook_once("cuLaunchKernelEx",
++			  (gpointer)&cuda_driver_function__cuLaunchKernelEx,
++			  hook_state.orig_cu_launch_kernel_ex);
++	replace_hook_once("cuLaunchKernelEx_ptsz",
++			  (gpointer)&cuda_driver_function__cuLaunchKernelEx_ptsz,
++			  hook_state.orig_cu_launch_kernel_ex_ptsz);
+ 	replace_hook_once(
+ 		"cuGraphAddKernelNode",
+ 		(gpointer)&cuda_driver_function__cuGraphAddKernelNode_v1,
+@@ -472,6 +608,12 @@
+ 	this->original_cu_launch_kernel =
+ 		hook_state.orig_cu_launch_kernel.load(
+ 			std::memory_order_acquire);
++	this->original_cu_launch_kernel_ex =
++		hook_state.orig_cu_launch_kernel_ex.load(
++			std::memory_order_acquire);
++	this->original_cu_launch_kernel_ex_ptsz =
++		hook_state.orig_cu_launch_kernel_ex_ptsz.load(
++			std::memory_order_acquire);
+ 	this->original_cu_graph_add_kernel_node_v1 =
+ 		hook_state.orig_cu_graph_add_kernel_node_v1.load(
+ 			std::memory_order_acquire);
+@@ -593,13 +735,45 @@
+ 	if (kernel_name.empty() || function == nullptr)
+ 		return;
+ 	std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++	if (ambiguous_patched_kernel_names.contains(kernel_name))
++		return;
+ 	auto itr = patched_kernel_by_name.find(kernel_name);
+ 	if (itr == patched_kernel_by_name.end()) {
+ 		patched_kernel_by_name.emplace(kernel_name, function);
+ 		return;
+ 	}
+-	if (itr->second != function)
+-		itr->second = function;
++	if (itr->second != function) {
++		patched_kernel_by_name.erase(itr);
++		ambiguous_patched_kernel_names.insert(kernel_name);
++		SPDLOG_WARN("ambiguous patched CUDA kernel name {}; disabling name-only fallback",
++			    kernel_name);
++	}
++}
++
++static std::string ptx_variant_key(const std::string &ptx_sha256,
++				   const std::string &kernel_name)
++{
++	return ptx_sha256 + ":" + kernel_name;
++}
++
++void nv_attach_impl::record_patched_kernel_variant(
++	const std::string &ptx_sha256, const std::string &kernel_name,
++	CUfunction function)
++{
++	if (ptx_sha256.empty() || kernel_name.empty() || function == nullptr)
++		return;
++	{
++		std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++		auto key = ptx_variant_key(ptx_sha256, kernel_name);
++		auto [itr, inserted] = patched_kernel_by_ptx_variant.emplace(
++			key, function);
++		if (!inserted && itr->second != function) {
++			SPDLOG_ERROR("duplicate exact PTX variant mapping for {}",
++				     kernel_name);
++			return;
++		}
++	}
++	record_patched_kernel_function(kernel_name, function);
+ }
+ 
+ std::optional<CUfunction> nv_attach_impl::find_patched_kernel_function(
+@@ -612,6 +786,333 @@
+ 	if (itr == patched_kernel_by_name.end())
+ 		return std::nullopt;
+ 	return itr->second;
++}
++
++std::optional<CUfunction>
++nv_attach_impl::find_patched_kernel_function_for_original(
++	CUfunction original) const
++{
++	if (original == nullptr)
++		return std::nullopt;
++	std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++	auto itr = patched_kernel_by_original_function.find(original);
++	if (itr == patched_kernel_by_original_function.end())
++		return std::nullopt;
++	return itr->second;
++}
++
++int nv_attach_impl::bind_ptx_variant(CUfunction original,
++				     const char *original_ptx,
++				     size_t original_ptx_size,
++				     const char *kernel_name)
++{
++	if (original == nullptr || original_ptx == nullptr ||
++	    original_ptx_size == 0 || kernel_name == nullptr ||
++	    kernel_name[0] == '\0')
++		return -1;
++	if (!is_late_bootstrap_done())
++		return 1;
++	const auto digest = sha256(original_ptx, original_ptx_size);
++	using gate_bind_fn = int (*)(CUfunction, CUfunction);
++	auto gate_bind = reinterpret_cast<gate_bind_fn>(
++		dlsym(RTLD_DEFAULT, "hbfsim_bind_original_cuda_function"));
++	CUfunction patched = nullptr;
++	{
++		// Serialize validation, gate publication and the local alias commit.
++		// This guarantees a rejected gate publication cannot leave a newly
++		// usable local original->patched alias behind.
++		std::lock_guard<std::mutex> guard(cuda_symbol_map_mutex);
++		auto variant = patched_kernel_by_ptx_variant.find(
++			ptx_variant_key(digest, kernel_name));
++		if (variant == patched_kernel_by_ptx_variant.end())
++			return 2;
++		patched = variant->second;
++		auto existing = patched_kernel_by_original_function.find(original);
++		if (existing != patched_kernel_by_original_function.end() &&
++		    existing->second != patched)
++			return 3;
++		if (gate_bind != nullptr && gate_bind(original, patched) != 0) {
++			SPDLOG_ERROR(
++				"HBF launch gate rejected exact CUDA function binding for {}",
++				kernel_name);
++			return 4;
++		}
++		if (existing == patched_kernel_by_original_function.end())
++			patched_kernel_by_original_function.emplace(original, patched);
++		kernel_name_by_cufunction[original] = kernel_name;
++	}
++	SPDLOG_INFO("Bound original CUDA function {:x} to exact PTX variant {} for {}",
++		    (uintptr_t)original, digest, kernel_name);
++	return 0;
++}
++
++int nv_attach_impl::native_binding_candidate(int runtime_domain, void *host_stub)
++{
++	const char *manifest_path = std::getenv("HBFSIM_NATIVE_BINDING_MANIFEST_PATH");
++	if (manifest_path == nullptr || manifest_path[0] == '\0' ||
++	    host_stub == nullptr)
++		return 0;
++	registered_symbol_identity_record identity;
++	bool generation_valid = false;
++	{
++		std::lock_guard<std::mutex> guard(fatbin_identity_mutex);
++		auto symbol = registered_symbol_identity.find(
++			{ runtime_domain, host_stub });
++		if (symbol == registered_symbol_identity.end()) return 0;
++		identity = symbol->second;
++		auto handle = fatbin_handle_to_record.find(identity.handle_key);
++		generation_valid = handle != fatbin_handle_to_record.end() &&
++			handle->second.generation == identity.generation;
++	}
++	try {
++		std::ifstream stream(manifest_path, std::ios::binary);
++		if (!stream) return -1;
++		const auto manifest = nlohmann::json::parse(stream);
++		if (manifest.value("schema_version", 0) != 1 ||
++		    manifest.value("status", "") != "READY" ||
++		    !manifest.contains("bindings") ||
++		    !manifest["bindings"].is_array())
++			return -1;
++		for (const auto &binding : manifest["bindings"]) {
++			if (binding.value("runtime_domain", 0) == runtime_domain &&
++			    binding.value("kernel", "") == identity.symbol)
++				return generation_valid ? 1 : -1;
++		}
++		return 0;
++	} catch (const std::exception &error) {
++		SPDLOG_ERROR("Native binding candidate manifest invalid: {}",
++			     error.what());
++		return -1;
++	}
++}
++
++int nv_attach_impl::auto_bind_registered_function(int runtime_domain,
++						   void *host_stub,
++						   CUfunction original)
++{
++	const char *manifest_path =
++		std::getenv("HBFSIM_NATIVE_BINDING_MANIFEST_PATH");
++	if (manifest_path == nullptr || manifest_path[0] == '\0' ||
++	    host_stub == nullptr || original == nullptr)
++		return -1;
++	registered_symbol_identity_record identity;
++	{
++		std::lock_guard<std::mutex> guard(fatbin_identity_mutex);
++		auto symbol = registered_symbol_identity.find(
++			{ runtime_domain, host_stub });
++		if (symbol == registered_symbol_identity.end()) return 1;
++		auto handle = fatbin_handle_to_record.find(symbol->second.handle_key);
++		if (handle == fatbin_handle_to_record.end() ||
++		    handle->second.generation != symbol->second.generation)
++			return 2;
++		identity = symbol->second;
++	}
++	auto read_bytes = [](const std::filesystem::path &path) {
++		std::ifstream stream(path, std::ios::binary);
++		if (!stream) throw std::runtime_error("unable to read native binding input");
++		return std::vector<char>(std::istreambuf_iterator<char>(stream), {});
++	};
++	try {
++		const auto manifest_bytes = read_bytes(manifest_path);
++		const auto manifest = nlohmann::json::parse(manifest_bytes);
++		if (manifest.value("schema_version", 0) != 1 ||
++		    manifest.value("status", "") != "READY" ||
++		    !manifest.contains("bindings") ||
++		    !manifest["bindings"].is_array())
++			return 3;
++		const auto container_bytes = read_bytes(identity.dso_path);
++		const auto container_sha = sha256(container_bytes.data(),
++						  container_bytes.size());
++		const nlohmann::json *selected = nullptr;
++		for (const auto &binding : manifest["bindings"]) {
++			if (binding.value("runtime_domain", 0) != runtime_domain ||
++			    binding.value("kernel", "") != identity.symbol ||
++			    binding.value("container_sha256", "") != container_sha)
++				continue;
++			if (selected != nullptr) return 4;
++			selected = &binding;
++		}
++		if (selected == nullptr) return 5;
++		const auto provenance_path =
++			std::filesystem::path(selected->at("provenance_sidecar").get<std::string>());
++		const auto provenance_bytes = read_bytes(provenance_path);
++		if (sha256(provenance_bytes.data(), provenance_bytes.size()) !=
++		    selected->at("provenance_sha256").get<std::string>())
++			return 6;
++		const auto provenance = nlohmann::json::parse(provenance_bytes);
++		const auto schema = provenance.value("schema", "");
++		const bool whole_module =
++			schema == "hbfsim.native_ptx_stage_provenance_join.v2";
++		const bool scoped_entry =
++			schema == "hbfsim.native_ptx_provenance_scoped.v1";
++		if ((!whole_module && !scoped_entry) ||
++		    !provenance.contains("staging") ||
++		    !provenance["staging"].is_object() ||
++		    !provenance.contains("module_joins") ||
++		    !provenance["module_joins"].is_array())
++			return 7;
++		const nlohmann::json *memberships = nullptr;
++		if (whole_module) {
++			if (provenance.value("status", "") != "READY" ||
++			    provenance["staging"].value("status", "") != "READY" ||
++			    provenance["staging"].value("policy", "") != "strict" ||
++			    !provenance.contains("entry_memberships"))
++				return 7;
++			memberships = &provenance["entry_memberships"];
++		} else {
++			if (provenance.value("status", "") != "SCOPED_READY" ||
++			    provenance.value("scope", "") != "explicit_entry_subset" ||
++			    provenance.value("whole_module_ready", true) ||
++			    !provenance.contains("selection_contract") ||
++			    provenance["selection_contract"].value(
++				    "unselected_entry_policy", "") != "STRICT_REJECT" ||
++			    !provenance["selection_contract"].contains(
++				    "explicit_selected_entries") ||
++			    !provenance["selection_contract"]
++				     ["explicit_selected_entries"].is_array() ||
++			    (provenance["staging"].value("status", "") != "READY" &&
++			     provenance["staging"].value("status", "") !=
++				     "PARTIAL_READY") ||
++			    (provenance["staging"].value("policy", "") != "strict" &&
++			     provenance["staging"].value("policy", "") != "partial") ||
++			    !provenance.contains("selected_entry_memberships"))
++				return 7;
++			std::size_t selected_count = 0;
++			for (const auto &entry : provenance["selection_contract"]
++						 ["explicit_selected_entries"])
++				if (entry.is_string() &&
++				    entry.get<std::string>() == identity.symbol)
++					++selected_count;
++			if (selected_count != 1) return 7;
++			memberships = &provenance["selected_entry_memberships"];
++		}
++		if (!memberships->contains(identity.symbol) ||
++		    !(*memberships)[identity.symbol].is_array())
++			return 7;
++		const auto selected_member =
++			selected->at("member_sha256").get<std::string>();
++		const auto selected_module =
++			selected->at("module_id").get<std::string>();
++		const auto selected_staged_path =
++			selected->at("staged_path").get<std::string>();
++		const auto selected_staged_sha =
++			selected->at("staged_sha256").get<std::string>();
++		if (selected_module != "ptx:sha256:" + selected_member)
++			return 8;
++		std::set<std::string> container_member_candidates;
++		std::size_t selected_membership_matches = 0;
++		for (const auto &membership : (*memberships)[identity.symbol]) {
++			if (membership.value("container_sha256", "") != container_sha)
++				continue;
++			const auto candidate =
++				membership.value("member_sha256", "");
++			if (!candidate.empty())
++				container_member_candidates.insert(candidate);
++			if (candidate == selected_member &&
++			    membership.value("module_id", "") == selected_module)
++				++selected_membership_matches;
++		}
++		// A compact manifest must never choose among multiple PTX members for
++		// the same container/entry.  The registration hook proves the
++		// container and entry, but not a particular member in that ambiguous
++		// case.
++		if (container_member_candidates.size() != 1 ||
++		    *container_member_candidates.begin() != selected_member ||
++		    selected_membership_matches != 1)
++			return 9;
++		std::size_t module_join_matches = 0;
++		for (const auto &join : provenance["module_joins"]) {
++			if (join.value("raw_sha256", "") != selected_member ||
++			    join.value("module_id", "") != selected_module ||
++			    join.value("staged_path", "") != selected_staged_path ||
++			    join.value("staged_sha256", "") != selected_staged_sha)
++				continue;
++			bool member_entry_match = false;
++			auto inspect_member = [&](const nlohmann::json &member,
++						  const nlohmann::json &entries) {
++				if (member.value("container_sha256", "") != container_sha ||
++				    member.value("member_sha256", "") != selected_member ||
++				    !entries.is_array())
++					return;
++				for (const auto &entry : entries)
++					if (entry.is_string() &&
++					    entry.get<std::string>() == identity.symbol)
++						member_entry_match = true;
++			};
++			if (whole_module) {
++				if (!join.contains("members") ||
++				    !join["members"].is_array())
++					continue;
++				for (const auto &member : join["members"])
++					if (member.contains("entries"))
++						inspect_member(member, member["entries"]);
++			} else {
++				if (!join.contains("member") ||
++				    !join["member"].is_object() ||
++				    !join.contains("selected_entries") ||
++				    !join["selected_entries"].is_array())
++					continue;
++				inspect_member(join["member"], join["selected_entries"]);
++			}
++			if (member_entry_match) ++module_join_matches;
++		}
++		if (module_join_matches != 1) return 10;
++		const auto staged_bytes = read_bytes(selected_staged_path);
++		if (sha256(staged_bytes.data(), staged_bytes.size()) !=
++		    selected_staged_sha)
++			return 11;
++		const auto raw_path =
++			std::filesystem::path(selected->at("raw_ptx_path").get<std::string>());
++		const auto raw_bytes = read_bytes(raw_path);
++		if (sha256(raw_bytes.data(), raw_bytes.size()) !=
++		    selected_member)
++			return 12;
++		// File hashing can be slow for a large native DSO.  Revalidate the
++		// registration identity and generation immediately before publishing
++		// the exact alias so unload/reuse cannot commit a stale binding.
++		int result = 0;
++		{
++			std::lock_guard<std::mutex> guard(fatbin_identity_mutex);
++			auto current = registered_symbol_identity.find(
++				{ runtime_domain, host_stub });
++			if (current == registered_symbol_identity.end() ||
++			    current->second.handle_key != identity.handle_key ||
++			    current->second.generation != identity.generation ||
++			    current->second.symbol != identity.symbol ||
++			    current->second.dso_path != identity.dso_path)
++				return 13;
++			auto handle = fatbin_handle_to_record.find(identity.handle_key);
++			if (handle == fatbin_handle_to_record.end() ||
++			    handle->second.generation != identity.generation)
++				return 14;
++			// Keep this generation pinned against unregister/reuse through
++			// exact gate publication and local alias commit.  The bind path
++			// takes cuda_symbol_map_mutex; registration teardown never takes
++			// that lock while holding fatbin_identity_mutex.
++			result = bind_ptx_variant(original, raw_bytes.data(),
++					  raw_bytes.size(),
++					  identity.symbol.c_str());
++		}
++		SPDLOG_INFO(
++			"Native exact auto-bind domain={} generation={} kernel={} result={}",
++			runtime_domain, identity.generation, identity.symbol, result);
++		return result == 0 ? 0 : 10 + result;
++	} catch (const std::exception &error) {
++		SPDLOG_ERROR("Native exact auto-bind failed: {}", error.what());
++		return 100;
++	}
++}
++
++extern "C" __attribute__((visibility("default")))
++int bpftime_nv_bind_ptx_variant(CUfunction original, const char *original_ptx,
++				size_t original_ptx_size,
++				const char *kernel_name)
++{
++	auto *impl = nv_attach_get_active_impl();
++	if (impl == nullptr || !impl->is_enabled())
++		return 1;
++	return impl->bind_ptx_variant(original, original_ptx,
++				      original_ptx_size, kernel_name);
+ }
+ 
+ void nv_attach_impl::record_original_cufunction_name(
+@@ -891,16 +1392,25 @@
+ 	/**
+ 	Here we can patch the PTX.
+ 	*/
+-	boost::asio::thread_pool pool(std::thread::hardware_concurrency());
++	// PTX pass/trampoline DSOs contain shared LLVM state and can also be
++	// initialized while the preload agent is still in its constructor. Run
++	// rewriting on the initializing thread; compile_ptxs remains parallel.
++	const auto hook_entries_snapshot = this->hook_entries;
+ 	std::map<std::string, std::tuple<std::string, bool>> ptx_out;
+ 	std::mutex map_mutex;
+ 	std::mutex cache_mutex;
++	// A pass DSO exposes one process_input entry point and is not required to
++	// be reentrant. Keep PTX traversal parallel while serializing DSO calls.
++	std::mutex pass_execution_mutex;
+ 	for (auto &[file_name, original_ptx] : all_ptx) {
+-		boost::asio::post(pool, [this, original_ptx, file_name, &map_mutex, &ptx_out, &cache_mutex]() -> void {
++		[this, original_ptx, file_name, &map_mutex,
++					&ptx_out, &cache_mutex,
++					&pass_execution_mutex,
++					&hook_entries_snapshot]() -> void {
+ 			auto current_ptx = original_ptx;
+ 			SPDLOG_INFO("Patching PTX: {}", file_name);
+ 			bool should_add_trampoline = false;
+-			for (const auto &[_, hook_entry] : this->hook_entries) {
++			for (const auto &[_, hook_entry] : hook_entries_snapshot) {
+ 				const auto &kernels = hook_entry.kernels;
+ 				for (const auto &kernel : kernels) {
+ 					std::vector<uint64_t> ebpf_inst_words;
+@@ -976,14 +1486,19 @@
+ 											int>::
+ 											max() :
+ 										(int)buf_bytes;
+-								int err =
+-									hook_entry
+-										.config
+-										->process_input(
+-											input_json
+-												.c_str(),
+-											len,
+-											buf.data());
++								int err;
++								{
++									std::lock_guard<std::mutex>
++										pass_guard(
++											pass_execution_mutex);
++									err = hook_entry
++										      .config
++										      ->process_input(
++											      input_json
++												      .c_str(),
++											      len,
++											      buf.data());
++								}
+ 								if (err !=
+ 								    ptxpass::ExitCode::
+ 									    Success) {
+@@ -1044,9 +1559,8 @@
+ 			std::lock_guard<std::mutex> _guard(map_mutex);
+ 			ptx_out["patched." + file_name] = std::make_tuple(
+ 				current_ptx, should_add_trampoline);
+-		});
+-	}
+-	pool.join();
++		}();
++	}
+ 	if (spdlog::should_log(spdlog::level::debug)) {
+ 		char tmp_dir[] = "/tmp/bpftime-fatbin-work.XXXXXX";
+ 		if (mkdtemp(tmp_dir) == nullptr) {
+@@ -1216,7 +1730,11 @@
+ 		CUDA_SAFE_CALL(cuInit(0));
+ 		CUDA_SAFE_CALL(cuDeviceGet(&cuDevice, 0));
+ 
++#if CUDA_VERSION >= 13000
++		CUDA_SAFE_CALL(cuCtxCreate(&context, nullptr, 0, cuDevice));
++#else
+ 		CUDA_SAFE_CALL(cuCtxCreate(&context, 0, cuDevice));
++#endif
+ 		CUDA_SAFE_CALL(cuModuleLoadDataEx(&module, output_elf.data(), 0,
+ 						  0, 0));
+ 		// fill data into it
+@@ -1520,10 +2038,20 @@
+ 		old_records.swap(fatbin_records);
+ 		current_fatbin = nullptr;
+ 		symbol_address_to_fatbin.clear();
++		{
++			std::lock_guard<std::mutex> identity_guard(
++				fatbin_identity_mutex);
++			fatbin_handle_to_record.clear();
++			registered_symbol_identity.clear();
++			++next_fatbin_generation;
++		}
+ 		patch_cache.clear();
+ 		{
+ 			std::lock_guard<std::mutex> g(cuda_symbol_map_mutex);
+ 			patched_kernel_by_name.clear();
++			ambiguous_patched_kernel_names.clear();
++			patched_kernel_by_ptx_variant.clear();
++			patched_kernel_by_original_function.clear();
+ 			kernel_name_by_cufunction.clear();
+ 		}
+ 		{
+@@ -1670,14 +2198,36 @@
+ 			kernels = collect_all_kernels_to_patch();
+ 		if (kernels.empty())
+ 			continue;
+-		for (const auto &ptx : rec->ptxs) {
+-			for (const auto &kernel : kernels) {
++		for (std::size_t module_index = 0;
++		     module_index < rec->ptxs.size(); ++module_index) {
++			const auto &ptx = rec->ptxs[module_index];
++			if (module_index >=
++			    rec->original_ptx_sha256_by_module.size())
++				continue;
++			const auto &digest =
++				rec->original_ptx_sha256_by_module[module_index];
++			std::map<std::string, std::string> matching_ptx;
++			for (const auto &[file_name, original_ptx] :
++			     rec->original_ptx) {
++				if (sha256(original_ptx.data(), original_ptx.size()) ==
++				    digest) {
++					matching_ptx.emplace(file_name, original_ptx);
++					break;
++				}
++			}
++			auto variant_kernels =
++				collect_ptx_entry_functions(matching_ptx);
++			if (variant_kernels.empty())
++				variant_kernels = kernels;
++			for (const auto &kernel : variant_kernels) {
+ 				CUfunction func = nullptr;
+ 				auto err = cuModuleGetFunction(
+ 					&func, ptx->module_ptr, kernel.c_str());
+ 				if (err == CUDA_SUCCESS && func != nullptr) {
+ 					record_patched_kernel_function(kernel,
+ 								       func);
++					record_patched_kernel_variant(
++						digest, kernel, func);
+ 					record_original_cufunction_name(func,
+ 									kernel);
+ 					SPDLOG_DEBUG(
+@@ -1963,3 +2513,4 @@
+ }
+ 
+ } // namespace bpftime::attach
++
+--- a/attach/nv_attach_impl/nv_attach_impl.hpp
++++ b/attach/nv_attach_impl/nv_attach_impl.hpp
+@@ -20,6 +20,7 @@
+ #include <set>
+ #include <string>
+ #include <unordered_map>
++#include <unordered_set>
+ #include <sys/ptrace.h>
+ #include <sys/syscall.h>
+ #include <sys/wait.h>
+@@ -57,6 +58,7 @@
+ 
+ enum class AttachedToFunction {
+ 	RegisterFatbin,
++	UnregisterFatbin,
+ 	RegisterFunction,
+ 	RegisterVariable,
+ 	RegisterFatbinEnd,
+@@ -65,9 +67,15 @@
+ 	CudaMemcpyToSymbol,
+ 	CudaMemcpyToSymbolAsync
+ };
++enum class RuntimeRegistrationDomain {
++	Unknown = 0,
++	Cudart12 = 12,
++	Cudart13 = 13,
++};
+ struct CUDARuntimeFunctionHookerContext {
+ 	class nv_attach_impl *impl;
+ 	AttachedToFunction to_function;
++	RuntimeRegistrationDomain runtime_domain = RuntimeRegistrationDomain::Unknown;
+ };
+ 
+ struct nv_attach_entry {
+@@ -121,7 +129,18 @@
+ 	// Original function pointers captured by gum_interceptor_replace.
+ 	std::atomic<void *> orig_cuda_launch_kernel{ nullptr };
+ 	std::atomic<void *> orig_cuda_launch_kernel_ptsz{ nullptr };
++	// Exact CUDA 12 public runtime entry; do not share the process-global slot.
++	std::atomic<void *> orig_public_launch_kernel_12{ nullptr };
++	// NVCC-generated host stubs call the private cudaKernel_t entry points,
++	// which are distinct, versioned symbols.  Keep every domain/entry in its
++	// own slot so a CUDA 12 hook can never overwrite a CUDA 13 trampoline.
++	std::atomic<void *> orig_private_launch_kernel_12{ nullptr };
++	std::atomic<void *> orig_private_launch_kernel_13{ nullptr };
++	std::atomic<void *> orig_private_launch_kernel_ptsz_12{ nullptr };
++	std::atomic<void *> orig_private_launch_kernel_ptsz_13{ nullptr };
+ 	std::atomic<void *> orig_cu_launch_kernel{ nullptr };
++	std::atomic<void *> orig_cu_launch_kernel_ex{ nullptr };
++	std::atomic<void *> orig_cu_launch_kernel_ex_ptsz{ nullptr };
+ 	std::atomic<void *> orig_cu_graph_add_kernel_node_v1{ nullptr };
+ 	std::atomic<void *> orig_cu_graph_add_kernel_node_v2{ nullptr };
+ 	std::atomic<void *> orig_cu_graph_exec_kernel_node_set_params_v1{ nullptr };
+@@ -176,8 +195,24 @@
+ 				    int block_dim_y = 1, int block_dim_z = 1);
+ 	void record_patched_kernel_function(const std::string &kernel_name,
+ 					    CUfunction function);
++	void record_patched_kernel_variant(const std::string &ptx_sha256,
++					   const std::string &kernel_name,
++					   CUfunction function);
+ 	std::optional<CUfunction>
+ 	find_patched_kernel_function(const std::string &kernel_name) const;
++	std::optional<CUfunction> find_patched_kernel_function_for_original(
++		CUfunction original) const;
++	int bind_ptx_variant(CUfunction original, const char *original_ptx,
++			     size_t original_ptx_size,
++			     const char *kernel_name);
++	// Bind a runtime-registered host stub using a fail-closed, externally
++	// verified collector/staging provenance manifest.  Returns zero only when
++	// the exact (domain, generation, DSO SHA, member SHA, entry) identity binds.
++	int auto_bind_registered_function(int runtime_domain, void *host_stub,
++					  CUfunction original);
++	// Cheap exact (registered domain, symbol, generation) prefilter.
++	// 0: unselected; 1: candidate; -1: invalid selected identity/manifest.
++	int native_binding_candidate(int runtime_domain, void *host_stub);
+ 	// Notify nv_attach_impl that a patched kernel launch was enqueued on a
+ 	// stream. Used to coordinate detach with in-flight patched kernels so we
+ 	// don't tear down loader-owned CUDA IPC buffers prematurely.
+@@ -201,6 +236,28 @@
+ 	bool is_enabled() const noexcept;
+ 	std::vector<std::unique_ptr<fatbin_record>> fatbin_records;
+ 	fatbin_record *current_fatbin = nullptr;
++	// Exact runtime registration identity.  The CUDA runtime returns a fatbin
++	// handle from __cudaRegisterFatBinary and passes that same handle as arg0
++	// to __cudaRegisterFunction/__cudaRegisterVar.  Keep the runtime domain in
++	// the key so cudart12/cudart13 handles cannot alias each other.
++	std::mutex fatbin_identity_mutex;
++	struct fatbin_handle_identity {
++		fatbin_record *record = nullptr;
++		std::uint64_t generation = 0;
++	};
++	std::uint64_t next_fatbin_generation = 1;
++	std::map<std::pair<int, void *>, fatbin_handle_identity>
++		fatbin_handle_to_record;
++	// Domain + host stub maps back to the exact handle generation.  This is
++	// invalidated together with the handle on unregister/reuse.
++	struct registered_symbol_identity_record {
++		std::pair<int, void *> handle_key;
++		std::uint64_t generation = 0;
++		std::string symbol;
++		std::string dso_path;
++	};
++	std::map<std::pair<int, void *>, registered_symbol_identity_record>
++		registered_symbol_identity;
+ 	std::map<void *, fatbin_record *> symbol_address_to_fatbin;
+ 	uintptr_t shared_mem_ptr;
+ 	std::optional<std::vector<MapBasicInfo>> map_basic_info;
+@@ -219,6 +276,8 @@
+ 	void *original_cuda_launch_kernel = nullptr;
+ 	void *original_cuda_launch_kernel_ptsz = nullptr;
+ 	void *original_cu_launch_kernel = nullptr;
++	void *original_cu_launch_kernel_ex = nullptr;
++	void *original_cu_launch_kernel_ex_ptsz = nullptr;
+ 	void *original_cu_graph_add_kernel_node_v1 = nullptr;
+ 	void *original_cu_graph_add_kernel_node_v2 = nullptr;
+ 	void *original_cu_graph_exec_kernel_node_set_params_v1 = nullptr;
+@@ -251,6 +310,11 @@
+ 		patch_cache;
+ 	mutable std::mutex cuda_symbol_map_mutex;
+ 	std::unordered_map<std::string, CUfunction> patched_kernel_by_name;
++	std::unordered_set<std::string> ambiguous_patched_kernel_names;
++	std::unordered_map<std::string, CUfunction>
++		patched_kernel_by_ptx_variant;
++	std::unordered_map<CUfunction, CUfunction>
++		patched_kernel_by_original_function;
+ 	std::unordered_map<CUfunction, std::string> kernel_name_by_cufunction;
+ 
+ 			std::atomic<bool> enabled{ true };
+--- a/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
++++ b/attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp
+@@ -5,10 +5,15 @@
+ #include "spdlog/spdlog.h"
+ #include "vector_types.h"
+ #include <algorithm>
++#include <atomic>
+ #include <cassert>
+ #include <cstddef>
+ #include <cstdint>
+ #include <cstdlib>
++#include <cstdio>
++#include <cstring>
++#include <fstream>
++#include <mutex>
+ #include <dlfcn.h>
+ #include <frida-gum.h>
+ #include <iterator>
+@@ -16,6 +21,7 @@
+ #include <optional>
+ #include <vector>
+ #include "nv_attach_impl.hpp"
++#include "strict_launch_policy.hpp"
+ #include <stdexcept>
+ using namespace bpftime;
+ using namespace attach;
+@@ -41,6 +47,76 @@
+ typedef struct _CUDARuntimeFunctionHooker {
+ 	GObject parent;
+ } CUDARuntimeFunctionHooker;
++
++struct pending_fatbin_registration {
++	RuntimeRegistrationDomain domain = RuntimeRegistrationDomain::Unknown;
++	fatbin_record *record = nullptr;
++	void *wrapper = nullptr;
++};
++static thread_local std::vector<pending_fatbin_registration>
++	pending_fatbin_registrations;
++
++static int registration_domain_id(RuntimeRegistrationDomain domain)
++{
++	return static_cast<int>(domain);
++}
++
++static const char *registration_domain_name(RuntimeRegistrationDomain domain)
++{
++	switch (domain) {
++	case RuntimeRegistrationDomain::Cudart12: return "cudart12";
++	case RuntimeRegistrationDomain::Cudart13: return "cudart13";
++	default: return "unknown";
++	}
++}
++
++static std::string registration_json_escape(const char *text)
++{
++	std::string result;
++	for (const unsigned char *p = reinterpret_cast<const unsigned char *>(
++		     text != nullptr ? text : "");
++	     *p != 0; ++p) {
++		switch (*p) {
++		case '\\': result += "\\\\"; break;
++		case '"': result += "\\\""; break;
++		case '\n': result += "\\n"; break;
++		case '\r': result += "\\r"; break;
++		case '\t': result += "\\t"; break;
++		default:
++			if (*p >= 0x20) result.push_back(static_cast<char>(*p));
++		}
++	}
++	return result;
++}
++
++static void native_registration_log(RuntimeRegistrationDomain domain,
++				    const char *event, const char *status,
++				    void *handle, void *object,
++				    std::uint64_t generation,
++				    const char *symbol)
++{
++	const char *path = std::getenv("HBFSIM_NATIVE_REGISTRATION_LOG_PATH");
++	if (path == nullptr || path[0] == '\0') return;
++	Dl_info info{};
++	const char *dso = object != nullptr && dladdr(object, &info) != 0 &&
++				       info.dli_fname != nullptr
++			  ? info.dli_fname : "";
++	static std::mutex log_mutex;
++	std::lock_guard<std::mutex> guard(log_mutex);
++	std::ofstream out(path, std::ios::app);
++	if (!out) return;
++	out << "{\"schema_version\":1,\"event\":\""
++	    << registration_json_escape(event) << "\",\"status\":\""
++	    << registration_json_escape(status) << "\",\"runtime_domain\":\""
++	    << registration_domain_name(domain) << "\",\"fatbin_handle\":\"0x"
++	    << std::hex << reinterpret_cast<std::uintptr_t>(handle)
++	    << "\",\"object\":\"0x"
++	    << reinterpret_cast<std::uintptr_t>(object) << std::dec
++	    << "\",\"generation\":" << generation << ",\"symbol\":\""
++	    << registration_json_escape(symbol) << "\",\"object_dso\":\""
++	    << registration_json_escape(dso) << "\"}\n";
++	out.flush();
++}
+ 
+ static void cuda_runtime_function_hooker_iface_init(gpointer g_iface,
+ 						    gpointer iface_data);
+@@ -71,11 +147,197 @@
+ 
+ using cuda_launch_kernel_fn_t = cudaError_t (*)(const void *, dim3, dim3,
+ 						void **, size_t, cudaStream_t);
++using cuda_private_launch_kernel_fn_t = cudaError_t (*)(
++	cudaKernel_t, dim3, dim3, void **, size_t, cudaStream_t);
+ using cu_launch_kernel_fn_t = CUresult (*)(CUfunction, unsigned int,
+ 					   unsigned int, unsigned int,
+ 					   unsigned int, unsigned int,
+ 					   unsigned int, unsigned int, CUstream,
+ 					   void **, void **);
++using cu_launch_kernel_ex_fn_t = CUresult (*)(const CUlaunchConfig *,
++					      CUfunction, void **, void **);
++
++// Strict runtime launches must reach the strict driver bridge on the same
++// thread.  A stack of frames keeps nested runtime launches isolated.
++struct strict_runtime_driver_frame {
++	const void *host_stub = nullptr;
++	const void *kernel_handle = nullptr;
++	const char *api = "cudaLaunchKernel";
++	const char *argument_kind = "host_stub";
++	const char *runtime_domain = "unversioned";
++	std::uint64_t call_id = 0;
++	std::uint64_t parent_call_id = 0;
++	unsigned int driver_calls = 0;
++	int gate_decision = 0;
++	CUfunction original_function = nullptr;
++	CUfunction selected_function = nullptr;
++	CUresult driver_result = CUDA_ERROR_UNKNOWN;
++	bool exact_alias_found = false;
++	bool original_completion = false;
++	int gate_runtime_result = static_cast<int>(cudaErrorUnknown);
++};
++
++static thread_local std::vector<strict_runtime_driver_frame *>
++	strict_runtime_driver_frames;
++static std::atomic<std::uint64_t> strict_runtime_next_call_id{ 1 };
++
++static bool strict_launch_bridge_enabled()
++{
++	const char *value = std::getenv("HBFSIM_INSTRUMENTATION_POLICY");
++	return value != nullptr && std::strcmp(value, "strict") == 0;
++}
++
++class strict_runtime_driver_scope {
++      public:
++	explicit strict_runtime_driver_scope(strict_runtime_driver_frame &frame)
++	{
++		strict_runtime_driver_frames.push_back(&frame);
++	}
++	~strict_runtime_driver_scope()
++	{
++		if (!strict_runtime_driver_frames.empty())
++			strict_runtime_driver_frames.pop_back();
++	}
++	strict_runtime_driver_scope(const strict_runtime_driver_scope &) = delete;
++	strict_runtime_driver_scope &
++	operator=(const strict_runtime_driver_scope &) = delete;
++};
++
++static void strict_runtime_log(const strict_runtime_driver_frame &frame,
++			       cudaError_t runtime_result,
++			       const char *outcome)
++{
++	const char *path = std::getenv("HBFSIM_STRICT_RUNTIME_LOG_PATH");
++	if (path == nullptr || path[0] == '\0')
++		return;
++	static std::mutex log_mutex;
++	std::lock_guard<std::mutex> guard(log_mutex);
++	FILE *stream = std::fopen(path, "a");
++	if (stream == nullptr)
++		return;
++	auto pointer_text = [](const void *pointer, char *buffer,
++			       std::size_t capacity) {
++		if (pointer == nullptr)
++			std::snprintf(buffer, capacity, "null");
++		else
++			std::snprintf(buffer, capacity, "\"0x%llx\"",
++				      static_cast<unsigned long long>(
++					      reinterpret_cast<std::uintptr_t>(pointer)));
++	};
++	char host_stub[40] = {}, kernel_handle[40] = {}, original_function[40] = {},
++	     selected_function[40] = {};
++	pointer_text(frame.host_stub, host_stub, sizeof(host_stub));
++	pointer_text(frame.kernel_handle, kernel_handle, sizeof(kernel_handle));
++	pointer_text(frame.original_function, original_function,
++		     sizeof(original_function));
++	pointer_text(frame.selected_function, selected_function,
++		     sizeof(selected_function));
++	std::fprintf(
++		stream,
++		"{\"schema_version\":1,\"api\":\"%s\",\"runtime_domain\":\"%s\","
++		"\"argument_kind\":\"%s\",\"call_id\":%llu,"
++		"\"parent_call_id\":%llu,\"host_stub\":%s,\"kernel_handle\":%s,"
++		"\"driver_calls\":%u,\"gate_decision\":%d,"
++		"\"original_function\":%s,\"selected_function\":%s,"
++		"\"exact_alias_found\":%s,\"driver_result\":%d,"
++		"\"original_completion\":%s,\"gate_runtime_result\":%d,"
++		"\"runtime_result\":%d,\"outcome\":\"%s\"}\n",
++		frame.api, frame.runtime_domain, frame.argument_kind,
++		static_cast<unsigned long long>(frame.call_id),
++		static_cast<unsigned long long>(frame.parent_call_id),
++		host_stub, kernel_handle, frame.driver_calls, frame.gate_decision,
++		original_function, selected_function,
++		frame.exact_alias_found ? "true" : "false",
++		static_cast<int>(frame.driver_result),
++		frame.original_completion ? "true" : "false",
++		frame.gate_runtime_result,
++		static_cast<int>(runtime_result), outcome);
++	std::fflush(stream);
++	std::fclose(stream);
++}
++
++static void strict_runtime_note_driver(int gate_decision,
++				       CUfunction original_function,
++				       CUfunction selected_function,
++				       bool exact_alias_found, CUresult result)
++{
++	if (strict_runtime_driver_frames.empty())
++		return;
++	auto *frame = strict_runtime_driver_frames.back();
++	frame->driver_calls += 1;
++	frame->gate_decision = gate_decision;
++	frame->original_function = original_function;
++	frame->selected_function = selected_function;
++	frame->exact_alias_found = exact_alias_found;
++	frame->driver_result = result;
++}
++
++struct strict_runtime_validation {
++	cudaError_t result;
++	const char *outcome;
++};
++
++static strict_runtime_validation
++strict_runtime_validate(const strict_runtime_driver_frame &frame,
++			cudaError_t runtime_result)
++{
++	if (frame.driver_calls == 0 && frame.original_completion &&
++	    frame.gate_decision == 1 &&
++	    frame.gate_runtime_result == static_cast<int>(runtime_result))
++		return { runtime_result,
++			runtime_result == cudaSuccess ? "ORIGINAL" :
++				"ORIGINAL_RUNTIME_ERROR" };
++	if (frame.driver_calls != 1 || frame.gate_decision == 0)
++		return { cudaErrorNotSupported, "REJECTED_DRIVER_CORRELATION" };
++	if (frame.gate_decision == 2 &&
++	    (!frame.exact_alias_found ||
++	     frame.selected_function == frame.original_function))
++		return { cudaErrorNotSupported, "REJECTED_EXACT_ALIAS" };
++	if (frame.driver_result != CUDA_SUCCESS && runtime_result == cudaSuccess)
++		return { cudaErrorUnknown, "REJECTED_DRIVER_RESULT" };
++	return { runtime_result,
++		 frame.gate_decision == 2 ? "PATCHED" : "ORIGINAL" };
++}
++
++using strict_original_begin_fn = std::uint64_t (*)(const void*, int, int);
++using strict_original_consume_fn = int (*)(std::uint64_t, const void*, int,
++					    int, int, int*, int*);
++struct strict_original_roundtrip_api {
++	strict_original_begin_fn begin = nullptr;
++	strict_original_consume_fn consume = nullptr;
++	explicit operator bool() const { return begin != nullptr && consume != nullptr; }
++};
++static strict_original_roundtrip_api strict_original_roundtrip_resolve()
++{
++	return {
++		reinterpret_cast<strict_original_begin_fn>(
++			dlsym(RTLD_DEFAULT, "hbfsim_strict_original_begin_v1")),
++		reinterpret_cast<strict_original_consume_fn>(
++			dlsym(RTLD_DEFAULT, "hbfsim_strict_original_consume_v1"))
++	};
++}
++static bool strict_original_roundtrip_begin(
++	const strict_original_roundtrip_api &api, const void *function, int domain,
++	int api_kind, std::uint64_t &token)
++{
++	if (!api) return false;
++	token = api.begin(function, domain, api_kind);
++	return token != 0;
++}
++static void strict_original_roundtrip_consume(
++	const strict_original_roundtrip_api &api,
++	strict_runtime_driver_frame &frame, std::uint64_t token,
++	const void *function, int domain, int api_kind, cudaError_t observed)
++{
++	if (!api) return;
++	int decision = 0, gate_result = static_cast<int>(cudaErrorUnknown);
++	if (api.consume(token, function, domain, api_kind,
++		    static_cast<int>(observed), &decision, &gate_result) == 1) {
++		frame.original_completion = true;
++		frame.gate_decision = decision;
++		frame.gate_runtime_result = gate_result;
++	}
++}
+ 
+ static bool cuda_graph_stream_is_capturing(cudaStream_t stream)
+ {
+@@ -89,16 +351,42 @@
+ 	return status != cudaStreamCaptureStatusNone;
+ }
+ 
++static int native_partial_bind_public12(nv_attach_impl *impl,
++					 const void *host_stub, CUfunction &patched);
++
+ static cudaError_t
+ cuda_launch_kernel_common(nv_attach_impl *impl, void *original_fn_ptr,
+ 			  const void *func, dim3 grid_dim, dim3 block_dim,
+-			  void **args, size_t shared_mem, cudaStream_t stream)
++			  void **args, size_t shared_mem, cudaStream_t stream,
++			  bool native_public12 = false)
+ {
+ 	auto original =
+ 		reinterpret_cast<cuda_launch_kernel_fn_t>(original_fn_ptr);
+ 	if (!original) {
+ 		SPDLOG_ERROR("Original cudaLaunchKernel function is null");
+ 		return cudaErrorUnknown;
++	}
++	const bool strict = strict_launch_bridge_enabled();
++	if (strict) {
++		strict_runtime_driver_frame frame{};
++		frame.host_stub = func;
++		frame.call_id = strict_runtime_next_call_id.fetch_add(
++			1, std::memory_order_relaxed);
++		frame.parent_call_id = strict_runtime_driver_frames.empty()
++					       ? 0
++					       : strict_runtime_driver_frames.back()->call_id;
++		strict_runtime_driver_scope scope(frame);
++		if (impl == nullptr || !impl->is_enabled() ||
++		    !impl->is_late_bootstrap_done()) {
++			strict_runtime_log(frame, cudaErrorNotSupported,
++					   "REJECTED_BRIDGE_UNAVAILABLE");
++			return cudaErrorNotSupported;
++		}
++		const auto result =
++			original(func, grid_dim, block_dim, args, shared_mem, stream);
++		const auto validation = strict_runtime_validate(frame, result);
++		strict_runtime_log(frame, validation.result, validation.outcome);
++		return validation.result;
+ 	}
+ 	if (impl == nullptr)
+ 		return original(func, grid_dim, block_dim, args, shared_mem,
+@@ -137,6 +425,43 @@
+ 					cuCtxSetCurrent(ctx);
+ 				}
+ 			}
++		}
++	}
++
++	// In partial mode, only a registered and manifest-selected public CUDA 12
++	// stub may take the exact native binding route.  The existing name-only
++	// fallback below remains for unselected kernels, but cannot certify a
++	// selected weight kernel whose host symbol is local or absent from ELF.
++	if (native_public12) {
++		const int candidate = impl->native_binding_candidate(
++			12, const_cast<void *>(func));
++		if (candidate < 0) {
++			SPDLOG_ERROR("Native partial binding candidate has stale or invalid identity");
++			return cudaErrorNotSupported;
++		}
++		if (candidate == 1) {
++			if (!impl->is_late_bootstrap_done()) {
++				SPDLOG_ERROR("Native partial binding candidate before bootstrap");
++				return cudaErrorNotSupported;
++			}
++			CUfunction patched = nullptr;
++			if (native_partial_bind_public12(impl, func, patched) != 0 ||
++			    patched == nullptr) {
++				SPDLOG_ERROR("Native partial exact binding failed for host stub {:x}",
++					     (uintptr_t)func);
++				return cudaErrorNotSupported;
++			}
++			const auto err = cuLaunchKernel(
++				patched, grid_dim.x, grid_dim.y, grid_dim.z,
++				block_dim.x, block_dim.y, block_dim.z, shared_mem,
++				stream, args, nullptr);
++			if (err != CUDA_SUCCESS) {
++				SPDLOG_ERROR("Native partial patched launch failed CUDA result={}",
++					     (int)err);
++				return cudaErrorLaunchFailure;
++			}
++			impl->record_patched_launch(stream);
++			return cudaSuccess;
+ 		}
+ 	}
+ 
+@@ -245,6 +570,232 @@
+ 	return original(func, grid_dim, block_dim, args, shared_mem, stream);
+ }
+ 
++static cudaError_t cuda_private_launch_kernel_common(
++	nv_attach_impl *impl, void *original_fn_ptr, const char *api,
++	const char *runtime_domain, cudaKernel_t kernel, dim3 grid_dim,
++	dim3 block_dim, void **args, size_t shared_mem, cudaStream_t stream)
++{
++	auto original = reinterpret_cast<cuda_private_launch_kernel_fn_t>(
++		original_fn_ptr);
++	if (!original) {
++		SPDLOG_ERROR("Original {} ({}) function is null", api,
++			     runtime_domain);
++		return cudaErrorUnknown;
++	}
++	if (!strict_launch_bridge_enabled())
++		return original(kernel, grid_dim, block_dim, args, shared_mem,
++				stream);
++	strict_runtime_driver_frame frame{};
++	frame.kernel_handle = reinterpret_cast<const void *>(kernel);
++	frame.api = api;
++	frame.argument_kind = "cudaKernel_t";
++	frame.runtime_domain = runtime_domain;
++	frame.call_id = strict_runtime_next_call_id.fetch_add(
++		1, std::memory_order_relaxed);
++	frame.parent_call_id = strict_runtime_driver_frames.empty()
++				       ? 0
++				       : strict_runtime_driver_frames.back()->call_id;
++	strict_runtime_driver_scope scope(frame);
++	if (impl == nullptr || !impl->is_enabled() ||
++	    !impl->is_late_bootstrap_done()) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_BRIDGE_UNAVAILABLE");
++		return cudaErrorNotSupported;
++	}
++	const int domain = std::strcmp(runtime_domain, "cudart12") == 0 ? 12 :
++		(std::strcmp(runtime_domain, "cudart13") == 0 ? 13 : 0);
++	const auto roundtrip = strict_original_roundtrip_resolve();
++	if (domain == 0 || !roundtrip) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_ORIGINAL_HANDSHAKE_MIXED_COHORT");
++		return cudaErrorNotSupported;
++	}
++	const void *kernel_identity = reinterpret_cast<const void *>(kernel);
++	std::uint64_t original_token = 0;
++	if (!strict_original_roundtrip_begin(roundtrip, kernel_identity, domain, 2,
++					     original_token)) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_ORIGINAL_HANDSHAKE_MISSING");
++		return cudaErrorNotSupported;
++	}
++	const auto result = original(kernel, grid_dim, block_dim, args,
++				     shared_mem, stream);
++	strict_original_roundtrip_consume(roundtrip, frame, original_token,
++					  kernel_identity, domain, 2, result);
++	const auto validation = strict_runtime_validate(frame, result);
++	strict_runtime_log(frame, validation.result, validation.outcome);
++	return validation.result;
++}
++
++static int native_partial_bind_public12(nv_attach_impl *impl,
++					 const void *host_stub, CUfunction &patched)
++{
++	patched = nullptr;
++	const char *build = std::getenv("HBFSIM_BUILD_DIR");
++	if (build == nullptr || build[0] == '\0') return -1;
++	static std::mutex gate_mutex;
++	static void *gate = nullptr;
++	void *gate_handle = nullptr;
++	{
++		std::lock_guard<std::mutex> guard(gate_mutex);
++		if (gate == nullptr) {
++			const auto path = std::filesystem::path(build) /
++				"libhbfsim_launch_gate.so";
++			gate = dlopen(path.c_str(), RTLD_NOW | RTLD_NOLOAD | RTLD_LOCAL);
++		}
++		gate_handle = gate;
++	}
++	using get_function_type = cudaError_t (*)(cudaFunction_t *, const void *);
++	auto get_function = gate_handle == nullptr ? nullptr
++		: reinterpret_cast<get_function_type>(
++			dlvsym(gate_handle, "cudaGetFuncBySymbol", "libcudart.so.12"));
++	if (get_function == nullptr) return -2;
++	cudaFunction_t runtime_function = nullptr;
++	if (get_function(&runtime_function, host_stub) != cudaSuccess ||
++	    runtime_function == nullptr)
++		return -3;
++	const auto original = reinterpret_cast<CUfunction>(runtime_function);
++	const int result = impl->auto_bind_registered_function(
++		12, const_cast<void *>(host_stub), original);
++	if (result != 0) {
++		SPDLOG_ERROR("Native partial exact auto-bind failed result={}", result);
++		return -4;
++	}
++	const auto alias = impl->find_patched_kernel_function_for_original(original);
++	if (!alias || *alias == nullptr) return -5;
++	patched = *alias;
++	return 0;
++}
++
++static void try_native_auto_bind_public12(nv_attach_impl *impl,
++					  const void *host_stub)
++{
++	if (impl == nullptr || host_stub == nullptr ||
++	    std::getenv("HBFSIM_NATIVE_BINDING_MANIFEST_PATH") == nullptr)
++		return;
++	const char *build = std::getenv("HBFSIM_BUILD_DIR");
++	if (build == nullptr || build[0] == '\0') return;
++	static void *gate = nullptr;
++	if (gate == nullptr) {
++		auto path = std::filesystem::path(build) /
++			    "libhbfsim_launch_gate.so";
++		gate = dlopen(path.c_str(), RTLD_NOW | RTLD_NOLOAD | RTLD_LOCAL);
++	}
++	using get_function_type = cudaError_t (*)(cudaFunction_t *, const void *);
++	auto get_function = gate == nullptr ? nullptr
++		: reinterpret_cast<get_function_type>(
++			dlvsym(gate, "cudaGetFuncBySymbol", "libcudart.so.12"));
++	if (get_function == nullptr) return;
++	cudaFunction_t runtime_function = nullptr;
++	if (get_function(&runtime_function, host_stub) != cudaSuccess ||
++	    runtime_function == nullptr)
++		return;
++	const int result = impl->auto_bind_registered_function(
++		12, const_cast<void *>(host_stub),
++		reinterpret_cast<CUfunction>(runtime_function));
++	if (result != 0)
++		SPDLOG_ERROR("Native public12 automatic binding failed result={}",
++			     result);
++}
++
++static nv_attach_hook_state *current_hook_state()
++{
++	auto gum_ctx = gum_interceptor_get_current_invocation();
++	auto *state = (nv_attach_hook_state *)
++		gum_invocation_context_get_replacement_data(gum_ctx);
++	return state == nullptr ? &nv_attach_get_hook_state() : state;
++}
++
++static cudaError_t cuda_public_launch_kernel_12_common(
++	nv_attach_impl *impl, void *original_fn_ptr, const void *func,
++	dim3 grid_dim, dim3 block_dim, void **args, size_t shared_mem,
++	cudaStream_t stream)
++{
++	if (!strict_launch_bridge_enabled())
++		return cuda_launch_kernel_common(impl, original_fn_ptr, func,
++			grid_dim, block_dim, args, shared_mem, stream, true);
++	auto original = reinterpret_cast<cuda_launch_kernel_fn_t>(original_fn_ptr);
++	strict_runtime_driver_frame frame{};
++	frame.host_stub = func;
++	frame.api = "cudaLaunchKernel";
++	frame.argument_kind = "host_stub";
++	frame.runtime_domain = "cudart12";
++	frame.call_id = strict_runtime_next_call_id.fetch_add(
++		1, std::memory_order_relaxed);
++	frame.parent_call_id = strict_runtime_driver_frames.empty()
++			       ? 0
++			       : strict_runtime_driver_frames.back()->call_id;
++	strict_runtime_driver_scope scope(frame);
++	if (original == nullptr || impl == nullptr || !impl->is_enabled() ||
++	    !impl->is_late_bootstrap_done()) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_BRIDGE_UNAVAILABLE");
++		return cudaErrorNotSupported;
++	}
++	try_native_auto_bind_public12(impl, func);
++	const auto roundtrip = strict_original_roundtrip_resolve();
++	if (!roundtrip) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_ORIGINAL_HANDSHAKE_MIXED_COHORT");
++		return cudaErrorNotSupported;
++	}
++	std::uint64_t original_token = 0;
++	if (!strict_original_roundtrip_begin(roundtrip, func, 12, 1,
++					     original_token)) {
++		strict_runtime_log(frame, cudaErrorNotSupported,
++				   "REJECTED_ORIGINAL_HANDSHAKE_MISSING");
++		return cudaErrorNotSupported;
++	}
++	const auto result = original(func, grid_dim, block_dim, args,
++				     shared_mem, stream);
++	strict_original_roundtrip_consume(roundtrip, frame, original_token, func,
++					  12, 1, result);
++	const auto validation = strict_runtime_validate(frame, result);
++	strict_runtime_log(frame, validation.result, validation.outcome);
++	return validation.result;
++}
++
++extern "C" cudaError_t cuda_runtime_function__cudaLaunchKernel_12(
++	const void *func, dim3 grid_dim, dim3 block_dim, void **args,
++	size_t shared_mem, cudaStream_t stream)
++{
++	auto *state = current_hook_state();
++	return cuda_public_launch_kernel_12_common(
++		state->active_impl.load(std::memory_order_acquire),
++		state->orig_public_launch_kernel_12.load(std::memory_order_acquire),
++		func, grid_dim, block_dim, args, shared_mem, stream);
++}
++
++#define DEFINE_PRIVATE_RUNTIME_WRAPPER(function_name, slot_name, api_name, domain_name) \
++	extern "C" cudaError_t function_name(                                      \
++		cudaKernel_t kernel, dim3 grid_dim, dim3 block_dim, void **args,     \
++		size_t shared_mem, cudaStream_t stream)                              \
++	{                                                                         \
++		auto *state = current_hook_state();                                  \
++		return cuda_private_launch_kernel_common(                            \
++			state->active_impl.load(std::memory_order_acquire),            \
++			state->slot_name.load(std::memory_order_acquire), api_name,     \
++			domain_name, kernel, grid_dim, block_dim, args, shared_mem,     \
++			stream);                                                        \
++	}
++
++DEFINE_PRIVATE_RUNTIME_WRAPPER(cuda_runtime_function___cudaLaunchKernel_12,
++	orig_private_launch_kernel_12, "__cudaLaunchKernel", "cudart12")
++DEFINE_PRIVATE_RUNTIME_WRAPPER(cuda_runtime_function___cudaLaunchKernel_13,
++	orig_private_launch_kernel_13, "__cudaLaunchKernel", "cudart13")
++DEFINE_PRIVATE_RUNTIME_WRAPPER(cuda_runtime_function___cudaLaunchKernel_ptsz_12,
++	orig_private_launch_kernel_ptsz_12, "__cudaLaunchKernel_ptsz", "cudart12")
++DEFINE_PRIVATE_RUNTIME_WRAPPER(cuda_runtime_function___cudaLaunchKernel_ptsz_13,
++	orig_private_launch_kernel_ptsz_13, "__cudaLaunchKernel_ptsz", "cudart13")
++
++#undef DEFINE_PRIVATE_RUNTIME_WRAPPER
++
++static bool fatbin_scan_disabled()
++{
++	const char *disabled = getenv("BPFTIME_CUDA_DISABLE_CUOBJDUMP");
++	return disabled != nullptr && disabled[0] == '1';
++}
++
+ static void example_listener_on_enter(GumInvocationListener *listener,
+ 				      GumInvocationContext *ic)
+ {
+@@ -253,6 +804,24 @@
+ 		GUM_IC_GET_FUNC_DATA(ic, CUDARuntimeFunctionHookerContext *);
+ 	if (context->to_function == AttachedToFunction::RegisterFatbin) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterFatBinary..");
++		auto wrapper = gum_invocation_context_get_nth_argument(gum_ctx, 0);
++		if (fatbin_scan_disabled()) {
++			auto record = std::make_unique<struct fatbin_record>();
++			record->module_pool = context->impl->module_pool;
++			record->ptx_pool = context->impl->ptx_pool;
++			auto *record_ptr = record.get();
++			{
++				std::lock_guard<std::mutex> guard(
++					context->impl->fatbin_identity_mutex);
++				context->impl->current_fatbin = record_ptr;
++				context->impl->fatbin_records.emplace_back(
++					std::move(record));
++			}
++			pending_fatbin_registrations.push_back(
++				{ context->runtime_domain, record_ptr, wrapper });
++			SPDLOG_INFO("Skipping CUDA fatbin registration scan");
++			return;
++		}
+ 
+ 		auto header = (__fatBinC_Wrapper_t *)
+ 			gum_invocation_context_get_nth_argument(gum_ctx, 0);
+@@ -285,22 +854,91 @@
+ 		fatbin_record->module_pool = context->impl->module_pool;
+ 		fatbin_record->ptx_pool = context->impl->ptx_pool;
+ 
+-		context->impl->current_fatbin = fatbin_record.get();
+-		context->impl->fatbin_records.emplace_back(
+-			std::move(fatbin_record));
+-
++		auto *record_ptr = fatbin_record.get();
++		{
++			std::lock_guard<std::mutex> guard(
++				context->impl->fatbin_identity_mutex);
++			context->impl->current_fatbin = record_ptr;
++			context->impl->fatbin_records.emplace_back(
++				std::move(fatbin_record));
++		}
++		pending_fatbin_registrations.push_back(
++			{ context->runtime_domain, record_ptr, wrapper });
++
++	} else if (context->to_function ==
++		   AttachedToFunction::UnregisterFatbin) {
++		auto handle = gum_invocation_context_get_nth_argument(gum_ctx, 0);
++		auto &impl = *context->impl;
++		const auto handle_key = std::make_pair(
++			registration_domain_id(context->runtime_domain), handle);
++		std::uint64_t generation = 0;
++		bool removed = false;
++		{
++			std::lock_guard<std::mutex> guard(impl.fatbin_identity_mutex);
++			auto found = impl.fatbin_handle_to_record.find(handle_key);
++			if (found != impl.fatbin_handle_to_record.end()) {
++				generation = found->second.generation;
++				impl.fatbin_handle_to_record.erase(found);
++				removed = true;
++			}
++			for (auto it = impl.registered_symbol_identity.begin();
++			     it != impl.registered_symbol_identity.end();) {
++				if (it->second.handle_key == handle_key &&
++				    it->second.generation == generation) {
++					impl.symbol_address_to_fatbin.erase(it->first.second);
++					it = impl.registered_symbol_identity.erase(it);
++				} else {
++					++it;
++				}
++			}
++		}
++		native_registration_log(context->runtime_domain, "unregister_fatbin",
++			removed ? "INVALIDATED" : "UNKNOWN_HANDLE", handle,
++			nullptr, generation, "");
+ 	} else if (context->to_function ==
+ 		   AttachedToFunction::RegisterFunction) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterFunction..");
+ 		auto &impl = *context->impl;
+-		auto current_fatbin = context->impl->current_fatbin;
+-		current_fatbin->try_loading_ptxs(*context->impl);
+-
++		auto fatbin_handle =
++			gum_invocation_context_get_nth_argument(gum_ctx, 0);
+ 		auto func_addr =
+ 			gum_invocation_context_get_nth_argument(gum_ctx, 1);
+ 		auto symbol_name =
+ 			(const char *)gum_invocation_context_get_nth_argument(
+ 				gum_ctx, 3);
++		fatbin_record *current_fatbin = nullptr;
++		std::uint64_t generation = 0;
++		const auto handle_key = std::make_pair(
++			registration_domain_id(context->runtime_domain), fatbin_handle);
++		{
++			std::lock_guard<std::mutex> guard(impl.fatbin_identity_mutex);
++			auto found = impl.fatbin_handle_to_record.find(handle_key);
++			if (found != impl.fatbin_handle_to_record.end()) {
++				current_fatbin = found->second.record;
++				generation = found->second.generation;
++				Dl_info host_info{};
++				const char *host_dso =
++					dladdr(func_addr, &host_info) != 0 &&
++							host_info.dli_fname != nullptr
++						? host_info.dli_fname : "";
++				impl.registered_symbol_identity[std::make_pair(
++					registration_domain_id(context->runtime_domain),
++					func_addr)] = { handle_key, generation,
++						       symbol_name != nullptr ? symbol_name : "",
++						       host_dso };
++			}
++		}
++		if (current_fatbin == nullptr) {
++			native_registration_log(context->runtime_domain,
++				"register_function", "UNKNOWN_HANDLE", fatbin_handle,
++				func_addr, 0, symbol_name);
++			return;
++		}
++		native_registration_log(context->runtime_domain,
++			"register_function", "EXACT_HANDLE", fatbin_handle,
++			func_addr, generation, symbol_name);
++		if (fatbin_scan_disabled()) return;
++		current_fatbin->try_loading_ptxs(*context->impl);
+ 		if (auto ok = current_fatbin->find_and_fill_function_info(
+ 			    func_addr, symbol_name);
+ 		    !ok) {
+@@ -325,8 +963,6 @@
+ 	} else if (context->to_function ==
+ 		   AttachedToFunction::RegisterVariable) {
+ 		SPDLOG_DEBUG("Entering __cudaRegisterVar");
+-		auto current_fatbin = context->impl->current_fatbin;
+-		current_fatbin->try_loading_ptxs(*context->impl);
+ 		auto fatbin_handle =
+ 			gum_invocation_context_get_nth_argument(gum_ctx, 0);
+ 		auto var_addr =
+@@ -334,6 +970,43 @@
+ 		auto symbol_name =
+ 			(const char *)gum_invocation_context_get_nth_argument(
+ 				gum_ctx, 3);
++		fatbin_record *current_fatbin = nullptr;
++		std::uint64_t generation = 0;
++		{
++			std::lock_guard<std::mutex> guard(
++				context->impl->fatbin_identity_mutex);
++			auto found = context->impl->fatbin_handle_to_record.find(
++				{ registration_domain_id(context->runtime_domain),
++				  fatbin_handle });
++			if (found != context->impl->fatbin_handle_to_record.end()) {
++				current_fatbin = found->second.record;
++				generation = found->second.generation;
++				const auto handle_key = std::make_pair(
++					registration_domain_id(context->runtime_domain),
++					fatbin_handle);
++				Dl_info host_info{};
++				const char *host_dso =
++					dladdr(var_addr, &host_info) != 0 &&
++							host_info.dli_fname != nullptr
++						? host_info.dli_fname : "";
++				context->impl->registered_symbol_identity[std::make_pair(
++					registration_domain_id(context->runtime_domain),
++					var_addr)] = { handle_key, generation,
++						       symbol_name != nullptr ? symbol_name : "",
++						       host_dso };
++			}
++		}
++		if (current_fatbin == nullptr) {
++			native_registration_log(context->runtime_domain,
++				"register_variable", "UNKNOWN_HANDLE", fatbin_handle,
++				var_addr, 0, symbol_name);
++			return;
++		}
++		native_registration_log(context->runtime_domain,
++			"register_variable", "EXACT_HANDLE", fatbin_handle,
++			var_addr, generation, symbol_name);
++		if (fatbin_scan_disabled()) return;
++		current_fatbin->try_loading_ptxs(*context->impl);
+ 		SPDLOG_DEBUG("Registering variable named {}", symbol_name);
+ 
+ 		if (bool ok = current_fatbin->find_and_fill_variable_info(
+@@ -396,6 +1069,51 @@
+ 		GUM_IC_GET_FUNC_DATA(ic, CUDARuntimeFunctionHookerContext *);
+ 	if (context->to_function == AttachedToFunction::RegisterFatbin) {
+ 		SPDLOG_DEBUG("Leaving RegisterFatbin");
++		if (pending_fatbin_registrations.empty()) {
++			native_registration_log(context->runtime_domain,
++				"register_fatbin", "MISSING_INVOCATION_STATE", nullptr,
++				nullptr, 0, "");
++			return;
++		}
++		auto pending = pending_fatbin_registrations.back();
++		pending_fatbin_registrations.pop_back();
++		auto handle = gum_invocation_context_get_return_value(gum_ctx);
++		if (handle == nullptr || pending.record == nullptr ||
++		    pending.domain == RuntimeRegistrationDomain::Unknown) {
++			native_registration_log(pending.domain, "register_fatbin",
++				"UNKNOWN_IDENTITY", handle, pending.wrapper, 0, "");
++			return;
++		}
++		std::uint64_t generation = 0;
++		{
++			std::lock_guard<std::mutex> guard(
++				context->impl->fatbin_identity_mutex);
++			const auto key = std::make_pair(
++				registration_domain_id(pending.domain), handle);
++			auto previous = context->impl->fatbin_handle_to_record.find(key);
++			if (previous != context->impl->fatbin_handle_to_record.end()) {
++				const auto old_generation = previous->second.generation;
++				for (auto it = context->impl->registered_symbol_identity.begin();
++				     it != context->impl->registered_symbol_identity.end();) {
++					if (it->second.handle_key == key &&
++					    it->second.generation == old_generation) {
++						context->impl->symbol_address_to_fatbin.erase(
++							it->first.second);
++						it = context->impl->registered_symbol_identity.erase(it);
++					} else {
++						++it;
++					}
++				}
++			}
++			generation = context->impl->next_fatbin_generation++;
++			context->impl->fatbin_handle_to_record[key] =
++				{ pending.record, generation };
++		}
++		native_registration_log(pending.domain, "register_fatbin",
++			"EXACT_HANDLE", handle, pending.wrapper, generation, "");
++	} else if (context->to_function ==
++		   AttachedToFunction::UnregisterFatbin) {
++		SPDLOG_DEBUG("Leaving __cudaUnregisterFatBinary");
+ 	} else if (context->to_function ==
+ 		   AttachedToFunction::RegisterFunction) {
+ 		SPDLOG_DEBUG("Leaving RegisterFunction");
+@@ -486,6 +1204,62 @@
+ 	return std::string(name);
+ }
+ 
++
++extern "C" __attribute__((visibility("default"))) uint64_t
++ bpftime_nv_strict_bridge_capabilities_v1()
++{
++	// bit0: strict driver tri-state bridge; bit1: strict runtime launch must
++	// traverse and complete the same-thread exact driver bridge.
++	return 3ULL;
++}
++
++static void strict_bridge_log(const char *api, int gate_decision,
++			      bool exact_alias_found, CUfunction original_function,
++			      CUfunction patched_function,
++			      CUfunction selected_function,
++			      const char *selected_path, CUresult result)
++{
++	const char *path = std::getenv("HBFSIM_STRICT_BRIDGE_LOG_PATH");
++	if (path == nullptr || path[0] == '\0')
++		return;
++	static std::mutex log_mutex;
++	std::lock_guard<std::mutex> guard(log_mutex);
++	FILE *stream = std::fopen(path, "a");
++	if (stream == nullptr)
++		return;
++	char original_json[40] = {};
++	char patched_json[40] = {};
++	char selected_json[40] = {};
++	strict_pointer_json(reinterpret_cast<std::uintptr_t>(original_function),
++			    original_json, sizeof(original_json));
++	strict_pointer_json(reinterpret_cast<std::uintptr_t>(patched_function),
++			    patched_json, sizeof(patched_json));
++	strict_pointer_json(reinterpret_cast<std::uintptr_t>(selected_function),
++			    selected_json, sizeof(selected_json));
++	std::fprintf(
++		stream,
++		"{\"schema_version\":1,\"api\":\"%s\",\"gate_decision\":%d,"
++		"\"exact_alias_found\":%s,\"original_function\":%s,"
++		"\"patched_function\":%s,\"selected_function\":%s,"
++		"\"selected_path\":\"%s\",\"cuda_result\":%d}\n",
++		api, gate_decision, exact_alias_found ? "true" : "false",
++		original_json, patched_json, selected_json, selected_path,
++		static_cast<int>(result));
++	std::fclose(stream);
++}
++
++static int strict_gate_decision(CUfunction func, void **kernel_params,
++				 void **extra)
++{
++	using gate_approve_fn = int (*)(CUfunction, void **, void **);
++	auto gate_approve = reinterpret_cast<gate_approve_fn>(
++		dlsym(RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
++	if (gate_approve == nullptr)
++		return 0;
++	const int decision = gate_approve(func, kernel_params, extra);
++	return decision == 1 || decision == 2 ? decision : 0;
++}
++
+ static CUresult cu_launch_kernel_common(
+ 	nv_attach_impl *impl, void *original_fn_ptr, CUfunction func,
+ 	unsigned int grid_dim_x, unsigned int grid_dim_y, unsigned int grid_dim_z,
+@@ -497,6 +1271,66 @@
+ 	if (!original) {
+ 		SPDLOG_ERROR("Original cuLaunchKernel function is null");
+ 		return CUDA_ERROR_UNKNOWN;
++	}
++	const bool strict = strict_launch_bridge_enabled();
++	if (strict) {
++		const CUfunction original_func = func;
++		if (impl == nullptr || !impl->is_enabled() ||
++		    !impl->is_late_bootstrap_done()) {
++			strict_runtime_note_driver(0, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log("cuLaunchKernel", 0, false, original_func,
++					  nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		const int gate_decision =
++			strict_gate_decision(func, kernel_params, extra);
++		const auto no_alias_action = strict_launch_policy(
++			true, gate_decision, false);
++		if (no_alias_action == strict_launch_action::reject &&
++		    gate_decision != 2) {
++			strict_runtime_note_driver(0, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log("cuLaunchKernel", 0, false, original_func,
++					  nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		if (no_alias_action == strict_launch_action::original) {
++			const CUresult result =
++				original(func, grid_dim_x, grid_dim_y, grid_dim_z,
++					 block_dim_x, block_dim_y, block_dim_z,
++					 shared_mem_bytes, stream, kernel_params,
++					 extra);
++			strict_runtime_note_driver(1, original_func, original_func,
++					   false, result);
++			strict_bridge_log("cuLaunchKernel", 1, false, original_func,
++					  nullptr, original_func, "ORIGINAL", result);
++			return result;
++		}
++		auto patched =
++			impl->find_patched_kernel_function_for_original(func);
++		if (!patched || strict_launch_policy(true, gate_decision, bool(patched)) !=
++				 strict_launch_action::patched) {
++			strict_runtime_note_driver(2, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log("cuLaunchKernel", 2, false, original_func,
++					  nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		func = *patched;
++		impl->record_patched_launch(
++			reinterpret_cast<cudaStream_t>(stream));
++		const CUresult result =
++			original(func, grid_dim_x, grid_dim_y, grid_dim_z,
++				 block_dim_x, block_dim_y, block_dim_z,
++				 shared_mem_bytes, stream, kernel_params, extra);
++		strict_runtime_note_driver(2, original_func, func, true, result);
++		strict_bridge_log("cuLaunchKernel", 2, true, original_func, func,
++				  func, "PATCHED", result);
++		return result;
+ 	}
+ 	if (impl == nullptr)
+ 		return original(func, grid_dim_x, grid_dim_y, grid_dim_z,
+@@ -511,14 +1345,32 @@
+ 				block_dim_x, block_dim_y, block_dim_z,
+ 				shared_mem_bytes, stream, kernel_params, extra);
+ 
+-	auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
+-		*impl, func);
+-	if (kernel_name) {
+-		if (auto patched = impl->find_patched_kernel_function(*kernel_name);
++	if (auto patched =
++		    impl->find_patched_kernel_function_for_original(func);
++	    patched) {
++		using gate_approve_fn = int (*)(CUfunction, void **, void **);
++		auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
++			RTLD_DEFAULT, "hbfsim_approve_original_cuda_function"));
++		const auto gate_decision = gate_approve == nullptr
++						   ? 2
++						   : gate_approve(func, kernel_params, extra);
++		if (gate_decision == 0)
++			return CUDA_ERROR_NOT_SUPPORTED;
++		if (gate_decision > 1) {
++			func = *patched;
++			impl->record_patched_launch(
++				reinterpret_cast<cudaStream_t>(stream));
++		}
++	} else {
++		auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
++			*impl, func);
++		if (kernel_name) {
++			if (auto patched = impl->find_patched_kernel_function(*kernel_name);
+ 		    patched) {
+ 			func = *patched;
+ 			impl->record_patched_launch(
+ 				reinterpret_cast<cudaStream_t>(stream));
++		}
+ 		}
+ 	}
+ 	return original(func, grid_dim_x, grid_dim_y, grid_dim_z, block_dim_x,
+@@ -547,6 +1399,175 @@
+ 				       extra);
+ }
+ 
++// Strict runtime launches approved by the launch gate cannot assume that a
++// particular cudart implementation will re-enter an interposed Driver API.
++// This narrow ABI lets the gate dispatch the already-resolved original
++// CUfunction through the existing exact-alias Driver bridge.  It is deliberately
++// unavailable outside strict mode and never falls back to the original kernel.
++extern "C" __attribute__((visibility("default"))) CUresult
++bpftime_nv_strict_direct_cu_launch_kernel_v1(
++	CUfunction original_func, unsigned int grid_dim_x,
++	unsigned int grid_dim_y, unsigned int grid_dim_z,
++	unsigned int block_dim_x, unsigned int block_dim_y,
++	unsigned int block_dim_z, unsigned int shared_mem_bytes, CUstream stream,
++	void **kernel_params, void **extra)
++{
++	if (!strict_launch_bridge_enabled() || original_func == nullptr)
++		return CUDA_ERROR_NOT_SUPPORTED;
++	// The exported ABI is fail-closed even when called by an unexpected
++	// consumer.  Only the gate's same-thread approval=2 for this exact
++	// original CUfunction may proceed; approval=1 must never reach either the
++	// implementation state or the common bridge's native branch.
++	if (strict_gate_decision(original_func, kernel_params, extra) != 2)
++		return CUDA_ERROR_NOT_SUPPORTED;
++	auto &state = nv_attach_get_hook_state();
++	auto *impl = state.active_impl.load(std::memory_order_acquire);
++	void *original_driver =
++		state.orig_cu_launch_kernel.load(std::memory_order_acquire);
++	if (impl == nullptr || !impl->is_enabled() ||
++	    !impl->is_late_bootstrap_done() || original_driver == nullptr)
++		return CUDA_ERROR_NOT_SUPPORTED;
++	return cu_launch_kernel_common(
++		impl, original_driver, original_func, grid_dim_x, grid_dim_y,
++		grid_dim_z, block_dim_x, block_dim_y, block_dim_z,
++		shared_mem_bytes, stream, kernel_params, extra);
++}
++
++static CUresult cu_launch_kernel_ex_common(
++	nv_attach_impl *impl, void *original_fn_ptr, const char *api,
++	const CUlaunchConfig *config, CUfunction func, void **kernel_params,
++	void **extra)
++{
++	auto original = reinterpret_cast<cu_launch_kernel_ex_fn_t>(original_fn_ptr);
++	if (!original) {
++		SPDLOG_ERROR("Original cuLaunchKernelEx function is null");
++		return CUDA_ERROR_UNKNOWN;
++	}
++	const bool strict = strict_launch_bridge_enabled();
++	if (strict) {
++		const CUfunction original_func = func;
++		if (impl == nullptr || !impl->is_enabled() ||
++		    !impl->is_late_bootstrap_done()) {
++			strict_runtime_note_driver(0, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log(api, 0, false, original_func,
++					  nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		const int gate_decision =
++			strict_gate_decision(func, kernel_params, extra);
++		const auto no_alias_action = strict_launch_policy(
++			true, gate_decision, false);
++		if (no_alias_action == strict_launch_action::reject &&
++		    gate_decision != 2) {
++			strict_runtime_note_driver(0, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log(api, 0, false,
++					  original_func, nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		if (no_alias_action == strict_launch_action::original) {
++			const CUresult result =
++				original(config, func, kernel_params, extra);
++			strict_runtime_note_driver(1, original_func, original_func,
++					   false, result);
++			strict_bridge_log(api, 1, false,
++					  original_func, nullptr, original_func,
++					  "ORIGINAL", result);
++			return result;
++		}
++		auto patched =
++			impl->find_patched_kernel_function_for_original(func);
++		if (!patched || strict_launch_policy(true, gate_decision, bool(patched)) !=
++				 strict_launch_action::patched) {
++			strict_runtime_note_driver(2, original_func, nullptr, false,
++					   CUDA_ERROR_NOT_SUPPORTED);
++			strict_bridge_log(api, 2, false,
++					  original_func, nullptr, nullptr, "REJECTED",
++					  CUDA_ERROR_NOT_SUPPORTED);
++			return CUDA_ERROR_NOT_SUPPORTED;
++		}
++		func = *patched;
++		impl->record_patched_launch(reinterpret_cast<cudaStream_t>(
++			config == nullptr ? nullptr : config->hStream));
++		const CUresult result =
++			original(config, func, kernel_params, extra);
++		strict_runtime_note_driver(2, original_func, func, true, result);
++		strict_bridge_log(api, 2, true, original_func,
++				  func, func, "PATCHED", result);
++		return result;
++	}
++	if (impl != nullptr && impl->is_enabled() &&
++	    impl->is_late_bootstrap_done()) {
++		if (auto patched =
++			    impl->find_patched_kernel_function_for_original(func);
++		    patched) {
++			using gate_approve_fn = int (*)(CUfunction, void **, void **);
++			auto gate_approve = reinterpret_cast<gate_approve_fn>(dlsym(
++				RTLD_DEFAULT,
++				"hbfsim_approve_original_cuda_function"));
++			const auto gate_decision = gate_approve == nullptr
++							   ? 2
++							   : gate_approve(func, kernel_params,
++									  extra);
++			if (gate_decision == 0)
++				return CUDA_ERROR_NOT_SUPPORTED;
++			if (gate_decision > 1) {
++				func = *patched;
++				impl->record_patched_launch(reinterpret_cast<cudaStream_t>(
++					config == nullptr ? nullptr : config->hStream));
++			}
++		} else if (auto kernel_name =
++				   cuda_graph_maybe_get_kernel_name_from_cufunction(
++					   *impl, func);
++			   kernel_name) {
++			if (auto patched_by_name =
++				    impl->find_patched_kernel_function(*kernel_name);
++			    patched_by_name) {
++				func = *patched_by_name;
++				impl->record_patched_launch(
++					reinterpret_cast<cudaStream_t>(
++						config == nullptr ? nullptr :
++							config->hStream));
++			}
++		}
++	}
++	return original(config, func, kernel_params, extra);
++}
++
++extern "C" CUresult cuda_driver_function__cuLaunchKernelEx(
++	const CUlaunchConfig *config, CUfunction func, void **kernelParams,
++	void **extra)
++{
++	auto gum_ctx = gum_interceptor_get_current_invocation();
++	auto *state = (nv_attach_hook_state *)
++		gum_invocation_context_get_replacement_data(gum_ctx);
++	if (state == nullptr)
++		state = &nv_attach_get_hook_state();
++	return cu_launch_kernel_ex_common(
++		state->active_impl.load(std::memory_order_acquire),
++		state->orig_cu_launch_kernel_ex.load(std::memory_order_acquire),
++		"cuLaunchKernelEx", config, func, kernelParams, extra);
++}
++
++extern "C" CUresult cuda_driver_function__cuLaunchKernelEx_ptsz(
++	const CUlaunchConfig *config, CUfunction func, void **kernelParams,
++	void **extra)
++{
++	auto gum_ctx = gum_interceptor_get_current_invocation();
++	auto *state = (nv_attach_hook_state *)
++		gum_invocation_context_get_replacement_data(gum_ctx);
++	if (state == nullptr)
++		state = &nv_attach_get_hook_state();
++	return cu_launch_kernel_ex_common(
++		state->active_impl.load(std::memory_order_acquire),
++		state->orig_cu_launch_kernel_ex_ptsz.load(
++			std::memory_order_acquire),
++		"cuLaunchKernelEx_ptsz", config, func, kernelParams, extra);
++}
++
+ extern "C" cudaError_t cuda_runtime_function__cudaLaunchKernel_ptsz(
+ 	const void *func, dim3 grid_dim, dim3 block_dim, void **args,
+ 	size_t shared_mem, cudaStream_t stream)
+@@ -578,6 +1599,12 @@
+ 	if (params == nullptr || params->func == nullptr) {
+ 		return params;
+ 	}
++	if (auto exact = impl.find_patched_kernel_function_for_original(
++		    params->func); exact) {
++		patched_params = *params;
++		patched_params.func = *exact;
++		return &patched_params;
++	}
+ 	auto kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
+ 		impl, params->func);
+ 	if (!kernel_name) {
+@@ -602,6 +1629,14 @@
+ 	}
+ 	std::optional<std::string> kernel_name;
+ 	if (params->func != nullptr) {
++		if (auto exact =
++			    impl.find_patched_kernel_function_for_original(
++				    params->func); exact) {
++			patched_params = *params;
++			patched_params.func = *exact;
++			patched_params.kern = nullptr;
++			return &patched_params;
++		}
+ 		kernel_name = cuda_graph_maybe_get_kernel_name_from_cufunction(
+ 			impl, params->func);
+ 	} else if (params->kern != nullptr) {
+--- a/attach/nv_attach_impl/test/CMakeLists.txt
++++ b/attach/nv_attach_impl/test/CMakeLists.txt
+@@ -2,6 +2,7 @@
+     nv_attach_impl_tests.cpp
+     test_register_guard.cpp
+     test_ptxpass.cpp
++    test_module_load_provenance.cpp
+     # test_kernel_finder.cpp
+ )
+ add_executable(bpftime_nv_attach_tests ${TEST_SOURCES})
+--- a/runtime/agent/agent.cpp
++++ b/runtime/agent/agent.cpp
+@@ -454,19 +454,47 @@
+ 	return ret;
+ }
+ 
+-extern "C" int __libc_start_main(int (*main)(int, char **, char **), int argc,
+-				 char **argv,
+-				 int (*init)(int, char **, char **),
+-				 void (*fini)(void), void (*rtld_fini)(void),
+-				 void *stack_end)
++using libc_start_main_fn = int (*)(int (*)(int, char **, char **), int,
++				    char **, int (*)(int, char **, char **),
++				    void (*)(void), void (*)(void), void *);
++
++static int bpftime_libc_start_main(int (*main)(int, char **, char **), int argc,
++				  char **argv,
++				  int (*init)(int, char **, char **),
++				  void (*fini)(void), void (*rtld_fini)(void),
++				  void *stack_end)
+ {
+ 	orig_main_func = main;
+-	using this_func_t = decltype(&__libc_start_main);
+-	this_func_t orig = (this_func_t)dlsym(RTLD_NEXT, "__libc_start_main");
++	auto orig = reinterpret_cast<libc_start_main_fn>(
++		dlvsym(RTLD_NEXT, "__libc_start_main", "GLIBC_2.34"));
++	if (orig == nullptr)
++		orig = reinterpret_cast<libc_start_main_fn>(
++			dlvsym(RTLD_NEXT, "__libc_start_main", "GLIBC_2.2.5"));
+ 
+ 	return orig(bpftime_hooked_main, argc, argv, init, fini, rtld_fini,
+ 		    stack_end);
+ }
++
++extern "C" int bpftime___libc_start_main_225(
++	int (*main)(int, char **, char **), int argc, char **argv,
++	int (*init)(int, char **, char **), void (*fini)(void),
++	void (*rtld_fini)(void), void *stack_end)
++{
++	return bpftime_libc_start_main(main, argc, argv, init, fini, rtld_fini,
++				       stack_end);
++}
++
++extern "C" int bpftime___libc_start_main_234(
++	int (*main)(int, char **, char **), int argc, char **argv,
++	int (*init)(int, char **, char **), void (*fini)(void),
++	void (*rtld_fini)(void), void *stack_end)
++{
++	return bpftime_libc_start_main(main, argc, argv, init, fini, rtld_fini,
++				       stack_end);
++}
++
++__asm__(".symver bpftime___libc_start_main_225,__libc_start_main@GLIBC_2.2.5");
++__asm__(".symver bpftime___libc_start_main_234,__libc_start_main@@GLIBC_2.34");
+ static void sig_handler_sigusr1_detach(int sig)
+ {
+ 	(void)sig;
+@@ -713,27 +741,55 @@
+ void register_llvm_vm_factory();
+ } // namespace llvm
+ } // namespace bpftime::vm::compat
+-void **(*original___cudaRegisterFatBinary)(void *) = nullptr;
+-
+-extern "C" void **__cudaRegisterFatBinary(void *fatbin)
++using cuda_register_fatbinary_fn = void **(*)(void *);
++static std::atomic<cuda_register_fatbinary_fn> original_register_fatbinary_12{};
++static std::atomic<cuda_register_fatbinary_fn> original_register_fatbinary_13{};
++
++static void **register_fatbinary_versioned(
++	void *fatbin, const char *version,
++	std::atomic<cuda_register_fatbinary_fn> &slot)
+ {
+ 	try {
+-		auto orig = try_get_original_func("__cudaRegisterFatBinary",
+-						 original___cudaRegisterFatBinary);
+-		// We have to register llvmbpf manually, since this function
+-		// (__cudaRegisterFatBinary) might be called before llvm is registered
++		auto orig = slot.load(std::memory_order_acquire);
++		if (orig == nullptr) {
++			dlerror();
++			orig = reinterpret_cast<cuda_register_fatbinary_fn>(
++				dlvsym(RTLD_NEXT, "__cudaRegisterFatBinary", version));
++			const char *error = dlerror();
++			if (orig == nullptr || error != nullptr)
++				throw std::runtime_error(error != nullptr ? error :
++					"versioned __cudaRegisterFatBinary not found");
++			slot.store(orig, std::memory_order_release);
++		}
++		// This registration can run before the ordinary agent initializer.
+ 		bpftime::vm::compat::llvm::register_llvm_vm_factory();
+ 		return orig(fatbin);
+ 	} catch (const std::exception &ex) {
+ 		fprintf(stderr,
+-			"bpftime-agent: __cudaRegisterFatBinary wrapper failed: %s\n",
+-			ex.what());
++			"bpftime-agent: __cudaRegisterFatBinary@%s wrapper failed: %s\n",
++			version, ex.what());
+ 	} catch (...) {
+ 		fprintf(stderr,
+-			"bpftime-agent: __cudaRegisterFatBinary wrapper failed: unknown error\n");
++			"bpftime-agent: __cudaRegisterFatBinary@%s wrapper failed: unknown error\n",
++			version);
+ 	}
+ 	return nullptr;
+ }
++
++extern "C" void **bpftime___cudaRegisterFatBinary_12(void *fatbin)
++{
++	return register_fatbinary_versioned(fatbin, "libcudart.so.12",
++		original_register_fatbinary_12);
++}
++
++extern "C" void **bpftime___cudaRegisterFatBinary_13(void *fatbin)
++{
++	return register_fatbinary_versioned(fatbin, "libcudart.so.13",
++		original_register_fatbinary_13);
++}
++
++__asm__(".symver bpftime___cudaRegisterFatBinary_12,__cudaRegisterFatBinary@libcudart.so.12");
++__asm__(".symver bpftime___cudaRegisterFatBinary_13,__cudaRegisterFatBinary@@libcudart.so.13");
+ #endif
+ extern "C" void bpftime_agent_main(const gchar *data, gboolean *stay_resident)
+ {
+--- a/runtime/agent/agent.version
++++ b/runtime/agent/agent.version
+@@ -1,4 +1,12 @@
+-{
+-    global: injected_with_frida; bpftime_hooked_main; __libc_start_main; bpftime_agent_main; bpftime_agent_control; syscall_callback; _bpftime__setup_syscall_trace_callback; __cudaRegisterFatBinary;
++GLIBC_2.2.5 {
++};
++GLIBC_2.34 {
++} GLIBC_2.2.5;
++libcudart.so.12 {
++};
++libcudart.so.13 {
++} libcudart.so.12;
++BPFTIME_AGENT_1.0 {
++    global: injected_with_frida; bpftime_hooked_main; bpftime_agent_main; bpftime_agent_control; bpftime_nv_bind_ptx_variant; bpftime_nv_strict_bridge_capabilities_v1; bpftime_nv_strict_direct_cu_launch_kernel_v1; syscall_callback; _bpftime__setup_syscall_trace_callback;
+     local: *;
+-};
++} libcudart.so.13;
+--- a/runtime/src/handler/map_handler.cpp
++++ b/runtime/src/handler/map_handler.cpp
+@@ -1005,7 +1005,11 @@
+ 		shm_holder.global_shared_memory.set_enable_mock(false);
+ 		if (!device) {
+ 			cuDeviceGet(&device, 0);
++#if CUDA_VERSION >= 13000
++			cuCtxCreate(&context, nullptr, 0, device);
++#else
+ 			cuCtxCreate(&context, 0, device);
++#endif
+ 			SPDLOG_INFO(
+ 				"CUDA context for thread {} has been set to {:x}",
+ 				gettid(), (uintptr_t)context);
+@@ -1024,7 +1028,11 @@
+ 		shm_holder.global_shared_memory.set_enable_mock(false);
+ 		if (!device) {
+ 			cuDeviceGet(&device, 0);
++#if CUDA_VERSION >= 13000
++			cuCtxCreate(&context, nullptr, 0, device);
++#else
+ 			cuCtxCreate(&context, 0, device);
++#endif
+ 			SPDLOG_INFO(
+ 				"CUDA context for thread {} has been set to {:x}",
+ 				gettid(), (uintptr_t)context);
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp
+@@ -0,0 +1,39 @@
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++namespace bpftime::attach
++{
++
++using begin_module_load_fn = uint64_t (*)(const char *, size_t);
++using end_module_load_fn = void (*)(uint64_t);
++
++struct module_load_provenance_hooks {
++	begin_module_load_fn begin = nullptr;
++	end_module_load_fn end = nullptr;
++};
++
++module_load_provenance_hooks find_module_load_provenance_hooks();
++
++class module_load_provenance_scope {
++    public:
++	module_load_provenance_scope(std::string_view ptx,
++				     module_load_provenance_hooks hooks);
++	~module_load_provenance_scope();
++
++	module_load_provenance_scope(const module_load_provenance_scope &) =
++		delete;
++	module_load_provenance_scope &
++	operator=(const module_load_provenance_scope &) = delete;
++
++	[[nodiscard]] bool permits_load() const;
++
++    private:
++	end_module_load_fn end_ = nullptr;
++	uint64_t token_ = 0;
++	bool permitted_ = false;
++};
++
++} // namespace bpftime::attach
+--- /dev/null
++++ b/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp
+@@ -0,0 +1,47 @@
++#include "nv_attach_module_load_provenance.hpp"
++
++#include <dlfcn.h>
++
++namespace bpftime::attach
++{
++
++module_load_provenance_hooks find_module_load_provenance_hooks()
++{
++	return {
++		.begin = reinterpret_cast<begin_module_load_fn>(dlsym(
++			RTLD_DEFAULT, "hbfsim_begin_module_load_from_ptx")),
++		.end = reinterpret_cast<end_module_load_fn>(
++			dlsym(RTLD_DEFAULT, "hbfsim_end_module_load")),
++	};
++}
++
++module_load_provenance_scope::module_load_provenance_scope(
++	std::string_view ptx, module_load_provenance_hooks hooks)
++{
++	if (hooks.begin == nullptr && hooks.end == nullptr) {
++		permitted_ = true;
++		return;
++	}
++	if (hooks.begin == nullptr || hooks.end == nullptr) {
++		return;
++	}
++	token_ = hooks.begin(ptx.data(), ptx.size());
++	if (token_ == 0) {
++		return;
++	}
++	end_ = hooks.end;
++	permitted_ = true;
++}
++
++module_load_provenance_scope::~module_load_provenance_scope()
++{
++	if (token_ != 0 && end_ != nullptr)
++		end_(token_);
++}
++
++bool module_load_provenance_scope::permits_load() const
++{
++	return permitted_;
++}
++
++} // namespace bpftime::attach
+--- /dev/null
++++ b/attach/nv_attach_impl/nvptx_opt_policy.hpp
+@@ -0,0 +1,71 @@
++#pragma once
++#include <cstdlib>
++#include <map>
++#include <stdexcept>
++#include <string>
++#include <string_view>
++
++namespace bpftime::attach::nvptx_opt_policy {
++inline bool valid_raw_sha256(std::string_view value) {
++    if (value.size() != 64) return false;
++    for (char c : value)
++        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
++    return true;
++}
++inline std::string original_name(std::string_view compiled_name) {
++    constexpr std::string_view prefix = "patched.";
++    if (compiled_name.substr(0, prefix.size()) == prefix)
++        compiled_name.remove_prefix(prefix.size());
++    return std::string(compiled_name);
++}
++template <typename Hash>
++std::string raw_digest_for_module(std::string_view name, std::string_view original_bytes,
++                                  bool prepatched, Hash hash_raw_bytes) {
++    if (!prepatched) return hash_raw_bytes(original_bytes);
++    constexpr std::string_view suffix = ".ptx";
++    if (name.size() != 64 + suffix.size() || name.substr(64) != suffix ||
++        !valid_raw_sha256(name.substr(0, 64)))
++        throw std::runtime_error("Prepatched module filename must be raw SHA256.ptx");
++    return std::string(name.substr(0, 64));
++}
++inline char parse_level(std::string_view value, const char *setting) {
++    if (value.size() != 1 || value[0] < '0' || value[0] > '3')
++        throw std::runtime_error(std::string(setting) + " must be exactly one of 0, 1, 2, 3");
++    return value[0];
++}
++struct config {
++    char fallback = '3';
++    std::map<std::string, char> by_raw_sha256;
++    std::string option_for_raw(std::string_view raw) const {
++        auto found = by_raw_sha256.find(std::string(raw));
++        return std::string("-O") + (found == by_raw_sha256.end() ? fallback : found->second);
++    }
++};
++inline config parse(const char *global_level, const char *raw_map) {
++    config result;
++    if (global_level != nullptr)
++        result.fallback = parse_level(global_level, "HBFSIM_NVPTX_OPT_LEVEL");
++    if (raw_map == nullptr) return result;
++    const std::string_view input(raw_map);
++    if (input.empty()) throw std::runtime_error("HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256 is empty");
++    std::size_t begin = 0;
++    while (begin < input.size()) {
++        const auto comma = input.find(',', begin);
++        const auto end = comma == std::string_view::npos ? input.size() : comma;
++        const auto token = input.substr(begin, end - begin);
++        if (token.size() != 66 || token[64] != '=' || !valid_raw_sha256(token.substr(0, 64)))
++            throw std::runtime_error("HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256 expects lowercase raw SHA256=level entries");
++        const char level = parse_level(token.substr(65, 1), "HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256");
++        if (!result.by_raw_sha256.emplace(std::string(token.substr(0, 64)), level).second)
++            throw std::runtime_error("HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256 contains duplicate raw SHA256");
++        if (comma == std::string_view::npos) break;
++        begin = comma + 1;
++        if (begin == input.size()) throw std::runtime_error("HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256 has trailing comma");
++    }
++    return result;
++}
++inline config from_environment() {
++    return parse(std::getenv("HBFSIM_NVPTX_OPT_LEVEL"),
++                 std::getenv("HBFSIM_NVPTX_OPT_LEVEL_BY_RAW_SHA256"));
++}
++} // namespace bpftime::attach::nvptx_opt_policy
+--- /dev/null
++++ b/attach/nv_attach_impl/strict_launch_policy.hpp
+@@ -0,0 +1,42 @@
++#pragma once
++#include <cstddef>
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++
++namespace bpftime::attach {
++
++
++inline const char *strict_pointer_json(std::uintptr_t value, char *buffer,
++				      std::size_t capacity)
++{
++	if (value == 0) {
++		if (capacity >= 5)
++			std::memcpy(buffer, "null", 5);
++		return buffer;
++	}
++	std::snprintf(buffer, capacity, "\"0x%llx\"",
++		      static_cast<unsigned long long>(value));
++	return buffer;
++}
++
++enum class strict_launch_action {
++	reject,
++	original,
++	patched,
++};
++
++inline strict_launch_action strict_launch_policy(bool implementation_ready,
++						 int gate_decision,
++						 bool exact_alias_found)
++{
++	if (!implementation_ready)
++		return strict_launch_action::reject;
++	if (gate_decision == 1)
++		return strict_launch_action::original;
++	if (gate_decision == 2 && exact_alias_found)
++		return strict_launch_action::patched;
++	return strict_launch_action::reject;
++}
++
++} // namespace bpftime::attach
+--- /dev/null
++++ b/attach/nv_attach_impl/test/test_strict_launch_policy.cpp
+@@ -0,0 +1,32 @@
++#include "../strict_launch_policy.hpp"
++#include <cassert>
++#include <cstring>
++using bpftime::attach::strict_launch_action;
++using bpftime::attach::strict_launch_policy;
++using bpftime::attach::strict_pointer_json;
++
++int main()
++{
++	assert(strict_launch_policy(false, 2, true) ==
++	       strict_launch_action::reject);
++	assert(strict_launch_policy(true, 0, true) ==
++	       strict_launch_action::reject);
++	assert(strict_launch_policy(true, 1, false) ==
++	       strict_launch_action::original);
++	assert(strict_launch_policy(true, 1, true) ==
++	       strict_launch_action::original);
++	assert(strict_launch_policy(true, 2, false) ==
++	       strict_launch_action::reject);
++	assert(strict_launch_policy(true, 2, true) ==
++	       strict_launch_action::patched);
++	assert(strict_launch_policy(true, -1, true) ==
++	       strict_launch_action::reject);
++	assert(strict_launch_policy(true, 3, true) ==
++	       strict_launch_action::reject);
++	char pointer_json[40] = {};
++	assert(std::strcmp(strict_pointer_json(0, pointer_json,
++					       sizeof(pointer_json)), "null") == 0);
++	assert(std::strcmp(strict_pointer_json(0x1234, pointer_json,
++					       sizeof(pointer_json)), "\"0x1234\"") == 0);
++	return 0;
++}
+--- /dev/null
++++ b/attach/nv_attach_impl/test/test_module_load_provenance.cpp
+@@ -0,0 +1,93 @@
++#include "nv_attach_module_load_provenance.hpp"
++
++#include <catch2/catch_test_macros.hpp>
++
++using namespace bpftime::attach;
++
++namespace
++{
++
++int begin_calls;
++int end_calls;
++uint64_t ended_token;
++
++uint64_t begin_matching(const char *ptx, size_t size)
++{
++	REQUIRE(std::string_view(ptx, size) == "patched ptx");
++	begin_calls++;
++	return 0x1234;
++}
++
++uint64_t begin_zero(const char *, size_t)
++{
++	begin_calls++;
++	return 0;
++}
++
++void end_matching(uint64_t token)
++{
++	end_calls++;
++	ended_token = token;
++}
++
++void reset_calls()
++{
++	begin_calls = 0;
++	end_calls = 0;
++	ended_token = 0;
++}
++
++} // namespace
++
++TEST_CASE("both callbacks absent permits standalone module load",
++	  "[module_load_provenance]")
++{
++	module_load_provenance_scope scope("patched ptx", {});
++	REQUIRE(scope.permits_load());
++}
++
++TEST_CASE("partial callback pair rejects module load",
++	  "[module_load_provenance]")
++{
++	SECTION("begin only")
++	{
++		module_load_provenance_scope scope(
++			"patched ptx", { .begin = begin_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	SECTION("end only")
++	{
++		module_load_provenance_scope scope(
++			"patched ptx", { .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++}
++
++TEST_CASE("zero begin token rejects module load", "[module_load_provenance]")
++{
++	reset_calls();
++	{
++		module_load_provenance_scope scope(
++			"patched ptx",
++			{ .begin = begin_zero, .end = end_matching });
++		REQUIRE_FALSE(scope.permits_load());
++	}
++	REQUIRE(begin_calls == 1);
++	REQUIRE(end_calls == 0);
++}
++
++TEST_CASE("matching begin and end bracket module load",
++	  "[module_load_provenance]")
++{
++	reset_calls();
++	{
++		module_load_provenance_scope scope(
++			"patched ptx",
++			{ .begin = begin_matching, .end = end_matching });
++		REQUIRE(scope.permits_load());
++		REQUIRE(begin_calls == 1);
++		REQUIRE(end_calls == 0);
++	}
++	REQUIRE(end_calls == 1);
++	REQUIRE(ended_token == 0x1234);
++}

@@ -1,0 +1,32 @@
+{
+  "schema": "hbfsim.release.publication_validation.v1",
+  "status": "ACTUAL_RELOCATED_CPU_AND_VERSION_CHECKS_PASS_FULL_GPU_REBUILD_UNVERIFIED",
+  "recorded_utc": "2026-10-23T04:28:45.628704+00:00",
+  "actual_CPU_execution_receipt_sha256": "6b7347d0ade8d048179047b8440fd94cfd403e99dd3b689016e5458d78e5a9a7",
+  "checker_source_sha256": "09f7e4fcaf72a57a35745d58b8df86ba64681f6cf0b2bc6bad846acf5185be81",
+  "checked_preliminary_membership_sha256": "354ebd8a9ccb0d18306430354fabe706fbd5b871295a80ba5476cc0d09b410fc",
+  "checked_source_packet_files": 138,
+  "CPU_fixture": {
+    "status": "PASS",
+    "checks": 10002,
+    "ABI": {
+      "state": 128,
+      "config": 32,
+      "counters": 176
+    },
+    "GPU": 0,
+    "scope": "shared pure candidate logic, independent widened scalar oracle; no GPU collective proof"
+  },
+  "CPU_fixture_source_sha256": "02d307886d1815b2b69e2751f1025b67ed43ac81af61228ef0f3705348e8fa8b",
+  "versions": {
+    "CMake": "0.1.2",
+    "CITATION": "0.1.2",
+    "adapter": "0.1.2"
+  },
+  "note": "Final publication evidence and final membership are added after the once-only CPU check. Actual source/fixture/checker bytes remain unchanged; final membership is verified separately without repeating the CPU test.",
+  "reproduction_command_not_historical_argv": "python3 -B verify_packet.py --cpu --cxx c++",
+  "GPU_model_or_CUDA_executed": false,
+  "new_complete_source_build": "NOT_PERFORMED",
+  "cross_machine_GPU_reproduction": "UNVERIFIED",
+  "inherited_model_acceptance": "Historical original model exit0 and separate scoped full147/19 science acceptance; not produced by this publication check."
+}

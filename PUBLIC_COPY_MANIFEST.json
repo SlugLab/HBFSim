@@ -19,17 +19,29 @@
     },
     {
       "public_path": "README.md",
-      "bytes": 43660,
-      "sha256": "61b42e6e94dbc18c71a529529fa0578e4f97c1e617af63005e88adf2ec034362",
+      "bytes": 44035,
+      "sha256": "a0bedda7d59364bf5d5f0efa32fbe855c480fe4d6ca7b4451b0a37f62462397e",
       "source_original_sha256": null,
-      "kind": "new public documentation"
+      "kind": "new public documentation",
+      "publication_update": {
+        "basis_main_commit": "4667d990e6f7713fc14d067f44c9bc9ce3ebc052",
+        "release_code_commit": "ed6f5559673767bd620eb8174fdf61bdc7aa3639",
+        "release_docs_commit": "e1f696453d93645116ac8c00cc286c31a80b580c",
+        "scope": "Preserve main text; add v0.1.2 edition introduction. source_original_sha256 continues to identify the historical private original, not this edited public text."
+      }
     },
     {
       "public_path": "README.zh-CN.md",
-      "bytes": 36019,
-      "sha256": "46a598948c79e8bce93cc14d03436035d4aadc498b60e5515caf709cae0c99a1",
+      "bytes": 36311,
+      "sha256": "ba3171ed596464719c88035e29830b8c50c5b161c49d54dfb27cba3be5c14968",
       "source_original_sha256": null,
-      "kind": "new public documentation"
+      "kind": "new public documentation",
+      "publication_update": {
+        "basis_main_commit": "4667d990e6f7713fc14d067f44c9bc9ce3ebc052",
+        "release_code_commit": "ed6f5559673767bd620eb8174fdf61bdc7aa3639",
+        "release_docs_commit": "e1f696453d93645116ac8c00cc286c31a80b580c",
+        "scope": "Preserve main text; add v0.1.2 edition introduction. source_original_sha256 continues to identify the historical private original, not this edited public text."
+      }
     },
     {
       "public_path": "TODO.md",

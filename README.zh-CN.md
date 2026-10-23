@@ -2,7 +2,7 @@
 
 **一个在真实 GPU 上运行真实 LLM 负载的快速 HBF 模拟器。**
 
-**v0.1.2 OLMoE 优化工作流：**[冻结源码与复现包](reproduction/olmoe-full147-v0.1.2/README.md)保存已验收策略、源码/构建链、验收范围及精确计时表。[版本说明](docs/releases/v0.1.2.md)区分可选实验工作流、默认运行时行为以及主机实测耗时与模拟器件时间。
+**HBFSim v0.1.2 优化加速版：**[源码与构建指南](reproduction/olmoe-full147-v0.1.2/README.md)提供已验收的设置和构建记录；[版本说明](docs/releases/v0.1.2.md)汇总实测收益、使用方式和适用范围。主机实测耗时与模拟器件时间分别报告。
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)

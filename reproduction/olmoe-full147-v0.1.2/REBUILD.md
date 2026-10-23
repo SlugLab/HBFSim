@@ -1,6 +1,6 @@
-# Environment, reconstruction and validation boundaries
+# Build and verification guide
 
-This is an exact-source overlay packet for the accepted experimental workflow.
+This package contains the source overlays for the tested inference configuration.
 A fresh complete source build and cross-machine GPU reproduction of this
 publication are **UNVERIFIED**. Historical compile/link and runtime receipts
 establish which artifacts ran; publication CPU checks establish only the

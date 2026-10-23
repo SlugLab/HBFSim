@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "FOLLOWUP.md",
-      "sha256": "a014b1793c3912180a7b9d593a22db83d3d06b5dc15d8d89a3c8b3a1f4ad2c0d",
-      "bytes": 2628
+      "sha256": "81e403693083c96f9b2f34f0336815064e4c27b215927a8df2aacbc1b7cf901a",
+      "bytes": 2630
     },
     {
       "path": "LICENSE",
@@ -20,13 +20,13 @@
     },
     {
       "path": "README.md",
-      "sha256": "f12acfcfc2635a42dbdab1f211bd92ee7506c1e3454ff9928a76846b9ea91d76",
-      "bytes": 1709
+      "sha256": "5c0b97b367ca7edfdfb76f516d5fc8c00e94d68c822579cf40dcd19768545c0c",
+      "bytes": 1747
     },
     {
       "path": "REBUILD.md",
-      "sha256": "552c998cb059d8ea30f293b68c99f69a55b6da1cf0ea753ed3a518fbc37629eb",
-      "bytes": 6137
+      "sha256": "83a61565e9adc5516f875f80a2aef452d875ebb6fd42de754719790576db8a94",
+      "bytes": 6115
     },
     {
       "path": "SOURCE_INDEX.json",

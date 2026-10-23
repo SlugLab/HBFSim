@@ -1,21 +1,22 @@
-# Frozen OLMoE full147 HBF workflow, v0.1.2
+# HBFSim v0.1.2 — Optimized Edition
 
-This packet freezes the accepted optimization combination and its supporting
-source and evidence. It is an **opt-in reproduction packet**, not a change to
-the default simulator physics or a claim that every HBF path is faster.
+This package brings together the tested optimization settings, source code,
+build instructions and performance data. The OLMoE full147 configuration is
+optional. Default simulator physics remain unchanged; measured improvements
+apply to the documented input and validation scope.
 
 - [Release notes and measured comparison](../../docs/releases/v0.1.2.md).
-- [STRATEGY.json](STRATEGY.json): frozen switches and observed binary identities.
+- [STRATEGY.json](STRATEGY.json): tested settings and observed component identities.
 - [REBUILD.md](REBUILD.md): source/parent dependencies, CUDA-domain separation,
   reconstruction steps, and explicit verification gaps.
-- [SOURCE_INDEX.json](SOURCE_INDEX.json): exact included source membership and
+- [SOURCE_INDEX.json](SOURCE_INDEX.json): included source files and
   source-to-object/archive/plugin lineage.
 - [evidence/RESULTS_INDEX.json](evidence/RESULTS_INDEX.json): original identities,
   validation scope, original batch failure and archive/release evidence.
 - [evidence/SUMMARY.csv](evidence/SUMMARY.csv) and
   [evidence/REGIONS19.csv](evidence/REGIONS19.csv): exact host timings.
-- [FOLLOWUP.md](FOLLOWUP.md): remaining optimization questions, separated from
-  the frozen version.
+- [FOLLOWUP.md](FOLLOWUP.md): next performance questions, evaluated separately from
+  this version.
 
 Run `python3 verify_packet.py` from this directory to check packet membership
 and identities. Publication CPU checks are separately recorded; they do not

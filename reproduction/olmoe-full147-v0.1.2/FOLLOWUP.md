@@ -1,6 +1,6 @@
-# Optimization after the v0.1.2 freeze
+# Performance work after v0.1.2
 
-The frozen strategy and accepted raw results must stay unchanged. Further
+The tested settings and accepted raw results form the comparison baseline. Further
 changes belong in independent source/build/run roots and need the same
 correctness and resource gates. The current task disk authority is40GB total;
 RAM/VRAM planning follows observed demand and host headroom. UCIe stays frozen.

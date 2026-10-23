@@ -2,7 +2,7 @@
 
 **A fast HBF simulator that runs real LLM workloads on a real GPU.**
 
-**v0.1.2 optimized OLMoE workflow:** the [frozen source and reconstruction packet](reproduction/olmoe-full147-v0.1.2/README.md) preserves the accepted optimization switches, source/build lineage, scoped validation and exact timing tables. The [release notes](docs/releases/v0.1.2.md) distinguish the opt-in experimental workflow from unchanged default runtime behavior, and measured host time from simulated device time.
+**HBFSim v0.1.2 — Optimized Edition:** the [source and build guide](reproduction/olmoe-full147-v0.1.2/README.md) provides tested settings and build records; the [release notes](docs/releases/v0.1.2.md) explain measured results and limits. This optional configuration keeps the original simulator parameters. Host runtime and simulated device time are reported separately.
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)

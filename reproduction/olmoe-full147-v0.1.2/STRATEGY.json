@@ -1,0 +1,63 @@
+{
+  "schema": "hbfsim.release.optimization_strategy.v1",
+  "version": "0.1.2",
+  "classification": "DOC_DERIVED_FROM_ACCEPTED_ACTUAL_FULL147_RUN",
+  "scope": "opt-in full147 nominal legacy-HBF workflow; no default production behavior change",
+  "binary_identities_observed_not_distributed": {
+    "agent_sha256": "e84798ffc5de03a0f7570e6a8bbb5b01edacd7074db5646727e94f83ce498965",
+    "helper_sha256": "6fdadac5aa36216917d76acb8fe9c71d3d6bac5aa437f9d1da243b6a1902edf7",
+    "pass_sha256": "ce2c6d5185a600753baa7d9a43f99e49b5e6a32c08842818a34497346e898154"
+  },
+  "environment_switches": {
+    "HBFSIM_NATIVE_BINDING_PTX_INPUT_AUTH_CACHE_V1": "1",
+    "HBFSIM_NATIVE_BINDING_CHUNKED_READ_V1": "1",
+    "HBFSIM_NATIVE_BINDING_DSO_DIGEST_CACHE_V1": "1",
+    "HBFSIM_SAME_PAGE_READ_VARIANT_V1": "OFF",
+    "HBFSIM_SAME_PAGE_READ_DECLARED_ARM_V1": "LEGACY_OFF",
+    "HBFSIM_UNIFORM_ACCOUNTING_ARM_V1": "UNIFORM_ACCOUNTING_ON",
+    "HBFSIM_UNIFORM_ACCOUNTING_MODE_V1": "HOST_UNIFORM_ACCOUNTING_ONLY_V1",
+    "HBFSIM_PROVIDER_API_ACTIVITY_TIME_V1": "0"
+  },
+  "persistent_ELF_cache": "OFF",
+  "native_module_paths": "Two accepted declarations resolved from launch configuration; no historical machine path is a new default.",
+  "timing_mode": "nominal HBF; zero injection OFF",
+  "physical_parameters": "Original application16KiB / native media4KiB profile and original backend settings; unchanged for this release.",
+  "runtime_scope": {
+    "model": "OLMoE-1B-7B-0924 snapshot6d84c485",
+    "prompts": 1,
+    "input_len": 2,
+    "output_len": 2,
+    "prompt_token_ids": [
+      [
+        25347,
+        49773
+      ]
+    ],
+    "output_token_ids": [
+      [
+        70,
+        13
+      ]
+    ],
+    "registered_storages": 147,
+    "registered_bytes": 13838323712,
+    "selected_changed_consumers": 49,
+    "existing_registered_storages": 98,
+    "module_inventory": 9,
+    "active_modeled_modules": 6,
+    "timing_regions": 19,
+    "calls_per_region": 2,
+    "head_boundary": "logits_processor_including_lm_head_projection_and_postprocessing",
+    "wait_mode": "NOMINAL_NOT_ZERO_INJECTION",
+    "same_page_merge": "LEGACY_OFF",
+    "backend": "original legacy HBF/MQSim; UCIe frozen"
+  },
+  "frozen_source_parent": {
+    "HBFSim": "eabc5c2c0820ac0d84c2f16ea3460b219f11ff83",
+    "bpftime": "ec26daecc8e787fb80fd95dd596a576404a5e36e",
+    "MQSim": "51f0f2d3fed92d88ef4a0fa61a38024b07bf9d16"
+  },
+  "new_helper_or_PTX_algorithm_for_packaging": false,
+  "new_model_attempt_for_publication": false,
+  "accounting_and_observation": "Host uniform accounting only with UNIFORM_ACCOUNTING_ON; provider API-activity timing disabled exactly as observed in the accepted run. This file enumerates frozen strategy choices, not a complete executable host environment."
+}

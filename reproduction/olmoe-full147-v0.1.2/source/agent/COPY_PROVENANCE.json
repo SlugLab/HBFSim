@@ -1,0 +1,883 @@
+{
+  "author_actions": "read-only provenance/compile metadata; exact small source/header/license copies only",
+  "build_CPU_or_GPU_executed": false,
+  "copies": [
+    {
+      "bytes": 89381,
+      "evidence": {
+        "bytes": 195361,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/BUILD_RECEIPT.json",
+        "sha256": "c3b77927943135882fecbbce852f15c633b28547a1eeabc54ecb9a49a9a97116"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_impl.cpp",
+      "sha256": "3c110aa2bc7405e00b3836ad81f1e180216b58d476992710724470a29519a16a",
+      "source": {
+        "bytes": 89381,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/source/nv_attach_impl.cpp",
+        "sha256": "3c110aa2bc7405e00b3836ad81f1e180216b58d476992710724470a29519a16a"
+      }
+    },
+    {
+      "bytes": 121085,
+      "evidence": {
+        "bytes": 194215,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/BUILD_RECEIPT.json",
+        "sha256": "430b72ebb688bcdbcfec7ffea868f4a5c2c796b49a7fd0fb2fbfb1b742028b09"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_impl_frida_setup.cpp",
+      "sha256": "50598d74d8c2593b77ebd29b3c2cc497825e36f9eda7bdb7bb0e6bd354375363",
+      "source": {
+        "bytes": 121085,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-source-v1/nv_attach_impl_frida_setup.cpp",
+        "sha256": "50598d74d8c2593b77ebd29b3c2cc497825e36f9eda7bdb7bb0e6bd354375363"
+      }
+    },
+    {
+      "bytes": 17276,
+      "evidence": {
+        "bytes": 50047,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/BUILD_RECEIPT.json",
+        "sha256": "c06b2c8cc6457f2a400bb315931587dba02cadf8cc7350445ad61a47e9e366a7"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_fatbin_record.cpp",
+      "sha256": "9e82ff5316e32cabcaf1b39bdb1b54b25955ae4b8faec2c6133ae397a9ea47e5",
+      "source": {
+        "bytes": 17276,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-observer-source-v1.1/source/nv_attach_fatbin_record.cpp",
+        "sha256": "9e82ff5316e32cabcaf1b39bdb1b54b25955ae4b8faec2c6133ae397a9ea47e5"
+      }
+    },
+    {
+      "bytes": 1697,
+      "evidence": {
+        "bytes": 488378,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/compile_commands.json",
+        "sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_private_data.cpp",
+      "sha256": "d50234dd6f2390ad57c0822f0d5bcc3ef3432539b4f42391bb48c237773e3644",
+      "source": {
+        "bytes": 1697,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_private_data.cpp",
+        "sha256": "d50234dd6f2390ad57c0822f0d5bcc3ef3432539b4f42391bb48c237773e3644"
+      }
+    },
+    {
+      "bytes": 2631,
+      "evidence": {
+        "bytes": 488378,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/compile_commands.json",
+        "sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_impl_patcher.cpp",
+      "sha256": "c8ee112ee4405e3994bf4f1c62c1f2615aa92ac9ed6b5e2ee0e68dac5524c745",
+      "source": {
+        "bytes": 2631,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_impl_patcher.cpp",
+        "sha256": "c8ee112ee4405e3994bf4f1c62c1f2615aa92ac9ed6b5e2ee0e68dac5524c745"
+      }
+    },
+    {
+      "bytes": 4366,
+      "evidence": {
+        "bytes": 488378,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/compile_commands.json",
+        "sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_utils.cpp",
+      "sha256": "d9e7ac4bbf5e74be6d079950693a50c74b3127b4974f1cb3c0df63ea9de06da2",
+      "source": {
+        "bytes": 4366,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_utils.cpp",
+        "sha256": "d9e7ac4bbf5e74be6d079950693a50c74b3127b4974f1cb3c0df63ea9de06da2"
+      }
+    },
+    {
+      "bytes": 1025,
+      "evidence": {
+        "bytes": 488378,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/compile_commands.json",
+        "sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_attach_module_load_provenance.cpp",
+      "sha256": "7fa716d528d947e71f4f59ebe92b81bbae02aaae0f5c95c9bb094ab877e4ed4e",
+      "source": {
+        "bytes": 1025,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_module_load_provenance.cpp",
+        "sha256": "7fa716d528d947e71f4f59ebe92b81bbae02aaae0f5c95c9bb094ab877e4ed4e"
+      }
+    },
+    {
+      "bytes": 7650,
+      "evidence": {
+        "bytes": 488378,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/build/compile_commands.json",
+        "sha256": "04c53f9adf37eda2444b846d5c7e85c9e16df5ad44c585c7b2f45cffebc167a0"
+      },
+      "kind": "ACTUAL_AGENT_TRANSLATION_UNIT",
+      "relative": "attach/nv_attach_impl/nv_elf_introspect.cpp",
+      "sha256": "4db3931845e3448e4ca9f7fd5264d0b12e93b21acbeade33125cefcdccfaf767",
+      "source": {
+        "bytes": 7650,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_elf_introspect.cpp",
+        "sha256": "4db3931845e3448e4ca9f7fd5264d0b12e93b21acbeade33125cefcdccfaf767"
+      }
+    },
+    {
+      "bytes": 1137,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/binding_auth_span.hpp",
+      "sha256": "e4135958e50651cfc24721baad9875228cb53c609c4d896da4bc00abb9d817f8",
+      "source": {
+        "bytes": 1137,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-source-v1/binding_auth_span.hpp",
+        "sha256": "e4135958e50651cfc24721baad9875228cb53c609c4d896da4bc00abb9d817f8"
+      }
+    },
+    {
+      "bytes": 10926,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/launch_frontend_observer.hpp",
+      "sha256": "451b15807a36a8a12249e47dbf81857a405332df1d37d39038f1a28329b3b48b",
+      "source": {
+        "bytes": 10926,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-source-v1/launch_frontend_observer.hpp",
+        "sha256": "451b15807a36a8a12249e47dbf81857a405332df1d37d39038f1a28329b3b48b"
+      }
+    },
+    {
+      "bytes": 6732,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/native_binding_digest_cache.hpp",
+      "sha256": "c713f233aa5c0b6dc3344897d33ec72d47b06a8b6e8a7fd477e9e30a749e976c",
+      "source": {
+        "bytes": 6732,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/source/native_binding_digest_cache.hpp",
+        "sha256": "c713f233aa5c0b6dc3344897d33ec72d47b06a8b6e8a7fd477e9e30a749e976c"
+      }
+    },
+    {
+      "bytes": 8207,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/native_binding_ptx_input_cache.hpp",
+      "sha256": "953674c16058d1b4e2768b9564ce9e3bb78c7e27434c93e5258d121cf1025135",
+      "source": {
+        "bytes": 8207,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/source/native_binding_ptx_input_cache.hpp",
+        "sha256": "953674c16058d1b4e2768b9564ce9e3bb78c7e27434c93e5258d121cf1025135"
+      }
+    },
+    {
+      "bytes": 8712,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/module_host_timing.hpp",
+      "sha256": "587055ec419f6e901a928c8d2fd67676c13f9c9bf60252f8ec4ac4f0c94070cd",
+      "source": {
+        "bytes": 8712,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-observer-source-v1.1/source/module_host_timing.hpp",
+        "sha256": "587055ec419f6e901a928c8d2fd67676c13f9c9bf60252f8ec4ac4f0c94070cd"
+      }
+    },
+    {
+      "bytes": 1976,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/module_register_policy.hpp",
+      "sha256": "44c2f798861757f731941936d92d5be9d98ef9c6bbc2507212e66e5bf9b05828",
+      "source": {
+        "bytes": 1976,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/module-register-policy-agent-source-v1/source/module_register_policy.hpp",
+        "sha256": "44c2f798861757f731941936d92d5be9d98ef9c6bbc2507212e66e5bf9b05828"
+      }
+    },
+    {
+      "bytes": 7350,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/norm_call_observer.hpp",
+      "sha256": "ec498dc3a3828281131344be732aeb5818c679fefa891aaf0039bb1e4ae901b8",
+      "source": {
+        "bytes": 7350,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/same-page-layer0-head-agent-source-v1/source/norm_call_observer.hpp",
+        "sha256": "ec498dc3a3828281131344be732aeb5818c679fefa891aaf0039bb1e4ae901b8"
+      }
+    },
+    {
+      "bytes": 260,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/accounting_stage_pair.hpp",
+      "sha256": "14643a4b4f4b546e81f45d9047566d70b1d34bd74f77251b098080c1d4f079e9",
+      "source": {
+        "bytes": 260,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-actual-artifacts-v1/generated/accounting_stage_pair.hpp",
+        "sha256": "14643a4b4f4b546e81f45d9047566d70b1d34bd74f77251b098080c1d4f079e9"
+      }
+    },
+    {
+      "bytes": 1369,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/accounting_variant.hpp",
+      "sha256": "add0c68d32921fbdec461213d9ccf2f96af8cc1cd42b32dfd0b68ca240f4e1a1",
+      "source": {
+        "bytes": 1369,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-model-integration-source-v1/source/accounting_variant.hpp",
+        "sha256": "add0c68d32921fbdec461213d9ccf2f96af8cc1cd42b32dfd0b68ca240f4e1a1"
+      }
+    },
+    {
+      "bytes": 1124,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/same_page_variant.hpp",
+      "sha256": "61c353b47d0022b87ef33c1e91a8f1581c15366c9cfc86dda1cfebfc9854cf34",
+      "source": {
+        "bytes": 1124,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-model-integration-source-v1/source/same_page_variant.hpp",
+        "sha256": "61c353b47d0022b87ef33c1e91a8f1581c15366c9cfc86dda1cfebfc9854cf34"
+      }
+    },
+    {
+      "bytes": 1562,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_attach_fatbin_record.hpp",
+      "sha256": "736c1d0415a0e2369611a873b274ee4d1671a3a18ad166d4d324d434d1036fa5",
+      "source": {
+        "bytes": 1562,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_fatbin_record.hpp",
+        "sha256": "736c1d0415a0e2369611a873b274ee4d1671a3a18ad166d4d324d434d1036fa5"
+      }
+    },
+    {
+      "bytes": 13782,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_attach_impl.hpp",
+      "sha256": "a769bf11b27cf3161a2a38a9d18d4d59b1d8efcbebcc00196caffb725f135409",
+      "source": {
+        "bytes": 13782,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_impl.hpp",
+        "sha256": "a769bf11b27cf3161a2a38a9d18d4d59b1d8efcbebcc00196caffb725f135409"
+      }
+    },
+    {
+      "bytes": 930,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_attach_module_load_provenance.hpp",
+      "sha256": "edbd63a9c0908919b916ad06f34d478e4cd8d36517c44d0de4a9be78ee3adfac",
+      "source": {
+        "bytes": 930,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_module_load_provenance.hpp",
+        "sha256": "edbd63a9c0908919b916ad06f34d478e4cd8d36517c44d0de4a9be78ee3adfac"
+      }
+    },
+    {
+      "bytes": 769,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_attach_private_data.hpp",
+      "sha256": "d9d9407ca5118428d6cf8a27d62dd2e03f9483945d13ef22101928a871919583",
+      "source": {
+        "bytes": 769,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_private_data.hpp",
+        "sha256": "d9d9407ca5118428d6cf8a27d62dd2e03f9483945d13ef22101928a871919583"
+      }
+    },
+    {
+      "bytes": 1511,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_attach_utils.hpp",
+      "sha256": "5f4ae188f188af12e462d13fd5c834bdc8494132086266eda55eb0a2e72c8d23",
+      "source": {
+        "bytes": 1511,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_attach_utils.hpp",
+        "sha256": "5f4ae188f188af12e462d13fd5c834bdc8494132086266eda55eb0a2e72c8d23"
+      }
+    },
+    {
+      "bytes": 859,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nv_elf_introspect.hpp",
+      "sha256": "efb71a80b7dff6922a8cbb8d45740811191945bc00861483a1c25bc97be1ed2c",
+      "source": {
+        "bytes": 859,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nv_elf_introspect.hpp",
+        "sha256": "efb71a80b7dff6922a8cbb8d45740811191945bc00861483a1c25bc97be1ed2c"
+      }
+    },
+    {
+      "bytes": 3353,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/nvptx_opt_policy.hpp",
+      "sha256": "9ad6a2a78925bf75a8075136be3cfef04459442d22946ce52c3aca1f5d129c8f",
+      "source": {
+        "bytes": 3353,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/nvptx_opt_policy.hpp",
+        "sha256": "9ad6a2a78925bf75a8075136be3cfef04459442d22946ce52c3aca1f5d129c8f"
+      }
+    },
+    {
+      "bytes": 5913,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/pass/ptxpass_core/include/ptxpass/core.hpp",
+      "sha256": "582f22ad3f2c7cf514d68ea59018d4ae9705a359ddf9254c7968272c892331c3",
+      "source": {
+        "bytes": 5913,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/pass/ptxpass_core/include/ptxpass/core.hpp",
+        "sha256": "582f22ad3f2c7cf514d68ea59018d4ae9705a359ddf9254c7968272c892331c3"
+      }
+    },
+    {
+      "bytes": 2196,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/ptx_compiler/ptx_compiler.hpp",
+      "sha256": "9fe62a36a306f87247d04928aeb4e790d2995227f1b3fc723368e06d21bae110",
+      "source": {
+        "bytes": 2196,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/ptx_compiler/ptx_compiler.hpp",
+        "sha256": "9fe62a36a306f87247d04928aeb4e790d2995227f1b3fc723368e06d21bae110"
+      }
+    },
+    {
+      "bytes": 932,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/strict_launch_policy.hpp",
+      "sha256": "9be036e27533f37cea40e84db04068b5302ec46eb9435c85b0b39de237aee817",
+      "source": {
+        "bytes": 932,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/strict_launch_policy.hpp",
+        "sha256": "9be036e27533f37cea40e84db04068b5302ec46eb9435c85b0b39de237aee817"
+      }
+    },
+    {
+      "bytes": 2011,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/qkv_exact_abi_adapter.hpp",
+      "sha256": "2f52c5ebb0285d6b5b9b1cb3cd80857bdb196bac2c5f4efac87ee21d26deb2b6",
+      "source": {
+        "bytes": 2011,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/combined-agent-cuda12-bind-v1/source/qkv_exact_abi_adapter.hpp",
+        "sha256": "2f52c5ebb0285d6b5b9b1cb3cd80857bdb196bac2c5f4efac87ee21d26deb2b6"
+      }
+    },
+    {
+      "bytes": 2331,
+      "evidence": [
+        {
+          "bytes": 97905,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-build-actual-20261022T100023Z/nv_attach_impl.cpp.o.d",
+          "sha256": "656f3051553179e1d6843dfbe551ab7ab5bbc66a1784042396609bd5f02d5aec"
+        },
+        {
+          "bytes": 29070,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-frida-build-actual-20261022T072647Z-f1f426790bd8/nv_attach_impl_frida_setup.cpp.o.d",
+          "sha256": "fb39ebe071deb8a77bb8630ef5e4e6bd62121584884540628d5e49ed3ecded84"
+        },
+        {
+          "bytes": 40019,
+          "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/initialization-coarse-host-timing-agent-build-v1/build/nv_attach_fatbin_record.cpp.o.d",
+          "sha256": "d945204fd469381c5c38bec118e3b302ba7c7b0dea649faafd0ce93217ef1207"
+        }
+      ],
+      "kind": "ACTUAL_PRIVATE_HEADER_FROM_COMPILER_DEPENDENCY",
+      "relative": "attach/nv_attach_impl/qkv_live_identity_v1.hpp",
+      "sha256": "e7a32f51dbf5082a269a83276a528a65526192ac5b80e18410b1cd89d6174b6b",
+      "source": {
+        "bytes": 2331,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/combined-agent-cuda12-bind-v1/source/qkv_live_identity_v1.hpp",
+        "sha256": "e7a32f51dbf5082a269a83276a528a65526192ac5b80e18410b1cd89d6174b6b"
+      }
+    },
+    {
+      "bytes": 3409,
+      "evidence": null,
+      "kind": "ORIGINAL_CMAKE_TARGET_REFERENCE",
+      "relative": "attach/nv_attach_impl/CMakeLists.parent.txt",
+      "sha256": "b2c6ed275f5c94be374839fa70b7946c5a2bcc90b8d1bb91316c8fbe7675066c",
+      "source": {
+        "bytes": 3409,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/attach/nv_attach_impl/CMakeLists.txt",
+        "sha256": "b2c6ed275f5c94be374839fa70b7946c5a2bcc90b8d1bb91316c8fbe7675066c"
+      }
+    },
+    {
+      "bytes": 110998,
+      "evidence": null,
+      "kind": "PUBLISHED_BASELINE_PATCH",
+      "relative": "baseline/REPRODUCTION_SOURCE_PATCH_FROM_EC26.patch",
+      "sha256": "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f",
+      "source": {
+        "bytes": 110998,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/REPRODUCTION_SOURCE_PATCH_FROM_EC26.patch",
+        "sha256": "63f4820fa41bdf6538ec45d805f3c68e3dea9a3e605ffbd65f3b88788c51121f"
+      }
+    },
+    {
+      "bytes": 669521,
+      "evidence": null,
+      "kind": "BASELINE_SOURCE_CLOSURE_EVIDENCE",
+      "relative": "baseline/CLEAN_GIT_DELTA_INVENTORY.json",
+      "sha256": "95757c62d2819a56eccd8ccab7177a3537e7890b9cbde97a5950d5323aa54c67",
+      "source": {
+        "bytes": 669521,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/CLEAN_GIT_DELTA_INVENTORY.json",
+        "sha256": "95757c62d2819a56eccd8ccab7177a3537e7890b9cbde97a5950d5323aa54c67"
+      }
+    },
+    {
+      "bytes": 410,
+      "evidence": null,
+      "kind": "BASELINE_SOURCE_TREE_DELTA_EVIDENCE",
+      "relative": "baseline/SOURCE_TREE_DELTA.json",
+      "sha256": "733876994fdbdb30b792374941c3905fa12ae094aa01b076896fcbff9b4f1be1",
+      "source": {
+        "bytes": 410,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/SOURCE_TREE_DELTA.json",
+        "sha256": "733876994fdbdb30b792374941c3905fa12ae094aa01b076896fcbff9b4f1be1"
+      }
+    },
+    {
+      "bytes": 1082,
+      "evidence": null,
+      "kind": "UPSTREAM_BPF_TIME_LICENSE",
+      "relative": "LICENSE",
+      "sha256": "bf05d964dad1e9de18f0691ddc7d54e0b37db25a212b8b08ede9cd2e5008e659",
+      "source": {
+        "bytes": 1082,
+        "path": "/root/hbfsim-exp/rebuttal_20260921/native-supported-partial-exact-agent-build-v1/source/LICENSE",
+        "sha256": "bf05d964dad1e9de18f0691ddc7d54e0b37db25a212b8b08ede9cd2e5008e659"
+      }
+    },
+    {
+      "bytes": 1158,
+      "evidence": null,
+      "kind": "PUBLISHED_NOTICE",
+      "relative": "PUBLISHED_REPRODUCTION_NOTICE.md",
+      "sha256": "a25d2f8204812f5197f6d65814f4e08fe8cb77c381c3a40771395f3859e62a71",
+      "source": {
+        "bytes": 1158,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/release-v0.1.2-20261023/source/reproduction/sass-final147-20260926/NOTICE.md",
+        "sha256": "a25d2f8204812f5197f6d65814f4e08fe8cb77c381c3a40771395f3859e62a71"
+      }
+    },
+    {
+      "bytes": 3648,
+      "evidence": null,
+      "kind": "EXISTING_SMALL_CPU_VALIDATION_SOURCE_NOT_RUN",
+      "relative": "tests/binding_auth/fixture_binding_auth_span.cpp",
+      "sha256": "9994da324afaddd1764738fea0e71365d629945ec68f5abc39abd8518599590a",
+      "source": {
+        "bytes": 3648,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-binding-auth-span-source-v1/fixture_binding_auth_span.cpp",
+        "sha256": "9994da324afaddd1764738fea0e71365d629945ec68f5abc39abd8518599590a"
+      }
+    },
+    {
+      "bytes": 18549,
+      "evidence": null,
+      "kind": "EXISTING_SMALL_CPU_VALIDATION_SOURCE_NOT_RUN",
+      "relative": "tests/ptx_input_cache/harness.cpp",
+      "sha256": "e46e2ce62ba308d570693a3e410087194e6826514ca9f8aaa1c6614b3b62e7d8",
+      "source": {
+        "bytes": 18549,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/CPU/harness.cpp",
+        "sha256": "e46e2ce62ba308d570693a3e410087194e6826514ca9f8aaa1c6614b3b62e7d8"
+      }
+    },
+    {
+      "bytes": 2499,
+      "evidence": null,
+      "kind": "EXISTING_SMALL_CPU_VALIDATION_SOURCE_NOT_RUN",
+      "relative": "tests/ptx_input_cache/scaffold.hpp",
+      "sha256": "9eb390fd4fb21b06b9a3a40107506072ad2c73799b24ee52b2feb3d1bff6a271",
+      "source": {
+        "bytes": 2499,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/CPU/scaffold.hpp",
+        "sha256": "9eb390fd4fb21b06b9a3a40107506072ad2c73799b24ee52b2feb3d1bff6a271"
+      }
+    },
+    {
+      "bytes": 5157,
+      "evidence": null,
+      "kind": "EXISTING_SMALL_CPU_VALIDATION_SOURCE_NOT_RUN",
+      "relative": "tests/ptx_input_cache/prepare_cpu.py",
+      "sha256": "7c785e966e40e69973276e5c4cad773b27eac8f66054d4a6cfa3a0876ca951f5",
+      "source": {
+        "bytes": 5157,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/CPU/prepare_cpu.py",
+        "sha256": "7c785e966e40e69973276e5c4cad773b27eac8f66054d4a6cfa3a0876ca951f5"
+      }
+    },
+    {
+      "bytes": 861,
+      "evidence": null,
+      "kind": "EXISTING_SMALL_CPU_VALIDATION_SOURCE_NOT_RUN",
+      "relative": "tests/ptx_input_cache/ROOT_INPUT_TEMPLATE.historical.json",
+      "sha256": "9638f4409732f2621aa6f8f46207a54492fef405d77e9ba77a495ae09311d801",
+      "source": {
+        "bytes": 861,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/hbf-ptx-input-auth-cache-source-v1_2/CPU/ROOT_INPUT_TEMPLATE.json",
+        "sha256": "9638f4409732f2621aa6f8f46207a54492fef405d77e9ba77a495ae09311d801"
+      }
+    }
+  ],
+  "schema": "hbfsim.release_v012.exact_agent_source_copy.v1"
+}

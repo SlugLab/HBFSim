@@ -1,5 +1,7 @@
 # HBFSim:让负载跑在真实 GPU 上,同时模拟 High-Bandwidth Flash
 
+**v0.1.2 OLMoE 优化工作流：**[冻结源码与复现包](reproduction/olmoe-full147-v0.1.2/README.md)保存已验收策略、源码/构建链、验收范围及精确计时表。[版本说明](docs/releases/v0.1.2.md)区分可选实验工作流、默认运行时行为以及主机实测耗时与模拟器件时间。
+
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SlugLab/HBFSim/actions/workflows/ci.yml)
 [![arXiv:2609.09800](https://img.shields.io/badge/arXiv-2609.09800-b31b1b.svg)](https://arxiv.org/abs/2609.09800)

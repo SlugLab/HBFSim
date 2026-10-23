@@ -1,0 +1,687 @@
+{
+  "banned_payloads": [
+    ".so",
+    ".a",
+    ".o",
+    ".ptx",
+    ".cubin",
+    "models",
+    "generatedPTXheaders"
+  ],
+  "files": [
+    {
+      "bytes": 104359,
+      "relative": "helper/source/src/cuda_runtime/device/hbf_device.cu",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "91823d70e957700ebc3e20f42a86109745cd9f4ba7dd5adfb19172a08a89d778",
+      "source": {
+        "bytes": 104359,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/hbf_device.cu",
+        "sha256": "91823d70e957700ebc3e20f42a86109745cd9f4ba7dd5adfb19172a08a89d778"
+      }
+    },
+    {
+      "bytes": 45147,
+      "relative": "helper/source/src/cuda_runtime/device/hbf_device.cuh",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "5a484beb055275869b02767ac22be3811f61d8aab4479ab93428fc889c0e9032",
+      "source": {
+        "bytes": 45147,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/hbf_device.cuh",
+        "sha256": "5a484beb055275869b02767ac22be3811f61d8aab4479ab93428fc889c0e9032"
+      }
+    },
+    {
+      "bytes": 1193,
+      "relative": "helper/source/src/cuda_runtime/device/uniform_account_logic.hpp",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "bf9b45d017a70bcbd76faed5301071261dd136e42b4d45b9c62fe9123ecd820f",
+      "source": {
+        "bytes": 1193,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/uniform_account_logic.hpp",
+        "sha256": "bf9b45d017a70bcbd76faed5301071261dd136e42b4d45b9c62fe9123ecd820f"
+      }
+    },
+    {
+      "bytes": 551,
+      "relative": "helper/source/cmake/EmbedDevicePtx.cmake",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "260fdc35579b340b278b31668c6363fd7ef6435eb85c0f285ab9e7c42af771c3",
+      "source": {
+        "bytes": 551,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/cmake/EmbedDevicePtx.cmake",
+        "sha256": "260fdc35579b340b278b31668c6363fd7ef6435eb85c0f285ab9e7c42af771c3"
+      }
+    },
+    {
+      "bytes": 101328,
+      "relative": "helper/source/baseline/hbf_device.cu",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "0de9f5688e6dad245555b618a97e17f8578ff4681074661734c2a0f30e37f056",
+      "source": {
+        "bytes": 101328,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/baseline/hbf_device.cu",
+        "sha256": "0de9f5688e6dad245555b618a97e17f8578ff4681074661734c2a0f30e37f056"
+      }
+    },
+    {
+      "bytes": 2237,
+      "relative": "helper/tests/check_source_contract.py",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "0269f711642a7775e9179ae3ad490da0b97269407c647b78e1c1c5686d23489d",
+      "source": {
+        "bytes": 2237,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/tests/check_source_contract.py",
+        "sha256": "0269f711642a7775e9179ae3ad490da0b97269407c647b78e1c1c5686d23489d"
+      }
+    },
+    {
+      "bytes": 612,
+      "relative": "helper/tests/scalar_candidate.inc",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "f8da5818d174a0da52a2deef1aa3262befd3a14e6aca1d7e4cbbf9038a19b4cf",
+      "source": {
+        "bytes": 612,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/tests/scalar_candidate.inc",
+        "sha256": "f8da5818d174a0da52a2deef1aa3262befd3a14e6aca1d7e4cbbf9038a19b4cf"
+      }
+    },
+    {
+      "bytes": 6314,
+      "relative": "helper/tests/test_uniform_account.cpp",
+      "role": "accepted helper source or original bounded source test; byte-preserved NOT_RUN_HERE",
+      "sha256": "02d307886d1815b2b69e2751f1025b67ed43ac81af61228ef0f3705348e8fa8b",
+      "source": {
+        "bytes": 6314,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/tests/test_uniform_account.cpp",
+        "sha256": "02d307886d1815b2b69e2751f1025b67ed43ac81af61228ef0f3705348e8fa8b"
+      }
+    },
+    {
+      "bytes": 517,
+      "relative": "helper/source/include/hbfsim/control_flags.hpp",
+      "role": "complete actual helper include closure",
+      "sha256": "d4f398351ff26c429d101414f39e51d893a8b602ec5b6447d5c84f6bcc6817ee",
+      "source": {
+        "bytes": 517,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include/hbfsim/control_flags.hpp",
+        "sha256": "d4f398351ff26c429d101414f39e51d893a8b602ec5b6447d5c84f6bcc6817ee"
+      }
+    },
+    {
+      "bytes": 14008,
+      "relative": "helper/source/include/hbfsim/timing_future_abi.hpp",
+      "role": "complete actual helper include closure",
+      "sha256": "9fe55f73aba53343e4f1ebc6c2b6156776b6d7f5777894dd3381b399cd819745",
+      "source": {
+        "bytes": 14008,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include/hbfsim/timing_future_abi.hpp",
+        "sha256": "9fe55f73aba53343e4f1ebc6c2b6156776b6d7f5777894dd3381b399cd819745"
+      }
+    },
+    {
+      "bytes": 3874,
+      "relative": "pass/source/include/hbfsim/api.h",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "c913dd771913dc38ac32ec044fa9e0e1600d57a5551de5bafe32f8f4c43eddcc",
+      "source": {
+        "bytes": 3874,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/api.h",
+        "sha256": "c913dd771913dc38ac32ec044fa9e0e1600d57a5551de5bafe32f8f4c43eddcc"
+      }
+    },
+    {
+      "bytes": 517,
+      "relative": "pass/source/include/hbfsim/control_flags.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "d4f398351ff26c429d101414f39e51d893a8b602ec5b6447d5c84f6bcc6817ee",
+      "source": {
+        "bytes": 517,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/control_flags.hpp",
+        "sha256": "d4f398351ff26c429d101414f39e51d893a8b602ec5b6447d5c84f6bcc6817ee"
+      }
+    },
+    {
+      "bytes": 7027,
+      "relative": "pass/source/include/hbfsim/coverage.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "7dc4024741e24122ca8304a7e57915ce68ed81e6f0c36cb60d08503b35de3703",
+      "source": {
+        "bytes": 7027,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/coverage.hpp",
+        "sha256": "7dc4024741e24122ca8304a7e57915ce68ed81e6f0c36cb60d08503b35de3703"
+      }
+    },
+    {
+      "bytes": 334,
+      "relative": "pass/source/include/hbfsim/durable_append.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "348482e2547d25ee11418e3db92b302668a27e410a39e52d648c84ee5a2b81bc",
+      "source": {
+        "bytes": 334,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/durable_append.hpp",
+        "sha256": "348482e2547d25ee11418e3db92b302668a27e410a39e52d648c84ee5a2b81bc"
+      }
+    },
+    {
+      "bytes": 964,
+      "relative": "pass/source/include/hbfsim/eq3_thermal/cpu_service.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "bf224e5a12f33580684933de905eabf1d4a65773e88ae7ca33e447943c71dce9",
+      "source": {
+        "bytes": 964,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/eq3_thermal/cpu_service.hpp",
+        "sha256": "bf224e5a12f33580684933de905eabf1d4a65773e88ae7ca33e447943c71dce9"
+      }
+    },
+    {
+      "bytes": 6625,
+      "relative": "pass/source/include/hbfsim/eq3_thermal/mqsim_observer.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "a84b9fbc104e824694bb0cfc045194083bbe58188313a974ee287eec07468f49",
+      "source": {
+        "bytes": 6625,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/eq3_thermal/mqsim_observer.hpp",
+        "sha256": "a84b9fbc104e824694bb0cfc045194083bbe58188313a974ee287eec07468f49"
+      }
+    },
+    {
+      "bytes": 6141,
+      "relative": "pass/source/include/hbfsim/eq3_thermal/mqsim_stack_map.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "2a3dec3ed174d9cca9431e7d7f759b7c9600a3ed186f229463475336018d9040",
+      "source": {
+        "bytes": 6141,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/eq3_thermal/mqsim_stack_map.hpp",
+        "sha256": "2a3dec3ed174d9cca9431e7d7f759b7c9600a3ed186f229463475336018d9040"
+      }
+    },
+    {
+      "bytes": 3026,
+      "relative": "pass/source/include/hbfsim/eq3_thermal/observer.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "924bf7a533bf1f579f8e5b6fd6c74a639cdbb050ddab9325cf5273e59793e986",
+      "source": {
+        "bytes": 3026,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/eq3_thermal/observer.hpp",
+        "sha256": "924bf7a533bf1f579f8e5b6fd6c74a639cdbb050ddab9325cf5273e59793e986"
+      }
+    },
+    {
+      "bytes": 5968,
+      "relative": "pass/source/include/hbfsim/eq3_thermal/thermal.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "eaf35aedfd17affb5e56b60952cb04bc16c9d2ef517694bbf085c79f1c82ac03",
+      "source": {
+        "bytes": 5968,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/eq3_thermal/thermal.hpp",
+        "sha256": "eaf35aedfd17affb5e56b60952cb04bc16c9d2ef517694bbf085c79f1c82ac03"
+      }
+    },
+    {
+      "bytes": 1616,
+      "relative": "pass/source/include/hbfsim/hybrid_model.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "9751edf03bb520f691137a02de061690d0e17ff85d199c7c95d2d518760cea78",
+      "source": {
+        "bytes": 1616,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/hybrid_model.hpp",
+        "sha256": "9751edf03bb520f691137a02de061690d0e17ff85d199c7c95d2d518760cea78"
+      }
+    },
+    {
+      "bytes": 4593,
+      "relative": "pass/source/include/hbfsim/launch_gate_abi.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "aa1e86966cd8adbfcd63d5ca6360387d6bd24baae571d178bfb116ad5de3dadf",
+      "source": {
+        "bytes": 4593,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/launch_gate_abi.hpp",
+        "sha256": "aa1e86966cd8adbfcd63d5ca6360387d6bd24baae571d178bfb116ad5de3dadf"
+      }
+    },
+    {
+      "bytes": 1164,
+      "relative": "pass/source/include/hbfsim/module_identity.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "b0b57222b92e5522b1e897fbd82f2d35a34e72c3379fcc23aaa7cd4077f99c5a",
+      "source": {
+        "bytes": 1164,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/module_identity.hpp",
+        "sha256": "b0b57222b92e5522b1e897fbd82f2d35a34e72c3379fcc23aaa7cd4077f99c5a"
+      }
+    },
+    {
+      "bytes": 3703,
+      "relative": "pass/source/include/hbfsim/mqsim_online.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "96e84e5967565465e7970f0453c703d7afeda0df22f825a119b21c69e55725c2",
+      "source": {
+        "bytes": 3703,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/mqsim_online.hpp",
+        "sha256": "96e84e5967565465e7970f0453c703d7afeda0df22f825a119b21c69e55725c2"
+      }
+    },
+    {
+      "bytes": 1282,
+      "relative": "pass/source/include/hbfsim/page_directory.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "2ca5ff626137e62e27a2d63c825521fe9c4f27a80ac52ade1052b81da3514b5e",
+      "source": {
+        "bytes": 1282,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/page_directory.hpp",
+        "sha256": "2ca5ff626137e62e27a2d63c825521fe9c4f27a80ac52ade1052b81da3514b5e"
+      }
+    },
+    {
+      "bytes": 5143,
+      "relative": "pass/source/include/hbfsim/prefetch_model.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "9247346a6da7a34f5e704a434341367561dd02f928041da7cb01b8afbe1b507a",
+      "source": {
+        "bytes": 5143,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/prefetch_model.hpp",
+        "sha256": "9247346a6da7a34f5e704a434341367561dd02f928041da7cb01b8afbe1b507a"
+      }
+    },
+    {
+      "bytes": 4450,
+      "relative": "pass/source/include/hbfsim/profile.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "e6a5f8a6bbb9c6821ce81faf1a9c917fa7b15acbe8a3b81906680ec92d476e1b",
+      "source": {
+        "bytes": 4450,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/profile.hpp",
+        "sha256": "e6a5f8a6bbb9c6821ce81faf1a9c917fa7b15acbe8a3b81906680ec92d476e1b"
+      }
+    },
+    {
+      "bytes": 5313,
+      "relative": "pass/source/include/hbfsim/protocol.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "fd9f61bd87b6cfbd608acbc7d911aff6c8e75942810a2072e6e98c9b29040b33",
+      "source": {
+        "bytes": 5313,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/protocol.hpp",
+        "sha256": "fd9f61bd87b6cfbd608acbc7d911aff6c8e75942810a2072e6e98c9b29040b33"
+      }
+    },
+    {
+      "bytes": 3814,
+      "relative": "pass/source/include/hbfsim/shadow_future.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "359eeb29b38014f5647711ff1d280277bc57bc06c490c7e673d2d68566a4c74f",
+      "source": {
+        "bytes": 3814,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/shadow_future.hpp",
+        "sha256": "359eeb29b38014f5647711ff1d280277bc57bc06c490c7e673d2d68566a4c74f"
+      }
+    },
+    {
+      "bytes": 903,
+      "relative": "pass/source/include/hbfsim/strict_direct_policy.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "5761b8c5bf3ab3063c88c30104be00e08b65c09c31a510ea2b0c8689e1810d56",
+      "source": {
+        "bytes": 903,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/strict_direct_policy.hpp",
+        "sha256": "5761b8c5bf3ab3063c88c30104be00e08b65c09c31a510ea2b0c8689e1810d56"
+      }
+    },
+    {
+      "bytes": 5490,
+      "relative": "pass/source/include/hbfsim/timing_binding.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "82fb085eeb5a0699f35e27abfdf55ec7b187595005b633d9d95bb7c50c4c3ce4",
+      "source": {
+        "bytes": 5490,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/timing_binding.hpp",
+        "sha256": "82fb085eeb5a0699f35e27abfdf55ec7b187595005b633d9d95bb7c50c4c3ce4"
+      }
+    },
+    {
+      "bytes": 14008,
+      "relative": "pass/source/include/hbfsim/timing_future_abi.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "9fe55f73aba53343e4f1ebc6c2b6156776b6d7f5777894dd3381b399cd819745",
+      "source": {
+        "bytes": 14008,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/timing_future_abi.hpp",
+        "sha256": "9fe55f73aba53343e4f1ebc6c2b6156776b6d7f5777894dd3381b399cd819745"
+      }
+    },
+    {
+      "bytes": 1934,
+      "relative": "pass/source/include/hbfsim/ucie/backing_registry.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "e4af18fabcbdda82922e1c9c563e26da02cc4cb5b7418c1ebb9f8cd78d37633a",
+      "source": {
+        "bytes": 1934,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/backing_registry.hpp",
+        "sha256": "e4af18fabcbdda82922e1c9c563e26da02cc4cb5b7418c1ebb9f8cd78d37633a"
+      }
+    },
+    {
+      "bytes": 1304,
+      "relative": "pass/source/include/hbfsim/ucie/bank_layout.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "dfc7214f9f6ae7647c4059a036307efc9779e8fbf535f63c92036d3db3a5fe41",
+      "source": {
+        "bytes": 1304,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/bank_layout.hpp",
+        "sha256": "dfc7214f9f6ae7647c4059a036307efc9779e8fbf535f63c92036d3db3a5fe41"
+      }
+    },
+    {
+      "bytes": 3860,
+      "relative": "pass/source/include/hbfsim/ucie/device_coalescer.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "d3287484a7a266ab64d58db670cd14ef5d4e06213497d6de112470ac425a0ee0",
+      "source": {
+        "bytes": 3860,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/device_coalescer.hpp",
+        "sha256": "d3287484a7a266ab64d58db670cd14ef5d4e06213497d6de112470ac425a0ee0"
+      }
+    },
+    {
+      "bytes": 8166,
+      "relative": "pass/source/include/hbfsim/ucie/device_frontend.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "650cc4b9267e4350adf42061f5e11cb2949c9132198bdb460b5bf383c81c6aaa",
+      "source": {
+        "bytes": 8166,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/device_frontend.hpp",
+        "sha256": "650cc4b9267e4350adf42061f5e11cb2949c9132198bdb460b5bf383c81c6aaa"
+      }
+    },
+    {
+      "bytes": 678,
+      "relative": "pass/source/include/hbfsim/ucie/device_profile.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "c32b06a8f2d2c2a8a6683e1abfa39bcf09a37e7a9ec8cc14ba76ea532a6dd559",
+      "source": {
+        "bytes": 678,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/device_profile.hpp",
+        "sha256": "c32b06a8f2d2c2a8a6683e1abfa39bcf09a37e7a9ec8cc14ba76ea532a6dd559"
+      }
+    },
+    {
+      "bytes": 402,
+      "relative": "pass/source/include/hbfsim/ucie/engine_guard.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "d9c253a0e530c9a6fa9f362483d325b4e9258c814c9ad3a0c54ca8b2610dca50",
+      "source": {
+        "bytes": 402,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/engine_guard.hpp",
+        "sha256": "d9c253a0e530c9a6fa9f362483d325b4e9258c814c9ad3a0c54ca8b2610dca50"
+      }
+    },
+    {
+      "bytes": 3894,
+      "relative": "pass/source/include/hbfsim/ucie/link.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "0b1ec54c8049cc11a714ab4c8b67a0b37c1b5b83a89f8922a7a10e01c38180e0",
+      "source": {
+        "bytes": 3894,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/link.hpp",
+        "sha256": "0b1ec54c8049cc11a714ab4c8b67a0b37c1b5b83a89f8922a7a10e01c38180e0"
+      }
+    },
+    {
+      "bytes": 3728,
+      "relative": "pass/source/include/hbfsim/ucie/mqsim_frontend.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "bbe8813f6e2932e526dd457328a5654bf8ef7c2ecc0262138e16e25673935f90",
+      "source": {
+        "bytes": 3728,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/mqsim_frontend.hpp",
+        "sha256": "bbe8813f6e2932e526dd457328a5654bf8ef7c2ecc0262138e16e25673935f90"
+      }
+    },
+    {
+      "bytes": 8773,
+      "relative": "pass/source/include/hbfsim/ucie/multistack_frontend.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "aeecec6e76f6ec45180870db86f34822c16ad85f25e1a690503a8afc0538ddaa",
+      "source": {
+        "bytes": 8773,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/multistack_frontend.hpp",
+        "sha256": "aeecec6e76f6ec45180870db86f34822c16ad85f25e1a690503a8afc0538ddaa"
+      }
+    },
+    {
+      "bytes": 1278,
+      "relative": "pass/source/include/hbfsim/ucie/multistack_profile.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "82a2d5154cff923b4e1f1eb0c569ac94eaee49a2346d0ee296cd31cf081e34bd",
+      "source": {
+        "bytes": 1278,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/multistack_profile.hpp",
+        "sha256": "82a2d5154cff923b4e1f1eb0c569ac94eaee49a2346d0ee296cd31cf081e34bd"
+      }
+    },
+    {
+      "bytes": 921,
+      "relative": "pass/source/include/hbfsim/ucie/profile.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "3da49bc0c197d2bef31a8d7df1fcf4f3c8bd858c618bc4dfa291d31c458ab99c",
+      "source": {
+        "bytes": 921,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/profile.hpp",
+        "sha256": "3da49bc0c197d2bef31a8d7df1fcf4f3c8bd858c618bc4dfa291d31c458ab99c"
+      }
+    },
+    {
+      "bytes": 5546,
+      "relative": "pass/source/include/hbfsim/ucie/stack_frontend.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "d296d42b96072dca8638a61f1f89629ed2a75817f6c4ae3438ec2cf9888d4606",
+      "source": {
+        "bytes": 5546,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/stack_frontend.hpp",
+        "sha256": "d296d42b96072dca8638a61f1f89629ed2a75817f6c4ae3438ec2cf9888d4606"
+      }
+    },
+    {
+      "bytes": 3873,
+      "relative": "pass/source/include/hbfsim/ucie/stack_router.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "1e421cb47b934c59a83413b9bf83f8442d1e02624608133e5eb1a0e70fb043fd",
+      "source": {
+        "bytes": 3873,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/stack_router.hpp",
+        "sha256": "1e421cb47b934c59a83413b9bf83f8442d1e02624608133e5eb1a0e70fb043fd"
+      }
+    },
+    {
+      "bytes": 3942,
+      "relative": "pass/source/include/hbfsim/ucie/worker_protocol.hpp",
+      "role": "actual pass TU include roots; parent-source dependency bytes",
+      "sha256": "2cfc7006ae672ed22db667c85818f7c15c7692910e2a412681155546480c996c",
+      "source": {
+        "bytes": 3942,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/include/hbfsim/ucie/worker_protocol.hpp",
+        "sha256": "2cfc7006ae672ed22db667c85818f7c15c7692910e2a412681155546480c996c"
+      }
+    },
+    {
+      "bytes": 18755,
+      "relative": "pass/source/src/ptxpass_hbf/transform.cpp",
+      "role": "actual7d3962 pass compiled TU",
+      "sha256": "7d3962d4df6ecc9ea2118dfd598194badd1d4719280428dda4302b4c7437c365",
+      "source": {
+        "bytes": 18755,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/transform.cpp",
+        "sha256": "7d3962d4df6ecc9ea2118dfd598194badd1d4719280428dda4302b4c7437c365"
+      }
+    },
+    {
+      "bytes": 1340,
+      "relative": "pass/source/src/ptxpass_hbf/future_transform.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "46d6873789c66cec3d4a5ebd9db149480bd81f07ac8cdfd933ef82d59512ccbf",
+      "source": {
+        "bytes": 1340,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/future_transform.hpp",
+        "sha256": "46d6873789c66cec3d4a5ebd9db149480bd81f07ac8cdfd933ef82d59512ccbf"
+      }
+    },
+    {
+      "bytes": 1359,
+      "relative": "pass/source/src/ptxpass_hbf/ptx_analysis.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "2c30d4913ab4d3fcba789c85856d21f4ae44e8a70bc0a5cc1fd46d564ebdc2dd",
+      "source": {
+        "bytes": 1359,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/ptx_analysis.hpp",
+        "sha256": "2c30d4913ab4d3fcba789c85856d21f4ae44e8a70bc0a5cc1fd46d564ebdc2dd"
+      }
+    },
+    {
+      "bytes": 2175,
+      "relative": "pass/source/src/ptxpass_hbf/ptx_async_op.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "053400753efadff8f1d37c088a77d626c21aae749be8a09a63c890b8b7088195",
+      "source": {
+        "bytes": 2175,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/ptx_async_op.hpp",
+        "sha256": "053400753efadff8f1d37c088a77d626c21aae749be8a09a63c890b8b7088195"
+      }
+    },
+    {
+      "bytes": 2482,
+      "relative": "pass/source/src/ptxpass_hbf/ptx_ir.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "351f4959440c9333c7741a194f1eaa61a752c86dd3539700389f4cc221e73a5e",
+      "source": {
+        "bytes": 2482,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/ptx_ir.hpp",
+        "sha256": "351f4959440c9333c7741a194f1eaa61a752c86dd3539700389f4cc221e73a5e"
+      }
+    },
+    {
+      "bytes": 520,
+      "relative": "pass/source/src/ptxpass_hbf/ptx_memory_op.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "2b3ee5c1003f90deefac1344a97d16351bc91755756be962d098f7418c2c2ff8",
+      "source": {
+        "bytes": 520,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/ptx_memory_op.hpp",
+        "sha256": "2b3ee5c1003f90deefac1344a97d16351bc91755756be962d098f7418c2c2ff8"
+      }
+    },
+    {
+      "bytes": 899,
+      "relative": "pass/source/src/ptxpass_hbf/ptx_source.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "e03caedf3a1cd22dde7b954daa613644827f2ef03aadffecab4d32137165a0f4",
+      "source": {
+        "bytes": 899,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/ptx_source.hpp",
+        "sha256": "e03caedf3a1cd22dde7b954daa613644827f2ef03aadffecab4d32137165a0f4"
+      }
+    },
+    {
+      "bytes": 966,
+      "relative": "pass/source/src/ptxpass_hbf/transform.hpp",
+      "role": "actual pass quoted-header transitive closure",
+      "sha256": "260934656dddc8336a62ce20fb05518f52cf8472d3783b975d41b4590c745ba1",
+      "source": {
+        "bytes": 966,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/transform.hpp",
+        "sha256": "260934656dddc8336a62ce20fb05518f52cf8472d3783b975d41b4590c745ba1"
+      }
+    },
+    {
+      "bytes": 1795,
+      "relative": "tools/serialize_helper_header.py",
+      "role": "actual accepted serializer source; not an additional device algorithm",
+      "sha256": "52662c4347d18d354849285083c2f7079c85351bee68ae2808a076271ffd464c",
+      "source": {
+        "bytes": 1795,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/same-page-helper-serialization-source-v1/source/serialize_helper_header.py",
+        "sha256": "52662c4347d18d354849285083c2f7079c85351bee68ae2808a076271ffd464c"
+      }
+    },
+    {
+      "bytes": 196598,
+      "relative": "parent-reproduction/first-fault-runtime-from-eabc5c2.patch",
+      "role": "existing eabc5c2 reproduction parent dependency; historical recipe NOT_REBUILT",
+      "sha256": "16dfe4c80e6281d159b5ba2a5e338355d08d20c126290f0b3aea27025ebcca93",
+      "source": {
+        "bytes": 196598,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/reproduction/sass-final147-20260926/first-fault-runtime-from-eabc5c2.patch",
+        "sha256": "16dfe4c80e6281d159b5ba2a5e338355d08d20c126290f0b3aea27025ebcca93"
+      }
+    },
+    {
+      "bytes": 9623,
+      "relative": "parent-reproduction/REBUILD.md",
+      "role": "existing eabc5c2 reproduction parent dependency; historical recipe NOT_REBUILT",
+      "sha256": "f64a92268d2b89252b2811c70bd642203e2e01c2a3b6f0374753c37d622a1b1d",
+      "source": {
+        "bytes": 9623,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/reproduction/sass-final147-20260926/REBUILD.md",
+        "sha256": "f64a92268d2b89252b2811c70bd642203e2e01c2a3b6f0374753c37d622a1b1d"
+      }
+    },
+    {
+      "bytes": 5655,
+      "relative": "parent-reproduction/INTERFACES.md",
+      "role": "existing eabc5c2 reproduction parent dependency; historical recipe NOT_REBUILT",
+      "sha256": "759d27c84f558974fd86980409cbac8e6c452bcca321a00497b8246c0c21136f",
+      "source": {
+        "bytes": 5655,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/reproduction/sass-final147-20260926/INTERFACES.md",
+        "sha256": "759d27c84f558974fd86980409cbac8e6c452bcca321a00497b8246c0c21136f"
+      }
+    },
+    {
+      "bytes": 1158,
+      "relative": "parent-reproduction/NOTICE.md",
+      "role": "existing eabc5c2 reproduction parent dependency; historical recipe NOT_REBUILT",
+      "sha256": "a25d2f8204812f5197f6d65814f4e08fe8cb77c381c3a40771395f3859e62a71",
+      "source": {
+        "bytes": 1158,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/reproduction/sass-final147-20260926/NOTICE.md",
+        "sha256": "a25d2f8204812f5197f6d65814f4e08fe8cb77c381c3a40771395f3859e62a71"
+      }
+    },
+    {
+      "bytes": 2154,
+      "relative": "parent-reproduction/README.md",
+      "role": "existing eabc5c2 reproduction parent dependency; historical recipe NOT_REBUILT",
+      "sha256": "cf16904b8915cb3cb7afae8f693751bfedd8b4f6d552aa3ed0285d61dd48f092",
+      "source": {
+        "bytes": 2154,
+        "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/reproduction/sass-final147-20260926/README.md",
+        "sha256": "cf16904b8915cb3cb7afae8f693751bfedd8b4f6d552aa3ed0285d61dd48f092"
+      }
+    },
+    {
+      "bytes": 13296,
+      "relative": "evidence/helper-actual-compile-TERMINAL.json",
+      "role": "historical actual compile receipt only; no new build",
+      "sha256": "c4246572194edcc196c8e7b00fba34985bc4500b35cad8985c8c49e7a7b665ad",
+      "source": {
+        "bytes": 13296,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/TERMINAL.json",
+        "sha256": "c4246572194edcc196c8e7b00fba34985bc4500b35cad8985c8c49e7a7b665ad"
+      }
+    },
+    {
+      "bytes": 544,
+      "relative": "helper/build-prep/ORIGINAL_ACCOUNT_BODY.txt",
+      "role": "required unchanged source-contract test body fixture; not test execution",
+      "sha256": "c02b8280f09647b9ef6bc622b4649f6f3f6e8d5b70293605c475b68195d0ec3a",
+      "source": {
+        "bytes": 544,
+        "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build-prep/ORIGINAL_ACCOUNT_BODY.txt",
+        "sha256": "c02b8280f09647b9ef6bc622b4649f6f3f6e8d5b70293605c475b68195d0ec3a"
+      }
+    }
+  ],
+  "schema": "hbfsim.release.helper_pass_source_allowlist.v1",
+  "source_scope": "accepted helper6fda/passce2 sourceclosure; no runtime/agent binary reproduced",
+  "status": "FROZEN_BYTE_PRESERVED_NOT_BUILT_OR_TESTED"
+}

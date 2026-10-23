@@ -1,0 +1,425 @@
+#include "transform.hpp"
+
+#include "ptx_memory_op.hpp"
+#include "ptx_source.hpp"
+#include <hbfsim/timing_future_abi.hpp>
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES)
+#include "future_transform.hpp"
+#endif
+#include <openssl/sha.h>
+#include <algorithm>
+#include <iomanip>
+
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+#include "hbf_device_ptx.hpp"
+#endif
+
+#include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+namespace hbfsim::ptx {
+namespace {
+
+#define HBFSIM_STRINGIFY_DETAIL(value) #value
+#define HBFSIM_STRINGIFY(value) HBFSIM_STRINGIFY_DETAIL(value)
+
+#if !defined(HBFSIM_DEVICE_PTX_ARCHITECTURE)
+#define HBFSIM_DEVICE_PTX_ARCHITECTURE 120
+#endif
+
+constexpr std::string_view kDevicePtxArchitecture =
+    HBFSIM_STRINGIFY(HBFSIM_DEVICE_PTX_ARCHITECTURE);
+constexpr unsigned kDevicePtxArchitectureNumber =
+    HBFSIM_DEVICE_PTX_ARCHITECTURE;
+
+std::string device_ptx_target()
+{
+    return "sm_" + std::string{kDevicePtxArchitecture};
+}
+
+bool has_compatible_device_target(const std::string& ptx)
+{
+    static const std::regex target(
+        R"(^\s*\.target\s+sm_([0-9]+)(a?)(?:\s|,|$))",
+        std::regex::multiline);
+    std::smatch match;
+    if (!std::regex_search(ptx, match, target) ||
+        match[1].str() != kDevicePtxArchitecture) {
+        return false;
+    }
+    const auto suffix = match[2].str();
+    return suffix.empty() ||
+           (suffix == "a" && kDevicePtxArchitectureNumber >= 90);
+}
+
+bool unsupported_memory_instruction(const std::string& line,
+                                    std::string& opcode)
+{
+    static const std::regex expression(
+        // The `cp.async` and `cp.reduce.async` alternatives require `.global`
+        // in the opcode on purpose. The same families carry pure
+        // synchronisation forms -- cp.async.commit_group, cp.async.wait_group,
+        // cp.async.bulk.wait_group -- which touch no memory and must not be
+        // reported as unsupported memory operations.
+        //
+        // The bulk TENSOR families are matched here too, deliberately. Branch
+        // feature/sm120-exact-stage1 models them in parse_tma, and an earlier
+        // version of this pattern excluded them so the two would not collide
+        // on merge. That was the wrong trade: hybrid has no parse_tma, so
+        // excluding them left those instructions neither modeled nor reported
+        // -- the exact fail-open hole this pattern exists to close, preserved
+        // on the only branch that exists today. When
+        // A global load or store only reaches this scan when the rewriter
+        // could not consume it: every rewritten access takes the `continue`
+        // above. So `ld.global` and `st.global` must be matched here, not
+        // excluded. They used to carry a `(?!global)` lookahead, which made an
+        // unparsable global access invisible: it was neither rewritten nor
+        // counted, while the kernel was still reported as instrumented. A
+        // fixture with three such statements measured 0 rewritten and 0
+        // unsupported before this change.
+        // feature/sm120-exact-stage1 merges, remove the three prefixes it
+        // handles (cp.async.bulk.tensor., cp.reduce.async.bulk.tensor. and
+        // cp.async.bulk.prefetch.tensor.) from this pattern in the same
+        // commit, so the coverage hole is never open in between.
+        R"(^\s*(?:@!?%[A-Za-z0-9_$]+\s+)?((?:atom|red)\.global\S*|ld\.\S*|st\.\S*|cp\.async\S*\.global\S*|cp\.reduce\.async\S*\.global\S*|tex\S*|suld\S*|sust\S*|asm(?:\s+volatile)?\s*\().*;\s*(?://.*)?$)");
+    std::smatch match;
+    if (!std::regex_match(line, match, expression)) {
+        return false;
+    }
+    opcode = match[1].str();
+    return true;
+}
+
+using detail::code_without_comments;
+
+std::string joined_statement(const std::string& pending,
+                             const std::string& line,
+                             bool& inside_block_comment)
+{
+    auto trimmed = code_without_comments(line, inside_block_comment);
+    if (pending.empty()) {
+        return trimmed;
+    }
+    const auto first = trimmed.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        return pending;
+    }
+    trimmed.erase(0, first);
+    return pending + " " + trimmed;
+}
+
+// A PTX statement may be written across several physical lines. The rewrite
+// path matches per line, which is enough for the forms it rewrites, but the
+// unsupported scan must see whole statements: an asynchronous copy split
+// across two lines matches neither line on its own, so scanning per line lets
+// it through unreported, and if the same kernel also holds an ordinary
+// ld.global the module is still marked instrumented. The launch then proceeds
+// with an unreported access, which is the fail-open case the scan exists to
+// prevent.
+bool statement_is_open(const std::string& text)
+{
+    const auto last = text.find_last_not_of(" \t\r");
+    if (last == std::string::npos) {
+        return false;
+    }
+    // Debug location directives end at the newline, without a semicolon.
+    // Joining one to the next instruction would hide that memory access.
+    const auto first = text.find_first_not_of(" \t\r");
+    if (text.compare(first, 4, ".loc") == 0 &&
+        (first + 4 == text.size() || text[first + 4] == ' ' ||
+         text[first + 4] == '\t')) {
+        return false;
+    }
+    const auto character = text[last];
+    return character != ';' && character != '{' && character != '}' &&
+           character != ':';
+}
+
+std::string replace_address(const PtxMemoryOp& op,
+                            const std::string& scratch)
+{
+    static const std::regex address(
+        R"(\[\s*%rd[A-Za-z0-9_$]*(?:\s*[+-]\s*-?(?:0[xX])?[0-9A-Fa-f]+)?\s*\])");
+    return std::regex_replace(op.original_line, address, "[" + scratch + "]",
+                              std::regex_constants::format_first_only);
+}
+
+bool defines_function(const std::string& ptx, const std::string& name)
+{
+    const std::regex definition(
+        R"(\.(?:visible\s+)?func(?:\s+\([^{};]*\))?\s+)" + name +
+        R"(\s*\()",
+        std::regex::ECMAScript);
+    return std::regex_search(ptx, definition);
+}
+
+bool defines_device_helper_marker(const std::string& ptx)
+{
+    static const std::regex definition(
+        R"(\.(?:visible\s+)?(?:global|const)[^;\n]*\b__hbfsim_device_helper_marker\b[^;\n]*;)");
+    return std::regex_search(ptx, definition);
+}
+
+void append_device_helper(std::string& ptx, bool trusted_existing_helper)
+{
+    const bool marker = defines_device_helper_marker(ptx);
+    const bool resolver = defines_function(ptx, "__hbfsim_resolve");
+    const bool fault = defines_function(ptx, "__hbfsim_fault");
+    if (marker || resolver || fault) {
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+        const bool exact_helper =
+            trusted_existing_helper && marker && resolver && fault &&
+            ptx.find(kEmbeddedDevicePtx) != std::string::npos;
+        if (exact_helper) {
+            return;
+        }
+#endif
+        throw std::runtime_error(
+            "PTX module collides with the reserved HBFSim device ABI");
+    }
+    const auto expected_target = device_ptx_target();
+    if (!has_compatible_device_target(ptx)) {
+        throw std::runtime_error(
+            "HBFSim device helper built for " + expected_target +
+            " cannot instrument a PTX module with a different baseline target");
+    }
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+    const auto address_size = ptx.find(".address_size");
+    const auto newline = address_size == std::string::npos
+                             ? std::string::npos
+                             : ptx.find('\n', address_size);
+    const auto insertion = newline == std::string::npos ? 0 : newline + 1;
+    std::string helper{"\n// HBFSim embedded device helper\n"};
+    helper.append(kEmbeddedDevicePtx);
+    helper.push_back('\n');
+    ptx.insert(insertion, helper);
+#else
+    throw std::runtime_error(
+        "HBFSim device helper PTX was unavailable at build time");
+#endif
+}
+
+}  // namespace
+
+TransformResult transform_ptx(const TransformRequest& request)
+{
+    if (request.transform_mode=="timing_load_future_v1") {
+        if (!timing_future::kUnitComplete)
+            throw std::invalid_argument("timing_future_unit_incomplete");
+#if defined(HBFSIM_ENABLE_TIMING_FUTURES) && defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+        const auto masked=masked_ptx_source(request.full_ptx);
+        static const std::regex target(R"(^[ \t]*\.target[ \t]+sm_120[ \t]*(?:\n|$))",std::regex::multiline);
+        static const std::regex any_target(R"(^[ \t]*\.target\b)",std::regex::multiline);
+        if (!std::regex_search(masked,target) ||
+            std::distance(std::sregex_iterator(masked.begin(),masked.end(),any_target),std::sregex_iterator{})!=1)
+            throw std::invalid_argument("timing_future_target_mismatch");
+        auto kernels=request.future_kernels;
+        if (kernels.empty()) kernels.push_back(request.to_patch_kernel);
+        std::vector<FutureEmission> emissions;
+        TransformResult result;
+        for (const auto& kernel:kernels) {
+            emissions.push_back(emit_timing_futures(request.full_ptx,kernel));
+            result.coverage.rewritten_instructions+=emissions.back().allocated_thread_futures;
+        }
+        std::sort(emissions.begin(),emissions.end(),[](const auto& a,const auto& b) {
+            return a.body_span.begin>b.body_span.begin;
+        });
+        result.output_ptx=request.full_ptx;
+        for (const auto& e:emissions)
+            result.output_ptx.replace(e.body_span.begin,e.body_span.end-e.body_span.begin,e.body);
+        // Use the original validated directive boundary. Generated calls need
+        // the actual embedded definitions, not unverified extern prototypes.
+        const auto module=parse_module_spanned(request.full_ptx,kernels.front());
+        const auto boundary=module.address_size_directive.end;
+        result.output_ptx.insert(boundary,"\n"+std::string(kEmbeddedDevicePtx)+"\n");
+        result.modified=true;
+        return result;
+#else
+        throw std::invalid_argument("timing_future_helper_unavailable");
+#endif
+    }
+    if (request.transform_mode!="synchronous")
+        throw std::invalid_argument("unsupported_transform_mode");
+    TransformResult result{.output_ptx = {}, .coverage = {}, .modified = false};
+    std::istringstream input(request.full_ptx);
+    std::ostringstream output;
+    std::string line;
+    std::string function_name;
+    bool excluded = false;
+    bool selected = false;
+    int brace_depth = 0;
+    std::uint64_t scratch_id = 0;
+    std::string pending_statement;
+    bool inside_block_comment = false;
+    static const std::regex function_expression(
+        R"(\.(?:visible\s+)?(?:entry|func)\s+([A-Za-z0-9_$.]+))");
+
+    while (std::getline(input, line)) {
+        std::smatch function_match;
+        if (std::regex_search(line, function_match, function_expression)) {
+            function_name = function_match[1].str();
+            excluded = function_name.starts_with("__hbfsim_") ||
+                       function_name.starts_with("__bpftime_");
+            selected = request.to_patch_kernel.empty() ||
+                       function_name == request.to_patch_kernel;
+            if (excluded) {
+                ++result.coverage.excluded_functions;
+            }
+        }
+
+        const bool inside_function = !function_name.empty() && brace_depth > 0;
+        if (inside_function && selected && !excluded) {
+            if (pending_statement.empty()) {
+                if (const auto operation = parse_memory_op(line); operation) {
+                const auto id = ++scratch_id;
+                const auto address = "%hbfsim_addr_" + std::to_string(id);
+                const auto status = "%hbfsim_status_" + std::to_string(id);
+                const auto fault = "%hbfsim_fault_" + std::to_string(id);
+                const bool predicated = !operation->predicate.empty();
+                const auto skip_label = "$L__hbfsim_skip_" +
+                                        std::to_string(id);
+                if (predicated) {
+                    const auto predicate_register =
+                        operation->predicate.starts_with("@!")
+                            ? "@" + operation->predicate.substr(2)
+                            : "@!" + operation->predicate.substr(1);
+                    output << "    " << predicate_register << " bra "
+                           << skip_label << ";\n";
+                }
+                output << "    .reg .b64 " << address << ";\n";
+                output << "    .reg .b32 " << status << ";\n";
+                output << "    .reg .pred " << fault << ";\n";
+                output << "    mov.b64 " << address << ", "
+                       << operation->base_register << ";\n";
+                if (operation->offset != 0) {
+                    output << "    add.s64 " << address
+                           << ", " << address << ", " << operation->offset
+                           << ";\n";
+                }
+                output << "    { // HBFSim call sequence " << id << "\n";
+                output << "    .param .b64 %hbfsim_param_addr_" << id << ";\n";
+                output << "    .param .b32 %hbfsim_param_bytes_" << id << ";\n";
+                output << "    .param .b32 %hbfsim_param_kind_" << id << ";\n";
+                output << "    .param .align 8 .b8 %hbfsim_ret_" << id
+                       << "[16];\n";
+                output << "    st.param.b64 "
+                       << "[%hbfsim_param_addr_" << id << "], " << address
+                       << ";\n";
+                output << "    st.param.b32 "
+                       << "[%hbfsim_param_bytes_" << id << "], "
+                       << operation->bytes << ";\n";
+                output << "    st.param.b32 "
+                       << "[%hbfsim_param_kind_" << id << "], "
+                       << static_cast<std::uint32_t>(operation->kind) << ";\n";
+                output << "    call" << (predicated ? "" : ".uni")
+                       << " (%hbfsim_ret_" << id
+                       << "), __hbfsim_resolve, (%hbfsim_param_addr_" << id
+                       << ", %hbfsim_param_bytes_" << id
+                       << ", %hbfsim_param_kind_" << id << ");\n";
+                output << "    ld.param.b64 " << address
+                       << ", [%hbfsim_ret_" << id << "+0];\n";
+                output << "    ld.param.b32 " << status
+                       << ", [%hbfsim_ret_" << id << "+8];\n";
+                output << "    } // HBFSim call sequence " << id << "\n";
+                output << "    setp.ne.u32 " << fault << ", " << status
+                       << ", 1;\n";
+                output << "    { // HBFSim fault sequence " << id << "\n";
+                output << "    .param .b32 %hbfsim_fault_status_" << id
+                       << ";\n";
+                output << "    st.param.b32 [%hbfsim_fault_status_" << id
+                       << "], " << status << ";\n";
+                output << "    @" << fault << " call __hbfsim_fault, "
+                       << "(%hbfsim_fault_status_" << id << ");\n";
+                output << "    } // HBFSim fault sequence " << id << "\n";
+                if (predicated) {
+                    output << skip_label << ":\n";
+                }
+                output << replace_address(*operation, address) << '\n';
+                ++result.coverage.rewritten_instructions;
+                result.modified = true;
+                continue;
+                }
+            }
+            // Accumulate physical lines into one logical statement before
+            // scanning, so a statement split across lines is seen whole.
+            pending_statement = joined_statement(
+                pending_statement, line, inside_block_comment);
+            if (statement_is_open(pending_statement)) {
+                output << line << '\n';
+                continue;
+            }
+            // Count per access, not per line. One physical line may carry
+            // several statements, and the scan's regex is anchored to the end
+            // of what it is given, so handing it the whole line matches once
+            // and swallows the rest. Splitting on semicolons first means a
+            // line holding both a load and a store reports both. A manifest
+            // that says "one unsupported instruction" when two accesses were
+            // skipped understates the coverage gap by half.
+            //
+            // A semicolon inside an inline-asm string would split wrongly, but
+            // the scan matches inline asm as unsupported in its own right, so
+            // such a statement is still reported; only its opcode text would
+            // be truncated.
+            for (std::size_t begin = 0; begin < pending_statement.size();) {
+                const auto end = pending_statement.find(';', begin);
+                const auto stop = end == std::string::npos
+                                      ? pending_statement.size()
+                                      : end + 1;
+                const auto piece =
+                    pending_statement.substr(begin, stop - begin);
+                begin = stop;
+                if (piece.find_first_not_of(" \t") == std::string::npos) {
+                    continue;
+                }
+                std::string opcode;
+                if (unsupported_memory_instruction(piece, opcode)) {
+                    ++result.coverage.unsupported_instructions;
+                    result.coverage.unsupported_opcodes.push_back(opcode);
+                }
+            }
+            pending_statement.clear();
+        }
+
+        output << line << '\n';
+        for (const char character : line) {
+            if (character == '{') {
+                ++brace_depth;
+            } else if (character == '}') {
+                --brace_depth;
+                if (brace_depth == 0) {
+                    function_name.clear();
+                }
+            }
+        }
+    }
+    result.output_ptx = output.str();
+    if (result.modified) {
+        append_device_helper(result.output_ptx,
+                             request.trusted_existing_helper);
+    }
+    return result;
+}
+
+std::string embedded_device_helper_sha256()
+{
+    const auto helper=embedded_device_helper();
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(helper.data()),helper.size(),hash);
+    std::ostringstream out;out<<std::hex<<std::setfill('0');
+    for (auto byte:hash) out<<std::setw(2)<<static_cast<unsigned>(byte);
+    return out.str();
+}
+
+std::string_view embedded_device_helper()
+{
+#if defined(HBFSIM_HAVE_DEVICE_HELPER_PTX)
+    return kEmbeddedDevicePtx;
+#else
+    return {};
+#endif
+}
+
+}  // namespace hbfsim::ptx

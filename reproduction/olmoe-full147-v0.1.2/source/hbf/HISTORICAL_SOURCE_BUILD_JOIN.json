@@ -1,0 +1,140 @@
+{
+  "agent_scope": "passce2 is HBFplugin; historical ef955 agentreceipt parentnot currente847. e847/cache/core/Frida source publication is separateowner task, not recreated bythis helper/passpacket.",
+  "embedded_header_expected": {
+    "bytes": 334269,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-actual-artifacts-v1/generated/hbf_device_ptx.hpp",
+    "sha256": "99abe09bfae1520b2d65bf6458535772cdb832508f85094ceed683989aae1670"
+  },
+  "helper_actual_terminal": {
+    "bytes": 13296,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/TERMINAL.json",
+    "sha256": "c4246572194edcc196c8e7b00fba34985bc4500b35cad8985c8c49e7a7b665ad"
+  },
+  "helper_commands": [
+    {
+      "abort_reason": null,
+      "argv": [
+        "/root/hbfsim-exp/rebuttal_20260921/cuda13-glibc-rsqrt-overlay-v1/root/cuda-13.0/bin/nvcc",
+        "-DHBFSIM_ENABLE_WAIT_TIMING_DIAGNOSTICS=1",
+        "-DHBFSIM_ENABLE_UNIFORM_ACCOUNT_AGGREGATION=1",
+        "--ptx",
+        "--std=c++20",
+        "--gpu-architecture=compute_120",
+        "--relocatable-device-code=true",
+        "--keep-device-functions",
+        "--compiler-bindir=/usr/bin/g++-13",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device",
+        "-I/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/include",
+        "-DHBFSIM_ENABLE_TIMING_FUTURES=0",
+        "-DHBFSIM_ENABLE_EVAL_CHAIN_DIAGNOSTIC=0",
+        "-DHBFSIM_ENABLE_EVAL_FUTURE_DELAY_DIAGNOSTIC=0",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/src/cuda_runtime/device/hbf_device.cu",
+        "-o",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.ptx"
+      ],
+      "id": "enabled1-nvcc",
+      "identity": {
+        "nice": 10,
+        "pgid": 26,
+        "pid": 26,
+        "ppid": 2,
+        "rss_bytes": 5459968,
+        "start_ticks": 131541986,
+        "state": "R"
+      },
+      "max_individual_descendant_RSS_KiB": 357728,
+      "peak_tree_RSS_bytes_sampled": 363569152,
+      "pgid": 26,
+      "remaining_group_members": [],
+      "returncode": 0,
+      "status": "COMPLETED",
+      "system_s": 0.210195,
+      "user_s": 1.335934,
+      "wall_s": 1.751362011069432
+    },
+    {
+      "abort_reason": null,
+      "argv": [
+        "/usr/bin/cmake",
+        "-DINPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1.ptx",
+        "-DOUTPUT=/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/build/ROOT-20261019T053556Z-571570e4/enabled1_ptx.hpp",
+        "-P",
+        "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-accounting-stage-A-v2/source/cmake/EmbedDevicePtx.cmake"
+      ],
+      "id": "enabled1-embed",
+      "identity": {
+        "nice": 10,
+        "pgid": 36,
+        "pid": 36,
+        "ppid": 2,
+        "rss_bytes": 1982464,
+        "start_ticks": 131542161,
+        "state": "R"
+      },
+      "max_individual_descendant_RSS_KiB": 20096,
+      "peak_tree_RSS_bytes_sampled": 4407296,
+      "pgid": 36,
+      "remaining_group_members": [],
+      "returncode": 0,
+      "status": "COMPLETED",
+      "system_s": 0.002131,
+      "user_s": 0.013411,
+      "wall_s": 0.10688246204517782
+    }
+  ],
+  "helper_output_historical": {
+    "bytes": 334027,
+    "sha256": "6fdadac5aa36216917d76acb8fe9c71d3d6bac5aa437f9d1da243b6a1902edf7"
+  },
+  "helper_source_manifest_SHA": "521f530ef0749dd24b4fc3161dfd14a71b5c06d28c950c37673ecbf295aa4042",
+  "pass_actual_build_receipt": {
+    "bytes": 157480,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-postlink-verification-actual-v1/BUILD_RECEIPT.json",
+    "sha256": "f0c8b8051622861ef92c869662bd9747962c6448ebda25b6e2e144c133213b20"
+  },
+  "pass_archive": {
+    "bytes": 2603222,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/libhbfsim_core.a",
+    "sha256": "a839f7d9f779b38b04f6ffdab66c1fd3362d87656730cd79818f41d1c503d100"
+  },
+  "pass_archive_member": "transform.cpp.o",
+  "pass_object": {
+    "bytes": 648976,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/plugin/transform.cpp.o",
+    "sha256": "12e4e124105f10d2994f003df33629d79dbf3c11381b57013d74cbc779368ccc"
+  },
+  "pass_plugin": {
+    "bytes": 1087000,
+    "path": "/root/hbfsim-exp/docs/codex/ocp-thermal-20261018/phase-timing-v1/runtime-D4-20261018T160927Z-7e0882ec/performance-layer0-head-diagnostic-v1/stageA-only-pass-agent-build-v1/build/hbf-on/libptxpass_hbf.so",
+    "sha256": "ce2c6d5185a600753baa7d9a43f99e49b5e6a32c08842818a34497346e898154"
+  },
+  "pass_preserved_archive_members": {
+    "api.cpp.o": "0820f8957165eed48dcdd67b6aafd4fc6e3c6b1e61162fbfed9a205b9ff4ef48",
+    "backing_store.cpp.o": "717e08a20e6e71b0b4c67f3a61fc378af18ff034a3d8c9de9048eb5b0c2c8ddf",
+    "bank_layout.cpp.o": "83c474446d07cb95f81dd935f613ac8fb6cbfe53233a78584878aa0c744bf555",
+    "calibrator.cpp.o": "c152a07af47e5f3c40ec72ba88500edf2b1c6204fa63b9d098bcc9ea92776ff1",
+    "capacity_backing_router.cpp.o": "8bcc40907d92b4aacc2821797ba70ca661d1add9e12f13573fcccaafc5754f51",
+    "capacity_page_service.cpp.o": "d42db690316ff26e131e0bcd7475a433d3c564f79c9b040ab82d464be16f481d",
+    "capacity_runtime.cpp.o": "0f4e4dcfebd273ef14f698c7894b5b1cf42b3ddc70c0c192e9d045394861c2de",
+    "capacity_worker.cpp.o": "cb8d9bdfc0760f9add6e3749f16dc0cccd70549d11c87a04eaa3656494b4a2a0",
+    "context.cpp.o": "c32d42889eaa363eee5ec24a29e0b7e5c7aa3b96e17395f1db395c6990bf880d",
+    "coverage.cpp.o": "dc040f09280bc78d282305b99c6de30476805b94dc79a9b77ccedb806f9f3ee1",
+    "coverage_writer.cpp.o": "cdfe06b198b283789938fefb76f094c5f72a912f6d9d130a989d309215b16dba",
+    "durable_append.cpp.o": "bfa4de4f6c7767464ec38c77f8e60bbc0a92d9e5cbdd8c68c71561d4a4b6beed",
+    "hbm_cache.cpp.o": "90b9909a0a662e338d68d908f64245d20b4c9ad3afd885f1abc35da232e88798",
+    "module_identity.cpp.o": "b036d79b2f89afba535b937ae5bc52d3d988337d7dec353e8b0488e979adde14",
+    "mqsim_online.cpp.o": "79c6f042adba39d4582a2ff6a80ae00a190a371c7227d06f872b4c5c83c00cba",
+    "page_directory.cpp.o": "186b2fec40600612ba55f2ba3518c4185c5922606e258095b99cec433c31a23e",
+    "profile.cpp.o": "874a32f30a0a37f94cc9695bd121747e43dfabc088cb077e8a481ac67abfc354",
+    "ptx_memory_op.cpp.o": "88f2c012fe91969c6b4bcd008bb9c11a5bc0e1ffea06328db5ee93aed3c4095b",
+    "range_table.cpp.o": "e80db3692cbec97e9b24e371eb9c0384986082407ec97b85304e7de44d8bafd6",
+    "request_dispatcher.cpp.o": "0f862264def00ff636334ae6e136710a89062764de8913a322c5602bf22d973b",
+    "timing_binding.cpp.o": "85043d565e564e1880ff807b6883f1edd684a4021ada2ce8cce3a4b1395cb684",
+    "vmm.cpp.o": "e3046cf88d18437d0e3fd5ff36c4039f379f8325e93c49ae89ac38b795e36b69"
+  },
+  "pass_source": {
+    "path": "/root/hbfsim-exp/ucie-interface-20260929/hybrid-phase-diag-v1/source/src/ptxpass_hbf/transform.cpp",
+    "sha256": "7d3962d4df6ecc9ea2118dfd598194badd1d4719280428dda4302b4c7437c365"
+  },
+  "raw_helper_versus_embedded_payload": "helper334027B/6fda; EmbedDevicePtx removes .version/.target/.address_size directives, resulting333982B embeddedpayload; serializer changesC++representation only, explicit sizeof-1 string_view. Header99abe expected historical notcopied."
+}

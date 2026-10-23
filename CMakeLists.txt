@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(HBFSim VERSION 0.1.1 LANGUAGES CXX)
+project(HBFSim VERSION 0.1.2 LANGUAGES CXX)
 
 option(HBFSIM_ENABLE_CUDA "Build CUDA instrumentation and runtime components" ON)
 option(HBFSIM_ENABLE_MQSIM "Build the MQSim-backed host service" ON)
